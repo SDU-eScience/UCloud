@@ -79,17 +79,17 @@ const Registration: React.FunctionComponent = props => {
                     <h3>Mandatory fields</h3>
                     <Label>
                         First name(s) <MandatoryField/>
-                        <Input ref={firstNames} name={"firstNames"} required placeholder={"Example: Jane"}/>
+                        <Input inputRef={firstNames} name={"firstNames"} required placeholder={"Example: Jane"}/>
                     </Label>
 
                     <Label>
                         Last name <MandatoryField/>
-                        <Input ref={lastName} name={"lastName"} required placeholder={"Example: Doe"}/>
+                        <Input inputRef={lastName} name={"lastName"} required placeholder={"Example: Doe"}/>
                     </Label>
 
                     <Label>
                         Email <MandatoryField/>
-                        <Input ref={email} name={"email"} required type={"email"}
+                        <Input inputRef={email} name={"email"} required type={"email"}
                                placeholder={"Example: jane@example.com"}/>
                         {!showResendButton ?
                             null :
@@ -105,22 +105,22 @@ const Registration: React.FunctionComponent = props => {
 
                         <Label>
                             Full name of organization
-                            <Input ref={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"}/>
+                            <Input inputRef={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"}/>
                         </Label>
 
                         <Label>
                             Department
-                            <Input ref={department} name={"department"} placeholder={"Example: Department of Examples"}/>
+                            <Input inputRef={department} name={"department"} placeholder={"Example: Department of Examples"}/>
                         </Label>
 
                         <Label>
                             Position
-                            <Input ref={position} name={"position"} placeholder={"Example: Professor"}/>
+                            <Input inputRef={position} name={"position"} placeholder={"Example: Professor"}/>
                         </Label>
 
                         <Label>
                             Research field(s)
-                            <Input ref={researchField} name={"researchField"} placeholder={"Example: Experimental examples"}/>
+                            <Input inputRef={researchField} name={"researchField"} placeholder={"Example: Experimental examples"}/>
                         </Label>
                     </>}
 

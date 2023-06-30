@@ -104,9 +104,9 @@ const Resources: React.FunctionComponent = () => {
     }, [maximizedUsage]);
 
     const reloadPage = useCallback(() => {
-        fetchUsage({...retrieveUsage({...filters})});
-        fetchBreakdowns({...retrieveBreakdown({...filters})});
-        fetchWallets({...browseWallets({itemsPerPage: 50, ...filters})});
+        fetchUsage(retrieveUsage({...filters}));
+        fetchBreakdowns(retrieveBreakdown({...filters}));
+        fetchWallets(browseWallets({itemsPerPage: 50, ...filters}));
         setMaximizedUsage(null);
     }, [filters]);
 

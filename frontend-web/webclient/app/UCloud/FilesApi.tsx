@@ -488,6 +488,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
+                    if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
                     return selected.length === 1 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
@@ -562,6 +563,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
+                    if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
                     return (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
                         selected.length > 0 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));

@@ -1377,13 +1377,6 @@ export class ResourceBrowser<T> {
             if (allowCreation) menu.append(menuList);
             let shortcutNumber = counter;
 
-            // Note(Jonas): Push confirm actions to bottom.
-            operations.sort((a, b) => {
-                if (!isOperation(a)) return 1;
-                if (!isOperation(b)) return -1;
-                return a.confirm ? 1 : -1;
-            })
-
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
                 if (!isOperation(child)) {
@@ -1396,21 +1389,23 @@ export class ResourceBrowser<T> {
 
                 const myIndex = shortcutNumber - 1;
                 const isConfirm = isOperation(child) && child.confirm;
-                if (!isConfirm) {
-                    this.contextMenuHandlers.push(() => {
+                this.contextMenuHandlers.push(() => {
+                    if (!isConfirm) {
                         child.onClick(selected, callbacks, page);
-                    });
-                    shortcutNumber++;
-                }
+                        shortcutNumber++;
+                    } else {
+                        // This case is handled inside the button.
+                    }
+                });
 
                 item.addEventListener("mouseover", () => {
                     this.findActiveContextMenuItem(true);
-                    if (!isConfirm) this.selectContextMenuItem(myIndex);
+                    this.selectContextMenuItem(myIndex);
                 });
                 item.addEventListener("click", ev => {
                     ev.stopPropagation();
                     this.findActiveContextMenuItem(true);
-                    if (!isConfirm) this.selectContextMenuItem(myIndex);
+                    this.selectContextMenuItem(myIndex);
                     this.onContextMenuItemSelection();
                 });
 
@@ -1691,7 +1686,7 @@ export class ResourceBrowser<T> {
     }
 
     findActiveContextMenuItem(clearActive: boolean = true): number {
-        const listItems = this.contextMenu.querySelectorAll("ul li");
+        const listItems = this.contextMenu.querySelectorAll(".context-menu > ul > li");
         let selectedIndex = -1;
         for (let i = 0; i < listItems.length; i++) {
             const item = listItems.item(i);
@@ -1706,7 +1701,7 @@ export class ResourceBrowser<T> {
     }
 
     selectContextMenuItem(index: number) {
-        const listItems = this.contextMenu.querySelectorAll("ul li");
+        const listItems = this.contextMenu.querySelectorAll(".context-menu > ul > li");
         if (index < 0 || index >= listItems.length) return;
         listItems.item(index).setAttribute("data-selected", "true");
     }
@@ -2903,6 +2898,17 @@ export class ResourceBrowser<T> {
                 background: var(--tableRowHighlight);
             }
 
+            .file-browser .context-menu > ul > *:first-child {
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+            }
+            
+            .file-browser .context-menu > ul > *:last-child,
+             .file-browser .context-menu > ul > li:last-child > button {
+                border-bottom-left-radius: 8px;
+                border-bottom-right-radius: 8px;
+            }
+            
             .file-browser .rename-field {
                 display: none;
                 position: absolute;
