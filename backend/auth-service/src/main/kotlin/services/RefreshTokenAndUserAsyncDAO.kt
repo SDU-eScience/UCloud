@@ -7,7 +7,6 @@ import dk.sdu.cloud.mapItems
 import dk.sdu.cloud.paginate
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -84,9 +83,9 @@ class RefreshTokenAsyncDAO {
                         setParameter("id", user)
                     },
                     """
-                        SELECT *
-                        FROM refresh_tokens
-                        WHERE associated_user_id = :id
+                        select *
+                        from auth.refresh_tokens
+                        where associated_user_id = :id
                     """
                 )
                 .rows
@@ -107,12 +106,14 @@ class RefreshTokenAsyncDAO {
                         setParameter("time", Time.now())
                     },
                     """
-                        SELECT *
-                        FROM refresh_tokens
-                        WHERE token = :token AND (
-                            refresh_token_expiry is NULL OR
-                            refresh_token_expiry > :time
-                        )
+                        select *
+                        from auth.refresh_tokens
+                        where
+                            token = :token
+                            and (
+                                refresh_token_expiry is null
+                                or refresh_token_expiry > :time
+                            )
                     """
                 )
                 .rows
@@ -128,22 +129,21 @@ class RefreshTokenAsyncDAO {
      */
     suspend fun insert(db: DBContext, tokenAndUser: RefreshTokenAndUser) {
         db.withSession { session ->
-            val principal = session
+            val username = session
                 .sendPreparedStatement(
-                    {
-                        setParameter("user", tokenAndUser.associatedUser)
-                    },
+                    { setParameter("user", tokenAndUser.associatedUser) },
                     """
-                        SELECT * 
-                        FROM principals
-                        WHERE id = :user
+                        select id
+                        from auth.principals
+                        where id = :user
                     """
                 )
                 .rows
                 .singleOrNull()
-                ?.getField(PrincipalTable.id) ?: throw UserException.NotFound()
+                ?.getString(0) ?: throw UserException.NotFound()
+
             session.insert(RefreshTokenTable) {
-                set(RefreshTokenTable.associatedUser, principal)
+                set(RefreshTokenTable.associatedUser, username)
                 set(RefreshTokenTable.token, tokenAndUser.token)
                 set(RefreshTokenTable.csrf, tokenAndUser.csrf)
                 set(RefreshTokenTable.refreshTokenExpiry, tokenAndUser.refreshTokenExpiry)
@@ -175,9 +175,9 @@ class RefreshTokenAsyncDAO {
                     setParameter("csrf", newCsrf)
                 },
                 """
-                    UPDATE refresh_tokens
-                    SET csrf = :csrf
-                    WHERE token = :token
+                    update auth.refresh_tokens
+                    set csrf = :csrf
+                    where token = :token
                 """
             ).rowsAffected
         }
@@ -198,8 +198,8 @@ class RefreshTokenAsyncDAO {
                     setParameter("token", token)
                 },
                 """
-                    DELETE FROM refresh_tokens
-                    WHERE token = :token
+                    delete from auth.refresh_tokens
+                    where token = :token
                 """
             ).rowsAffected > 0
         }
@@ -212,12 +212,10 @@ class RefreshTokenAsyncDAO {
         db.withSession { session ->
             session
                 .sendPreparedStatement(
-                    {
-                        setParameter("time", Time.now())
-                    },
+                    { setParameter("time", Time.now()) },
                     """
-                        DELETE FROM refresh_tokens
-                        WHERE refresh_token_expiry < :time
+                        delete from auth.refresh_tokens
+                        where refresh_token_expiry < :time
                     """
                 )
         }
@@ -234,21 +232,18 @@ class RefreshTokenAsyncDAO {
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
-                    {
-                        setParameter("user", username)
-                    },
+                    { setParameter("user", username) },
                     """
-                        SELECT *
-                        FROM refresh_tokens
-                        WHERE associated_user_id = :user AND
-                                extended_by is NULL
+                        select *
+                        from auth.refresh_tokens
+                        where
+                            associated_user_id = :user
+                            and extended_by is null
                     """
                 )
                 .rows
                 .paginate(pagination)
-                .mapItems {
-                    it.toRefreshTokenAndUser()
-                }
+                .mapItems { it.toRefreshTokenAndUser() }
         }
     }
 
@@ -263,9 +258,10 @@ class RefreshTokenAsyncDAO {
                         setParameter("user", username)
                     },
                     """
-                        DELETE FROM refresh_tokens
-                        WHERE associated_user_id = :user AND 
-                                extended_by is NULL
+                        delete from auth.refresh_tokens
+                        where
+                            associated_user_id = :user
+                            and extended_by is null
                     """
                 )
         }

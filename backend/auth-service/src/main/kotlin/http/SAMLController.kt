@@ -1,11 +1,14 @@
 package dk.sdu.cloud.auth.http
 
 import com.onelogin.saml2.settings.Saml2Settings
+import dk.sdu.cloud.auth.services.IdpService
+import dk.sdu.cloud.auth.services.RegistrationService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.util.urlDecoded
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -20,10 +23,12 @@ private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
 typealias SAMLRequestProcessorFactory = (Saml2Settings, ApplicationCall, Parameters) -> SamlRequestProcessor
 
 class SAMLController(
+    private val idpService: IdpService,
     private val authSettings: Saml2Settings,
     private val samlProcessorFactory: SAMLRequestProcessorFactory,
     private val tokenService: TokenService,
-    private val loginResponder: LoginResponder
+    private val loginResponder: LoginResponder,
+    private val registrationService: RegistrationService,
 ) {
     fun configure(routing: Route): Unit = with(routing) {
         get("metadata") {
@@ -52,9 +57,12 @@ class SAMLController(
         }
 
         post("acs") {
+            val wayfIdp = idpService.findByTitle("wayf")
+
             val params = try {
                 call.receiveParameters()
             } catch (ex: ContentTransformationException) {
+                log.info("ACS failed due to a content transformation error")
                 call.respond(HttpStatusCode.BadRequest)
                 return@post
             }
@@ -72,12 +80,27 @@ class SAMLController(
             val auth = samlProcessorFactory(authSettings, call, params)
             auth.processResponse()
 
-            val user = tokenService.processSAMLAuthentication(auth)
-            if (user == null) {
-                log.debug("User not successfully authenticated")
-                call.respond(HttpStatusCode.Unauthorized)
-            } else {
-                loginResponder.handleSuccessfulLogin(call, service, user)
+            when (val result = tokenService.processSAMLAuthentication(auth)) {
+                is TokenService.SamlAuthenticationResult.Success -> {
+                    loginResponder.handleSuccessfulLogin(call, service, result.person)
+                }
+
+                is TokenService.SamlAuthenticationResult.SuccessButMissingInformation -> {
+                    registrationService.submitRegistration(
+                        result.firstNames,
+                        result.lastName,
+                        result.email,
+                        result.email != null,
+                        result.organization,
+                        wayfIdp.id,
+                        result.id,
+                        call = call,
+                    )
+                }
+
+                TokenService.SamlAuthenticationResult.Failure -> {
+                    call.respond(HttpStatusCode.Unauthorized)
+                }
             }
         }
     }

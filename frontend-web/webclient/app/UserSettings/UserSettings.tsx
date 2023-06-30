@@ -10,7 +10,7 @@ import * as Heading from "@/ui-components/Heading";
 import {ChangePassword} from "@/UserSettings/ChangePassword";
 import {Sessions} from "@/UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
-import {ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
+import {ChangeOptionalUserDetails, ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
 import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 
 interface UserSettingsState {
@@ -47,6 +47,7 @@ const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSetting
                                     <ChangeUserDetails
                                         setLoading={props.setLoading}
                                     />
+                                    <ChangeOptionalUserDetails/>
                                     <ChangeEmailSettings
                                         setLoading={props.setLoading}
                                     />

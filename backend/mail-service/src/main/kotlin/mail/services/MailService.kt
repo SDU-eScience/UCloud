@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.mail.api.Mail
+import dk.sdu.cloud.mail.api.SendDirectMandatoryEmailRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
@@ -40,7 +41,7 @@ class MailService(
     private val authenticatedClient: AuthenticatedClient,
     private val fromAddress: String,
     private val whitelist: List<String>,
-    private val devMode: Boolean = false,
+    private val fakeSendEmails: Boolean = false,
     private val ctx: DBContext,
     private val settingsService: SettingsService
 ) {
@@ -157,13 +158,19 @@ class MailService(
             multipart.addBodyPart(bodyPart)
 
             message.setContent(multipart)
-            if (devMode) {
+            if (fakeSendEmails) {
                 fakeSend(message)
             } else {
                 Transport.send(message)
             }
         } catch (e: Throwable) {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
+        }
+    }
+
+    suspend fun sendDirect(items: List<SendDirectMandatoryEmailRequest>) {
+        for (item in items) {
+            sendEmail(item.recipientEmail, item.mail, item.recipientEmail, fakeSendEmails)
         }
     }
 
@@ -175,7 +182,7 @@ class MailService(
         testMail: Boolean? = false,
         recipientEmail: String? = null
     ) {
-        if (principal.username !in whitelist && !devMode) {
+        if (principal.username !in whitelist && !fakeSendEmails) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
         }
         if (!emailRequestedByUser) {
@@ -208,75 +215,114 @@ class MailService(
                 }
             }
 
-        val recipientAddress = InternetAddress(receivingEmail)
+        sendEmail(receivingEmail, mail, recipient, testMail == true)
+    }
 
-        val text = when (mail) {
+    private fun sendEmail(
+        emailAddress: String,
+        letter: Mail,
+        recipientName: String,
+        testMail: Boolean = false,
+    ) {
+
+        val recipientAddress = InternetAddress(emailAddress)
+
+        val text = when (letter) {
             is Mail.TransferApplicationMail -> {
-                transferOfApplication(recipient, mail.senderProject, mail.receiverProject, mail.applicationProjectTitle)
+                transferOfApplication(
+                    recipientName,
+                    letter.senderProject,
+                    letter.receiverProject,
+                    letter.applicationProjectTitle
+                )
             }
+
             is Mail.GrantApplicationWithdrawnMail -> {
-                closed(recipient, mail.projectTitle, mail.sender)
+                closed(recipientName, letter.projectTitle, letter.sender)
             }
+
             is Mail.GrantApplicationRejectedMail -> {
-                rejected(recipient, mail.projectTitle)
+                rejected(recipientName, letter.projectTitle)
             }
+
             is Mail.GrantApplicationApproveMail -> {
-                approved(recipient, mail.projectTitle)
+                approved(recipientName, letter.projectTitle)
             }
+
             is Mail.GrantApplicationStatusChangedToAdmin -> {
-                statusChangeTemplateToAdmins(mail.status, recipient, mail.sender, mail.projectTitle)
+                statusChangeTemplateToAdmins(letter.status, recipientName, letter.sender, letter.projectTitle)
             }
+
             is Mail.GrantApplicationUpdatedMailToAdmins -> {
-                updatedTemplateToAdmins(mail.projectTitle, recipient, mail.sender, mail.receivingProjectTitle)
+                updatedTemplateToAdmins(letter.projectTitle, recipientName, letter.sender, letter.receivingProjectTitle)
             }
+
             is Mail.GrantApplicationUpdatedMail -> {
-                updatedTemplate(mail.projectTitle, recipient, mail.sender)
+                updatedTemplate(letter.projectTitle, recipientName, letter.sender)
             }
+
             is Mail.GrantApplicationApproveMailToAdmins -> {
-                approvedProjectToAdminsTemplate(recipient, mail.sender, mail.projectTitle)
+                approvedProjectToAdminsTemplate(recipientName, letter.sender, letter.projectTitle)
             }
+
             is Mail.NewGrantApplicationMail -> {
-                newIngoingApplicationTemplate(recipient, mail.sender, mail.projectTitle)
+                newIngoingApplicationTemplate(recipientName, letter.sender, letter.projectTitle)
             }
+
             is Mail.LowFundsMail -> {
                 val walletLines = mutableListOf<String>()
-                mail.projectTitles.forEachIndexed { index, projectTitle ->
-                    val resourceLine = "<li>Resource: ${escapeHtml(mail.categories[index])}</li> <li>Provider: ${escapeHtml(mail.providers[index])}</li>"
+                letter.projectTitles.forEachIndexed { index, projectTitle ->
+                    val resourceLine =
+                        "<li>Resource: ${escapeHtml(letter.categories[index])}</li> <li>Provider: ${escapeHtml(letter.providers[index])}</li>"
                     if (projectTitle != null) {
                         walletLines.add("<li>Project: ${escapeHtml(projectTitle)} <ul> $resourceLine </ul> </li>")
                     } else {
                         walletLines.add("<li>Own workspace, <ul>$resourceLine</ul></li>")
                     }
                 }
-                lowResourcesTemplate(recipient, walletLines)
+                lowResourcesTemplate(recipientName, walletLines)
             }
-            is Mail.StillLowFundsMail  -> {
-                stillLowResources(recipient, mail.category, mail.provider, mail.projectTitle)
+
+            is Mail.StillLowFundsMail -> {
+                stillLowResources(recipientName, letter.category, letter.provider, letter.projectTitle)
             }
+
             is Mail.NewCommentOnApplicationMail -> {
-                newCommentTemplate(recipient, mail.sender, mail.projectTitle, mail.receivingProjectTitle)
+                newCommentTemplate(recipientName, letter.sender, letter.projectTitle, letter.receivingProjectTitle)
             }
+
             is Mail.ProjectInviteMail -> {
-                userInvitedToInviteeTemplate(recipient, mail.projectTitle)
+                userInvitedToInviteeTemplate(recipientName, letter.projectTitle)
             }
+
             is Mail.ResetPasswordMail -> {
-                resetPasswordTemplate(recipient, mail.token)
+                resetPasswordTemplate(recipientName, letter.token)
             }
+
             is Mail.UserLeftMail -> {
-                userLeftTemplate(recipient, mail.leavingUser, mail.projectTitle)
+                userLeftTemplate(recipientName, letter.leavingUser, letter.projectTitle)
             }
+
             is Mail.UserRemovedMail -> {
-                userRemovedTemplate(recipient, mail.leavingUser, mail.projectTitle)
+                userRemovedTemplate(recipientName, letter.leavingUser, letter.projectTitle)
             }
+
             is Mail.UserRemovedMailToUser -> {
-                userRemovedToUserTemplate(recipient, mail.projectTitle)
+                userRemovedToUserTemplate(recipientName, letter.projectTitle)
             }
+
             is Mail.UserRoleChangeMail -> {
-                userRoleChangeTemplate(recipient, mail.subjectToChange, mail.roleChange, mail.projectTitle)
+                userRoleChangeTemplate(recipientName, letter.subjectToChange, letter.roleChange, letter.projectTitle)
             }
+
             is Mail.VerificationReminderMail -> {
-                verifyReminderTemplate(recipient, mail.projectTitle, mail.role)
+                verifyReminderTemplate(recipientName, letter.projectTitle, letter.role)
             }
+
+            is Mail.VerifyEmailAddress -> {
+                verifyEmailAddress(letter.verifyType, letter.username ?: recipientName, letter.token)
+            }
+
             else -> {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.InternalServerError,
@@ -289,7 +335,7 @@ class MailService(
             val message = MimeMessage(session)
             message.setFrom(InternetAddress(fromAddress, "eScience Support"))
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
-            message.subject = mail.subject
+            message.subject = letter.subject
 
             val multipart = MimeMultipart()
 
@@ -315,7 +361,7 @@ class MailService(
             })
 
             message.setContent(multipart)
-            if (devMode || testMail == true) {
+            if (fakeSendEmails || testMail == true) {
                 fakeSend(message)
             } else {
                 Transport.send(message)

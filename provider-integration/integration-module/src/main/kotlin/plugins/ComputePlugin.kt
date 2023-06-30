@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
+import io.ktor.http.*
 import kotlinx.coroutines.channels.ReceiveChannel
 
 data class ComputeSession(
