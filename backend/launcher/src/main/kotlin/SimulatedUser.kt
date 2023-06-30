@@ -12,10 +12,12 @@ import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.db.async.mapItems
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.backend.common.push
 import java.io.File
@@ -372,26 +374,37 @@ class SimulatedUser(
         }
 
         when {
+            chance(10) -> doAction(Action.CreateFolder)
+            chance(10) -> doAction(Action.MoveFolder)
             chance(10) -> doAction(Action.OpenInterface)
             chance(10) -> doAction(Action.OpenTerminal)
-            chance(1) && chance(10) -> doAction(Action.StopJob)
             chance(10) -> doAction(Action.BrowseJobs)
             chance(10) -> doAction(Action.FollowJob)
             chance(10) -> doAction(Action.StartJob)
+            chance(1) -> doAction(Action.StopJob)
             else -> {
                 // Do nothing
             }
         }
     }
 
-    suspend fun browseJobs(): List<Job> {
+    private suspend fun browseJobs(): List<Job> {
         return Jobs.browse.call(
             ResourceBrowseRequest(JobIncludeFlags()),
             client
         ).orThrow().items
     }
 
+    private suspend fun browseFileCollections(): List<FileCollection> {
+        return FileCollections.browse.call(
+            ResourceBrowseRequest(FileCollectionIncludeFlags()),
+            client
+        ).orThrow().items
+    }
+
     enum class Action {
+        CreateFolder,
+        MoveFolder,
         BrowseJobs,
         StartJob,
         StopJob,
@@ -400,8 +413,61 @@ class SimulatedUser(
         OpenTerminal
     }
 
-    suspend fun doAction(action: Action) {
+    private suspend fun doAction(action: Action) {
         when (action) {
+            Action.CreateFolder -> {
+                log.debug("$username Creating folder")
+
+                val drive = browseFileCollections().firstOrNull()
+
+                if (drive != null) {
+                    log.debug("Found drive $drive")
+                    var files = Files.browse.call(
+                        ResourceBrowseRequest(UFileIncludeFlags(path = "/${drive.id}")),
+                        client
+                    ).orThrow().items.filter { !it.id.endsWith("Jobs") }
+
+                    if (files.size < 10) {
+                        Files.createFolder.call(
+                            bulkRequestOf(
+                                FilesCreateFolderRequestItem(
+                                    "/${drive.id}/${generatePassword()}",
+                                    WriteConflictPolicy.REPLACE
+                                )
+                            ),
+                            client
+                        ).orThrow()
+                    }
+                }
+            }
+
+            Action.MoveFolder -> {
+                log.debug("$username Moving folder")
+
+                val drive = browseFileCollections().firstOrNull()
+
+                if (drive != null) {
+                    log.debug("$username found drive ${drive.id}")
+
+                    val file = Files.browse.call(
+                        ResourceBrowseRequest(UFileIncludeFlags(path = "/${drive.id}")),
+                        client
+                    ).orThrow().items.firstOrNull { !it.id.endsWith("Jobs") }
+
+                    if (file != null) {
+                        log.debug("$username found file ${file.id}")
+
+                        val newId = "/${drive.id}/${generatePassword()}"
+                        log.debug("$username moving ${file.id} to $newId")
+
+                        Files.move.call(
+                            bulkRequestOf(FilesMoveRequestItem(file.id, newId, WriteConflictPolicy.REPLACE)),
+                            client
+                        ).orThrow()
+                    }
+                }
+            }
+
             Action.BrowseJobs -> {
                 log.debug("$username Browsing jobs")
                 val jobs = browseJobs()
