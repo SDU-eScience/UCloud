@@ -17,7 +17,6 @@ import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.mapItems
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.backend.common.push
 import java.io.File
@@ -169,70 +168,68 @@ class SimulatedUser(
             this.username = username ?: ""
             this.password = password ?: ""
             refreshToken
-        } else {
-            if (username.isNullOrBlank()) {
-                this.username = "simulated-user-${Time.now()}"
-                this.password = generatePassword()
-                log.debug("Creating user ${this.username}")
+        } else if (username.isNullOrBlank()) {
+            this.username = "simulated-user-${Time.now()}"
+            this.password = generatePassword()
+            log.debug("Creating user ${this.username}")
 
-                UserDescriptions.createNewUser.call(
-                    listOf(
-                        CreateSingleUserRequest(
-                            this.username,
-                            this.password,
-                            "${username}@localhost",
-                            Role.USER,
-                            "First",
-                            "Last"
-                        )
-                    ),
-                    serviceClient
-                ).orThrow().single().refreshToken
-            } else {
-                // TODO(Brian): Login using password does not seem to work currently
-
-                /*log.debug("Trying to log in as ${this.username}")
-
-                val login = AuthDescriptions.passwordLogin.call(
-                    Unit,
-                    serviceClient.withHttpBody(
-                        """
-                            -----boundary
-                            Content-Disposition: form-data; name="service"
-
-                            dev-web
-                            -----boundary
-                            Content-Disposition: form-data; name="username"
-
-                            user
-                            -----boundary
-                            Content-Disposition: form-data; name="password"
-
-                            mypassword
-                            -----boundary--
-                        """.trimIndent(),
-                        ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
+            UserDescriptions.createNewUser.call(
+                listOf(
+                    CreateSingleUserRequest(
+                        this.username,
+                        this.password,
+                        "${username}@localhost",
+                        Role.USER,
+                        "First",
+                        "Last"
                     )
-                ).ctx as OutgoingHttpCall
+                ),
+                serviceClient
+            ).orThrow().single().refreshToken
+        } else {
+            // TODO(Brian): Login using password does not seem to work currently
 
-                val response = login.response!!
-                log.debug("$response")
-                log.debug("${response.headers}")
-                log.debug("${HttpHeaders.SetCookie}")
-                val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
-                log.debug("${cookiesSet}")
+            /*log.debug("Trying to log in as ${this.username}")
 
-                val split = cookiesSet.split(";").associate {
-                    val key = it.substringBefore('=')
-                    val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
-                    key to value
-                }
+            val login = AuthDescriptions.passwordLogin.call(
+                Unit,
+                serviceClient.withHttpBody(
+                    """
+                        -----boundary
+                        Content-Disposition: form-data; name="service"
 
-                log.debug("$split")
+                        dev-web
+                        -----boundary
+                        Content-Disposition: form-data; name="username"
 
-                split["refreshToken"]!!*/
-                ""
+                        user
+                        -----boundary
+                        Content-Disposition: form-data; name="password"
+
+                        mypassword
+                        -----boundary--
+                    """.trimIndent(),
+                    ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
+                )
+            ).ctx as OutgoingHttpCall
+
+            val response = login.response!!
+            log.debug("$response")
+            log.debug("${response.headers}")
+            log.debug("${HttpHeaders.SetCookie}")
+            val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
+            log.debug("${cookiesSet}")
+
+            val split = cookiesSet.split(";").associate {
+                val key = it.substringBefore('=')
+                val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
+                key to value
             }
+
+            log.debug("$split")
+
+            split["refreshToken"]!!*/
+            ""
         }
 
         log.debug("${this.username} logged in with token: ${this.refreshToken}")
@@ -358,7 +355,6 @@ class SimulatedUser(
     //  - Copy some files around (maybe)?
 
     suspend fun simulate() {
-        println("Started simulating $username")
         while (true) {
             val delayMillis = Random.nextLong(2000, 5000)
             delay(delayMillis)
