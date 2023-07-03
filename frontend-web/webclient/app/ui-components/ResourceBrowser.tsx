@@ -1306,9 +1306,27 @@ export class ResourceBrowser<T> {
 
                 if (inContextMenu) {
                     button.style.width = "100%";
+                    const ucloudIcons = button.querySelector("button > div.ucloud-native-icons");
+                    if (ucloudIcons) {
+                        ucloudIcons["style"].left = "9px";
+                        ucloudIcons["style"].top = "10px";
+                    }
+                    button.querySelectorAll("button > div.icons").forEach(it => {
+                        it["style"].left = "6px";
+                        it["style"].top = "10px";
+                    });
+                    button.querySelector("button > ul")!["style"].marginLeft = "-90px";
+                } else {
+                    const textChild = button.querySelector("button > ul")?.children.item(0);
+                    if (textChild) textChild["style"].paddingTop = "8px";
+                    button.querySelectorAll("button > div.icons").forEach(it => {
+                        it["style"].left = "10px";
+                        it["style"].top = "12px";
+                    });
                 }
 
                 element.style.padding = "0";
+
                 element.append(button);
                 return;
             }
@@ -1392,11 +1410,13 @@ export class ResourceBrowser<T> {
                 this.contextMenuHandlers.push(() => {
                     if (!isConfirm) {
                         child.onClick(selected, callbacks, page);
-                        shortcutNumber++;
                     } else {
+                        // if (!useContextMenu) this.closeContextMenu();
                         // This case is handled inside the button.
                     }
                 });
+
+                if (!isConfirm) shortcutNumber++;
 
                 item.addEventListener("mouseover", () => {
                     this.findActiveContextMenuItem(true);
@@ -2733,13 +2753,13 @@ export class ResourceBrowser<T> {
                 margin-bottom: 8px;
             }
             
-            .file-browser header ul[data-no-slashes="true"] li::before {
+            .file-browser header > div > ul[data-no-slashes="true"] li::before {
                 display: inline-block;
                 content: unset;
                 margin: 0;
             }
 
-            .file-browser header ul li::before {
+            .file-browser header > div > ul li::before {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;

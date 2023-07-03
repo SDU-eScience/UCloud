@@ -78,6 +78,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     browser.renderOperations();
 
                     const creatableProducts: Product[] = [];
+                    console.warn("TODO: Add restriction for Ingress creation");
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
                             creatableProducts.push(product);

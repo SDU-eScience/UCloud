@@ -383,23 +383,6 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         )}
     </Button>;
 };
-/* 
-<button class="button2 confirm-button40" type="button" style="border-radius: 0px;">
-    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Icon" class="ucloud-native-icons" width="16" height="16" />
-    <div class="icons">
-        <svg classname="progress" viewBox="0 0 32 32">
-            <circle r="8" cx="16" cy="16"></circle>
-        </svg>
-        <svg classname="tick" viewBox="0 0 24 24">
-            <polyline points="18,7 11,16 6,12"></polyline>
-        </svg>
-    </div>
-    <ul style="text-align: center;">
-        <li>Move to trash</li>
-        <li>Hold to confirm</li>
-        <li>Done</li>
-    </ul>
-</button> */
 
 export function ConfirmationButtonPlainHTML(
     icon: HTMLDivElement,
@@ -414,8 +397,9 @@ export function ConfirmationButtonPlainHTML(
     },
 ): HTMLElement {
     const button = document.createElement("button");
-    button.className = classConcat(ButtonClass, ConfirmButtonClass);
+    
     {
+        button.className = classConcat(ButtonClass, ConfirmButtonClass);
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
         button.setAttribute("data-no-text", (!actionText).toString());
         button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(opts.color ?? "blue")})`)
@@ -426,9 +410,9 @@ export function ConfirmationButtonPlainHTML(
         button.setAttribute("data-square", (!!opts.asSquare).toString());
         button.setAttribute("data-fullwidth", "false");
         button.setAttribute("data-size", "standard");
+        button.style.removeProperty("background-color");
     }
 
-    button.style.removeProperty("background-color");
 
     let timeout = {id: -1};
     let timer = {time: holdToConfirmTime};

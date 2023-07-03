@@ -57,6 +57,7 @@ export function ExperimentalLicenses(): JSX.Element {
                     callAPI(LicenseApi.retrieveProducts())
                 ).then(res => {
                     const creatableProducts: Product[] = [];
+                    console.warn("TODO: Add restriction for Licenses creation");
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
                             // TODO(Jonas): What to guard against?
