@@ -2,7 +2,7 @@ import * as React from "react";
 import {
     ProductSupport,
     Resource,
-    ResourceApi, ResourceIncludeFlags,
+    ResourceApi, ResourceBrowseCallbacks, ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
@@ -11,6 +11,7 @@ import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductIngress} from "@/Accounting";
+import {Operation} from "@/ui-components/Operation";
 
 export interface IngressSpecification extends ResourceSpecification {
     domain: string;

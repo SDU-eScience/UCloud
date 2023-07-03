@@ -59,7 +59,6 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     const creatableProducts: Product[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
-                            // TODO(Jonas): What to guard against?
                             creatableProducts.push(product);
                         }
                     }

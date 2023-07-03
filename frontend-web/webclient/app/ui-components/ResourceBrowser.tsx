@@ -1403,6 +1403,9 @@ export class ResourceBrowser<T> {
                 }
 
                 var item: HTMLElement = document.createElement("li");
+                //if (child.tag === "create") {
+                //    item.style.backgroundColor = "var(--blue)";
+                //}
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
@@ -3276,19 +3279,20 @@ export function resourceCreationWithProductSelector<T>(
     return {startCreation, cancelCreation, portal};
 }
 
-export function providerIcon(providerId: string): HTMLElement {
+export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>): HTMLElement {
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const outer = div("");
+    outer.className = "provider-icon"
     outer.style.background = "var(--blue)";
     outer.style.borderRadius = "8px";
-    outer.style.width = "40px";
-    outer.style.height = "40px";
+    outer.style.width = opts?.width ?? "40px";
+    outer.style.height = opts?.height ?? "40px";
 
     const inner = div("");
     inner.style.backgroundSize = "contain";
     inner.style.width = "100%";
     inner.style.height = "100%";
-    inner.style.fontSize = "30px";
+    inner.style.fontSize = opts?.fontSize ?? "30px";
     inner.style.color = "white"
     if (myInfo) {
         outer.style.padding = "5px";

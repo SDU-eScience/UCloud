@@ -12,6 +12,7 @@ import {
     Filter,
     OperationOrGroup,
     placeholderImage,
+    providerIcon,
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
@@ -771,6 +772,24 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         result.push({title: i === 0 ? collectionName : component, absolutePath: builder});
                     }
 
+                    var pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
+                    if (!pIcon) {
+                        const providerIconWrapper = document.createElement("div");
+                        providerIconWrapper.className = "provider-icon";
+                        const url = browser.header.querySelector("div.header-first-row");
+                        if (url) url.prepend(providerIconWrapper);
+                        pIcon = providerIconWrapper;
+                    }
+
+                    if (pIcon && collection) {
+                        const icon = providerIcon(collection.specification.product.provider, {
+                            fontSize: "22px", width: "30px", height: "30px"
+                        });
+                        icon.style.marginRight = "8px";
+                        pIcon.replaceChildren(icon);
+
+                    }
+
                     return result;
                 });
 
@@ -972,6 +991,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         if (browser.currentPath !== newPath) return;
                         browser.renderRows();
                     });
+
                 });
 
                 browser.on("wantToFetchNextPage", async (path) => {
