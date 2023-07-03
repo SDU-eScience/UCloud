@@ -125,6 +125,7 @@ export function extensionType(ext: string): ExtensionType {
         case "xml":
         case "json":
         case "yml":
+        case "yaml":
         case "ini":
         case "sbatch":
             return "code";
