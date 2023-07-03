@@ -14,6 +14,7 @@ private const val NORMAL_PORT_2 = 443
 private const val NORMAL_PORT_3 = 0
 
 object KtorUtils {
+    var defaultSelfUrlHost = "https://cloud.sdu.dk"
     internal var runningInProduction = true
 
     /**
@@ -53,7 +54,7 @@ object KtorUtils {
                 String.format("%s://%s:%s", scheme, name, serverPort)
             }
         } else {
-            "https://cloud.sdu.dk"
+            defaultSelfUrlHost
         }
     }
 

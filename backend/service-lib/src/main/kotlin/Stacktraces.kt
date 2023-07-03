@@ -35,6 +35,7 @@ fun makeStackFrameReadable(className: String, methodName: String): ProposedStack
     if (className.startsWith("kotlin.Throwable") && methodName.startsWith("<init>")) return null
     if (className.startsWith("kotlin.Exception") && methodName.startsWith("<init>")) return null
     if (className.startsWith("kotlin.RuntimeException") && methodName.startsWith("<init>")) return null
+    if (className.startsWith("kotlin.coroutines.jvm")) return null
 
     if (methodName.contains("COROUTINE$")) return null
     if (className.contains("COROUTINE$")) return null

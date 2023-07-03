@@ -22,9 +22,9 @@ where
     w.account_id = invalid.account_id;
 
 insert into auth.principals
-    (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, phone_number, title, hashed_password, salt, org_id, email)
+    (dtype, id, created_at, modified_at, role, first_names, last_name, hashed_password, salt, org_id, email)
 values
-    ('PASSWORD', 'ghost', now(), now(), 'USER', 'Invalid', 'Invalid', null, null, null, E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'ghost@escience.sdu.dk');
+    ('PASSWORD', 'ghost', now(), now(), 'USER', 'Invalid', 'Invalid', E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'ghost@escience.sdu.dk');
 
 update project.group_members gm
 set username = 'ghost'

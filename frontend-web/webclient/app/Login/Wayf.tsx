@@ -29,7 +29,7 @@ function eraseCookie(name: string): void {
 }
 
 type WayfTestState = "success" | "2fa";
-const testState: WayfTestState | null = "2fa";
+const testState: WayfTestState | null = null;
 
 function Wayf(): JSX.Element | null {
     const authCookieName = "authState";

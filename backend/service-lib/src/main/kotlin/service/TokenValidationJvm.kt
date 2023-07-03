@@ -14,6 +14,7 @@ import java.security.KeyFactory
 import java.security.cert.CertificateException
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.*
@@ -22,7 +23,10 @@ private const val CERT_CHUNK_SIZE = 64
 
 typealias TokenValidationJWT = TokenValidation<DecodedJWT>
 
-class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
+class InternalTokenValidationJWT(
+    val algorithm: Algorithm,
+    private val issuer: String? = "cloud.sdu.dk"
+) : TokenValidation<DecodedJWT> {
     //override val tokenType = DecodedJWT::class.java
 
     override fun canHandleToken(token: Any?): Boolean {
@@ -31,7 +35,7 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
 
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {
-            withIssuer("cloud.sdu.dk")
+            if (issuer != null) withIssuer(issuer)
             if (audience != null) {
                 withAudience(*audience.toTypedArray())
             }
@@ -67,7 +71,7 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
             }
         }
 
-        private fun formatCert(cert: String, heads: Boolean): String {
+        fun formatCert(cert: String, heads: Boolean): String {
             var x509cert: String = cert.replace("\\x0D", "").replace("\r", "").replace("\n", "").replace(" ", "")
 
             if (!x509cert.isEmpty()) {
@@ -97,12 +101,30 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
             return newStr
         }
 
-        fun withPublicCertificate(publicCertificate: String): TokenValidationJWT {
-            return InternalTokenValidationJWT(Algorithm.RSA256(parsePublicKey(publicCertificate), null))
+        fun withPublicCertificate(publicCertificate: String, issuer: String? = "cloud.sdu.dk"): TokenValidationJWT {
+            return InternalTokenValidationJWT(Algorithm.RSA256(parsePublicKey(publicCertificate), null), issuer)
         }
 
         fun withSharedSecret(sharedSecret: String): TokenValidationJWT {
             return InternalTokenValidationJWT(Algorithm.HMAC512(sharedSecret))
+        }
+
+        fun withEs256(publicKey: String, issuer: String?): TokenValidationJWT {
+            val normalizedKey = publicKey
+                .replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replace("\n", "")
+                .replace("\r", "") // Remove various types of whitespace which might be present because of bad YAML.
+                .replace(" ", "")  // Multi-line strings in YAML are hard to remember after all.
+                .replace("\t", "")
+
+            val decoded = Base64.getDecoder().decode(normalizedKey)
+            val key = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(decoded)) as ECPublicKey
+
+            return InternalTokenValidationJWT(
+                Algorithm.ECDSA256(key, null),
+                issuer = issuer,
+            )
         }
 
         fun parsePublicKey(key: String): RSAPublicKey {

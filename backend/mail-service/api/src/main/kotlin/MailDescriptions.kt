@@ -24,6 +24,12 @@ data class SendSupportEmailRequest(
     val message: String
 )
 
+@Serializable
+data class SendDirectMandatoryEmailRequest(
+    val recipientEmail: String,
+    val mail: Mail,
+)
+
 typealias SendSupportEmailResponse = Unit
 
 @Serializable
@@ -154,6 +160,10 @@ object MailDescriptions : CallDescriptionContainer("mail") {
         documentation {
             summary = "Sends an email to an end-user based on a pre-defined template"
         }
+    }
+
+    val sendDirect = call("sendDirect", BulkRequest.serializer(SendDirectMandatoryEmailRequest.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "sendDirect", roles = Roles.PRIVILEGED)
     }
 
     val toggleEmailSettings = call("toggleEmailSettings", BulkRequest.serializer(EmailSettingsItem.serializer()), ToggleEmailSettingsResponse.serializer(), CommonErrorMessage.serializer()) {

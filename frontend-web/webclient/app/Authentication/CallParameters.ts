@@ -6,5 +6,6 @@ export interface CallParameters {
     withCredentials?: boolean;
     projectOverride?: string;
     accessTokenOverride?: string;
+    unauthenticated?: boolean;
 }
 

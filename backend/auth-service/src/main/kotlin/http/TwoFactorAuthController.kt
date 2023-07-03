@@ -51,7 +51,7 @@ class TwoFactorAuthController(
         if (!verified && challenge == null) {
             fail()
         }
-        if (challenge != null ) {
+        if (challenge != null) {
             when {
                 challenge.type.contains(TwoFactorChallengeType.LOGIN.name) -> {
                     if (verified) {
@@ -64,6 +64,7 @@ class TwoFactorAuthController(
                         fail()
                     }
                 }
+
                 challenge.type.contains(TwoFactorChallengeType.SETUP.name) -> {
                     if (verified) {
                         twoFactorChallengeService.upgradeCredentials(challenge.credentials)
