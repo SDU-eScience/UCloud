@@ -21,9 +21,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.TreeSet
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReferenceArray
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 class ResourceStoreByOwner<T>(
     val type: String,
@@ -310,7 +315,7 @@ class ResourceStoreByOwner<T>(
     }
 
     companion object {
-        // NOTE(Dan): 99% have less than ~1300, we might want to decrease the store size to 1024.
+        // NOTE(Dan): 99% of all workspaces have less than ~1300 entries, 1024 seem like a good target.
         const val STORE_SIZE = 1024
 
         private val ivSpecies = IntVector.SPECIES_PREFERRED
@@ -339,6 +344,8 @@ class ResourceManagerByOwner<T>(
     private val blockMutationMutex = Mutex()
     private val root: Block<T> = Block()
 
+    // ID index
+    // =================================================================================================================
     // NOTE(Dan): The IdIndex contains references to all resources that we have loaded by their ID. Indexes we have
     // stored must always be up-to-date with the real state, meaning that we do not store partial blocks but only
     // complete blocks. References stored within a block are allowed to point to invalid data and/or unloaded data.
@@ -477,6 +484,107 @@ class ResourceManagerByOwner<T>(
         return findOrCreateStore(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
     }
 
+    // Provider index
+    // =================================================================================================================
+    // NOTE(Dan): This index contains references to all resources that are owned by a provider. It becomes automatically
+    // populated when a provider contacts us about any resource/when a user requests a resource from them.
+    private val providerIndex = AtomicReferenceArray<ProviderIndex>(MAX_PROVIDERS)
+    private val providerIndexMutex = Mutex() // NOTE(Dan): Only needed to modify the list of indices
+    private val providerOfProducts = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { productId ->
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("product_id", productId) },
+                """
+                    select pc.provider
+                    from
+                        accounting.products p
+                        join accounting.product_categories pc on p.category = pc.id
+                    where
+                        p.id = :product_id::bigint
+                """
+            ).rows.singleOrNull()?.getString(0)
+        }
+    }
+
+    private class ProviderIndex(val provider: String) {
+        private val uidReferences = TreeSet<Int>()
+        private val pidReferences = TreeSet<Int>()
+        private val mutex = ReadWriterMutex()
+
+        suspend fun registerUsage(uid: Int, pid: Int) {
+            mutex.withWriter {
+                if (pid != 0) {
+                    pidReferences.add(pid)
+                } else {
+                    uidReferences.add(uid)
+                }
+            }
+        }
+
+        suspend fun findUidStores(output: IntArray, minimumUid: Int): Int {
+            mutex.withReader {
+                var ptr = 0
+                for (entry in uidReferences.tailSet(minimumUid)) {
+                    output[ptr++] = entry
+                    if (ptr >= output.size) break
+                }
+                return ptr
+            }
+        }
+
+        suspend fun findPidStores(output: IntArray, minimumPid: Int): Int {
+            mutex.withReader {
+                var ptr = 0
+                for (entry in pidReferences.tailSet(minimumPid)) {
+                    output[ptr++] = entry
+                    if (ptr >= output.size) break
+                }
+                return ptr
+            }
+        }
+    }
+
+    private suspend fun findOrLoadProviderIndex(provider: String): ProviderIndex {
+        val initialResult = (0..<MAX_PROVIDERS).find { idx -> providerIndex[idx]?.provider == provider }
+        if (initialResult != null) {
+            return providerIndex[initialResult]
+        }
+
+        providerIndexMutex.withLock {
+            val resultAfterLock = (0..<MAX_PROVIDERS).find { idx -> providerIndex[idx]?.provider == provider }
+            if (resultAfterLock != null) return providerIndex[resultAfterLock]
+
+            val result = ProviderIndex(provider)
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("type", type)
+                        setParameter("provider", provider)
+                    },
+                    """
+                        select distinct u.uid, project.pid 
+                        from
+                            provider.resource r
+                            join accounting.products p on r.product = p.id
+                            join accounting.product_categories pc on p.category = pc.id
+                            join auth.principals u on r.created_by = u.id
+                            left join project.projects project on r.project = project.id
+                        where
+                            pc.provider = :provider
+                            and r.type = :type
+                    """
+                ).rows.forEach { row ->
+                    val uid = row.getInt(0)!!
+                    val pid = row.getInt(1)
+
+                    result.registerUsage(uid, pid ?: 0)
+                }
+            }
+
+            return result
+        }
+    }
+
     override suspend fun create(
         idCard: IdCard,
         product: Int,
@@ -497,6 +605,10 @@ class ResourceManagerByOwner<T>(
             } else {
                 val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
                 index.register(id, if (pid != 0) pid else uid, pid == 0)
+
+                val providerId = providerOfProducts.get(product) ?: error("Unknown product? $product")
+                findOrLoadProviderIndex(providerId).registerUsage(uid, pid)
+
                 return id
             }
         }
@@ -508,18 +620,85 @@ class ResourceManagerByOwner<T>(
         next: String?,
         flags: ResourceIncludeFlags,
     ): ResourceStore.BrowseResult {
-        if (idCard !is IdCard.User) TODO()
-        val uid = if (idCard.activeProject < 0) 0 else idCard.uid
-        val pid = idCard.activeProject
-        val root = findOrCreateStore(uid, pid)
+        when (idCard) {
+            is IdCard.Provider -> {
+                val storeArray = IntArray(128)
+                val providerIndex = findOrLoadProviderIndex(idCard.name)
 
-        var store: ResourceStoreByOwner<T>? = root
-        var offset = 0
-        while (store != null) {
-            offset += store.search(idCard, outputBuffer, offset) { true }
-            store = store.next
+                var minimumUid = 0
+                var minimumPid = 0
+
+                if (next != null && next.startsWith("p-")) {
+                    minimumUid = Int.MAX_VALUE
+                    minimumPid = next.removePrefix("p-").toIntOrNull() ?: Int.MAX_VALUE
+                } else if (next != null && next.startsWith("u-")) {
+                    minimumUid = next.removePrefix("u-").toIntOrNull() ?: Int.MAX_VALUE
+                }
+
+                var didCompleteUsers = minimumUid == Int.MAX_VALUE
+                var didCompleteProjects = minimumPid == Int.MAX_VALUE
+
+                var offset = 0
+                while (minimumUid < Int.MAX_VALUE && offset < outputBuffer.size) {
+                    println("UID: $minimumUid")
+                    val resultCount = providerIndex.findUidStores(storeArray, minimumUid)
+                    println("resultCount: $resultCount")
+
+                    for (i in 0..<resultCount) {
+                        val store = findOrCreateStore(storeArray[i], 0)
+                        offset += store.search(idCard, outputBuffer, offset) { true }
+                    }
+                    println("offset: $offset")
+
+                    if (resultCount == 0) {
+                        didCompleteUsers = true
+                        break
+                    }
+                    minimumUid = storeArray[resultCount - 1]
+                }
+
+                while (minimumPid < Int.MAX_VALUE && offset < outputBuffer.size) {
+                    println("PID: $minimumPid")
+                    val resultCount = providerIndex.findPidStores(storeArray, minimumUid)
+                    println("resultCount: $resultCount")
+
+                    for (i in 0..<resultCount) {
+                        val store = findOrCreateStore(0, storeArray[i])
+                        offset += store.search(idCard, outputBuffer, offset) { true }
+                    }
+                    println("offset: $offset")
+
+                    if (resultCount == 0) {
+                        didCompleteProjects = true
+                        break
+                    }
+                    minimumPid = storeArray[resultCount - 1]
+                }
+
+                return ResourceStore.BrowseResult(
+                    offset,
+                    when {
+                        didCompleteProjects -> null
+                        didCompleteUsers -> "p-$minimumPid"
+                        else -> "u-$minimumUid"
+                    }
+                )
+            }
+
+            is IdCard.User -> {
+                val uid = if (idCard.activeProject < 0) 0 else idCard.uid
+                val pid = idCard.activeProject
+                val root = findOrCreateStore(uid, pid)
+
+                var store: ResourceStoreByOwner<T>? = root
+                var offset = 0
+                while (store != null) {
+                    offset += store.search(idCard, outputBuffer, offset) { true }
+                    store = store.next
+                }
+                return ResourceStore.BrowseResult(offset, null)
+            }
         }
-        return ResourceStore.BrowseResult(offset, null)
     }
 
     override suspend fun addUpdate(idCard: IdCard, id: Long, updates: List<ResourceStore.Update>) {
@@ -607,6 +786,10 @@ class ResourceManagerByOwner<T>(
 
         result.load()
         return result
+    }
+
+    companion object {
+        const val MAX_PROVIDERS = 256
     }
 }
 
@@ -732,6 +915,68 @@ object ResourceIdAllocator {
                     ).rows.singleOrNull()?.getLong(0) ?: 0L
                 )
             }
+        }
+    }
+}
+
+// Section 4.2 of the "Little Book of Semaphores"
+// https://greenteapress.com/semaphores/LittleBookOfSemaphores.pdf
+class ReadWriterMutex {
+    private val turnstile = Mutex()
+
+    private var readers = 0
+    private val readerMutex = Mutex()
+
+    private val roomEmpty = Mutex()
+
+    suspend fun acquireRead() {
+        turnstile.withLock { /* do nothing */ }
+        readerMutex.withLock {
+            readers++
+            if (readers == 1) {
+                roomEmpty.lock()
+            }
+        }
+    }
+
+    suspend fun releaseRead() {
+        readerMutex.withLock {
+            readers--
+            if (readers == 0) {
+                roomEmpty.unlock()
+            }
+        }
+    }
+
+    suspend fun acquireWrite() {
+        turnstile.lock()
+        roomEmpty.lock()
+    }
+
+    suspend fun releaseWrite() {
+        turnstile.unlock()
+        roomEmpty.unlock()
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    suspend inline fun <R> withReader(block: () -> R): R {
+        contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+        acquireRead()
+        try {
+            return block()
+        } finally {
+            releaseRead()
+        }
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    suspend inline fun <R> withWriter(block: () -> R): R {
+        contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+        acquireWrite()
+        try {
+            return block()
+        } finally {
+            releaseWrite()
         }
     }
 }
