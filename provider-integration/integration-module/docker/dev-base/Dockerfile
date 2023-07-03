@@ -1,6 +1,6 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
-RUN apt-get update && apt-get -y install locales
+RUN apt-get clean && apt-get update && apt-get -y install locales
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LC_TYPE en_US.UTF-8
@@ -9,7 +9,7 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN apt-get update && apt-get -qq -y install curl wget unzip zip sudo libssl-dev gcc g++ zlib1g zlib1g-dev
 RUN export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | bash
 RUN bash -c "export SDKMAN_DIR='/usr/local/sdkman' && source /usr/local/sdkman/bin/sdkman-init.sh && \
-    yes | sdk i java 22.1.0.r17-grl && \
+    yes | sdk i java 20.0.1-graalce && \
     yes | sdk i gradle 7.4.2"
 RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl -o /tmp/kubectl
 RUN mv /tmp/kubectl /usr/bin/kubectl

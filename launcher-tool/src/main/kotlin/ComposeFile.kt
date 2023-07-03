@@ -133,7 +133,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.1.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.3.0",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "backend",

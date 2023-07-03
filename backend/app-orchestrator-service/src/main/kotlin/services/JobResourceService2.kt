@@ -51,11 +51,9 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.util.TreeMap
 import kotlin.math.absoluteValue
 import kotlin.math.min
 import kotlin.random.Random
-import kotlin.reflect.KProperty
 import kotlin.time.ExperimentalTime
 
 data class InternalJobState(
@@ -92,7 +90,7 @@ class JobResourceService2(
     private val _providers: Providers<*>?,
 ) {
     private val idCards = IdCardServiceImpl(db)
-    private val documents = ResourceManagerByOwner<InternalJobState>(
+    private val documents = ResourceManagerByOwner(
         "job",
         db,
         ResourceManagerByOwner.Callbacks(

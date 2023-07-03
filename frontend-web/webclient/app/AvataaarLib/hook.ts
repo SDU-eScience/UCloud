@@ -7,6 +7,7 @@ class AvatarState extends UState<AvatarState> {
     private cache: Record<string, AvatarType> = {};
 
     updateCache(usernames: string[]): Promise<void> {
+        /*
         const usernamesToUse = usernames.filter(it => !this.cache.hasOwnProperty(it));
         if (usernamesToUse.length === 0) return Promise.resolve();
 
@@ -18,6 +19,8 @@ class AvatarState extends UState<AvatarState> {
                 this.cache = newCache;
             }
         });
+         */
+        return Promise.resolve();
     }
 
     avatar(username: string): AvatarType {

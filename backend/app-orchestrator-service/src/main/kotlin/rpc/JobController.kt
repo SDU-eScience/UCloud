@@ -1,48 +1,220 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.util.asController
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags
 import dk.sdu.cloud.app.orchestrator.api.Jobs
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
-import dk.sdu.cloud.app.orchestrator.services.IdCardServiceImpl
-import dk.sdu.cloud.app.orchestrator.services.InternalJobState
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
-import dk.sdu.cloud.app.orchestrator.services.ResourceManagerByOwner
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.feature
+import dk.sdu.cloud.micro.requestChunkOrNull
+import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
-import io.ktor.server.response.*
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.toReadableStacktrace
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class JobController(
     private val db: DBContext,
     private val orchestrator: JobOrchestrator,
+    private val micro: Micro,
 ) : Controller {
+    val jobs = JobResourceService2(db, null)
+    @OptIn(DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        if (true) {
-            val jobs = JobResourceService2(db, null)
+        if (micro.developmentModeEnabled) {
+            GlobalScope.launch {
+                delay(1000)
+                val appEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
+                val devKey = micro.configuration.requestChunkOrNull<String>("jobsDevKey")
+                if (devKey != null) {
+                    appEngine.application.routing {
+                        webSocket("/$devKey") {
+                            suspend fun sendMessage(message: String) {
+                                message.lines().forEach {
+                                    if (it.isNotBlank()) outgoing.send(Frame.Text(it))
+                                }
+                            }
 
-            implement(Jobs.browse) {
-//                ok(jobs.browse(actorAndProject, request))
-                (ctx as HttpCall).call.respondBytesWriter {
-                    jobs.browseV2(actorAndProject, request, this)
+                            sendMessage("Ready to accept queries!")
+
+                            for (frame in incoming) {
+                                try {
+                                    if (frame !is Frame.Text) continue
+
+                                    val text = frame.readText().trim()
+                                    val split = text.split(" ")
+                                    val command = split.firstOrNull()
+                                    val args = split.drop(1)
+                                    when (command) {
+                                        "retrieve" -> {
+                                            val id = args.getOrNull(0)
+                                            val username = args.getOrNull(1)
+                                            val project = args.getOrNull(2)
+
+                                            if (id == null || username == null) {
+                                                sendMessage("Usage: retrieve <id> <username> [project]")
+                                            } else {
+                                                val result = jobs.retrieve(
+                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), project),
+                                                    ResourceRetrieveRequest(
+                                                        JobIncludeFlags(
+                                                            includeParameters = true,
+                                                            includeOthers = true
+                                                        ), id
+                                                    )
+                                                )
+
+                                                if (result == null) {
+                                                    sendMessage("Unknown job")
+                                                } else {
+                                                    sendMessage(
+                                                        prettyMapper.encodeToString(
+                                                            Job.serializer(),
+                                                            result
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        "browse-simple", "browse" -> {
+                                            val username = args.getOrNull(0)
+                                            val project = args.getOrNull(1)
+                                            val next = args.getOrNull(2)
+
+                                            if (username == null) {
+                                                sendMessage("usage: browse <username> [project (can be null)] [next]")
+                                            } else {
+                                                val result = jobs.browse(
+                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), project?.takeIf { it != "-" && it != "null" }),
+                                                    ResourceBrowseRequest(
+                                                        JobIncludeFlags(
+                                                            includeParameters = true,
+                                                            includeOthers = true
+                                                        ),
+                                                        itemsPerPage = 250,
+                                                        next
+                                                    )
+                                                )
+
+                                                if (command == "browse-simple") {
+                                                    sendMessage(result.next ?: "no next token")
+                                                    for (item in result.items) {
+                                                        sendMessage(item.id)
+                                                    }
+                                                } else {
+                                                    sendMessage(
+                                                        prettyMapper.encodeToString(
+                                                            PageV2.serializer(Job.serializer()),
+                                                            result
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        else -> {
+                                            sendMessage("unknown command")
+                                        }
+                                    }
+                                } catch (ex: Throwable) {
+                                    sendMessage(ex.toReadableStacktrace().toString())
+                                }
+                            }
+                        }
+                    }
                 }
-
-                okContentAlreadyDelivered()
             }
-
-            implement(Jobs.retrieve) {
-                ok(jobs.retrieve(actorAndProject, request) ?: throw RPCException("Unknown job", HttpStatusCode.NotFound))
-            }
-            return
         }
 
-        orchestrator.asController().configure(rpcServer)
+        implement(Jobs.browse) {
+            ok(jobs.browse(actorAndProject, request))
+//                (ctx as HttpCall).call.respondBytesWriter {
+//                    jobs.browseV2(actorAndProject, request, this)
+//                }
+//                okContentAlreadyDelivered()
+        }
+
+        implement(Jobs.retrieve) {
+            ok(jobs.retrieve(actorAndProject, request) ?: throw RPCException("Unknown job", HttpStatusCode.NotFound))
+        }
+
+        implement(Jobs.create) {
+            ok(jobs.create(actorAndProject, request))
+        }
+
+        implement(JobsControl.browse) {
+            ok(jobs.browse(actorAndProject, request))
+        }
+
+        implement(JobsControl.retrieve) {
+            ok(jobs.retrieve(actorAndProject, request) ?: throw RPCException("Unknown job", HttpStatusCode.NotFound))
+        }
+
+        implement(JobsControl.update) {
+            ok(jobs.addUpdate(actorAndProject, request))
+        }
+
+        // Old implementation below this line
+        // ==================================
+
+        val userApi = orchestrator.userApi()
+        val controlApi = orchestrator.controlApi()
+        implement(userApi.retrieveProducts) {
+            ok(orchestrator.retrieveProducts(actorAndProject))
+        }
+
+        implement(userApi.updateAcl) {
+            ok(orchestrator.updateAcl(actorAndProject, request))
+        }
+
+        implement(userApi.init) {
+            ok(orchestrator.init(actorAndProject))
+        }
+
+        implement(controlApi.chargeCredits) {
+            ok(orchestrator.chargeCredits(actorAndProject, request))
+        }
+
+        implement(controlApi.checkCredits) {
+            ok(orchestrator.chargeCredits(actorAndProject, request, checkOnly = true))
+        }
+
+        implement(controlApi.register) {
+            ok(orchestrator.register(actorAndProject, request))
+        }
+
+        implement(userApi.search) {
+            ok(orchestrator.search(actorAndProject, request))
+        }
 
         implement(Jobs.terminate) {
             ok(orchestrator.terminate(actorAndProject, request))

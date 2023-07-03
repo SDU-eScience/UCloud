@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.accounting.util.ResourceStore
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
@@ -14,10 +15,14 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DBTransaction
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import jdk.incubator.vector.IntVector
+import jdk.incubator.vector.VectorOperators
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
 
 class ResourceStoreByOwner<T>(
@@ -124,7 +129,7 @@ class ResourceStoreByOwner<T>(
                 }
 
                 if (idx == STORE_SIZE) {
-                    expand(loadRequired = true).load(this.id[STORE_SIZE - 1])
+                    expand(loadRequired = true, hasLock = true).load(this.id[STORE_SIZE - 1])
                 }
             }
 
@@ -140,7 +145,7 @@ class ResourceStoreByOwner<T>(
     }
 
     suspend fun create(
-        idCard: IdCard,
+        idCard: IdCard.User,
         product: Int,
         data: T,
         output: ResourceDocument<T>?,
@@ -151,7 +156,7 @@ class ResourceStoreByOwner<T>(
             if (size >= STORE_SIZE - 1) return -1
 
             val idx = size++
-            val id = /*baseId*/ 0L + idx
+            val id = ResourceIdAllocator.allocate(db)
 
             this.id[idx] = id
             this.createdAt[idx] = System.currentTimeMillis()
@@ -202,7 +207,8 @@ class ResourceStoreByOwner<T>(
                 }
             }
 
-            val isOwnerOfEverything = (uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid))
+            val isOwnerOfEverything = idCard is IdCard.User &&
+                    ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
 
             if (isOwnerOfEverything) {
                 var idx = 0
@@ -215,63 +221,64 @@ class ResourceStoreByOwner<T>(
 
                     idx += 4
                 }
-            } else if (idCard.activeProject == 0) {
-                /*
-                // TODO(Dan): This branch is useless, since isOwnerOfEverything will always be taken instead. Leaving
-                //  it here to use as a base for group ACL checks.
-                val uidVector = IntVector.broadcast(ivSpecies, idCard.uid)
-
-                val resultArray = BooleanArray(ivLength)
-                var idx = 0
-                while (idx < STORE_SIZE && outIdx < outputBuffer.size) {
-                    val cv1 = IntVector.fromArray(ivSpecies, createdBy, idx)
-                    val cv2 = IntVector.fromArray(ivSpecies, createdBy, idx + (ivLength * 1))
-                    val cv3 = IntVector.fromArray(ivSpecies, createdBy, idx + (ivLength * 2))
-                    val cv4 = IntVector.fromArray(ivSpecies, createdBy, idx + (ivLength * 3))
-
-                    val cr1 = uidVector.compare(VectorOperators.EQ, cv1)
-                    val cr2 = uidVector.compare(VectorOperators.EQ, cv2)
-                    val cr3 = uidVector.compare(VectorOperators.EQ, cv3)
-                    val cr4 = uidVector.compare(VectorOperators.EQ, cv4)
-
-                    val t1 = cr1.firstTrue()
-                    val t2 = cr2.firstTrue()
-                    val t3 = cr3.firstTrue()
-                    val t4 = cr4.firstTrue()
-
-                    if (t1 != ivLength) {
-                        cr1.intoArray(resultArray, 0)
-                        for (i in t1 until resultArray.size) {
-                            if (resultArray[i]) emit(idx + 0 + i)
-                        }
-                    }
-
-                    if (t2 != ivLength) {
-                        cr2.intoArray(resultArray, 0)
-                        for (i in t2 until resultArray.size) {
-                            if (resultArray[i]) emit(idx + (ivLength) + i)
-                        }
-                    }
-
-                    if (t3 != ivLength) {
-                        cr3.intoArray(resultArray, 0)
-                        for (i in t3 until resultArray.size) {
-                            if (resultArray[i]) emit(idx + (ivLength * 2) + i)
-                        }
-                    }
-
-                    if (t4 != ivLength) {
-                        cr4.intoArray(resultArray, 0)
-                        for (i in t4 until resultArray.size) {
-                            if (resultArray[i]) emit(idx + (ivLength * 3) + i)
-                        }
-                    }
-
-                    idx += ivLength * 4
-                }
-                 */
+            } else if (idCard is IdCard.User && idCard.activeProject != 0) {
+                // TODO(Dan): This branch needs to use the ACL
+            } else if (idCard is IdCard.Provider && idCard.providerOf.isNotEmpty()) {
+                searchInArray(idCard.providerOf, product, ::emit)
             }
             return outIdx
+        }
+    }
+
+    private fun searchInArray(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
+        val resultArray = BooleanArray(ivLength)
+
+        var idx = 0
+        while (idx < STORE_SIZE) {
+            for (pIdx in 0 until needles.size) {
+                val needle = IntVector.broadcast(ivSpecies, needles[pIdx])
+
+                val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
+                val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + (ivLength))
+                val haystack3 = IntVector.fromArray(ivSpecies, haystack, idx + (ivLength * 2))
+                val haystack4 = IntVector.fromArray(ivSpecies, haystack, idx + (ivLength * 3))
+
+                val cr1 = haystack1.compare(VectorOperators.EQ, needle)
+                val cr2 = haystack2.compare(VectorOperators.EQ, needle)
+                val cr3 = haystack3.compare(VectorOperators.EQ, needle)
+                val cr4 = haystack4.compare(VectorOperators.EQ, needle)
+
+                val t1 = cr1.firstTrue()
+                val t2 = cr1.firstTrue()
+                val t3 = cr1.firstTrue()
+                val t4 = cr1.firstTrue()
+
+                if (t1 != ivLength) {
+                    cr1.intoArray(resultArray, 0)
+                    for (i in t1 until resultArray.size) {
+                        if (resultArray[i]) emit(idx + 0 + i)
+                    }
+                }
+                if (t2 != ivLength) {
+                    cr2.intoArray(resultArray, 0)
+                    for (i in t2 until resultArray.size) {
+                        if (resultArray[i]) emit(idx + (ivLength) + i)
+                    }
+                }
+                if (t3 != ivLength) {
+                    cr3.intoArray(resultArray, 0)
+                    for (i in t3 until resultArray.size) {
+                        if (resultArray[i]) emit(idx + (ivLength * 2) + i)
+                    }
+                }
+                if (t4 != ivLength) {
+                    cr4.intoArray(resultArray, 0)
+                    for (i in t4 until resultArray.size) {
+                        if (resultArray[i]) emit(idx + (ivLength * 3) + i)
+                    }
+                }
+            }
+            idx += ivLength * 4
         }
     }
 
@@ -282,11 +289,12 @@ class ResourceStoreByOwner<T>(
         return next!!.findTail()
     }
 
-    suspend fun expand(loadRequired: Boolean = false): ResourceStoreByOwner<T> {
+    suspend fun expand(loadRequired: Boolean = false, hasLock: Boolean = false): ResourceStoreByOwner<T> {
         val currentNext = next
         if (currentNext != null) return currentNext
 
-        mutex.withLock {
+        if (!hasLock) mutex.lock()
+        try {
             val nextAfterMutex = next
             if (nextAfterMutex != null) return nextAfterMutex
 
@@ -296,6 +304,8 @@ class ResourceStoreByOwner<T>(
                 newStore.ready.set(true)
             }
             return newStore
+        } finally {
+            if (!hasLock) mutex.unlock()
         }
     }
 
@@ -303,15 +313,8 @@ class ResourceStoreByOwner<T>(
         // NOTE(Dan): 99% have less than ~1300, we might want to decrease the store size to 1024.
         const val STORE_SIZE = 1024
 
-//        private val ivSpecies = IntVector.SPECIES_PREFERRED
-//        private val ivLength = ivSpecies.length()
-
-        // TODO(Dan): This would require us to re-shuffle (very hard) existing IDs around or implement a work-around
-        //  within the store.
-        private val baseIdAllocator = AtomicLong(0L)
-        fun allocateBaseId(): Long {
-            return baseIdAllocator.getAndAdd(STORE_SIZE.toLong())
-        }
+        private val ivSpecies = IntVector.SPECIES_PREFERRED
+        private val ivLength = ivSpecies.length()
     }
 }
 
@@ -336,16 +339,155 @@ class ResourceManagerByOwner<T>(
     private val blockMutationMutex = Mutex()
     private val root: Block<T> = Block()
 
+    // NOTE(Dan): The IdIndex contains references to all resources that we have loaded by their ID. Indexes we have
+    // stored must always be up-to-date with the real state, meaning that we do not store partial blocks but only
+    // complete blocks. References stored within a block are allowed to point to invalid data and/or unloaded data.
+    private val idIndex = runBlocking { initializeIdIndex(0L) }
+
+    private class IdIndex(val minimumId: Long) {
+        @Volatile
+        var next: IdIndex? = null
+
+        val entries = AtomicIntegerArray(BLOCK_SIZE)
+
+        // NOTE(Dan): There is no AtomicBooleanArray, so we encode it in an integer array instead. 1 = true, 0 = false.
+        val entryIsUid = AtomicIntegerArray(BLOCK_SIZE)
+
+        fun register(id: Long, reference: Int, isUid: Boolean) {
+            val slot = (id - minimumId).toInt()
+            require(slot in 0 until BLOCK_SIZE) {
+                "id is out of bounds for this block: minimum = $minimumId, id = $id"
+            }
+
+            entries[slot] = reference
+            entryIsUid[slot] = if (isUid) 1 else 0
+        }
+
+        fun clear(id: Long) {
+            val slot = (id - minimumId).toInt()
+            require(slot in 0 until BLOCK_SIZE) {
+                "id is out of bounds for this block: minimum = $minimumId, id = $id"
+            }
+
+            entries[slot] = 0
+            entryIsUid[slot] = 0
+        }
+
+        companion object {
+            const val BLOCK_SIZE = 4096
+        }
+    }
+
+    private suspend fun initializeIdIndex(baseId: Long): IdIndex {
+        val result = IdIndex(baseId)
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("min", baseId)
+                    setParameter("max", baseId + IdIndex.BLOCK_SIZE)
+                    setParameter("type", type)
+                },
+                """
+                    select r.id, u.uid, p.pid
+                    from
+                        provider.resource r
+                        join auth.principals u on r.created_by = u.id
+                        left join project.projects p on r.project = p.id
+                    where
+                        r.id >= :min
+                        and r.id < :max
+                        and r.type = :type
+                """
+            ).rows.forEach { row ->
+                val uid = row.getInt(1)!!
+                val pid = row.getInt(2)
+                result.register(row.getLong(0)!!, pid ?: uid, pid == null)
+            }
+        }
+
+        return result
+    }
+
+    private val idIndexCreationMutex = Mutex()
+    private suspend fun loadIdIndexes(vararg ids: Long) {
+        val blocksToLoad = LongArray(ids.size)
+        for ((index, id) in ids.withIndex()) {
+            blocksToLoad[index] = (id / IdIndex.BLOCK_SIZE) * IdIndex.BLOCK_SIZE
+        }
+
+        val maxValid = ResourceIdAllocator.maximumValid(db)
+        blocksToLoad.sort()
+        var prev = -1L
+        for (block in blocksToLoad) {
+            if (block == prev) continue
+            prev = block
+
+            // NOTE(Dan): This check is required to avoid a DOS attack where a malicious user requests random
+            // IDs to force allocations of empty indices.
+            if (block > maxValid) continue
+
+            val loadedIndex = initializeIdIndex(block)
+            idIndexCreationMutex.withLock {
+                val queryResult = findIdIndex(block)
+                if (queryResult.result == null) {
+                    val currentNext = queryResult.previous.next
+                    loadedIndex.next = currentNext
+                    queryResult.previous.next = loadedIndex
+                }
+            }
+        }
+    }
+
+    private data class IdIndexFindResult(val previous: IdIndex, val result: IdIndex?)
+
+    private fun findIdIndex(id: Long): IdIndexFindResult {
+        val query = (id / IdIndex.BLOCK_SIZE) * IdIndex.BLOCK_SIZE
+
+        var previous: IdIndex? = null
+        var element: IdIndex? = idIndex
+        while (element != null) {
+            if (element.minimumId == query) {
+                return IdIndexFindResult(previous ?: idIndex, element)
+            } else if (element.minimumId > query) {
+                return IdIndexFindResult(previous ?: idIndex, null)
+            }
+
+            previous = element
+            element = element.next
+        }
+        return IdIndexFindResult(previous ?: idIndex, null)
+    }
+
+    private suspend fun findIdIndexOrLoad(id: Long): IdIndex? {
+        var queryResult = findIdIndex(id).result
+        if (queryResult == null) {
+            loadIdIndexes(id)
+            queryResult = findIdIndex(id).result
+        }
+        return queryResult
+    }
+
+    private suspend fun findStoreByResourceId(id: Long): ResourceStoreByOwner<T>? {
+        val loaded = findIdIndexOrLoad(id) ?: return null
+        val slot = (id - loaded.minimumId).toInt()
+        val reference = loaded.entries[slot]
+        val referenceIsUid = loaded.entryIsUid[slot] == 1
+
+        return findOrCreateStore(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
+    }
+
     override suspend fun create(
         idCard: IdCard,
         product: Int,
         data: T,
         output: ResourceDocument<T>?
     ): Long {
+        if (idCard !is IdCard.User) TODO()
         val uid = if (idCard.activeProject < 0) 0 else idCard.uid
         val pid = idCard.activeProject
 
-        val root = findRootStore(uid, pid) ?: createRootStore(uid, pid)
+        val root = findOrCreateStore(uid, pid)
 
         var tail = root.findTail()
         while (true) {
@@ -353,6 +495,8 @@ class ResourceManagerByOwner<T>(
             if (id < 0L) {
                 tail = tail.expand()
             } else {
+                val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
+                index.register(id, if (pid != 0) pid else uid, pid == 0)
                 return id
             }
         }
@@ -364,9 +508,10 @@ class ResourceManagerByOwner<T>(
         next: String?,
         flags: ResourceIncludeFlags,
     ): ResourceStore.BrowseResult {
+        if (idCard !is IdCard.User) TODO()
         val uid = if (idCard.activeProject < 0) 0 else idCard.uid
         val pid = idCard.activeProject
-        val root = findRootStore(uid, pid) ?: createRootStore(uid, pid)
+        val root = findOrCreateStore(uid, pid)
 
         var store: ResourceStoreByOwner<T>? = root
         var offset = 0
@@ -390,15 +535,17 @@ class ResourceManagerByOwner<T>(
         ids: LongArray,
         output: Array<ResourceDocument<T>>
     ): Int {
-        val uid = if (idCard.activeProject < 0) 0 else idCard.uid
-        val pid = idCard.activeProject
-        val root = findRootStore(uid, pid) ?: return 0
+        val storesVisited = HashSet<Pair<Int, Int>>()
 
-        var store: ResourceStoreByOwner<T>? = root
         var offset = 0
-        while (store != null) {
+        for (id in ids) {
+            val store = findStoreByResourceId(id) ?: continue
+
+            val storeKey = Pair(store.uid, store.pid)
+            if (storeKey in storesVisited) continue
+            storesVisited.add(storeKey)
+
             offset += store.search(idCard, output, offset) { it.id in ids }
-            store = store.next
         }
         return offset
     }
@@ -415,6 +562,10 @@ class ResourceManagerByOwner<T>(
 
     override suspend fun updateProviderId(id: Long, providerId: String?) {
         TODO("Not yet implemented")
+    }
+
+    private suspend fun findOrCreateStore(uid: Int, pid: Int): ResourceStoreByOwner<T> {
+        return findRootStore(uid, pid) ?: createRootStore(uid, pid)
     }
 
     private fun findRootStore(uid: Int, pid: Int): ResourceStoreByOwner<T>? {
@@ -459,41 +610,62 @@ class ResourceManagerByOwner<T>(
     }
 }
 
-
 class IdCardServiceImpl(private val db: DBContext) : IdCardService {
     private val cached = SimpleCache<String, IdCard>(maxAge = 60_000) { username ->
         db.withSession { session ->
-            val uid = session.sendPreparedStatement(
-                { setParameter("username", username) },
-                "select uid from auth.principals where id = :username"
-            ).rows.singleOrNull()?.getInt(0) ?: error("no uid for $username?")
+            if (username.startsWith(AuthProviders.PROVIDER_PREFIX)) {
+                val providerName = username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+                val rows = session.sendPreparedStatement(
+                    { setParameter("provider", providerName) },
+                    """
+                        select p.id
+                        from
+                            accounting.product_categories pc
+                            left join accounting.products p on pc.id = p.category
+                        where
+                            pc.provider = :provider
+                    """
+                ).rows
 
-            val adminOf = session.sendPreparedStatement(
-                { setParameter("username", username) },
-                """
-                    select p.pid
-                    from
-                        project.project_members pm join
-                        project.projects p on pm.project_id = p.id
-                    where 
-                        pm.username = :username
-                        and (pm.role = 'ADMIN' or pm.role = 'PI')
-                """
-            ).rows.map { it.getInt(0)!! }.toIntArray()
+                val providerOf = IntArray(rows.size)
+                for ((index, row) in rows.withIndex()) {
+                    providerOf[index] = row.getLong(0)!!.toInt()
+                }
 
-            val groups = session.sendPreparedStatement(
-                { setParameter("username", username) },
-                """
-                    select g.gid
-                    from
-                        project.group_members gm
-                        join project.groups g on gm.group_id = g.id
-                    where
-                        gm.username = :username
-                """
-            ).rows.map { it.getInt(0)!! }.toIntArray()
+                IdCard.Provider(providerName, providerOf)
+            } else {
+                val uid = session.sendPreparedStatement(
+                    { setParameter("username", username) },
+                    "select uid from auth.principals where id = :username"
+                ).rows.singleOrNull()?.getInt(0) ?: error("no uid for $username?")
 
-            IdCard(uid, groups, adminOf, 0)
+                val adminOf = session.sendPreparedStatement(
+                    { setParameter("username", username) },
+                    """
+                        select p.pid
+                        from
+                            project.project_members pm join
+                            project.projects p on pm.project_id = p.id
+                        where 
+                            pm.username = :username
+                            and (pm.role = 'ADMIN' or pm.role = 'PI')
+                    """
+                ).rows.map { it.getInt(0)!! }.toIntArray()
+
+                val groups = session.sendPreparedStatement(
+                    { setParameter("username", username) },
+                    """
+                        select g.gid
+                        from
+                            project.group_members gm
+                            join project.groups g on gm.group_id = g.id
+                        where
+                            gm.username = :username
+                    """
+                ).rows.map { it.getInt(0)!! }.toIntArray()
+
+                IdCard.User(uid, groups, adminOf, 0)
+            }
         }
     }
 
@@ -511,7 +683,7 @@ class IdCardServiceImpl(private val db: DBContext) : IdCardService {
             ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val project = actorAndProject.project
-        if (project != null) {
+        if (project != null && card is IdCard.User) {
             card = card.copy(
                 activeProject = projectCache.get(project)
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
@@ -519,5 +691,47 @@ class IdCardServiceImpl(private val db: DBContext) : IdCardService {
         }
 
         return card
+    }
+}
+
+// TODO(Dan): This implementation means that we can only have one instance running this
+object ResourceIdAllocator {
+    private val idAllocator = AtomicLong(-1_000_000_000L)
+    private val initMutex = Mutex()
+
+    suspend fun maximumValid(ctx: DBContext): Long {
+        val currentId = idAllocator.get()
+        if (currentId < 0L) {
+            init(ctx)
+            return maximumValid(ctx)
+        }
+        return currentId
+    }
+
+    suspend fun allocate(ctx: DBContext): Long {
+        val allocatedId = idAllocator.incrementAndGet()
+        if (allocatedId < 0L) {
+            init(ctx)
+            return allocate(ctx)
+        }
+        return allocatedId
+    }
+
+    private suspend fun init(ctx: DBContext) {
+        initMutex.withLock {
+            if (idAllocator.get() >= 0L) return
+
+            ctx.withSession { session ->
+                idAllocator.set(
+                    session.sendPreparedStatement(
+                        {},
+                        """
+                            select max(id)
+                            from provider.resource
+                        """
+                    ).rows.singleOrNull()?.getLong(0) ?: 0L
+                )
+            }
+        }
     }
 }

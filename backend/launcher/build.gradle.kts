@@ -14,9 +14,10 @@ repositories {
 
 application {
     mainClass.set("dk.sdu.cloud.MainKt")
+    applicationDefaultJvmArgs += listOf("--add-modules", "jdk.incubator.vector")
 }
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(20)
 
     sourceSets {
         val main by getting {

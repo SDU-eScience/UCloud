@@ -19,12 +19,19 @@ data class ResourceDocument<T>(
     data class AclEntry(val entity: Int, val permission: Permission)
 }
 
-data class IdCard(
-    val uid: Int,
-    val groups: IntArray,
-    val adminOf: IntArray,
-    val activeProject: Int,
-)
+sealed class IdCard {
+    data class User(
+        val uid: Int,
+        val groups: IntArray,
+        val adminOf: IntArray,
+        val activeProject: Int,
+    ) : IdCard()
+
+    data class Provider(
+        val name: String,
+        val providerOf: IntArray,
+    ) : IdCard()
+}
 
 interface ResourceStore<T> {
     data class BrowseResult(val count: Int, val next: String?)
