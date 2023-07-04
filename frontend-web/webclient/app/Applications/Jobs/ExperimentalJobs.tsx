@@ -26,6 +26,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    dragToSelect: true,
     contextSwitcher: true,
     search: true,
 };

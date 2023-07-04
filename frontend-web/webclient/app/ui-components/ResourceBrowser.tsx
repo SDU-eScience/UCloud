@@ -2342,7 +2342,7 @@ export class ResourceBrowser<T> {
                             if (selected[i] !== 0) {
                                 const entry = this.cachedData[this.currentPath][i];
                                 const path = this.dispatchMessage("pathToEntry", fn => fn(entry));
-                                this.open(path);
+                                this.open(path, false, entry);
                                 break;
                             }
                         }

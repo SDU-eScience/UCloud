@@ -514,7 +514,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                                 icon: "close",
                                 text: "Create...",
                                 backgroundColor: "blue",
-                                iconRotation: 45,                            
+                                iconRotation: 45,
                                 operations: [uploadOp, folderOp]
                             });
                         }
@@ -950,11 +950,17 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                 };
 
                 browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource?.status.type === "FILE") {
+                        navigate(`/files/properties/${encodeURIComponent(resource.id)}/`)
+                        return;
+                    }
+
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else {
                         if (!isInitialMount.current) navigate("?path=" + encodeURIComponent(newPath));
                     }
+
 
                     if (newPath == SEARCH) {
                         browser.emptyReasons[SEARCH] = {
