@@ -27,6 +27,7 @@ const FEATURES: ResourceBrowseFeatures = {
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    search: true,
 };
 
 const logoDataUrls = new AsyncCache<string>();
@@ -223,6 +224,32 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                     return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries) === true);
                 });
                 browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
+                browser.on("search", query => {
+                    browser.searchQuery = query;
+                    browser.currentPath = "/search";
+                    browser.cachedData["/search"] = [];
+                    browser.renderRows();
+                    browser.renderOperations();
+
+                    callAPI(JobsApi.search({
+                        query,
+                        itemsPerPage: 250,
+                        flags: {},
+                    })).then(res => {
+                        if (browser.currentPath !== "/search") return;
+                        browser.registerPage(res, "/search", true);
+                        browser.renderRows();
+                        browser.renderBreadcrumbs();
+                    })
+                });
+
+                browser.on("searchHidden", () => {
+                    browser.searchQuery = "";
+                    browser.currentPath = "/";
+                    browser.renderRows();
+                    browser.renderOperations();
+                    browser.renderBreadcrumbs();
+                });
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);

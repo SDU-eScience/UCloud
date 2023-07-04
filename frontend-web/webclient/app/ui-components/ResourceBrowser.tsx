@@ -199,6 +199,7 @@ interface ResourceBrowserListenerMap<T> {
     "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
     "search": (query: string) => void;
+    "searchHidden": () => void;
 
     "useFolder": () => void;
     // UNUSED?
@@ -507,7 +508,9 @@ export class ResourceBrowser<T> {
             icon.onclick = () => {
                 if (!input) return;
                 input.toggleAttribute("hidden");
-                if (!input.hasAttribute("hidden")) {
+                if (input.hasAttribute("hidden")) {
+                    this.dispatchMessage("searchHidden", fn => fn());
+                } else {
                     input.focus()
                 }
             }
@@ -2593,6 +2596,7 @@ export class ResourceBrowser<T> {
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         fetchFilters: () => [],
+        searchHidden: () => {},
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};
