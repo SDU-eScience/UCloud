@@ -58,6 +58,7 @@ class ResourceStoreByOwner<T>(
 
     suspend fun load(minimumId: Long = 0) {
         mutex.withLock {
+            var idx = 0
             db.withSession { session ->
                 val textualId = if (uid != 0) {
                     session.sendPreparedStatement(
@@ -108,7 +109,6 @@ class ResourceStoreByOwner<T>(
                 )
 
                 val batchCount = 128
-                var idx = 0
                 val batchIds = LongArray(batchCount)
                 while (idx < STORE_SIZE) {
                     val rows = session.sendPreparedStatement({}, "fetch $batchCount from c").rows
@@ -132,10 +132,10 @@ class ResourceStoreByOwner<T>(
 
                     if (rows.size < batchCount) break
                 }
+            }
 
-                if (idx == STORE_SIZE) {
-                    expand(loadRequired = true, hasLock = true).load(this.id[STORE_SIZE - 1])
-                }
+            if (idx == STORE_SIZE) {
+                expand(loadRequired = true, hasLock = true).load(this.id[STORE_SIZE - 1])
             }
 
             ready.set(true)
@@ -236,12 +236,47 @@ class ResourceStoreByOwner<T>(
     }
 
     private fun searchInArray(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
+        searchInArrayScalarLoop(needles, haystack, emit)
+//        searchInArrayVector(needles, haystack, emit)
+    }
+
+    private fun searchInArrayScalarLoop(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
+        println("Hi!")
+        val fakeNeedles = IntArray(needles.size) { 1337 }
+        var idx = 0
+        while (idx < haystack.size) {
+            if (fakeNeedles.indexOf(haystack[idx]) != -1) emit(idx)
+            if (fakeNeedles.indexOf(haystack[idx + 1]) != -1) emit(idx + 1)
+            if (fakeNeedles.indexOf(haystack[idx + 2]) != -1) emit(idx + 2)
+            if (fakeNeedles.indexOf(haystack[idx + 3]) != -1) emit(idx + 3)
+            idx += 4
+        }
+        println("Loop complete!")
+    }
+
+    private fun searchInArrayScalarLoop2(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
+        var idx = 0
+        while (idx < haystack.size) {
+            if (needles.indexOf(haystack[idx]) != -1) emit(idx)
+            if (needles.indexOf(haystack[idx + 1]) != -1) emit(idx + 1)
+            if (needles.indexOf(haystack[idx + 2]) != -1) emit(idx + 2)
+            if (needles.indexOf(haystack[idx + 3]) != -1) emit(idx + 3)
+            idx += 4
+        }
+    }
+
+    private fun searchInArrayVector(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
         val resultArray = BooleanArray(ivLength)
+        var searchTime = 0L
+        var emitTime = 0L
 
         var idx = 0
-        while (idx < STORE_SIZE) {
+        val needleVectors = needles.map { IntVector.broadcast(ivSpecies, it) }
+
+        while (idx < haystack.size) {
             for (pIdx in 0 until needles.size) {
-                val needle = IntVector.broadcast(ivSpecies, needles[pIdx])
+                val searchStart = System.nanoTime()
+                val needle = needleVectors[pIdx]
 
                 val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
                 val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + (ivLength))
@@ -257,6 +292,7 @@ class ResourceStoreByOwner<T>(
                 val t2 = cr1.firstTrue()
                 val t3 = cr1.firstTrue()
                 val t4 = cr1.firstTrue()
+                val emitStart = System.nanoTime()
 
                 if (t1 != ivLength) {
                     cr1.intoArray(resultArray, 0)
@@ -282,9 +318,13 @@ class ResourceStoreByOwner<T>(
                         if (resultArray[i]) emit(idx + (ivLength * 3) + i)
                     }
                 }
+                val end = System.nanoTime()
+                searchTime += emitStart - searchStart
+                emitTime += end - emitStart
             }
             idx += ivLength * 4
         }
+        println("Search time: $searchTime. Emit time: $emitTime")
     }
 
     suspend fun findTail(): ResourceStoreByOwner<T> {
@@ -488,7 +528,7 @@ class ResourceManagerByOwner<T>(
     // =================================================================================================================
     // NOTE(Dan): This index contains references to all resources that are owned by a provider. It becomes automatically
     // populated when a provider contacts us about any resource/when a user requests a resource from them.
-    private val providerIndex = AtomicReferenceArray<ProviderIndex>(MAX_PROVIDERS)
+    private val providerIndex = arrayOfNulls<ProviderIndex>(MAX_PROVIDERS)
     private val providerIndexMutex = Mutex() // NOTE(Dan): Only needed to modify the list of indices
     private val providerOfProducts = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { productId ->
         db.withSession { session ->
@@ -524,7 +564,7 @@ class ResourceManagerByOwner<T>(
         suspend fun findUidStores(output: IntArray, minimumUid: Int): Int {
             mutex.withReader {
                 var ptr = 0
-                for (entry in uidReferences.tailSet(minimumUid)) {
+                for (entry in uidReferences.tailSet(minimumUid, false)) {
                     output[ptr++] = entry
                     if (ptr >= output.size) break
                 }
@@ -535,7 +575,7 @@ class ResourceManagerByOwner<T>(
         suspend fun findPidStores(output: IntArray, minimumPid: Int): Int {
             mutex.withReader {
                 var ptr = 0
-                for (entry in pidReferences.tailSet(minimumPid)) {
+                for (entry in pidReferences.tailSet(minimumPid, false)) {
                     output[ptr++] = entry
                     if (ptr >= output.size) break
                 }
@@ -545,14 +585,21 @@ class ResourceManagerByOwner<T>(
     }
 
     private suspend fun findOrLoadProviderIndex(provider: String): ProviderIndex {
-        val initialResult = (0..<MAX_PROVIDERS).find { idx -> providerIndex[idx]?.provider == provider }
+        val initialResult = providerIndex.find { it?.provider == provider }
         if (initialResult != null) {
-            return providerIndex[initialResult]
+            println("Returning cached provider index")
+            return initialResult
         }
 
         providerIndexMutex.withLock {
-            val resultAfterLock = (0..<MAX_PROVIDERS).find { idx -> providerIndex[idx]?.provider == provider }
-            if (resultAfterLock != null) return providerIndex[resultAfterLock]
+            val resultAfterLock = providerIndex.find { it?.provider == provider }
+            if (resultAfterLock != null) {
+                println("cached after mutex")
+                return resultAfterLock
+            }
+
+            val emptySlot = providerIndex.indexOf(null)
+            if (emptySlot == -1) error("Too many providers registered with UCloud")
 
             val result = ProviderIndex(provider)
             db.withSession { session ->
@@ -580,6 +627,8 @@ class ResourceManagerByOwner<T>(
                     result.registerUsage(uid, pid ?: 0)
                 }
             }
+            providerIndex[emptySlot] = result
+            println("Returning fresh index")
 
             return result
         }
@@ -622,8 +671,20 @@ class ResourceManagerByOwner<T>(
     ): ResourceStore.BrowseResult {
         when (idCard) {
             is IdCard.Provider -> {
+                var timeToFindIndex = 0L
+                var timeToFindStores = 0L
+                var timeInFindUidStores = 0L
+                var timeToSearchStores = 0L
+                var timeToOverhead = 0L
+
+                val t1 = System.nanoTime()
                 val storeArray = IntArray(128)
+                val t2 = System.nanoTime()
                 val providerIndex = findOrLoadProviderIndex(idCard.name)
+                val t3 = System.nanoTime()
+
+                timeToOverhead += t2 - t1
+                timeToFindIndex += t3 - t2
 
                 var minimumUid = 0
                 var minimumPid = 0
@@ -635,20 +696,32 @@ class ResourceManagerByOwner<T>(
                     minimumUid = next.removePrefix("u-").toIntOrNull() ?: Int.MAX_VALUE
                 }
 
+                val t4 = System.nanoTime()
                 var didCompleteUsers = minimumUid == Int.MAX_VALUE
                 var didCompleteProjects = minimumPid == Int.MAX_VALUE
 
+                timeToOverhead += t4 - t3
+
                 var offset = 0
                 while (minimumUid < Int.MAX_VALUE && offset < outputBuffer.size) {
-                    println("UID: $minimumUid")
+                    val t5 = System.nanoTime()
                     val resultCount = providerIndex.findUidStores(storeArray, minimumUid)
-                    println("resultCount: $resultCount")
+                    val t6 = System.nanoTime()
+
+                    timeInFindUidStores += t6 - t5
 
                     for (i in 0..<resultCount) {
+                        val t7 = System.nanoTime()
                         val store = findOrCreateStore(storeArray[i], 0)
+                        val t8 = System.nanoTime()
+
+                        timeToFindStores += t8 - t7
+
                         offset += store.search(idCard, outputBuffer, offset) { true }
+                        val t9 = System.nanoTime()
+
+                        timeToSearchStores += t9 - t8
                     }
-                    println("offset: $offset")
 
                     if (resultCount == 0) {
                         didCompleteUsers = true
@@ -658,15 +731,22 @@ class ResourceManagerByOwner<T>(
                 }
 
                 while (minimumPid < Int.MAX_VALUE && offset < outputBuffer.size) {
-                    println("PID: $minimumPid")
+                    val t10 = System.nanoTime()
                     val resultCount = providerIndex.findPidStores(storeArray, minimumUid)
-                    println("resultCount: $resultCount")
+                    val t11 = System.nanoTime()
+
+                    timeInFindUidStores += t11 - t10
 
                     for (i in 0..<resultCount) {
+                        val t12 = System.nanoTime()
                         val store = findOrCreateStore(0, storeArray[i])
+                        val t13 = System.nanoTime()
+
+                        timeToFindStores += t13 - t12
                         offset += store.search(idCard, outputBuffer, offset) { true }
+                        val t14 = System.nanoTime()
+                        timeToSearchStores += t14 - t13
                     }
-                    println("offset: $offset")
 
                     if (resultCount == 0) {
                         didCompleteProjects = true
@@ -674,6 +754,14 @@ class ResourceManagerByOwner<T>(
                     }
                     minimumPid = storeArray[resultCount - 1]
                 }
+
+                println(buildString {
+                    appendLine("timeToFindIndex: $timeToFindIndex")
+                    appendLine("timeToFindStores: $timeToFindStores")
+                    appendLine("timeInFindUidStores: $timeInFindUidStores")
+                    appendLine("timeToSearchStores: $timeToSearchStores")
+                    appendLine("timeToOverhead: $timeToOverhead")
+                })
 
                 return ResourceStore.BrowseResult(
                     offset,
