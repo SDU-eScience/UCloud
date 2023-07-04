@@ -2,7 +2,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Absolute, Box, Divider, Flex, Link, Relative} from "@/ui-components";
+import {Absolute, Box, Divider, Flex, Icon, Input, Link, Relative} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
@@ -19,6 +19,8 @@ import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
+import {useNavigate} from "react-router";
+import AppRoutes from "@/Routes";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -108,6 +110,9 @@ const ApplicationsOverview: React.FunctionComponent = () => {
         }
     }, [favoriteStatus]);
 
+    const [isSearching, setIsSearching] = useState(false);
+    const navigate = useNavigate();
+
     const main = (
         <Box mx="auto" maxWidth="1340px">
             <Box mt="12px" />
@@ -118,6 +123,15 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                 refreshId={refreshId}
             />
             <Divider mt="18px" />
+            <Spacer height={"40px"} left={null} right={<Flex height="40px">
+                <Input mr="12px" placeholder="Application name..." width="200px" hidden={!isSearching} onKeyUp={e => {
+                    console.log(e);
+                    if (e.key === "Enter") {
+                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
+                    }
+                }} />
+                <Icon name="search" cursor="pointer" color="black" my="auto" onClick={() => setIsSearching(is => !is)} />
+            </Flex>} />
             {sections.data.sections.map(section =>
                 <TagGrid
                     key={section.name + section.type}

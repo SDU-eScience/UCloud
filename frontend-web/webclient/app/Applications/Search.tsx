@@ -9,7 +9,10 @@ import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {AppCard, ApplicationCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
-import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
+import {Input} from "@/ui-components";
+import AppRoutes from "@/Routes";
+import {Link} from "react-router-dom";
+import * as Pages from "./Pages";
 
 interface SearchQuery {
     tags: string[];
@@ -57,7 +60,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                 page: parsedQuery.page,
             })
         );
-    }, [queryParams, /* This isn't needed for this one, is it? */entriesPerPage]);
+    }, [queryParams]);
 
     const toggleFavorite = React.useCallback(async (appName: string, appVersion: string) => {
         await invokeCommand(UCloud.compute.apps.toggleFavorite({appName, appVersion}));
@@ -71,21 +74,34 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
     }, [fetch]);
 
     return <>
-        <FilesSearchTabs active={"APPLICATIONS"} />
+        <Input
+            my="8px"
+            width="400px"
+            mx="auto"
+            defaultValue={new URLSearchParams(queryParams).get("q") ?? ""}
+            placeholder="Application name..."
+            onKeyUp={e => {
+                if (e.key === "Enter") {
+                    navigate(AppRoutes.apps.search((e.target as unknown as {value: string}).value));
+                }
+            }}
+        />
+
         <Pagination.List
             loading={results.loading}
             page={results.data}
             pageRenderer={page => (
-                <GridCardGroup>
+                <GridCardGroup minmax={322}>
                     {page.items.map(app => (
-                        <AppCard
-                            key={`${app.metadata.name}${app.metadata.version}`}
-                            app={app}
-                            type={ApplicationCardType.TALL}
-                            onFavorite={toggleFavorite}
-                            isFavorite={app.favorite}
-                            tags={app.tags}
-                        />))
+                        <Link key={`${app.metadata.name}${app.metadata.version}`} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                            <AppCard
+                                app={app}
+                                type={ApplicationCardType.WIDE}
+                                onFavorite={toggleFavorite}
+                                isFavorite={app.favorite}
+                                tags={app.tags}
+                            />
+                        </Link>))
                     }
                 </GridCardGroup>
             )}
