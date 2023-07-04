@@ -73,7 +73,7 @@ export const Applications: React.FunctionComponent = () => {
                         <Pagination.EntriesPerPageSelector
                             content="Apps per page"
                             entriesPerPage={itemsPerPage}
-                            onChange={itemsPerPage => goToPage(page, itemsPerPage)}
+                            onChange={itemsPerPage => goToPage(0, itemsPerPage)}
                         />
                     )}
                 />

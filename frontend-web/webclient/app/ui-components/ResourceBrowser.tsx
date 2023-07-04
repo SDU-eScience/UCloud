@@ -1274,7 +1274,6 @@ export class ResourceBrowser<T> {
             inContextMenu?: boolean
         ) => {
             const isConfirmButton = isOperation(op) && op.confirm;
-
             // Set the icon
             const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
             this.icons.renderIcon({
@@ -1425,7 +1424,7 @@ export class ResourceBrowser<T> {
                     }
                 });
 
-                if (!isConfirm) shortcutNumber++;
+                shortcutNumber++;
 
                 item.addEventListener("mouseover", () => {
                     this.findActiveContextMenuItem(true);
