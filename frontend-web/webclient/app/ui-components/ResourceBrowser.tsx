@@ -149,6 +149,7 @@ export interface OperationGroup<T, R> {
     icon: IconName;
     text: string;
     color: ThemeColor;
+    backgroundColor?: ThemeColor,
     operations: Operation<T, R>[];
     iconRotation?: number;
 }
@@ -1333,6 +1334,10 @@ export class ResourceBrowser<T> {
 
             {
                 element.append(icon);
+
+                if (!isOperation(op) && op.backgroundColor) {
+                    element.style.backgroundColor = `var(--${op.backgroundColor})`;
+                }
             }
 
             {
@@ -1403,9 +1408,7 @@ export class ResourceBrowser<T> {
                 }
 
                 var item: HTMLElement = document.createElement("li");
-                //if (child.tag === "create") {
-                //    item.style.backgroundColor = "var(--blue)";
-                //}
+                if (child.tag === "create" || child.text === "Create...") item.style.backgroundColor = "blue";
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;

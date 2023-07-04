@@ -510,9 +510,11 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         const result: OperationOrGroup<T, R>[] = [];
                         if (uploadOp && folderOp) {
                             result.push({
-                                color: "iconColor",
-                                icon: "chevronDown",
+                                color: "fixedWhite",
+                                icon: "close",
                                 text: "Create...",
+                                backgroundColor: "blue",
+                                iconRotation: 45,                            
                                 operations: [uploadOp, folderOp]
                             });
                         }
