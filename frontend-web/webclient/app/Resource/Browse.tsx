@@ -311,7 +311,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
         } else {
             if (props.usePopIn) {
                 dispatch(setPopInChild({
-                    el: <api.Properties inPopIn api={api} resource={res} reload={reloadRef.current}
+                    el: <api.Properties inPopIn api={api} embedded resource={res} reload={reloadRef.current}
                         closeProperties={closeProperties} {...props.propsForInlineResources} />,
                     onFullScreen: () => navigate(AppRoutes.resource.properties(api.routingNamespace, res.id))
                 }));

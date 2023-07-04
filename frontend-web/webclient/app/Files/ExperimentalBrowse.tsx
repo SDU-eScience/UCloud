@@ -1130,7 +1130,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         // Note(Jonas): Work to do in this. Too wide, reload missing.
                         const operations = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                         dispatch(setPopInChild({
-                            el: <FilesApi.Properties inPopIn resource={resource} reload={operations.reload} />,
+                            el: <FilesApi.Properties inPopIn embedded resource={resource} reload={operations.reload} />,
                             onFullScreen: () => navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, resource.id))
                         }));
                         return true;

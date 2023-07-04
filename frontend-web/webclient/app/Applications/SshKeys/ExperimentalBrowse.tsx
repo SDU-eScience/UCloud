@@ -7,6 +7,7 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
+import {image} from "@/Utilities/HTMLUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -109,6 +110,18 @@ export function ExperimentalSSHKey(): JSX.Element {
                             break;
                         }
                     }
+                });
+
+                browser.icons.renderIcon({
+                    name: "key",
+                    color: "iconColor",
+                    color2: "iconColor",
+                    height: 256,
+                    width: 256
+                }).then(icon => {
+                    const fragment = document.createDocumentFragment();
+                    fragment.append(image(icon, {height: 60, width: 60}));
+                    browser.defaultEmptyGraphic = fragment;
                 });
 
                 browser.on("fetchOperationsCallback", () =>
