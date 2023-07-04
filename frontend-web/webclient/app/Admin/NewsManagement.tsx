@@ -8,7 +8,7 @@ import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
-    Box, Button, Flex, Input, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label
+    Box, Button, Flex, Input, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label, SelectableTextWrapper
 } from "@/ui-components";
 import {DatePicker} from "@/ui-components/DatePicker";
 import * as Heading from "@/ui-components/Heading";
@@ -106,7 +106,7 @@ function NewsManagement(): JSX.Element | null {
                             </Flex>
                             <Input width={1} my="3px" required placeholder="Post title..." inputRef={titleRef} />
                             <Input width={1} my="3px" required placeholder="Short summation..." inputRef={subtitleRef} />
-                            <Flex mb="3px">
+                            <SelectableTextWrapper mb="3px">
                                 <SelectableText
                                     cursor="pointer"
                                     mr="5px"
@@ -118,7 +118,7 @@ function NewsManagement(): JSX.Element | null {
                                     selected={showPreview}
                                     onClick={() => setPreview(true)}
                                 >Preview</SelectableText>
-                            </Flex>
+                            </SelectableTextWrapper>
                             <TextArea
                                 width={1}
                                 resize="vertical"

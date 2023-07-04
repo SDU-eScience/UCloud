@@ -1,4 +1,3 @@
-import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
