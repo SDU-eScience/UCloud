@@ -264,6 +264,7 @@ export class ResourceBrowser<T> {
     private root: HTMLElement;
     private operations: HTMLElement;
     /* private */ filters: HTMLElement;
+    /* private */ rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
     public header: HTMLElement;
     private breadcrumbs: HTMLUListElement;
@@ -418,6 +419,7 @@ export class ResourceBrowser<T> {
                 <div style="display: flex; overflow-x: scroll;">
                     <div class="filters"></div>
                     <div class="session-filters"></div>
+                    <div class="right-sort-filters"></div>
                 </div>
             </header>
             
@@ -450,6 +452,7 @@ export class ResourceBrowser<T> {
         this.header = this.root.querySelector("header")!; // Add UtilityBar
         this.filters = this.root.querySelector<HTMLDivElement>(".filters")!;
         this.sessionFilters = this.root.querySelector<HTMLDivElement>(".session-filters")!;
+        this.rightFilters = this.root.querySelector<HTMLDivElement>(".right-sort-filters")!;
         this.breadcrumbs = this.root.querySelector<HTMLUListElement>("header ul")!;
         this.emptyPageElement = {
             container: this.root.querySelector(".page-empty")!,
@@ -1521,6 +1524,7 @@ export class ResourceBrowser<T> {
             if (!filtersToKeep.includes(key)) delete this.browseFilters[key];
         }
         this.filters.replaceChildren();
+        this.rightFilters.replaceChildren();
     }
 
     select(virtualRowIndex: number, selectionMode: SelectionMode, render: boolean = true) {
@@ -2697,7 +2701,7 @@ export class ResourceBrowser<T> {
                 white-space: pre;
             }
 
-            .file-browser .filters, .file-browser .session-filters {
+            .file-browser .filters, .file-browser .session-filters,  .file-browser .right-sort-filters {
                 display: flex;
                 margin-top: 12px;
             }
@@ -2996,6 +3000,10 @@ export class ResourceBrowser<T> {
             .file-browser .page-empty .provider-reason {
                 font-style: italic;
             }
+
+            .file-browser div > div.right-sort-filters {
+                margin-left: auto;
+            }
         `);
     }
 
@@ -3089,7 +3097,11 @@ export class ResourceBrowser<T> {
         wrapper.appendChild(text);
         const chevronIcon = this.createFilterImg("chevronDownLight");
         wrapper.appendChild(chevronIcon);
-        this.filters.appendChild(wrapper);
+        if (["Sort by", "Sort order"].includes(filter.text)) {
+            this.rightFilters.appendChild(wrapper);
+        } else {
+            this.filters.appendChild(wrapper);
+        }
 
         wrapper.onclick = e => {
             const wrapperRect = wrapper.getBoundingClientRect();
