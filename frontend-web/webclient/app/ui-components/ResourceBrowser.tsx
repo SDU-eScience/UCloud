@@ -24,6 +24,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {isAdminOrPI} from "@/Project/Api";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
+import {HTMLTooltip} from "./Tooltip";
 
 /*
  BUGS FOUND
@@ -1409,20 +1410,35 @@ export class ResourceBrowser<T> {
                     continue;
                 }
 
+                const text = child.enabled(selected, callbacks, page);
+                const isDisabled = typeof text === "string";
+
                 var item: HTMLElement = document.createElement("li");
-                if (child.tag === "create" || child.text === "Create...") item.style.backgroundColor = "blue";
+                if (isDisabled) {
+                    item.title = text;
+                    item.style.backgroundColor = "var(--midGray)";
+                    item.style.cursor = "not-allowed";
+                }
+
+                if (child.text === "Create...") item.style.backgroundColor = "blue";
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
                 const isConfirm = isOperation(child) && child.confirm;
-                this.contextMenuHandlers.push(() => {
-                    if (!isConfirm) {
-                        child.onClick(selected, callbacks, page);
-                    } else {
-                        // if (!useContextMenu) this.closeContextMenu();
-                        // This case is handled inside the button.
-                    }
-                });
+                if (!isDisabled) {
+                    this.contextMenuHandlers.push(() => {
+                        if (!isConfirm) {
+                            child.onClick(selected, callbacks, page);
+                        } else {
+                            // if (!useContextMenu) this.closeContextMenu();
+                            // This case is handled inside the button.
+                        }
+                    });
+                } else {
+                    const d = document.createElement("div");
+                    d.innerText = text;
+                    HTMLTooltip(item, d, {tooltipContentWidth: 450});
+                }
 
                 shortcutNumber++;
 
@@ -1430,11 +1446,14 @@ export class ResourceBrowser<T> {
                     this.findActiveContextMenuItem(true);
                     this.selectContextMenuItem(myIndex);
                 });
+
                 item.addEventListener("click", ev => {
                     ev.stopPropagation();
                     this.findActiveContextMenuItem(true);
                     this.selectContextMenuItem(myIndex);
-                    this.onContextMenuItemSelection();
+                    if (!isDisabled) {
+                        this.onContextMenuItemSelection();
+                    }
                 });
 
                 menuList.append(item);
@@ -2595,7 +2614,7 @@ export class ResourceBrowser<T> {
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         fetchFilters: () => [],
-        searchHidden: () => {},
+        searchHidden: () => { },
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};

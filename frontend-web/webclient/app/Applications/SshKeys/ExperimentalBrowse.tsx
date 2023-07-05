@@ -132,7 +132,7 @@ export function ExperimentalSSHKey(): JSX.Element {
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    return SshKeyApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries) === true); 
+                    return SshKeyApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries));
                 });
 
                 browser.on("pathToEntry", sshKey => sshKey.id);

@@ -547,7 +547,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
 
                     return groupOperations(
-                        FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected) === true)
+                        FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected))
                     );
                 });
 

@@ -222,7 +222,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
-                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries) === true);
+                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
                 });
                 browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
                 browser.on("search", query => {

@@ -232,7 +232,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    return FileCollectionsApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected) === true);
+                    return FileCollectionsApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                 });
 
                 browser.on("unhandledShortcut", (ev) => {

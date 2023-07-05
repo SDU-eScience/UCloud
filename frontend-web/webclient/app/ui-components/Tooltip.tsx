@@ -22,7 +22,7 @@ const TooltipContent = injectStyle("tooltip-content", k => `
     }
 `);
 
-const Tooltip: React.FunctionComponent<Tooltip> = props => {
+function getPortal(): HTMLElement {
     let portal = document.getElementById(tooltipPortalId);
     if (!portal) {
         const elem = document.createElement("div");
@@ -30,6 +30,11 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
         document.body.appendChild(elem);
         portal = elem;
     }
+    return portal;
+}
+
+const Tooltip: React.FunctionComponent<Tooltip> = props => {
+    const portal = getPortal();
 
     const width = props.tooltipContentWidth ?? 200;
 
@@ -63,6 +68,35 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
             )
         }
     </>;
+};
+
+export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}) {
+    const portal = getPortal();
+
+    const width = opts?.tooltipContentWidth ?? 200;
+    const contentWrapper = document.createElement("div");
+    contentWrapper.append(tooltip);
+    contentWrapper.style.position = "absolute";
+    contentWrapper.className = TooltipContent;
+    contentWrapper.style.width = `${width}px`;
+
+    function onHover(ev: MouseEvent) {
+        const wrapperRect = trigger.getBoundingClientRect();
+        contentWrapper.style.left = `${wrapperRect.x + wrapperRect.width / 2 - width / 2}px`;
+        contentWrapper.style.top = `${wrapperRect.y + wrapperRect.height}px`;
+        contentWrapper.style.display = "block";
+    }
+
+    function onLeave() {
+        contentWrapper.style.display = "none";
+    }
+
+    trigger.onmouseover = onHover;
+    trigger.onmouseleave = onLeave;
+
+    portal.innerHTML = "";
+    portal.append(contentWrapper);
+
 };
 
 const tooltipPortalId = "tooltip-portal";
