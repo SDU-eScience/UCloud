@@ -252,7 +252,7 @@ export function ExperimentalLicenses(): JSX.Element {
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    return LicenseApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries) === true)
+                    return LicenseApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
                 });
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => f.specification.product.id);

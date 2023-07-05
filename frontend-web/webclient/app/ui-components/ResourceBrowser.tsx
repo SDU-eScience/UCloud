@@ -1338,8 +1338,9 @@ export class ResourceBrowser<T> {
             {
                 element.append(icon);
 
-                if (!isOperation(op) && op.backgroundColor) {
-                    element.style.backgroundColor = `var(--${op.backgroundColor})`;
+                if (!isOperation(op)) {
+                    if (op.backgroundColor) element.style.backgroundColor = `var(--${op.backgroundColor})`;
+                    if (op.color) element.style.color = `var(--${op.color})`;
                 }
             }
 
@@ -1414,31 +1415,32 @@ export class ResourceBrowser<T> {
                 const isDisabled = typeof text === "string";
 
                 var item: HTMLElement = document.createElement("li");
+
                 if (isDisabled) {
-                    item.title = text;
                     item.style.backgroundColor = "var(--midGray)";
                     item.style.cursor = "not-allowed";
                 }
 
                 if (child.text === "Create...") item.style.backgroundColor = "blue";
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
 
-                const myIndex = shortcutNumber - 1;
-                const isConfirm = isOperation(child) && child.confirm;
-                if (!isDisabled) {
-                    this.contextMenuHandlers.push(() => {
-                        if (!isConfirm) {
-                            child.onClick(selected, callbacks, page);
-                        } else {
-                            // if (!useContextMenu) this.closeContextMenu();
-                            // This case is handled inside the button.
-                        }
-                    });
-                } else {
+                if (isDisabled) {
                     const d = document.createElement("div");
                     d.innerText = text;
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
+
+                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
+
+                const myIndex = shortcutNumber - 1;
+                const isConfirm = isOperation(child) && child.confirm;
+                this.contextMenuHandlers.push(() => {
+                    if (isDisabled) { }
+                    else if (isConfirm) {
+                        // This case is handled inside the button.
+                    } else {
+                        child.onClick(selected, callbacks, page);
+                    }
+                });
 
                 shortcutNumber++;
 
