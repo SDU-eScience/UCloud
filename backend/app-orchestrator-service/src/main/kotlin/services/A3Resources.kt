@@ -2,9 +2,7 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.util.IdCard
-import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.accounting.util.ResourceDocument
-import dk.sdu.cloud.accounting.util.ResourceStore
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -21,21 +19,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.JsonElement
 import java.util.TreeSet
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicReferenceArray
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.random.Random
 
 class ResourceStoreByOwner<T>(
     val type: String,
     val uid: Int,
     val pid: Int,
     private val db: DBContext,
-    private val callbacks: ResourceManagerByOwner.Callbacks<T>,
+    private val callbacks: ResourceStore.Callbacks<T>,
 ) {
     private val mutex = Mutex()
 
@@ -48,6 +47,7 @@ class ResourceStoreByOwner<T>(
     private val providerId = arrayOfNulls<String>(STORE_SIZE)
     private val aclEntity = arrayOfNulls<IntArray>(STORE_SIZE)
     private val aclPermission = arrayOfNulls<ByteArray>(STORE_SIZE)
+    private val updates = arrayOfNulls<CyclicArray<ResourceStore.Update>>(STORE_SIZE)
 
     private var size: Int = 0
 
@@ -182,149 +182,114 @@ class ResourceStoreByOwner<T>(
         }
     }
 
-    suspend fun search(
+    private suspend fun searchAndConsume(
         idCard: IdCard,
-        outputBuffer: Array<ResourceDocument<T>>,
-        outputBufferOffset: Int,
-        predicate: (ResourceDocument<T>) -> Boolean
-    ): Int {
+        consumer: SearchConsumer,
+    ) {
         awaitReady()
 
         mutex.withLock {
-            var outIdx = outputBufferOffset
-
-            fun emit(arrIdx: Int) {
-                if (outIdx >= outputBuffer.size) return
-                if (this.id[arrIdx] == 0L) return
-
-                val res = outputBuffer[outIdx++]
-                res.id = this.id[arrIdx]
-                res.createdAt = this.createdAt[arrIdx]
-                res.createdBy = this.createdBy[arrIdx]
-                res.project = this.project[arrIdx]
-                res.product = this.product[arrIdx]
-                res.providerId = this.providerId[arrIdx]
-                @Suppress("UNCHECKED_CAST")
-                res.data = this.data[arrIdx] as T
-
-                if (!predicate(res)) {
-                    outIdx--
-                }
-            }
-
             val isOwnerOfEverything = idCard is IdCard.User &&
                     ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
 
             if (isOwnerOfEverything) {
                 var idx = 0
-                while (idx < STORE_SIZE && outIdx < outputBuffer.size) {
+                while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
                     if (this.id[idx] == 0L) break
-                    emit(idx)
-                    emit(idx + 1)
-                    emit(idx + 2)
-                    emit(idx + 3)
+                    consumer.call(idx)
+                    consumer.call(idx + 1)
+                    consumer.call(idx + 2)
+                    consumer.call(idx + 3)
 
                     idx += 4
                 }
             } else if (idCard is IdCard.User && idCard.activeProject != 0) {
                 // TODO(Dan): This branch needs to use the ACL
             } else if (idCard is IdCard.Provider && idCard.providerOf.isNotEmpty()) {
-                searchInArray(idCard.providerOf, product, ::emit)
+                searchInArray(idCard.providerOf, product, consumer)
             }
-            return outIdx
         }
     }
 
-    private fun searchInArray(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
-        searchInArrayScalarLoop(needles, haystack, emit)
-//        searchInArrayVector(needles, haystack, emit)
-    }
+    suspend fun search(
+        idCard: IdCard,
+        outputBuffer: Array<ResourceDocument<T>>,
+        outputBufferOffset: Int,
+        predicate: (ResourceDocument<T>) -> Boolean
+    ): Int {
+        var outIdx = outputBufferOffset
 
-    private fun searchInArrayScalarLoop(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
-        println("Hi!")
-        val fakeNeedles = IntArray(needles.size) { 1337 }
-        var idx = 0
-        while (idx < haystack.size) {
-            if (fakeNeedles.indexOf(haystack[idx]) != -1) emit(idx)
-            if (fakeNeedles.indexOf(haystack[idx + 1]) != -1) emit(idx + 1)
-            if (fakeNeedles.indexOf(haystack[idx + 2]) != -1) emit(idx + 2)
-            if (fakeNeedles.indexOf(haystack[idx + 3]) != -1) emit(idx + 3)
-            idx += 4
-        }
-        println("Loop complete!")
-    }
+        val self = this
+        val emitter = object : SearchConsumer {
+            override fun shouldTerminate(): Boolean = outIdx >= outputBuffer.size
+            override fun call(arrIdx: Int) {
+                if (outIdx >= outputBuffer.size) return
+                if (self.id[arrIdx] == 0L) return
 
-    private fun searchInArrayScalarLoop2(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
-        var idx = 0
-        while (idx < haystack.size) {
-            if (needles.indexOf(haystack[idx]) != -1) emit(idx)
-            if (needles.indexOf(haystack[idx + 1]) != -1) emit(idx + 1)
-            if (needles.indexOf(haystack[idx + 2]) != -1) emit(idx + 2)
-            if (needles.indexOf(haystack[idx + 3]) != -1) emit(idx + 3)
-            idx += 4
-        }
-    }
+                val res = outputBuffer[outIdx++]
+                res.id = self.id[arrIdx]
+                res.createdAt = self.createdAt[arrIdx]
+                res.createdBy = self.createdBy[arrIdx]
+                res.project = self.project[arrIdx]
+                res.product = self.product[arrIdx]
+                res.providerId = self.providerId[arrIdx]
+                @Suppress("UNCHECKED_CAST")
+                res.data = self.data[arrIdx] as T
 
-    private fun searchInArrayVector(needles: IntArray, haystack: IntArray, emit: (Int) -> Unit) {
-        val resultArray = BooleanArray(ivLength)
-        var searchTime = 0L
-        var emitTime = 0L
-
-        var idx = 0
-        val needleVectors = needles.map { IntVector.broadcast(ivSpecies, it) }
-
-        while (idx < haystack.size) {
-            for (pIdx in 0 until needles.size) {
-                val searchStart = System.nanoTime()
-                val needle = needleVectors[pIdx]
-
-                val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
-                val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + (ivLength))
-                val haystack3 = IntVector.fromArray(ivSpecies, haystack, idx + (ivLength * 2))
-                val haystack4 = IntVector.fromArray(ivSpecies, haystack, idx + (ivLength * 3))
-
-                val cr1 = haystack1.compare(VectorOperators.EQ, needle)
-                val cr2 = haystack2.compare(VectorOperators.EQ, needle)
-                val cr3 = haystack3.compare(VectorOperators.EQ, needle)
-                val cr4 = haystack4.compare(VectorOperators.EQ, needle)
-
-                val t1 = cr1.firstTrue()
-                val t2 = cr1.firstTrue()
-                val t3 = cr1.firstTrue()
-                val t4 = cr1.firstTrue()
-                val emitStart = System.nanoTime()
-
-                if (t1 != ivLength) {
-                    cr1.intoArray(resultArray, 0)
-                    for (i in t1 until resultArray.size) {
-                        if (resultArray[i]) emit(idx + 0 + i)
-                    }
+                if (!predicate(res)) {
+                    outIdx--
                 }
-                if (t2 != ivLength) {
-                    cr2.intoArray(resultArray, 0)
-                    for (i in t2 until resultArray.size) {
-                        if (resultArray[i]) emit(idx + (ivLength) + i)
-                    }
-                }
-                if (t3 != ivLength) {
-                    cr3.intoArray(resultArray, 0)
-                    for (i in t3 until resultArray.size) {
-                        if (resultArray[i]) emit(idx + (ivLength * 2) + i)
-                    }
-                }
-                if (t4 != ivLength) {
-                    cr4.intoArray(resultArray, 0)
-                    for (i in t4 until resultArray.size) {
-                        if (resultArray[i]) emit(idx + (ivLength * 3) + i)
-                    }
-                }
-                val end = System.nanoTime()
-                searchTime += emitStart - searchStart
-                emitTime += end - emitStart
             }
-            idx += ivLength * 4
         }
-        println("Search time: $searchTime. Emit time: $emitTime")
+
+        searchAndConsume(idCard, emitter)
+
+        return outIdx
+    }
+
+    suspend fun addUpdates(
+        idCard: IdCard,
+        id: Long,
+        newUpdates: List<ResourceStore.Update>
+    ): Boolean {
+        val self = this
+        var isDone = false
+        val consumer = object : SearchConsumer {
+            override fun shouldTerminate(): Boolean = isDone
+            override fun call(arrIdx: Int) {
+                if (self.id[arrIdx] != id) return
+                val updates = self.updates[arrIdx] ?: CyclicArray<ResourceStore.Update>(64).also {
+                    self.updates[arrIdx] = it
+                }
+
+                for (update in newUpdates) {
+                    updates.add(update)
+                }
+
+                isDone = true
+            }
+        }
+        searchAndConsume(idCard, consumer)
+        return isDone
+    }
+
+    suspend fun updateProviderId(
+        idCard: IdCard,
+        id: Long,
+        newProviderId: String?,
+    ): Boolean {
+        val self = this
+        var isDone = false
+        val consumer = object : SearchConsumer {
+            override fun shouldTerminate(): Boolean = isDone
+            override fun call(arrIdx: Int) {
+                if (self.id[arrIdx] != id) return
+                self.providerId[arrIdx] = newProviderId
+                isDone = true
+            }
+        }
+        searchAndConsume(idCard, consumer)
+        return isDone
     }
 
     suspend fun findTail(): ResourceStoreByOwner<T> {
@@ -360,18 +325,138 @@ class ResourceStoreByOwner<T>(
 
         private val ivSpecies = IntVector.SPECIES_PREFERRED
         private val ivLength = ivSpecies.length()
+
+        private fun searchInArray(needles: IntArray, haystack: IntArray, emit: SearchConsumer) {
+            searchInArrayVector(needles, haystack, emit)
+        }
+
+        // NOTE(Dan, 04/07/23): DO NOT CHANGE THIS TO A LAMBDA. Performance of calling lambdas versus calling normal
+        // functions through interfaces are dramatically different. My own benchmarks have shown a difference of at
+        // least 10x just by switching to an interface instead of a lambda.
+        private interface SearchConsumer {
+            fun shouldTerminate(): Boolean = false
+            fun call(arrIdx: Int)
+        }
+
+        // NOTE(Dan, 04/07/23): This function can easily search through several gigabytes of data per second. But its
+        // performance _heavily_ depends on a JVM which supports the Vector module and subsequently correctly produces
+        // sane assembly from the C2 JIT. To verify the JIT is doing its job, you may want to add the following JVM flags:
+        //
+        // -XX:+UnlockDiagnosticVMOptions -XX:+PrintAssembly -XX:PrintAssemblyOptions=intel
+        //
+        // You must have the hsdis extension installed for your JVM. Instructions can be found here:
+        // https://www.chrisnewland.com/updated-instructions-for-building-hsdis-on-osx-417
+        //
+        // You should verify that the searchInArrayVector function contains the PCMPEQQ instruction (prefix will vary by
+        // CPU architecture). In other words, you should verify that the compare calls are actually using SIMD. In
+        // case we ever stop using x64, then the instruction will be something else entirely.
+        //
+        // We purposefully warm up this function in the `init {}` block of this class to force proper JIT compilation of
+        // the function.
+        private fun searchInArrayVector(needles: IntArray, haystack: IntArray, emit: SearchConsumer) {
+            require(haystack.size % 4 == 0) { "haystack must have a size which is a multiple of 4! (${haystack.size})" }
+            var idx = 0
+            while (idx < haystack.size) {
+                for (i in needles) {
+                    val needle = IntVector.broadcast(ivSpecies, i)
+
+                    val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
+                    val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength)
+                    val haystack3 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 2)
+                    val haystack4 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 3)
+
+                    val cr1 = haystack1.compare(VectorOperators.EQ, needle)
+                    val cr2 = haystack2.compare(VectorOperators.EQ, needle)
+                    val cr3 = haystack3.compare(VectorOperators.EQ, needle)
+                    val cr4 = haystack4.compare(VectorOperators.EQ, needle)
+
+                    run {
+                        var offset = idx
+                        var bits = cr1.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            offset += trailing
+                            emit.call(offset)
+                            bits = bits shr (trailing + 1)
+                        }
+                    }
+
+                    run {
+                        var offset = idx + ivLength
+                        var bits = cr2.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            offset += trailing
+                            emit.call(offset)
+                            bits = bits shr (trailing + 1)
+                        }
+                    }
+
+                    run {
+                        var offset = idx + ivLength * 2
+                        var bits = cr3.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            offset += trailing
+                            emit.call(offset)
+                            bits = bits shr (trailing + 1)
+                        }
+                    }
+
+                    run {
+                        var offset = idx + ivLength * 3
+                        var bits = cr4.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            offset += trailing
+                            emit.call(offset)
+                            bits = bits shr (trailing + 1)
+                        }
+                    }
+                }
+                idx += ivLength * 4
+            }
+        }
+
+        init {
+            run {
+                // NOTE(Dan): Warmup the JIT for the searchInArray function.
+
+                val needles = intArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9)
+                val haystack = IntArray(1024) { Random.nextInt(1, 15) }
+                val warmupCount = 10_000
+                val discard = object : SearchConsumer {
+                    override fun call(arrIdx: Int) {}
+                }
+
+                repeat(warmupCount) {
+                    searchInArrayVector(needles, haystack, discard)
+                }
+            }
+        }
     }
 }
 
-class ResourceManagerByOwner<T>(
+class ResourceStore<T>(
     val type: String,
     private val db: DBContext,
     private val callbacks: Callbacks<T>,
-) : ResourceStore<T> {
+) {
+    data class BrowseResult(val count: Int, val next: String?)
+    data class Update(val update: String?, val extra: JsonElement? = null)
+
     class Callbacks<T>(
         val loadState: suspend (session: DBTransaction, count: Int, resources: LongArray) -> Array<T>
     )
 
+    // Blocks and stores
+    // =================================================================================================================
+    // The following calls deal with the blocks and the stores inside of them. This is where we store all the data
+    // relevant to this ResourceService. The main entrypoint to the data is a linked-list of blocks. These blocks
+    // contain references to "stores". Inside a store, you will are guaranteed to find _all_ of the resources owned by
+    // a single workspace. A store is by itself a linked-list structure, where each store contain a chunk of resources.
+    //
+    // The block data-structure is defined below:
     private data class Block<T>(
         // NOTE(Dan): We only store the root stores in a block. Subsequent stores are accessed through the
         // store's next property.
@@ -381,8 +466,282 @@ class ResourceManagerByOwner<T>(
         var next: Block<T>? = null,
     )
 
+    // Whenever we need to make mutations to it, such as inserting a new store, we use the `blockMutationMutex`. We
+    // do not need to use the `blockMutationMutex` when we are just reading the data.
     private val blockMutationMutex = Mutex()
+
+    // We store a reference to the head of the blockchain (sorry) in the `root` variable:
     private val root: Block<T> = Block()
+
+    // Stores are always owned by a workspace. We identify a workspace by a tuple containing the user ID (`uid`) and
+    // the project ID (`pid`). We only use the numeric IDs for this, since it improves performance inside the stores by
+    // quite a bit. The translation from textual IDs to numeric IDs translation is done by the IdCardService. If the
+    // `pid` is non-zero then the `uid` will always be ignored. This allows the callers to simply pass in the
+    // information an ActorAndProject easily.
+
+    // To use the store of a workspace, you will need to call `findOrLoadStore`:
+    private suspend fun findOrLoadStore(uid: Int, pid: Int): ResourceStoreByOwner<T> {
+        return findStore(uid, pid) ?: loadStore(uid, pid)
+    }
+
+    // Since the stores are linked-list like structure, you should make sure to iterate through all the stores. You need
+    // to do this using the `useStores` function. Note that you can terminate the search early once you have performed
+    // the request you need to do:
+    private inline fun useStores(root: ResourceStoreByOwner<T>, consumer: (ResourceStoreByOwner<T>) -> ShouldContinue) {
+        var current: ResourceStoreByOwner<T>? = root
+        while (current != null) {
+            if (consumer(current) == ShouldContinue.NO) break
+            current = current.next
+        }
+    }
+
+    private enum class ShouldContinue {
+        YES,
+        NO;
+
+        companion object {
+            fun ifThisIsTrue(value: Boolean) = if (value) YES else NO
+        }
+    }
+
+    // In order to implement `findOrLoadStore` we must of course implement the two subcomponents. Finding a loaded store
+    // is relatively straight-forward, we simply iterate through the blocks until we find it:
+    private fun findStore(uid: Int, pid: Int): ResourceStoreByOwner<T>? {
+        var block: Block<T>? = root
+        while (block != null) {
+            for (store in block.stores) {
+                if (store == null) break
+                if (uid != 0 && store.uid == uid) return store
+                if (pid != 0 && store.pid == pid) return store
+            }
+            block = block.next
+        }
+
+        return null
+    }
+
+    // Loading the store is also fairly straightforward. We need to use the `blockMutationMutex` since we will be
+    // mutating the block list. The function will quickly reserve a spot in the block list and then trigger a load()
+    // inside the store. Note that the store itself is capable of handling the situation where it receives requests
+    // even though it hasn't finished loading.
+    private suspend fun loadStore(uid: Int, pid: Int): ResourceStoreByOwner<T> {
+        val result = blockMutationMutex.withLock {
+            // NOTE(Dan): We need to make sure that someone else didn't get here before we did.
+            val existingBlock = findStore(uid, pid)
+            if (existingBlock != null) return existingBlock
+
+            var block = root
+            while (block.next != null) {
+                block = block.next!!
+            }
+
+            var emptySlotIdx = block.stores.indexOf(null)
+            if (emptySlotIdx == -1) {
+                val oldTail = block
+                block = Block()
+                oldTail.next = block
+                emptySlotIdx = 0
+            }
+
+            val store = ResourceStoreByOwner<T>(type, uid, pid, db, callbacks)
+            block.stores[emptySlotIdx] = store
+            store
+        }
+
+        result.load()
+        return result
+    }
+
+    // The blocks and stores are consumed by the public API.
+
+
+    // Public API
+    // =================================================================================================================
+    // This is where we actually make stuff happen! These functions are consumed by the services of the different
+    // resource types. Almost all the functions in this section will follow the same pattern of:
+    //
+    // 1. Locate (and potentially initialize) the appropriate stores which contain the resources. This will often use
+    //    one of the indices we have available to us (see the following sections).
+    // 2. Iterate through all the relevant stores (via `useStores`) and perform the relevant operation.
+    // 3. If relevant, update one or more indices.
+    // 4. Aggregate and filter the results. Finally return it to the caller.
+    //
+    // In other words, you won't find a lot of business logic in these calls, since this is mostly implemented in the
+    // individual stores.
+
+    suspend fun create(
+        idCard: IdCard,
+        product: Int,
+        data: T,
+        output: ResourceDocument<T>?
+    ): Long {
+        if (idCard !is IdCard.User) TODO()
+        val uid = if (idCard.activeProject < 0) 0 else idCard.uid
+        val pid = idCard.activeProject
+
+        val root = findOrLoadStore(uid, pid)
+
+        var tail = root.findTail()
+        while (true) {
+            val id = tail.create(idCard, product, data, output)
+            if (id < 0L) {
+                tail = tail.expand()
+            } else {
+                val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
+                index.register(id, if (pid != 0) pid else uid, pid == 0)
+
+                val providerId = providerOfProducts.get(product) ?: error("Unknown product? $product")
+                findOrLoadProviderIndex(providerId).registerUsage(uid, pid)
+
+                return id
+            }
+        }
+    }
+
+    suspend fun browse(
+        idCard: IdCard,
+        outputBuffer: Array<ResourceDocument<T>>,
+        next: String?,
+        flags: ResourceIncludeFlags,
+    ): ResourceStore.BrowseResult {
+        // TODO(Dan): Pagination is not yet working
+        // TODO(Dan): Sorting is not yet working
+        // TODO(Dan): Filtering is not yet working
+        when (idCard) {
+            is IdCard.Provider -> {
+                val storeArray = IntArray(128)
+                val providerIndex = findOrLoadProviderIndex(idCard.name)
+
+                var minimumUid = 0
+                var minimumPid = 0
+
+                if (next != null && next.startsWith("p-")) {
+                    minimumUid = Int.MAX_VALUE
+                    minimumPid = next.removePrefix("p-").toIntOrNull() ?: Int.MAX_VALUE
+                } else if (next != null && next.startsWith("u-")) {
+                    minimumUid = next.removePrefix("u-").toIntOrNull() ?: Int.MAX_VALUE
+                }
+
+                var didCompleteUsers = minimumUid == Int.MAX_VALUE
+                var didCompleteProjects = minimumPid == Int.MAX_VALUE
+
+                var offset = 0
+                while (minimumUid < Int.MAX_VALUE && offset < outputBuffer.size) {
+                    val resultCount = providerIndex.findUidStores(storeArray, minimumUid)
+
+                    for (i in 0..<resultCount) {
+                        useStores(findOrLoadStore(storeArray[i], 0)) { store ->
+                            offset += store.search(idCard, outputBuffer, offset) { true }
+                            ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
+                        }
+                    }
+
+                    if (resultCount == 0) {
+                        didCompleteUsers = true
+                        break
+                    }
+                    minimumUid = storeArray[resultCount - 1]
+                }
+
+                while (minimumPid < Int.MAX_VALUE && offset < outputBuffer.size) {
+                    val resultCount = providerIndex.findPidStores(storeArray, minimumUid)
+                    for (i in 0..<resultCount) {
+                        useStores(findOrLoadStore(0, storeArray[i])) { store ->
+                            offset += store.search(idCard, outputBuffer, offset) { true }
+                            ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
+                        }
+                    }
+
+                    if (resultCount == 0) {
+                        didCompleteProjects = true
+                        break
+                    }
+                    minimumPid = storeArray[resultCount - 1]
+                }
+
+                return ResourceStore.BrowseResult(
+                    offset,
+                    when {
+                        didCompleteProjects -> null
+                        didCompleteUsers -> "p-$minimumPid"
+                        else -> "u-$minimumUid"
+                    }
+                )
+            }
+
+            is IdCard.User -> {
+                val uid = if (idCard.activeProject < 0) 0 else idCard.uid
+                val pid = idCard.activeProject
+
+                var offset = 0
+                useStores(findOrLoadStore(uid, pid)) { store ->
+                    offset += store.search(idCard, outputBuffer, offset) { true }
+                    ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
+                }
+                return ResourceStore.BrowseResult(offset, null)
+            }
+        }
+    }
+
+    suspend fun addUpdate(idCard: IdCard, id: Long, updates: List<ResourceStore.Update>) {
+        useStores(findStoreByResourceId(id) ?: return) { store ->
+            ShouldContinue.ifThisIsTrue(!store.addUpdates(idCard, id, updates))
+        }
+    }
+
+    suspend fun delete(idCard: IdCard, ids: LongArray) {
+        TODO("Not yet implemented")
+    }
+
+    suspend fun retrieve(
+        idCard: IdCard,
+        id: Long,
+    ): ResourceDocument<T>? {
+        // NOTE(Dan): This is just a convenience wrapper around retrieveBulk()
+        val output = arrayOf(ResourceDocument<T>())
+        val success = retrieveBulk(idCard, longArrayOf(id), output) == 1
+        if (!success) return null
+        return output[0]
+    }
+
+    suspend fun retrieveBulk(
+        idCard: IdCard,
+        ids: LongArray,
+        output: Array<ResourceDocument<T>>
+    ): Int {
+        val storesVisited = HashSet<Pair<Int, Int>>()
+
+        var offset = 0
+        for (id in ids) {
+            val initialStore = findStoreByResourceId(id) ?: continue
+
+            val storeKey = Pair(initialStore.uid, initialStore.pid)
+            if (storeKey in storesVisited) continue
+            storesVisited.add(storeKey)
+
+            useStores(initialStore) { currentStore ->
+                offset += currentStore.search(idCard, output, offset) { it.id in ids }
+                ShouldContinue.ifThisIsTrue(offset < output.size)
+            }
+        }
+        return offset
+    }
+
+    suspend fun search(
+        idCard: IdCard,
+        outputBuffer: Array<ResourceDocument<T>>,
+        query: String,
+        next: String?,
+        flags: ResourceIncludeFlags
+    ): ResourceStore.BrowseResult {
+        return ResourceStore.BrowseResult(0, null)
+    }
+
+    suspend fun updateProviderId(idCard: IdCard, id: Long, providerId: String?) {
+        useStores(findStoreByResourceId(id) ?: return) { store ->
+            ShouldContinue.ifThisIsTrue(!store.updateProviderId(idCard, id, providerId))
+        }
+    }
 
     // ID index
     // =================================================================================================================
@@ -521,7 +880,7 @@ class ResourceManagerByOwner<T>(
         val reference = loaded.entries[slot]
         val referenceIsUid = loaded.entryIsUid[slot] == 1
 
-        return findOrCreateStore(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
+        return findOrLoadStore(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
     }
 
     // Provider index
@@ -634,254 +993,12 @@ class ResourceManagerByOwner<T>(
         }
     }
 
-    override suspend fun create(
-        idCard: IdCard,
-        product: Int,
-        data: T,
-        output: ResourceDocument<T>?
-    ): Long {
-        if (idCard !is IdCard.User) TODO()
-        val uid = if (idCard.activeProject < 0) 0 else idCard.uid
-        val pid = idCard.activeProject
-
-        val root = findOrCreateStore(uid, pid)
-
-        var tail = root.findTail()
-        while (true) {
-            val id = tail.create(idCard, product, data, output)
-            if (id < 0L) {
-                tail = tail.expand()
-            } else {
-                val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
-                index.register(id, if (pid != 0) pid else uid, pid == 0)
-
-                val providerId = providerOfProducts.get(product) ?: error("Unknown product? $product")
-                findOrLoadProviderIndex(providerId).registerUsage(uid, pid)
-
-                return id
-            }
-        }
-    }
-
-    override suspend fun browse(
-        idCard: IdCard,
-        outputBuffer: Array<ResourceDocument<T>>,
-        next: String?,
-        flags: ResourceIncludeFlags,
-    ): ResourceStore.BrowseResult {
-        when (idCard) {
-            is IdCard.Provider -> {
-                var timeToFindIndex = 0L
-                var timeToFindStores = 0L
-                var timeInFindUidStores = 0L
-                var timeToSearchStores = 0L
-                var timeToOverhead = 0L
-
-                val t1 = System.nanoTime()
-                val storeArray = IntArray(128)
-                val t2 = System.nanoTime()
-                val providerIndex = findOrLoadProviderIndex(idCard.name)
-                val t3 = System.nanoTime()
-
-                timeToOverhead += t2 - t1
-                timeToFindIndex += t3 - t2
-
-                var minimumUid = 0
-                var minimumPid = 0
-
-                if (next != null && next.startsWith("p-")) {
-                    minimumUid = Int.MAX_VALUE
-                    minimumPid = next.removePrefix("p-").toIntOrNull() ?: Int.MAX_VALUE
-                } else if (next != null && next.startsWith("u-")) {
-                    minimumUid = next.removePrefix("u-").toIntOrNull() ?: Int.MAX_VALUE
-                }
-
-                val t4 = System.nanoTime()
-                var didCompleteUsers = minimumUid == Int.MAX_VALUE
-                var didCompleteProjects = minimumPid == Int.MAX_VALUE
-
-                timeToOverhead += t4 - t3
-
-                var offset = 0
-                while (minimumUid < Int.MAX_VALUE && offset < outputBuffer.size) {
-                    val t5 = System.nanoTime()
-                    val resultCount = providerIndex.findUidStores(storeArray, minimumUid)
-                    val t6 = System.nanoTime()
-
-                    timeInFindUidStores += t6 - t5
-
-                    for (i in 0..<resultCount) {
-                        val t7 = System.nanoTime()
-                        val store = findOrCreateStore(storeArray[i], 0)
-                        val t8 = System.nanoTime()
-
-                        timeToFindStores += t8 - t7
-
-                        offset += store.search(idCard, outputBuffer, offset) { true }
-                        val t9 = System.nanoTime()
-
-                        timeToSearchStores += t9 - t8
-                    }
-
-                    if (resultCount == 0) {
-                        didCompleteUsers = true
-                        break
-                    }
-                    minimumUid = storeArray[resultCount - 1]
-                }
-
-                while (minimumPid < Int.MAX_VALUE && offset < outputBuffer.size) {
-                    val t10 = System.nanoTime()
-                    val resultCount = providerIndex.findPidStores(storeArray, minimumUid)
-                    val t11 = System.nanoTime()
-
-                    timeInFindUidStores += t11 - t10
-
-                    for (i in 0..<resultCount) {
-                        val t12 = System.nanoTime()
-                        val store = findOrCreateStore(0, storeArray[i])
-                        val t13 = System.nanoTime()
-
-                        timeToFindStores += t13 - t12
-                        offset += store.search(idCard, outputBuffer, offset) { true }
-                        val t14 = System.nanoTime()
-                        timeToSearchStores += t14 - t13
-                    }
-
-                    if (resultCount == 0) {
-                        didCompleteProjects = true
-                        break
-                    }
-                    minimumPid = storeArray[resultCount - 1]
-                }
-
-                println(buildString {
-                    appendLine("timeToFindIndex: $timeToFindIndex")
-                    appendLine("timeToFindStores: $timeToFindStores")
-                    appendLine("timeInFindUidStores: $timeInFindUidStores")
-                    appendLine("timeToSearchStores: $timeToSearchStores")
-                    appendLine("timeToOverhead: $timeToOverhead")
-                })
-
-                return ResourceStore.BrowseResult(
-                    offset,
-                    when {
-                        didCompleteProjects -> null
-                        didCompleteUsers -> "p-$minimumPid"
-                        else -> "u-$minimumUid"
-                    }
-                )
-            }
-
-            is IdCard.User -> {
-                val uid = if (idCard.activeProject < 0) 0 else idCard.uid
-                val pid = idCard.activeProject
-                val root = findOrCreateStore(uid, pid)
-
-                var store: ResourceStoreByOwner<T>? = root
-                var offset = 0
-                while (store != null) {
-                    offset += store.search(idCard, outputBuffer, offset) { true }
-                    store = store.next
-                }
-                return ResourceStore.BrowseResult(offset, null)
-            }
-        }
-    }
-
-    override suspend fun addUpdate(idCard: IdCard, id: Long, updates: List<ResourceStore.Update>) {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun delete(idCard: IdCard, ids: LongArray) {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun retrieveBulk(
-        idCard: IdCard,
-        ids: LongArray,
-        output: Array<ResourceDocument<T>>
-    ): Int {
-        val storesVisited = HashSet<Pair<Int, Int>>()
-
-        var offset = 0
-        for (id in ids) {
-            val store = findStoreByResourceId(id) ?: continue
-
-            val storeKey = Pair(store.uid, store.pid)
-            if (storeKey in storesVisited) continue
-            storesVisited.add(storeKey)
-
-            offset += store.search(idCard, output, offset) { it.id in ids }
-        }
-        return offset
-    }
-
-    override suspend fun search(
-        idCard: IdCard,
-        outputBuffer: Array<ResourceDocument<T>>,
-        query: String,
-        next: String?,
-        flags: ResourceIncludeFlags
-    ): ResourceStore.BrowseResult {
-        return ResourceStore.BrowseResult(0, null)
-    }
-
-    override suspend fun updateProviderId(id: Long, providerId: String?) {
-        TODO("Not yet implemented")
-    }
-
-    private suspend fun findOrCreateStore(uid: Int, pid: Int): ResourceStoreByOwner<T> {
-        return findRootStore(uid, pid) ?: createRootStore(uid, pid)
-    }
-
-    private fun findRootStore(uid: Int, pid: Int): ResourceStoreByOwner<T>? {
-        var block: Block<T>? = root
-        while (block != null) {
-            for (store in block.stores) {
-                if (store == null) break
-                if (uid != 0 && store.uid == uid) return store
-                if (pid != 0 && store.pid == pid) return store
-            }
-            block = block.next
-        }
-
-        return null
-    }
-
-    private suspend fun createRootStore(uid: Int, pid: Int): ResourceStoreByOwner<T> {
-        val result = blockMutationMutex.withLock {
-            val existingBlock = findRootStore(uid, pid)
-            if (existingBlock != null) return existingBlock
-
-            var block = root
-            while (block.next != null) {
-                block = block.next!!
-            }
-
-            var emptySlotIdx = block.stores.indexOf(null)
-            if (emptySlotIdx == -1) {
-                val oldTail = block
-                block = Block()
-                oldTail.next = block
-                emptySlotIdx = 0
-            }
-
-            val store = ResourceStoreByOwner<T>(type, uid, pid, db, callbacks)
-            block.stores[emptySlotIdx] = store
-            store
-        }
-
-        result.load()
-        return result
-    }
-
     companion object {
         const val MAX_PROVIDERS = 256
     }
 }
 
-class IdCardServiceImpl(private val db: DBContext) : IdCardService {
+class IdCardService(private val db: DBContext) {
     private val cached = SimpleCache<String, IdCard>(maxAge = 60_000) { username ->
         db.withSession { session ->
             if (username.startsWith(AuthProviders.PROVIDER_PREFIX)) {
@@ -949,7 +1066,7 @@ class IdCardServiceImpl(private val db: DBContext) : IdCardService {
         }
     }
 
-    override suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
+    suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
         var card = cached.get(actorAndProject.actor.safeUsername())
             ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
@@ -1065,6 +1182,51 @@ class ReadWriterMutex {
             return block()
         } finally {
             releaseWrite()
+        }
+    }
+}
+
+/**
+ * A cyclic array containing the latest [capacity] elements.
+ *
+ * Once a new element is added, beyond the [capacity], then the oldest element is removed from the array. The oldest
+ * element is stored at index 0, while the newest element is stored at index [capacity] - 1.
+ *
+ * @param capacity The maximum number of elements the array can hold.
+ * @param T The type of elements stored in the array.
+ */
+class CyclicArray<T>(val capacity: Int) : Iterable<T> {
+    private val data = arrayOfNulls<Any>(capacity)
+    private var head = 0
+    var size: Int = 0
+        private set
+
+    fun add(element: T) {
+        if (size < capacity) {
+            data[size] = element
+            size++
+        } else {
+            data[head] = element
+            head = (head + 1) % capacity
+        }
+    }
+
+    operator fun get(index: Int): T {
+        require(index in 0 until size) { "index out of bounds $index !in 0..<$size" }
+        @Suppress("UNCHECKED_CAST")
+        return data[(head + index) % capacity] as T
+    }
+
+    override fun iterator(): Iterator<T> {
+        return object : Iterator<T> {
+            var offset = 0
+
+            override fun hasNext(): Boolean = offset < size
+
+            override fun next(): T {
+                @Suppress("UNCHECKED_CAST")
+                return data[(head + (offset++)) % capacity] as T
+            }
         }
     }
 }
