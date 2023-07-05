@@ -68,7 +68,7 @@ export const Applications: React.FunctionComponent = () => {
         <MainContainer
             header={(
                 <Spacer
-                    left={(<Heading.h2 style={{marginTop: "0", marginLeft: "15px"}}>{tag} - Error: FavIcons overlaps header</Heading.h2>)}
+                    left={(<Heading.h2 style={{marginTop: "0", marginLeft: "15px"}}>{tag}</Heading.h2>)}
                     right={(
                         <Pagination.EntriesPerPageSelector
                             content="Apps per page"

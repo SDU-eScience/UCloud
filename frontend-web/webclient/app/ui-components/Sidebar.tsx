@@ -106,7 +106,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-as-pop-over="true"] {
         position: absolute;
         left: var(--sidebarWidth);
-        z-index: 1;
+        z-index: 10;
     }
     
     ${k} header {

@@ -30,11 +30,12 @@ export function MainContainer({
     }, [mainYpad]);
 
     return (
-        <Box data-component={"main"} pb={pad} pl={pad} pr="0" marginX="auto" maxWidth={"2000px"}>
+        <Box zIndex={-1} data-component={"main"} pb={pad} pl={pad} pr="0" marginX="auto" maxWidth={"2000px"}>
             {header && (
                 <Box
                     className={HeaderContainer}
                     pt="8px"
+                    zIndex={1}
                     height={headerSize}
                     bg="var(--white)"
                 >
