@@ -756,12 +756,12 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
         const avatars = useAvatars();
         if (!resource) return null;
 
-        return <UserAvatar avatar={avatars.avatar(resource.username)} />;
+        return <UserAvatar avatar={avatars.avatar(resource.username)} height="48px" width="48px" />;
     },
 
     MainTitle: ({resource}) => {
         if (!resource) return null;
-        return <>{resource.username}</>;
+        return <Text fontSize={"16px"}>{resource.username}</Text>;
     },
 
     ImportantStats: ({resource, callbacks}) => {
