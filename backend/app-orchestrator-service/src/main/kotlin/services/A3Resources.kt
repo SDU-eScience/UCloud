@@ -114,6 +114,9 @@ private class ResourceStoreByOwner<T>(
     var next: ResourceStoreByOwner<T>? = null
         private set
 
+    var previous: ResourceStoreByOwner<T>? = null
+        private set
+
     private val ready = AtomicBoolean(false)
 
     suspend fun load(minimumId: Long = 0) {
@@ -369,14 +372,45 @@ private class ResourceStoreByOwner<T>(
         }
     }
 
+    /**
+     * Finds the index you should start at if you are looking for a value which is greater than [minimumId].
+     *
+     * The return value will be equal to the length (i.e. out of bounds) if the value cannot exist in the array.
+     */
+    private suspend fun binarySearchForId(minimumId: Long, hasLock: Boolean): Int {
+        if (!hasLock) mutex.lock()
+        try {
+            var min = 0
+            var max = id.size - 1
+            while (min <= max) {
+                val middle = (min + max) / 2
+                val middleId = id[middle]
+
+                if (middleId != 0L && middleId < minimumId) {
+                    min = middle + 1
+                } else if (middleId == 0L || middleId > minimumId) {
+                    max = middle - 1
+                } else {
+                    return min + 1
+                }
+            }
+            return min + 1
+        } finally {
+            if (!hasLock) mutex.unlock()
+        }
+    }
+
     private suspend fun searchAndConsume(
         idCard: IdCard,
         permissionRequired: Permission,
         consumer: SearchConsumer,
+        minimumId: Long = -1L,
     ) {
         awaitReady()
 
         mutex.withLock {
+            val startIndex = if (minimumId == -1L) 0 else binarySearchForId(minimumId, hasLock = true)
+
             val isOwnerOfEverything = idCard is IdCard.User &&
                     ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
 
@@ -386,7 +420,7 @@ private class ResourceStoreByOwner<T>(
                         permissionRequired == Permission.ADMIN
 
                 if (requiresOwnerPrivileges) {
-                    var idx = 0
+                    var idx = startIndex
                     while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
                         if (this.id[idx] == 0L) break
                         consumer.call(idx)
@@ -417,7 +451,7 @@ private class ResourceStoreByOwner<T>(
 
                 val userNeedle = intArrayOf(idCard.uid)
 
-                var i = 0
+                var i = startIndex
                 while (i < STORE_SIZE && !consumer.shouldTerminate()) {
                     if (id[i] == 0L) break
                     val entities = aclEntities[i]
@@ -451,7 +485,7 @@ private class ResourceStoreByOwner<T>(
                             permissionRequired == Permission.PROVIDER
 
                 if (requiresProviderPrivileges) {
-                    searchInArray(idCard.providerOf, product, consumer)
+                    searchInArray(idCard.providerOf, product, consumer, startIndex)
                 }
             }
         }
@@ -461,6 +495,7 @@ private class ResourceStoreByOwner<T>(
         idCard: IdCard,
         outputBuffer: Array<ResourceDocument<T>>,
         outputBufferOffset: Int,
+        minimumIdExclusive: Long = -1L,
         predicate: (ResourceDocument<T>) -> Boolean
     ): Int {
         var outIdx = outputBufferOffset
@@ -511,7 +546,7 @@ private class ResourceStoreByOwner<T>(
             }
         }
 
-        searchAndConsume(idCard, Permission.READ, emitter)
+        searchAndConsume(idCard, Permission.READ, emitter, minimumIdExclusive)
 
         return outIdx
     }
@@ -560,7 +595,7 @@ private class ResourceStoreByOwner<T>(
                 isDone = true
             }
         }
-        searchAndConsume(idCard, Permission.PROVIDER, consumer)
+        searchAndConsume(idCard, Permission.PROVIDER, consumer, id - 1)
         return isDone
     }
 
@@ -674,14 +709,12 @@ private class ResourceStoreByOwner<T>(
             }
         }
 
-        searchAndConsume(idCard, permRequired, consumer)
+        searchAndConsume(idCard, permRequired, consumer, id - 1)
         return consumer.done
     }
 
-    suspend fun findTail(): ResourceStoreByOwner<T> {
-        mutex.withLock {
-            if (next == null) return this
-        }
+    fun findTail(): ResourceStoreByOwner<T> {
+        if (next == null) return this
         return next!!.findTail()
     }
 
@@ -695,6 +728,7 @@ private class ResourceStoreByOwner<T>(
             if (nextAfterMutex != null) return nextAfterMutex
 
             val newStore = ResourceStoreByOwner<T>(type, uid, pid, db, callbacks)
+            newStore.previous = this
             next = newStore
             if (!loadRequired) {
                 newStore.ready.set(true)
@@ -715,10 +749,6 @@ private class ResourceStoreByOwner<T>(
 
         private val ivSpecies = IntVector.SPECIES_PREFERRED
         private val ivLength = ivSpecies.length()
-
-        private fun searchInArray(needles: IntArray, haystack: IntArray, emit: SearchConsumer) {
-            searchInArrayVector(needles, haystack, emit)
-        }
 
         // NOTE(Dan, 04/07/23): DO NOT CHANGE THIS TO A LAMBDA. Performance of calling lambdas versus calling normal
         // functions through interfaces are dramatically different. My own benchmarks have shown a difference of at
@@ -743,11 +773,13 @@ private class ResourceStoreByOwner<T>(
         //
         // We purposefully warm up this function in the `init {}` block of this class to force proper JIT compilation of
         // the function.
-        private fun searchInArrayVector(needles: IntArray, haystack: IntArray, emit: SearchConsumer) {
+        private fun searchInArray(needles: IntArray, haystack: IntArray, emit: SearchConsumer, startIndex: Int = 0) {
             require(haystack.size % 4 == 0) { "haystack must have a size which is a multiple of 4! (${haystack.size})" }
 
             if (haystack.size < ivLength * 4) {
                 for ((index, hay) in haystack.withIndex()) {
+                    if (index < startIndex) continue
+
                     for (needle in needles) {
                         if (hay == needle) {
                             emit.call(index)
@@ -756,7 +788,7 @@ private class ResourceStoreByOwner<T>(
                     }
                 }
             } else {
-                var idx = 0
+                var idx = (startIndex / (ivLength * 4)) * (ivLength * 4)
                 while (idx < haystack.size) {
                     for (i in needles) {
                         val needle = IntVector.broadcast(ivSpecies, i)
@@ -832,7 +864,7 @@ private class ResourceStoreByOwner<T>(
                 }
 
                 repeat(warmupCount) {
-                    searchInArrayVector(needles, haystack, discard)
+                    searchInArray(needles, haystack, discard)
                 }
             }
         }
@@ -889,11 +921,19 @@ class ResourceStore<T>(
     // Since the stores are linked-list like structure, you should make sure to iterate through all the stores. You need
     // to do this using the `useStores` function. Note that you can terminate the search early once you have performed
     // the request you need to do:
-    private inline fun useStores(root: ResourceStoreByOwner<T>, consumer: (ResourceStoreByOwner<T>) -> ShouldContinue) {
-        var current: ResourceStoreByOwner<T>? = root
-        while (current != null) {
-            if (consumer(current) == ShouldContinue.NO) break
-            current = current.next
+    private inline fun useStores(root: ResourceStoreByOwner<T>, reverseOrder: Boolean = false, consumer: (ResourceStoreByOwner<T>) -> ShouldContinue) {
+        if (!reverseOrder) {
+            var current: ResourceStoreByOwner<T>? = root
+            while (current != null) {
+                if (consumer(current) == ShouldContinue.NO) break
+                current = current.next
+            }
+        } else {
+            var current: ResourceStoreByOwner<T>? = root.findTail()
+            while (current != null) {
+                if (consumer(current) == ShouldContinue.NO) break
+                current = current.previous
+            }
         }
     }
 
@@ -1065,7 +1105,7 @@ class ResourceStore<T>(
                     minimumPid = storeArray[resultCount - 1]
                 }
 
-                return ResourceStore.BrowseResult(
+                return BrowseResult(
                     offset,
                     when {
                         didCompleteProjects -> null
@@ -1084,7 +1124,7 @@ class ResourceStore<T>(
                     offset += store.search(idCard, outputBuffer, offset) { true }
                     ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                 }
-                return ResourceStore.BrowseResult(offset, null)
+                return BrowseResult(offset, null)
             }
         }
     }
@@ -1124,7 +1164,10 @@ class ResourceStore<T>(
         ids: LongArray,
         output: Array<ResourceDocument<T>>
     ): Int {
+        if (ids.isEmpty()) return 0
         val storesVisited = HashSet<Pair<Int, Int>>()
+
+        val minimumIdExclusive = ids.min() - 1
 
         var offset = 0
         for (id in ids) {
@@ -1135,7 +1178,7 @@ class ResourceStore<T>(
             storesVisited.add(storeKey)
 
             useStores(initialStore) { currentStore ->
-                offset += currentStore.search(idCard, output, offset) { it.id in ids }
+                offset += currentStore.search(idCard, output, offset, minimumIdExclusive) { it.id in ids }
                 ShouldContinue.ifThisIsTrue(offset < output.size)
             }
         }
@@ -1737,7 +1780,7 @@ class ReadWriterMutex {
         roomEmpty.lock()
     }
 
-    suspend fun releaseWrite() {
+    fun releaseWrite() {
         turnstile.unlock()
         roomEmpty.unlock()
     }
