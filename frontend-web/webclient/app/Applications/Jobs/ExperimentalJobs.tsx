@@ -166,6 +166,8 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                     row.stat1.append(status);
                 });
 
+                browser.setEmptyIcon("play");
+
                 browser.on("unhandledShortcut", () => void 0);
 
                 browser.on("renderEmptyPage", reason => {

@@ -26,14 +26,6 @@ import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 
-/*
- BUGS FOUND
-*/
-
-/* MISSING FEATURES
-    - Handling projects that cannot consume resources.
-*/
-
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
@@ -2980,6 +2972,7 @@ export class ResourceBrowser<T> {
                 position: fixed;
                 top: 0;
                 left: 0;
+                height: 200px;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
@@ -2989,8 +2982,8 @@ export class ResourceBrowser<T> {
             
             .file-browser .page-empty .graphic {
                 background: var(--blue);
-                height: 100px;
-                width: 100px;
+                min-height: 100px;
+                min-width: 100px;
                 border-radius: 100px;
                 display: flex;
                 align-items: center;
@@ -3194,6 +3187,20 @@ export class ResourceBrowser<T> {
         c.style.marginTop = "7px";
         this.icons.renderIcon({color: "black", color2: "iconColor2", height: 32, width: 32, name: icon}).then(it => c.src = it);
         return c;
+    }
+
+    public setEmptyIcon(icon: IconName) {
+        this.icons.renderIcon({
+            name: icon,
+            color: "black",
+            color2: "black",
+            height: 256,
+            width: 256
+        }).then(icon => {
+            const fragment = document.createDocumentFragment();
+            fragment.append(image(icon, {height: 60, width: 60}));
+            this.defaultEmptyGraphic = fragment;
+        });
     }
 }
 

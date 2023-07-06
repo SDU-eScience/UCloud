@@ -153,6 +153,8 @@ export function ExperimentalNetworkIP(): JSX.Element {
                     browser.registerPage(result, path, false);
                 });
 
+                browser.setEmptyIcon("networkWiredSolid");
+
                 browser.on("fetchFilters", () => [dateRanges, {
                     key: "filterState",
                     type: "options",

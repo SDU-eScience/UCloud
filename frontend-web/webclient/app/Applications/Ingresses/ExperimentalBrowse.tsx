@@ -137,6 +137,8 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     setProductSelectorPortal(resourceCreator.portal);
                 });
 
+                browser.setEmptyIcon("globeEuropeSolid");
+
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.resource.properties("public-links", resource.id));

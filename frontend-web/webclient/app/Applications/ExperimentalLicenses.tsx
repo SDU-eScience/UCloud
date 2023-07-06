@@ -57,10 +57,8 @@ export function ExperimentalLicenses(): JSX.Element {
                     callAPI(LicenseApi.retrieveProducts())
                 ).then(res => {
                     const creatableProducts: Product[] = [];
-                    console.warn("TODO: Add restriction for Licenses creation");
                     for (const provider of Object.values(res.productsByProvider)) {
-                        for (const {product, support} of provider) {
-                            // TODO(Jonas): What to guard against?
+                        for (const {product} of provider) {
                             creatableProducts.push(product);
                         }
                     }
@@ -224,6 +222,8 @@ export function ExperimentalLicenses(): JSX.Element {
                         }
                     }
                 });
+
+                browser.setEmptyIcon("license");
 
                 browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
                     const callbacks: ResourceBrowseCallbacks<License> = {

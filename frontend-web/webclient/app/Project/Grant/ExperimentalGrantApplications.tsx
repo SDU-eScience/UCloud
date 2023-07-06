@@ -1,10 +1,9 @@
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {GrantApplication, browseGrantApplications} from "./GrantApplicationTypes";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useProjectId} from "../Api";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {callAPI} from "@/Authentication/DataHook";
 import {GrantApplicationFilter} from ".";
@@ -13,6 +12,7 @@ import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
 import {STATE_ICON_AND_COLOR} from "./GrantApplications";
 import {dateToString} from "@/Utilities/DateUtilities";
+import {image} from "@/Utilities/HTMLUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -104,6 +104,8 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                     row.stat2.innerText = dateToString(key.currentRevision.createdAt);
                     row.stat3.append(status);
                 });
+
+                browser.setEmptyIcon("fileSignatureSolid");
 
                 browser.on("generateBreadcrumbs", () => [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}]);
                 browser.on("renderEmptyPage", reason => {

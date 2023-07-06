@@ -309,17 +309,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     }
                 });
 
-                browser.icons.renderIcon({
-                    name: "ftFileSystem",
-                    color: "iconColor",
-                    color2: "iconColor",
-                    height: 256,
-                    width: 256
-                }).then(icon => {
-                    const fragment = document.createDocumentFragment();
-                    fragment.append(image(icon, {height: 60, width: 60}));
-                    browser.defaultEmptyGraphic = fragment;
-                });
+
+                browser.setEmptyIcon("ftFileSystem");
 
                 browser.on("renderEmptyPage", reason => {
                     // NOTE(Dan): The reasons primarily come from the prefetch() function which fetches the data. If you

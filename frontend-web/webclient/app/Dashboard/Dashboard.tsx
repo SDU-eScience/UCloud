@@ -587,9 +587,7 @@ function WithGraphic({children}: React.PropsWithChildren): JSX.Element {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
-    onInit: () => {
-        dispatch(updatePageTitle("Dashboard"));
-    },
+    onInit: () => dispatch(updatePageTitle("Dashboard")),
     setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
