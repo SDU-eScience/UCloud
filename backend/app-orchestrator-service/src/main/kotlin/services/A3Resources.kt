@@ -10,6 +10,7 @@ import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
@@ -31,6 +32,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.collections.HashSet
@@ -44,6 +46,13 @@ private data class SerializedUpdate(
     val extra: JsonElement? = null,
     val message: String? = null,
     val createdAt: Long? = null,
+)
+
+@Serializable
+private data class SerializedAclEntry(
+    val uid: Int? = null,
+    val gid: Int? = null,
+    val permission: Permission? = null,
 )
 
 class ResourceStoreByOwner<T>(
@@ -62,8 +71,11 @@ class ResourceStoreByOwner<T>(
     private val product = IntArray(STORE_SIZE)
     private val data = arrayOfNulls<Any>(STORE_SIZE)
     private val providerId = arrayOfNulls<String>(STORE_SIZE)
-    private val aclEntity = arrayOfNulls<IntArray>(STORE_SIZE)
-    private val aclPermission = arrayOfNulls<ByteArray>(STORE_SIZE)
+
+    private val aclEntities = arrayOfNulls<IntArray>(STORE_SIZE)
+    private val aclIsUser = arrayOfNulls<BooleanArray>(STORE_SIZE)
+    private val aclPermissions = arrayOfNulls<ByteArray>(STORE_SIZE)
+
     private val updates = arrayOfNulls<CyclicArray<ResourceDocumentUpdate>>(STORE_SIZE)
 
     private var size: Int = 0
@@ -107,15 +119,11 @@ class ResourceStoreByOwner<T>(
                     """
                         declare c cursor for
                         with
-                            resource_with_updates as (
+                            resource_ids as (
                                 select
-                                    r.id,
-                                    u.created_at,
-                                    u.status,
-                                    u.extra
+                                    r.id
                                 from
                                     provider.resource r
-                                    left join provider.resource_update u on r.id = u.resource
                                 where
                                     r.type = :type
                                     and r.id > :minimum
@@ -123,6 +131,18 @@ class ResourceStoreByOwner<T>(
                                         (:project_id::text is not null and r.project = :project_id)
                                         or (:username::text is not null and r.created_by = :username)
                                     )
+                                order by r.id
+                                limit $STORE_SIZE
+                            ),
+                            resource_with_updates as (
+                                select
+                                    r.id,
+                                    u.created_at,
+                                    u.status,
+                                    u.extra
+                                from
+                                    resource_ids r
+                                    left join provider.resource_update u on r.id = u.resource
                                 order by u.created_at
                             ),
                             updates_aggregated as (
@@ -130,11 +150,34 @@ class ResourceStoreByOwner<T>(
                                     u.id,
                                     jsonb_agg(jsonb_build_object(
                                         'createdAt', floor(extract(epoch from u.created_at) * 1000)::int8,
-                                        'message', u.status,
-                                        'extra', u.extra
+                                        'message', status,
+                                        'extra', extra
                                     )) as update
                                 from resource_with_updates u
                                 group by u.id
+                            ),
+                            resource_with_acl_entries as (
+                                select
+                                    r.id,
+                                    u.uid,
+                                    g.gid,
+                                    e.permission
+                                from
+                                    resource_ids r
+                                    left join provider.resource_acl_entry e on e.resource_id = r.id
+                                    left join auth.principals u on e.username = u.id
+                                    left join project.groups g on e.group_id = g.id
+                            ),
+                            acl_aggregated as (
+                                select
+                                    e.id,
+                                    jsonb_agg(jsonb_build_object(
+                                        'uid', e.uid,
+                                        'gid', e.gid,
+                                        'permission', e.permission
+                                    )) as acl
+                                from resource_with_acl_entries e
+                                group by e.id
                             )
                         select
                             u.id,
@@ -142,9 +185,11 @@ class ResourceStoreByOwner<T>(
                             p.uid,
                             r.product,
                             r.provider_generated_id,
-                            u.update
+                            u.update,
+                            a.acl
                         from
                             updates_aggregated u
+                            join acl_aggregated a on u.id = a.id
                             join provider.resource r on u.id = r.id
                             join auth.principals p on r.created_by = p.id
                         order by u.id
@@ -164,6 +209,7 @@ class ResourceStoreByOwner<T>(
                         this.product[idx] = row.getLong(3)!!.toInt()
                         this.providerId[idx] = row.getString(4)
                         val updatesText = row.getString(5)!!
+                        val aclText = row.getString(6)!!
                         try {
                             val updates = defaultMapper.decodeFromString(
                                 ListSerializer(SerializedUpdate.serializer()),
@@ -171,8 +217,42 @@ class ResourceStoreByOwner<T>(
                             )
 
                             val arr = CyclicArray<ResourceDocumentUpdate>(MAX_UPDATES)
-                            for (update in updates) arr.add(ResourceDocumentUpdate(update.message, update.extra))
+                            for (update in updates) {
+                                if (update.createdAt == null) continue
+                                arr.add(ResourceDocumentUpdate(update.message, update.extra, update.createdAt))
+                            }
                             this.updates[idx] = arr
+                        } catch (ex: Throwable) {
+                            log.warn("Caught an exception while deserializing updates. This should not happen!")
+                            log.warn(ex.toReadableStacktrace().toString())
+                        }
+                        try {
+                            val aclEntries = defaultMapper.decodeFromString(
+                                ListSerializer(SerializedAclEntry.serializer()),
+                                aclText
+                            )
+
+                            val arraySize =
+                                if (aclEntries.size == 1 && aclEntries[0].permission == null) 0
+                                else ((aclEntries.size / 4) + 1) * 4
+
+                            if (arraySize > 0) {
+                                val entities = IntArray(arraySize)
+                                val isUser = BooleanArray(arraySize)
+                                val permissions = ByteArray(arraySize)
+
+                                for ((index, entry) in aclEntries.withIndex()) {
+                                    if (entry.permission == null) break
+                                    if (this.id[idx] == 6L) println(entry)
+                                    entities[index] = entry.gid ?: entry.uid ?: Int.MAX_VALUE
+                                    isUser[index] = entry.gid == null
+                                    permissions[index] = entry.permission.toByte()
+                                }
+
+                                this.aclEntities[idx] = entities
+                                this.aclIsUser[idx] = isUser
+                                this.aclPermissions[idx] = permissions
+                            }
                         } catch (ex: Throwable) {
                             log.warn("Caught an exception while deserializing updates. This should not happen!")
                             log.warn(ex.toReadableStacktrace().toString())
@@ -250,8 +330,18 @@ class ResourceStoreByOwner<T>(
         }
     }
 
+    private fun Permission.toByte(): Byte {
+        return when (this) {
+            Permission.READ -> 1
+            Permission.EDIT -> 2
+            Permission.ADMIN -> 3
+            Permission.PROVIDER -> 4
+        }
+    }
+
     private suspend fun searchAndConsume(
         idCard: IdCard,
+        permissionRequired: Permission,
         consumer: SearchConsumer,
     ) {
         awaitReady()
@@ -261,22 +351,80 @@ class ResourceStoreByOwner<T>(
                     ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
 
             if (isOwnerOfEverything) {
-                var idx = 0
-                while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
-                    if (this.id[idx] == 0L) break
-                    consumer.call(idx)
-                    consumer.call(idx + 1)
-                    consumer.call(idx + 2)
-                    consumer.call(idx + 3)
+                val requiresOwnerPrivileges = permissionRequired == Permission.READ ||
+                        permissionRequired == Permission.EDIT ||
+                        permissionRequired == Permission.ADMIN
 
-                    idx += 4
+                if (requiresOwnerPrivileges) {
+                    var idx = 0
+                    while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
+                        if (this.id[idx] == 0L) break
+                        consumer.call(idx)
+                        consumer.call(idx + 1)
+                        consumer.call(idx + 2)
+                        consumer.call(idx + 3)
+
+                        idx += 4
+                    }
                 }
-            } else if (idCard is IdCard.User && idCard.activeProject != 0) {
-                // TODO(Dan): This branch needs to use the ACL
+            } else if (idCard is IdCard.User) {
+                println("We are definitely hitting this branch")
+                val entityConsumer = object : SearchConsumer {
+                    var shouldBeUser = false
+                    var entityIdx = 0
+                    var match = -1
+
+                    override fun shouldTerminate(): Boolean = match != -1
+                    override fun call(arrIdx: Int) {
+                        if (match != -1) return
+
+                        println("Hitting $permissionRequired $shouldBeUser $entityIdx ${aclIsUser[entityIdx]!![arrIdx]} ${aclPermissions[entityIdx]!![arrIdx]} ${aclEntities[entityIdx]!!.toList()} $arrIdx")
+                        if (aclIsUser[entityIdx]!![arrIdx] == shouldBeUser &&
+                            aclPermissions[entityIdx]!![arrIdx] == permissionRequired.toByte()
+                        ) {
+                            match = arrIdx
+                        }
+                    }
+                }
+
+                val userNeedle = intArrayOf(idCard.uid)
+
+                var i = 0
+                while (i < STORE_SIZE && !consumer.shouldTerminate()) {
+                    if (id[i] == 0L) break
+                    val entities = aclEntities[i]
+                    if (entities == null) {
+                        i++
+                        continue
+                    }
+
+                    entityConsumer.entityIdx = i
+
+                    // Match groups
+                    entityConsumer.match = -1
+                    entityConsumer.shouldBeUser = false
+                    searchInArray(idCard.groups, entities, entityConsumer)
+                    if (entityConsumer.match != -1) {
+                        consumer.call(i)
+                    } else {
+                        // If no groups match, try uid
+                        entityConsumer.match = -1
+                        entityConsumer.shouldBeUser = true
+                        searchInArray(userNeedle, entities, entityConsumer)
+                        if (entityConsumer.match != -1) consumer.call(i)
+                    }
+
+                    i++
+                }
             } else if (idCard is IdCard.Provider && idCard.providerOf.isNotEmpty()) {
-                println("Expecting that you are provider of: ${idCard.providerOf.toList()}")
-                println("Products available: ${id.zip(product.toList()).toList()}")
-                searchInArray(idCard.providerOf, product, consumer)
+                val requiresProviderPrivileges =
+                    permissionRequired == Permission.READ ||
+                            permissionRequired == Permission.EDIT ||
+                            permissionRequired == Permission.PROVIDER
+
+                if (requiresProviderPrivileges) {
+                    searchInArray(idCard.providerOf, product, consumer)
+                }
             }
         }
     }
@@ -321,7 +469,7 @@ class ResourceStoreByOwner<T>(
             }
         }
 
-        searchAndConsume(idCard, emitter)
+        searchAndConsume(idCard, Permission.READ, emitter)
 
         return outIdx
     }
@@ -334,7 +482,7 @@ class ResourceStoreByOwner<T>(
     ): Boolean {
         val self = this
         var isDone = false
-        searchAndConsume(idCard, object : SearchConsumer {
+        searchAndConsume(idCard, Permission.PROVIDER, object : SearchConsumer {
             override fun shouldTerminate(): Boolean = isDone
             override fun call(arrIdx: Int) {
                 if (self.id[arrIdx] != id) return
@@ -344,7 +492,8 @@ class ResourceStoreByOwner<T>(
 
                 for ((index, update) in newUpdates.withIndex()) {
                     @Suppress("UNCHECKED_CAST")
-                    val shouldAddUpdate = if (consumer != null) consumer(self.data[arrIdx] as T, index, update) else true
+                    val shouldAddUpdate =
+                        if (consumer != null) consumer(self.data[arrIdx] as T, index, update) else true
                     if (shouldAddUpdate) updates.add(update)
                 }
 
@@ -369,7 +518,7 @@ class ResourceStoreByOwner<T>(
                 isDone = true
             }
         }
-        searchAndConsume(idCard, consumer)
+        searchAndConsume(idCard, Permission.PROVIDER, consumer)
         return isDone
     }
 
@@ -440,66 +589,78 @@ class ResourceStoreByOwner<T>(
         // the function.
         private fun searchInArrayVector(needles: IntArray, haystack: IntArray, emit: SearchConsumer) {
             require(haystack.size % 4 == 0) { "haystack must have a size which is a multiple of 4! (${haystack.size})" }
-            var idx = 0
-            while (idx < haystack.size) {
-                for (i in needles) {
-                    val needle = IntVector.broadcast(ivSpecies, i)
 
-                    val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
-                    val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength)
-                    val haystack3 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 2)
-                    val haystack4 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 3)
-
-                    val cr1 = haystack1.compare(VectorOperators.EQ, needle)
-                    val cr2 = haystack2.compare(VectorOperators.EQ, needle)
-                    val cr3 = haystack3.compare(VectorOperators.EQ, needle)
-                    val cr4 = haystack4.compare(VectorOperators.EQ, needle)
-
-                    run {
-                        var offset = idx
-                        var bits = cr1.toLong()
-                        while (bits != 0L) {
-                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            emit.call(offset + trailing)
-                            offset += trailing + 1
-                            bits = bits shr (trailing + 1)
-                        }
-                    }
-
-                    run {
-                        var offset = idx + ivLength
-                        var bits = cr2.toLong()
-                        while (bits != 0L) {
-                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            emit.call(offset + trailing)
-                            offset += trailing + 1
-                            bits = bits shr (trailing + 1)
-                        }
-                    }
-
-                    run {
-                        var offset = idx + ivLength * 2
-                        var bits = cr3.toLong()
-                        while (bits != 0L) {
-                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            emit.call(offset + trailing)
-                            offset += trailing + 1
-                            bits = bits shr (trailing + 1)
-                        }
-                    }
-
-                    run {
-                        var offset = idx + ivLength * 3
-                        var bits = cr4.toLong()
-                        while (bits != 0L) {
-                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            emit.call(offset + trailing)
-                            offset += trailing + 1
-                            bits = bits shr (trailing + 1)
+            if (haystack.size < ivLength * 4) {
+                for ((index, hay) in haystack.withIndex()) {
+                    for (needle in needles) {
+                        if (hay == needle) {
+                            emit.call(index)
+                            break
                         }
                     }
                 }
-                idx += ivLength * 4
+            } else {
+                var idx = 0
+                while (idx < haystack.size) {
+                    for (i in needles) {
+                        val needle = IntVector.broadcast(ivSpecies, i)
+
+                        val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
+                        val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength)
+                        val haystack3 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 2)
+                        val haystack4 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 3)
+
+                        val cr1 = haystack1.compare(VectorOperators.EQ, needle)
+                        val cr2 = haystack2.compare(VectorOperators.EQ, needle)
+                        val cr3 = haystack3.compare(VectorOperators.EQ, needle)
+                        val cr4 = haystack4.compare(VectorOperators.EQ, needle)
+
+                        run {
+                            var offset = idx
+                            var bits = cr1.toLong()
+                            while (bits != 0L) {
+                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                                emit.call(offset + trailing)
+                                offset += trailing + 1
+                                bits = bits shr (trailing + 1)
+                            }
+                        }
+
+                        run {
+                            var offset = idx + ivLength
+                            var bits = cr2.toLong()
+                            while (bits != 0L) {
+                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                                emit.call(offset + trailing)
+                                offset += trailing + 1
+                                bits = bits shr (trailing + 1)
+                            }
+                        }
+
+                        run {
+                            var offset = idx + ivLength * 2
+                            var bits = cr3.toLong()
+                            while (bits != 0L) {
+                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                                emit.call(offset + trailing)
+                                offset += trailing + 1
+                                bits = bits shr (trailing + 1)
+                            }
+                        }
+
+                        run {
+                            var offset = idx + ivLength * 3
+                            var bits = cr4.toLong()
+                            while (bits != 0L) {
+                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                                emit.call(offset + trailing)
+                                offset += trailing + 1
+                                bits = bits shr (trailing + 1)
+                            }
+                        }
+                    }
+                    idx += ivLength * 4
+                }
             }
         }
 
@@ -678,7 +839,8 @@ class ResourceStore<T>(
                 val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
                 index.register(id, if (pid != 0) pid else uid, pid == 0)
 
-                val providerId = productCache.productIdToReference(productId)?.provider ?: error("Unknown product? $product")
+                val providerId =
+                    productCache.productIdToReference(productId)?.provider ?: error("Unknown product? $product")
                 findOrLoadProviderIndex(providerId).registerUsage(uid, pid)
 
                 return id
@@ -1137,6 +1299,9 @@ class IdCardService(private val db: DBContext) {
                     "select uid from auth.principals where id = :username"
                 ).rows.singleOrNull()?.getInt(0) ?: error("no uid for $username?")
 
+                // NOTE(Dan): The ACL checks use Int.MAX_VALUE as a list terminator. The terminator element is ignored
+                // during the search and simply assumed to never appear in the data. To make sure this is true, we
+                // assert that no user/group has that ID.
                 val adminOf = session.sendPreparedStatement(
                     { setParameter("username", username) },
                     """
@@ -1148,7 +1313,7 @@ class IdCardService(private val db: DBContext) {
                             pm.username = :username
                             and (pm.role = 'ADMIN' or pm.role = 'PI')
                     """
-                ).rows.map { it.getInt(0)!! }.toIntArray()
+                ).rows.map { it.getInt(0)!!.also { require(it != Int.MAX_VALUE) } }.toIntArray()
 
                 val groups = session.sendPreparedStatement(
                     { setParameter("username", username) },
@@ -1160,7 +1325,7 @@ class IdCardService(private val db: DBContext) {
                         where
                             gm.username = :username
                     """
-                ).rows.map { it.getInt(0)!! }.toIntArray()
+                ).rows.map { it.getInt(0)!!.also { require(it != Int.MAX_VALUE) } }.toIntArray()
 
                 IdCard.User(uid, groups, adminOf, 0)
             }

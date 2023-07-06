@@ -31,6 +31,8 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.http.*
@@ -191,6 +193,21 @@ class JobController(
                         }
 
                         get("/api/overheadTest") {
+                            call.respondBytes(ByteArray(0))
+                        }
+
+                        get("/api/dbTest") {
+                            db.withSession { session ->
+                                val rows = session.sendPreparedStatement(
+                                    {},
+                                    "select array[1, 2, 3, 4]"
+                                ).rows
+
+                                val result = rows.first().get(0)
+                                println(result?.javaClass)
+                                println(result)
+                            }
+
                             call.respondBytes(ByteArray(0))
                         }
                     }
