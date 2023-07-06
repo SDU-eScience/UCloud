@@ -1,21 +1,15 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.ResourceDocument
+import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
 import dk.sdu.cloud.accounting.util.invokeCall
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags
-import dk.sdu.cloud.app.orchestrator.api.JobSpecification
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStatus
-import dk.sdu.cloud.app.orchestrator.api.JobUpdate
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
@@ -30,25 +24,31 @@ import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import io.ktor.utils.io.*
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.utils.io.pool.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.collections.ArrayList
 import kotlin.math.absoluteValue
 import kotlin.math.min
 import kotlin.random.Random
 
 data class InternalJobState(
     val specification: JobSpecification,
-    val state: JobState,
+    var state: JobState = JobState.IN_QUEUE,
+    var outputFolder: String? = null,
+    var startedAt: Long? = null,
+    var allowRestart: Boolean = false,
 )
 
 object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
@@ -62,6 +62,7 @@ object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
             doc.project = 0
             doc.id = 0
             doc.providerId = null
+            Arrays.fill(doc.update, null)
         }
 
         return instance
@@ -80,9 +81,12 @@ class JobResourceService2(
     private val _providers: Providers<*>?,
 ) {
     private val idCards = IdCardService(db)
+    private val productCache = ProductCache(db)
+    private val applicationCache = ApplicationCache(db)
     private val documents = ResourceStore(
         "job",
         db,
+        productCache,
         ResourceStore.Callbacks(
             loadState = { session, count, ids ->
                 val state = arrayOfNulls<InternalJobState>(count)
@@ -116,7 +120,9 @@ class JobResourceService2(
                             j.output_folder,
                             j.current_state,
                             p.params,
-                            r.resources
+                            r.resources,
+                            floor(extract(epoch from j.started_at) * 1000)::int8,
+                            j.allow_restart
                         from
                             app_orchestrator.jobs j
                             left join params p on j.resource = p.job_id
@@ -149,6 +155,8 @@ class JobResourceService2(
                             text
                         )
                     }
+                    val startedAt = row.getLong(13)
+                    val allowRestart = row.getBoolean(14) ?: false
 
                     val slot = ids.indexOf(id)
                     state[slot] = InternalJobState(
@@ -165,7 +173,10 @@ class JobResourceService2(
                             restartOnExit,
                             sshEnabled,
                         ),
-                        currentState
+                        currentState,
+                        outputFolder,
+                        startedAt,
+                        allowRestart,
                     )
                 }
 
@@ -190,7 +201,7 @@ class JobResourceService2(
             val doc = ResourceDocument<InternalJobState>()
             val allocatedId = documents.create(
                 card,
-                findProduct(job.product),
+                job.product,
                 InternalJobState(job, JobState.IN_QUEUE),
                 output = doc
             )
@@ -206,6 +217,7 @@ class JobResourceService2(
                     actorAndProject.signedIntentFromUser,
                 )
             } catch (ex: Throwable) {
+                log.warn(ex.toReadableStacktrace().toString())
                 // TODO(Dan): This is not guaranteed to run ever. We will get stuck
                 //  if never "confirmed" by the provider.
                 documents.delete(card, longArrayOf(allocatedId))
@@ -306,15 +318,53 @@ class JobResourceService2(
         val card = idCards.fetchIdCard(actorAndProject)
         val updatesByJob = request.items.groupBy { it.id }.mapValues { it.value.map { it.update } }
 
-        for ((job, updates) in updatesByJob) {
+        for ((jobId, updates) in updatesByJob) {
             documents.addUpdate(
                 card,
-                job.toLongOrNull() ?: continue,
+                jobId.toLongOrNull() ?: continue,
                 updates.map {
-                    ResourceStore.Update(
+                    ResourceDocumentUpdate(
                         it.status,
                         defaultMapper.encodeToJsonElement(JobUpdate.serializer(), it)
                     )
+                },
+                consumer = f@{ job, uIdx, _ ->
+                    val update = updates[uIdx]
+                    val newState = update.state
+                    val expectedState = update.expectedState
+                    val expectedDifferentState = update.expectedDifferentState
+                    val timeAllocation = update.newTimeAllocation
+                    val allowRestart = update.allowRestart
+                    val outputFolder = update.outputFolder
+                    val newMounts = update.newMounts
+
+                    if (expectedState != null && job.state != expectedState) {
+                        return@f false
+                    } else if (expectedDifferentState == true && newState != null && job.state == newState) {
+                        return@f false
+                    }
+
+                    if (newState != null) {
+                        job.state = newState
+                    }
+
+                    if (timeAllocation != null) {
+                        job.specification.timeAllocation = SimpleDuration.fromMillis(timeAllocation)
+                    }
+
+                    if (allowRestart != null) {
+                        job.allowRestart = allowRestart
+                    }
+
+                    if (outputFolder != null) {
+                        job.outputFolder = outputFolder
+                    }
+
+                    if (newMounts != null) {
+                        TODO()
+                    }
+
+                    return@f true
                 }
             )
         }
@@ -324,29 +374,100 @@ class JobResourceService2(
         // TODO do something
     }
 
-    private suspend fun findProduct(ref: ProductReference): Int {
-        return 0
-    }
-
     private suspend fun unmarshallDocument(doc: ResourceDocument<InternalJobState>): Job {
         val data = doc.data!!
         return Job(
             doc.id.toString(),
             ResourceOwner(
-                "",
-                null
+                idCards.lookupUid(doc.createdBy) ?: "_ucloud",
+                idCards.lookupPid(doc.project),
             ),
-            emptyList(),
+            doc.update.asSequence().filterNotNull().mapNotNull {
+                val extra = it.extra
+                val mapped = if (extra != null) {
+                    defaultMapper.decodeFromJsonElement(JobUpdate.serializer(), extra)
+                } else {
+                    null
+                }
+
+                mapped?.status = it.update
+                mapped?.timestamp = it.createdAt
+                mapped
+            }.toList(),
             data.specification,
             JobStatus(
                 data.state,
+                startedAt = data.startedAt,
+                expiresAt =  if (data.startedAt != null && data.specification.timeAllocation != null) {
+                    (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
+                } else {
+                    null
+                },
+                allowRestart = data.allowRestart,
+                resolvedProduct = productCache.productIdToProduct(doc.product) as Product.Compute?,
+                resolvedApplication = applicationCache.retrieveApplication(
+                    data.specification.application.name,
+                    data.specification.application.version
+                )
             ),
             doc.createdAt,
             permissions = ResourcePermissions(
                 listOf(Permission.ADMIN),
                 emptyList()
-            )
+            ),
+            output = JobOutput(
+                data.outputFolder
+            ),
         )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
+    }
+}
+
+class ApplicationCache(private val db: DBContext) {
+    private val mutex = ReadWriterMutex()
+    private val applications = HashMap<NameAndVersion, Application>()
+    private val didWarmup = AtomicBoolean(false)
+
+    suspend fun fillCache(appName: String? = null) {
+        mutex.withWriter {
+            db.withSession { session ->
+                val rows = session.sendPreparedStatement(
+                    {
+                        setParameter("app_name", appName)
+                    },
+                    """
+                        select app_store.application_to_json(app, t)
+                        from
+                            app_store.applications app
+                            join app_store.tools t on 
+                                app.tool_name = t.name 
+                                and app.tool_version = t.version
+                        where
+                            :app_name::text is null
+                            or app.name = :app_name
+                    """
+                ).rows
+                for (row in rows) {
+                    val app = defaultMapper.decodeFromString(Application.serializer(), row.getString(0)!!)
+                    val key = NameAndVersion(app.metadata.name, app.metadata.version)
+                    applications[key] = app
+                }
+            }
+        }
+    }
+
+    suspend fun retrieveApplication(name: String, version: String, allowLookup: Boolean = true): Application? {
+        if (didWarmup.compareAndSet(false, true)) fillCache()
+
+        val result = mutex.withReader { applications[NameAndVersion(name, version)] }
+        if (result != null) return result
+        if (!allowLookup) return null
+
+        fillCache(name)
+        return retrieveApplication(name, version, allowLookup = false)
     }
 }
 

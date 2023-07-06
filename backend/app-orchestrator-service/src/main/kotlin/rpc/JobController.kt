@@ -6,15 +6,16 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags
-import dk.sdu.cloud.app.orchestrator.api.Jobs
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
+import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.Micro
@@ -24,6 +25,7 @@ import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.micro.requestChunkOrNull
 import dk.sdu.cloud.prettyMapper
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
@@ -31,7 +33,9 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.toReadableStacktrace
+import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
@@ -40,13 +44,17 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
 
 class JobController(
     private val db: DBContext,
     private val orchestrator: JobOrchestrator,
     private val micro: Micro,
 ) : Controller {
-    val jobs = JobResourceService2(db, null)
+    val jobs = run {
+        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        JobResourceService2(db, Providers(serviceClient) { comms -> comms })
+    }
     @OptIn(DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         if (micro.developmentModeEnabled) {
@@ -141,6 +149,37 @@ class JobController(
                                             }
                                         }
 
+                                        "update" -> {
+                                            val id = args.getOrNull(0)
+                                            val username = args.getOrNull(1)
+                                            val project = args.getOrNull(2)?.takeIf { it != "-" && it != "null" }
+                                            val message = args.getOrNull(3)
+                                            if (username == null || id == null) {
+                                                sendMessage("Usage: update <username> <project (can be null)> <id> [message]")
+                                            } else {
+                                                sendMessage("Ready to receive update!")
+                                                val updateText = (incoming.receive() as Frame.Text).readText()
+
+                                                val request = bulkRequestOf(
+                                                    ResourceUpdateAndId(
+                                                        id,
+                                                        defaultMapper.decodeFromString(
+                                                            JobUpdate.serializer(),
+                                                            updateText
+                                                        ).also { it.status = message }
+                                                    )
+                                                )
+
+                                                jobs.addUpdate(
+                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), project),
+                                                    request
+                                                )
+
+                                                sendMessage("Updating $id with:")
+                                                sendMessage(prettyMapper.encodeToString(request))
+                                            }
+                                        }
+
                                         else -> {
                                             sendMessage("unknown command")
                                         }
@@ -149,6 +188,10 @@ class JobController(
                                     sendMessage(ex.toReadableStacktrace().toString())
                                 }
                             }
+                        }
+
+                        get("/api/overheadTest") {
+                            call.respondBytes(ByteArray(0))
                         }
                     }
                 }

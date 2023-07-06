@@ -1,33 +1,50 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
+import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DBTransaction
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.toReadableStacktrace
 import jdk.incubator.vector.IntVector
 import jdk.incubator.vector.VectorOperators
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
-import java.util.TreeSet
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.collections.HashSet
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.random.Random
+
+@Serializable
+private data class SerializedUpdate(
+    val extra: JsonElement? = null,
+    val message: String? = null,
+    val createdAt: Long? = null,
+)
 
 class ResourceStoreByOwner<T>(
     val type: String,
@@ -47,7 +64,7 @@ class ResourceStoreByOwner<T>(
     private val providerId = arrayOfNulls<String>(STORE_SIZE)
     private val aclEntity = arrayOfNulls<IntArray>(STORE_SIZE)
     private val aclPermission = arrayOfNulls<ByteArray>(STORE_SIZE)
-    private val updates = arrayOfNulls<CyclicArray<ResourceStore.Update>>(STORE_SIZE)
+    private val updates = arrayOfNulls<CyclicArray<ResourceDocumentUpdate>>(STORE_SIZE)
 
     private var size: Int = 0
 
@@ -89,22 +106,48 @@ class ResourceStoreByOwner<T>(
                     },
                     """
                         declare c cursor for
+                        with
+                            resource_with_updates as (
+                                select
+                                    r.id,
+                                    u.created_at,
+                                    u.status,
+                                    u.extra
+                                from
+                                    provider.resource r
+                                    left join provider.resource_update u on r.id = u.resource
+                                where
+                                    r.type = :type
+                                    and r.id > :minimum
+                                    and (
+                                        (:project_id::text is not null and r.project = :project_id)
+                                        or (:username::text is not null and r.created_by = :username)
+                                    )
+                                order by u.created_at
+                            ),
+                            updates_aggregated as (
+                                select
+                                    u.id,
+                                    jsonb_agg(jsonb_build_object(
+                                        'createdAt', floor(extract(epoch from u.created_at) * 1000)::int8,
+                                        'message', u.status,
+                                        'extra', u.extra
+                                    )) as update
+                                from resource_with_updates u
+                                group by u.id
+                            )
                         select
-                            resource.id,
-                            floor(extract(epoch from resource.created_at) * 1000)::int8,
+                            u.id,
+                            floor(extract(epoch from r.created_at) * 1000)::int8,
                             p.uid,
-                            resource.product,
-                            resource.provider_generated_id
+                            r.product,
+                            r.provider_generated_id,
+                            u.update
                         from
-                            provider.resource
-                            join auth.principals p on resource.created_by = p.id
-                        where
-                            resource.type = :type
-                            and resource.id > :minimum
-                            and (
-                                (:project_id::text is not null and resource.project = :project_id)
-                                or (:username::text is not null and resource.created_by = :username)
-                            );
+                            updates_aggregated u
+                            join provider.resource r on u.id = r.id
+                            join auth.principals p on r.created_by = p.id
+                        order by u.id
                     """
                 )
 
@@ -120,6 +163,20 @@ class ResourceStoreByOwner<T>(
                         this.createdBy[idx] = row.getInt(2)!!
                         this.product[idx] = row.getLong(3)!!.toInt()
                         this.providerId[idx] = row.getString(4)
+                        val updatesText = row.getString(5)!!
+                        try {
+                            val updates = defaultMapper.decodeFromString(
+                                ListSerializer(SerializedUpdate.serializer()),
+                                updatesText
+                            )
+
+                            val arr = CyclicArray<ResourceDocumentUpdate>(MAX_UPDATES)
+                            for (update in updates) arr.add(ResourceDocumentUpdate(update.message, update.extra))
+                            this.updates[idx] = arr
+                        } catch (ex: Throwable) {
+                            log.warn("Caught an exception while deserializing updates. This should not happen!")
+                            log.warn(ex.toReadableStacktrace().toString())
+                        }
                         idx++
                     }
 
@@ -129,6 +186,7 @@ class ResourceStoreByOwner<T>(
                     for (row in rows) {
                         this.data[idx++] = loadedState[batchIndex++]
                     }
+                    size += rows.size
 
                     if (rows.size < batchCount) break
                 }
@@ -178,6 +236,16 @@ class ResourceStoreByOwner<T>(
                 output.product = product
                 output.data = data
             }
+            println("Allocated ID is: $id")
+            val self = this
+            println(buildString {
+                appendLine("id: " + self.id[idx])
+                appendLine("createdAt: " + self.createdAt[idx])
+                appendLine("createdBy: " + self.createdBy[idx])
+                appendLine("project: " + self.project[idx])
+                appendLine("product: " + self.product[idx])
+                appendLine("data: " + self.data[idx])
+            })
             return id
         }
     }
@@ -206,6 +274,8 @@ class ResourceStoreByOwner<T>(
             } else if (idCard is IdCard.User && idCard.activeProject != 0) {
                 // TODO(Dan): This branch needs to use the ACL
             } else if (idCard is IdCard.Provider && idCard.providerOf.isNotEmpty()) {
+                println("Expecting that you are provider of: ${idCard.providerOf.toList()}")
+                println("Products available: ${id.zip(product.toList()).toList()}")
                 searchInArray(idCard.providerOf, product, consumer)
             }
         }
@@ -233,6 +303,15 @@ class ResourceStoreByOwner<T>(
                 res.project = self.project[arrIdx]
                 res.product = self.product[arrIdx]
                 res.providerId = self.providerId[arrIdx]
+                run {
+                    Arrays.fill(res.update, null)
+                    val resourceUpdates = self.updates[arrIdx] ?: return@run
+                    for ((index, update) in resourceUpdates.withIndex()) {
+                        if (index >= res.update.size) break
+                        res.update[index] = update
+                    }
+                }
+
                 @Suppress("UNCHECKED_CAST")
                 res.data = self.data[arrIdx] as T
 
@@ -250,26 +329,28 @@ class ResourceStoreByOwner<T>(
     suspend fun addUpdates(
         idCard: IdCard,
         id: Long,
-        newUpdates: List<ResourceStore.Update>
+        newUpdates: List<ResourceDocumentUpdate>,
+        consumer: ((state: T, updateIdx: Int, update: ResourceDocumentUpdate) -> Boolean)? = null,
     ): Boolean {
         val self = this
         var isDone = false
-        val consumer = object : SearchConsumer {
+        searchAndConsume(idCard, object : SearchConsumer {
             override fun shouldTerminate(): Boolean = isDone
             override fun call(arrIdx: Int) {
                 if (self.id[arrIdx] != id) return
-                val updates = self.updates[arrIdx] ?: CyclicArray<ResourceStore.Update>(64).also {
+                val updates = self.updates[arrIdx] ?: CyclicArray<ResourceDocumentUpdate>(MAX_UPDATES).also {
                     self.updates[arrIdx] = it
                 }
 
-                for (update in newUpdates) {
-                    updates.add(update)
+                for ((index, update) in newUpdates.withIndex()) {
+                    @Suppress("UNCHECKED_CAST")
+                    val shouldAddUpdate = if (consumer != null) consumer(self.data[arrIdx] as T, index, update) else true
+                    if (shouldAddUpdate) updates.add(update)
                 }
 
                 isDone = true
             }
-        }
-        searchAndConsume(idCard, consumer)
+        })
         return isDone
     }
 
@@ -319,7 +400,11 @@ class ResourceStoreByOwner<T>(
         }
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
+
+        const val MAX_UPDATES = 64
+
         // NOTE(Dan): 99% of all workspaces have less than ~1300 entries, 1024 seem like a good target.
         const val STORE_SIZE = 1024
 
@@ -375,8 +460,8 @@ class ResourceStoreByOwner<T>(
                         var bits = cr1.toLong()
                         while (bits != 0L) {
                             val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            offset += trailing
-                            emit.call(offset)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
                             bits = bits shr (trailing + 1)
                         }
                     }
@@ -386,8 +471,8 @@ class ResourceStoreByOwner<T>(
                         var bits = cr2.toLong()
                         while (bits != 0L) {
                             val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            offset += trailing
-                            emit.call(offset)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
                             bits = bits shr (trailing + 1)
                         }
                     }
@@ -397,8 +482,8 @@ class ResourceStoreByOwner<T>(
                         var bits = cr3.toLong()
                         while (bits != 0L) {
                             val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            offset += trailing
-                            emit.call(offset)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
                             bits = bits shr (trailing + 1)
                         }
                     }
@@ -408,8 +493,8 @@ class ResourceStoreByOwner<T>(
                         var bits = cr4.toLong()
                         while (bits != 0L) {
                             val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                            offset += trailing
-                            emit.call(offset)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
                             bits = bits shr (trailing + 1)
                         }
                     }
@@ -440,10 +525,10 @@ class ResourceStoreByOwner<T>(
 class ResourceStore<T>(
     val type: String,
     private val db: DBContext,
+    private val productCache: ProductCache,
     private val callbacks: Callbacks<T>,
 ) {
     data class BrowseResult(val count: Int, val next: String?)
-    data class Update(val update: String?, val extra: JsonElement? = null)
 
     class Callbacks<T>(
         val loadState: suspend (session: DBTransaction, count: Int, resources: LongArray) -> Array<T>
@@ -571,11 +656,14 @@ class ResourceStore<T>(
 
     suspend fun create(
         idCard: IdCard,
-        product: Int,
+        product: ProductReference,
         data: T,
         output: ResourceDocument<T>?
     ): Long {
         if (idCard !is IdCard.User) TODO()
+        val productId = productCache.referenceToProductId(product)
+            ?: throw RPCException("Invalid product supplied", HttpStatusCode.BadRequest)
+
         val uid = if (idCard.activeProject < 0) 0 else idCard.uid
         val pid = idCard.activeProject
 
@@ -583,14 +671,14 @@ class ResourceStore<T>(
 
         var tail = root.findTail()
         while (true) {
-            val id = tail.create(idCard, product, data, output)
+            val id = tail.create(idCard, productId, data, output)
             if (id < 0L) {
                 tail = tail.expand()
             } else {
                 val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
                 index.register(id, if (pid != 0) pid else uid, pid == 0)
 
-                val providerId = providerOfProducts.get(product) ?: error("Unknown product? $product")
+                val providerId = productCache.productIdToReference(productId)?.provider ?: error("Unknown product? $product")
                 findOrLoadProviderIndex(providerId).registerUsage(uid, pid)
 
                 return id
@@ -683,9 +771,18 @@ class ResourceStore<T>(
         }
     }
 
-    suspend fun addUpdate(idCard: IdCard, id: Long, updates: List<ResourceStore.Update>) {
+    suspend fun addUpdate(
+        idCard: IdCard,
+        id: Long,
+        updates: List<ResourceDocumentUpdate>,
+        consumer: ((state: T, updateIdx: Int, update: ResourceDocumentUpdate) -> Boolean)? = null,
+    ) {
+        if (idCard !is IdCard.Provider) {
+            throw RPCException("End-users are not allowed to add updates to a resource!", HttpStatusCode.Forbidden)
+        }
+
         useStores(findStoreByResourceId(id) ?: return) { store ->
-            ShouldContinue.ifThisIsTrue(!store.addUpdates(idCard, id, updates))
+            ShouldContinue.ifThisIsTrue(!store.addUpdates(idCard, id, updates, consumer))
         }
     }
 
@@ -889,21 +986,6 @@ class ResourceStore<T>(
     // populated when a provider contacts us about any resource/when a user requests a resource from them.
     private val providerIndex = arrayOfNulls<ProviderIndex>(MAX_PROVIDERS)
     private val providerIndexMutex = Mutex() // NOTE(Dan): Only needed to modify the list of indices
-    private val providerOfProducts = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { productId ->
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("product_id", productId) },
-                """
-                    select pc.provider
-                    from
-                        accounting.products p
-                        join accounting.product_categories pc on p.category = pc.id
-                    where
-                        p.id = :product_id::bigint
-                """
-            ).rows.singleOrNull()?.getString(0)
-        }
-    }
 
     private class ProviderIndex(val provider: String) {
         private val uidReferences = TreeSet<Int>()
@@ -999,6 +1081,34 @@ class ResourceStore<T>(
 }
 
 class IdCardService(private val db: DBContext) {
+    private val reverseUidCache = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { uid ->
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("uid", uid) },
+                """
+                    select id 
+                    from auth.principals p
+                    where
+                        p.uid = :uid
+                """
+            ).rows.singleOrNull()?.getString(0)
+        }
+    }
+
+    private val reversePidCache = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { pid ->
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("pid", pid) },
+                """
+                    select id 
+                    from project.projects p
+                    where
+                        p.pid = :pid
+                """
+            ).rows.singleOrNull()?.getString(0)
+        }
+    }
+
     private val cached = SimpleCache<String, IdCard>(maxAge = 60_000) { username ->
         db.withSession { session ->
             if (username.startsWith(AuthProviders.PROVIDER_PREFIX)) {
@@ -1080,6 +1190,14 @@ class IdCardService(private val db: DBContext) {
 
         return card
     }
+
+    suspend fun lookupUid(uid: Int): String? {
+        return reverseUidCache.get(uid)
+    }
+
+    suspend fun lookupPid(pid: Int): String? {
+        return reversePidCache.get(pid)
+    }
 }
 
 // TODO(Dan): This implementation means that we can only have one instance running this
@@ -1120,6 +1238,77 @@ object ResourceIdAllocator {
                     ).rows.singleOrNull()?.getLong(0) ?: 0L
                 )
             }
+        }
+    }
+}
+
+class ProductCache(private val db: DBContext) {
+    private val mutex = ReadWriterMutex()
+    private val referenceToProductId = HashMap<ProductReference, Int>()
+    private val productIdToReference = HashMap<Int, ProductReference>()
+    private val productInformation = HashMap<Int, Product>()
+    private val nextFill = AtomicLong(0L)
+
+    suspend fun fillCache() {
+        if (Time.now() < nextFill.get()) return
+        mutex.withWriter {
+            if (Time.now() < nextFill.get()) return
+
+            referenceToProductId.clear()
+            productIdToReference.clear()
+            productInformation.clear()
+
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        declare product_load cursor for
+                        select accounting.product_to_json(p, pc, 0), p.id
+                        from
+                            accounting.products p join
+                            accounting.product_categories pc on
+                                p.category = pc.id
+                    """
+                )
+
+                while (true) {
+                    val rows = session.sendPreparedStatement({}, "fetch forward 100 from product_load").rows
+                    if (rows.isEmpty()) break
+
+                    rows.forEach { row ->
+                        val product = defaultMapper.decodeFromString(Product.serializer(), row.getString(0)!!)
+                        val id = row.getLong(1)!!.toInt()
+
+                        val reference = ProductReference(product.name, product.category.name, product.category.provider)
+                        referenceToProductId[reference] = id
+                        productIdToReference[id] = reference
+                        productInformation[id] = product
+                    }
+                }
+            }
+
+            nextFill.set(Time.now() + 60_000 * 5)
+        }
+    }
+
+    suspend fun referenceToProductId(ref: ProductReference): Int? {
+        fillCache()
+        return mutex.withReader {
+            referenceToProductId[ref]
+        }
+    }
+
+    suspend fun productIdToReference(id: Int): ProductReference? {
+        fillCache()
+        return mutex.withReader {
+            productIdToReference[id]
+        }
+    }
+
+    suspend fun productIdToProduct(id: Int): Product? {
+        fillCache()
+        return mutex.withReader {
+            productInformation[id]
         }
     }
 }

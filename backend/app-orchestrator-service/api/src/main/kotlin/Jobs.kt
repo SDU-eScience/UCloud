@@ -293,13 +293,13 @@ data class JobStatus(
 data class JobUpdate(
     val state: JobState? = null,
     val outputFolder: String? = null,
-    override val status: String? = null,
+    override var status: String? = null,
     val expectedState: JobState? = null,
     val expectedDifferentState: Boolean? = null,
     val newTimeAllocation: Long? = null,
     val allowRestart: Boolean? = null,
     val newMounts: List<String>? = null,
-    override val timestamp: Long = 0L
+    override var timestamp: Long = 0L
 ) : ResourceUpdate {
     init {
         if (allowRestart == true) {
@@ -350,6 +350,7 @@ data class JobSpecification(
             "By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. " +
             "This field must be set to `true` to allow you to create two jobs with identical configuration."
     )
+    @UCloudApiInternal(InternalLevel.BETA)
     val allowDuplicateJob: Boolean = false,
 
     @UCloudApiDoc(
@@ -379,7 +380,7 @@ data class JobSpecification(
             "will be terminated, regardless of result, after the duration has expired. Some providers support " +
             "extended this duration via the `extend` operation."
     )
-    val timeAllocation: SimpleDuration? = null,
+    var timeAllocation: SimpleDuration? = null,
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc(

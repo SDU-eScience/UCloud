@@ -1,6 +1,14 @@
 package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.service.Time
+import kotlinx.serialization.json.JsonElement
+
+data class ResourceDocumentUpdate(
+    val update: String?,
+    val extra: JsonElement? = null,
+    val createdAt: Long = Time.now(),
+)
 
 data class ResourceDocument<T>(
     var id: Long = 0L,
@@ -10,6 +18,7 @@ data class ResourceDocument<T>(
     var product: Int = 0,
     var providerId: String? = null,
     var acl: Array<AclEntry> = emptyArray(),
+    var update: Array<ResourceDocumentUpdate?> = arrayOfNulls(64),
     var data: T? = null,
 ) {
     data class AclEntry(val entity: Int, val permission: Permission)
