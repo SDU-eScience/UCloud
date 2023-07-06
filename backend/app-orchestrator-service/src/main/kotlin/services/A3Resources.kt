@@ -10,7 +10,9 @@ import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
@@ -32,7 +34,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.collections.HashSet
@@ -49,13 +50,43 @@ private data class SerializedUpdate(
 )
 
 @Serializable
-private data class SerializedAclEntry(
+data class NumericAclEntry(
     val uid: Int? = null,
     val gid: Int? = null,
     val permission: Permission? = null,
-)
+) {
+    companion object {
+        suspend fun fromAclEntry(cards: IdCardService, entry: ResourceAclEntry): List<NumericAclEntry> {
+            val uid = when (val entity = entry.entity) {
+                is AclEntity.ProjectGroup -> null
+                is AclEntity.User -> cards.lookupUidFromUsername(entity.username)
+            }
 
-class ResourceStoreByOwner<T>(
+            val gid = when (val entity = entry.entity) {
+                is AclEntity.ProjectGroup -> cards.lookupGidFromGroupId(entity.group)
+                is AclEntity.User -> null
+            }
+
+            return entry.permissions.map { NumericAclEntry(uid, gid, it) }
+        }
+
+        suspend fun fromAclEntity(cards: IdCardService, entity: AclEntity): NumericAclEntry {
+            val uid = when (entity) {
+                is AclEntity.ProjectGroup -> null
+                is AclEntity.User -> cards.lookupUidFromUsername(entity.username)
+            }
+
+            val gid = when (entity) {
+                is AclEntity.ProjectGroup -> cards.lookupGidFromGroupId(entity.group)
+                is AclEntity.User -> null
+            }
+
+            return NumericAclEntry(uid, gid, null)
+        }
+    }
+}
+
+private class ResourceStoreByOwner<T>(
     val type: String,
     val uid: Int,
     val pid: Int,
@@ -228,7 +259,7 @@ class ResourceStoreByOwner<T>(
                         }
                         try {
                             val aclEntries = defaultMapper.decodeFromString(
-                                ListSerializer(SerializedAclEntry.serializer()),
+                                ListSerializer(NumericAclEntry.serializer()),
                                 aclText
                             )
 
@@ -243,7 +274,6 @@ class ResourceStoreByOwner<T>(
 
                                 for ((index, entry) in aclEntries.withIndex()) {
                                     if (entry.permission == null) break
-                                    if (this.id[idx] == 6L) println(entry)
                                     entities[index] = entry.gid ?: entry.uid ?: Int.MAX_VALUE
                                     isUser[index] = entry.gid == null
                                     permissions[index] = entry.permission.toByte()
@@ -254,7 +284,7 @@ class ResourceStoreByOwner<T>(
                                 this.aclPermissions[idx] = permissions
                             }
                         } catch (ex: Throwable) {
-                            log.warn("Caught an exception while deserializing updates. This should not happen!")
+                            log.warn("Caught an exception while deserializing the ACL. This should not happen!")
                             log.warn(ex.toReadableStacktrace().toString())
                         }
                         idx++
@@ -316,17 +346,17 @@ class ResourceStoreByOwner<T>(
                 output.product = product
                 output.data = data
             }
-            println("Allocated ID is: $id")
-            val self = this
-            println(buildString {
-                appendLine("id: " + self.id[idx])
-                appendLine("createdAt: " + self.createdAt[idx])
-                appendLine("createdBy: " + self.createdBy[idx])
-                appendLine("project: " + self.project[idx])
-                appendLine("product: " + self.product[idx])
-                appendLine("data: " + self.data[idx])
-            })
             return id
+        }
+    }
+
+    private fun Permission.Companion.fromByte(value: Byte): Permission {
+        return when (value.toInt()) {
+            1 -> Permission.READ
+            2 -> Permission.EDIT
+            3 -> Permission.ADMIN
+            4 -> Permission.PROVIDER
+            else -> error("unknown value: $value")
         }
     }
 
@@ -368,7 +398,6 @@ class ResourceStoreByOwner<T>(
                     }
                 }
             } else if (idCard is IdCard.User) {
-                println("We are definitely hitting this branch")
                 val entityConsumer = object : SearchConsumer {
                     var shouldBeUser = false
                     var entityIdx = 0
@@ -378,7 +407,6 @@ class ResourceStoreByOwner<T>(
                     override fun call(arrIdx: Int) {
                         if (match != -1) return
 
-                        println("Hitting $permissionRequired $shouldBeUser $entityIdx ${aclIsUser[entityIdx]!![arrIdx]} ${aclPermissions[entityIdx]!![arrIdx]} ${aclEntities[entityIdx]!!.toList()} $arrIdx")
                         if (aclIsUser[entityIdx]!![arrIdx] == shouldBeUser &&
                             aclPermissions[entityIdx]!![arrIdx] == permissionRequired.toByte()
                         ) {
@@ -459,6 +487,20 @@ class ResourceStoreByOwner<T>(
                         res.update[index] = update
                     }
                 }
+                run {
+                    Arrays.fill(res.acl, null)
+                    val entities = self.aclEntities[arrIdx]
+                    val isUser = self.aclIsUser[arrIdx]
+                    val perms = self.aclPermissions[arrIdx]
+
+                    if (entities != null && isUser != null && perms != null) {
+                        for (i in entities.indices) {
+                            if (entities[i] == 0) break
+                            res.acl[i] =
+                                ResourceDocument.AclEntry(entities[i], isUser[i], Permission.fromByte(perms[i]))
+                        }
+                    }
+                }
 
                 @Suppress("UNCHECKED_CAST")
                 res.data = self.data[arrIdx] as T
@@ -520,6 +562,120 @@ class ResourceStoreByOwner<T>(
         }
         searchAndConsume(idCard, Permission.PROVIDER, consumer)
         return isDone
+    }
+
+    suspend fun updateAcl(
+        idCard: IdCard,
+        id: Long,
+        deletions: List<NumericAclEntry>,
+        additions: List<NumericAclEntry>,
+    ): Boolean {
+        // NOTE(Dan): This is a bit of a hack since we cannot look where we match one of a set of permissions.
+        val permRequired = if (idCard is IdCard.Provider) {
+            Permission.PROVIDER
+        } else {
+            Permission.ADMIN
+        }
+
+        val self = this
+        val consumer = object : SearchConsumer {
+            var done = false
+            override fun shouldTerminate(): Boolean = done
+
+            override fun call(arrIdx: Int) {
+                if (self.id[arrIdx] != id) return
+
+                // NOTE(Dan): This makes no attempts to have great performance. It is unlikely to be a problem since
+                // we are not running this code in a loop (right now).
+
+                val uidPerms = HashMap<Int, HashSet<Permission>>()
+                val gidPerms = HashMap<Int, HashSet<Permission>>()
+
+                val origEntities = aclEntities[arrIdx] ?: IntArray(0)
+                val origUserStatus = aclIsUser[arrIdx] ?: BooleanArray(0)
+                val origPerms = aclPermissions[arrIdx] ?: ByteArray(0)
+
+                for (i in origEntities.indices) {
+                    if (origEntities[i] == 0) continue
+
+                    if (origUserStatus[i]) {
+                        val uid = origEntities[i]
+                        val set = uidPerms[uid] ?: HashSet<Permission>().also { uidPerms[uid] = it }
+                        set.add(Permission.fromByte(origPerms[i]))
+                    } else {
+                        val gid = origEntities[i]
+                        val set = gidPerms[gid] ?: HashSet<Permission>().also { gidPerms[gid] = it }
+                        set.add(Permission.fromByte(origPerms[i]))
+                    }
+                }
+
+                for (deleted in deletions) {
+                    require(deleted.permission == null) { "You must always delete an entity in full" }
+
+                    if (deleted.gid != null) gidPerms.remove(deleted.gid)
+                    else if (deleted.uid != null) uidPerms.remove(deleted.uid)
+                }
+
+                for (addition in additions) {
+                    if (addition.permission == null) continue
+
+                    if (addition.gid != null) {
+                        val set = gidPerms[addition.gid] ?: HashSet<Permission>().also { gidPerms[addition.gid] = it }
+                        set.add(addition.permission)
+                    } else if (addition.uid != null) {
+                        val set = uidPerms[addition.uid] ?: HashSet<Permission>().also { uidPerms[addition.uid] = it }
+                        set.add(addition.permission)
+                    }
+                }
+
+                val requiredSize =
+                    uidPerms.entries.fold(0) { a, entry -> a + entry.value.size } +
+                            gidPerms.entries.fold(0) { a, entry -> a + entry.value.size }
+
+                var entities = aclEntities[arrIdx]
+                var userStatus = aclIsUser[arrIdx]
+                var perms = aclPermissions[arrIdx]
+
+                val initialSize = entities?.size ?: 0
+                if (initialSize < requiredSize) {
+                    val size = ((requiredSize / 4) + 1) * 4
+                    entities = IntArray(size)
+                    userStatus = BooleanArray(size)
+                    perms = ByteArray(size)
+
+                    aclEntities[arrIdx] = entities
+                    aclIsUser[arrIdx] = userStatus
+                    aclPermissions[arrIdx] = perms
+                }
+
+                check(entities != null && userStatus != null && perms != null)
+
+                Arrays.fill(entities, 0)
+
+                var ptr = 0
+                for ((uid, entryPerms) in uidPerms) {
+                    for (perm in entryPerms) {
+                        entities[ptr] = uid
+                        userStatus[ptr] = true
+                        perms[ptr] = perm.toByte()
+                        ptr++
+                    }
+                }
+                for ((gid, entryPerms) in gidPerms) {
+                    for (perm in entryPerms) {
+                        entities[ptr] = gid
+                        userStatus[ptr] = false
+                        perms[ptr] = perm.toByte()
+                        ptr++
+                    }
+                }
+
+                done = true
+            }
+        }
+
+        searchAndConsume(idCard, permRequired, consumer)
+        return consumer.done
     }
 
     suspend fun findTail(): ResourceStoreByOwner<T> {
@@ -1002,6 +1158,21 @@ class ResourceStore<T>(
         }
     }
 
+    suspend fun updateAcl(
+        idCard: IdCard,
+        id: Long,
+        deletions: List<NumericAclEntry>,
+        additions: List<NumericAclEntry>
+    ) {
+        if (!additions.all { it.permission?.canBeGranted == true }) {
+            throw RPCException("Invalid request supplied", HttpStatusCode.BadRequest)
+        }
+
+        useStores(findStoreByResourceId(id) ?: return) { store ->
+            ShouldContinue.ifThisIsTrue(!store.updateAcl(idCard, id, deletions, additions))
+        }
+    }
+
     // ID index
     // =================================================================================================================
     // NOTE(Dan): The IdIndex contains references to all resources that we have loaded by their ID. Indexes we have
@@ -1190,14 +1361,12 @@ class ResourceStore<T>(
     private suspend fun findOrLoadProviderIndex(provider: String): ProviderIndex {
         val initialResult = providerIndex.find { it?.provider == provider }
         if (initialResult != null) {
-            println("Returning cached provider index")
             return initialResult
         }
 
         providerIndexMutex.withLock {
             val resultAfterLock = providerIndex.find { it?.provider == provider }
             if (resultAfterLock != null) {
-                println("cached after mutex")
                 return resultAfterLock
             }
 
@@ -1231,7 +1400,6 @@ class ResourceStore<T>(
                 }
             }
             providerIndex[emptySlot] = result
-            println("Returning fresh index")
 
             return result
         }
@@ -1270,6 +1438,51 @@ class IdCardService(private val db: DBContext) {
             ).rows.singleOrNull()?.getString(0)
         }
     }
+
+    private val reverseGidCache = SimpleCache<Int, AclEntity.ProjectGroup>(maxAge = SimpleCache.DONT_EXPIRE) { gid ->
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("gid", gid) },
+                """
+                    select project, id 
+                    from project.groups g
+                    where
+                        g.gid = :gid
+                """
+            ).rows.singleOrNull()?.let {
+                AclEntity.ProjectGroup(it.getString(0)!!, it.getString(1)!!)
+            }
+        }
+    }
+
+    private val uidCache = SimpleCache<String, Int>(maxAge = SimpleCache.DONT_EXPIRE) { username ->
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("username", username) },
+                """
+                    select uid::int4 
+                    from auth.principals p
+                    where
+                        p.id = :username
+                """
+            ).rows.singleOrNull()?.getInt(0)
+        }
+    }
+
+    private val gidCache = SimpleCache<String, Int>(maxAge = SimpleCache.DONT_EXPIRE) { groupId ->
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("group_id", groupId) },
+                """
+                    select gid::int4 
+                    from project.groups g
+                    where
+                        g.id = :group_id
+                """
+            ).rows.singleOrNull()?.getInt(0)
+        }
+    }
+
 
     private val cached = SimpleCache<String, IdCard>(maxAge = 60_000) { username ->
         db.withSession { session ->
@@ -1362,6 +1575,18 @@ class IdCardService(private val db: DBContext) {
 
     suspend fun lookupPid(pid: Int): String? {
         return reversePidCache.get(pid)
+    }
+
+    suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup? {
+        return reverseGidCache.get(gid)
+    }
+
+    suspend fun lookupUidFromUsername(username: String): Int? {
+        return uidCache.get(username)
+    }
+
+    suspend fun lookupGidFromGroupId(groupId: String): Int? {
+        return gidCache.get(groupId)
     }
 }
 

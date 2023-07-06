@@ -5,10 +5,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.ResourceDocument
-import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
-import dk.sdu.cloud.accounting.util.invokeCall
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.Application
@@ -21,13 +19,8 @@ import dk.sdu.cloud.app.store.api.Tool
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.app.store.api.WordInvocationParameter
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.provider.api.ResourcePermissions
-import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -213,7 +206,7 @@ class JobResourceService2(
                     provider,
                     actorAndProject,
                     { JobsProvider(provider).create },
-                    bulkRequestOf(unmarshallDocument(doc)),
+                    bulkRequestOf(unmarshallDocument(card, doc)),
                     actorAndProject.signedIntentFromUser,
                 )
             } catch (ex: Throwable) {
@@ -255,7 +248,7 @@ class JobResourceService2(
 
             val page = ArrayList<Job>(result.count)
             for (idx in 0 until min(normalizedRequest.itemsPerPage, result.count)) {
-                page.add(unmarshallDocument(buffer[idx]))
+                page.add(unmarshallDocument(card, buffer[idx]))
             }
 
             return PageV2(normalizedRequest.itemsPerPage, page, result.next)
@@ -269,7 +262,7 @@ class JobResourceService2(
         val longId = request.id.toLongOrNull() ?: return null
         val card = idCards.fetchIdCard(actorAndProject)
         val doc = documents.retrieve(card, longId) ?: return null
-        return unmarshallDocument(doc)
+        return unmarshallDocument(card, doc)
     }
 
     suspend fun terminate(
@@ -291,7 +284,7 @@ class JobResourceService2(
             //  This step could also do the grouping step below.
             val result = ArrayList<Job>()
             for (idx in 0 until count) {
-                result.add(unmarshallDocument(buffer[0]))
+                result.add(unmarshallDocument(card, buffer[0]))
             }
 
             result
@@ -370,11 +363,28 @@ class JobResourceService2(
         }
     }
 
+    suspend fun updateAcl(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<UpdatedAcl>
+    ) {
+        val card = idCards.fetchIdCard(actorAndProject)
+        for (reqItem in request.items) {
+            documents.updateAcl(
+                card,
+                reqItem.id.toLongOrNull() ?: throw RPCException("Invalid ID supplied", HttpStatusCode.NotFound),
+                reqItem.deleted.map { NumericAclEntry.fromAclEntity(idCards, it) },
+                reqItem.added.flatMap { NumericAclEntry.fromAclEntry(idCards, it) }
+            )
+        }
+
+        // TODO Do we really need to contact the provider about this?
+    }
+
     private suspend fun validate(actorAndProject: ActorAndProject, job: JobSpecification) {
         // TODO do something
     }
 
-    private suspend fun unmarshallDocument(doc: ResourceDocument<InternalJobState>): Job {
+    private suspend fun unmarshallDocument(card: IdCard, doc: ResourceDocument<InternalJobState>): Job {
         val data = doc.data!!
         return Job(
             doc.id.toString(),
@@ -398,7 +408,7 @@ class JobResourceService2(
             JobStatus(
                 data.state,
                 startedAt = data.startedAt,
-                expiresAt =  if (data.startedAt != null && data.specification.timeAllocation != null) {
+                expiresAt = if (data.startedAt != null && data.specification.timeAllocation != null) {
                     (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
                 } else {
                     null
@@ -411,10 +421,53 @@ class JobResourceService2(
                 )
             ),
             doc.createdAt,
-            permissions = ResourcePermissions(
-                listOf(Permission.ADMIN),
-                emptyList()
-            ),
+            permissions = run {
+                val myself = when (card) {
+                    is IdCard.Provider -> {
+                        listOf(Permission.PROVIDER, Permission.READ, Permission.EDIT)
+                    }
+
+                    is IdCard.User -> {
+                        if (doc.project == 0 && card.uid == doc.createdBy) {
+                            listOf(Permission.ADMIN, Permission.READ, Permission.EDIT)
+                        } else if (card.adminOf.contains(doc.project)) {
+                            listOf(Permission.ADMIN, Permission.READ, Permission.EDIT)
+                        } else {
+                            val permissions = HashSet<Permission>()
+                            for (entry in doc.acl) {
+                                if (entry == null) break
+
+                                if (entry.isUser && entry.entity == card.uid) {
+                                    permissions.add(entry.permission)
+                                } else if (!entry.isUser && card.groups.contains(entry.entity)) {
+                                    permissions.add(entry.permission)
+                                }
+                            }
+
+                            permissions.toList()
+                        }
+                    }
+                }
+
+                val others = HashMap<AclEntity, HashSet<Permission>>()
+                for (entry in doc.acl) {
+                    if (entry == null) break
+
+                    val entity = if (entry.isUser) {
+                        AclEntity.User(idCards.lookupUid(entry.entity) ?: error("Invalid UID in ACL? ${entry.entity}"))
+                    } else {
+                        idCards.lookupGid(entry.entity) ?: error("Invalid GID in ACL? ${entry.entity}")
+                    }
+
+                    val set = others[entity] ?: HashSet<Permission>().also { others[entity] = it }
+                    set.add(entry.permission)
+                }
+
+                ResourcePermissions(
+                    myself,
+                    others.map { ResourceAclEntry(it.key, it.value.toList()) }
+                )
+            },
             output = JobOutput(
                 data.outputFolder
             ),

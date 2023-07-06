@@ -17,11 +17,11 @@ data class ResourceDocument<T>(
     var project: Int = 0,
     var product: Int = 0,
     var providerId: String? = null,
-    var acl: Array<AclEntry> = emptyArray(),
+    var acl: Array<AclEntry?> = arrayOfNulls(64),
     var update: Array<ResourceDocumentUpdate?> = arrayOfNulls(64),
     var data: T? = null,
 ) {
-    data class AclEntry(val entity: Int, val permission: Permission)
+    data class AclEntry(val entity: Int, val isUser: Boolean, val permission: Permission)
 }
 
 sealed class IdCard {

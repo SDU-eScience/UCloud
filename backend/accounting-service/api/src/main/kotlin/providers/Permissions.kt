@@ -57,7 +57,10 @@ enum class Permission(val canBeGranted: Boolean) {
             Grants an entity access to special privileged operations specific to a provider
         """
     )
-    PROVIDER(false)
+    PROVIDER(false),
+    ;
+
+    companion object
 }
 
 @Serializable

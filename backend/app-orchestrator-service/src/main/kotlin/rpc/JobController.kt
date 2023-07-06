@@ -25,7 +25,7 @@ import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.micro.requestChunkOrNull
 import dk.sdu.cloud.prettyMapper
-import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
@@ -179,6 +179,42 @@ class JobController(
 
                                                 sendMessage("Updating $id with:")
                                                 sendMessage(prettyMapper.encodeToString(request))
+                                            }
+                                        }
+
+                                        "acl-test" -> {
+                                            val id = args.getOrNull(0)
+                                            val username = args.getOrNull(1)
+                                            val target = args.getOrNull(2)
+                                            val type = args.getOrNull(3)
+
+                                            if (id == null || username == null || target == null || type == null) {
+                                                sendMessage("Usage: acl-test <id> <username> <target> <type> <perms>")
+                                            } else {
+                                                val added = if (type == "add") {
+                                                    listOf(ResourceAclEntry(AclEntity.User(target), listOf(Permission.READ, Permission.EDIT)))
+                                                } else {
+                                                    emptyList()
+                                                }
+
+                                                val deleted = if (type == "deleted") {
+                                                    listOf(AclEntity.User(target))
+                                                } else {
+                                                    emptyList()
+                                                }
+
+                                                jobs.updateAcl(
+                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), null),
+                                                    bulkRequestOf(
+                                                        UpdatedAcl(
+                                                            id,
+                                                            added,
+                                                            deleted
+                                                        )
+                                                    ).also {
+                                                        sendMessage(prettyMapper.encodeToString(it))
+                                                    }
+                                                )
                                             }
                                         }
 
