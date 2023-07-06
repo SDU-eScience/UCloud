@@ -778,7 +778,7 @@ export class ResourceBrowser<T> {
     private cantConsumeResources = false;
     public rerender() {
         const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn()) as {api: {isCoreResource: boolean}} | null;
-        this.cantConsumeResources = !!(callbacks && "api" in callbacks && !checkCanConsumeResources(callbacks.api));
+        this.cantConsumeResources = !checkCanConsumeResources(callbacks);
         this.renderBreadcrumbs();
         this.renderOperations();
         this.renderRows();
@@ -3362,9 +3362,17 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(api: {isCoreResource: boolean}): boolean {
-    if (!Client.hasActiveProject) return true;
-    if (api.isCoreResource) return true;
+export function checkCanConsumeResources(callbacks: null | {api: {isCoreResource: boolean}}): boolean {
+    if (!Client.hasActiveProject) {
+        return true;
+    }
+    if (!callbacks) {
+        return false;
+    }
+    const {api} = callbacks;
+    if (api.isCoreResource) {
+        return true;
+    }
     const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === Client.projectId);
     if (!project) return false;
     return project.specification.canConsumeResources !== false;
