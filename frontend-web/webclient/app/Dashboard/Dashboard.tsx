@@ -51,6 +51,7 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import ExperimentalJobs from "@/Applications/Jobs/ExperimentalJobs";
 import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
+import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
 const MY_WORKSPACE = "My Workspace";
 
@@ -510,41 +511,79 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
             icon={"favIcon"}
             error={news.error?.why}
         >
-            {news.data.items.length !== 0 ? null : (
-                <NoResultsCardBody title={"No news"}>
-                    <Text>
-                        As announcements are made, they will be shared here.
-                    </Text>
-                </NoResultsCardBody>
-            )}
-            <Box>
-                {news.data.items.slice(0, 1).map(post => (
-                    <Box key={post.id} mb={32}>
-                        <Link to={AppRoutes.news.detailed(post.id)}>
-                            <Heading.h3>{post.title} </Heading.h3>
-                        </Link>
+            <WithGraphic>
+                <div>
+                    {news.data.items.length !== 0 ? null : (
+                        <NoResultsCardBody title={"No news"}>
+                            <Text>
+                                As announcements are made, they will be shared here.
+                            </Text>
+                        </NoResultsCardBody>
+                    )}
+                    <Box>
+                        {news.data.items.slice(0, 1).map(post => (
+                            <Box key={post.id} mb={32}>
+                                <Link to={AppRoutes.news.detailed(post.id)}>
+                                    <Heading.h3>{post.title} </Heading.h3>
+                                </Link>
 
-                        <Spacer
-                            left={<Heading.h5>{post.subtitle}</Heading.h5>}
-                            right={<Heading.h5>{dateToString(post.showFrom)}</Heading.h5>}
-                        />
+                                <Spacer
+                                    left={<Heading.h5>{post.subtitle}</Heading.h5>}
+                                    right={<Heading.h5>{dateToString(post.showFrom)}</Heading.h5>}
+                                />
 
-                        <Box maxHeight={300} overflow={"auto"}>
-                            <Markdown unwrapDisallowed>
-                                {post.body}
-                            </Markdown>
-                        </Box>
+                                <Box maxHeight={300} overflow={"auto"}>
+                                    <Markdown unwrapDisallowed>
+                                        {post.body}
+                                    </Markdown>
+                                </Box>
+                            </Box>
+                        ))}
                     </Box>
-                ))}
-            </Box>
 
-            {news.data.items.length === 0 ? null : (
-                <Spacer
-                    left={null}
-                    right={<Link to="/news/list/">View more</Link>}
-                />)}
+                    {news.data.items.length === 0 ? null : (
+                        <Spacer
+                            left={null}
+                            right={<Link to="/news/list/">View more</Link>}
+                        />)}
+                </div>
+            </WithGraphic>
         </HighlightedCard>
     );
+}
+
+const WithGraphicClass = injectStyle("with-graphic", k => `
+    ${k} {
+        display: flex;
+    }
+
+    ${k} > div {
+        width: 50%;
+    }
+
+    ${k} > img {
+         max-height: 250px;
+         margin-left: auto;
+         margin-right: auto;
+    }
+
+@media screen and (max-width: 900px) {
+    ${k} > img {
+        display: none;
+        width: 0px;
+    }
+
+    ${k} > div {
+        width: 100%;
+    }
+}
+`);
+
+function WithGraphic({children}: React.PropsWithChildren): JSX.Element {
+    return <div className={WithGraphicClass}>
+        {children}
+        <img src={ucloudImage} />
+    </div>
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
