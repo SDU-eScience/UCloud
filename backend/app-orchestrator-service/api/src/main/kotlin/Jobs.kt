@@ -329,7 +329,7 @@ data class JobSpecification(
     val application: NameAndVersion,
 
     @UCloudApiDoc("A reference to the product that this job will be executed on")
-    override val product: ComputeProductReference,
+    override var product: ComputeProductReference,
 
     @UCloudApiDoc(
         "A name for this job assigned by the user.\n\n" +

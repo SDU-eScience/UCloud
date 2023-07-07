@@ -375,9 +375,12 @@ class RpcServer {
                 throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.InternalServerError)
             }
 
+            val beforeStart = System.nanoTime()
             log.trace("Running BeforeParsing filters")
             val beforeParsing = filters.filterIsInstance<IngoingCallFilter.BeforeParsing>()
             beforeParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call) }
+            val beforeEnd = System.nanoTime()
+            if (call.fullName == "jobs.browse") println("BeforeParsing took: ${beforeEnd - beforeStart}")
 
             log.trace("Parsing call: $call")
             @Suppress("TooGenericExceptionCaught")
@@ -395,16 +398,23 @@ class RpcServer {
                     }
                 }
             }
+            val parseEnd = System.nanoTime()
+            if (call.fullName == "jobs.browse") println("Parsing took: ${parseEnd - beforeEnd}")
 
             log.trace("Running AfterParsing filters")
             val afterParsing = filters.filterIsInstance<IngoingCallFilter.AfterParsing>()
             afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
+            val afterEnd = System.nanoTime()
+            if (call.fullName == "jobs.browse") println("AfterParsing took: ${afterEnd - parseEnd}")
 
             val jobIdForDebug = ctx.jobIdOrNull?.take(4) ?: Random.nextInt(10_000).toString()
 
             log.info("Incoming call [$jobIdForDebug]: ${call.fullName}")
 
+            val handlerStart = System.nanoTime()
             val callHandler = CallHandler(ctx, capturedRequest, call).also { handler(it) }
+            val handlerEnd = System.nanoTime()
+            if (call.fullName == "jobs.browse") println("Handler took: ${handlerEnd - handlerStart}ns")
 
             val responseResult = callHandler.result
             response = responseResult
@@ -418,6 +428,8 @@ class RpcServer {
             beforeResponse
                 .filter { it.canUseContext(ctx) }
                 .forEach { it.run(ctx, call, capturedRequest, responseResult) }
+            val beforeResponseEnd = System.nanoTime()
+            if (call.fullName == "jobs.browse") println("Before response: ${beforeResponseEnd - handlerEnd}ns")
 
             log.debug("   Responding [$jobIdForDebug]: ${call.fullName}")
 
@@ -465,6 +477,7 @@ class RpcServer {
 
             response = callResult
         }
+        val afterResponseStart = System.nanoTime()
 
         val responseOrDefault = response ?: OutgoingCallResponse.Error<S, E>(
             null,
@@ -502,6 +515,8 @@ class RpcServer {
         }
 
         requestsInFlight.labels(call.fullName).dec()
+        val end = System.nanoTime()
+        if (call.fullName == "jobs.browse") println("after response took: ${end - afterResponseStart}ns")
     }
 
     companion object : Loggable {

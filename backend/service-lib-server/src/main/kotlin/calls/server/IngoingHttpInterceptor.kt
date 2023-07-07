@@ -53,6 +53,7 @@ class IngoingHttpInterceptor(
 
             route(httpDescription.path.toPath(), HttpMethod(httpDescription.method.value)) {
                 handle {
+                    val start = System.nanoTime()
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
 
                     debug.system.useContext(
@@ -75,6 +76,9 @@ class IngoingHttpInterceptor(
                             }
                         }
                     )
+
+                    val end = System.nanoTime()
+                    if (call.fullName == "jobs.browse") println("Call took: ${end - start}ns")
                 }
             }
         }
@@ -166,7 +170,7 @@ class IngoingHttpInterceptor(
     ) {
         when (callResult) {
             is OutgoingCallResponse.Ok -> {
-                produceResponse(ctx, callResult.statusCode, call.successType, callResult.result)
+                produceResponse(ctx, callResult.statusCode, call.successType, callResult.result, call.fullName)
             }
 
             is OutgoingCallResponse.Error -> {
@@ -181,7 +185,8 @@ class IngoingHttpInterceptor(
         ctx: HttpCall,
         statusCode: io.ktor.http.HttpStatusCode,
         serializer: KSerializer<T>,
-        data: T?
+        data: T?,
+        callName: String? = null,
     ) {
         if (data == null) {
             ctx.ktor.call.respond(statusCode)
@@ -211,12 +216,18 @@ class IngoingHttpInterceptor(
                 }
             }
 
+            val encodingStart = System.nanoTime()
+            val encoded = defaultMapper.encodeToString(serializer, data)
+            val encodingEnd = System.nanoTime()
+            if (callName == "jobs.browse") println("Encoding took: ${encodingEnd - encodingStart}")
             ctx.ktor.call.respond(
                 TextContent(
-                    defaultMapper.encodeToString(serializer, data),
+                    encoded,
                     ContentType.Application.Json.withCharset(Charsets.UTF_8)
                 )
             )
+            val responseEnd = System.nanoTime()
+            if (callName == "jobs.browse") println("Response took: ${responseEnd - encodingEnd}")
         }
     }
 

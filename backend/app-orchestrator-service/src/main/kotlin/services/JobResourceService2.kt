@@ -8,17 +8,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.store.api.AppParameterValue
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.store.api.ApplicationMetadata
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.NormalizedToolDescription
-import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.Tool
-import dk.sdu.cloud.app.store.api.ToolBackend
-import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.app.store.api.WordInvocationParameter
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
@@ -31,10 +21,10 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.collections.ArrayList
 import kotlin.math.absoluteValue
 import kotlin.math.min
 import kotlin.random.Random
+import kotlin.time.measureTimedValue
 
 data class InternalJobState(
     val specification: JobSpecification,
@@ -56,6 +46,7 @@ object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
             doc.id = 0
             doc.providerId = null
             Arrays.fill(doc.update, null)
+            Arrays.fill(doc.acl, null)
         }
 
         return instance
@@ -152,6 +143,7 @@ class JobResourceService2(
                     val allowRestart = row.getBoolean(14) ?: false
 
                     val slot = ids.indexOf(id)
+                    if (id == 1753759L) println("It really did load")
                     state[slot] = InternalJobState(
                         JobSpecification(
                             NameAndVersion(appName, appVersion),
@@ -233,6 +225,7 @@ class JobResourceService2(
         actorAndProject: ActorAndProject,
         request: ResourceBrowseRequest<JobIncludeFlags>,
     ): PageV2<Job> {
+        val browseStart = System.nanoTime()
         println("calling browse")
         val card = idCards.fetchIdCard(actorAndProject)
         println("got card $card")
@@ -242,16 +235,21 @@ class JobResourceService2(
             // TODO(Dan): Sorting is an issue, especially if we are sorting using a custom property.
             println("about to browse")
             val start = System.nanoTime()
-            val result = documents.browse(card, buffer, request.next, request.flags)
+            val result = documents.browse(card, buffer, request.next, request.flags, outputBufferLimit = normalizedRequest.itemsPerPage)
             val end = System.nanoTime()
             println("Time was ${end - start}ns")
+            println("Got ${result.count} results")
 
             val page = ArrayList<Job>(result.count)
             for (idx in 0 until min(normalizedRequest.itemsPerPage, result.count)) {
                 page.add(unmarshallDocument(card, buffer[idx]))
             }
+            val unmarshallEnd = System.nanoTime()
+            println("Conversion to output format took: ${unmarshallEnd - end}ns")
 
-            return PageV2(normalizedRequest.itemsPerPage, page, result.next)
+            return PageV2(normalizedRequest.itemsPerPage, page, result.next).also {
+                println("Browse took: ${System.nanoTime() - browseStart}")
+            }
         }
     }
 
@@ -386,6 +384,7 @@ class JobResourceService2(
 
     private suspend fun unmarshallDocument(card: IdCard, doc: ResourceDocument<InternalJobState>): Job {
         val data = doc.data!!
+        data.specification.product = productCache.productIdToReference(doc.product) ?: ProductReference("", "", "")
         return Job(
             doc.id.toString(),
             ResourceOwner(

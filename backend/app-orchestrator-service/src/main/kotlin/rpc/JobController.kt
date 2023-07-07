@@ -151,6 +151,45 @@ class JobController(
                                             }
                                         }
 
+                                        "browse-all", "browse-tokens" -> {
+                                            val username = args.getOrNull(0)
+                                            val project = args.getOrNull(1)
+
+                                            if (username == null) {
+                                                sendMessage("usage: browse-all <username> [project (can be null)]")
+                                            } else {
+                                                var next: String? = null
+                                                while (true) {
+                                                    val result = jobs.browse(
+                                                        ActorAndProject(
+                                                            Actor.SystemOnBehalfOfUser(username),
+                                                            project?.takeIf { it != "-" && it != "null" }
+                                                        ),
+                                                        ResourceBrowseRequest(
+                                                            JobIncludeFlags(
+                                                                includeParameters = true,
+                                                                includeOthers = true
+                                                            ),
+                                                            itemsPerPage = 250,
+                                                            next
+                                                        )
+                                                    )
+
+                                                    if (command == "browse-tokens") {
+                                                        sendMessage(result.next ?: "no next token")
+                                                    } else {
+                                                        for (item in result.items) {
+                                                            sendMessage(item.id)
+                                                        }
+                                                    }
+
+//                                                    sendMessage("---")
+
+                                                    next = result.next ?: break
+                                                }
+                                            }
+                                        }
+
                                         "update" -> {
                                             val id = args.getOrNull(0)
                                             val username = args.getOrNull(1)

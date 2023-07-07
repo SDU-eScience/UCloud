@@ -40,6 +40,7 @@ import kotlin.collections.HashSet
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.math.min
 import kotlin.random.Random
 
 @Serializable
@@ -119,6 +120,20 @@ private class ResourceStoreByOwner<T>(
 
     private val ready = AtomicBoolean(false)
 
+    override fun toString(): String {
+        return buildString {
+            append("ResourceStoreByOwner(")
+            append("type = $type, ")
+            append("uid = $uid, ")
+            append("pid = $pid, ")
+            append("firstId = ${id[0]}, ")
+            if (size > 0) {
+                append("lastId = ${id[size - 1]}, ")
+            }
+            append(")")
+        }
+    }
+
     suspend fun load(minimumId: Long = 0) {
         mutex.withLock {
             var idx = 0
@@ -163,7 +178,7 @@ private class ResourceStoreByOwner<T>(
                                     and r.id > :minimum
                                     and (
                                         (:project_id::text is not null and r.project = :project_id)
-                                        or (:username::text is not null and r.created_by = :username)
+                                        or (:username::text is not null and r.created_by = :username and r.project is null)
                                     )
                                 order by r.id
                                 limit $STORE_SIZE
@@ -244,6 +259,8 @@ private class ResourceStoreByOwner<T>(
                         this.providerId[idx] = row.getString(4)
                         val updatesText = row.getString(5)!!
                         val aclText = row.getString(6)!!
+
+                        if (this.id[idx] == 1753759L) println("Resource did load in slot $idx")
                         try {
                             val updates = defaultMapper.decodeFromString(
                                 ListSerializer(SerializedUpdate.serializer()),
@@ -391,7 +408,7 @@ private class ResourceStoreByOwner<T>(
                 } else if (middleId == 0L || middleId > minimumId) {
                     max = middle - 1
                 } else {
-                    return min + 1
+                    return middle + 1
                 }
             }
             return min + 1
@@ -404,12 +421,30 @@ private class ResourceStoreByOwner<T>(
         idCard: IdCard,
         permissionRequired: Permission,
         consumer: SearchConsumer,
-        minimumId: Long = -1L,
+        startId: Long = -1L,
+        reverseOrder: Boolean = false,
     ) {
         awaitReady()
 
         mutex.withLock {
-            val startIndex = if (minimumId == -1L) 0 else binarySearchForId(minimumId, hasLock = true)
+            val startIndex =
+                when {
+                    startId == -1L && reverseOrder -> {
+                        binarySearchForId(Long.MAX_VALUE, hasLock = true) - 2
+                    }
+
+                    reverseOrder -> {
+                        binarySearchForId(startId, hasLock = true) - 2
+                    }
+
+                    startId == -1L && !reverseOrder -> {
+                        0
+                    }
+
+                    else -> {
+                        binarySearchForId(startId, hasLock = true)
+                    }
+                }
 
             val isOwnerOfEverything = idCard is IdCard.User &&
                     ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
@@ -420,15 +455,44 @@ private class ResourceStoreByOwner<T>(
                         permissionRequired == Permission.ADMIN
 
                 if (requiresOwnerPrivileges) {
-                    var idx = startIndex
-                    while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
-                        if (this.id[idx] == 0L) break
-                        consumer.call(idx)
-                        consumer.call(idx + 1)
-                        consumer.call(idx + 2)
-                        consumer.call(idx + 3)
+                    if (reverseOrder) {
+                        var idx = startIndex
+                        while (idx >= 0 && idx % 4 != 0 && !consumer.shouldTerminate()) {
+                            consumer.call(idx--)
+                        }
 
-                        idx += 4
+                        while (idx >= 4 && !consumer.shouldTerminate()) {
+                            consumer.call(idx)
+                            consumer.call(idx - 1)
+                            consumer.call(idx - 2)
+                            consumer.call(idx - 3)
+
+                            idx -= 4
+                        }
+
+                        while (idx >= 0 && !consumer.shouldTerminate()) {
+                            consumer.call(idx--)
+                        }
+                    } else {
+                        var idx = startIndex
+
+                        while (idx < STORE_SIZE && idx % 4 != 0 && !consumer.shouldTerminate()) {
+                            consumer.call(idx++)
+                        }
+
+                        while (idx < STORE_SIZE - 3 && !consumer.shouldTerminate()) {
+                            if (this.id[idx] == 0L) break
+                            consumer.call(idx)
+                            consumer.call(idx + 1)
+                            consumer.call(idx + 2)
+                            consumer.call(idx + 3)
+
+                            idx += 4
+                        }
+
+                        while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
+                            consumer.call(idx++)
+                        }
                     }
                 }
             } else if (idCard is IdCard.User) {
@@ -452,11 +516,11 @@ private class ResourceStoreByOwner<T>(
                 val userNeedle = intArrayOf(idCard.uid)
 
                 var i = startIndex
-                while (i < STORE_SIZE && !consumer.shouldTerminate()) {
-                    if (id[i] == 0L) break
+                val delta = if (reverseOrder) -1 else 1
+                while (i >= 0 && i < STORE_SIZE && !consumer.shouldTerminate()) {
                     val entities = aclEntities[i]
-                    if (entities == null) {
-                        i++
+                    if (id[i] == 0L || entities == null) {
+                        i += delta
                         continue
                     }
 
@@ -476,7 +540,7 @@ private class ResourceStoreByOwner<T>(
                         if (entityConsumer.match != -1) consumer.call(i)
                     }
 
-                    i++
+                    i += delta
                 }
             } else if (idCard is IdCard.Provider && idCard.providerOf.isNotEmpty()) {
                 val requiresProviderPrivileges =
@@ -495,7 +559,8 @@ private class ResourceStoreByOwner<T>(
         idCard: IdCard,
         outputBuffer: Array<ResourceDocument<T>>,
         outputBufferOffset: Int,
-        minimumIdExclusive: Long = -1L,
+        startIdExclusive: Long = -1L,
+        reverseOrder: Boolean = false,
         predicate: (ResourceDocument<T>) -> Boolean
     ): Int {
         var outIdx = outputBufferOffset
@@ -546,9 +611,9 @@ private class ResourceStoreByOwner<T>(
             }
         }
 
-        searchAndConsume(idCard, Permission.READ, emitter, minimumIdExclusive)
+        searchAndConsume(idCard, Permission.READ, emitter, startIdExclusive, reverseOrder)
 
-        return outIdx
+        return outIdx - outputBufferOffset
     }
 
     suspend fun addUpdates(
@@ -773,7 +838,12 @@ private class ResourceStoreByOwner<T>(
         //
         // We purposefully warm up this function in the `init {}` block of this class to force proper JIT compilation of
         // the function.
-        private fun searchInArray(needles: IntArray, haystack: IntArray, emit: SearchConsumer, startIndex: Int = 0) {
+        private fun searchInArray(
+            needles: IntArray,
+            haystack: IntArray,
+            emit: SearchConsumer,
+            startIndex: Int = 0,
+        ) {
             require(haystack.size % 4 == 0) { "haystack must have a size which is a multiple of 4! (${haystack.size})" }
 
             if (haystack.size < ivLength * 4) {
@@ -915,6 +985,7 @@ class ResourceStore<T>(
 
     // To use the store of a workspace, you will need to call `findOrLoadStore`:
     private suspend fun findOrLoadStore(uid: Int, pid: Int): ResourceStoreByOwner<T> {
+        require(uid == 0 || pid == 0)
         return findStore(uid, pid) ?: loadStore(uid, pid)
     }
 
@@ -949,6 +1020,8 @@ class ResourceStore<T>(
     // In order to implement `findOrLoadStore` we must of course implement the two subcomponents. Finding a loaded store
     // is relatively straight-forward, we simply iterate through the blocks until we find it:
     private fun findStore(uid: Int, pid: Int): ResourceStoreByOwner<T>? {
+        require(uid == 0 || pid == 0)
+
         var block: Block<T>? = root
         while (block != null) {
             for (store in block.stores) {
@@ -967,6 +1040,8 @@ class ResourceStore<T>(
     // inside the store. Note that the store itself is capable of handling the situation where it receives requests
     // even though it hasn't finished loading.
     private suspend fun loadStore(uid: Int, pid: Int): ResourceStoreByOwner<T> {
+        require(uid == 0 || pid == 0)
+
         val result = blockMutationMutex.withLock {
             // NOTE(Dan): We need to make sure that someone else didn't get here before we did.
             val existingBlock = findStore(uid, pid)
@@ -1021,8 +1096,8 @@ class ResourceStore<T>(
         val productId = productCache.referenceToProductId(product)
             ?: throw RPCException("Invalid product supplied", HttpStatusCode.BadRequest)
 
-        val uid = if (idCard.activeProject < 0) 0 else idCard.uid
-        val pid = idCard.activeProject
+        val uid = if (idCard.activeProject <= 0) idCard.uid else 0
+        val pid = if (uid == 0) idCard.activeProject else 0
 
         val root = findOrLoadStore(uid, pid)
 
@@ -1049,6 +1124,7 @@ class ResourceStore<T>(
         outputBuffer: Array<ResourceDocument<T>>,
         next: String?,
         flags: ResourceIncludeFlags,
+        outputBufferLimit: Int = outputBuffer.size,
     ): ResourceStore.BrowseResult {
         // TODO(Dan): Pagination is not yet working
         // TODO(Dan): Sorting is not yet working
@@ -1116,15 +1192,28 @@ class ResourceStore<T>(
             }
 
             is IdCard.User -> {
-                val uid = if (idCard.activeProject < 0) 0 else idCard.uid
-                val pid = idCard.activeProject
+                val uid = if (idCard.activeProject <= 0) idCard.uid else 0
+                val pid = if (uid == 0) idCard.activeProject else 0
+                println(idCard)
+                println("uid = $uid pid = $pid")
+
+                val startId = next?.toLongOrNull() ?: -1L
 
                 var offset = 0
-                useStores(findOrLoadStore(uid, pid)) { store ->
-                    offset += store.search(idCard, outputBuffer, offset) { true }
-                    ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
+                useStores(findOrLoadStore(uid, pid), reverseOrder = true) { store ->
+                    println("Calling here! $store")
+                    offset += store.search(idCard, outputBuffer, offset, startIdExclusive = startId, reverseOrder = true) { true }
+                    ShouldContinue.ifThisIsTrue(offset < outputBufferLimit)
                 }
-                return BrowseResult(offset, null)
+
+                val newNext = if (offset >= outputBufferLimit) {
+                    val lastElement = outputBuffer[outputBufferLimit - 1].id
+                    lastElement.toString()
+                } else {
+                    null
+                }
+
+                return BrowseResult(min(outputBufferLimit, offset), newNext)
             }
         }
     }
@@ -1569,7 +1658,7 @@ class IdCardService(private val db: DBContext) {
                             pm.username = :username
                             and (pm.role = 'ADMIN' or pm.role = 'PI')
                     """
-                ).rows.map { it.getInt(0)!!.also { require(it != Int.MAX_VALUE) } }.toIntArray()
+                ).rows.map { it.getInt(0)!!.also { require(it != Int.MAX_VALUE && it != 0) } }.toIntArray()
 
                 val groups = session.sendPreparedStatement(
                     { setParameter("username", username) },
@@ -1581,7 +1670,7 @@ class IdCardService(private val db: DBContext) {
                         where
                             gm.username = :username
                     """
-                ).rows.map { it.getInt(0)!!.also { require(it != Int.MAX_VALUE) } }.toIntArray()
+                ).rows.map { it.getInt(0)!!.also { require(it != Int.MAX_VALUE && it != 0) } }.toIntArray()
 
                 IdCard.User(uid, groups, adminOf, 0)
             }
@@ -1593,7 +1682,7 @@ class IdCardService(private val db: DBContext) {
             session.sendPreparedStatement(
                 { setParameter("project_id", projectId) },
                 "select p.pid from project.projects p where id = :project_id"
-            ).rows.map { it.getInt(0)!! }.single()
+            ).rows.map { it.getInt(0)!! }.singleOrNull()
         }
     }
 
@@ -1604,8 +1693,7 @@ class IdCardService(private val db: DBContext) {
         val project = actorAndProject.project
         if (project != null && card is IdCard.User) {
             card = card.copy(
-                activeProject = projectCache.get(project)
-                    ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                activeProject = projectCache.get(project) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             )
         }
 
@@ -1613,14 +1701,17 @@ class IdCardService(private val db: DBContext) {
     }
 
     suspend fun lookupUid(uid: Int): String? {
+        if (uid == 0) return null
         return reverseUidCache.get(uid)
     }
 
     suspend fun lookupPid(pid: Int): String? {
+        if (pid == 0) return null
         return reversePidCache.get(pid)
     }
 
     suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup? {
+        if (gid == 0) return null
         return reverseGidCache.get(gid)
     }
 
