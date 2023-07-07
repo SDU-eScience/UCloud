@@ -170,7 +170,7 @@ class JobController(
                                                                 includeParameters = true,
                                                                 includeOthers = true
                                                             ),
-                                                            itemsPerPage = 250,
+                                                            itemsPerPage = 1000,
                                                             next
                                                         )
                                                     )

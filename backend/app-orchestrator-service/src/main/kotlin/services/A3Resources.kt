@@ -446,6 +446,8 @@ private class ResourceStoreByOwner<T>(
                     }
                 }
 
+            println("startIndex: $startIndex")
+
             val isOwnerOfEverything = idCard is IdCard.User &&
                     ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
 
@@ -571,6 +573,11 @@ private class ResourceStoreByOwner<T>(
             override fun call(arrIdx: Int) {
                 if (outIdx >= outputBuffer.size) return
                 if (self.id[arrIdx] == 0L) return
+
+                if (startIdExclusive != -1L) {
+                    if (!reverseOrder && self.id[arrIdx] < startIdExclusive) return
+                    else if (reverseOrder && self.id[arrIdx] > startIdExclusive) return
+                }
 
                 val res = outputBuffer[outIdx++]
                 res.id = self.id[arrIdx]
@@ -859,6 +866,7 @@ private class ResourceStoreByOwner<T>(
                 }
             } else {
                 var idx = (startIndex / (ivLength * 4)) * (ivLength * 4)
+                println("Starting at $idx")
                 while (idx < haystack.size) {
                     for (i in needles) {
                         val needle = IntVector.broadcast(ivSpecies, i)
@@ -1134,42 +1142,57 @@ class ResourceStore<T>(
                 val storeArray = IntArray(128)
                 val providerIndex = findOrLoadProviderIndex(idCard.name)
 
+                val nextSplit = next?.split("-")?.takeIf { it.size == 3 }
+
+                var initialId = if (nextSplit != null) {
+                    nextSplit[2].toLongOrNull() ?: -1L
+                } else {
+                    -1L
+                }
+
                 var minimumUid = 0
                 var minimumPid = 0
 
-                if (next != null && next.startsWith("p-")) {
+                if (nextSplit != null && nextSplit[0] == "p") {
                     minimumUid = Int.MAX_VALUE
-                    minimumPid = next.removePrefix("p-").toIntOrNull() ?: Int.MAX_VALUE
-                } else if (next != null && next.startsWith("u-")) {
-                    minimumUid = next.removePrefix("u-").toIntOrNull() ?: Int.MAX_VALUE
+                    minimumPid = nextSplit[1].toIntOrNull() ?: Int.MAX_VALUE
+                } else if (nextSplit != null && nextSplit[0] == "u") {
+                    minimumUid = nextSplit[1].toIntOrNull() ?: Int.MAX_VALUE
                 }
 
                 var didCompleteUsers = minimumUid == Int.MAX_VALUE
                 var didCompleteProjects = minimumPid == Int.MAX_VALUE
 
+                println("Using initialId: $initialId")
+
                 var offset = 0
-                while (minimumUid < Int.MAX_VALUE && offset < outputBuffer.size) {
+                while (minimumUid < Int.MAX_VALUE && offset < outputBufferLimit) {
                     val resultCount = providerIndex.findUidStores(storeArray, minimumUid)
 
                     for (i in 0..<resultCount) {
+                        if (offset >= outputBufferLimit) break
+                        minimumUid = storeArray[i]
+
                         useStores(findOrLoadStore(storeArray[i], 0)) { store ->
-                            offset += store.search(idCard, outputBuffer, offset) { true }
+                            offset += store.search(idCard, outputBuffer, offset, initialId) { true }
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
+
+                        initialId = -1L
                     }
 
                     if (resultCount == 0) {
                         didCompleteUsers = true
                         break
                     }
-                    minimumUid = storeArray[resultCount - 1]
                 }
 
-                while (minimumPid < Int.MAX_VALUE && offset < outputBuffer.size) {
+                while (minimumPid < Int.MAX_VALUE && offset < outputBufferLimit) {
                     val resultCount = providerIndex.findPidStores(storeArray, minimumUid)
                     for (i in 0..<resultCount) {
                         useStores(findOrLoadStore(0, storeArray[i])) { store ->
-                            offset += store.search(idCard, outputBuffer, offset) { true }
+                            offset += store.search(idCard, outputBuffer, offset, initialId) { true }
+                            initialId = -1L
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
                     }
@@ -1181,12 +1204,18 @@ class ResourceStore<T>(
                     minimumPid = storeArray[resultCount - 1]
                 }
 
+                val idOfLastElement = if (offset >= outputBufferLimit) {
+                    outputBuffer[outputBufferLimit - 1].id
+                } else {
+                    0
+                }
+
                 return BrowseResult(
-                    offset,
+                    min(outputBufferLimit, offset),
                     when {
                         didCompleteProjects -> null
-                        didCompleteUsers -> "p-$minimumPid"
-                        else -> "u-$minimumUid"
+                        didCompleteUsers -> "p-$minimumPid-$idOfLastElement"
+                        else -> "u-$minimumUid-$idOfLastElement"
                     }
                 )
             }
@@ -1194,14 +1223,11 @@ class ResourceStore<T>(
             is IdCard.User -> {
                 val uid = if (idCard.activeProject <= 0) idCard.uid else 0
                 val pid = if (uid == 0) idCard.activeProject else 0
-                println(idCard)
-                println("uid = $uid pid = $pid")
 
                 val startId = next?.toLongOrNull() ?: -1L
 
                 var offset = 0
                 useStores(findOrLoadStore(uid, pid), reverseOrder = true) { store ->
-                    println("Calling here! $store")
                     offset += store.search(idCard, outputBuffer, offset, startIdExclusive = startId, reverseOrder = true) { true }
                     ShouldContinue.ifThisIsTrue(offset < outputBufferLimit)
                 }
@@ -1470,7 +1496,7 @@ class ResourceStore<T>(
         suspend fun findUidStores(output: IntArray, minimumUid: Int): Int {
             mutex.withReader {
                 var ptr = 0
-                for (entry in uidReferences.tailSet(minimumUid, false)) {
+                for (entry in uidReferences.tailSet(minimumUid, true)) {
                     output[ptr++] = entry
                     if (ptr >= output.size) break
                 }
@@ -1481,7 +1507,7 @@ class ResourceStore<T>(
         suspend fun findPidStores(output: IntArray, minimumPid: Int): Int {
             mutex.withReader {
                 var ptr = 0
-                for (entry in pidReferences.tailSet(minimumPid, false)) {
+                for (entry in pidReferences.tailSet(minimumPid, true)) {
                     output[ptr++] = entry
                     if (ptr >= output.size) break
                 }

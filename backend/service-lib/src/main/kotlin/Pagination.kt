@@ -217,7 +217,7 @@ interface WithPaginationRequestV2 {
 
         return NormalizedPaginationRequestV2(
             when (val itemsPerPage = itemsPerPage) {
-                10, 25, 50, 100, 250 -> itemsPerPage
+                10, 25, 50, 100, 250, 1000 -> itemsPerPage
                 else -> 50
             },
             next,
