@@ -60,6 +60,7 @@ import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ShareModal} from "@/Files/Shares";
+import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -570,8 +571,35 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
+                    dialogStore.addDialog(<>
+                        <ExperimentalBrowse opts={{
+                            embedded: true, selection: {
+                                onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
+                                onSelect: async (res) => {
+                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+
+                                    await cb.invokeCommand(
+                                        this.move({
+                                            type: "bulk",
+                                            items: selected.map(file => ({
+                                                oldId: file.id,
+                                                conflictPolicy: "RENAME",
+                                                newId: target + "/" + fileName(file.id)
+                                            }))
+                                        })
+                                    );
+
+                                    cb.reload();
+
+                                    dialogStore.success();
+                                }
+                            },
+                            initialPath: pathRef.current,
+                            providerFilter: selected[0].specification.product.provider
+                        }} />
+
+
+                        {/* <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                             await cb.invokeCommand(
@@ -588,7 +616,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             cb.reload();
 
                             dialogStore.success();
-                        }} />,
+                        }} /> */}
+                    </>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle

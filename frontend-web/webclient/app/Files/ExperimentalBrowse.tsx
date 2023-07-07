@@ -51,6 +51,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
+import {ButtonClass} from "@/ui-components/Button";
 
 // Cached network data
 // =====================================================================================================================
@@ -85,7 +86,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string}}): JSX.Element {
+function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string, initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -100,8 +101,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         isInitialMount.current = false;
     }, []);
 
-    const isSelector = !!opts?.onSelect;
-    const selectorPathRef = useRef("/");
+    const isSelector = !!opts?.selection;
+    const selectorPathRef = useRef(opts?.initialPath ?? "/");
 
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
@@ -594,7 +595,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         invokeCommand: call => callAPI(call),
                         api: FilesApi,
                         isCreating: false,
-                        onSelect: opts?.onSelect,
+                        onSelect: opts?.selection?.onSelect,
                     };
 
                     return callbacks;
@@ -665,7 +666,21 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     row.title.append(title);
                     row.title.title = title;
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
-                    row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
+
+                    if (opts?.selection && opts.selection.onSelectRestriction(file)) {
+                        const button = document.createElement("button");
+                        button.innerText = "Use";
+                        button.className = ButtonClass
+                        button.style.height = "32px";
+                        button.style.width = "64px";
+                        button.onclick = e => {
+                            e.stopImmediatePropagation(); 
+                            opts.selection?.onSelect(file);
+                        }
+                        row.stat3.replaceChildren(button);
+                    } else {
+                        row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
+                    }
 
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
 
@@ -791,6 +806,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         pIcon.replaceChildren(icon);
 
                     }
+
+                    console.log(result);
 
                     return result;
                 });
@@ -957,7 +974,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
-                    } else {
+                    } else if (!isSelector) {
                         if (!isInitialMount.current) navigate("?path=" + encodeURIComponent(newPath));
                     }
 
@@ -970,10 +987,12 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         return;
                     }
 
-                    dispatch({
-                        type: "GENERIC_SET", property: "uploadPath",
-                        newValue: newPath, defaultValue: newPath
-                    });
+                    if (!isSelector) {
+                        dispatch({
+                            type: "GENERIC_SET", property: "uploadPath",
+                            newValue: newPath, defaultValue: newPath
+                        });
+                    }
 
                     const collectionId = pathComponents(newPath)[0];
 

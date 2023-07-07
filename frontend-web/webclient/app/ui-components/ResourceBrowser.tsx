@@ -32,7 +32,10 @@ export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOpt
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string>;
     embedded?: boolean;
-    onSelect?: (res: T) => void;
+    selection?: {
+        onSelect(res: T): void;
+        onSelectRestriction(res: T): boolean;
+    }
 }
 
 interface FilterInput {
@@ -363,17 +366,20 @@ export class ResourceBrowser<T> {
 
     private listeners: Record<string, any[]> = {};
 
-    public opts: {embedded?: boolean; selector?: boolean} | undefined = {embedded: false, selector: false};
+    public opts: {
+        embedded: boolean;
+        selector: boolean;
+    };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
     constructor(root: HTMLElement, resourceName: string, opts?: ResourceBrowserOpts<T>) {
         this.root = root;
         this.resourceName = resourceName;
         this.opts = {
-            ...opts,
-            selector: !!opts?.onSelect
-        };
-    }
+            embedded: !!opts?.embedded,
+            selector: !!opts?.selection,
+        }
+    };
 
     public init(
         ref: React.MutableRefObject<ResourceBrowser<T> | null>,
@@ -394,7 +400,7 @@ export class ResourceBrowser<T> {
         ResourceBrowser.injectStyle();
 
         this.root.classList.add("file-browser");
-        if (this.opts?.embedded || this.opts?.selector) {
+        if (this.opts.embedded || this.opts.selector) {
             this.root.style.height = "auto";
         }
         this.root.innerHTML = `
@@ -520,7 +526,7 @@ export class ResourceBrowser<T> {
         if (this.features.filters) {
             this.renderSessionFilters();
         }
-        if (!this.opts?.embedded) {
+        if (!this.opts.embedded) {
             if (this.features.contextSwitcher) {
                 const div = document.createElement("div");
                 div.style.marginLeft = "20px";
@@ -546,7 +552,7 @@ export class ResourceBrowser<T> {
         }
 
 
-        if (!this.opts?.embedded) {
+        if (!this.opts.embedded) {
             // Event handlers not related to rows
             this.renameField.addEventListener("keydown", ev => {
                 this.onRenameFieldKeydown(ev);
@@ -795,6 +801,7 @@ export class ResourceBrowser<T> {
     }
 
     private rerenderSessionFilterIcons() {
+        // TODO(Jonas): This doesn't take into account if sessionFilters have been cleared, so this can crash.
         const filters = this.dispatchMessage("fetchFilters", fn => fn()).filter(it => it.type === "input");
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
@@ -804,7 +811,7 @@ export class ResourceBrowser<T> {
         })
     }
 
-    renderRows() {
+    public renderRows() {
         const page = this.cachedData[this.currentPath] ?? [];
         if (this.isSelected.length < page.length) {
             const newSelected = new Uint8Array(page.length);

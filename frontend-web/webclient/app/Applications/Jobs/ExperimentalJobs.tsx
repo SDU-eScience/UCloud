@@ -208,7 +208,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
-                        onSelect: opts?.onSelect,
+                        onSelect: opts?.selection?.onSelect,
                         embedded: false,
                         isCreating: false,
                         dispatch: dispatch,

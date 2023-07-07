@@ -206,23 +206,15 @@ export const ImportParameters: React.FunctionComponent<{
                         onImportDialogClose();
                         dialogStore.addDialog(
                             <ExperimentalJobs opts={{
-                                onSelect: res => {
-                                    readParsedJSON(res.status.jobParametersJson);
-                                    dialogStore.success();
+                                selection: {
+                                    onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here 
+                                    onSelect: res => {
+                                        readParsedJSON(res.status.jobParametersJson);
+                                        dialogStore.success();
+                                    }
                                 },
                                 additionalFilters: {filterApplication: application.metadata.name},
-                            }} />
-                            /*<JobBrowse
-                                browseType={BrowseType.Embedded}
-                                onSelect={res => {
-                                    readParsedJSON(res.status.jobParametersJson);
-                                    dialogStore.success();
-                                }}
-                                additionalFilters={{filterApplication: application.metadata.name}}
-                                onSelectRestriction={res =>
-                                    res.specification.application.name === application.metadata.name
-                                }
-                            />*/,
+                            }} />,
                             () => undefined,
                             true,
                             largeModalStyle
