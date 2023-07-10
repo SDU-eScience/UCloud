@@ -17,12 +17,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.feature
-import dk.sdu.cloud.micro.requestChunkOrNull
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Controller
@@ -51,7 +46,7 @@ class JobController(
 ) : Controller {
     val jobs = run {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        JobResourceService2(db, Providers(serviceClient) { comms -> comms })
+        JobResourceService2(db, Providers(serviceClient) { comms -> comms }, micro.backgroundScope)
     }
     @OptIn(DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -328,7 +323,8 @@ class JobController(
                                         }
                                     }
                                 } catch (ex: Throwable) {
-                                    sendMessage(ex.toReadableStacktrace().toString())
+                                    sendMessage(ex.stackTraceToString().toString())
+//                                    sendMessage(ex.toReadableStacktrace().toString())
                                 }
                             }
                         }

@@ -23,10 +23,10 @@ import dk.sdu.cloud.service.db.async.DBTransaction
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.toReadableStacktrace
+import jdk.incubator.vector.ByteVector
 import jdk.incubator.vector.IntVector
 import jdk.incubator.vector.VectorOperators
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -40,6 +40,8 @@ import kotlin.collections.HashSet
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.coroutines.coroutineContext
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -91,7 +93,7 @@ data class NumericAclEntry(
     }
 }
 
-private class ResourceStoreByOwner<T>(
+class ResourceStoreByOwner<T>(
     val type: String,
     val uid: Int,
     val pid: Int,
@@ -100,21 +102,28 @@ private class ResourceStoreByOwner<T>(
 ) {
     private val mutex = Mutex()
 
-    private val id = LongArray(STORE_SIZE)
-    private val createdAt = LongArray(STORE_SIZE)
-    private val createdBy = IntArray(STORE_SIZE)
-    private val project = IntArray(STORE_SIZE)
-    private val product = IntArray(STORE_SIZE)
-    private val data = arrayOfNulls<Any>(STORE_SIZE)
-    private val providerId = arrayOfNulls<String>(STORE_SIZE)
+    val id = LongArray(STORE_SIZE)
+    val createdAt = LongArray(STORE_SIZE)
+    val createdBy = IntArray(STORE_SIZE)
+    val project = IntArray(STORE_SIZE)
+    val product = IntArray(STORE_SIZE)
+    private val _data = arrayOfNulls<Any>(STORE_SIZE)
+    val providerId = arrayOfNulls<String>(STORE_SIZE)
 
-    private val aclEntities = arrayOfNulls<IntArray>(STORE_SIZE)
-    private val aclIsUser = arrayOfNulls<BooleanArray>(STORE_SIZE)
-    private val aclPermissions = arrayOfNulls<ByteArray>(STORE_SIZE)
+    val aclEntities = arrayOfNulls<IntArray>(STORE_SIZE)
+    val aclIsUser = arrayOfNulls<BooleanArray>(STORE_SIZE)
+    val aclPermissions = arrayOfNulls<ByteArray>(STORE_SIZE)
 
-    private val updates = arrayOfNulls<CyclicArray<ResourceDocumentUpdate>>(STORE_SIZE)
+    val updates = arrayOfNulls<CyclicArray<ResourceDocumentUpdate>>(STORE_SIZE)
+    private val dirtyFlag = BooleanArray(STORE_SIZE)
+    private var anyDirty = false
 
     private var size: Int = 0
+
+    fun data(idx: Int): T? {
+        @Suppress("UNCHECKED_CAST")
+        return _data[idx] as T?
+    }
 
     var next: ResourceStoreByOwner<T>? = null
         private set
@@ -317,7 +326,7 @@ private class ResourceStoreByOwner<T>(
                     idx -= rows.size
                     batchIndex = 0
                     for (row in rows) {
-                        this.data[idx++] = loadedState[batchIndex++]
+                        this._data[idx++] = loadedState[batchIndex++]
                     }
                     size += rows.size
 
@@ -359,7 +368,9 @@ private class ResourceStoreByOwner<T>(
             this.createdBy[idx] = idCard.uid
             this.project[idx] = idCard.activeProject
             this.product[idx] = product
-            this.data[idx] = data
+            this._data[idx] = data
+            this.dirtyFlag[idx] = true
+            anyDirty = true
 
             if (output != null) {
                 output.id = id
@@ -612,13 +623,10 @@ private class ResourceStoreByOwner<T>(
                 }
 
                 @Suppress("UNCHECKED_CAST")
-                res.data = self.data[arrIdx] as T
+                res.data = self._data[arrIdx] as T
 
                 if (!predicate.filter(res)) {
-                    println("Predicate failed for ${res.id}")
                     outIdx--
-                } else {
-                    println("Predicate succeeded for ${res.id}")
                 }
             }
         }
@@ -640,6 +648,8 @@ private class ResourceStoreByOwner<T>(
             override fun shouldTerminate(): Boolean = isDone
             override fun call(arrIdx: Int) {
                 if (self.id[arrIdx] != id) return
+                self.dirtyFlag[arrIdx] = true
+                anyDirty = true
                 val updates = self.updates[arrIdx] ?: CyclicArray<ResourceDocumentUpdate>(MAX_UPDATES).also {
                     self.updates[arrIdx] = it
                 }
@@ -647,7 +657,7 @@ private class ResourceStoreByOwner<T>(
                 for ((index, update) in newUpdates.withIndex()) {
                     @Suppress("UNCHECKED_CAST")
                     val shouldAddUpdate =
-                        if (consumer != null) consumer(self.data[arrIdx] as T, index, update) else true
+                        if (consumer != null) consumer(self._data[arrIdx] as T, index, update) else true
                     if (shouldAddUpdate) updates.add(update)
                 }
 
@@ -696,6 +706,9 @@ private class ResourceStoreByOwner<T>(
 
             override fun call(arrIdx: Int) {
                 if (self.id[arrIdx] != id) return
+
+                self.dirtyFlag[arrIdx] = true
+                anyDirty = true
 
                 // NOTE(Dan): This makes no attempts to have great performance. It is unlikely to be a problem since
                 // we are not running this code in a loop (right now).
@@ -816,6 +829,200 @@ private class ResourceStoreByOwner<T>(
         }
     }
 
+    suspend fun synchronizeToDatabase(session: DBTransaction) {
+        if (!anyDirty) return
+
+        mutex.withLock {
+            var idx = 0
+            val needle = ByteVector.broadcast(bvSpecies, 1.toByte())
+
+            val indicesToSync = IntArray(bvLength * 8) // 128 elements when using AVX-512
+            var ptr = 0
+
+            while (idx < STORE_SIZE) {
+                val vector = ByteVector.fromBooleanArray(bvSpecies, dirtyFlag, idx)
+                val cr1 = vector.compare(VectorOperators.EQ, needle)
+
+                run {
+                    var offset = idx
+                    var bits = cr1.toLong()
+                    while (bits != 0L) {
+                        val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                        indicesToSync[ptr++] = offset + trailing
+                        offset += trailing + 1
+                        bits = bits shr (trailing + 1)
+                    }
+                }
+
+                idx += bvLength
+
+                if (indicesToSync.size - ptr < bvLength) {
+                    sync(session, indicesToSync, ptr)
+                    ptr = 0
+                }
+            }
+
+            sync(session, indicesToSync, ptr)
+
+            for (i in 0 until STORE_SIZE) {
+                dirtyFlag[i] = false
+            }
+
+            anyDirty = false
+        }
+    }
+
+    private suspend fun sync(session: DBTransaction, indices: IntArray, len: Int) {
+        if (len <= 0) return
+
+        session.sendPreparedStatement(
+            {
+                setParameter("type", type)
+                setParameter("id", (0 until len).map { id[indices[it]] })
+                setParameter("created_at", (0 until len).map { createdAt[indices[it]] })
+                setParameter("created_by", (0 until len).map { createdBy[indices[it]] })
+                setParameter("project", (0 until len).map { project[indices[it]] })
+                setParameter("product", (0 until len).map { product[indices[it]] })
+                setParameter("provider_id", (0 until len).map { providerId[indices[it]] })
+            },
+            """
+                with
+                    data as (
+                        select
+                            unnest(:id::int8[]) id,
+                            unnest(:created_at::int8[]) created_at,
+                            unnest(:created_by::int[]) created_by,
+                            unnest(:project::int[]) project,
+                            unnest(:product::int[]) product,
+                            unnest(:provider_id::text[]) provider_id
+                    )
+                insert into provider.resource (type, id, created_at, created_by, project, product, provider_generated_id, confirmed_by_provider)
+                select :type, d.id, to_timestamp(d.created_at / 1000), u.id, p.id, d.product, d.provider_id, true
+                from
+                    data d
+                    join auth.principals u on d.created_by = u.uid
+                    left join project.projects p on d.project = p.pid
+                on conflict (id) do update set
+                    created_at = excluded.created_at,
+                    created_by = excluded.created_by,
+                    project = excluded.project,
+                    product = excluded.product,
+                    provider_generated_id = excluded.provider_generated_id
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                setParameter(
+                    "id",
+                    (0 until len).flatMap { i ->
+                        val arrIdx = indices[i]
+                        updates[arrIdx]?.map { id[arrIdx] } ?: emptyList()
+                    }
+                )
+
+                setParameter(
+                    "created_at",
+                    (0 until len).flatMap { i ->
+                        val arrIdx = indices[i]
+                        updates[arrIdx]?.map { it.createdAt } ?: emptyList()
+                    }
+                )
+
+                setParameter(
+                    "message",
+                    (0 until len).flatMap { i ->
+                        val arrIdx = indices[i]
+                        updates[arrIdx]?.map { it.update } ?: emptyList()
+                    }
+                )
+
+                setParameter(
+                    "extra",
+                    (0 until len).flatMap { i ->
+                        val arrIdx = indices[i]
+                        updates[arrIdx]?.map { it.extra } ?: emptyList()
+                    }
+                )
+            },
+            """
+                with
+                    data as (
+                        select
+                            unnest(:id::int8[]) id,
+                            to_timestamp(unnest(:created_at::int8[]) / 1000) created_at,
+                            unnest(:message::text[]) message,
+                            unnest(:extra::jsonb[]) extra
+                    ),
+                    deleted_updates as (
+                        delete from provider.resource_update
+                        using data d
+                        where resource = d.id
+                    )
+                insert into provider.resource_update(resource, created_at, status, extra) 
+                select distinct d.id, d.created_at, d.message, d.extra
+                from data d
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                val ids = ArrayList<Long>()
+                val entity = ArrayList<Int>()
+                val entityIsUser = ArrayList<Boolean>()
+                val permission = ArrayList<String>()
+
+                for (i in 0 until len) {
+                    val arrIdx = indices[i]
+
+                    val entities = aclEntities[arrIdx] ?: continue
+                    val isUser = aclIsUser[arrIdx] ?: continue
+                    val perm = aclPermissions[arrIdx] ?: continue
+
+                    for ((j, e) in entities.withIndex()) {
+                        if (e == 0) break
+
+                        ids.add(id[arrIdx])
+                        entity.add(e)
+                        entityIsUser.add(isUser[j])
+                        permission.add(Permission.fromByte(perm[j]).name)
+                    }
+                }
+
+                setParameter("id", ids)
+                setParameter("entity", entity)
+                setParameter("is_user", entityIsUser)
+                setParameter("perm", permission)
+            },
+            """
+                with
+                    data as (
+                        select
+                            unnest(:id::int8[]) id,
+                            unnest(:entity::int[]) entity,
+                            unnest(:is_user::bool[]) is_user,
+                            unnest(:perm::text[]) perm
+                    ),
+                    deleted_entries as (
+                        delete from provider.resource_acl_entry
+                        using data d
+                        where resource_id = d.id
+                        returning resource_id
+                    )
+                insert into provider.resource_acl_entry(group_id, username, permission, resource_id)
+                select distinct g.id, u.id, d.perm, d.id
+                from
+                    data d join
+                    deleted_entries de on d.id = de.resource_id
+                    left join auth.principals u on d.is_user and d.entity = u.uid
+                    left join project.groups g on not d.is_user and d.entity = g.gid
+                                   
+            """
+        )
+
+        callbacks.saveState(session, this, indices, len)
+    }
+
     companion object : Loggable {
         override val log = logger()
 
@@ -825,14 +1032,21 @@ private class ResourceStoreByOwner<T>(
         const val STORE_SIZE = 1024
 
         private val ivSpecies = IntVector.SPECIES_PREFERRED
-        private val ivLength = ivSpecies.length()
+        private val ivLength = ivSpecies.length().also { len ->
+            check(STORE_SIZE % len == 0) { "The code needs to be adjusted to run on this platform ($len)." }
+        }
+
+        private val bvSpecies = ByteVector.SPECIES_PREFERRED
+        private val bvLength = bvSpecies.length().also { len ->
+            check(STORE_SIZE % len == 0) { "The code needs to be adjusted to run on this platform ($len)." }
+        }
 
         // NOTE(Dan, 04/07/23): DO NOT CHANGE THIS TO A LAMBDA. Performance of calling lambdas versus calling normal
         // functions through interfaces are dramatically different. My own benchmarks have shown a difference of at
         // least 10x just by switching to an interface instead of a lambda.
         private interface SearchConsumer {
-            fun shouldTerminate(): Boolean = false
-            fun call(arrIdx: Int)
+            fun shouldTerminate(): Boolean = false // NOTE(Dan): Do not make this suspend
+            fun call(arrIdx: Int) // NOTE(Dan): Do not make this suspend
         }
 
         // NOTE(Dan, 04/07/23): This function can easily search through several gigabytes of data per second. But its
@@ -962,9 +1176,10 @@ class ResourceStore<T>(
 ) {
     data class BrowseResult(val count: Int, val next: String?)
 
-    class Callbacks<T>(
-        val loadState: suspend (session: DBTransaction, count: Int, resources: LongArray) -> Array<T>
-    )
+    interface Callbacks<T> {
+        suspend fun loadState(session: DBTransaction, count: Int, resources: LongArray): Array<T>
+        suspend fun saveState(session: DBTransaction, store: ResourceStoreByOwner<T>, indices: IntArray, length: Int)
+    }
 
     // Blocks and stores
     // =================================================================================================================
@@ -1005,7 +1220,11 @@ class ResourceStore<T>(
     // Since the stores are linked-list like structure, you should make sure to iterate through all the stores. You need
     // to do this using the `useStores` function. Note that you can terminate the search early once you have performed
     // the request you need to do:
-    private inline fun useStores(root: ResourceStoreByOwner<T>, reverseOrder: Boolean = false, consumer: (ResourceStoreByOwner<T>) -> ShouldContinue) {
+    private inline fun useStores(
+        root: ResourceStoreByOwner<T>,
+        reverseOrder: Boolean = false,
+        consumer: (ResourceStoreByOwner<T>) -> ShouldContinue
+    ) {
         if (!reverseOrder) {
             var current: ResourceStoreByOwner<T>? = root
             while (current != null) {
@@ -1099,6 +1318,33 @@ class ResourceStore<T>(
     // In other words, you won't find a lot of business logic in these calls, since this is mostly implemented in the
     // individual stores.
 
+    fun startSynchronizationJob(
+        scope: CoroutineScope,
+    ): Job {
+        return scope.launch {
+            while (coroutineContext.isActive) {
+                try {
+                    val start = Time.now()
+                    db.withSession { session ->
+                        var block = root
+                        while (true) {
+                            for (entry in block.stores) {
+                                if (entry == null) continue
+                                entry.synchronizeToDatabase(session)
+                            }
+                            block = block.next ?: break
+                        }
+                    }
+                    val end = Time.now()
+
+                    delay(max(1000, 10_000 - (end - start)))
+                } catch (ex: Throwable) {
+                    log.warn(ex.toReadableStacktrace().toString())
+                }
+            }
+        }
+    }
+
     suspend fun create(
         idCard: IdCard,
         product: ProductReference,
@@ -1155,21 +1401,22 @@ class ResourceStore<T>(
         val filterProductName = flags.filterProductId
         val filterProductCategory = flags.filterProductCategory
         val filterProvider = flags.filterProvider
-        val filterProductIds = if (filterProductName != null || filterProductCategory != null || filterProvider != null) {
-            buildSet<Int> {
-                if (filterProductName != null) {
-                    addAll(productCache.productNameToProductIds(filterProductName) ?: emptyList())
+        val filterProductIds =
+            if (filterProductName != null || filterProductCategory != null || filterProvider != null) {
+                buildSet<Int> {
+                    if (filterProductName != null) {
+                        addAll(productCache.productNameToProductIds(filterProductName) ?: emptyList())
+                    }
+                    if (filterProductCategory != null) {
+                        addAll(productCache.productCategoryToProductIds(filterProductCategory) ?: emptyList())
+                    }
+                    if (filterProvider != null) {
+                        addAll(productCache.productProviderToProductIds(filterProvider) ?: emptyList())
+                    }
                 }
-                if (filterProductCategory != null) {
-                    addAll(productCache.productCategoryToProductIds(filterProductCategory) ?: emptyList())
-                }
-                if (filterProvider != null) {
-                    addAll(productCache.productProviderToProductIds(filterProvider) ?: emptyList())
-                }
+            } else {
+                null
             }
-        } else {
-            null
-        }
 
         val hideProductName = flags.hideProductId
         val hideProductCategory = flags.hideProductCategory
@@ -1315,7 +1562,14 @@ class ResourceStore<T>(
 
                 var offset = 0
                 useStores(findOrLoadStore(uid, pid), reverseOrder = true) { store ->
-                    offset += store.search(idCard, outputBuffer, offset, startIdExclusive = startId, reverseOrder = true, predicate = filter)
+                    offset += store.search(
+                        idCard,
+                        outputBuffer,
+                        offset,
+                        startIdExclusive = startId,
+                        reverseOrder = true,
+                        predicate = filter
+                    )
                     ShouldContinue.ifThisIsTrue(offset < outputBufferLimit)
                 }
 
@@ -1655,8 +1909,9 @@ class ResourceStore<T>(
         }
     }
 
-    companion object {
+    companion object : Loggable {
         const val MAX_PROVIDERS = 256
+        override val log = logger()
     }
 }
 
