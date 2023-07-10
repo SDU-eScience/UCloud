@@ -7,7 +7,8 @@ import dk.sdu.cloud.service.CommonServer
 
 data class MailConfiguration(
     val whitelist: List<String> = emptyList(),
-    val fromAddress: String = "support@escience.sdu.dk"
+    val fromAddress: String = "support@escience.sdu.dk",
+    val useFakeSend: Boolean = false,
 )
 
 object MailService : Service {

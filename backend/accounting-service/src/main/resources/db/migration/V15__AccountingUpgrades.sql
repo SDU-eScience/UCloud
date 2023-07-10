@@ -364,10 +364,10 @@ alter table accounting.transactions rename to old_transactions;
 ---- Transfer all personal workspace balances ----
 
 insert into auth.principals
-    (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, phone_number, title, hashed_password,
+    (dtype, id, created_at, modified_at, role, first_names, last_name, hashed_password,
      salt, org_id, email)
 values
-    ('SERVICE', '_ucloud', now(), now(), 'SERVICE', null, null, null, null, null, null, null, null, null)
+    ('SERVICE', '_ucloud', now(), now(), 'SERVICE', null, null, null, null, null, null)
 on conflict do nothing;
 
 with new_allocations as (

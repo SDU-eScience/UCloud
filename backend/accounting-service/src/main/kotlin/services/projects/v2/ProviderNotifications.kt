@@ -1,7 +1,6 @@
 package dk.sdu.cloud.accounting.services.projects.v2
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.accounting.api.WalletsInternalRetrieveRequest

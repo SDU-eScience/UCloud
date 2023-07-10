@@ -184,7 +184,9 @@ suspend fun main(args: Array<String>) {
                         "user",
                         "mypassword",
                         role = Role.ADMIN,
-                        email = "user@localhost"
+                        email = "user@localhost",
+                        firstnames = "user",
+                        lastname = "test"
                     )
                 ),
                 client

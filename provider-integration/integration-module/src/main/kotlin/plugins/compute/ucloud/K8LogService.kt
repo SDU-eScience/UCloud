@@ -4,6 +4,7 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 
 /**
