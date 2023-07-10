@@ -260,7 +260,6 @@ private class ResourceStoreByOwner<T>(
                         val updatesText = row.getString(5)!!
                         val aclText = row.getString(6)!!
 
-                        if (this.id[idx] == 1753759L) println("Resource did load in slot $idx")
                         try {
                             val updates = defaultMapper.decodeFromString(
                                 ListSerializer(SerializedUpdate.serializer()),
@@ -446,8 +445,6 @@ private class ResourceStoreByOwner<T>(
                     }
                 }
 
-            println("startIndex: $startIndex")
-
             val isOwnerOfEverything = idCard is IdCard.User &&
                     ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
 
@@ -575,8 +572,8 @@ private class ResourceStoreByOwner<T>(
                 if (self.id[arrIdx] == 0L) return
 
                 if (startIdExclusive != -1L) {
-                    if (!reverseOrder && self.id[arrIdx] < startIdExclusive) return
-                    else if (reverseOrder && self.id[arrIdx] > startIdExclusive) return
+                    if (!reverseOrder && self.id[arrIdx] <= startIdExclusive) return
+                    else if (reverseOrder && self.id[arrIdx] >= startIdExclusive) return
                 }
 
                 val res = outputBuffer[outIdx++]
@@ -866,7 +863,6 @@ private class ResourceStoreByOwner<T>(
                 }
             } else {
                 var idx = (startIndex / (ivLength * 4)) * (ivLength * 4)
-                println("Starting at $idx")
                 while (idx < haystack.size) {
                     for (i in needles) {
                         val needle = IntVector.broadcast(ivSpecies, i)
@@ -1163,12 +1159,9 @@ class ResourceStore<T>(
                 var didCompleteUsers = minimumUid == Int.MAX_VALUE
                 var didCompleteProjects = minimumPid == Int.MAX_VALUE
 
-                println("Using initialId: $initialId")
-
                 var offset = 0
                 while (minimumUid < Int.MAX_VALUE && offset < outputBufferLimit) {
                     val resultCount = providerIndex.findUidStores(storeArray, minimumUid)
-
                     for (i in 0..<resultCount) {
                         if (offset >= outputBufferLimit) break
                         minimumUid = storeArray[i]
@@ -1181,8 +1174,8 @@ class ResourceStore<T>(
                         initialId = -1L
                     }
 
-                    if (resultCount == 0) {
-                        didCompleteUsers = true
+                    if (resultCount < storeArray.size) {
+                        if (offset < outputBufferLimit) didCompleteUsers = true
                         break
                     }
                 }
@@ -1190,6 +1183,7 @@ class ResourceStore<T>(
                 while (minimumPid < Int.MAX_VALUE && offset < outputBufferLimit) {
                     val resultCount = providerIndex.findPidStores(storeArray, minimumUid)
                     for (i in 0..<resultCount) {
+                        if (offset >= outputBufferLimit) break
                         useStores(findOrLoadStore(0, storeArray[i])) { store ->
                             offset += store.search(idCard, outputBuffer, offset, initialId) { true }
                             initialId = -1L
@@ -1197,8 +1191,8 @@ class ResourceStore<T>(
                         }
                     }
 
-                    if (resultCount == 0) {
-                        didCompleteProjects = true
+                    if (resultCount < storeArray.size) {
+                        if (offset < outputBufferLimit) didCompleteProjects = true
                         break
                     }
                     minimumPid = storeArray[resultCount - 1]
