@@ -7,7 +7,6 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
@@ -33,9 +32,7 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.toReadableStacktrace
-import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -44,7 +41,6 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 
@@ -184,6 +180,76 @@ class JobController(
                                                     }
 
 //                                                    sendMessage("---")
+
+                                                    next = result.next ?: break
+                                                }
+                                            }
+                                        }
+
+                                        "filter-test" -> {
+                                            val username = args.getOrNull(0)
+                                            val project = args.getOrNull(1)?.takeIf { it != "-" && it != "null" }
+                                            val filterCreatedBy = args.getOrNull(2)
+
+                                            if (username == null || filterCreatedBy == null) {
+                                                sendMessage("filter-test: <username> <project?> <filterCreatedBy>")
+                                            } else {
+                                                var next: String? = null
+                                                while (true) {
+                                                    val result = jobs.browse(
+                                                        ActorAndProject(
+                                                            Actor.SystemOnBehalfOfUser(username),
+                                                            project,
+                                                        ),
+                                                        ResourceBrowseRequest(
+                                                            JobIncludeFlags(
+                                                                includeParameters = true,
+                                                                includeOthers = true,
+                                                                filterCreatedBy = filterCreatedBy
+                                                            ),
+                                                            itemsPerPage = 250,
+                                                            next
+                                                        )
+                                                    )
+
+                                                    for (item in result.items) {
+                                                        sendMessage("${item.id}: ${item.owner.createdBy}")
+                                                    }
+
+                                                    next = result.next ?: break
+                                                }
+                                            }
+                                        }
+
+                                        "hide-test" -> {
+                                            val username = args.getOrNull(0)
+                                            val project = args.getOrNull(1)?.takeIf { it != "-" && it != "null" }
+                                            val hideProductName = args.getOrNull(2)
+
+                                            if (username == null || hideProductName == null) {
+                                                sendMessage("hide-test: <username> <project?> <hideCategory>")
+                                            } else {
+                                                var next: String? = null
+                                                while (true) {
+                                                    val result = jobs.browse(
+                                                        ActorAndProject(
+                                                            Actor.SystemOnBehalfOfUser(username),
+                                                            project,
+                                                        ),
+                                                        ResourceBrowseRequest(
+                                                            JobIncludeFlags(
+                                                                includeParameters = true,
+                                                                includeOthers = true,
+                                                                hideProductId = hideProductName,
+                                                            ),
+                                                            itemsPerPage = 250,
+                                                            next
+                                                        )
+                                                    )
+
+                                                    for (item in result.items) {
+                                                        sendMessage("${item.id}: ${item.owner.createdBy}")
+                                                    }
 
                                                     next = result.next ?: break
                                                 }

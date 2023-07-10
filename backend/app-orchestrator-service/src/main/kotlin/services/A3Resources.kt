@@ -43,6 +43,10 @@ import kotlin.contracts.contract
 import kotlin.math.min
 import kotlin.random.Random
 
+interface FilterFunction<T> {
+    fun filter(doc: ResourceDocument<T>): Boolean
+}
+
 @Serializable
 private data class SerializedUpdate(
     val extra: JsonElement? = null,
@@ -410,6 +414,7 @@ private class ResourceStoreByOwner<T>(
                     return middle + 1
                 }
             }
+            if (min == 0 && id[min] != minimumId) return 0
             return min + 1
         } finally {
             if (!hasLock) mutex.unlock()
@@ -560,7 +565,7 @@ private class ResourceStoreByOwner<T>(
         outputBufferOffset: Int,
         startIdExclusive: Long = -1L,
         reverseOrder: Boolean = false,
-        predicate: (ResourceDocument<T>) -> Boolean
+        predicate: FilterFunction<T>,
     ): Int {
         var outIdx = outputBufferOffset
 
@@ -609,8 +614,11 @@ private class ResourceStoreByOwner<T>(
                 @Suppress("UNCHECKED_CAST")
                 res.data = self.data[arrIdx] as T
 
-                if (!predicate(res)) {
+                if (!predicate.filter(res)) {
+                    println("Predicate failed for ${res.id}")
                     outIdx--
+                } else {
+                    println("Predicate succeeded for ${res.id}")
                 }
             }
         }
@@ -949,6 +957,7 @@ class ResourceStore<T>(
     val type: String,
     private val db: DBContext,
     private val productCache: ProductCache,
+    private val idCardService: IdCardService,
     private val callbacks: Callbacks<T>,
 ) {
     data class BrowseResult(val count: Int, val next: String?)
@@ -1129,10 +1138,94 @@ class ResourceStore<T>(
         next: String?,
         flags: ResourceIncludeFlags,
         outputBufferLimit: Int = outputBuffer.size,
-    ): ResourceStore.BrowseResult {
-        // TODO(Dan): Pagination is not yet working
+    ): BrowseResult {
         // TODO(Dan): Sorting is not yet working
-        // TODO(Dan): Filtering is not yet working
+        val filterCreatedByUid = if (flags.filterCreatedBy != null) {
+            idCardService.lookupUidFromUsername(flags.filterCreatedBy!!)
+        } else {
+            null
+        }
+
+        val filterCreatedBy = flags.filterCreatedBy
+        val filterCreatedAfter = flags.filterCreatedAfter
+        val filterCreatedBefore = flags.filterCreatedBefore
+        val filterProviderIds = flags.filterProviderIds?.split(",")
+        val filterIds = flags.filterIds?.split(",")?.mapNotNull { it.toLongOrNull() }
+
+        val filterProductName = flags.filterProductId
+        val filterProductCategory = flags.filterProductCategory
+        val filterProvider = flags.filterProvider
+        val filterProductIds = if (filterProductName != null || filterProductCategory != null || filterProvider != null) {
+            buildSet<Int> {
+                if (filterProductName != null) {
+                    addAll(productCache.productNameToProductIds(filterProductName) ?: emptyList())
+                }
+                if (filterProductCategory != null) {
+                    addAll(productCache.productCategoryToProductIds(filterProductCategory) ?: emptyList())
+                }
+                if (filterProvider != null) {
+                    addAll(productCache.productProviderToProductIds(filterProvider) ?: emptyList())
+                }
+            }
+        } else {
+            null
+        }
+
+        val hideProductName = flags.hideProductId
+        val hideProductCategory = flags.hideProductCategory
+        val hideProvider = flags.hideProvider
+        val hideProductIds = if (hideProductName != null || hideProductCategory != null || hideProvider != null) {
+            buildSet<Int> {
+                if (hideProductName != null) {
+                    addAll(productCache.productNameToProductIds(hideProductName) ?: emptyList())
+                }
+                if (hideProductCategory != null) {
+                    addAll(productCache.productCategoryToProductIds(hideProductCategory) ?: emptyList())
+                }
+                if (hideProvider != null) {
+                    addAll(productCache.productProviderToProductIds(hideProvider) ?: emptyList())
+                }
+            }
+        } else {
+            null
+        }
+
+        val filter = object : FilterFunction<T> {
+            override fun filter(doc: ResourceDocument<T>): Boolean {
+                var success = true
+
+                if (success && filterCreatedAfter != null) {
+                    success = doc.createdAt >= filterCreatedAfter
+                }
+
+                if (success && filterCreatedBefore != null) {
+                    success = doc.createdAt <= filterCreatedBefore
+                }
+
+                if (success && filterCreatedBy != null) {
+                    success = filterCreatedByUid != null && filterCreatedByUid == doc.createdBy
+                }
+
+                if (success && filterProductIds != null) {
+                    success = doc.product in filterProductIds
+                }
+
+                if (success && filterProviderIds != null) {
+                    success = doc.providerId in filterProviderIds
+                }
+
+                if (success && filterIds != null) {
+                    success = doc.id in filterIds
+                }
+
+                if (success && hideProductIds != null) {
+                    success = doc.product !in hideProductIds
+                }
+
+                return success
+            }
+        }
+
         when (idCard) {
             is IdCard.Provider -> {
                 val storeArray = IntArray(128)
@@ -1167,7 +1260,7 @@ class ResourceStore<T>(
                         minimumUid = storeArray[i]
 
                         useStores(findOrLoadStore(storeArray[i], 0)) { store ->
-                            offset += store.search(idCard, outputBuffer, offset, initialId) { true }
+                            offset += store.search(idCard, outputBuffer, offset, initialId, predicate = filter)
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
 
@@ -1185,7 +1278,7 @@ class ResourceStore<T>(
                     for (i in 0..<resultCount) {
                         if (offset >= outputBufferLimit) break
                         useStores(findOrLoadStore(0, storeArray[i])) { store ->
-                            offset += store.search(idCard, outputBuffer, offset, initialId) { true }
+                            offset += store.search(idCard, outputBuffer, offset, initialId, predicate = filter)
                             initialId = -1L
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
@@ -1222,7 +1315,7 @@ class ResourceStore<T>(
 
                 var offset = 0
                 useStores(findOrLoadStore(uid, pid), reverseOrder = true) { store ->
-                    offset += store.search(idCard, outputBuffer, offset, startIdExclusive = startId, reverseOrder = true) { true }
+                    offset += store.search(idCard, outputBuffer, offset, startIdExclusive = startId, reverseOrder = true, predicate = filter)
                     ShouldContinue.ifThisIsTrue(offset < outputBufferLimit)
                 }
 
@@ -1275,6 +1368,11 @@ class ResourceStore<T>(
     ): Int {
         if (ids.isEmpty()) return 0
         val storesVisited = HashSet<Pair<Int, Int>>()
+        val filter = object : FilterFunction<T> {
+            override fun filter(doc: ResourceDocument<T>): Boolean {
+                return doc.id in ids
+            }
+        }
 
         val minimumIdExclusive = ids.min() - 1
 
@@ -1287,7 +1385,7 @@ class ResourceStore<T>(
             storesVisited.add(storeKey)
 
             useStores(initialStore) { currentStore ->
-                offset += currentStore.search(idCard, output, offset, minimumIdExclusive) { it.id in ids }
+                offset += currentStore.search(idCard, output, offset, minimumIdExclusive, predicate = filter)
                 ShouldContinue.ifThisIsTrue(offset < output.size)
             }
         }
@@ -1791,6 +1889,9 @@ class ProductCache(private val db: DBContext) {
     private val referenceToProductId = HashMap<ProductReference, Int>()
     private val productIdToReference = HashMap<Int, ProductReference>()
     private val productInformation = HashMap<Int, Product>()
+    private val productNameToProductIds = HashMap<String, ArrayList<Int>>()
+    private val productCategoryToProductIds = HashMap<String, ArrayList<Int>>()
+    private val productProviderToProductIds = HashMap<String, ArrayList<Int>>()
     private val nextFill = AtomicLong(0L)
 
     suspend fun fillCache() {
@@ -1801,6 +1902,9 @@ class ProductCache(private val db: DBContext) {
             referenceToProductId.clear()
             productIdToReference.clear()
             productInformation.clear()
+            productNameToProductIds.clear()
+            productCategoryToProductIds.clear()
+            productProviderToProductIds.clear()
 
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -1827,6 +1931,10 @@ class ProductCache(private val db: DBContext) {
                         referenceToProductId[reference] = id
                         productIdToReference[id] = reference
                         productInformation[id] = product
+
+                        productNameToProductIds.getOrPut(product.name) { ArrayList() }.add(id)
+                        productCategoryToProductIds.getOrPut(product.category.name) { ArrayList() }.add(id)
+                        productProviderToProductIds.getOrPut(product.category.provider) { ArrayList() }.add(id)
                     }
                 }
             }
@@ -1853,6 +1961,27 @@ class ProductCache(private val db: DBContext) {
         fillCache()
         return mutex.withReader {
             productInformation[id]
+        }
+    }
+
+    suspend fun productNameToProductIds(name: String): List<Int>? {
+        fillCache()
+        return mutex.withReader {
+            productNameToProductIds[name]
+        }
+    }
+
+    suspend fun productCategoryToProductIds(category: String): List<Int>? {
+        fillCache()
+        return mutex.withReader {
+            productCategoryToProductIds[category]
+        }
+    }
+
+    suspend fun productProviderToProductIds(provider: String): List<Int>? {
+        fillCache()
+        return mutex.withReader {
+            productProviderToProductIds[provider]
         }
     }
 }

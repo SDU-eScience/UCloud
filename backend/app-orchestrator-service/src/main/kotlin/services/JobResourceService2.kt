@@ -71,6 +71,7 @@ class JobResourceService2(
         "job",
         db,
         productCache,
+        idCards,
         ResourceStore.Callbacks(
             loadState = { session, count, ids ->
                 val state = arrayOfNulls<InternalJobState>(count)
