@@ -38,7 +38,7 @@ class Simulator(
             userFile.createNewFile()
         }
 
-        log.debug(userFile.absolutePath)
+        log.debug("User file path: ${userFile.absolutePath}")
         val existingUsers = userFile.readLines().filter { it.isNotEmpty() }
 
         val selectedUsers = if (existingUsers.size > numberOfUsers) {
@@ -111,26 +111,11 @@ class Simulator(
     }
 
     fun start() {
-        log.debug("Started load simulation")
+        log.debug("Starting load simulation")
 
         runBlocking {
             initializeUsers()
-        }
 
-        log.debug("Initialized:")
-        log.debug(" - Users: ${users.size}")
-        for (u in users) {
-            log.debug("   - ${u.username}: ${u.project.specification.title}")
-        }
-
-        log.debug(" - Projects: ${projects.size}")
-
-        for (p in projects) {
-            log.debug("   - ${p.id}: ${p.specification.title}")
-        }
-
-        // Start simulation
-        runBlocking {
             users.forEach { user ->
                 launch {
                     user.simulate()
@@ -168,7 +153,7 @@ class SimulatedUser(
             this.username = username ?: ""
             this.password = password ?: ""
             refreshToken
-        } else if (username.isNullOrBlank()) {
+        } else {
             this.username = "simulated-user-${Time.now()}"
             this.password = generatePassword()
             log.debug("Creating user ${this.username}")
@@ -178,7 +163,7 @@ class SimulatedUser(
                     CreateSingleUserRequest(
                         this.username,
                         this.password,
-                        "${username}@localhost",
+                        "${username}@localhost.direct",
                         Role.USER,
                         "First",
                         "Last"
@@ -186,53 +171,7 @@ class SimulatedUser(
                 ),
                 serviceClient
             ).orThrow().single().refreshToken
-        } else {
-            // TODO(Brian): Login using password does not seem to work currently
-
-            /*log.debug("Trying to log in as ${this.username}")
-
-            val login = AuthDescriptions.passwordLogin.call(
-                Unit,
-                serviceClient.withHttpBody(
-                    """
-                        -----boundary
-                        Content-Disposition: form-data; name="service"
-
-                        dev-web
-                        -----boundary
-                        Content-Disposition: form-data; name="username"
-
-                        user
-                        -----boundary
-                        Content-Disposition: form-data; name="password"
-
-                        mypassword
-                        -----boundary--
-                    """.trimIndent(),
-                    ContentType.MultiPart.FormData.withParameter("boundary", "---boundary")
-                )
-            ).ctx as OutgoingHttpCall
-
-            val response = login.response!!
-            log.debug("$response")
-            log.debug("${response.headers}")
-            log.debug("${HttpHeaders.SetCookie}")
-            val cookiesSet = response.headers[HttpHeaders.SetCookie]!!
-            log.debug("${cookiesSet}")
-
-            val split = cookiesSet.split(";").associate {
-                val key = it.substringBefore('=')
-                val value = URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
-                key to value
-            }
-
-            log.debug("$split")
-
-            split["refreshToken"]!!*/
-            ""
         }
-
-        log.debug("${this.username} logged in with token: ${this.refreshToken}")
 
         client = RefreshingJWTAuthenticator(
             serviceClient.client,
@@ -317,14 +256,12 @@ class SimulatedUser(
         this.project = project
         client = client.withProject(projectId)
 
-        Simulator.log.debug("Created project ${project.id}: ${project.specification.title}")
+        Simulator.log.debug("Created project ${project.specification.title}")
 
         return project
     }
 
     suspend fun joinProject(projectId: String, pi: SimulatedUser): Project {
-        log.debug("User $username is joining project ${projectId}")
-
         Projects.createInvite.call(
             bulkRequestOf(ProjectsCreateInviteRequestItem(username)),
             pi.client.withProject(projectId)
@@ -417,7 +354,6 @@ class SimulatedUser(
                 val drive = browseFileCollections().firstOrNull()
 
                 if (drive != null) {
-                    log.debug("Found drive $drive")
                     var files = Files.browse.call(
                         ResourceBrowseRequest(UFileIncludeFlags(path = "/${drive.id}")),
                         client
@@ -438,23 +374,17 @@ class SimulatedUser(
             }
 
             Action.MoveFolder -> {
-                log.debug("$username Moving folder")
-
                 val drive = browseFileCollections().firstOrNull()
 
                 if (drive != null) {
-                    log.debug("$username found drive ${drive.id}")
-
                     val file = Files.browse.call(
                         ResourceBrowseRequest(UFileIncludeFlags(path = "/${drive.id}")),
                         client
                     ).orThrow().items.firstOrNull { !it.id.endsWith("Jobs") }
 
                     if (file != null) {
-                        log.debug("$username found file ${file.id}")
-
                         val newId = "/${drive.id}/${generatePassword()}"
-                        log.debug("$username moving ${file.id} to $newId")
+                        log.debug("$username Moving ${file.id} to $newId")
 
                         Files.move.call(
                             bulkRequestOf(FilesMoveRequestItem(file.id, newId, WriteConflictPolicy.REPLACE)),
@@ -465,13 +395,11 @@ class SimulatedUser(
             }
 
             Action.BrowseJobs -> {
-                log.debug("$username Browsing jobs")
                 val jobs = browseJobs()
-                log.debug("Browsed ${jobs.size} jobs")
+                log.debug("$username Browsed ${jobs.size} jobs")
             }
 
             Action.StartJob -> {
-                log.debug("$username wants to start a job")
                 val jobs = browseJobs()
                 val running = jobs.filter { it.status.state == JobState.RUNNING && it.owner.createdBy == username }
 
@@ -489,21 +417,16 @@ class SimulatedUser(
                         ),
                         client
                     ).orThrow()
-                } else {
-                    log.debug("$username already has 2 jobs running. Skipping.")
                 }
             }
 
             Action.StopJob -> {
-                log.debug("$username stopping job")
-
                 val job = browseJobs().firstOrNull {
                     it.status.state == JobState.RUNNING && it.owner.createdBy == username
                 }
 
-                log.debug("$username Found job: $job.id")
-
                 if (job != null) {
+                    log.debug("$username Stopping job ${job.id}")
                     Jobs.terminate.call(
                         bulkRequestOf(FindByStringId(job.id)),
                         client
@@ -512,14 +435,13 @@ class SimulatedUser(
             }
 
             Action.OpenInterface -> {
-                log.debug("$username open interface")
+                log.debug("$username Open interface")
                 val job = browseJobs().firstOrNull {
                     it.owner.createdBy == username &&
                         it.status.state == JobState.RUNNING &&
                         it.status.resolvedApplication?.invocation?.applicationType == ApplicationType.WEB
                 }
 
-                log.debug("$username found job: ${job?.id}")
                 if (job != null) {
                     Jobs.openInteractiveSession.call(
                         bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.WEB)),
@@ -529,12 +451,11 @@ class SimulatedUser(
             }
 
             Action.FollowJob -> {
-                log.debug("$username Following job")
                 val jobs = browseJobs()
                 val running = jobs.firstOrNull { it.status.state == JobState.RUNNING }
 
                 if (running != null) {
-                    log.debug("$username Following job ${running.id}")
+                    log.debug("$username Follow job ${running.id}")
                     coroutineScope {
                         val job = launch {
                             try {
@@ -561,16 +482,14 @@ class SimulatedUser(
                         runCatching { job.join() }
                     }
                 }
-                log.debug("$username Done following")
             }
 
             Action.OpenTerminal -> {
-                log.debug("$username open terminal")
+                log.debug("$username Open terminal")
                 val job = browseJobs().firstOrNull {
                     it.owner.createdBy == username && it.status.state == JobState.RUNNING
                 }
 
-                log.debug("$username found job: ${job?.id}")
                 if (job != null) {
                     Jobs.openInteractiveSession.call(
                         bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.SHELL)),
