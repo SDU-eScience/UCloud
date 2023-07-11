@@ -469,10 +469,7 @@ class SimulatedUser(
 
                         delay(Random.nextLong(5_000, 10_000))
 
-                        runCatching {
-                            job.cancel()
-                        }
-
+                        runCatching { job.cancel() }
                         runCatching { job.join() }
                     }
                 }

@@ -203,10 +203,26 @@ suspend fun main(args: Array<String>) {
     }
 
     if (preset == LauncherPreset.LoadSimulation) {
+        var numberOfUsers: Int = 5
+
+        val argsIterator = args.iterator()
+        while (argsIterator.hasNext()) {
+            val arg = argsIterator.next()
+
+            if (arg.contains("numberOfSims=")) {
+                numberOfUsers = arg.split("=")[1].toInt()
+                break
+            }
+
+            if (arg == "--numberOfSims") {
+                numberOfUsers = argsIterator.next().toInt()
+            }
+        }
+
         val m = Micro(reg.rootMicro)
         m.install(AuthenticatorFeature)
         val client = m.authenticator.authenticateClient(OutgoingHttpCall)
-        val simulator = Simulator(client, 5)
+        val simulator = Simulator(client, numberOfUsers)
         simulator.start()
     } else {
         reg.start()
