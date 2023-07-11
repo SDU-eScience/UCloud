@@ -65,7 +65,7 @@ class Simulator(
 
         log.debug("Found ${foundProjects.size} existing projects:")
         for (project in foundProjects) {
-            log.debug("  ${project.specification.title}: ${project.status.members?.size}")
+            log.debug("  ${project.specification.title} (${project.status.members?.size} members)")
         }
 
         projects.addAll(foundProjects)
@@ -300,18 +300,22 @@ class SimulatedUser(
             return diceRoll <= chance
         }
 
-        when {
-            chance(10) -> doAction(Action.CreateFolder)
-            chance(10) -> doAction(Action.MoveFolder)
-            chance(10) -> doAction(Action.OpenInterface)
-            chance(10) -> doAction(Action.OpenTerminal)
-            chance(10) -> doAction(Action.BrowseJobs)
-            chance(10) -> doAction(Action.FollowJob)
-            chance(10) -> doAction(Action.StartJob)
-            chance(1) -> doAction(Action.StopJob)
-            else -> {
-                // Do nothing
-            }
+        val action = when {
+            chance(10) -> Action.CreateFolder
+            chance(10) -> Action.MoveFolder
+            chance(10) -> Action.OpenInterface
+            chance(10) -> Action.OpenTerminal
+            chance(10) -> Action.BrowseJobs
+            chance(10) -> Action.FollowJob
+            chance(10) -> Action.StartJob
+            chance(1) && chance(20) -> Action.StopJob
+            else -> return
+        }
+
+        try {
+            doAction(action)
+        } catch (e: RPCException) {
+            log.debug("$username received a bad response on $action action: [${e.httpStatusCode.value}] ${e.httpStatusCode.description}: ${e.why}")
         }
     }
 
@@ -343,11 +347,11 @@ class SimulatedUser(
     private suspend fun doAction(action: Action) {
         when (action) {
             Action.CreateFolder -> {
-                log.debug("$username Creating folder")
-
                 val drive = browseFileCollections().firstOrNull()
 
                 if (drive != null) {
+                    log.debug("$username Creating folder")
+
                     var files = Files.browse.call(
                         ResourceBrowseRequest(UFileIncludeFlags(path = "/${drive.id}")),
                         client
@@ -429,7 +433,6 @@ class SimulatedUser(
             }
 
             Action.OpenInterface -> {
-                log.debug("$username Open interface")
                 val job = browseJobs().firstOrNull {
                     it.owner.createdBy == username &&
                         it.status.state == JobState.RUNNING &&
@@ -437,6 +440,7 @@ class SimulatedUser(
                 }
 
                 if (job != null) {
+                    log.debug("$username Opening interface (${job.id})")
                     Jobs.openInteractiveSession.call(
                         bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.WEB)),
                         client
@@ -449,7 +453,7 @@ class SimulatedUser(
                 val running = jobs.firstOrNull { it.status.state == JobState.RUNNING }
 
                 if (running != null) {
-                    log.debug("$username Follow job ${running.id}")
+                    log.debug("$username Follow job (${running.id})")
                     coroutineScope {
                         val job = launch {
                             try {
@@ -476,12 +480,13 @@ class SimulatedUser(
             }
 
             Action.OpenTerminal -> {
-                log.debug("$username Open terminal")
                 val job = browseJobs().firstOrNull {
                     it.owner.createdBy == username && it.status.state == JobState.RUNNING
                 }
 
                 if (job != null) {
+                    log.debug("$username Opening terminal (${job.id})")
+
                     Jobs.openInteractiveSession.call(
                         bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.SHELL)),
                         client
