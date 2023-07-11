@@ -65,7 +65,7 @@ object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
 
 class JobResourceService2(
     private val db: DBContext,
-    private val _providers: Providers<*>?,
+    private val providers: Providers<*>,
     private val backgroundScope: BackgroundScope,
 ) {
     private val idCards = IdCardService(db)
@@ -339,7 +339,6 @@ class JobResourceService2(
         documents.startSynchronizationJob(backgroundScope)
     }
 
-    val providers get() = _providers!!
     suspend fun create(
         actorAndProject: ActorAndProject,
         request: BulkRequest<JobSpecification>,
@@ -437,26 +436,22 @@ class JobResourceService2(
     ) {
         val card = idCards.fetchIdCard(actorAndProject)
         val allJobs = ResourceOutputPool.withInstance<InternalJobState, List<Job>> { buffer ->
-
             // TODO(Dan): Wasteful memory allocation and copies
             val count = documents.retrieveBulk(
                 card,
                 request.items.mapNotNull { it.id.toLongOrNull() }.toLongArray(),
-                buffer
+                buffer,
+                permission = Permission.EDIT,
             )
 
-            // TODO(Dan): We could skip this step entirely and move directly to the bytes needed to send the request.
-            //  No system is going to care about a BulkRequest<Job> when we already have the internal data to inspect.
-            //  This step could also do the grouping step below.
             val result = ArrayList<Job>()
             for (idx in 0 until count) {
-                result.add(unmarshallDocument(card, buffer[0]))
+                result.add(unmarshallDocument(card, buffer[idx]))
             }
 
             result
         }
 
-        // TODO(Dan): See earlier todo about going from internal to bytes
         val jobsByProvider = allJobs.groupBy { it.specification.product.provider }
         for ((provider, jobs) in jobsByProvider) {
             providers.invokeCall(
@@ -544,6 +539,56 @@ class JobResourceService2(
         }
 
         // TODO Do we really need to contact the provider about this?
+    }
+
+    suspend fun extend(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<JobsExtendRequestItem>,
+    ) {
+        val card = idCards.fetchIdCard(actorAndProject)
+        val jobsToExtend = ResourceOutputPool.withInstance<InternalJobState, List<Job>> { pool ->
+            if (pool.size < request.items.size) {
+                throw RPCException("Request is too large!", HttpStatusCode.PayloadTooLarge)
+            }
+
+            val ids = request.items
+                .asSequence()
+                .mapNotNull { it.jobId.toLongOrNull() }
+                .toSet()
+                .toLongArray()
+
+            val count = documents.retrieveBulk(card, ids, pool, Permission.EDIT)
+
+            if (count != ids.size) {
+                throw RPCException(
+                    "Could not extend the jobs that you requested. Are you sure they exist?",
+                    HttpStatusCode.NotFound
+                )
+            }
+            val result = ArrayList<Job>()
+            for (idx in 0 until count) {
+                result.add(unmarshallDocument(card, pool[idx]))
+            }
+
+            result
+        }
+
+        for ((provider, jobs) in jobsToExtend.groupBy { it.specification.product.provider }) {
+            val providerRequest = jobs.map { job ->
+                JobsProviderExtendRequestItem(
+                    job,
+                    request.items.findLast { it.jobId == job.id }!!.requestedTime,
+                )
+            }
+
+            providers.invokeCall(
+                provider,
+                actorAndProject,
+                { JobsProvider(provider).extend },
+                BulkRequest(providerRequest),
+                actorAndProject.signedIntentFromUser,
+            )
+        }
     }
 
     private suspend fun validate(actorAndProject: ActorAndProject, job: JobSpecification) {

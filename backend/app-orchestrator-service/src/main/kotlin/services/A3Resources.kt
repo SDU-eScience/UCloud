@@ -577,6 +577,7 @@ class ResourceStoreByOwner<T>(
         startIdExclusive: Long = -1L,
         reverseOrder: Boolean = false,
         predicate: FilterFunction<T>,
+        permission: Permission = Permission.READ,
     ): Int {
         var outIdx = outputBufferOffset
 
@@ -593,34 +594,7 @@ class ResourceStoreByOwner<T>(
                 }
 
                 val res = outputBuffer[outIdx++]
-                res.id = self.id[arrIdx]
-                res.createdAt = self.createdAt[arrIdx]
-                res.createdBy = self.createdBy[arrIdx]
-                res.project = self.project[arrIdx]
-                res.product = self.product[arrIdx]
-                res.providerId = self.providerId[arrIdx]
-                run {
-                    Arrays.fill(res.update, null)
-                    val resourceUpdates = self.updates[arrIdx] ?: return@run
-                    for ((index, update) in resourceUpdates.withIndex()) {
-                        if (index >= res.update.size) break
-                        res.update[index] = update
-                    }
-                }
-                run {
-                    Arrays.fill(res.acl, null)
-                    val entities = self.aclEntities[arrIdx]
-                    val isUser = self.aclIsUser[arrIdx]
-                    val perms = self.aclPermissions[arrIdx]
-
-                    if (entities != null && isUser != null && perms != null) {
-                        for (i in entities.indices) {
-                            if (entities[i] == 0) break
-                            res.acl[i] =
-                                ResourceDocument.AclEntry(entities[i], isUser[i], Permission.fromByte(perms[i]))
-                        }
-                    }
-                }
+                loadIntoDocument(res, arrIdx)
 
                 @Suppress("UNCHECKED_CAST")
                 res.data = self._data[arrIdx] as T
@@ -631,9 +605,43 @@ class ResourceStoreByOwner<T>(
             }
         }
 
-        searchAndConsume(idCard, Permission.READ, emitter, startIdExclusive, reverseOrder)
+        searchAndConsume(idCard, permission, emitter, startIdExclusive, reverseOrder)
 
         return outIdx - outputBufferOffset
+    }
+
+    private fun loadIntoDocument(
+        res: ResourceDocument<T>,
+        arrIdx: Int
+    ) {
+        res.id = this.id[arrIdx]
+        res.createdAt = this.createdAt[arrIdx]
+        res.createdBy = this.createdBy[arrIdx]
+        res.project = this.project[arrIdx]
+        res.product = this.product[arrIdx]
+        res.providerId = this.providerId[arrIdx]
+        run {
+            Arrays.fill(res.update, null)
+            val resourceUpdates = this.updates[arrIdx] ?: return@run
+            for ((index, update) in resourceUpdates.withIndex()) {
+                if (index >= res.update.size) break
+                res.update[index] = update
+            }
+        }
+        run {
+            Arrays.fill(res.acl, null)
+            val entities = this.aclEntities[arrIdx]
+            val isUser = this.aclIsUser[arrIdx]
+            val perms = this.aclPermissions[arrIdx]
+
+            if (entities != null && isUser != null && perms != null) {
+                for (i in entities.indices) {
+                    if (entities[i] == 0) break
+                    res.acl[i] =
+                        ResourceDocument.AclEntry(entities[i], isUser[i], Permission.fromByte(perms[i]))
+                }
+            }
+        }
     }
 
     suspend fun addUpdates(
@@ -665,6 +673,52 @@ class ResourceStoreByOwner<T>(
             }
         })
         return isDone
+    }
+
+    suspend fun modify(
+        idCard: IdCard,
+        outputBuffer: Array<ResourceDocument<T>>,
+        outputBufferOffset: Int,
+        predicate: FilterFunction<T>,
+        permission: Permission,
+        startIdExclusive: Long = -1L,
+        consumer: (arrIndex: Int, doc: ResourceDocument<T>) -> Unit,
+    ): Int {
+        var outIdx = outputBufferOffset
+        val self = this
+        searchAndConsume(
+            idCard,
+            permission,
+            startId = startIdExclusive,
+            consumer = object : SearchConsumer {
+                override fun shouldTerminate(): Boolean = outIdx >= outputBuffer.size
+                override fun call(arrIdx: Int) {
+                    if (outIdx >= outputBuffer.size) return
+                    if (self.id[arrIdx] == 0L) return
+
+                    if (startIdExclusive != -1L) {
+                        if (self.id[arrIdx] >= startIdExclusive) return
+                    }
+
+                    val res = outputBuffer[outIdx++]
+                    loadIntoDocument(res, arrIdx)
+
+                    @Suppress("UNCHECKED_CAST")
+                    res.data = self._data[arrIdx] as T
+
+                    if (!predicate.filter(res)) {
+                        outIdx--
+                    } else {
+                        consumer(arrIdx, res)
+
+                        self.dirtyFlag[arrIdx] = true
+                        anyDirty = true
+                    }
+                }
+            }
+        )
+
+        return outIdx - outputBufferOffset
     }
 
     suspend fun updateProviderId(
@@ -1585,6 +1639,47 @@ class ResourceStore<T>(
         }
     }
 
+    suspend fun modify(
+        idCard: IdCard,
+        output: Array<ResourceDocument<T>>,
+        ids: LongArray,
+        permission: Permission,
+        consumer: (arrIndex: Int, doc: ResourceDocument<T>) -> Unit,
+    ): Int {
+        if (ids.isEmpty()) return 0
+        val storesVisited = HashSet<Pair<Int, Int>>()
+        val filter = object : FilterFunction<T> {
+            override fun filter(doc: ResourceDocument<T>): Boolean {
+                return doc.id in ids
+            }
+        }
+
+        val minimumIdExclusive = ids.min() - 1
+
+        var offset = 0
+        for (id in ids) {
+            val initialStore = findStoreByResourceId(id) ?: continue
+
+            val storeKey = Pair(initialStore.uid, initialStore.pid)
+            if (storeKey in storesVisited) continue
+            storesVisited.add(storeKey)
+
+            useStores(initialStore) { currentStore ->
+                offset += currentStore.modify(
+                    idCard,
+                    output,
+                    offset,
+                    startIdExclusive = minimumIdExclusive,
+                    predicate = filter,
+                    permission = permission,
+                    consumer = consumer
+                )
+                ShouldContinue.ifThisIsTrue(offset < output.size)
+            }
+        }
+        return offset
+    }
+
     suspend fun addUpdate(
         idCard: IdCard,
         id: Long,
@@ -1607,10 +1702,11 @@ class ResourceStore<T>(
     suspend fun retrieve(
         idCard: IdCard,
         id: Long,
+        permission: Permission = Permission.READ,
     ): ResourceDocument<T>? {
         // NOTE(Dan): This is just a convenience wrapper around retrieveBulk()
         val output = arrayOf(ResourceDocument<T>())
-        val success = retrieveBulk(idCard, longArrayOf(id), output) == 1
+        val success = retrieveBulk(idCard, longArrayOf(id), output, permission) == 1
         if (!success) return null
         return output[0]
     }
@@ -1618,7 +1714,8 @@ class ResourceStore<T>(
     suspend fun retrieveBulk(
         idCard: IdCard,
         ids: LongArray,
-        output: Array<ResourceDocument<T>>
+        output: Array<ResourceDocument<T>>,
+        permission: Permission = Permission.READ,
     ): Int {
         if (ids.isEmpty()) return 0
         val storesVisited = HashSet<Pair<Int, Int>>()
@@ -1639,7 +1736,14 @@ class ResourceStore<T>(
             storesVisited.add(storeKey)
 
             useStores(initialStore) { currentStore ->
-                offset += currentStore.search(idCard, output, offset, minimumIdExclusive, predicate = filter)
+                offset += currentStore.search(
+                    idCard,
+                    output,
+                    offset,
+                    minimumIdExclusive,
+                    predicate = filter,
+                    permission = permission,
+                )
                 ShouldContinue.ifThisIsTrue(offset < output.size)
             }
         }
