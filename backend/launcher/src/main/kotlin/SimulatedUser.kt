@@ -42,7 +42,7 @@ class Simulator(
         val existingUsers = userFile.readLines().filter { it.isNotEmpty() }
 
         val selectedUsers = if (existingUsers.size > numberOfUsers) {
-            existingUsers.subList(0, numberOfUsers - 1)
+            existingUsers.subList(0, numberOfUsers)
         } else {
             existingUsers
         }
@@ -95,8 +95,8 @@ class Simulator(
                 if (users.isEmpty() || roll < 5) {
                     projects.add(user.createProject())
                 } else {
-                    // Join project with the least members
-                    val chosenProject = projects.sortedBy { it.status.members?.size }.first()
+                    // Join random project
+                    val chosenProject = projects.random()
                     val projectPiName = Projects.retrieve.call(
                         ProjectsRetrieveRequest(chosenProject.id, includeMembers = true),
                         serviceClient
@@ -284,12 +284,6 @@ class SimulatedUser(
 
         return joinedProject
     }
-
-
-    // Do:
-    //  - Launch terminal app and open terminal
-    //  - Launch visual app and launch interface
-    //  - Copy some files around (maybe)?
 
     suspend fun simulate() {
         while (true) {
@@ -500,12 +494,12 @@ class SimulatedUser(
         }
     }
 
-    companion object : Loggable {
-        override val log = logger()
-    }
-
     private fun generatePassword(): String {
         val pool = ('a'..'z') + ('A'..'Z') + ('0'..'9')
         return (1..30).map { Random.nextInt(0, pool.size).let { pool[it] } }.joinToString("")
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
