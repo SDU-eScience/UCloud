@@ -93,13 +93,53 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
             else -> false
         }
     }),
-
-    LoadSimulation("load-simulation", { svc ->
-        false
-    }),
 }
 
 suspend fun main(args: Array<String>) {
+    if (args.contains("--load-simulation")) {
+        loadAndInitializeMissingCaCertsForLauncherInDevelopmentModeOnlyPlease()
+        var numberOfUsers: Int = 5
+        var userFile: String? = null
+
+        val argsIterator = args.iterator()
+        while (argsIterator.hasNext()) {
+            val arg = argsIterator.next()
+
+            if (arg.contains("numberOfSims=")) {
+                numberOfUsers = arg.split("=")[1].toInt()
+            }
+
+            if (arg == "--numberOfSims") {
+                numberOfUsers = argsIterator.next().toInt()
+            }
+
+            if (arg.contains("userFile=")) {
+                userFile = arg.split("=")[1]
+            }
+
+            if (arg == "--userFile") {
+                userFile = argsIterator.next()
+            }
+        }
+
+        val m = Micro().apply {
+            commandLineArguments = args.toList()
+            isEmbeddedService = false
+            serviceDescription = PlaceholderServiceDescription
+
+            install(ConfigurationFeature)
+            install(ClientFeature)
+            install(LogFeature)
+            install(TokenValidationFeature)
+            install(AuthenticatorFeature)
+        }
+
+        val client = m.authenticator.authenticateClient(OutgoingHttpCall)
+        val simulator = Simulator(client, userFile ?: error("Missing argument userFile"), numberOfUsers)
+        simulator.start()
+        return
+    }
+
     if (args.contains("--dev")) {
         loadAndInitializeMissingCaCertsForLauncherInDevelopmentModeOnlyPlease()
     }
@@ -144,7 +184,7 @@ suspend fun main(args: Array<String>) {
                 })")
     }
 
-    if (args.contains("--dev") && !isInstalling && preset != LauncherPreset.LoadSimulation) {
+    if (args.contains("--dev") && !isInstalling) {
         val reg = ServiceRegistry(args + "--no-server", PlaceholderServiceDescription)
         reg.rootMicro.install(DatabaseConfigurationFeature)
         reg.rootMicro.install(FlywayFeature)
@@ -202,29 +242,5 @@ suspend fun main(args: Array<String>) {
         }
     }
 
-    if (preset == LauncherPreset.LoadSimulation) {
-        var numberOfUsers: Int = 5
-
-        val argsIterator = args.iterator()
-        while (argsIterator.hasNext()) {
-            val arg = argsIterator.next()
-
-            if (arg.contains("numberOfSims=")) {
-                numberOfUsers = arg.split("=")[1].toInt()
-                break
-            }
-
-            if (arg == "--numberOfSims") {
-                numberOfUsers = argsIterator.next().toInt()
-            }
-        }
-
-        val m = Micro(reg.rootMicro)
-        m.install(AuthenticatorFeature)
-        val client = m.authenticator.authenticateClient(OutgoingHttpCall)
-        val simulator = Simulator(client, numberOfUsers)
-        simulator.start()
-    } else {
-        reg.start()
-    }
+    reg.start()
 }

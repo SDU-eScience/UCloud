@@ -25,6 +25,7 @@ import kotlin.random.Random
 
 class Simulator(
     private val serviceClient: AuthenticatedClient,
+    private val userFilePath: String,
     private val numberOfUsers: Int,
 ) {
     private val users = ArrayList<SimulatedUser>()
@@ -32,7 +33,7 @@ class Simulator(
 
     private suspend fun initializeUsers() {
         // Look up users
-        val userFile = File("simulated_users")
+        val userFile = File(userFilePath)
 
         if (!userFile.exists()) {
             userFile.createNewFile()
