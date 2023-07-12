@@ -313,8 +313,11 @@ class SimulatedUser(
 
         try {
             doAction(action)
-        } catch (e: RPCException) {
-            log.debug("$username received a bad response on $action action: [${e.httpStatusCode.value}] ${e.httpStatusCode.description}: ${e.why}")
+        } catch (ex: RPCException) {
+            log.error("$username received a bad response on $action action: [${ex.httpStatusCode.value}] ${ex.httpStatusCode.description}: ${ex.why}")
+        } catch (ex: Throwable) {
+            log.error("$username unexpected exception on action $action: ${ex.message}")
+            log.error(ex.stackTraceToString())
         }
     }
 
