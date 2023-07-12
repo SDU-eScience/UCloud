@@ -1,463 +1,512 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.projects.*
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.store.api.AppStore
+import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.store.api.ApplicationType
 import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.ToolStore
-import dk.sdu.cloud.auth.api.CreateSingleUserRequest
-import dk.sdu.cloud.auth.api.JwtRefresher
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import dk.sdu.cloud.file.orchestrator.api.FileCollections
-import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.*
-import io.ktor.http.*
-import io.ktor.util.*
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
-import java.util.*
+import org.jetbrains.kotlin.backend.common.push
+import java.io.File
+import kotlin.collections.ArrayList
 import kotlin.random.Random
-import kotlin.system.exitProcess
 
 class Simulator(
     private val serviceClient: AuthenticatedClient,
+    private val userFilePath: String,
     private val numberOfUsers: Int,
-    private val numberOfSteps: Int,
+    private val rootProjectTitle: String,
+    private val application: NameAndVersion
 ) {
-    val simulationId = Random.nextBytes(16).encodeBase64()
-        .replace("+", "")
-        .replace("-", "")
-        .replace("=", "")
-        .replace("/", "")
-
     private val users = ArrayList<SimulatedUser>()
+    private val projects = ArrayList<Project>()
 
-    fun allocatePi(): SimulatedUser = users.filter { it.becomesPi }.random()
-    suspend fun requestGrantApproval(id: Long) {
-        Grants.updateApplicationState.call(
-            bulkRequestOf(
-                UpdateApplicationState(
-                    id,
-                    GrantApplication.State.APPROVED,
-                    false
-                )
-            ),
+    private suspend fun initializeUsers() {
+        // Look up users
+        val userFile = File(userFilePath)
+
+        if (!userFile.exists()) {
+            userFile.createNewFile()
+        }
+
+        log.debug("User file path: ${userFile.absolutePath}")
+        val existingUsers = userFile.readLines().filter { it.isNotEmpty() }
+
+        val selectedUsers = if (existingUsers.size > numberOfUsers) {
+            existingUsers.subList(0, numberOfUsers)
+        } else {
+            existingUsers
+        }
+
+        log.debug("Reusing ${selectedUsers.size} existing simulated users")
+        for (existingUser in selectedUsers) {
+            val (username, password, refreshToken) = existingUser.split(" ")
+            val simUser = SimulatedUser(serviceClient, rootProjectTitle, application)
+            simUser.initialize(username, password, refreshToken)
+            users.add(simUser)
+        }
+
+        // Find existing projects
+        val foundProjects = Projects.browse.call(
+            ProjectsBrowseRequest(250, includeMembers = true),
             serviceClient
-        ).orThrow()
-    }
+        ).orThrow().items.filter { project ->
+            project.status.members?.any { users.map { sim -> sim.username }.contains(it.username) } ?: false
+        }
 
-    private suspend fun createProduct(product: Product) {
-        val hasProduct = Products.retrieve.call(
-            ProductsRetrieveRequest(
-                filterName = product.name,
-                filterCategory = product.category.name,
-                filterProvider = product.category.provider
-            ),
-            serviceClient
-        ).orNull() != null
+        log.debug("Found ${foundProjects.size} existing projects:")
+        for (project in foundProjects) {
+            log.debug("  ${project.specification.title} (${project.status.members?.size} members)")
+        }
 
-        if (hasProduct) return
-        Products.create.call(bulkRequestOf(product), serviceClient)
-    }
+        projects.addAll(foundProjects)
 
-    @OptIn(DelicateCoroutinesApi::class)
-    fun start() {
-        GlobalScope.launch {
-            createProduct(
-                Product.Storage(
-                    storageByQuota.name,
-                    1L,
-                    storageByQuota,
-                    "Storage by quota",
-                    unitOfPrice = ProductPriceUnit.PER_UNIT,
-                    chargeType = ChargeType.DIFFERENTIAL_QUOTA
-                )
-            )
+        if (existingUsers.size < numberOfUsers) {
+            log.debug("Creating ${numberOfUsers - existingUsers.size} new simulated users")
+            val newUsers = ArrayList<SimulatedUser>()
+            var missingCount = numberOfUsers - existingUsers.size
 
-            createProduct(
-                Product.Compute(
-                    computeByHours.name,
-                    1L,
-                    computeByHours,
-                    "Compute by hours",
-                    cpu = 1,
-                    memoryInGigs = 1,
-                    gpu = 0,
-                    unitOfPrice = ProductPriceUnit.UNITS_PER_MINUTE,
-                    chargeType = ChargeType.ABSOLUTE
-                )
-            )
+            while (missingCount > 0) {
+                val newUser = SimulatedUser(serviceClient, rootProjectTitle, application)
+                newUser.initialize()
+                newUsers.push(newUser)
+                missingCount--
+            }
 
-            createProduct(
-                Product.Compute(
-                    computeByCredits.name,
-                    1L,
-                    computeByCredits,
-                    "Compute by credits",
-                    cpu = 1,
-                    memoryInGigs = 1,
-                    gpu = 0,
-                    unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE,
-                    chargeType = ChargeType.ABSOLUTE
-                )
-            )
+            log.debug("Writing new users to file")
+            for (user in newUsers) {
+                userFile.appendText("${user.username} ${user.password} ${user.refreshToken}\n")
+            }
 
-            createProduct(
-                Product.Ingress(
-                    linkFree.name,
-                    1L,
-                    linkFree,
-                    "Public link product",
-                    freeToUse = true,
-                )
-            )
+            log.debug("Assigning users to projects")
+            for (user in newUsers) {
+                val roll = Random.nextInt(100)
 
-            ToolStore.create.call(
-                Unit,
-                serviceClient.withHttpBody(
-                    """
-                        ---
-                        tool: v1
+                // If this is the first user, create a project else create project 5% of the time.
+                if (users.isEmpty() || roll < 5) {
+                    projects.add(user.createProject())
+                } else {
+                    // Join random project
+                    val chosenProject = projects.random()
+                    val projectPiName = Projects.retrieve.call(
+                        ProjectsRetrieveRequest(chosenProject.id, includeMembers = true),
+                        serviceClient
+                    ).orThrow().status.members?.first { it.role == ProjectRole.PI }?.username
+                    val simPi = users.first { it.username == projectPiName }
+                    user.joinProject(chosenProject.id, simPi)
+                }
 
-                        title: Simulated Application
-                        name: ${simulatedApplication.name}
-                        version: ${simulatedApplication.version}
-
-                        container: alpine:3
-
-                        authors:
-                        - Dan
-                          
-                        defaultTimeAllocation:
-                          hours: 1
-                          minutes: 0
-                          seconds: 0
-
-                        description: All
-                                   
-                        defaultNumberOfNodes: 1 
-                        defaultTasksPerNode: 1
-
-                        backend: DOCKER
-                    """.trimIndent()
-                )
-            )
-
-            AppStore.create.call(
-                Unit,
-                serviceClient.withHttpBody(
-                    """
-                        application: v1
-
-                        title: Simulated Application
-                        name: ${simulatedApplication.name}
-                        version: ${simulatedApplication.version}
-
-                        applicationType: BATCH
-
-                        tool:
-                          name: alpine
-                          version: 1
-
-                        authors:
-                        - Dan
-
-                        container:
-                          runAsRoot: true
-                         
-                        description: An application used for user simulations. This application never runs and registers a random amount of consumption.
-                         
-                        invocation:
-                        - exit
-                        - 0
-
-                        outputFileGlobs:
-                          - "*"
-
-                    """.trimIndent()
-                )
-            )
-
-            val root = Projects.create.call(
-                bulkRequestOf(
-                    Project.Specification(null, "Simulation-Root-${simulationId}"),
-                ),
-                serviceClient
-            ).orThrow().responses.single().id
-
-            GrantsEnabled.setEnabledStatus.call(
-                bulkRequestOf(SetEnabledStatusRequest(root, true)),
-                serviceClient
-            ).orThrow()
-
-            GrantSettings.uploadRequestSettings.call(
-                bulkRequestOf(
-                    ProjectApplicationSettings(
-                        root,
-                        listOf(UserCriteria.Anyone()),
-                        emptyList()
-                    )
-                ),
-                serviceClient.withProject(root)
-            ).orThrow()
-
-            Accounting.rootDeposit.call(
-                bulkRequestOf(
-                    RootDepositRequestItem(computeByHours, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                    RootDepositRequestItem(computeByCredits, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                    RootDepositRequestItem(licenseByQuota, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                    RootDepositRequestItem(storageByQuota, WalletOwner.Project(root), 1_000_000L * 1_000_000_000, "Root"),
-                ),
-                serviceClient
-            ).orThrow()
-
-            // Force the first user to be a PI (that way allocatePi() will always succeed)
-            users.add(SimulatedUser(serviceClient, root, this@Simulator, forcePi = true).also { it.initialStep() })
-
-            repeat(numberOfUsers - 1) {
-                val user = SimulatedUser(serviceClient, root, this@Simulator, forcePi = false)
                 users.add(user)
-                user.initialStep()
             }
-
-            val chunks = users.chunked(users.size / 8)
-            val counter = Array<Long>(chunks.size) { 0 }
-            val statJob = launch {
-                val lastCounts = Array<Long>(chunks.size) { 0 }
-                while (isActive) {
-                    for (i in counter.indices) {
-                        val newCounter = counter[i]
-                        val oldCounter = lastCounts[i]
-
-                        println("[$i] ${(newCounter - oldCounter) / 10.0} steps per second")
-                        lastCounts[i] = newCounter
-                    }
-                    println()
-
-                    delay(10_000)
-                }
-            }
-
-            chunks.mapIndexed { index, chunk ->
-                println("Got a chunk! $chunk")
-                launch {
-                    println("Steps!")
-                    repeat(numberOfSteps) {
-                        chunk.forEach { it.doStep() }
-                        counter[index] = counter[index] + chunk.size
-                    }
-                    println("Done!")
-                }
-            }.joinAll()
-            statJob.cancel()
-
-            println("Completed $numberOfSteps")
         }
     }
 
-    companion object {
-        val computeByCredits = ProductCategoryId("cpu-dkk", "ucloud")
-        val computeByHours = ProductCategoryId("cpu-core", "ucloud")
-        val storageByQuota = ProductCategoryId("u1-cephfs", "ucloud")
-        val licenseByQuota = ProductCategoryId("license-quota", "ucloud")
-        val linkFree = ProductCategoryId("u1-publiclink", "ucloud")
+    fun start() {
+        log.debug("Starting load simulation")
 
-        val simulatedApplication = NameAndVersion("simulated", "1.0.0")
+        runBlocking {
+            initializeUsers()
+
+            users.forEach { user ->
+                launch(Dispatchers.IO) {
+                    user.simulate()
+                }
+            }
+        }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
 private fun ProductCategoryId.toReference(): ProductReference {
-    return ProductReference(name, name, provider)
+    return ProductReference("$name-1", name, provider)
 }
 
 class SimulatedUser(
     private val serviceClient: AuthenticatedClient,
-    private val parentProject: String,
-    private val simulator: Simulator,
-    forcePi: Boolean = false,
+    private val rootProjectTitle: String,
+    private val application: NameAndVersion
 ) {
-    val becomesPi = forcePi || Random.nextInt(100) <= 10
-    val becomesAdmin = !becomesPi && Random.nextInt(100) <= 30
-    val becomesUser = !becomesPi && !becomesAdmin
-
-    var hasComputeByCredits = Random.nextBoolean()
-    var hasComputeByHours = !hasComputeByCredits
-    var hasLicenses = Random.nextBoolean()
-    var hasStorage = true
-    var hasLinks = Random.nextBoolean()
-
     lateinit var username: String
+    lateinit var password: String
+    lateinit var refreshToken: String
     lateinit var client: AuthenticatedClient
-    lateinit var projectId: String
+    lateinit var wsClient: AuthenticatedClient
+    lateinit var project: Project
 
-    suspend fun initialStep() {
-        username = when {
-            becomesPi -> "pi-${simulator.simulationId}-${userIdGenerator.getAndIncrement()}"
-            becomesAdmin -> "admin-${simulator.simulationId}-${userIdGenerator.getAndIncrement()}"
-            else -> "user-${simulator.simulationId}-${userIdGenerator.getAndIncrement()}"
+    suspend fun initialize(username: String? = null, password: String? = null, refreshToken: String? = null) {
+        this.refreshToken = if (refreshToken != null) {
+            this.username = username ?: ""
+            this.password = password ?: ""
+            refreshToken
+        } else {
+            this.username = "simulated-user-${Time.now()}"
+            this.password = generatePassword()
+            log.debug("Creating user ${this.username}")
+
+            UserDescriptions.createNewUser.call(
+                listOf(
+                    CreateSingleUserRequest(
+                        this.username,
+                        this.password,
+                        "${username}@localhost.direct",
+                        Role.USER,
+                        "First",
+                        "Last"
+                    )
+                ),
+                serviceClient
+            ).orThrow().single().refreshToken
         }
-
-        val refreshToken = UserDescriptions.createNewUser.call(
-            listOf(
-                CreateSingleUserRequest(
-                    username,
-                    "simulated-user",
-                    "email-${username}@localhost",
-                    Role.USER,
-                    "First",
-                    "Last"
-                )
-            ),
-            serviceClient
-        ).orThrow().single().refreshToken
 
         client = RefreshingJWTAuthenticator(
             serviceClient.client,
-            JwtRefresher.Normal(refreshToken, OutgoingHttpCall)
+            JwtRefresher.Normal(this.refreshToken, OutgoingHttpCall)
         ).authenticateClient(OutgoingHttpCall)
 
-        if (becomesPi) {
-            val grantId = Grants.submitApplication.call(
-                bulkRequestOf(
-                    CreateApplication(
-                        GrantApplication.Document(
-                            GrantApplication.Recipient.NewProject("${simulator.simulationId} ${projectIdGenerator.getAndIncrement()}"),
-                            buildList {
-                                fun request(categoryId: ProductCategoryId): GrantApplication.AllocationRequest =
-                                    GrantApplication.AllocationRequest(categoryId.name, categoryId.provider, parentProject, 50_000 * 1_000_000L, period = GrantApplication.Period(System.currentTimeMillis()-1000L, null))
-                                if (hasComputeByCredits) add(request(Simulator.computeByCredits))
-                                if (hasComputeByHours) add(request(Simulator.computeByHours))
-                                if (hasLicenses) add(request(Simulator.licenseByQuota))
-                                if (hasStorage) add(request(Simulator.storageByQuota))
-                            },
-                            GrantApplication.Form.PlainText("This is my application"),
-                        )
-                    )
-                ),
-                client
-            ).orThrow().responses.first().id
+        wsClient = RefreshingJWTAuthenticator(
+            serviceClient.client,
+            JwtRefresher.Normal(this.refreshToken, OutgoingHttpCall)
+        ).authenticateClient(OutgoingWSCall)
 
-            simulator.requestGrantApproval(grantId)
+        val projects = Projects.browse.call(
+            ProjectsBrowseRequest(),
+            client
+        ).orThrow().items
 
-            projectId = Projects.browse.call(
-                ProjectsBrowseRequest(itemsPerPage = 250),
-                client
-            ).orThrow().items.single().id
-
-            client = client.withProject(projectId)
-        } else {
-            simulator.allocatePi().requestInvite(this)
+        if (projects.isNotEmpty()) {
+            project = projects.first()
+            client = client.withProject(project.id)
         }
     }
 
-    suspend fun requestInvite(member: SimulatedUser) {
+    suspend fun createProject(): Project {
+        val title = "simulated-project-${Time.now()}"
+
+        val existingProjects = Projects.browse.call(
+            ProjectsBrowseRequest(itemsPerPage = 250),
+            serviceClient
+        ).orThrow().items
+
+        val parent = existingProjects.find { it.specification.title == rootProjectTitle }!!
+        val projectId = Projects.create.call(
+            bulkRequestOf(
+                Project.Specification(
+                    parent = parent.id,
+                    title = title
+                )
+            ),
+            serviceClient
+        ).orThrow().responses.single().id
+
         Projects.createInvite.call(
-            bulkRequestOf(ProjectsCreateInviteRequestItem(member.username)),
-            client
+            bulkRequestOf(ProjectsCreateInviteRequestItem(username)),
+            serviceClient.withProject(projectId)
         ).orThrow()
 
         Projects.acceptInvite.call(
             bulkRequestOf(FindByProjectId(projectId)),
-            member.client
+            client.withProject(projectId)
         ).orThrow()
 
-        if (member.becomesAdmin) {
-            Projects.changeRole.call(
-                bulkRequestOf(ProjectsChangeRoleRequestItem(member.username, ProjectRole.ADMIN)),
-                client
-            ).orThrow()
-        }
+        Projects.changeRole.call(
+            bulkRequestOf(ProjectsChangeRoleRequestItem(username, ProjectRole.PI)),
+            serviceClient.withProject(projectId)
+        )
 
-        member.projectId = projectId
-        member.client = member.client.withProject(projectId)
-        member.hasLicenses = hasLicenses
-        member.hasLinks = hasLinks
-        member.hasStorage = hasStorage
-        member.hasComputeByCredits = hasComputeByCredits
-        member.hasComputeByHours = hasComputeByHours
+        val allocations = Wallets.retrieveWalletsInternal.call(
+            WalletsInternalRetrieveRequest(WalletOwner.Project(parent.id)),
+            serviceClient
+        ).orThrow().wallets.flatMap { it.allocations }
+
+        Accounting.deposit.call(
+            bulkRequestOf(
+                allocations.map { alloc ->
+                    DepositToWalletRequestItem(
+                        WalletOwner.Project(projectId),
+                        alloc.id,
+                        10_000_000_000L,
+                        "wallet init",
+                        grantedIn = null
+                    )
+                }
+            ),
+            serviceClient
+        ).orThrow()
+
+        val project = Projects.retrieve.call(
+            ProjectsRetrieveRequest(projectId),
+            client
+        ).orThrow()
+
+        this.project = project
+        client = client.withProject(projectId)
+
+        Simulator.log.debug("Created project ${project.specification.title}")
+
+        return project
     }
 
-    suspend fun doStep() {
-        var diceRoll = Random.nextInt(100)
+    suspend fun joinProject(projectId: String, pi: SimulatedUser): Project {
+        Projects.createInvite.call(
+            bulkRequestOf(ProjectsCreateInviteRequestItem(username)),
+            pi.client.withProject(projectId)
+        ).orThrow()
+
+        Projects.acceptInvite.call(
+            bulkRequestOf(FindByProjectId(projectId)),
+            client.withProject(projectId)
+        ).orThrow()
+
+        val joinedProject = Projects.retrieve.call(
+            ProjectsRetrieveRequest(projectId),
+            client.withProject(projectId)
+        ).orThrow()
+
+        this.project = joinedProject
+        client = client.withProject(projectId)
+
+        log.debug("User $username joined ${this.project.specification.title}")
+
+        return joinedProject
+    }
+
+    suspend fun simulate() {
+        while (true) {
+            val delayMillis = Random.nextLong(2000, 5000)
+            delay(delayMillis)
+
+            doStep()
+        }
+    }
+
+    private suspend fun doStep() {
         fun chance(chance: Int): Boolean {
-            val success = diceRoll <= chance
-            diceRoll -= chance
-            return success
+            val diceRoll = Random.nextInt(100)
+            return diceRoll <= chance
         }
 
-        when {
-            chance(5) -> {
-                if (!hasStorage || !(becomesPi || becomesAdmin)) return
+        val action = when {
+            chance(10) -> Action.CreateFolder
+            chance(10) -> Action.MoveFolder
+            chance(10) -> Action.OpenInterface
+            chance(10) -> Action.OpenTerminal
+            chance(10) -> Action.BrowseJobs
+            chance(10) -> Action.FollowJob
+            chance(10) -> Action.StartJob
+            chance(1) && chance(20) -> Action.StopJob
+            else -> return
+        }
 
-                FileCollections.create.call(
-                    bulkRequestOf(
-                        FileCollection.Spec(
-                            UUID.randomUUID().toString().substringBefore('-'),
-                            Simulator.storageByQuota.toReference()
-                        )
-                    ),
-                    client
-                ).orThrow()
+        try {
+            doAction(action)
+        } catch (e: RPCException) {
+            log.debug("$username received a bad response on $action action: [${e.httpStatusCode.value}] ${e.httpStatusCode.description}: ${e.why}")
+        }
+    }
+
+    private suspend fun browseJobs(): List<Job> {
+        return Jobs.browse.call(
+            ResourceBrowseRequest(JobIncludeFlags()),
+            client
+        ).orThrow().items
+    }
+
+    private suspend fun browseFileCollections(): List<FileCollection> {
+        return FileCollections.browse.call(
+            ResourceBrowseRequest(FileCollectionIncludeFlags()),
+            client
+        ).orThrow().items
+    }
+
+    private suspend fun retrieveComputeProduct(): ProductReference {
+        val computeProducts = Jobs.retrieveProducts.call(Unit, client).orThrow()
+        val products = computeProducts.productsByProvider.values.flatten()
+        return products.sortedBy { it.product.cpu }.first().support.product
+    }
+
+    enum class Action {
+        CreateFolder,
+        MoveFolder,
+        BrowseJobs,
+        StartJob,
+        StopJob,
+        FollowJob,
+        OpenInterface,
+        OpenTerminal
+    }
+
+    private suspend fun doAction(action: Action) {
+        when (action) {
+            Action.CreateFolder -> {
+                val drive = browseFileCollections().firstOrNull()
+
+                if (drive != null) {
+                    log.debug("$username Creating folder")
+
+                    var files = Files.browse.call(
+                        ResourceBrowseRequest(UFileIncludeFlags(path = "/${drive.id}")),
+                        client
+                    ).orThrow().items.filter { !it.id.endsWith("Jobs") }
+
+                    if (files.size < 10) {
+                        Files.createFolder.call(
+                            bulkRequestOf(
+                                FilesCreateFolderRequestItem(
+                                    "/${drive.id}/${generatePassword()}",
+                                    WriteConflictPolicy.REPLACE
+                                )
+                            ),
+                            client
+                        ).orThrow()
+                    }
+                }
             }
 
-            chance(10) -> {
-                if (!hasLinks) return
+            Action.MoveFolder -> {
+                val drive = browseFileCollections().firstOrNull()
 
-                val token = Random.nextBytes(16).encodeBase64()
-                    .replace("+", "")
-                    .replace("=", "")
-                    .replace("-", "")
-                    .replace("/", "")
+                if (drive != null) {
+                    val file = Files.browse.call(
+                        ResourceBrowseRequest(UFileIncludeFlags(path = "/${drive.id}")),
+                        client
+                    ).orThrow().items.firstOrNull { !it.id.endsWith("Jobs") }
 
-                Ingresses.create.call(
-                    bulkRequestOf(
-                        IngressSpecification(
-                            "app-$token.cloud.sdu.dk",
-                            Simulator.linkFree.toReference()
-                        )
-                    ),
-                    client
-                ).orThrow()
+                    if (file != null) {
+                        val newId = "/${drive.id}/${generatePassword()}"
+                        log.debug("$username Moving ${file.id} to $newId")
+
+                        Files.move.call(
+                            bulkRequestOf(FilesMoveRequestItem(file.id, newId, WriteConflictPolicy.REPLACE)),
+                            client
+                        ).orThrow()
+                    }
+                }
             }
 
-            chance(5) -> {
-                if (!hasLicenses) return
-
-                Licenses.create.call(
-                    bulkRequestOf(
-                        LicenseSpecification(Simulator.licenseByQuota.toReference())
-                    ),
-                    client
-                ).orThrow()
+            Action.BrowseJobs -> {
+                val jobs = browseJobs()
+                log.debug("$username Browsed ${jobs.size} jobs")
             }
 
-            chance(50) -> {
-                Jobs.create.call(
-                    bulkRequestOf(
-                        JobSpecification(
-                            Simulator.simulatedApplication,
-                            if (hasComputeByHours) Simulator.computeByHours.toReference()
-                            else Simulator.computeByCredits.toReference(),
-                            parameters = emptyMap(),
-                            resources = emptyList(),
+            Action.StartJob -> {
+                val jobs = browseJobs()
+                val running = jobs.filter { it.status.state == JobState.RUNNING && it.owner.createdBy == username }
+
+                if (running.size < 2) {
+                    log.debug("$username Starting job")
+                    Jobs.create.call(
+                        bulkRequestOf(
+                            JobSpecification(
+                                application,
+                                retrieveComputeProduct(),
+                                parameters = emptyMap(),
+                                resources = emptyList(),
+                                timeAllocation = SimpleDuration(1, 0, 0)
+                            ),
                         ),
-                    ),
-                    client
-                ).orThrow()
+                        client
+                    ).orThrow()
+                }
             }
 
-            else -> {
-                // Do nothing
+            Action.StopJob -> {
+                val job = browseJobs().firstOrNull {
+                    it.status.state == JobState.RUNNING && it.owner.createdBy == username
+                }
+
+                if (job != null) {
+                    log.debug("$username Stopping job ${job.id}")
+                    Jobs.terminate.call(
+                        bulkRequestOf(FindByStringId(job.id)),
+                        client
+                    ).orThrow()
+                }
+            }
+
+            Action.OpenInterface -> {
+                val job = browseJobs().firstOrNull {
+                    it.owner.createdBy == username &&
+                        it.status.state == JobState.RUNNING &&
+                        it.status.resolvedApplication?.invocation?.applicationType == ApplicationType.WEB
+                }
+
+                if (job != null) {
+                    log.debug("$username Opening interface (${job.id})")
+                    Jobs.openInteractiveSession.call(
+                        bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.WEB)),
+                        client
+                    ).orThrow()
+                }
+            }
+
+            Action.FollowJob -> {
+                val jobs = browseJobs()
+                val running = jobs.firstOrNull { it.status.state == JobState.RUNNING }
+
+                if (running != null) {
+                    log.debug("$username Follow job (${running.id})")
+                    coroutineScope {
+                        val job = launch {
+                            try {
+                                Jobs.follow.subscribe(
+                                    FindByStringId(running.id),
+                                    wsClient,
+                                    handler = { _ -> }
+                                ).orThrow()
+                            } catch (ex: RPCException) {
+                                if (ex.httpStatusCode.value == 499) {
+                                    // Ignore
+                                } else {
+                                    throw ex
+                                }
+                            }
+                        }
+
+                        delay(Random.nextLong(5_000, 10_000))
+
+                        runCatching { job.cancel() }
+                        runCatching { job.join() }
+                    }
+                }
+            }
+
+            Action.OpenTerminal -> {
+                val job = browseJobs().firstOrNull {
+                    it.owner.createdBy == username && it.status.state == JobState.RUNNING
+                }
+
+                if (job != null) {
+                    log.debug("$username Opening terminal (${job.id})")
+
+                    Jobs.openInteractiveSession.call(
+                        bulkRequestOf(JobsOpenInteractiveSessionRequestItem(job.id, 0, InteractiveSessionType.SHELL)),
+                        client
+                    ).orThrow()
+                }
             }
         }
     }
 
-    companion object {
-        val userIdGenerator = AtomicInteger(0)
-        val projectIdGenerator = AtomicInteger(0)
+    private fun generatePassword(): String {
+        val pool = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+        return (1..30).map { Random.nextInt(0, pool.size).let { pool[it] } }.joinToString("")
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

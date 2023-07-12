@@ -55,8 +55,12 @@ class FeatureTask(
         val totalMem = nodes?.types?.get(jobResources.product.category.name)?.memMegabytes
         val reservation = jobResources.product
 
-        if (useSmallReservation) {
+        if(job.owner.createdBy.startsWith("simulated-user-")) {
+            builder.vCpuMillis = 100
+            builder.memoryMegabytes = 100
+        } else if (useSmallReservation) {
             builder.vCpuMillis = reservation.cpu!! * 100
+            builder.memoryMegabytes = 128
         } else {
             val requestedCpu = reservation.cpu!! * 1000
             builder.vCpuMillis = if (totalCpu != null) {
@@ -64,11 +68,7 @@ class FeatureTask(
             } else {
                 requestedCpu
             }
-        }
 
-        if (useSmallReservation) {
-            builder.memoryMegabytes = 128
-        } else {
             val requestedMem = reservation.memoryInGigs!! * 1000
             builder.memoryMegabytes = if (totalMem != null) {
                 (requestedMem - (reservedMem * (requestedMem / totalMem.toDouble()))).toInt()
