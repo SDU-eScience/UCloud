@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.alerting.AlertingService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.*
@@ -134,8 +135,19 @@ suspend fun main(args: Array<String>) {
             install(AuthenticatorFeature)
         }
 
+        val rootProjectTitle = m.configuration.requestChunkAt<String>("rootProjectTitle")
+        val applicationName = m.configuration.requestChunkAt<String>("application", "name")
+        val applicationVersion = m.configuration.requestChunkAt<String>("application", "version")
         val client = m.authenticator.authenticateClient(OutgoingHttpCall)
-        val simulator = Simulator(client, userFile ?: error("Missing argument userFile"), numberOfUsers)
+
+        val simulator = Simulator(
+            client,
+            userFile ?: error("Missing argument userFile"),
+            numberOfUsers,
+            rootProjectTitle,
+            NameAndVersion(applicationName, applicationVersion)
+        )
+
         simulator.start()
         return
     }

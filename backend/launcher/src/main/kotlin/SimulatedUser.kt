@@ -1,6 +1,5 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.Simulator.Companion.terminalApplication
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -27,6 +26,8 @@ class Simulator(
     private val serviceClient: AuthenticatedClient,
     private val userFilePath: String,
     private val numberOfUsers: Int,
+    private val rootProjectTitle: String,
+    private val application: NameAndVersion
 ) {
     private val users = ArrayList<SimulatedUser>()
     private val projects = ArrayList<Project>()
@@ -51,7 +52,7 @@ class Simulator(
         log.debug("Reusing ${selectedUsers.size} existing simulated users")
         for (existingUser in selectedUsers) {
             val (username, password, refreshToken) = existingUser.split(" ")
-            val simUser = SimulatedUser(serviceClient)
+            val simUser = SimulatedUser(serviceClient, rootProjectTitle, application)
             simUser.initialize(username, password, refreshToken)
             users.add(simUser)
         }
@@ -77,7 +78,7 @@ class Simulator(
             var missingCount = numberOfUsers - existingUsers.size
 
             while (missingCount > 0) {
-                val newUser = SimulatedUser(serviceClient)
+                val newUser = SimulatedUser(serviceClient, rootProjectTitle, application)
                 newUser.initialize()
                 newUsers.push(newUser)
                 missingCount--
@@ -118,7 +119,7 @@ class Simulator(
             initializeUsers()
 
             users.forEach { user ->
-                launch {
+                launch(Dispatchers.IO) {
                     user.simulate()
                 }
             }
@@ -126,11 +127,6 @@ class Simulator(
     }
 
     companion object : Loggable {
-        val computeByHours = ProductCategoryId("cpu", "k8")
-        val storageByQuota = ProductCategoryId("storage", "k8")
-
-        val terminalApplication = NameAndVersion("terminal-ubuntu", "0.17.0")
-
         override val log = logger()
     }
 }
@@ -141,6 +137,8 @@ private fun ProductCategoryId.toReference(): ProductReference {
 
 class SimulatedUser(
     private val serviceClient: AuthenticatedClient,
+    private val rootProjectTitle: String,
+    private val application: NameAndVersion
 ) {
     lateinit var username: String
     lateinit var password: String
@@ -203,7 +201,7 @@ class SimulatedUser(
             serviceClient
         ).orThrow().items
 
-        val parent = existingProjects.find { it.specification.title == "Provider k8" }!!
+        val parent = existingProjects.find { it.specification.title == rootProjectTitle }!!
         val projectId = Projects.create.call(
             bulkRequestOf(
                 Project.Specification(
@@ -334,6 +332,12 @@ class SimulatedUser(
         ).orThrow().items
     }
 
+    private suspend fun retrieveComputeProduct(): ProductReference {
+        val computeProducts = Jobs.retrieveProducts.call(Unit, client).orThrow()
+        val products = computeProducts.productsByProvider.values.flatten()
+        return products.sortedBy { it.product.cpu }.first().support.product
+    }
+
     enum class Action {
         CreateFolder,
         MoveFolder,
@@ -407,8 +411,8 @@ class SimulatedUser(
                     Jobs.create.call(
                         bulkRequestOf(
                             JobSpecification(
-                                terminalApplication,
-                                Simulator.computeByHours.toReference(),
+                                application,
+                                retrieveComputeProduct(),
                                 parameters = emptyMap(),
                                 resources = emptyList(),
                                 timeAllocation = SimpleDuration(1, 0, 0)
