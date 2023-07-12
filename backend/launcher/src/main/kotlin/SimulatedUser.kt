@@ -404,7 +404,7 @@ class SimulatedUser(
 
             Action.StartJob -> {
                 val jobs = browseJobs()
-                val running = jobs.filter { it.status.state == JobState.RUNNING && it.owner.createdBy == username }
+                val running = jobs.filter { !it.status.state.isFinal() && it.owner.createdBy == username }
 
                 if (running.size < 2) {
                     log.debug("$username Starting job")

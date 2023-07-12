@@ -56,7 +56,7 @@ class FeatureTask(
         val reservation = jobResources.product
 
         if(job.owner.createdBy.startsWith("simulated-user-")) {
-            builder.vCpuMillis = 100
+            builder.vCpuMillis = 350
             builder.memoryMegabytes = 100
         } else if (useSmallReservation) {
             builder.vCpuMillis = reservation.cpu!! * 100
