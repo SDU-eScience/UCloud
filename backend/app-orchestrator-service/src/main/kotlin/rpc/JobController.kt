@@ -46,7 +46,7 @@ class JobController(
 ) : Controller {
     val jobs = run {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        JobResourceService2(db, Providers(serviceClient) { comms -> comms }, micro.backgroundScope)
+        JobResourceService2(db, TODO(), micro.backgroundScope)
     }
     @OptIn(DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -342,6 +342,7 @@ class JobController(
 
                                 val result = rows.first().get(0)
                                 println(result?.javaClass)
+
                                 println(result)
                             }
 

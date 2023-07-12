@@ -104,6 +104,7 @@ data class ProductReference(
     val provider: String,
 ) : DocVisualizable {
     override fun visualize(): DocVisualization = DocVisualization.Inline("$id / $category / $provider")
+    override fun toString() = "$id / $category / $provider"
 }
 
 @Serializable

@@ -5,8 +5,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.accounting.util.*
-import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
@@ -65,7 +65,7 @@ object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
 
 class JobResourceService2(
     private val db: DBContext,
-    private val providers: Providers<*>,
+    private val providers: ProviderCommunications,
     private val backgroundScope: BackgroundScope,
 ) {
     private val idCards = IdCardService(db)
@@ -343,6 +343,22 @@ class JobResourceService2(
         actorAndProject: ActorAndProject,
         request: BulkRequest<JobSpecification>,
     ): BulkResponse<FindByStringId?> {
+        providers.requireSupportAndCheckAllocations(actorAndProject, Jobs, request, "trying to start job") { support ->
+            for (reqItem in request.items) {
+                if (reqItem.product != support.product) continue
+
+                val (application, tool, block) = findSupportBlock(reqItem, support)
+                block.checkEnabled()
+
+                val supportedProviders = tool.description.supportedProviders
+                if (supportedProviders  != null) {
+                    if (reqItem.product.provider !in supportedProviders) {
+                        error("The application is not supported by this provider. Try selecting a different application.")
+                    }
+                }
+            }
+        }
+
         val output = ArrayList<FindByStringId>()
 
         val card = idCards.fetchIdCard(actorAndProject)
@@ -358,15 +374,12 @@ class JobResourceService2(
                 output = doc
             )
 
-            // TODO(Dan): We need to store the internal state in the database here?
-
             val result = try {
                 providers.invokeCall(
                     provider,
                     actorAndProject,
                     { JobsProvider(provider).create },
                     bulkRequestOf(unmarshallDocument(card, doc)),
-                    actorAndProject.signedIntentFromUser,
                 )
             } catch (ex: Throwable) {
                 log.warn(ex.toReadableStacktrace().toString())
@@ -428,40 +441,6 @@ class JobResourceService2(
         val card = idCards.fetchIdCard(actorAndProject)
         val doc = documents.retrieve(card, longId) ?: return null
         return unmarshallDocument(card, doc)
-    }
-
-    suspend fun terminate(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<FindByStringId>
-    ) {
-        val card = idCards.fetchIdCard(actorAndProject)
-        val allJobs = ResourceOutputPool.withInstance<InternalJobState, List<Job>> { buffer ->
-            // TODO(Dan): Wasteful memory allocation and copies
-            val count = documents.retrieveBulk(
-                card,
-                request.items.mapNotNull { it.id.toLongOrNull() }.toLongArray(),
-                buffer,
-                permission = Permission.EDIT,
-            )
-
-            val result = ArrayList<Job>()
-            for (idx in 0 until count) {
-                result.add(unmarshallDocument(card, buffer[idx]))
-            }
-
-            result
-        }
-
-        val jobsByProvider = allJobs.groupBy { it.specification.product.provider }
-        for ((provider, jobs) in jobsByProvider) {
-            providers.invokeCall(
-                provider,
-                actorAndProject,
-                { JobsProvider(provider).terminate },
-                BulkRequest(jobs),
-                actorAndProject.signedIntentFromUser
-            )
-        }
     }
 
     suspend fun addUpdate(
@@ -541,30 +520,89 @@ class JobResourceService2(
         // TODO Do we really need to contact the provider about this?
     }
 
+    suspend fun terminate(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ) {
+        proxyToProvider(
+            actorAndProject,
+            request.items.mapNotNull { it.id.toLongOrNull() }.toSet().toLongArray(),
+            Permission.EDIT,
+            "trying to terminate job",
+            featureValidation = null,
+            fn = { provider, jobs ->
+                providers.invokeCall(
+                    provider,
+                    actorAndProject,
+                    { JobsProvider(provider).terminate },
+                    BulkRequest(jobs),
+                )
+
+                Unit
+            }
+        )
+    }
+
     suspend fun extend(
         actorAndProject: ActorAndProject,
         request: BulkRequest<JobsExtendRequestItem>,
     ) {
+        proxyToProvider(
+            actorAndProject,
+            request.items.mapNotNull { it.jobId.toLongOrNull() }.toSet().toLongArray(),
+            Permission.EDIT,
+            "trying to extend duration",
+            featureValidation = { job, support ->
+                val block = findSupportBlock(job.specification, support).block
+                block.checkFeature(block.timeExtension)
+            },
+            fn = { provider, jobs ->
+                val providerRequest = jobs.map { job ->
+                    JobsProviderExtendRequestItem(
+                        job,
+                        request.items.findLast { it.jobId == job.id }!!.requestedTime,
+                    )
+                }
+
+                providers.invokeCall(
+                    provider,
+                    actorAndProject,
+                    { JobsProvider(provider).extend },
+                    BulkRequest(providerRequest),
+                )
+
+                Unit
+            }
+        )
+    }
+
+    private suspend fun validate(actorAndProject: ActorAndProject, job: JobSpecification) {
+        // TODO do something
+    }
+
+    private suspend fun proxyToProvider(
+        actorAndProject: ActorAndProject,
+        ids: LongArray,
+        permission: Permission,
+        actionDescription: String,
+        featureValidation: (suspend (job: Job, support: ComputeSupport) -> Unit)?,
+        fn: suspend (providerId: String, jobs: List<Job>) -> Unit
+    ) {
         val card = idCards.fetchIdCard(actorAndProject)
         val jobsToExtend = ResourceOutputPool.withInstance<InternalJobState, List<Job>> { pool ->
-            if (pool.size < request.items.size) {
+            if (pool.size < ids.size) {
                 throw RPCException("Request is too large!", HttpStatusCode.PayloadTooLarge)
             }
 
-            val ids = request.items
-                .asSequence()
-                .mapNotNull { it.jobId.toLongOrNull() }
-                .toSet()
-                .toLongArray()
-
-            val count = documents.retrieveBulk(card, ids, pool, Permission.EDIT)
+            val count = documents.retrieveBulk(card, ids, pool, permission)
 
             if (count != ids.size) {
                 throw RPCException(
-                    "Could not extend the jobs that you requested. Are you sure they exist?",
+                    "Could not find the jobs that you requested. Do you have permission to perform this action?",
                     HttpStatusCode.NotFound
                 )
             }
+
             val result = ArrayList<Job>()
             for (idx in 0 until count) {
                 result.add(unmarshallDocument(card, pool[idx]))
@@ -573,26 +611,55 @@ class JobResourceService2(
             result
         }
 
-        for ((provider, jobs) in jobsToExtend.groupBy { it.specification.product.provider }) {
-            val providerRequest = jobs.map { job ->
-                JobsProviderExtendRequestItem(
-                    job,
-                    request.items.findLast { it.jobId == job.id }!!.requestedTime,
-                )
-            }
+        val grouped = jobsToExtend.groupBy { it.specification.product.provider }
 
-            providers.invokeCall(
-                provider,
-                actorAndProject,
-                { JobsProvider(provider).extend },
-                BulkRequest(providerRequest),
-                actorAndProject.signedIntentFromUser,
-            )
+        if (featureValidation != null) {
+            for ((provider, jobs) in grouped) {
+                val products = jobs.map { it.specification.product }.toSet()
+                providers.requireSupport(Jobs, products, actionDescription) { support ->
+                    for (job in jobs) {
+                        if (job.specification.product != support.product) continue
+                        featureValidation(job, support)
+                    }
+                }
+            }
+        }
+
+        for ((provider, jobs) in grouped) {
+            fn(provider, jobs)
         }
     }
 
-    private suspend fun validate(actorAndProject: ActorAndProject, job: JobSpecification) {
-        // TODO do something
+    private data class SupportInfo(
+        val application: Application,
+        val tool: Tool,
+        val block: ComputeSupport.UniversalBackendSupport,
+    )
+
+    private suspend fun findSupportBlock(
+        spec: JobSpecification,
+        support: ComputeSupport
+    ): SupportInfo {
+        val (appName, appVersion) = spec.application
+        val application = applicationCache.retrieveApplication(appName, appVersion)
+            ?: error("Unknown application")
+
+        val tool = application.invocation.tool.tool ?: error("No tool")
+
+        val block = when (tool.description.backend) {
+            ToolBackend.SINGULARITY -> error("unsupported tool backend")
+            ToolBackend.DOCKER -> support.docker
+            ToolBackend.VIRTUAL_MACHINE -> support.virtualMachine
+            ToolBackend.NATIVE -> support.native
+        }
+
+        return SupportInfo(application, tool, block)
+    }
+
+    suspend fun retrieveProducts(
+        actorAndProject: ActorAndProject,
+    ): SupportByProvider<Product.Compute, ComputeSupport> {
+        return providers.retrieveProducts(actorAndProject, Jobs)
     }
 
     private suspend fun unmarshallDocument(card: IdCard, doc: ResourceDocument<InternalJobState>): Job {

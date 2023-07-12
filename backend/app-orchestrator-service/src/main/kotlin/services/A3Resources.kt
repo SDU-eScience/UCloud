@@ -2253,7 +2253,7 @@ class ProductCache(private val db: DBContext) {
     private val productProviderToProductIds = HashMap<String, ArrayList<Int>>()
     private val nextFill = AtomicLong(0L)
 
-    suspend fun fillCache() {
+    private suspend fun fillCache() {
         if (Time.now() < nextFill.get()) return
         mutex.withWriter {
             if (Time.now() < nextFill.get()) return
@@ -2341,6 +2341,13 @@ class ProductCache(private val db: DBContext) {
         fillCache()
         return mutex.withReader {
             productProviderToProductIds[provider]
+        }
+    }
+
+    suspend fun products(): List<Product> {
+        fillCache()
+        return mutex.withReader {
+            ArrayList(productInformation.values)
         }
     }
 }
