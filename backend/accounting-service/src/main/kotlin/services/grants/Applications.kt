@@ -1292,7 +1292,7 @@ class GrantApplicationService(
                 parentAllocation = it.sourceAllocation.toString(),
                 quota = it.balanceRequested!!,
                 start = it.period.start ?: Time.now(),
-                end = it.period.end ?: Long.MAX_VALUE,
+                end = it.period.end,
                 grantedIn = applicationId,
                 deicAllocationId = if(application.currentRevision.document.referenceId?.lowercase()?.startsWith("deic") == true) {
                     application.currentRevision.document.referenceId

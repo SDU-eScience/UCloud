@@ -159,7 +159,6 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<SubAllocationRequestItem>,
     ):List<FindByStringId> {
-        println(request)
         var isDry: Boolean? = null
         for (item in request.items) {
             if (isDry != null && item.dry != isDry) {

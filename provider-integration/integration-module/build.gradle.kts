@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "2023.2.27-accounting2"
+version = "2023.3.4-accounting2"
 
 repositories {
     mavenCentral()

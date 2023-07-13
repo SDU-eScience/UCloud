@@ -10,11 +10,8 @@ import java.math.BigDecimal
 @Serializable
 data class AccountingUnit(
     val name: String,           //e.g. gigabyte
-    @SerialName("name_plural")
     val namePlural: String,     //e.g. gigabytes
-    @SerialName("floating_point")
     val floatingPoint: Boolean,
-    @SerialName("display_frequency_suffix")
     val displayFrequencySuffix: Boolean
 )
 
@@ -53,13 +50,9 @@ data class AccountingUnitConversion(
 data class ProductCategory(
     val name: String,                   //e.g. u1-cephfs
     val provider: String,               //e.g. UCloud
-    @SerialName("product_type")
     val productType: ProductType,       //e.g. STORAGE
-    @SerialName("accounting_unit")
     val accountingUnit: AccountingUnit,
-    @SerialName("accounting_frequency")
     val accountingFrequency: AccountingFrequency,
-    @SerialName("conversion_table")
     val conversionTable: List<AccountingUnitConversion> = emptyList()
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)

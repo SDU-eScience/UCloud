@@ -65,7 +65,7 @@ class UsageScan(
             )
         }
 
-        val oneDay = 1000L * 60 * 60 * 24
+        val oneDay = 1000L * 60 * 15//60 * 24
         val now = Time.now()
         if (now - lastRun < oneDay) return
         if (!isRunning.compareAndSet(false, true)) return

@@ -46,7 +46,7 @@ data class SubAllocationRequestItem(
     val owner: WalletOwner,
     val quota: Long,    //inital balance
     val start: Long,
-    val end: Long,
+    val end: Long?,
 
     val dry: Boolean = false,
 

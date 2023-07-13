@@ -7,16 +7,6 @@ create table if not exists accounting.accounting_units (
     unique (name, name_plural, floating_point, display_frequency_suffix)
 );
 
-create table if not exists accounting.accounting_unit_conversions (
-    id bigserial not null unique primary key,
-    accounting_unit bigint not null,
-    product_category bigint not null,
-    factor real,
-    constraint products_provider_category_fkey
-		foreign key (accounting_unit) references accounting.accounting_units,
-		foreign key (product_category) references accounting.product_categories
-);
-
 alter table accounting.product_categories add column if not exists accounting_unit bigint;
 alter table accounting.product_categories add column if not exists accounting_frequency text;
 
@@ -84,7 +74,7 @@ update_categories_network as (
 storageInsert as (
     insert into accounting.accounting_units
     (name, name_plural, floating_point, display_frequency_suffix)
-    values ('Gigabyte', 'Gigabytes', false, false) returning id
+    values ('GB', 'GB', false, false) returning id
 ),
 update_categories_storage as (
     update accounting.product_categories
@@ -98,10 +88,12 @@ coreHourInsert as (
 )
 update accounting.product_categories
 set accounting_unit = coreHourInsert.id from coreHourInsert
-where unit_of_price::text like 'UNITS_PER%';
+where unit_of_price::text like 'UNITS_PER%' and product_categories.product_type = 'COMPUTE';
 
 alter table accounting.product_categories add foreign key (accounting_unit) references accounting.accounting_units(id);
+alter table accounting.product_categories alter column accounting_unit set not null;
 alter table accounting.products rename column price_per_unit to price;
+
 create or replace function accounting.product_category_to_json(
     pc accounting.product_categories,
     au accounting.accounting_units
@@ -110,13 +102,13 @@ create or replace function accounting.product_category_to_json(
         'id', pc.id,
         'name', pc.category,
         'provider', pc.provider,
-        'accounting_frequency', pc.accounting_frequency,
-        'product_type', pc.product_type,
-        'accounting_unit', json_build_object(
+        'accountingFrequency', pc.accounting_frequency,
+        'productType', pc.product_type,
+        'accountingUnit', json_build_object(
             'name', au.name,
-            'name_plural', au.name_plural,
-            'floating_point', au.floating_point,
-            'display_frequency_suffix', au.display_frequency_suffix
+            'namePlural', au.name_plural,
+            'floatingPoint', au.floating_point,
+            'displayFrequencySuffix', au.display_frequency_suffix
         )
 );
 $$;
@@ -253,23 +245,34 @@ begin
         return 'PER_UNIT'::accounting.product_price_unit;
     end if;
     if (type = 'COMPUTE' and
-            (categoryname  = 'uc-general'
-            or categoryname  = 'uc-t4'
-            or categoryname  = 'u1-fat'
+            (categoryname  = 'u1-fat'
+            or categoryname  = 'u1-gpu'
             or categoryname  = 'u2-gpu'
             or categoryname  = 'u1-standard'
-            or categoryname  = 'u1-gpu'
             or categoryname  = 'uc-a10'
+            or categoryname  = 'uc-a40'
+            or categoryname  = 'uc-a100'
+            or categoryname  = 'uc-general'
+            or categoryname  = 'uc-t4'
             or categoryname  = 'syncthing'
             )
         ) then
-            return 'CREDIT_PER_MINUTE'::accounting.product_price_unit;
+            return 'CREDITS_PER_MINUTE'::accounting.product_price_unit;
         end if;
+    if (type = 'COMPUTE') then
+        return 'UNITS_PER_MINUTE'::accounting.product_price_unit;
+    end if;
     if (type = 'COMPUTE' and categoryname  = 'sophia_slim') then
         return 'UNITS_PER_HOUR'::accounting.product_price_unit;
     end if;
-    if (type = 'COMPUTE') then
-        return 'UNITS_PER_MINUTE'::accounting.product_price_unit;
+    if (type = 'COMPUTE' and categoryname  = 'lumi-cpu') then
+        return 'UNITS_PER_HOUR'::accounting.product_price_unit;
+    end if;
+    if (type = 'COMPUTE' and categoryname  = 'lumi-gpu') then
+        return 'UNITS_PER_HOUR'::accounting.product_price_unit;
+    end if;
+    if (type = 'STORAGE' and categoryname  = 'lumi-parallel') then
+        return 'UNITS_PER_HOUR'::accounting.product_price_unit;
     end if;
 end;
 $$;

@@ -1378,9 +1378,9 @@ class AccountingProcessor(
             }
         }
         val notBefore = max(parent.notBefore, request.notBefore)
-
+        val notAfter = min(parent.notAfter ?: (Time.now() + (365 * 24 * 60 * 60 * 1000L)), request.notAfter ?: Long.MAX_VALUE)
         run {
-            val error = checkOverlapAncestors(parent, notBefore, request.notAfter)
+            val error = checkOverlapAncestors(parent, notBefore, notAfter)
             if (error != null) return error
         }
 
@@ -1396,7 +1396,7 @@ class AccountingProcessor(
             request.amount,
             request.parentAllocation,
             notBefore,
-            request.notAfter,
+            notAfter,
             request.grantedIn,
             canAllocate = if (request.isProject) parent.allowSubAllocationsToAllocate else false,
             allowSubAllocationsToAllocate = if (request.isProject) parent.allowSubAllocationsToAllocate else false,

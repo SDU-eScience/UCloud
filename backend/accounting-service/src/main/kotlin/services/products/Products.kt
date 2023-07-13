@@ -115,6 +115,7 @@ class ProductService(
         request: BulkRequest<ProductV2>
     ) {
         for (req in request.items) {
+            println("${req.category},${req.price},${req.name},${req.description},${req.productType},${req.freeToUse},${req.hiddenInGrantApplications}, ${req.usage}")
             requirePermission(actorAndProject.actor, req.category.provider, readOnly = false)
         }
 
@@ -133,6 +134,8 @@ class ProductService(
 
                         setParameter("frequency", req.category.accountingFrequency.name)
                         setParameter("product_type", req.productType.name)
+                        //TODO(HENRIK) There is no need for this in the future
+                        setParameter("charge_type", translateToChargeType(req.category).name)
                     },
                     """
                         with acinsert as (
@@ -152,12 +155,13 @@ class ProductService(
                                 :category category, 
                                 :product_type::accounting.product_type product_type, 
                                 ac.id accounting_unit,
-                                :frequency frequency
+                                :frequency frequency,
+                                :charge_type::accounting.charge_type charge_t
                             from acinsert ac
                         )
                         insert into accounting.product_categories
-                        (provider, category, product_type, accounting_unit, accounting_frequency) 
-                            select provider, category, product_type, accounting_unit, frequency
+                        (provider, category, product_type, accounting_unit, accounting_frequency, charge_type) 
+                            select provider, category, product_type, accounting_unit, frequency, charge_t
                             from inserts
                         on conflict (provider, category)  
                         do update set
