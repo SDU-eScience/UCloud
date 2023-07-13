@@ -34,7 +34,7 @@ sealed class TwoFactorException(why: String, httpStatusCode: HttpStatusCode) : R
 class TwoFactorChallengeService(
     private val db: DBContext,
     private val twoFactorDAO: TwoFactorAsyncDAO,
-    private val userDAO: UserAsyncDAO,
+    private val userDAO: PrincipalService,
     private val totpService: TOTPService,
     private val qrService: QRService
 ) {
@@ -46,7 +46,7 @@ class TwoFactorChallengeService(
     suspend fun createSetupCredentialsAndChallenge(username: String): Create2FACredentialsResponse {
         val newCredentials = totpService.createSharedSecret()
         return db.withSession { session ->
-            val user = userDAO.findByIdOrNull(session, username) ?: run {
+            val user = userDAO.findByUsernameOrNull(username, session) ?: run {
                 log.warn("Could not lookup user in createSetupCredentialsAndChallenge: $username")
                 throw TwoFactorException.InternalError()
             }
@@ -56,7 +56,7 @@ class TwoFactorChallengeService(
             val enforcedCredentials = twoFactorDAO.findEnforcedCredentialsOrNull(session, username)
             if (enforcedCredentials != null) throw TwoFactorException.AlreadyBound()
 
-            val otpAuthUri = newCredentials.toOTPAuthURI(person.displayName, ISSUER).toASCIIString()
+            val otpAuthUri = newCredentials.toOTPAuthURI(person.id, ISSUER).toASCIIString()
             val qrData = qrService.encode(otpAuthUri, QR_WIDTH_PX, QR_HEIGHT_PX).toDataURI()
             val twoFactorCredentials = TwoFactorCredentials(user, newCredentials.secretBase32Encoded, false)
             val credentialsId = twoFactorDAO.createCredentials(session, twoFactorCredentials)

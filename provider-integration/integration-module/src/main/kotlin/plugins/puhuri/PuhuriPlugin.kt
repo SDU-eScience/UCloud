@@ -554,7 +554,7 @@ class PuhuriClient(
     private val rootEndpoint = endpoint.removeSuffix("/") + "/"
     private val customer = rootEndpoint + "customers/" + customerId + "/"
     private val offering = rootEndpoint + "marketplace-public-offerings/" + offeringId + "/"
-    private val plan = rootEndpoint + "marketplace-public-plans/" + planId + "/"
+    private val plan = offering + "plans/" + planId + "/"
 
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false

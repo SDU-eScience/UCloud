@@ -17,7 +17,7 @@ private enum class LoginResponse {
 class LoginService(
     private val db: DBContext,
     private val passwordService: PasswordHashingService,
-    private val users: UserAsyncDAO,
+    private val users: PrincipalService,
     private val loginAttempts: LoginAttemptAsyncDao,
     private val loginResponder: LoginResponder
 ) {
@@ -27,12 +27,15 @@ class LoginService(
                 Pair(null, LoginResponse.TOO_MANY_REQUESTS)
             } else {
                 val user = try {
-                    users.findById(session, username) as? Person.ByPassword
+                    users.findByUsernameOrNull(username, session) as? Person
                 } catch (ex: UserException) {
                     null
                 }
 
-                if (user == null) {
+                val actualUserPassword = user?.password
+                val actualUserSalt = user?.salt
+
+                if (user == null || actualUserPassword == null || actualUserSalt == null) {
                     // Hashing is rather expensive. We always run hashing to avoid giving away the information that
                     // the user does not exist. If we didn't do this an attacker could determine if the user exists by
                     // comparing response times.
@@ -41,7 +44,7 @@ class LoginService(
                     passwordService.hashPassword(password)
                     Pair(null, LoginResponse.BAD_CREDENTIALS)
                 } else {
-                    val validPassword = passwordService.checkPassword(user.password, user.salt, password)
+                    val validPassword = passwordService.checkPassword(actualUserPassword, actualUserSalt, password)
                     if (validPassword) {
                         Pair(user, LoginResponse.SUCCESS)
                     } else {

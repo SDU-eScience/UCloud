@@ -281,11 +281,11 @@ begin
         null
     );
 
-    insert into auth.principals (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, phone_number, title, hashed_password, salt, org_id, email)
-    select 'WAYF', 'pi' || pid, now(), now(), 'USER', 'U', 'U', null, null, null, null, null, 'sdu.dk', 'mail' || random() || '@mail.com';
+    insert into auth.principals (dtype, id, created_at, modified_at, role, first_names, last_name, hashed_password, salt, org_id, email)
+    select 'WAYF', 'pi' || pid, now(), now(), 'USER', 'U', 'U', null, null, 'sdu.dk', 'mail' || random() || '@mail.com';
 
-    insert into auth.principals (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, phone_number, title, hashed_password, salt, org_id, email)
-    select 'WAYF', 'user' || pid || i , now(), now(), 'USER', 'U', 'U', null, null, null, null, null, 'sdu.dk', 'mail' || random() || '@mail.com'
+    insert into auth.principals (dtype, id, created_at, modified_at, role, first_names, last_name, hashed_password, salt, org_id, email)
+    select 'WAYF', 'user' || pid || i , now(), now(), 'USER', 'U', 'U', null, null, 'sdu.dk', 'mail' || random() || '@mail.com'
     from generate_series(0, 30) i;
 
     insert into project.project_members (created_at, modified_at, role, username, project_id) values
