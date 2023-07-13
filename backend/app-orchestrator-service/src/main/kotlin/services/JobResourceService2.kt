@@ -429,11 +429,65 @@ class JobResourceService2(
         val card = idCards.fetchIdCard(actorAndProject)
         val normalizedRequest = request.normalize()
         println("req $normalizedRequest")
+        val customFilter = if (request.flags.filterApplication != null || request.flags.filterState != null) {
+            object : FilterFunction<InternalJobState> {
+                override fun filter(doc: ResourceDocument<InternalJobState>): Boolean {
+                    val data = doc.data!!
+                    var success = true
+                    val flags = request.flags
+
+                    flags.filterApplication?.let { success = success && data.specification.application.name == it }
+                    flags.filterState?.let { success = success && data.state == it }
+                    return success
+                }
+            }
+        } else {
+            null
+        }
+
         return ResourceOutputPool.withInstance { buffer ->
-            // TODO(Dan): Sorting is an issue, especially if we are sorting using a custom property.
             println("about to browse")
             val start = System.nanoTime()
-            val result = documents.browse(card, buffer, request.next, request.flags, outputBufferLimit = normalizedRequest.itemsPerPage)
+            val result = when (request.sortBy) {
+                "name" -> {
+                    documents.browseWithSort(
+                        card,
+                        buffer,
+                        request.next,
+                        request.flags,
+                        outputBufferLimit = normalizedRequest.itemsPerPage,
+                        additionalFilters = customFilter,
+                        keyExtractor = object : DocKeyExtractor<InternalJobState, String?> {
+                            override fun extract(doc: ResourceDocument<InternalJobState>): String? {
+                                return doc.data?.specification?.name
+                            }
+                        },
+                        comparator = Comparator { a, b ->
+                            when {
+                                a == null && b == null -> 0
+                                a == null -> 1
+                                b == null -> -1
+                                else -> a.compareTo(b)
+                            }
+                        },
+                        sortDirection = request.sortDirection
+                    )
+                }
+
+                else -> {
+                    documents.browse(
+                        card,
+                        buffer,
+                        request.next,
+                        request.flags,
+                        outputBufferLimit = normalizedRequest.itemsPerPage,
+                        additionalFilters = customFilter,
+                        sortedBy = request.sortBy,
+                        sortDirection =  request.sortDirection
+                    )
+                }
+            }
+
             val end = System.nanoTime()
             println("Time was ${end - start}ns")
             println("Got ${result.count} results")

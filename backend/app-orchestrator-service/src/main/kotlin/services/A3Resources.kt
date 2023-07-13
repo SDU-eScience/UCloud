@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
@@ -36,6 +37,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.Comparator
 import kotlin.collections.HashSet
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -46,6 +48,18 @@ import kotlin.random.Random
 
 interface FilterFunction<T> {
     fun filter(doc: ResourceDocument<T>): Boolean
+}
+
+interface DocKeyExtractor<T, K> {
+    fun extract(doc: ResourceDocument<T>): K
+}
+
+// NOTE(Dan, 04/07/23): DO NOT CHANGE THIS TO A LAMBDA. Performance of calling lambdas versus calling normal
+// functions through interfaces are dramatically different. My own benchmarks have shown a difference of at
+// least 10x just by switching to an interface instead of a lambda.
+interface SearchConsumer {
+    fun shouldTerminate(): Boolean = false // NOTE(Dan): Do not make this suspend
+    fun call(arrIdx: Int) // NOTE(Dan): Do not make this suspend
 }
 
 @Serializable
@@ -434,7 +448,7 @@ class ResourceStoreByOwner<T>(
         }
     }
 
-    private suspend fun searchAndConsume(
+    suspend fun searchAndConsume(
         idCard: IdCard,
         permissionRequired: Permission,
         consumer: SearchConsumer,
@@ -459,7 +473,7 @@ class ResourceStoreByOwner<T>(
                     }
 
                     else -> {
-                        binarySearchForId(startId, hasLock = true) - 1
+                        max(0, binarySearchForId(startId, hasLock = true) - 1)
                     }
                 }
 
@@ -614,7 +628,7 @@ class ResourceStoreByOwner<T>(
         return outIdx - outputBufferOffset
     }
 
-    private fun loadIntoDocument(
+    fun loadIntoDocument(
         res: ResourceDocument<T>,
         arrIdx: Int
     ) {
@@ -1099,13 +1113,6 @@ class ResourceStoreByOwner<T>(
             check(STORE_SIZE % len == 0) { "The code needs to be adjusted to run on this platform ($len)." }
         }
 
-        // NOTE(Dan, 04/07/23): DO NOT CHANGE THIS TO A LAMBDA. Performance of calling lambdas versus calling normal
-        // functions through interfaces are dramatically different. My own benchmarks have shown a difference of at
-        // least 10x just by switching to an interface instead of a lambda.
-        private interface SearchConsumer {
-            fun shouldTerminate(): Boolean = false // NOTE(Dan): Do not make this suspend
-            fun call(arrIdx: Int) // NOTE(Dan): Do not make this suspend
-        }
 
         // NOTE(Dan, 04/07/23): This function can easily search through several gigabytes of data per second. But its
         // performance _heavily_ depends on a JVM which supports the Vector module and subsequently correctly produces
@@ -1476,15 +1483,10 @@ class ResourceStore<T>(
         }
     }
 
-    suspend fun browse(
-        idCard: IdCard,
-        outputBuffer: Array<ResourceDocument<T>>,
-        next: String?,
+    private suspend fun buildFilterFunction(
         flags: ResourceIncludeFlags,
-        outputBufferLimit: Int = outputBuffer.size,
-        additionalFilters: FilterFunction<T>? = null,
-    ): BrowseResult {
-        // TODO(Dan): Sorting is not yet working
+        additionalFilters: FilterFunction<T>?,
+    ): FilterFunction<T> {
         val filterCreatedByUid = if (flags.filterCreatedBy != null) {
             idCardService.lookupUidFromUsername(flags.filterCreatedBy!!)
         } else {
@@ -1536,7 +1538,7 @@ class ResourceStore<T>(
             null
         }
 
-        val filter = object : FilterFunction<T> {
+        return object : FilterFunction<T> {
             override fun filter(doc: ResourceDocument<T>): Boolean {
                 var success = true
 
@@ -1575,6 +1577,42 @@ class ResourceStore<T>(
                 return success
             }
         }
+    }
+
+    suspend fun browse(
+        idCard: IdCard,
+        outputBuffer: Array<ResourceDocument<T>>,
+        next: String?,
+        flags: ResourceIncludeFlags,
+        outputBufferLimit: Int = outputBuffer.size,
+        additionalFilters: FilterFunction<T>? = null,
+
+        sortedBy: String? = null,
+        sortDirection: SortDirection? = null,
+    ): BrowseResult {
+        @Suppress("NAME_SHADOWING")
+        val sortDirection = sortDirection ?: SortDirection.ascending
+
+        if (sortedBy == "createdBy") {
+            return browseWithSort(
+                idCard,
+                outputBuffer,
+                next,
+                flags,
+                keyExtractor = object : DocKeyExtractor<T, Int> {
+                    override fun extract(doc: ResourceDocument<T>): Int = doc.createdBy
+                },
+                comparator = Comparator.naturalOrder<Int>(),
+                sortDirection = sortDirection,
+                outputBufferLimit = outputBufferLimit,
+                additionalFilters = additionalFilters
+            )
+        }
+
+        // If we are not sorting by `createdBy` and it is not a custom sort, then we just assume that we are sorting by
+        // "createdAt" (i.e. ID).
+
+        val filter = buildFilterFunction(flags, additionalFilters)
 
         when (idCard) {
             is IdCard.Provider -> {
@@ -1663,14 +1701,16 @@ class ResourceStore<T>(
 
                 val startId = next?.toLongOrNull() ?: -1L
 
+                val reverseOrder = sortDirection == SortDirection.descending
+
                 var offset = 0
-                useStores(findOrLoadStore(uid, pid), reverseOrder = true) { store ->
+                useStores(findOrLoadStore(uid, pid), reverseOrder = reverseOrder) { store ->
                     offset += store.search(
                         idCard,
                         outputBuffer,
                         offset,
                         startIdExclusive = startId,
-                        reverseOrder = true,
+                        reverseOrder = reverseOrder,
                         predicate = filter
                     )
                     ShouldContinue.ifThisIsTrue(offset < outputBufferLimit)
@@ -1686,6 +1726,130 @@ class ResourceStore<T>(
                 return BrowseResult(min(outputBufferLimit, offset), newNext)
             }
         }
+    }
+
+    suspend fun <K> browseWithSort(
+        idCard: IdCard,
+        outputBuffer: Array<ResourceDocument<T>>,
+        next: String?,
+        flags: ResourceIncludeFlags,
+        keyExtractor: DocKeyExtractor<T, K>,
+        comparator: Comparator<K>,
+        sortDirection: SortDirection?,
+        outputBufferLimit: Int = outputBuffer.size,
+        additionalFilters: FilterFunction<T>? = null,
+    ): BrowseResult {
+        @Suppress("NAME_SHADOWING")
+        val sortDirection = sortDirection ?: SortDirection.ascending
+        data class Entry(val id: Long, val key: K)
+
+        if (idCard !is IdCard.User) {
+            return browse(idCard, outputBuffer, next, flags, outputBufferLimit, additionalFilters)
+        }
+
+        val filter = buildFilterFunction(flags, additionalFilters)
+        val uid = if (idCard.activeProject <= 0) idCard.uid else 0
+        val pid = if (uid == 0) idCard.activeProject else 0
+
+        val rootStore = findOrLoadStore(uid, pid)
+
+        // NOTE(Dan): Sorting is quite a bit more expensive than normal browsing since we cannot use a stable key which
+        // allows us to easily find the relevant dataset. Instead, we must always fetch _all_ resources, sort and then
+        // jump to the relevant part. This also means that there are no guarantees about the stability of the results.
+        //
+        // Because of this, we put a hard limit on the number of documents we want to traverse through. This is
+        // currently set very arbitrarily below. We may need to tweak the limit since memory usage might simply be too
+        // big at this value. If there are too many resources, then we fall back to the normal browse endpoint,
+        // producing results sorted by ID.
+        var storeCount = 0
+        useStores(rootStore) { store ->
+            storeCount++
+            ShouldContinue.YES
+        }
+
+        if (storeCount > 100) {
+            return browse(idCard, outputBuffer, next, flags, outputBufferLimit, additionalFilters)
+        }
+
+        // NOTE(Dan): Technically, there is a race-condition here. Someone could in theory create a billion stores
+        // between our check and here. I don't think this is even remotely likely to occur, however.
+
+        val temp = ResourceDocument<T>()
+        val entries = ArrayList<Entry>()
+
+        val consumer = object : SearchConsumer {
+            var currentStore: ResourceStoreByOwner<T>? = null
+            override fun call(arrIdx: Int) {
+                val store = currentStore ?: return
+                if (store.id[arrIdx] == 0L) return
+                store.loadIntoDocument(temp, arrIdx)
+                if (filter.filter(temp)) {
+                    entries.add(Entry(temp.id, keyExtractor.extract(temp)))
+                }
+            }
+        }
+
+        useStores(rootStore) { store ->
+            consumer.currentStore = store
+            store.searchAndConsume(idCard, Permission.READ, consumer)
+            ShouldContinue.YES
+        }
+
+        var entryComparator = Comparator<Entry> { a, b ->
+            val res = comparator.compare(a.key, b.key)
+            if (res == 0) {
+                a.id.compareTo(b.id)
+            } else {
+                res
+            }
+        }
+
+        if (sortDirection == SortDirection.descending) entryComparator = entryComparator.reversed()
+
+        entries.sortWith(entryComparator)
+
+        val offset = next?.toIntOrNull() ?: 0
+        val idArray = entries
+            .asSequence()
+            .drop(offset)
+            .take(outputBufferLimit)
+            .map { it.id }
+            .toList()
+            .toLongArray()
+
+        val count = retrieveBulk(idCard, idArray, outputBuffer)
+
+        val docComparator = Comparator<ResourceDocument<T>> { a, b ->
+            when {
+                a.id == b.id -> 0
+                a.id == 0L -> 1
+                b.id == 0L -> -1
+                else -> {
+                    val aKey = keyExtractor.extract(a)
+                    val bKey = keyExtractor.extract(b)
+                    val res = comparator.compare(aKey, bKey)
+                    if (res == 0) {
+                        if (sortDirection == SortDirection.descending) {
+                            b.id.compareTo(a.id)
+                        } else {
+                            a.id.compareTo(b.id)
+                        }
+                    } else {
+                        res
+                    }
+                }
+            }
+        }
+        outputBuffer.sortWith(docComparator)
+
+        val nextIndex = offset + outputBufferLimit
+        val nextToken = if (nextIndex > entries.lastIndex) {
+            null
+        } else {
+            nextIndex.toString()
+        }
+
+        return BrowseResult(count, nextToken)
     }
 
     suspend fun modify(
