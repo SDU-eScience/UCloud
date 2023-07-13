@@ -3,30 +3,33 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
-import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.accounting.api.providers.SupportByProvider
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.WSCall
+import dk.sdu.cloud.calls.server.sendWSMessage
+import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DBTransaction
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.utils.io.pool.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.absoluteValue
+import java.util.concurrent.CancellationException
 import kotlin.math.min
-import kotlin.random.Random
 
 data class InternalJobState(
     val specification: JobSpecification,
@@ -37,39 +40,13 @@ data class InternalJobState(
     var jobParameters: JsonElement? = null,
 )
 
-object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
-    override fun produceInstance(): Array<ResourceDocument<Any>> = Array(1024) { ResourceDocument() }
-
-    override fun clearInstance(instance: Array<ResourceDocument<Any>>): Array<ResourceDocument<Any>> {
-        for (doc in instance) {
-            doc.data = null
-            doc.createdBy = 0
-            doc.createdAt = 0
-            doc.project = 0
-            doc.id = 0
-            doc.providerId = null
-            Arrays.fill(doc.update, null)
-            Arrays.fill(doc.acl, null)
-        }
-
-        return instance
-    }
-
-    inline fun <T, R> withInstance(block: (Array<ResourceDocument<T>>) -> R): R {
-        return useInstance {
-            @Suppress("UNCHECKED_CAST")
-            block(it as Array<ResourceDocument<T>>)
-        }
-    }
-}
-
 class JobResourceService2(
     private val db: DBContext,
     private val providers: ProviderCommunications,
     private val backgroundScope: BackgroundScope,
+    private val productCache: ProductCache,
 ) {
     private val idCards = IdCardService(db)
-    private val productCache = ProductCache(db)
     private val applicationCache = ApplicationCache(db)
     private val documents = ResourceStore(
         "job",
@@ -142,13 +119,13 @@ class JobResourceService2(
                             MapSerializer(String.serializer(), AppParameterValue.serializer()),
                             text
                         )
-                    }
+                    } ?: emptyMap()
                     val decodedResources = row.getString(12)?.let { text ->
                         defaultMapper.decodeFromString(
                             ListSerializer(AppParameterValue.serializer()),
                             text
                         )
-                    }
+                    } ?: emptyList()
                     val startedAt = row.getLong(13)
                     val allowRestart = row.getBoolean(14) ?: false
                     val jobParameters = row.getString(15)?.let { text ->
@@ -401,14 +378,55 @@ class JobResourceService2(
         return BulkResponse(output)
     }
 
+    suspend fun register(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProviderRegisteredResource<JobSpecification>>,
+    ): BulkResponse<FindByStringId> {
+        val ids = ArrayList<FindByStringId>()
+        val card = idCards.fetchIdCard(actorAndProject)
+        for (reqItem in request.items) {
+            if (reqItem.providerGeneratedId?.contains(",") == true) {
+                throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
+            }
+
+            val uid = idCards.lookupUidFromUsername(reqItem.createdBy ?: "_ucloud")
+                ?: throw RPCException("Unknown user supplied", HttpStatusCode.NotFound)
+
+            val project = reqItem.project
+            val pid = if (project != null) {
+                idCards.lookupPidFromProjectId(project)
+                    ?: throw RPCException("Unknown project supplied", HttpStatusCode.NotFound)
+            } else {
+                0
+            }
+
+            documents.register(
+                card,
+                reqItem.spec.product,
+                uid,
+                pid,
+                InternalJobState(reqItem.spec),
+                reqItem.providerGeneratedId,
+                null,
+            )
+
+            if (reqItem.projectAllRead) {
+                TODO()
+            }
+
+            if (reqItem.projectAllWrite) {
+                TODO()
+            }
+        }
+        return BulkResponse(ids)
+    }
+
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ResourceBrowseRequest<JobIncludeFlags>,
     ): PageV2<Job> {
         val browseStart = System.nanoTime()
-        println("calling browse")
         val card = idCards.fetchIdCard(actorAndProject)
-        println("got card $card")
         val normalizedRequest = request.normalize()
         println("req $normalizedRequest")
         return ResourceOutputPool.withInstance { buffer ->
@@ -479,6 +497,10 @@ class JobResourceService2(
 
                     if (newState != null) {
                         job.state = newState
+
+                        if (newState == JobState.RUNNING) {
+                            job.startedAt = Time.now()
+                        }
                     }
 
                     if (timeAllocation != null) {
@@ -576,6 +598,324 @@ class JobResourceService2(
         )
     }
 
+    suspend fun suspendOrUnsuspendJob(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<JobsSuspendRequestItem>,
+        shouldSuspend: Boolean,
+    ) {
+        proxyToProvider(
+            actorAndProject,
+            request.items.mapNotNull { it.id.toLongOrNull() }.toSet().toLongArray(),
+            Permission.EDIT,
+            if (shouldSuspend) "trying to suspend job" else "trying to unsuspend job",
+            featureValidation = { job, support ->
+                val block = findSupportBlock(job.specification, support).block
+                if (block !is ComputeSupport.VirtualMachine) error("Feature not supported")
+                block.checkFeature(block.suspension)
+            },
+            fn = { provider, jobs ->
+                val providerRequest = jobs.map { job ->
+                    JobsProviderSuspendRequestItem(job)
+                }
+
+                providers.invokeCall(
+                    provider,
+                    actorAndProject,
+                    {
+                        if (shouldSuspend) JobsProvider(provider).suspend
+                        else JobsProvider(provider).unsuspend
+                    },
+                    BulkRequest(providerRequest),
+                )
+
+                Unit
+            }
+        )
+    }
+
+    suspend fun openInteractiveSession(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<JobsOpenInteractiveSessionRequestItem>,
+    ): BulkResponse<OpenSessionWithProvider?> {
+        val responses = ArrayList<OpenSessionWithProvider>()
+        proxyToProvider(
+            actorAndProject,
+            request.items.mapNotNull { it.id.toLongOrNull() }.toLongArray(),
+            Permission.EDIT,
+            "trying to open interface",
+            featureValidation = { job, support ->
+                val (app, tool, block) = findSupportBlock(job.specification, support)
+                for (reqItem in request.items) {
+                    if (reqItem.id != job.id) continue
+                    when (reqItem.sessionType) {
+                        InteractiveSessionType.WEB -> {
+                            require(app.invocation.web != null)
+                            require(block is ComputeSupport.WithWeb)
+                            block.checkFeature(block.web)
+                        }
+
+                        InteractiveSessionType.VNC -> {
+                            require(app.invocation.vnc != null)
+                            block.checkFeature(block.vnc)
+                        }
+
+                        InteractiveSessionType.SHELL -> {
+                            block.checkFeature(block.terminal)
+                        }
+                    }
+                }
+            },
+            fn = { provider, jobs ->
+                val providerRequest = request.items
+                    .asSequence()
+                    .filter { req -> jobs.any { it.id == req.id } }
+                    .map { req ->
+                        val job = jobs.find { it.id == req.id }!!
+                        JobsProviderOpenInteractiveSessionRequestItem(
+                            job,
+                            req.rank,
+                            req.sessionType
+                        )
+                    }
+                    .toList()
+
+                val providerDomain = providers.retrieveProviderHostInfo(provider).toString()
+                responses.addAll(
+                    providers
+                        .invokeCall(
+                            provider,
+                            actorAndProject,
+                            { JobsProvider(it).openInteractiveSession },
+                            BulkRequest(providerRequest),
+                        )
+                        .responses
+                        .asSequence()
+                        .filterNotNull()
+                        .map { OpenSessionWithProvider(providerDomain, provider, it) }
+                )
+            }
+        )
+
+        return BulkResponse(responses)
+    }
+
+    suspend fun follow(
+        callHandler: CallHandler<JobsFollowRequest, JobsFollowResponse, *>,
+    ): Unit = with(callHandler) {
+        val card = idCards.fetchIdCard(callHandler.actorAndProject)
+
+        val jobId = request.id.toLongOrNull() ?: throw RPCException("Unknown job: ${request.id}", HttpStatusCode.NotFound)
+        val initialJob = documents.retrieve(card, jobId)?.let { unmarshallDocument(card, it) }
+            ?: throw RPCException("Unknown job: ${request.id}", HttpStatusCode.NotFound)
+        val logsSupported = runCatching {
+            providers.requireSupport(
+                Jobs,
+                listOf(initialJob.specification.product),
+                "trying to follow logs",
+                validator = { support ->
+                    val block = findSupportBlock(initialJob.specification, support).block
+                    block.checkFeature(block.logs)
+                }
+            )
+        }.isSuccess
+
+        withContext<WSCall> {
+            // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
+            // retrieve them by themselves.
+            sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), initialJob.status))
+
+            var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+            var currentState = initialJob.status.state
+            var streamId: String? = null
+            val provider = initialJob.specification.product.provider
+
+            coroutineScope {
+                val logJob = if (!logsSupported) {
+                    null
+                } else {
+                    launch {
+                        while (isActive) {
+                            try {
+                                providers.invokeSubscription(
+                                    provider,
+                                    callHandler.actorAndProject,
+                                    { JobsProvider(it).follow },
+                                    JobsProviderFollowRequest.Init(initialJob),
+                                    handler = { message: JobsProviderFollowResponse ->
+                                        if (streamId == null) streamId = message.streamId
+
+                                        sendWSMessage(
+                                            JobsFollowResponse(
+                                                emptyList(),
+                                                listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                            )
+                                        )
+                                    }
+                                )
+                            } catch (ignore: CancellationException) {
+                                break
+                            } catch (ex: Throwable) {
+                                log.debug("Caught exception while following logs:\n${ex.stackTraceToString()}")
+                                break
+                            }
+                        }
+                    }
+                }
+
+                val updateJob = launch {
+                    try {
+                        var lastStatus: JobStatus? = null
+                        while (isActive && !currentState.isFinal()) {
+                            val newJob = documents.retrieve(card, jobId) ?: break
+                            val data = newJob.data ?: break
+
+                            currentState = data.state
+
+                            val updates = newJob.update
+                                .asSequence()
+                                .filterNotNull()
+                                .filter { it.createdAt > lastUpdate }
+                                .mapNotNull { update ->
+                                    update.extra?.let {
+                                        defaultMapper.decodeFromJsonElement(JobUpdate.serializer(), it)
+                                    }?.also {
+                                        it.timestamp = update.createdAt
+                                        it.status = update.update
+                                    }
+                                }
+                                .toList()
+
+                            if (updates.isNotEmpty()) {
+                                sendWSMessage(
+                                    JobsFollowResponse(
+                                        updates,
+                                        emptyList(),
+                                        null
+                                    )
+                                )
+                                lastUpdate = updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                            }
+
+                            val newStatus = unmarshallJobStatus(newJob)
+                            if (lastStatus != newStatus) {
+                                sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), newStatus))
+                            }
+
+                            lastStatus = newStatus
+                            delay(1000)
+                        }
+                    } catch (ex: Throwable) {
+                        if (ex !is CancellationException) {
+                            log.warn(ex.stackTraceToString())
+                        }
+                    }
+                }
+
+                select {
+                    if (logJob != null) logJob.onJoin {}
+                    updateJob.onJoin {}
+                }
+
+                val capturedId = streamId
+                if (capturedId != null) {
+                    providers.invokeCall(
+                        provider,
+                        actorAndProject,
+                        { JobsProvider(it).follow },
+                        JobsProviderFollowRequest.CancelStream(capturedId),
+                        useHttpClient = false,
+                    )
+                }
+
+                runCatching { logJob?.cancel("No longer following or EOF") }
+                runCatching { updateJob.cancel("No longer following or EOF") }
+            }
+        }
+    }
+
+    suspend fun retrieveUtilization(
+        actorAndProject: ActorAndProject,
+        request: JobsRetrieveUtilizationRequest
+    ): JobsRetrieveUtilizationResponse {
+        val jobId = request.jobId.toLongOrNull() ?: throw RPCException("Unknown job", HttpStatusCode.NotFound)
+        var response: JobsRetrieveUtilizationResponse? = null
+        proxyToProvider(
+            actorAndProject,
+            longArrayOf(jobId),
+            Permission.READ,
+            "trying to retrieve cluster utilization",
+            featureValidation = { job, support ->
+                findSupportBlock(job.specification, support).block.apply {
+                    checkFeature(utilization)
+                }
+            },
+            fn = { provider, jobs ->
+                response = providers.invokeCall(
+                    provider,
+                    actorAndProject,
+                    { JobsProvider(it).retrieveUtilization },
+                    JobsProviderUtilizationRequest(
+                        jobs.single().specification.product.category,
+                    ),
+                )
+            }
+        )
+        return response ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+    }
+
+    suspend fun search(
+        actorAndProject: ActorAndProject,
+        request: ResourceSearchRequest<JobIncludeFlags>
+    ): PageV2<Job> {
+        val card = idCards.fetchIdCard(actorAndProject)
+        val normalizedRequest = request.normalize()
+        ResourceOutputPool.withInstance { buffer ->
+            val result = documents.browse(
+                card,
+                buffer,
+                request.next,
+                request.flags,
+                outputBufferLimit = normalizedRequest.itemsPerPage,
+                additionalFilters = object : FilterFunction<InternalJobState> {
+                    override fun filter(doc: ResourceDocument<InternalJobState>): Boolean {
+                        if (request.query == "") return true
+                        val data = doc.data!!
+
+                        val jobName = data.specification.name
+                        val appName = data.specification.application.name
+                        if (jobName != null && request.query.contains(jobName, ignoreCase = true)) return true
+                        if (request.query.contains(appName, ignoreCase = true)) return true
+                        if (request.query.contains(doc.id.toString())) return true
+                        return false
+                    }
+                }
+            )
+
+            val page = ArrayList<Job>(result.count)
+            for (idx in 0 until min(normalizedRequest.itemsPerPage, result.count)) {
+                page.add(unmarshallDocument(card, buffer[idx]))
+            }
+
+            return PageV2(normalizedRequest.itemsPerPage, page, result.next)
+        }
+    }
+
+    suspend fun initializeProviders(actorAndProject: ActorAndProject) {
+        providers.forEachRelevantProvider(actorAndProject) { provider ->
+            providers.invokeCall(
+                provider,
+                actorAndProject,
+                { JobsProvider(it).init },
+                ResourceInitializationRequest(
+                    ResourceOwner(
+                        actorAndProject.actor.safeUsername(),
+                        actorAndProject.project
+                    )
+                )
+            )
+        }
+    }
+
     private suspend fun validate(actorAndProject: ActorAndProject, job: JobSpecification) {
         // TODO do something
     }
@@ -662,6 +1002,33 @@ class JobResourceService2(
         return providers.retrieveProducts(actorAndProject, Jobs)
     }
 
+    private suspend fun unmarshallJobStatus(doc: ResourceDocument<InternalJobState>): JobStatus {
+        val data = doc.data!!
+        return JobStatus(
+            data.state,
+            startedAt = data.startedAt,
+            expiresAt = if (data.startedAt != null && data.specification.timeAllocation != null) {
+                (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
+            } else {
+                null
+            },
+            allowRestart = data.allowRestart,
+            resolvedProduct = productCache.productIdToProduct(doc.product) as Product.Compute?,
+            resolvedApplication = applicationCache.retrieveApplication(
+                data.specification.application.name,
+                data.specification.application.version
+            ),
+            resolvedSupport = providers.fetchSupport(Jobs, data.specification.product.provider)
+                .find { productCache.referenceToProductId(it.product) == doc.product }
+                ?.let { support ->
+                    ResolvedSupport(
+                        productCache.productIdToProduct(doc.product) as Product.Compute,
+                        support
+                    )
+                }
+        )
+    }
+
     private suspend fun unmarshallDocument(card: IdCard, doc: ResourceDocument<InternalJobState>): Job {
         val data = doc.data!!
         data.specification.product = productCache.productIdToReference(doc.product) ?: ProductReference("", "", "")
@@ -684,21 +1051,7 @@ class JobResourceService2(
                 mapped
             }.toList(),
             data.specification,
-            JobStatus(
-                data.state,
-                startedAt = data.startedAt,
-                expiresAt = if (data.startedAt != null && data.specification.timeAllocation != null) {
-                    (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
-                } else {
-                    null
-                },
-                allowRestart = data.allowRestart,
-                resolvedProduct = productCache.productIdToProduct(doc.product) as Product.Compute?,
-                resolvedApplication = applicationCache.retrieveApplication(
-                    data.specification.application.name,
-                    data.specification.application.version
-                )
-            ),
+            unmarshallJobStatus(doc),
             doc.createdAt,
             permissions = run {
                 val myself = when (card) {
@@ -756,118 +1109,4 @@ class JobResourceService2(
     companion object : Loggable {
         override val log = logger()
     }
-}
-
-class ApplicationCache(private val db: DBContext) {
-    private val mutex = ReadWriterMutex()
-    private val applications = HashMap<NameAndVersion, Application>()
-    private val didWarmup = AtomicBoolean(false)
-
-    suspend fun fillCache(appName: String? = null) {
-        mutex.withWriter {
-            db.withSession { session ->
-                val rows = session.sendPreparedStatement(
-                    {
-                        setParameter("app_name", appName)
-                    },
-                    """
-                        select app_store.application_to_json(app, t)
-                        from
-                            app_store.applications app
-                            join app_store.tools t on 
-                                app.tool_name = t.name 
-                                and app.tool_version = t.version
-                        where
-                            :app_name::text is null
-                            or app.name = :app_name
-                    """
-                ).rows
-                for (row in rows) {
-                    val app = defaultMapper.decodeFromString(Application.serializer(), row.getString(0)!!)
-                    val key = NameAndVersion(app.metadata.name, app.metadata.version)
-                    applications[key] = app
-                }
-            }
-        }
-    }
-
-    suspend fun retrieveApplication(name: String, version: String, allowLookup: Boolean = true): Application? {
-        if (didWarmup.compareAndSet(false, true)) fillCache()
-
-        val result = mutex.withReader { applications[NameAndVersion(name, version)] }
-        if (result != null) return result
-        if (!allowLookup) return null
-
-        fillCache(name)
-        return retrieveApplication(name, version, allowLookup = false)
-    }
-}
-
-fun createDummyJob(): Job {
-    return Job(
-        Random.nextLong().absoluteValue.toString(),
-        ResourceOwner(
-            randomString(),
-            if (Random.nextBoolean()) randomString() else null
-        ),
-        emptyList(),
-        JobSpecification(
-            NameAndVersion(randomString(), randomString()),
-            ProductReference(randomString(), randomString(), randomString()),
-            parameters = buildMap {
-                repeat(Random.nextInt(0, 5)) { idx ->
-                    put(randomString(), AppParameterValue.Text(randomString()))
-                }
-            },
-            timeAllocation = SimpleDuration(13, 37, 0)
-        ),
-        JobStatus(
-            JobState.RUNNING,
-            startedAt = Random.nextLong().absoluteValue,
-            resolvedApplication = Application(
-                ApplicationMetadata(
-                    randomString(),
-                    randomString(),
-                    listOf(randomString(), randomString()),
-                    randomString(),
-                    randomString(),
-                    randomString(),
-                    true
-                ),
-                ApplicationInvocationDescription(
-                    ToolReference(
-                        randomString(),
-                        randomString(),
-                        Tool(
-                            randomString(),
-                            Random.nextLong().absoluteValue,
-                            Random.nextLong().absoluteValue,
-                            NormalizedToolDescription(
-                                NameAndVersion(randomString(), randomString()),
-                                randomString(),
-                                1,
-                                SimpleDuration(13, 37, 0),
-                                emptyList(),
-                                listOf(randomString()),
-                                randomString(),
-                                randomString(),
-                                ToolBackend.DOCKER,
-                                randomString(),
-                                randomString(),
-                                null
-                            )
-                        )
-                    ),
-                    listOf(WordInvocationParameter(randomString())),
-                    listOf(),
-                    listOf()
-                )
-            ),
-        ),
-        Random.nextLong().absoluteValue,
-    )
-}
-
-fun randomString(minSize: Int = 8, maxSize: Int = 16): String {
-    return CharArray(Random.nextInt(minSize, maxSize + 1)) { Char(Random.nextInt(48, 91)) }.concatToString()
 }

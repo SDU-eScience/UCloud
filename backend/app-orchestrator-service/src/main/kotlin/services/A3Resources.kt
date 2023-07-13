@@ -40,7 +40,6 @@ import kotlin.collections.HashSet
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
-import kotlin.coroutines.coroutineContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
@@ -350,9 +349,10 @@ class ResourceStoreByOwner<T>(
     }
 
     suspend fun create(
-        idCard: IdCard.User,
+        createdByUid: Int,
         product: Int,
         data: T,
+        providerGeneratedId: String?,
         output: ResourceDocument<T>?,
     ): Long {
         awaitReady()
@@ -365,20 +365,22 @@ class ResourceStoreByOwner<T>(
 
             this.id[idx] = id
             this.createdAt[idx] = System.currentTimeMillis()
-            this.createdBy[idx] = idCard.uid
-            this.project[idx] = idCard.activeProject
+            this.createdBy[idx] = createdByUid
+            this.project[idx] = pid
             this.product[idx] = product
             this._data[idx] = data
+            this.providerId[idx] = providerGeneratedId
             this.dirtyFlag[idx] = true
             anyDirty = true
 
             if (output != null) {
                 output.id = id
                 output.createdAt = this.createdAt[idx]
-                output.createdBy = idCard.uid
-                output.project = idCard.activeProject
+                output.createdBy = createdByUid
+                output.project = pid
                 output.product = product
                 output.data = data
+                output.providerId = providerGeneratedId
             }
             return id
         }
@@ -457,7 +459,7 @@ class ResourceStoreByOwner<T>(
                     }
 
                     else -> {
-                        binarySearchForId(startId, hasLock = true)
+                        binarySearchForId(startId, hasLock = true) - 1
                     }
                 }
 
@@ -492,6 +494,7 @@ class ResourceStoreByOwner<T>(
                         var idx = startIndex
 
                         while (idx < STORE_SIZE && idx % 4 != 0 && !consumer.shouldTerminate()) {
+                            if (this.id[idx] == 0L) break
                             consumer.call(idx++)
                         }
 
@@ -506,6 +509,7 @@ class ResourceStoreByOwner<T>(
                         }
 
                         while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
+                            if (this.id[idx] == 0L) break
                             consumer.call(idx++)
                         }
                     }
@@ -1384,7 +1388,10 @@ class ResourceStore<T>(
                         while (true) {
                             for (entry in block.stores) {
                                 if (entry == null) continue
-                                entry.synchronizeToDatabase(session)
+                                useStores(entry) { it ->
+                                    it.synchronizeToDatabase(session)
+                                    ShouldContinue.YES
+                                }
                             }
                             block = block.next ?: break
                         }
@@ -1405,18 +1412,55 @@ class ResourceStore<T>(
         data: T,
         output: ResourceDocument<T>?
     ): Long {
-        if (idCard !is IdCard.User) TODO()
+        if (idCard !is IdCard.User) {
+            throw RPCException("Only end-users can use this endpoint", HttpStatusCode.Forbidden)
+        }
+
         val productId = productCache.referenceToProductId(product)
             ?: throw RPCException("Invalid product supplied", HttpStatusCode.BadRequest)
 
         val uid = if (idCard.activeProject <= 0) idCard.uid else 0
         val pid = if (uid == 0) idCard.activeProject else 0
 
-        val root = findOrLoadStore(uid, pid)
+        return createDocument(uid, pid, productId, data, null, output)
+    }
+
+    suspend fun register(
+        idCard: IdCard,
+        product: ProductReference,
+        uid: Int,
+        pid: Int,
+        data: T,
+        providerId: String?,
+        output: ResourceDocument<T>?,
+    ): Long {
+        if (idCard !is IdCard.Provider) {
+            throw RPCException("Only providers can use this endpoint", HttpStatusCode.Forbidden)
+        }
+
+        val productId = productCache.referenceToProductId(product)
+            ?: throw RPCException("Invalid product supplied", HttpStatusCode.Forbidden)
+
+        if (productId !in idCard.providerOf) {
+            throw RPCException("Invalid product supplied", HttpStatusCode.Forbidden)
+        }
+
+        return createDocument(uid, pid, productId, data, providerId, output)
+    }
+
+    private suspend fun createDocument(
+        uid: Int,
+        pid: Int,
+        productId: Int,
+        data: T,
+        providerGeneratedId: String?,
+        output: ResourceDocument<T>?
+    ): Long {
+        val root = findOrLoadStore(if (pid == 0) uid else 0, pid)
 
         var tail = root.findTail()
         while (true) {
-            val id = tail.create(idCard, productId, data, output)
+            val id = tail.create(uid, productId, data, providerGeneratedId, output)
             if (id < 0L) {
                 tail = tail.expand()
             } else {
@@ -1424,7 +1468,7 @@ class ResourceStore<T>(
                 index.register(id, if (pid != 0) pid else uid, pid == 0)
 
                 val providerId =
-                    productCache.productIdToReference(productId)?.provider ?: error("Unknown product? $product")
+                    productCache.productIdToReference(productId)?.provider ?: error("Unknown product?")
                 findOrLoadProviderIndex(providerId).registerUsage(uid, pid)
 
                 return id
@@ -1438,6 +1482,7 @@ class ResourceStore<T>(
         next: String?,
         flags: ResourceIncludeFlags,
         outputBufferLimit: Int = outputBuffer.size,
+        additionalFilters: FilterFunction<T>? = null,
     ): BrowseResult {
         // TODO(Dan): Sorting is not yet working
         val filterCreatedByUid = if (flags.filterCreatedBy != null) {
@@ -1521,6 +1566,10 @@ class ResourceStore<T>(
 
                 if (success && hideProductIds != null) {
                     success = doc.product !in hideProductIds
+                }
+
+                if (success && additionalFilters != null) {
+                    success = additionalFilters.filter(doc)
                 }
 
                 return success
@@ -2092,6 +2141,19 @@ class IdCardService(private val db: DBContext) {
         }
     }
 
+    private val pidCache = SimpleCache<String, Int>(maxAge = SimpleCache.DONT_EXPIRE) { projectId ->
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("project_id", projectId) },
+                """
+                    select pid::int4 
+                    from project.projects p
+                    where
+                        p.id = :project_id
+                """
+            ).rows.singleOrNull()?.getInt(0)
+        }
+    }
 
     private val cached = SimpleCache<String, IdCard>(maxAge = 60_000) { username ->
         db.withSession { session ->
@@ -2198,6 +2260,10 @@ class IdCardService(private val db: DBContext) {
 
     suspend fun lookupGidFromGroupId(groupId: String): Int? {
         return gidCache.get(groupId)
+    }
+
+    suspend fun lookupPidFromProjectId(projectId: String): Int? {
+        return pidCache.get(projectId)
     }
 }
 

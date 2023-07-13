@@ -29,6 +29,20 @@ class ProviderCommunications(
     private val serviceClient: AuthenticatedClient,
     private val productCache: ProductCache,
 ) {
+    private val providerSpec = AsyncCache<String, ProviderSpecification>(
+        backgroundScope,
+        timeToLiveMs = AsyncCache.DONT_EXPIRE,
+        timeoutException = {
+            throw RPCException("Failed to establish communication with $it", HttpStatusCode.BadGateway)
+        },
+        retrieve = { providerId ->
+            Providers.retrieveSpecification.call(
+                ProvidersRetrieveSpecificationRequest(providerId),
+                serviceClient
+            ).orThrow()
+        }
+    )
+
     private val communicationCache = AsyncCache<String, SimpleProviderCommunication>(
         backgroundScope,
         timeToLiveMs = AsyncCache.DONT_EXPIRE,
@@ -46,7 +60,7 @@ class ProviderCommunications(
                 serviceClient
             ).orThrow()
 
-            val hostInfo = HostInfo(providerSpec.domain, if (providerSpec.https) "https" else "http", providerSpec.port)
+            val hostInfo = providerSpec.toHostInfo()
             val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
             val wsClient = auth.authenticateClient(OutgoingWSCall).withFixedHost(hostInfo)
 
@@ -238,6 +252,10 @@ class ProviderCommunications(
                 )
             }
         }
+    }
+
+    suspend fun retrieveProviderHostInfo(providerId: String): HostInfo {
+        return providerSpec.retrieve(providerId).toHostInfo()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -438,7 +456,7 @@ class ProviderCommunications(
             val retrieveProducts: CallDescription<Unit, BulkResponse<Support>, CommonErrorMessage>
                 get() = call(
                     name = "retrieveProducts",
-                    handler = { httpRetrieve(baseContext, roles = Roles.PRIVILEGED) },
+                    handler = { httpRetrieve(baseContext, "products", roles = Roles.PRIVILEGED) },
                     requestType = Unit.serializer(),
                     successType = BulkResponse.serializer(serializer),
                     errorType = CommonErrorMessage.serializer(),

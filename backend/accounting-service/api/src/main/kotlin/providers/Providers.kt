@@ -18,6 +18,7 @@ import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.AuthProvidersRefreshRequestItem
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.HostInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -68,6 +69,9 @@ data class ProviderSpecification(
     val port: Int? = null,
 ) : ResourceSpecification, DocVisualizable {
     override val product: ProductReference = ProductReference("", "", Provider.UCLOUD_CORE_PROVIDER)
+
+    fun toHostInfo(): HostInfo =
+        HostInfo(domain, if (https) "https" else "http", port)
 
     override fun visualize(): DocVisualization = DocVisualization.Inline(buildString {
         if (https) {

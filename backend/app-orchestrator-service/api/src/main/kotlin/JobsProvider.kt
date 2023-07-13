@@ -47,11 +47,8 @@ data class JobsProviderSuspendRequestItem(
 typealias JobsProviderSuspendRequest = BulkRequest<JobsProviderSuspendRequestItem>
 typealias JobsProviderSuspendResponse = BulkResponse<Unit?>
 
-@Serializable
 @UCloudApiStable
-data class JobsProviderUnsuspendRequestItem(
-    val job: Job,
-)
+typealias JobsProviderUnsuspendRequestItem = JobsProviderSuspendRequestItem
 typealias JobsProviderUnsuspendRequest = BulkRequest<JobsProviderUnsuspendRequestItem>
 typealias JobsProviderUnsuspendResponse = BulkResponse<Unit?>
 

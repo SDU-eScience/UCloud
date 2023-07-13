@@ -6,11 +6,13 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
+import dk.sdu.cloud.app.orchestrator.services.ProductCache
+import dk.sdu.cloud.app.orchestrator.services.ProviderCommunications
 import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -27,7 +29,6 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -45,8 +46,14 @@ class JobController(
     private val micro: Micro,
 ) : Controller {
     val jobs = run {
+        val productCache = ProductCache(db)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        JobResourceService2(db, TODO(), micro.backgroundScope)
+        JobResourceService2(
+            db,
+            ProviderCommunications(micro.backgroundScope, serviceClient, productCache),
+            micro.backgroundScope,
+            productCache
+        )
     }
     @OptIn(DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -355,10 +362,6 @@ class JobController(
 
         implement(Jobs.browse) {
             ok(jobs.browse(actorAndProject, request))
-//                (ctx as HttpCall).call.respondBytesWriter {
-//                    jobs.browseV2(actorAndProject, request, this)
-//                }
-//                okContentAlreadyDelivered()
         }
 
         implement(Jobs.retrieve) {
@@ -381,66 +384,71 @@ class JobController(
             ok(jobs.addUpdate(actorAndProject, request))
         }
 
+        implement(Jobs.updateAcl) {
+            jobs.updateAcl(actorAndProject, request)
+            ok(BulkResponse(request.items.map { }))
+        }
+
+        implement(Jobs.terminate) {
+            jobs.terminate(actorAndProject, request)
+            ok(BulkResponse(request.items.map { }))
+        }
+
+        implement(Jobs.follow) {
+            jobs.follow(this)
+            ok(JobsFollowResponse(emptyList(), emptyList()))
+        }
+
+        implement(Jobs.extend) {
+            jobs.extend(actorAndProject, request)
+            ok(BulkResponse(request.items.map { }))
+        }
+
+        implement(Jobs.suspend) {
+            jobs.suspendOrUnsuspendJob(actorAndProject, request, shouldSuspend = true)
+            ok(BulkResponse(request.items.map { }))
+        }
+
+        implement(Jobs.unsuspend) {
+            jobs.suspendOrUnsuspendJob(actorAndProject, request, shouldSuspend = false)
+            ok(BulkResponse(request.items.map { }))
+        }
+
+        implement(Jobs.openInteractiveSession) {
+            ok(jobs.openInteractiveSession(actorAndProject, request))
+        }
+
+        implement(Jobs.retrieveProducts) {
+            ok(jobs.retrieveProducts(actorAndProject))
+        }
+
+        implement(Jobs.retrieveUtilization) {
+            ok(jobs.retrieveUtilization(actorAndProject, request))
+        }
+
+        implement(Jobs.search) {
+            ok(jobs.search(actorAndProject, request))
+        }
+
+        implement(Jobs.init) {
+            ok(jobs.initializeProviders(actorAndProject))
+        }
+
+        implement(JobsControl.register) {
+            ok(jobs.register(actorAndProject, request))
+        }
+
         // Old implementation below this line
         // ==================================
 
         val userApi = orchestrator.userApi()
         val controlApi = orchestrator.controlApi()
-        implement(userApi.retrieveProducts) {
-            ok(orchestrator.retrieveProducts(actorAndProject))
-        }
-
-        implement(userApi.updateAcl) {
-            ok(orchestrator.updateAcl(actorAndProject, request))
-        }
-
-        implement(userApi.init) {
-            ok(orchestrator.init(actorAndProject))
-        }
-
         implement(controlApi.chargeCredits) {
             ok(orchestrator.chargeCredits(actorAndProject, request))
         }
 
         implement(controlApi.checkCredits) {
             ok(orchestrator.chargeCredits(actorAndProject, request, checkOnly = true))
-        }
-
-        implement(controlApi.register) {
-            ok(orchestrator.register(actorAndProject, request))
-        }
-
-        implement(userApi.search) {
-            ok(orchestrator.search(actorAndProject, request))
-        }
-
-        implement(Jobs.terminate) {
-            ok(orchestrator.terminate(actorAndProject, request))
-        }
-
-        implement(Jobs.follow) {
-            orchestrator.follow(this)
-            ok(JobsFollowResponse(emptyList(), emptyList()))
-        }
-
-        implement(Jobs.extend) {
-            ok(orchestrator.extendDuration(actorAndProject, request))
-        }
-
-        implement(Jobs.suspend) {
-            ok(orchestrator.suspendJob(actorAndProject, request))
-        }
-
-        implement(Jobs.unsuspend) {
-            ok(orchestrator.unsuspendJob(actorAndProject, request))
-        }
-
-        implement(Jobs.openInteractiveSession) {
-            ok(orchestrator.openInteractiveSession(actorAndProject, request))
-        }
-
-        implement(Jobs.retrieveUtilization) {
-            ok(orchestrator.retrieveUtilization(actorAndProject, request))
         }
     }
 
