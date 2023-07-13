@@ -211,12 +211,9 @@ begin
     where
         p.id = new.id;
 
-    if ((current_unit_of_price = 'UNITS_PER_MINUTE' or
-        current_unit_of_price = 'UNITS_PER_HOUR' or
-        current_unit_of_price = 'UNITS_PER_DAY' or
-        current_unit_of_price = 'PER_UNIT') and
+    if (current_unit_of_price = 'PER_UNIT' and
         new.price != 1) then
-        raise exception 'Price per unit for UNITS_PER_X or PER_UNIT products can only be 1';
+        raise exception 'Price per unit for PER_UNIT products can only be 1';
     end if;
     return null;
 end;
@@ -276,3 +273,18 @@ begin
     end if;
 end;
 $$;
+
+--Change the price from 1 on all units to number of cpus. Giving correct cost
+with productsandcat as (
+    select products.id product_id
+    from accounting.products join accounting.product_categories pc on pc.id = products.category
+    where pc.product_type = 'COMPUTE'::accounting.product_type and (
+        unit_of_price = 'UNITS_PER_DAY'::accounting.product_price_unit OR
+        unit_of_price = 'UNITS_PER_HOUR'::accounting.product_price_unit OR
+        unit_of_price = 'UNITS_PER_MINUTE'::accounting.product_price_unit
+    )
+)
+update accounting.products
+set price = cpu
+from productsandcat
+where accounting.products.id = productsandcat.product_id
