@@ -92,7 +92,7 @@ class ProviderCommunications(
         }
     )
 
-    suspend fun <Support : ProductSupport> fetchSupport(
+    suspend fun <Support : ProductSupport> retrieveSupport(
         api: UnknownResourceApi<Support>,
         providerId: String,
     ): List<Support> {
@@ -153,7 +153,7 @@ class ProviderCommunications(
         val providerIds = productReferences.map { it.provider }.toSet()
 
         for (provider in providerIds) {
-            val support = fetchSupport(api, provider)
+            val support = retrieveSupport(api, provider)
             var found = false
             for (ref in productReferences) {
                 if (ref.provider != provider) continue
@@ -313,7 +313,7 @@ class ProviderCommunications(
         val mutex = Mutex()
 
         forEachRelevantProvider(actorAndProject) { providerId ->
-            val element = fetchSupport(api, providerId)
+            val element = retrieveSupport(api, providerId)
             mutex.withLock { support[providerId] = element }
         }
 

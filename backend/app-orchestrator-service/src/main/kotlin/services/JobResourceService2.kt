@@ -161,7 +161,7 @@ class JobResourceService2(
 
             override suspend fun saveState(
                 session: DBTransaction,
-                store: ResourceStoreByOwner<InternalJobState>,
+                store: ResourceStoreBucket<InternalJobState>,
                 indices: IntArray,
                 length: Int
             ) {
@@ -1072,7 +1072,7 @@ class JobResourceService2(
                 data.specification.application.name,
                 data.specification.application.version
             ),
-            resolvedSupport = providers.fetchSupport(Jobs, data.specification.product.provider)
+            resolvedSupport = providers.retrieveSupport(Jobs, data.specification.product.provider)
                 .find { productCache.referenceToProductId(it.product) == doc.product }
                 ?.let { support ->
                     ResolvedSupport(
