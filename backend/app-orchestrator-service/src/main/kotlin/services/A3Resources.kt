@@ -5,8 +5,11 @@ import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
@@ -243,6 +246,31 @@ class ResourceStore<T>(
         val pid = if (uid == 0) idCard.activeProject else 0
 
         return createDocument(uid, pid, productId, data, null, output)
+    }
+
+    suspend fun createViaProvider(
+        idCard: IdCard,
+        product: ProductReference,
+        data: T,
+        proxyBlock: suspend (doc: ResourceDocument<T>) -> String?,
+    ): Long {
+        val doc = ResourceDocument<T>()
+        val allocatedId = create(idCard, product, data, output = doc)
+
+        val providerId = try {
+            proxyBlock(doc)
+        } catch (ex: Throwable) {
+            JobResourceService2.log.warn(ex.toReadableStacktrace().toString())
+            // TODO(Dan): This is not guaranteed to run ever. We will get stuck if never "confirmed" by the provider.
+            delete(idCard, longArrayOf(allocatedId))
+            throw ex
+        }
+
+        if (providerId != null) {
+            updateProviderId(idCard, allocatedId, providerId)
+        }
+
+        return allocatedId
     }
 
     suspend fun register(

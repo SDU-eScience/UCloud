@@ -3,12 +3,10 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
-import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.Resource
 import java.util.ArrayList
 
 class ProxyToProvider<Internal, External>(
@@ -23,7 +21,7 @@ class ProxyToProvider<Internal, External>(
         val products: ArrayList<ProductReference> = ArrayList(),
     )
 
-    suspend fun proxy(
+    suspend fun send(
         actorAndProject: ActorAndProject,
         ids: List<Long>,
         permission: Permission,

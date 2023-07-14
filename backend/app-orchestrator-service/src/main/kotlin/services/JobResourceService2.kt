@@ -104,55 +104,42 @@ class JobResourceService2(
                     """
                 ).rows.forEach { row ->
                     val id = row.getLong(0)!!
-
-                    val appName = row.getString(1)!!
-                    val appVersion = row.getString(2)!!
-                    val name = row.getString(3)
-                    val replicas = row.getInt(4)!!
-                    val timeAllocMillis = row.getLong(5)
-                    val openedFile = row.getString(6)
-                    val restartOnExit = row.getBoolean(7)
-                    val sshEnabled = row.getBoolean(8)
-                    val outputFolder = row.getString(9)
-                    val currentState = JobState.valueOf(row.getString(10)!!)
-                    val params = row.getString(11)?.let { text ->
-                        defaultMapper.decodeFromString(
-                            MapSerializer(String.serializer(), AppParameterValue.serializer()),
-                            text
-                        )
-                    } ?: emptyMap()
-                    val decodedResources = row.getString(12)?.let { text ->
-                        defaultMapper.decodeFromString(
-                            ListSerializer(AppParameterValue.serializer()),
-                            text
-                        )
-                    } ?: emptyList()
-                    val startedAt = row.getLong(13)
-                    val allowRestart = row.getBoolean(14) ?: false
-                    val jobParameters = row.getString(15)?.let { text ->
-                        defaultMapper.decodeFromString(JsonElement.serializer(), text)
-                    }
-
                     val slot = resources.indexOf(id)
+
                     state[slot] = InternalJobState(
                         JobSpecification(
-                            NameAndVersion(appName, appVersion),
-                            ProductReference("", "", ""),
-                            name,
-                            replicas,
-                            false,
-                            params,
-                            decodedResources,
-                            timeAllocMillis?.let { ms -> SimpleDuration.fromMillis(ms) },
-                            openedFile,
-                            restartOnExit,
-                            sshEnabled,
+                            product = ProductReference("", "", ""), // Filled out by doc store
+                            application = NameAndVersion(
+                                name = row.getString(1)!!,
+                                version = row.getString(2)!!,
+                            ),
+                            name = row.getString(3)!!,
+                            replicas = row.getInt(4)!!,
+                            allowDuplicateJob = false,
+                            parameters = row.getString(11)?.let { text ->
+                                defaultMapper.decodeFromString(
+                                    MapSerializer(String.serializer(), AppParameterValue.serializer()),
+                                    text
+                                )
+                            } ?: emptyMap(),
+                            resources = row.getString(12)?.let { text ->
+                                defaultMapper.decodeFromString(
+                                    ListSerializer(AppParameterValue.serializer()),
+                                    text
+                                )
+                            } ?: emptyList(),
+                            timeAllocation = row.getLong(5)?.let { SimpleDuration.fromMillis(it) },
+                            openedFile = row.getString(6),
+                            restartOnExit = row.getBoolean(7),
+                            sshEnabled = row.getBoolean(8),
                         ),
-                        currentState,
-                        outputFolder,
-                        startedAt,
-                        allowRestart,
-                        jobParameters,
+                        state = JobState.valueOf(row.getString(10)!!),
+                        outputFolder = row.getString(9),
+                        startedAt = row.getLong(13),
+                        allowRestart = row.getBoolean(14) ?: false,
+                        jobParameters = row.getString(15)?.let { text ->
+                            defaultMapper.decodeFromString(JsonElement.serializer(), text)
+                        },
                     )
                 }
 
@@ -169,15 +156,15 @@ class JobResourceService2(
                 session.sendPreparedStatement(
                     {
                         val applicationNames = ArrayList<String>().also { setParameter("application_name", it) }
-                        val applicationVersions = ArrayList<String>().also { setParameter("application_version", it)}
-                        val timeAllocations = ArrayList<Long?>().also { setParameter("time_allocation", it)}
-                        val names = ArrayList<String?>().also { setParameter("name", it)}
-                        val outputFolders = ArrayList<String?>().also { setParameter("output_folder", it)}
-                        val currentStates = ArrayList<String>().also { setParameter("current_state", it)}
-                        val startedAtTimestamps = ArrayList<Long?>().also { setParameter("started_at", it)}
-                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it)}
-                        val jobParameterFiles = ArrayList<String?>().also { setParameter("job_parameters", it)}
-                        val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it)}
+                        val applicationVersions = ArrayList<String>().also { setParameter("application_version", it) }
+                        val timeAllocations = ArrayList<Long?>().also { setParameter("time_allocation", it) }
+                        val names = ArrayList<String?>().also { setParameter("name", it) }
+                        val outputFolders = ArrayList<String?>().also { setParameter("output_folder", it) }
+                        val currentStates = ArrayList<String>().also { setParameter("current_state", it) }
+                        val startedAtTimestamps = ArrayList<Long?>().also { setParameter("started_at", it) }
+                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+                        val jobParameterFiles = ArrayList<String?>().also { setParameter("job_parameters", it) }
+                        val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
 
                         for (i in 0 until length) {
                             val arrIdx = indices[i]
@@ -247,10 +234,12 @@ class JobResourceService2(
                             for ((name, value) in job.specification.parameters ?: emptyMap()) {
                                 jobIds.add(jobId)
                                 names.add(name)
-                                values.add(defaultMapper.encodeToString(
-                                    AppParameterValue.serializer(),
-                                    value
-                                ))
+                                values.add(
+                                    defaultMapper.encodeToString(
+                                        AppParameterValue.serializer(),
+                                        value
+                                    )
+                                )
                             }
                         }
                     },
@@ -285,10 +274,12 @@ class JobResourceService2(
 
                             for (value in job.specification.resources ?: emptyList()) {
                                 jobIds.add(jobId)
-                                resources.add(defaultMapper.encodeToString(
-                                    AppParameterValue.serializer(),
-                                    value
-                                ))
+                                resources.add(
+                                    defaultMapper.encodeToString(
+                                        AppParameterValue.serializer(),
+                                        value
+                                    )
+                                )
                             }
                         }
                     },
@@ -350,6 +341,11 @@ class JobResourceService2(
         )
     }
 
+    private val proxy = ProxyToProvider(idCards, documents, docMapper, productCache, providers)
+    // If we had singleton access to the database and serviceClients and if the docMapper becomes redundant:
+    // private val proxy = ProxyToProvider(documents)
+
+
     init {
         documents.startSynchronizationJob(backgroundScope)
     }
@@ -362,11 +358,11 @@ class JobResourceService2(
             for (reqItem in request.items) {
                 if (reqItem.product != support.product) continue
 
-                val (application, tool, block) = findSupportBlock(reqItem, support)
+                val (_, tool, block) = findSupportBlock(reqItem, support)
                 block.checkEnabled()
 
                 val supportedProviders = tool.description.supportedProviders
-                if (supportedProviders  != null) {
+                if (supportedProviders != null) {
                     if (reqItem.product.provider !in supportedProviders) {
                         error("The application is not supported by this provider. Try selecting a different application.")
                     }
@@ -381,36 +377,23 @@ class JobResourceService2(
             val provider = job.product.provider
             validate(actorAndProject, job)
 
-            val doc = ResourceDocument<InternalJobState>()
-            val allocatedId = documents.create(
-                card,
-                job.product,
-                InternalJobState(job, JobState.IN_QUEUE),
-                output = doc
-            )
-
-            val result = try {
-                providers.invokeCall(
-                    provider,
-                    actorAndProject,
-                    { JobsProvider(provider).create },
-                    bulkRequestOf(docMapper.map(card, doc)),
+            output.add(
+                FindByStringId(
+                    documents.createViaProvider(
+                        card,
+                        job.product,
+                        InternalJobState(job),
+                        proxyBlock = { doc ->
+                            providers.invokeCall(
+                                provider,
+                                actorAndProject,
+                                { JobsProvider(provider).create },
+                                bulkRequestOf(docMapper.map(null, doc))
+                            ).responses.singleOrNull()?.id
+                        }
+                    ).toString()
                 )
-            } catch (ex: Throwable) {
-                log.warn(ex.toReadableStacktrace().toString())
-                // TODO(Dan): This is not guaranteed to run ever. We will get stuck
-                //  if never "confirmed" by the provider.
-                documents.delete(card, longArrayOf(allocatedId))
-                throw ex
-                // TODO do we continue or stop here?
-            }
-
-            val providerId = result.responses.single()
-            if (providerId != null) {
-                documents.updateProviderId(card, allocatedId, providerId.id)
-            }
-
-            output.add(FindByStringId(allocatedId.toString()))
+            )
         }
 
         return BulkResponse(output)
@@ -521,7 +504,7 @@ class JobResourceService2(
                         outputBufferLimit = normalizedRequest.itemsPerPage,
                         additionalFilters = customFilter,
                         sortedBy = request.sortBy,
-                        sortDirection =  request.sortDirection
+                        sortDirection = request.sortDirection
                     )
                 }
             }
@@ -796,7 +779,8 @@ class JobResourceService2(
     ): Unit = with(callHandler) {
         val card = idCards.fetchIdCard(callHandler.actorAndProject)
 
-        val jobId = request.id.toLongOrNull() ?: throw RPCException("Unknown job: ${request.id}", HttpStatusCode.NotFound)
+        val jobId =
+            request.id.toLongOrNull() ?: throw RPCException("Unknown job: ${request.id}", HttpStatusCode.NotFound)
         val initialJob = documents.retrieve(card, jobId)?.let { docMapper.map(card, it) }
             ?: throw RPCException("Unknown job: ${request.id}", HttpStatusCode.NotFound)
         val logsSupported = runCatching {
@@ -1020,46 +1004,14 @@ class JobResourceService2(
         featureValidation: (suspend (job: Job, support: ComputeSupport) -> Unit)?,
         fn: suspend (providerId: String, jobs: List<Job>) -> Unit
     ) {
-        val card = idCards.fetchIdCard(actorAndProject)
-        val jobsToExtend = ResourceOutputPool.withInstance<InternalJobState, List<Job>> { pool ->
-            if (pool.size < ids.size) {
-                throw RPCException("Request is too large!", HttpStatusCode.PayloadTooLarge)
-            }
-
-            val count = documents.retrieveBulk(card, ids, pool, permission)
-
-            if (count != ids.size) {
-                throw RPCException(
-                    "Could not find the jobs that you requested. Do you have permission to perform this action?",
-                    HttpStatusCode.NotFound
-                )
-            }
-
-            val result = ArrayList<Job>()
-            for (idx in 0 until count) {
-                result.add(docMapper.map(card, pool[idx]))
-            }
-
-            result
-        }
-
-        val grouped = jobsToExtend.groupBy { it.specification.product.provider }
-
-        if (featureValidation != null) {
-            for ((provider, jobs) in grouped) {
-                val products = jobs.map { it.specification.product }.toSet()
-                providers.requireSupport(Jobs, products, actionDescription) { support ->
-                    for (job in jobs) {
-                        if (job.specification.product != support.product) continue
-                        featureValidation(job, support)
-                    }
-                }
-            }
-        }
-
-        for ((provider, jobs) in grouped) {
-            fn(provider, jobs)
-        }
+        proxy.send(
+            actorAndProject,
+            ids.toList(),
+            permission,
+            actionDescription,
+            featureValidation = { job, support -> featureValidation?.invoke(job, support as ComputeSupport) },
+            fn
+        )
     }
 
     private data class SupportInfo(
