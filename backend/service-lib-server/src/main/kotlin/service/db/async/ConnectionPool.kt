@@ -42,6 +42,7 @@ sealed class TransactionMode {
 }
 
 sealed class DBContext
+object FakeDBContext : DBContext()
 private const val DEBUG_ERRORS = false
 
 suspend fun <R> DBContext.withSession(
@@ -76,6 +77,8 @@ suspend fun <R> DBContext.withSession(
                 is AsyncDBConnection -> {
                     block(this)
                 }
+
+                FakeDBContext -> error("Cannot call withSession on a FakeDBContext")
             }
         } catch (ex: GenericDatabaseException) {
             if (remapExceptions) {

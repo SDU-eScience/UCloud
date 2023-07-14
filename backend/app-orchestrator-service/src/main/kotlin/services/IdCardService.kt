@@ -12,7 +12,17 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 
-class IdCardService(private val db: DBContext) {
+interface IIdCardService {
+    suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard
+    suspend fun lookupUid(uid: Int): String?
+    suspend fun lookupPid(pid: Int): String?
+    suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup?
+    suspend fun lookupUidFromUsername(username: String): Int?
+    suspend fun lookupGidFromGroupId(groupId: String): Int?
+    suspend fun lookupPidFromProjectId(projectId: String): Int?
+}
+
+class IdCardService(private val db: DBContext) : IIdCardService {
     private val reverseUidCache = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { uid ->
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -181,7 +191,7 @@ class IdCardService(private val db: DBContext) {
         }
     }
 
-    suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
+    override suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
         var card = cached.get(actorAndProject.actor.safeUsername())
             ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
@@ -200,30 +210,30 @@ class IdCardService(private val db: DBContext) {
         return card
     }
 
-    suspend fun lookupUid(uid: Int): String? {
+    override suspend fun lookupUid(uid: Int): String? {
         if (uid == 0) return null
         return reverseUidCache.get(uid)
     }
 
-    suspend fun lookupPid(pid: Int): String? {
+    override suspend fun lookupPid(pid: Int): String? {
         if (pid == 0) return null
         return reversePidCache.get(pid)
     }
 
-    suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup? {
+    override suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup? {
         if (gid == 0) return null
         return reverseGidCache.get(gid)
     }
 
-    suspend fun lookupUidFromUsername(username: String): Int? {
+    override suspend fun lookupUidFromUsername(username: String): Int? {
         return uidCache.get(username)
     }
 
-    suspend fun lookupGidFromGroupId(groupId: String): Int? {
+    override suspend fun lookupGidFromGroupId(groupId: String): Int? {
         return gidCache.get(groupId)
     }
 
-    suspend fun lookupPidFromProjectId(projectId: String): Int? {
+    override suspend fun lookupPidFromProjectId(projectId: String): Int? {
         return pidCache.get(projectId)
     }
 }

@@ -21,6 +21,7 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DBTransaction
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.builtins.ListSerializer
@@ -56,250 +57,256 @@ class JobResourceService2(
         idCards,
         object : ResourceStore.Callbacks<InternalJobState> {
             override suspend fun loadState(
-                session: DBTransaction,
+                ctx: DBContext,
                 count: Int,
                 resources: LongArray
             ): Array<InternalJobState> {
                 val state = arrayOfNulls<InternalJobState>(count)
 
-                session.sendPreparedStatement(
-                    { setParameter("ids", resources.slice(0 until count)) },
-                    """
-                        with
-                            params as (
-                                select param.job_id, jsonb_object_agg(param.name, param.value) as params
-                                from app_orchestrator.job_input_parameters param
-                                where param.job_id = some(:ids)
-                                group by job_id
-                            ),
-                            resources as (
-                                select r.job_id, jsonb_agg(r.resource) as resources
-                                from app_orchestrator.job_resources r
-                                where r.job_id = some(:ids)
-                                group by job_id
-                            )
-                        select
-                            j.resource,
-                            j.application_name,
-                            j.application_version,
-                            j.name,
-                            j.replicas,
-                            j.time_allocation_millis,
-                            j.opened_file,
-                            j.restart_on_exit,
-                            j.ssh_enabled,
-                            j.output_folder,
-                            j.current_state,
-                            p.params,
-                            r.resources,
-                            floor(extract(epoch from j.started_at) * 1000)::int8,
-                            j.allow_restart,
-                            j.job_parameters
-                        from
-                            app_orchestrator.jobs j
-                            left join params p on j.resource = p.job_id
-                            left join resources r on j.resource = r.job_id
-                        where
-                            j.resource = some(:ids);
-                    """
-                ).rows.forEach { row ->
-                    val id = row.getLong(0)!!
-                    val slot = resources.indexOf(id)
+                ctx.withSession { session ->
+                    session.sendPreparedStatement(
+                        { setParameter("ids", resources.slice(0 until count)) },
+                        """
+                            with
+                                params as (
+                                    select param.job_id, jsonb_object_agg(param.name, param.value) as params
+                                    from app_orchestrator.job_input_parameters param
+                                    where param.job_id = some(:ids)
+                                    group by job_id
+                                ),
+                                resources as (
+                                    select r.job_id, jsonb_agg(r.resource) as resources
+                                    from app_orchestrator.job_resources r
+                                    where r.job_id = some(:ids)
+                                    group by job_id
+                                )
+                            select
+                                j.resource,
+                                j.application_name,
+                                j.application_version,
+                                j.name,
+                                j.replicas,
+                                j.time_allocation_millis,
+                                j.opened_file,
+                                j.restart_on_exit,
+                                j.ssh_enabled,
+                                j.output_folder,
+                                j.current_state,
+                                p.params,
+                                r.resources,
+                                floor(extract(epoch from j.started_at) * 1000)::int8,
+                                j.allow_restart,
+                                j.job_parameters
+                            from
+                                app_orchestrator.jobs j
+                                left join params p on j.resource = p.job_id
+                                left join resources r on j.resource = r.job_id
+                            where
+                                j.resource = some(:ids);
+                        """
+                    ).rows.forEach { row ->
+                        val id = row.getLong(0)!!
+                        val slot = resources.indexOf(id)
 
-                    state[slot] = InternalJobState(
-                        JobSpecification(
-                            product = ProductReference("", "", ""), // Filled out by doc store
-                            application = NameAndVersion(
-                                name = row.getString(1)!!,
-                                version = row.getString(2)!!,
+                        state[slot] = InternalJobState(
+                            JobSpecification(
+                                product = ProductReference("", "", ""), // Filled out by doc store
+                                application = NameAndVersion(
+                                    name = row.getString(1)!!,
+                                    version = row.getString(2)!!,
+                                ),
+                                name = row.getString(3)!!,
+                                replicas = row.getInt(4)!!,
+                                allowDuplicateJob = false,
+                                parameters = row.getString(11)?.let { text ->
+                                    defaultMapper.decodeFromString(
+                                        MapSerializer(String.serializer(), AppParameterValue.serializer()),
+                                        text
+                                    )
+                                } ?: emptyMap(),
+                                resources = row.getString(12)?.let { text ->
+                                    defaultMapper.decodeFromString(
+                                        ListSerializer(AppParameterValue.serializer()),
+                                        text
+                                    )
+                                } ?: emptyList(),
+                                timeAllocation = row.getLong(5)?.let { SimpleDuration.fromMillis(it) },
+                                openedFile = row.getString(6),
+                                restartOnExit = row.getBoolean(7),
+                                sshEnabled = row.getBoolean(8),
                             ),
-                            name = row.getString(3)!!,
-                            replicas = row.getInt(4)!!,
-                            allowDuplicateJob = false,
-                            parameters = row.getString(11)?.let { text ->
-                                defaultMapper.decodeFromString(
-                                    MapSerializer(String.serializer(), AppParameterValue.serializer()),
-                                    text
-                                )
-                            } ?: emptyMap(),
-                            resources = row.getString(12)?.let { text ->
-                                defaultMapper.decodeFromString(
-                                    ListSerializer(AppParameterValue.serializer()),
-                                    text
-                                )
-                            } ?: emptyList(),
-                            timeAllocation = row.getLong(5)?.let { SimpleDuration.fromMillis(it) },
-                            openedFile = row.getString(6),
-                            restartOnExit = row.getBoolean(7),
-                            sshEnabled = row.getBoolean(8),
-                        ),
-                        state = JobState.valueOf(row.getString(10)!!),
-                        outputFolder = row.getString(9),
-                        startedAt = row.getLong(13),
-                        allowRestart = row.getBoolean(14) ?: false,
-                        jobParameters = row.getString(15)?.let { text ->
-                            defaultMapper.decodeFromString(JsonElement.serializer(), text)
-                        },
-                    )
+                            state = JobState.valueOf(row.getString(10)!!),
+                            outputFolder = row.getString(9),
+                            startedAt = row.getLong(13),
+                            allowRestart = row.getBoolean(14) ?: false,
+                            jobParameters = row.getString(15)?.let { text ->
+                                defaultMapper.decodeFromString(JsonElement.serializer(), text)
+                            },
+                        )
+                    }
                 }
+
 
                 @Suppress("UNCHECKED_CAST")
                 return state as Array<InternalJobState>
             }
 
             override suspend fun saveState(
-                session: DBTransaction,
+                ctx: DBContext,
                 store: ResourceStoreBucket<InternalJobState>,
                 indices: IntArray,
                 length: Int
             ) {
-                session.sendPreparedStatement(
-                    {
-                        val applicationNames = ArrayList<String>().also { setParameter("application_name", it) }
-                        val applicationVersions = ArrayList<String>().also { setParameter("application_version", it) }
-                        val timeAllocations = ArrayList<Long?>().also { setParameter("time_allocation", it) }
-                        val names = ArrayList<String?>().also { setParameter("name", it) }
-                        val outputFolders = ArrayList<String?>().also { setParameter("output_folder", it) }
-                        val currentStates = ArrayList<String>().also { setParameter("current_state", it) }
-                        val startedAtTimestamps = ArrayList<Long?>().also { setParameter("started_at", it) }
-                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
-                        val jobParameterFiles = ArrayList<String?>().also { setParameter("job_parameters", it) }
-                        val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
+                ctx.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            val applicationNames = ArrayList<String>().also { setParameter("application_name", it) }
+                            val applicationVersions =
+                                ArrayList<String>().also { setParameter("application_version", it) }
+                            val timeAllocations = ArrayList<Long?>().also { setParameter("time_allocation", it) }
+                            val names = ArrayList<String?>().also { setParameter("name", it) }
+                            val outputFolders = ArrayList<String?>().also { setParameter("output_folder", it) }
+                            val currentStates = ArrayList<String>().also { setParameter("current_state", it) }
+                            val startedAtTimestamps = ArrayList<Long?>().also { setParameter("started_at", it) }
+                            val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+                            val jobParameterFiles = ArrayList<String?>().also { setParameter("job_parameters", it) }
+                            val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
 
-                        for (i in 0 until length) {
-                            val arrIdx = indices[i]
-                            val jobId = store.id[arrIdx]
-                            val job = store.data(arrIdx) ?: continue
+                            for (i in 0 until length) {
+                                val arrIdx = indices[i]
+                                val jobId = store.id[arrIdx]
+                                val job = store.data(arrIdx) ?: continue
 
-                            applicationNames.add(job.specification.application.name)
-                            applicationVersions.add(job.specification.application.version)
-                            timeAllocations.add(job.specification.timeAllocation?.toMillis())
-                            names.add(job.specification.name)
-                            outputFolders.add(job.outputFolder)
-                            currentStates.add(job.state.name)
-                            startedAtTimestamps.add(job.startedAt)
-                            jobIds.add(jobId)
-                            jobParameterFiles.add(job.jobParameters?.let {
-                                defaultMapper.encodeToString(JsonElement.serializer(), it)
-                            })
-                            openedFiles.add(job.specification.openedFile)
-                        }
-                    },
-                    """
-                        with
-                            data as (
-                                select
-                                    unnest(:application_name::text[]) application_name,
-                                    unnest(:application_version::text[]) application_version,
-                                    unnest(:time_allocation::int8[]) time_allocation,
-                                    unnest(:name::text[]) name,
-                                    unnest(:output_folder::text[]) output_folder,
-                                    unnest(:current_state::text[]) current_state,
-                                    to_timestamp(unnest(:started_at::int8[]) / 1000) started_at,
-                                    unnest(:job_id::int8[]) job_id,
-                                    unnest(:job_parameters::jsonb[]) job_parameters,
-                                    unnest(:opened_file::text[][]) opened_file
-                            )
-                        insert into app_orchestrator.jobs 
-                            (application_name, application_version, time_allocation_millis, name, output_folder, 
-                            current_state, started_at, resource, job_parameters, opened_file) 
-                        select 
-                            data.application_name, application_version, time_allocation, name, output_folder, 
-                            current_state, started_at, job_id, job_parameters, opened_file
-                        from data
-                        on conflict (resource) do update set 
-                            application_name = excluded.application_name,
-                            application_version = excluded.application_version,
-                            time_allocation_millis = excluded.time_allocation_millis,
-                            name = excluded.name,
-                            output_folder = excluded.output_folder,
-                            current_state = excluded.current_state,
-                            started_at = excluded.started_at,
-                            job_parameters = excluded.job_parameters,
-                            opened_file = excluded.opened_file
-                    """
-                )
-
-                session.sendPreparedStatement(
-                    {
-                        val names = ArrayList<String>().also { setParameter("name", it) }
-                        val values = ArrayList<String>().also { setParameter("value", it) }
-                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
-
-                        for (i in 0 until length) {
-                            val arrIdx = indices[i]
-                            val jobId = store.id[arrIdx]
-                            val job = store.data(arrIdx) ?: continue
-
-                            for ((name, value) in job.specification.parameters ?: emptyMap()) {
+                                applicationNames.add(job.specification.application.name)
+                                applicationVersions.add(job.specification.application.version)
+                                timeAllocations.add(job.specification.timeAllocation?.toMillis())
+                                names.add(job.specification.name)
+                                outputFolders.add(job.outputFolder)
+                                currentStates.add(job.state.name)
+                                startedAtTimestamps.add(job.startedAt)
                                 jobIds.add(jobId)
-                                names.add(name)
-                                values.add(
-                                    defaultMapper.encodeToString(
-                                        AppParameterValue.serializer(),
-                                        value
-                                    )
-                                )
+                                jobParameterFiles.add(job.jobParameters?.let {
+                                    defaultMapper.encodeToString(JsonElement.serializer(), it)
+                                })
+                                openedFiles.add(job.specification.openedFile)
                             }
-                        }
-                    },
-                    """
-                        with
-                            data as (
-                                select
-                                    unnest(:job_id::int8[]) job_id,
-                                    unnest(:name::text[]) name,
-                                    unnest(:value::jsonb[]) value
-                            ),
-                            deleted_entries as (
-                                delete from app_orchestrator.job_input_parameters p
-                                using data d
-                                where p.job_id = d.job_id
-                            )
-                        insert into app_orchestrator.job_input_parameters (name, value, job_id) 
-                        select name, value, job_id
-                        from data
-                    """
-                )
-
-                session.sendPreparedStatement(
-                    {
-                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
-                        val resources = ArrayList<String>().also { setParameter("resource", it) }
-
-                        for (i in 0 until length) {
-                            val arrIdx = indices[i]
-                            val jobId = store.id[arrIdx]
-                            val job = store.data(arrIdx) ?: continue
-
-                            for (value in job.specification.resources ?: emptyList()) {
-                                jobIds.add(jobId)
-                                resources.add(
-                                    defaultMapper.encodeToString(
-                                        AppParameterValue.serializer(),
-                                        value
-                                    )
+                        },
+                        """
+                            with
+                                data as (
+                                    select
+                                        unnest(:application_name::text[]) application_name,
+                                        unnest(:application_version::text[]) application_version,
+                                        unnest(:time_allocation::int8[]) time_allocation,
+                                        unnest(:name::text[]) name,
+                                        unnest(:output_folder::text[]) output_folder,
+                                        unnest(:current_state::text[]) current_state,
+                                        to_timestamp(unnest(:started_at::int8[]) / 1000) started_at,
+                                        unnest(:job_id::int8[]) job_id,
+                                        unnest(:job_parameters::jsonb[]) job_parameters,
+                                        unnest(:opened_file::text[][]) opened_file
                                 )
+                            insert into app_orchestrator.jobs 
+                                (application_name, application_version, time_allocation_millis, name, output_folder, 
+                                current_state, started_at, resource, job_parameters, opened_file) 
+                            select 
+                                data.application_name, application_version, time_allocation, name, output_folder, 
+                                current_state, started_at, job_id, job_parameters, opened_file
+                            from data
+                            on conflict (resource) do update set 
+                                application_name = excluded.application_name,
+                                application_version = excluded.application_version,
+                                time_allocation_millis = excluded.time_allocation_millis,
+                                name = excluded.name,
+                                output_folder = excluded.output_folder,
+                                current_state = excluded.current_state,
+                                started_at = excluded.started_at,
+                                job_parameters = excluded.job_parameters,
+                                opened_file = excluded.opened_file
+                        """
+                    )
+
+                    session.sendPreparedStatement(
+                        {
+                            val names = ArrayList<String>().also { setParameter("name", it) }
+                            val values = ArrayList<String>().also { setParameter("value", it) }
+                            val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+
+                            for (i in 0 until length) {
+                                val arrIdx = indices[i]
+                                val jobId = store.id[arrIdx]
+                                val job = store.data(arrIdx) ?: continue
+
+                                for ((name, value) in job.specification.parameters ?: emptyMap()) {
+                                    jobIds.add(jobId)
+                                    names.add(name)
+                                    values.add(
+                                        defaultMapper.encodeToString(
+                                            AppParameterValue.serializer(),
+                                            value
+                                        )
+                                    )
+                                }
                             }
-                        }
-                    },
-                    """
-                        with
-                            data as (
-                                select
-                                    unnest(:job_id::int8[]) job_id,
-                                    unnest(:resource::jsonb[]) resource
-                            ),
-                            deleted_entries as (
-                                delete from app_orchestrator.job_resources r
-                                using data d
-                                where r.job_id = d.job_id
-                            )
-                        insert into app_orchestrator.job_resources (resource, job_id) 
-                        select d.resource, d.job_id
-                        from data d
-                    """
-                )
+                        },
+                        """
+                            with
+                                data as (
+                                    select
+                                        unnest(:job_id::int8[]) job_id,
+                                        unnest(:name::text[]) name,
+                                        unnest(:value::jsonb[]) value
+                                ),
+                                deleted_entries as (
+                                    delete from app_orchestrator.job_input_parameters p
+                                    using data d
+                                    where p.job_id = d.job_id
+                                )
+                            insert into app_orchestrator.job_input_parameters (name, value, job_id) 
+                            select name, value, job_id
+                            from data
+                        """
+                    )
+
+                    session.sendPreparedStatement(
+                        {
+                            val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+                            val resources = ArrayList<String>().also { setParameter("resource", it) }
+
+                            for (i in 0 until length) {
+                                val arrIdx = indices[i]
+                                val jobId = store.id[arrIdx]
+                                val job = store.data(arrIdx) ?: continue
+
+                                for (value in job.specification.resources ?: emptyList()) {
+                                    jobIds.add(jobId)
+                                    resources.add(
+                                        defaultMapper.encodeToString(
+                                            AppParameterValue.serializer(),
+                                            value
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        """
+                            with
+                                data as (
+                                    select
+                                        unnest(:job_id::int8[]) job_id,
+                                        unnest(:resource::jsonb[]) resource
+                                ),
+                                deleted_entries as (
+                                    delete from app_orchestrator.job_resources r
+                                    using data d
+                                    where r.job_id = d.job_id
+                                )
+                            insert into app_orchestrator.job_resources (resource, job_id) 
+                            select d.resource, d.job_id
+                            from data d
+                        """
+                    )
+                }
             }
         }
     )

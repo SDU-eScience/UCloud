@@ -5,11 +5,8 @@ import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
@@ -17,10 +14,7 @@ import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.DBTransaction
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.toReadableStacktrace
 import jdk.incubator.vector.ByteVector
 import jdk.incubator.vector.IntVector
@@ -43,16 +37,30 @@ import kotlin.random.Random
 
 class ResourceStore<T>(
     val type: String,
-    private val db: DBContext,
-    private val productCache: ProductCache,
-    private val idCardService: IdCardService,
+    private val queries: ResourceStoreDatabaseQueries<T>,
+    private val productCache: IProductCache,
+    private val idCardService: IIdCardService,
     private val callbacks: Callbacks<T>,
 ) {
+    constructor(
+        type: String,
+        db: DBContext,
+        productCache: ProductCache,
+        idCardService: IdCardService,
+        callbacks: Callbacks<T>
+    ) : this(
+        type,
+        ResourceStoreDatabaseQueriesImpl(db),
+        productCache,
+        idCardService,
+        callbacks
+    )
+
     data class BrowseResult(val count: Int, val next: String?)
 
     interface Callbacks<T> {
-        suspend fun loadState(session: DBTransaction, count: Int, resources: LongArray): Array<T>
-        suspend fun saveState(session: DBTransaction, store: ResourceStoreBucket<T>, indices: IntArray, length: Int)
+        suspend fun loadState(ctx: DBContext, count: Int, resources: LongArray): Array<T>
+        suspend fun saveState(ctx: DBContext, store: ResourceStoreBucket<T>, indices: IntArray, length: Int)
     }
 
     // Blocks and stores
@@ -128,6 +136,7 @@ class ResourceStore<T>(
     private fun findStore(uid: Int, pid: Int): ResourceStoreBucket<T>? {
         require(uid == 0 || pid == 0)
 
+        val start = System.nanoTime()
         var block: Block<T>? = root
         while (block != null) {
             for (store in block.stores) {
@@ -137,6 +146,8 @@ class ResourceStore<T>(
             }
             block = block.next
         }
+        val end = System.nanoTime()
+//        println("Took ${end - start} to findStore")
 
         return null
     }
@@ -166,7 +177,7 @@ class ResourceStore<T>(
                 emptySlotIdx = 0
             }
 
-            val store = ResourceStoreBucket<T>(type, uid, pid, db, callbacks)
+            val store = ResourceStoreBucket<T>(type, uid, pid, queries, callbacks)
             block.stores[emptySlotIdx] = store
             store
         }
@@ -214,18 +225,16 @@ class ResourceStore<T>(
     }
 
     private suspend fun doCompleteSync() {
-        db.withSession { session ->
-            var block = root
-            while (true) {
-                for (entry in block.stores) {
-                    if (entry == null) continue
-                    useStores(entry) {
-                        it.synchronizeToDatabase(session)
-                        ShouldContinue.YES
-                    }
+        var block = root
+        while (true) {
+            for (entry in block.stores) {
+                if (entry == null) continue
+                useStores(entry) {
+                    it.synchronizeToDatabase()
+                    ShouldContinue.YES
                 }
-                block = block.next ?: break
             }
+            block = block.next ?: break
         }
     }
 
@@ -870,29 +879,8 @@ class ResourceStore<T>(
     private suspend fun initializeIdIndex(baseId: Long): IdIndex {
         val result = IdIndex(baseId)
 
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("min", baseId)
-                    setParameter("max", baseId + IdIndex.BLOCK_SIZE)
-                    setParameter("type", type)
-                },
-                """
-                    select r.id, u.uid, p.pid
-                    from
-                        provider.resource r
-                        join auth.principals u on r.created_by = u.id
-                        left join project.projects p on r.project = p.id
-                    where
-                        r.id >= :min
-                        and r.id < :max
-                        and r.type = :type
-                """
-            ).rows.forEach { row ->
-                val uid = row.getInt(1)!!
-                val pid = row.getInt(2)
-                result.register(row.getLong(0)!!, pid ?: uid, pid == null)
-            }
+        queries.loadIdIndex(type, baseId, baseId + IdIndex.BLOCK_SIZE) { id, ref, isUser ->
+            result.register(id, ref, isUser)
         }
 
         return result
@@ -905,7 +893,7 @@ class ResourceStore<T>(
             blocksToLoad[index] = (id / IdIndex.BLOCK_SIZE) * IdIndex.BLOCK_SIZE
         }
 
-        val maxValid = ResourceIdAllocator.maximumValid(db)
+        val maxValid = ResourceIdAllocator.maximumValid(queries)
         blocksToLoad.sort()
         var prev = -1L
         for (block in blocksToLoad) {
@@ -1027,31 +1015,11 @@ class ResourceStore<T>(
             if (emptySlot == -1) error("Too many providers registered with UCloud")
 
             val result = ProviderIndex(provider)
-            db.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("type", type)
-                        setParameter("provider", provider)
-                    },
-                    """
-                        select distinct u.uid, project.pid 
-                        from
-                            provider.resource r
-                            join accounting.products p on r.product = p.id
-                            join accounting.product_categories pc on p.category = pc.id
-                            join auth.principals u on r.created_by = u.id
-                            left join project.projects project on r.project = project.id
-                        where
-                            pc.provider = :provider
-                            and r.type = :type
-                    """
-                ).rows.forEach { row ->
-                    val uid = row.getInt(0)!!
-                    val pid = row.getInt(1)
 
-                    result.registerUsage(uid, pid ?: 0)
-                }
+            queries.loadProviderIndex(type, provider) { uid, pid ->
+                result.registerUsage(uid, pid)
             }
+
             providerIndex[emptySlot] = result
 
             return result
@@ -1068,8 +1036,8 @@ class ResourceStoreBucket<T>(
     val type: String,
     val uid: Int,
     val pid: Int,
-    private val db: DBContext,
-    private val callbacks: ResourceStore.Callbacks<T>,
+    private val queries: ResourceStoreDatabaseQueries<T>,
+    val callbacks: ResourceStore.Callbacks<T>,
 ) {
     // Internal data
     // =================================================================================================================
@@ -1099,7 +1067,7 @@ class ResourceStoreBucket<T>(
             val nextAfterMutex = next
             if (nextAfterMutex != null) return nextAfterMutex
 
-            val newStore = ResourceStoreBucket<T>(type, uid, pid, db, callbacks)
+            val newStore = ResourceStoreBucket<T>(type, uid, pid, queries, callbacks)
             newStore.previous = this
             next = newStore
             if (!loadRequired) newStore.ready.set(true)
@@ -1128,7 +1096,7 @@ class ResourceStoreBucket<T>(
     val aclIsUser = arrayOfNulls<BooleanArray>(STORE_SIZE)
     val aclPermissions = arrayOfNulls<ByteArray>(STORE_SIZE)
     val updates = arrayOfNulls<CyclicArray<ResourceDocumentUpdate>>(STORE_SIZE)
-    private val _data = arrayOfNulls<Any>(STORE_SIZE)
+    val _data = arrayOfNulls<Any>(STORE_SIZE)
     fun data(idx: Int): T? {
         @Suppress("UNCHECKED_CAST")
         return _data[idx] as T?
@@ -1136,7 +1104,7 @@ class ResourceStoreBucket<T>(
 
     // We store the number of valid entries in the `size` property. Each time a new entry is created, we increment
     // size by one.
-    private var size: Int = 0
+    var size: Int = 0
 
     // Each bucket keeps track of which entries have been changed since the last synchronization to the database. The
     // `dirtyFlag` array tracks this on a resource level. The `anyDirty` flag can be used to quickly determine if any
@@ -1174,195 +1142,7 @@ class ResourceStoreBucket<T>(
     // 3. If we run out of space in the current bucket, `expand()` with a new bucket and begin a new `load()`
     suspend fun load(minimumId: Long = 0) {
         mutex.withLock {
-            var idx = 0
-            db.withSession { session ->
-                val textualId = if (uid != 0) {
-                    session.sendPreparedStatement(
-                        { setParameter("uid", uid) },
-                        """
-                            select id as user_id
-                            from auth.principals p
-                            where p.uid = :uid;
-                        """
-                    ).rows.singleOrNull()?.getString(0)
-                } else {
-                    session.sendPreparedStatement(
-                        { setParameter("pid", pid) },
-                        """
-                            select id as project_id
-                            from project.projects p
-                            where p.pid = :pid;
-                        """
-                    ).rows.singleOrNull()?.getString(0)
-                } ?: error("could not find $uid $pid in the database")
-
-                session.sendPreparedStatement(
-                    {
-                        setParameter("type", type)
-                        setParameter("minimum", minimumId)
-                        setParameter("project_id", if (pid != 0) textualId else null)
-                        setParameter("username", if (uid != 0) textualId else null)
-                    },
-                    """
-                        declare c cursor for
-                        with
-                            resource_ids as (
-                                select
-                                    r.id
-                                from
-                                    provider.resource r
-                                where
-                                    r.type = :type
-                                    and r.id > :minimum
-                                    and (
-                                        (:project_id::text is not null and r.project = :project_id)
-                                        or (:username::text is not null and r.created_by = :username and r.project is null)
-                                    )
-                                order by r.id
-                                limit $STORE_SIZE
-                            ),
-                            resource_with_updates as (
-                                select
-                                    r.id,
-                                    u.created_at,
-                                    u.status,
-                                    u.extra
-                                from
-                                    resource_ids r
-                                    left join provider.resource_update u on r.id = u.resource
-                                order by u.created_at
-                            ),
-                            updates_aggregated as (
-                                select
-                                    u.id,
-                                    jsonb_agg(jsonb_build_object(
-                                        'createdAt', floor(extract(epoch from u.created_at) * 1000)::int8,
-                                        'message', status,
-                                        'extra', extra
-                                    )) as update
-                                from resource_with_updates u
-                                group by u.id
-                            ),
-                            resource_with_acl_entries as (
-                                select
-                                    r.id,
-                                    u.uid,
-                                    g.gid,
-                                    e.permission
-                                from
-                                    resource_ids r
-                                    left join provider.resource_acl_entry e on e.resource_id = r.id
-                                    left join auth.principals u on e.username = u.id
-                                    left join project.groups g on e.group_id = g.id
-                            ),
-                            acl_aggregated as (
-                                select
-                                    e.id,
-                                    jsonb_agg(jsonb_build_object(
-                                        'uid', e.uid,
-                                        'gid', e.gid,
-                                        'permission', e.permission
-                                    )) as acl
-                                from resource_with_acl_entries e
-                                group by e.id
-                            )
-                        select
-                            u.id,
-                            floor(extract(epoch from r.created_at) * 1000)::int8,
-                            p.uid,
-                            r.product,
-                            r.provider_generated_id,
-                            u.update,
-                            a.acl
-                        from
-                            updates_aggregated u
-                            join acl_aggregated a on u.id = a.id
-                            join provider.resource r on u.id = r.id
-                            join auth.principals p on r.created_by = p.id
-                        order by u.id
-                    """
-                )
-
-                val batchCount = 128
-                val batchIds = LongArray(batchCount)
-                while (idx < STORE_SIZE) {
-                    val rows = session.sendPreparedStatement({}, "fetch $batchCount from c").rows
-                    var batchIndex = 0
-                    for (row in rows) {
-                        batchIds[batchIndex++] = row.getLong(0)!!
-                        this.id[idx] = row.getLong(0)!!
-                        this.createdAt[idx] = row.getLong(1)!!
-                        this.createdBy[idx] = row.getInt(2)!!
-                        this.product[idx] = row.getLong(3)!!.toInt()
-                        this.providerId[idx] = row.getString(4)
-                        val updatesText = row.getString(5)!!
-                        val aclText = row.getString(6)!!
-
-                        try {
-                            val updates = defaultMapper.decodeFromString(
-                                ListSerializer(SerializedUpdate.serializer()),
-                                updatesText
-                            )
-
-                            val arr = CyclicArray<ResourceDocumentUpdate>(MAX_UPDATES)
-                            for (update in updates) {
-                                if (update.createdAt == null) continue
-                                arr.add(ResourceDocumentUpdate(update.message, update.extra, update.createdAt))
-                            }
-                            this.updates[idx] = arr
-                        } catch (ex: Throwable) {
-                            log.warn("Caught an exception while deserializing updates. This should not happen!")
-                            log.warn(ex.toReadableStacktrace().toString())
-                        }
-                        try {
-                            val aclEntries = defaultMapper.decodeFromString(
-                                ListSerializer(NumericAclEntry.serializer()),
-                                aclText
-                            )
-
-                            val arraySize =
-                                if (aclEntries.size == 1 && aclEntries[0].permission == null) 0
-                                else ((aclEntries.size / 4) + 1) * 4
-
-                            if (arraySize > 0) {
-                                val entities = IntArray(arraySize)
-                                val isUser = BooleanArray(arraySize)
-                                val permissions = ByteArray(arraySize)
-
-                                for ((index, entry) in aclEntries.withIndex()) {
-                                    if (entry.permission == null) break
-                                    entities[index] = entry.gid ?: entry.uid ?: Int.MAX_VALUE
-                                    isUser[index] = entry.gid == null
-                                    permissions[index] = entry.permission.toByte()
-                                }
-
-                                this.aclEntities[idx] = entities
-                                this.aclIsUser[idx] = isUser
-                                this.aclPermissions[idx] = permissions
-                            }
-                        } catch (ex: Throwable) {
-                            log.warn("Caught an exception while deserializing the ACL. This should not happen!")
-                            log.warn(ex.toReadableStacktrace().toString())
-                        }
-                        idx++
-                    }
-
-                    val loadedState = callbacks.loadState(session, batchIndex, batchIds)
-                    idx -= rows.size
-                    batchIndex = 0
-                    for (row in rows) {
-                        this._data[idx++] = loadedState[batchIndex++]
-                    }
-                    size += rows.size
-
-                    if (rows.size < batchCount) break
-                }
-            }
-
-            if (idx == STORE_SIZE) {
-                expand(loadRequired = true, hasLock = true).load(this.id[STORE_SIZE - 1])
-            }
-
+            queries.loadResources(this, minimumId)
             ready.set(true)
         }
     }
@@ -1394,7 +1174,7 @@ class ResourceStoreBucket<T>(
             if (size >= STORE_SIZE - 1) return -1
 
             val idx = size++
-            val id = ResourceIdAllocator.allocate(db)
+            val id = ResourceIdAllocator.allocate(queries)
 
             this.id[idx] = id
             this.createdAt[idx] = System.currentTimeMillis()
@@ -1898,7 +1678,7 @@ class ResourceStoreBucket<T>(
     // called by the ResourceStore in a background task. The first stage attempts to determine which resources from
     // the bucket needs to be synchronized. The second stage, which takes place in `sync` actually writes the data to
     // the database. This will also invoke the callbacks to save the user data.
-    suspend fun synchronizeToDatabase(session: DBTransaction) {
+    suspend fun synchronizeToDatabase() {
         if (!anyDirty) return
 
         mutex.withLock {
@@ -1926,12 +1706,12 @@ class ResourceStoreBucket<T>(
                 idx += bvLength
 
                 if (indicesToSync.size - ptr < bvLength) {
-                    sync(session, indicesToSync, ptr)
+                    sync(indicesToSync, ptr)
                     ptr = 0
                 }
             }
 
-            sync(session, indicesToSync, ptr)
+            sync(indicesToSync, ptr)
 
             for (i in 0 until STORE_SIZE) {
                 dirtyFlag[i] = false
@@ -1941,155 +1721,9 @@ class ResourceStoreBucket<T>(
         }
     }
 
-    private suspend fun sync(session: DBTransaction, indices: IntArray, len: Int) {
+    private suspend fun sync(indices: IntArray, len: Int) {
         if (len <= 0) return
-
-        session.sendPreparedStatement(
-            {
-                setParameter("type", type)
-                setParameter("id", (0 until len).map { id[indices[it]] })
-                setParameter("created_at", (0 until len).map { createdAt[indices[it]] })
-                setParameter("created_by", (0 until len).map { createdBy[indices[it]] })
-                setParameter("project", (0 until len).map { project[indices[it]] })
-                setParameter("product", (0 until len).map { product[indices[it]] })
-                setParameter("provider_id", (0 until len).map { providerId[indices[it]] })
-            },
-            """
-                with
-                    data as (
-                        select
-                            unnest(:id::int8[]) id,
-                            unnest(:created_at::int8[]) created_at,
-                            unnest(:created_by::int[]) created_by,
-                            unnest(:project::int[]) project,
-                            unnest(:product::int[]) product,
-                            unnest(:provider_id::text[]) provider_id
-                    )
-                insert into provider.resource (type, id, created_at, created_by, project, product, provider_generated_id, confirmed_by_provider)
-                select :type, d.id, to_timestamp(d.created_at / 1000), u.id, p.id, d.product, d.provider_id, true
-                from
-                    data d
-                    join auth.principals u on d.created_by = u.uid
-                    left join project.projects p on d.project = p.pid
-                on conflict (id) do update set
-                    created_at = excluded.created_at,
-                    created_by = excluded.created_by,
-                    project = excluded.project,
-                    product = excluded.product,
-                    provider_generated_id = excluded.provider_generated_id
-            """
-        )
-
-        session.sendPreparedStatement(
-            {
-                setParameter(
-                    "id",
-                    (0 until len).flatMap { i ->
-                        val arrIdx = indices[i]
-                        updates[arrIdx]?.map { id[arrIdx] } ?: emptyList()
-                    }
-                )
-
-                setParameter(
-                    "created_at",
-                    (0 until len).flatMap { i ->
-                        val arrIdx = indices[i]
-                        updates[arrIdx]?.map { it.createdAt } ?: emptyList()
-                    }
-                )
-
-                setParameter(
-                    "message",
-                    (0 until len).flatMap { i ->
-                        val arrIdx = indices[i]
-                        updates[arrIdx]?.map { it.update } ?: emptyList()
-                    }
-                )
-
-                setParameter(
-                    "extra",
-                    (0 until len).flatMap { i ->
-                        val arrIdx = indices[i]
-                        updates[arrIdx]?.map { it.extra } ?: emptyList()
-                    }
-                )
-            },
-            """
-                with
-                    data as (
-                        select
-                            unnest(:id::int8[]) id,
-                            to_timestamp(unnest(:created_at::int8[]) / 1000) created_at,
-                            unnest(:message::text[]) message,
-                            unnest(:extra::jsonb[]) extra
-                    ),
-                    deleted_updates as (
-                        delete from provider.resource_update
-                        using data d
-                        where resource = d.id
-                    )
-                insert into provider.resource_update(resource, created_at, status, extra) 
-                select distinct d.id, d.created_at, d.message, d.extra
-                from data d
-            """
-        )
-
-        session.sendPreparedStatement(
-            {
-                val ids = ArrayList<Long>()
-                val entity = ArrayList<Int>()
-                val entityIsUser = ArrayList<Boolean>()
-                val permission = ArrayList<String>()
-
-                for (i in 0 until len) {
-                    val arrIdx = indices[i]
-
-                    val entities = aclEntities[arrIdx] ?: continue
-                    val isUser = aclIsUser[arrIdx] ?: continue
-                    val perm = aclPermissions[arrIdx] ?: continue
-
-                    for ((j, e) in entities.withIndex()) {
-                        if (e == 0) break
-
-                        ids.add(id[arrIdx])
-                        entity.add(e)
-                        entityIsUser.add(isUser[j])
-                        permission.add(Permission.fromByte(perm[j]).name)
-                    }
-                }
-
-                setParameter("id", ids)
-                setParameter("entity", entity)
-                setParameter("is_user", entityIsUser)
-                setParameter("perm", permission)
-            },
-            """
-                with
-                    data as (
-                        select
-                            unnest(:id::int8[]) id,
-                            unnest(:entity::int[]) entity,
-                            unnest(:is_user::bool[]) is_user,
-                            unnest(:perm::text[]) perm
-                    ),
-                    deleted_entries as (
-                        delete from provider.resource_acl_entry
-                        using data d
-                        where resource_id = d.id
-                        returning resource_id
-                    )
-                insert into provider.resource_acl_entry(group_id, username, permission, resource_id)
-                select distinct g.id, u.id, d.perm, d.id
-                from
-                    data d join
-                    deleted_entries de on d.id = de.resource_id
-                    left join auth.principals u on d.is_user and d.entity = u.uid
-                    left join project.groups g on not d.is_user and d.entity = g.gid
-                                   
-            """
-        )
-
-        callbacks.saveState(session, this, indices, len)
+        queries.saveResources(this, indices, len)
     }
 
     override fun toString(): String {
@@ -2145,9 +1779,7 @@ class ResourceStoreBucket<T>(
             emit: SearchConsumer,
             startIndex: Int = 0,
         ) {
-            require(haystack.size % 4 == 0) { "haystack must have a size which is a multiple of 4! (${haystack.size})" }
-
-            if (haystack.size < ivLength * 4) {
+            if (haystack.size < ivLength * 4 || haystack.size % 4 != 0) {
                 for ((index, hay) in haystack.withIndex()) {
                     if (index < startIndex) continue
 
@@ -2247,39 +1879,28 @@ object ResourceIdAllocator {
     private val idAllocator = AtomicLong(-1_000_000_000L)
     private val initMutex = Mutex()
 
-    suspend fun maximumValid(ctx: DBContext): Long {
+    suspend fun maximumValid(queries: ResourceStoreDatabaseQueries<*>): Long {
         val currentId = idAllocator.get()
         if (currentId < 0L) {
-            init(ctx)
-            return maximumValid(ctx)
+            init(queries)
+            return maximumValid(queries)
         }
         return currentId
     }
 
-    suspend fun allocate(ctx: DBContext): Long {
+    suspend fun allocate(queries: ResourceStoreDatabaseQueries<*>): Long {
         val allocatedId = idAllocator.incrementAndGet()
         if (allocatedId < 0L) {
-            init(ctx)
-            return allocate(ctx)
+            init(queries)
+            return allocate(queries)
         }
         return allocatedId
     }
 
-    private suspend fun init(ctx: DBContext) {
+    private suspend fun init(queries: ResourceStoreDatabaseQueries<*>) {
         initMutex.withLock {
             if (idAllocator.get() >= 0L) return
-
-            ctx.withSession { session ->
-                idAllocator.set(
-                    session.sendPreparedStatement(
-                        {},
-                        """
-                            select max(id)
-                            from provider.resource
-                        """
-                    ).rows.singleOrNull()?.getLong(0) ?: 0L
-                )
-            }
+            idAllocator.set(queries.loadMaximumId())
         }
     }
 }
@@ -2344,7 +1965,7 @@ data class NumericAclEntry(
     }
 }
 
-private fun Permission.Companion.fromByte(value: Byte): Permission {
+fun Permission.Companion.fromByte(value: Byte): Permission {
     return when (value.toInt()) {
         1 -> Permission.READ
         2 -> Permission.EDIT
@@ -2354,11 +1975,443 @@ private fun Permission.Companion.fromByte(value: Byte): Permission {
     }
 }
 
-private fun Permission.toByte(): Byte {
+fun Permission.toByte(): Byte {
     return when (this) {
         Permission.READ -> 1
         Permission.EDIT -> 2
         Permission.ADMIN -> 3
         Permission.PROVIDER -> 4
+    }
+}
+
+interface ResourceStoreDatabaseQueries<T> {
+    suspend fun loadResources(bucket: ResourceStoreBucket<T>, minimumId: Long)
+    suspend fun saveResources(bucket: ResourceStoreBucket<T>, indices: IntArray, len: Int)
+    suspend fun loadProviderIndex(type: String, providerId: String, register: suspend (uid: Int, pid: Int) -> Unit)
+    suspend fun loadIdIndex(type: String, minimumId: Long, maximumIdExclusive: Long, register: (id: Long, ref: Int, isUser: Boolean) -> Unit)
+    suspend fun loadMaximumId(): Long
+}
+
+class ResourceStoreDatabaseQueriesImpl<T>(private val db: DBContext) : ResourceStoreDatabaseQueries<T> {
+    override suspend fun loadResources(bucket: ResourceStoreBucket<T>, minimumId: Long) {
+        with(bucket) {
+            var idx = 0
+            db.withSession { session ->
+                val textualId = if (uid != 0) {
+                    session.sendPreparedStatement(
+                        { setParameter("uid", uid) },
+                        """
+                            select id as user_id
+                            from auth.principals p
+                            where p.uid = :uid;
+                        """
+                    ).rows.singleOrNull()?.getString(0)
+                } else {
+                    session.sendPreparedStatement(
+                        { setParameter("pid", pid) },
+                        """
+                            select id as project_id
+                            from project.projects p
+                            where p.pid = :pid;
+                        """
+                    ).rows.singleOrNull()?.getString(0)
+                } ?: error("could not find $uid $pid in the database")
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("type", type)
+                        setParameter("minimum", minimumId)
+                        setParameter("project_id", if (pid != 0) textualId else null)
+                        setParameter("username", if (uid != 0) textualId else null)
+                    },
+                    """
+                        declare c cursor for
+                        with
+                            resource_ids as (
+                                select
+                                    r.id
+                                from
+                                    provider.resource r
+                                where
+                                    r.type = :type
+                                    and r.id > :minimum
+                                    and (
+                                        (:project_id::text is not null and r.project = :project_id)
+                                        or (:username::text is not null and r.created_by = :username and r.project is null)
+                                    )
+                                order by r.id
+                                limit ${ResourceStoreBucket.STORE_SIZE}
+                            ),
+                            resource_with_updates as (
+                                select
+                                    r.id,
+                                    u.created_at,
+                                    u.status,
+                                    u.extra
+                                from
+                                    resource_ids r
+                                    left join provider.resource_update u on r.id = u.resource
+                                order by u.created_at
+                            ),
+                            updates_aggregated as (
+                                select
+                                    u.id,
+                                    jsonb_agg(jsonb_build_object(
+                                        'createdAt', floor(extract(epoch from u.created_at) * 1000)::int8,
+                                        'message', status,
+                                        'extra', extra
+                                    )) as update
+                                from resource_with_updates u
+                                group by u.id
+                            ),
+                            resource_with_acl_entries as (
+                                select
+                                    r.id,
+                                    u.uid,
+                                    g.gid,
+                                    e.permission
+                                from
+                                    resource_ids r
+                                    left join provider.resource_acl_entry e on e.resource_id = r.id
+                                    left join auth.principals u on e.username = u.id
+                                    left join project.groups g on e.group_id = g.id
+                            ),
+                            acl_aggregated as (
+                                select
+                                    e.id,
+                                    jsonb_agg(jsonb_build_object(
+                                        'uid', e.uid,
+                                        'gid', e.gid,
+                                        'permission', e.permission
+                                    )) as acl
+                                from resource_with_acl_entries e
+                                group by e.id
+                            )
+                        select
+                            u.id,
+                            floor(extract(epoch from r.created_at) * 1000)::int8,
+                            p.uid,
+                            r.product,
+                            r.provider_generated_id,
+                            u.update,
+                            a.acl
+                        from
+                            updates_aggregated u
+                            join acl_aggregated a on u.id = a.id
+                            join provider.resource r on u.id = r.id
+                            join auth.principals p on r.created_by = p.id
+                        order by u.id
+                    """
+                )
+
+                val batchCount = 128
+                val batchIds = LongArray(batchCount)
+                while (idx < ResourceStoreBucket.STORE_SIZE) {
+                    val rows = session.sendPreparedStatement({}, "fetch $batchCount from c").rows
+                    var batchIndex = 0
+                    for (row in rows) {
+                        batchIds[batchIndex++] = row.getLong(0)!!
+                        this.id[idx] = row.getLong(0)!!
+                        this.createdAt[idx] = row.getLong(1)!!
+                        this.createdBy[idx] = row.getInt(2)!!
+                        this.product[idx] = row.getLong(3)!!.toInt()
+                        this.providerId[idx] = row.getString(4)
+                        val updatesText = row.getString(5)!!
+                        val aclText = row.getString(6)!!
+
+                        try {
+                            val updates = defaultMapper.decodeFromString(
+                                ListSerializer(SerializedUpdate.serializer()),
+                                updatesText
+                            )
+
+                            val arr = CyclicArray<ResourceDocumentUpdate>(ResourceStoreBucket.MAX_UPDATES)
+                            for (update in updates) {
+                                if (update.createdAt == null) continue
+                                arr.add(ResourceDocumentUpdate(update.message, update.extra, update.createdAt))
+                            }
+                            this.updates[idx] = arr
+                        } catch (ex: Throwable) {
+                            ResourceStoreBucket.log.warn("Caught an exception while deserializing updates. This should not happen!")
+                            ResourceStoreBucket.log.warn(ex.toReadableStacktrace().toString())
+                        }
+                        try {
+                            val aclEntries = defaultMapper.decodeFromString(
+                                ListSerializer(NumericAclEntry.serializer()),
+                                aclText
+                            )
+
+                            val arraySize =
+                                if (aclEntries.size == 1 && aclEntries[0].permission == null) 0
+                                else ((aclEntries.size / 4) + 1) * 4
+
+                            if (arraySize > 0) {
+                                val entities = IntArray(arraySize)
+                                val isUser = BooleanArray(arraySize)
+                                val permissions = ByteArray(arraySize)
+
+                                for ((index, entry) in aclEntries.withIndex()) {
+                                    if (entry.permission == null) break
+                                    entities[index] = entry.gid ?: entry.uid ?: Int.MAX_VALUE
+                                    isUser[index] = entry.gid == null
+                                    permissions[index] = entry.permission.toByte()
+                                }
+
+                                this.aclEntities[idx] = entities
+                                this.aclIsUser[idx] = isUser
+                                this.aclPermissions[idx] = permissions
+                            }
+                        } catch (ex: Throwable) {
+                            ResourceStoreBucket.log.warn("Caught an exception while deserializing the ACL. This should not happen!")
+                            ResourceStoreBucket.log.warn(ex.toReadableStacktrace().toString())
+                        }
+                        idx++
+                    }
+
+                    val loadedState = callbacks.loadState(session, batchIndex, batchIds)
+                    idx -= rows.size
+                    batchIndex = 0
+                    for (row in rows) {
+                        this._data[idx++] = loadedState[batchIndex++]
+                    }
+                    size += rows.size
+
+                    if (rows.size < batchCount) break
+                }
+            }
+
+            if (idx == ResourceStoreBucket.STORE_SIZE) {
+                expand(loadRequired = true, hasLock = true).load(this.id[ResourceStoreBucket.STORE_SIZE - 1])
+            }
+        }
+    }
+
+    override suspend fun saveResources(bucket: ResourceStoreBucket<T>, indices: IntArray, len: Int) {
+        with(bucket) {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("type", type)
+                        setParameter("id", (0 until len).map { id[indices[it]] })
+                        setParameter("created_at", (0 until len).map { createdAt[indices[it]] })
+                        setParameter("created_by", (0 until len).map { createdBy[indices[it]] })
+                        setParameter("project", (0 until len).map { project[indices[it]] })
+                        setParameter("product", (0 until len).map { product[indices[it]] })
+                        setParameter("provider_id", (0 until len).map { providerId[indices[it]] })
+                    },
+                    """
+                        with
+                            data as (
+                                select
+                                    unnest(:id::int8[]) id,
+                                    unnest(:created_at::int8[]) created_at,
+                                    unnest(:created_by::int[]) created_by,
+                                    unnest(:project::int[]) project,
+                                    unnest(:product::int[]) product,
+                                    unnest(:provider_id::text[]) provider_id
+                            )
+                        insert into provider.resource (type, id, created_at, created_by, project, product, provider_generated_id, confirmed_by_provider)
+                        select :type, d.id, to_timestamp(d.created_at / 1000), u.id, p.id, d.product, d.provider_id, true
+                        from
+                            data d
+                            join auth.principals u on d.created_by = u.uid
+                            left join project.projects p on d.project = p.pid
+                        on conflict (id) do update set
+                            created_at = excluded.created_at,
+                            created_by = excluded.created_by,
+                            project = excluded.project,
+                            product = excluded.product,
+                            provider_generated_id = excluded.provider_generated_id
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter(
+                            "id",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { id[arrIdx] } ?: emptyList()
+                            }
+                        )
+
+                        setParameter(
+                            "created_at",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { it.createdAt } ?: emptyList()
+                            }
+                        )
+
+                        setParameter(
+                            "message",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { it.update } ?: emptyList()
+                            }
+                        )
+
+                        setParameter(
+                            "extra",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { it.extra } ?: emptyList()
+                            }
+                        )
+                    },
+                    """
+                        with
+                            data as (
+                                select
+                                    unnest(:id::int8[]) id,
+                                    to_timestamp(unnest(:created_at::int8[]) / 1000) created_at,
+                                    unnest(:message::text[]) message,
+                                    unnest(:extra::jsonb[]) extra
+                            ),
+                            deleted_updates as (
+                                delete from provider.resource_update
+                                using data d
+                                where resource = d.id
+                            )
+                        insert into provider.resource_update(resource, created_at, status, extra) 
+                        select distinct d.id, d.created_at, d.message, d.extra
+                        from data d
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {
+                        val ids = ArrayList<Long>()
+                        val entity = ArrayList<Int>()
+                        val entityIsUser = ArrayList<Boolean>()
+                        val permission = ArrayList<String>()
+
+                        for (i in 0 until len) {
+                            val arrIdx = indices[i]
+
+                            val entities = aclEntities[arrIdx] ?: continue
+                            val isUser = aclIsUser[arrIdx] ?: continue
+                            val perm = aclPermissions[arrIdx] ?: continue
+
+                            for ((j, e) in entities.withIndex()) {
+                                if (e == 0) break
+
+                                ids.add(id[arrIdx])
+                                entity.add(e)
+                                entityIsUser.add(isUser[j])
+                                permission.add(Permission.fromByte(perm[j]).name)
+                            }
+                        }
+
+                        setParameter("id", ids)
+                        setParameter("entity", entity)
+                        setParameter("is_user", entityIsUser)
+                        setParameter("perm", permission)
+                    },
+                    """
+                        with
+                            data as (
+                                select
+                                    unnest(:id::int8[]) id,
+                                    unnest(:entity::int[]) entity,
+                                    unnest(:is_user::bool[]) is_user,
+                                    unnest(:perm::text[]) perm
+                            ),
+                            deleted_entries as (
+                                delete from provider.resource_acl_entry
+                                using data d
+                                where resource_id = d.id
+                                returning resource_id
+                            )
+                        insert into provider.resource_acl_entry(group_id, username, permission, resource_id)
+                        select distinct g.id, u.id, d.perm, d.id
+                        from
+                            data d join
+                            deleted_entries de on d.id = de.resource_id
+                            left join auth.principals u on d.is_user and d.entity = u.uid
+                            left join project.groups g on not d.is_user and d.entity = g.gid
+                                           
+                    """
+                )
+
+                callbacks.saveState(session, this, indices, len)
+            }
+        }
+    }
+
+    override suspend fun loadProviderIndex(
+        type: String,
+        providerId: String,
+        register: suspend (uid: Int, pid: Int) -> Unit
+    ) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("type", type)
+                    setParameter("provider", providerId)
+                },
+                """
+                        select distinct u.uid, project.pid 
+                        from
+                            provider.resource r
+                            join accounting.products p on r.product = p.id
+                            join accounting.product_categories pc on p.category = pc.id
+                            join auth.principals u on r.created_by = u.id
+                            left join project.projects project on r.project = project.id
+                        where
+                            pc.provider = :provider
+                            and r.type = :type
+                    """
+            ).rows.forEach { row ->
+                val uid = row.getInt(0)!!
+                val pid = row.getInt(1)
+
+                register(uid, pid ?: 0)
+            }
+        }
+    }
+
+    override suspend fun loadIdIndex(
+        type: String,
+        minimumId: Long,
+        maximumIdExclusive: Long,
+        register: (id: Long, ref: Int, isUser: Boolean) -> Unit
+    ) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("min", minimumId)
+                    setParameter("max", maximumIdExclusive)
+                    setParameter("type", type)
+                },
+                """
+                    select r.id, u.uid, p.pid
+                    from
+                        provider.resource r
+                        join auth.principals u on r.created_by = u.id
+                        left join project.projects p on r.project = p.id
+                    where
+                        r.id >= :min
+                        and r.id < :max
+                        and r.type = :type
+                """
+            ).rows.forEach { row ->
+                val uid = row.getInt(1)!!
+                val pid = row.getInt(2)
+                register(row.getLong(0)!!, pid ?: uid, pid == null)
+            }
+        }
+    }
+
+    override suspend fun loadMaximumId(): Long {
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    select max(id)
+                    from provider.resource
+                """
+            ).rows.singleOrNull()?.getLong(0) ?: 0L
+        }
     }
 }

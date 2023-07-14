@@ -50,7 +50,6 @@ subprojects {
         apply(plugin = "org.jetbrains.kotlin.jvm")
         apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
         apply(plugin = "application")
-        apply(plugin = "jacoco")
 
         extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension>("kotlin") {
             jvmToolchain(20)
@@ -139,23 +138,11 @@ subprojects {
         tasks.withType<Test>().configureEach {
             systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
             systemProperty("java.io.tmpdir", System.getProperty("java.io.tmpdir"))
+            jvmArgs("--add-modules", "jdk.incubator.vector")
 
             filter {
                 isFailOnNoMatchingTests = false
                 excludeTestsMatching("dk.sdu.cloud.integration.*")
-            }
-
-            finalizedBy(tasks["jacocoTestReport"])
-        }
-
-        extensions.configure<JacocoPluginExtension>("jacoco") {
-            toolVersion = "0.8.4"
-        }
-
-        tasks.withType<JacocoReport> {
-            reports {
-                xml.isEnabled= true
-                html.isEnabled = true
             }
         }
 

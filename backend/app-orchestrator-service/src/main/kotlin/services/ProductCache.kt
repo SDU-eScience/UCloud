@@ -11,7 +11,17 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.concurrent.atomic.AtomicLong
 
-class ProductCache(private val db: DBContext) {
+interface IProductCache {
+    suspend fun referenceToProductId(ref: ProductReference): Int?
+    suspend fun productIdToReference(id: Int): ProductReference?
+    suspend fun productIdToProduct(id: Int): Product?
+    suspend fun productNameToProductIds(name: String): List<Int>?
+    suspend fun productCategoryToProductIds(category: String): List<Int>?
+    suspend fun productProviderToProductIds(provider: String): List<Int>?
+    suspend fun products(): List<Product>
+}
+
+class ProductCache(private val db: DBContext) : IProductCache {
     private val mutex = ReadWriterMutex()
     private val referenceToProductId = HashMap<ProductReference, Int>()
     private val productIdToReference = HashMap<Int, ProductReference>()
@@ -70,49 +80,49 @@ class ProductCache(private val db: DBContext) {
         }
     }
 
-    suspend fun referenceToProductId(ref: ProductReference): Int? {
+    override suspend fun referenceToProductId(ref: ProductReference): Int? {
         fillCache()
         return mutex.withReader {
             referenceToProductId[ref]
         }
     }
 
-    suspend fun productIdToReference(id: Int): ProductReference? {
+    override suspend fun productIdToReference(id: Int): ProductReference? {
         fillCache()
         return mutex.withReader {
             productIdToReference[id]
         }
     }
 
-    suspend fun productIdToProduct(id: Int): Product? {
+    override suspend fun productIdToProduct(id: Int): Product? {
         fillCache()
         return mutex.withReader {
             productInformation[id]
         }
     }
 
-    suspend fun productNameToProductIds(name: String): List<Int>? {
+    override suspend fun productNameToProductIds(name: String): List<Int>? {
         fillCache()
         return mutex.withReader {
             productNameToProductIds[name]
         }
     }
 
-    suspend fun productCategoryToProductIds(category: String): List<Int>? {
+    override suspend fun productCategoryToProductIds(category: String): List<Int>? {
         fillCache()
         return mutex.withReader {
             productCategoryToProductIds[category]
         }
     }
 
-    suspend fun productProviderToProductIds(provider: String): List<Int>? {
+    override suspend fun productProviderToProductIds(provider: String): List<Int>? {
         fillCache()
         return mutex.withReader {
             productProviderToProductIds[provider]
         }
     }
 
-    suspend fun products(): List<Product> {
+    override suspend fun products(): List<Product> {
         fillCache()
         return mutex.withReader {
             ArrayList(productInformation.values)
