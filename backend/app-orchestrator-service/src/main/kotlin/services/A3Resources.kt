@@ -355,6 +355,7 @@ class ResourceStore<T>(
             override fun filter(doc: ResourceDocument<T>): Boolean {
                 var success = true
 
+                @Suppress("KotlinConstantConditions")
                 if (success && filterCreatedAfter != null) {
                     success = doc.createdAt >= filterCreatedAfter
                 }
@@ -774,16 +775,6 @@ class ResourceStore<T>(
             }
         }
         return offset
-    }
-
-    suspend fun search(
-        idCard: IdCard,
-        outputBuffer: Array<ResourceDocument<T>>,
-        query: String,
-        next: String?,
-        flags: ResourceIncludeFlags
-    ): ResourceStore.BrowseResult {
-        return ResourceStore.BrowseResult(0, null)
     }
 
     suspend fun updateProviderId(idCard: IdCard, id: Long, providerId: String?) {

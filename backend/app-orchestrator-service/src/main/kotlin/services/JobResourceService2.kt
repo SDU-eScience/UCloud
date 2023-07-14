@@ -27,6 +27,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.math.min
@@ -312,6 +313,43 @@ class JobResourceService2(
         }
     )
 
+    private val docMapper = DocMapper<InternalJobState, Job>(idCards, productCache, providers) {
+        Job(
+            id,
+            owner,
+            updates.map { update ->
+                val decoded = update.extra?.let {
+                    defaultMapper.decodeFromJsonElement<JobUpdate>(it)
+                } ?: JobUpdate()
+
+                decoded.also {
+                    it.timestamp = update.timestamp
+                    it.status = update.status
+                }
+            },
+            data.specification,
+            JobStatus(
+                data.state,
+                null,
+                data.startedAt,
+                if (data.startedAt != null && data.specification.timeAllocation != null) {
+                    (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
+                } else {
+                    null
+                },
+                data.specification.application.let { (name, version) ->
+                    applicationCache.retrieveApplication(name, version)
+                },
+                resolvedSupport as ResolvedSupport<Product.Compute, ComputeSupport>,
+                resolvedProduct as Product.Compute,
+                data.allowRestart,
+            ),
+            createdAt,
+            JobOutput(),
+            permissions,
+        )
+    }
+
     init {
         documents.startSynchronizationJob(backgroundScope)
     }
@@ -356,7 +394,7 @@ class JobResourceService2(
                     provider,
                     actorAndProject,
                     { JobsProvider(provider).create },
-                    bulkRequestOf(unmarshallDocument(card, doc)),
+                    bulkRequestOf(docMapper.map(card, doc)),
                 )
             } catch (ex: Throwable) {
                 log.warn(ex.toReadableStacktrace().toString())
@@ -494,7 +532,7 @@ class JobResourceService2(
 
             val page = ArrayList<Job>(result.count)
             for (idx in 0 until min(normalizedRequest.itemsPerPage, result.count)) {
-                page.add(unmarshallDocument(card, buffer[idx]))
+                page.add(docMapper.map(card, buffer[idx]))
             }
             val unmarshallEnd = System.nanoTime()
             println("Conversion to output format took: ${unmarshallEnd - end}ns")
@@ -512,7 +550,7 @@ class JobResourceService2(
         val longId = request.id.toLongOrNull() ?: return null
         val card = idCards.fetchIdCard(actorAndProject)
         val doc = documents.retrieve(card, longId) ?: return null
-        return unmarshallDocument(card, doc)
+        return docMapper.map(card, doc)
     }
 
     suspend fun addUpdate(
@@ -759,7 +797,7 @@ class JobResourceService2(
         val card = idCards.fetchIdCard(callHandler.actorAndProject)
 
         val jobId = request.id.toLongOrNull() ?: throw RPCException("Unknown job: ${request.id}", HttpStatusCode.NotFound)
-        val initialJob = documents.retrieve(card, jobId)?.let { unmarshallDocument(card, it) }
+        val initialJob = documents.retrieve(card, jobId)?.let { docMapper.map(card, it) }
             ?: throw RPCException("Unknown job: ${request.id}", HttpStatusCode.NotFound)
         val logsSupported = runCatching {
             providers.requireSupport(
@@ -850,7 +888,7 @@ class JobResourceService2(
                                 lastUpdate = updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
                             }
 
-                            val newStatus = unmarshallJobStatus(newJob)
+                            val newStatus = docMapper.map(null, newJob).status
                             if (lastStatus != newStatus) {
                                 sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), newStatus))
                             }
@@ -947,7 +985,7 @@ class JobResourceService2(
 
             val page = ArrayList<Job>(result.count)
             for (idx in 0 until min(normalizedRequest.itemsPerPage, result.count)) {
-                page.add(unmarshallDocument(card, buffer[idx]))
+                page.add(docMapper.map(card, buffer[idx]))
             }
 
             return PageV2(normalizedRequest.itemsPerPage, page, result.next)
@@ -999,7 +1037,7 @@ class JobResourceService2(
 
             val result = ArrayList<Job>()
             for (idx in 0 until count) {
-                result.add(unmarshallDocument(card, pool[idx]))
+                result.add(docMapper.map(card, pool[idx]))
             }
 
             result
@@ -1054,110 +1092,6 @@ class JobResourceService2(
         actorAndProject: ActorAndProject,
     ): SupportByProvider<Product.Compute, ComputeSupport> {
         return providers.retrieveProducts(actorAndProject, Jobs)
-    }
-
-    private suspend fun unmarshallJobStatus(doc: ResourceDocument<InternalJobState>): JobStatus {
-        val data = doc.data!!
-        return JobStatus(
-            data.state,
-            startedAt = data.startedAt,
-            expiresAt = if (data.startedAt != null && data.specification.timeAllocation != null) {
-                (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
-            } else {
-                null
-            },
-            allowRestart = data.allowRestart,
-            resolvedProduct = productCache.productIdToProduct(doc.product) as Product.Compute?,
-            resolvedApplication = applicationCache.retrieveApplication(
-                data.specification.application.name,
-                data.specification.application.version
-            ),
-            resolvedSupport = providers.retrieveSupport(Jobs, data.specification.product.provider)
-                .find { productCache.referenceToProductId(it.product) == doc.product }
-                ?.let { support ->
-                    ResolvedSupport(
-                        productCache.productIdToProduct(doc.product) as Product.Compute,
-                        support
-                    )
-                }
-        )
-    }
-
-    private suspend fun unmarshallDocument(card: IdCard, doc: ResourceDocument<InternalJobState>): Job {
-        val data = doc.data!!
-        data.specification.product = productCache.productIdToReference(doc.product) ?: ProductReference("", "", "")
-        return Job(
-            doc.id.toString(),
-            ResourceOwner(
-                idCards.lookupUid(doc.createdBy) ?: "_ucloud",
-                idCards.lookupPid(doc.project),
-            ),
-            doc.update.asSequence().filterNotNull().mapNotNull {
-                val extra = it.extra
-                val mapped = if (extra != null) {
-                    defaultMapper.decodeFromJsonElement(JobUpdate.serializer(), extra)
-                } else {
-                    null
-                }
-
-                mapped?.status = it.update
-                mapped?.timestamp = it.createdAt
-                mapped
-            }.toList(),
-            data.specification,
-            unmarshallJobStatus(doc),
-            doc.createdAt,
-            permissions = run {
-                val myself = when (card) {
-                    is IdCard.Provider -> {
-                        listOf(Permission.PROVIDER, Permission.READ, Permission.EDIT)
-                    }
-
-                    is IdCard.User -> {
-                        if (doc.project == 0 && card.uid == doc.createdBy) {
-                            listOf(Permission.ADMIN, Permission.READ, Permission.EDIT)
-                        } else if (card.adminOf.contains(doc.project)) {
-                            listOf(Permission.ADMIN, Permission.READ, Permission.EDIT)
-                        } else {
-                            val permissions = HashSet<Permission>()
-                            for (entry in doc.acl) {
-                                if (entry == null) break
-
-                                if (entry.isUser && entry.entity == card.uid) {
-                                    permissions.add(entry.permission)
-                                } else if (!entry.isUser && card.groups.contains(entry.entity)) {
-                                    permissions.add(entry.permission)
-                                }
-                            }
-
-                            permissions.toList()
-                        }
-                    }
-                }
-
-                val others = HashMap<AclEntity, HashSet<Permission>>()
-                for (entry in doc.acl) {
-                    if (entry == null) break
-
-                    val entity = if (entry.isUser) {
-                        AclEntity.User(idCards.lookupUid(entry.entity) ?: error("Invalid UID in ACL? ${entry.entity}"))
-                    } else {
-                        idCards.lookupGid(entry.entity) ?: error("Invalid GID in ACL? ${entry.entity}")
-                    }
-
-                    val set = others[entity] ?: HashSet<Permission>().also { others[entity] = it }
-                    set.add(entry.permission)
-                }
-
-                ResourcePermissions(
-                    myself,
-                    others.map { ResourceAclEntry(it.key, it.value.toList()) }
-                )
-            },
-            output = JobOutput(
-                data.outputFolder
-            ),
-        )
     }
 
     companion object : Loggable {
