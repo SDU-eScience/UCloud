@@ -115,7 +115,6 @@ class ProductService(
         request: BulkRequest<ProductV2>
     ) {
         for (req in request.items) {
-            println("${req.category},${req.price},${req.name},${req.description},${req.productType},${req.freeToUse},${req.hiddenInGrantApplications}, ${req.usage}")
             requirePermission(actorAndProject.actor, req.category.provider, readOnly = false)
         }
 

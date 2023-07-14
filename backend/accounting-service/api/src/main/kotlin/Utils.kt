@@ -26,7 +26,6 @@ fun getTime(atStartOfDay: Boolean): Long {
 private val creditsPerMinuteNames = listOf("uc-general","uc-t4","u1-fat","u2-gpu","u1-standard","u1-gpu","uc-a10","syncthing")
 
 fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, productType: ProductType):AccountingUnit {
-    println("$productType, $productPriceUnit")
     return when (productType) {
         ProductType.STORAGE -> AccountingUnit(
             "Gigabyte",
