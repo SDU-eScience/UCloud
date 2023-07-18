@@ -76,6 +76,20 @@ export const Vnc: React.FunctionComponent = () => {
                 false
             );
         }
+
+        const resize = () => {
+            const canvas = document.querySelector<HTMLCanvasElement>(".contents canvas");
+            if (canvas) {
+                canvas.style.height = "100%";
+                canvas.style.width = "100%";
+            }
+        };
+
+        setTimeout(() => { resize(); }, 500);
+        window.addEventListener("resize", resize);
+        return () => {
+            window.removeEventListener("resize", resize);
+        };
     }, [connectionDetails]);
 
     useLayoutEffect(() => {
