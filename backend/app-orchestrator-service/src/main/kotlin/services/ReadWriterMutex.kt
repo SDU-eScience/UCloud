@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -15,42 +16,18 @@ class ReadWriterMutex {
 
     private val roomEmpty = Mutex()
 
-    suspend fun Mutex.lockSpin() {
-        var tries = 0
-        while (tries < 10_000) {
-            val a = tryLock()
-            val b = tryLock()
-            val c = tryLock()
-            val d = tryLock()
-            val e = tryLock()
-            if (a || b || c || d || e) return
-
-            tries += 5
-        }
-        lock()
-    }
-
-    suspend inline fun <R> Mutex.withLockSpin(block: () -> R): R {
-        lockSpin()
-        try {
-            return block()
-        } finally {
-            unlock()
-        }
-    }
-
     suspend fun acquireRead() {
-        turnstile.withLockSpin { /* do nothing */ }
-        readerMutex.withLockSpin {
+        turnstile.withLock { /* do nothing */ }
+        readerMutex.withLock {
             readers++
             if (readers == 1) {
-                roomEmpty.lockSpin()
+                roomEmpty.lock()
             }
         }
     }
 
     suspend fun releaseRead() {
-        readerMutex.withLockSpin {
+        readerMutex.withLock {
             readers--
             if (readers == 0) {
                 roomEmpty.unlock()
@@ -59,8 +36,8 @@ class ReadWriterMutex {
     }
 
     suspend fun acquireWrite() {
-        turnstile.lockSpin()
-        roomEmpty.lockSpin()
+        turnstile.lock()
+        roomEmpty.lock()
     }
 
     fun releaseWrite() {

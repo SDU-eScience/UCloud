@@ -25,16 +25,22 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
+import org.cliffc.high_scale_lib.NonBlockingHashMap
+import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.Comparator
+import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
-import kotlin.time.measureTimedValue
 
 class ResourceStore<T>(
     val type: String,
@@ -135,56 +141,38 @@ class ResourceStore<T>(
     // In order to implement `findOrLoadStore` we must of course implement the two subcomponents. Finding a loaded store
     // is relatively straight-forward, we simply iterate through the blocks until we find it:
     private fun findStore(uid: Int, pid: Int): ResourceStoreBucket<T>? {
-        require(uid == 0 || pid == 0)
+        CreateCounters.findStore.measureValue {
+            require(uid == 0 || pid == 0)
 
-        val start = System.nanoTime()
-        var block: Block<T>? = root
-        while (block != null) {
-            for (store in block.stores) {
-                if (store == null) break
-                if (uid != 0 && store.uid == uid) return store
-                if (pid != 0 && store.pid == pid) return store
-            }
-            block = block.next
+            val map = if (uid != 0) uidShortcut else pidShortcut
+            val ref = (if (uid != 0) uid else pid).toLong()
+
+            return map[ref]
         }
-        val end = System.nanoTime()
-//        println("Took ${end - start} to findStore")
-
-        return null
     }
+
+    private val uidShortcut = NonBlockingHashMapLong<ResourceStoreBucket<T>>()
+    private val pidShortcut = NonBlockingHashMapLong<ResourceStoreBucket<T>>()
+//    private val uidRwLock = ReentrantReadWriteLock()
+//    private val pidRwLock = ReentrantReadWriteLock()
 
     // Loading the store is also fairly straightforward. We need to use the `blockMutationMutex` since we will be
     // mutating the block list. The function will quickly reserve a spot in the block list and then trigger a load()
     // inside the store. Note that the store itself is capable of handling the situation where it receives requests
     // even though it hasn't finished loading.
     private suspend fun loadStore(uid: Int, pid: Int): ResourceStoreBucket<T> {
-        require(uid == 0 || pid == 0)
+        CreateCounters.loadStore.measureValue {
+            require(uid == 0 || pid == 0)
 
-        val result = blockMutationMutex.withLock {
-            // NOTE(Dan): We need to make sure that someone else didn't get here before we did.
-            val existingBlock = findStore(uid, pid)
-            if (existingBlock != null) return existingBlock
+            val map = if (uid != 0) uidShortcut else pidShortcut
+            val ref = (if (uid != 0) uid else pid).toLong()
 
-            var block = root
-            while (block.next != null) {
-                block = block.next!!
-            }
+            val result = ResourceStoreBucket(type, uid, pid, queries, callbacks)
+            val existing = map.putIfAbsent(ref, result)
+            if (existing == null) result.load()
 
-            var emptySlotIdx = block.stores.indexOf(null)
-            if (emptySlotIdx == -1) {
-                val oldTail = block
-                block = Block()
-                oldTail.next = block
-                emptySlotIdx = 0
-            }
-
-            val store = ResourceStoreBucket<T>(type, uid, pid, queries, callbacks)
-            block.stores[emptySlotIdx] = store
-            store
+            return existing ?: result
         }
-
-        result.load()
-        return result
     }
 
     // The blocks and stores are consumed by the public API.
@@ -244,11 +232,13 @@ class ResourceStore<T>(
         const val base = "ResourceStore.create"
 
         val cacheLookup = threadLocalCounter("$base.cacheLookup")
-        val findOrLoad = threadLocalCounter("$base.findOrLoad")
+        val findStore = threadLocalCounter("$base.findStore")
+        val loadStore = threadLocalCounter("$base.loadStore")
         val findTail = threadLocalCounter("$base.findTail")
         val bucketCreate = threadLocalCounter("$base.bucketCreate")
         val bucketExpand = threadLocalCounter("$base.bucketExpand")
         val idIndexFind = threadLocalCounter("$base.idIndexFind")
+        val idIndexLoad = threadLocalCounter("$base.idIndexLoad")
         val idIndexRegister = threadLocalCounter("$base.idIndexRegister")
         val providerIdLookup = threadLocalCounter("$base.providerIdLookup")
         val providerIndexLookup = threadLocalCounter("$base.providerIndexLookup")
@@ -334,9 +324,7 @@ class ResourceStore<T>(
         providerGeneratedId: String?,
         output: ResourceDocument<T>?
     ): Long {
-        val root = CreateCounters.findOrLoad.measureValue {
-            findOrLoadStore(if (pid == 0) uid else 0, pid)
-        }
+        val root = findOrLoadStore(if (pid == 0) uid else 0, pid)
 
         var tail = CreateCounters.findTail.measureValue { root.findTail() }
         while (true) {
@@ -346,9 +334,7 @@ class ResourceStore<T>(
             if (id < 0L) {
                 tail = CreateCounters.bucketExpand.measureValue { tail.expand() }
             } else {
-                val index = CreateCounters.idIndexFind.measureValue {
-                    findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
-                }
+                val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
                 CreateCounters.idIndexRegister.measureValue {
                     index.register(id, if (pid != 0) pid else uid, pid == 0)
                 }
@@ -880,16 +866,11 @@ class ResourceStore<T>(
     // NOTE(Dan): The IdIndex contains references to all resources that we have loaded by their ID. Indexes we have
     // stored must always be up-to-date with the real state, meaning that we do not store partial blocks but only
     // complete blocks. References stored within a block are allowed to point to invalid data and/or unloaded data.
-    private val idIndex = runBlocking { initializeIdIndex(0L) }
+    private val idIndex = NonBlockingHashMapLong<IdIndex>()
 
     private class IdIndex(val minimumId: Long) {
-        @Volatile
-        var next: IdIndex? = null
-
-        val entries = AtomicIntegerArray(BLOCK_SIZE)
-
-        // NOTE(Dan): There is no AtomicBooleanArray, so we encode it in an integer array instead. 1 = true, 0 = false.
-        val entryIsUid = AtomicIntegerArray(BLOCK_SIZE)
+        val entries = IntArray(BLOCK_SIZE)
+        val entryIsUid = BooleanArray(BLOCK_SIZE)
 
         fun register(id: Long, reference: Int, isUid: Boolean) {
             val slot = (id - minimumId).toInt()
@@ -898,7 +879,7 @@ class ResourceStore<T>(
             }
 
             entries[slot] = reference
-            entryIsUid[slot] = if (isUid) 1 else 0
+            entryIsUid[slot] = isUid
         }
 
         fun clear(id: Long) {
@@ -908,11 +889,11 @@ class ResourceStore<T>(
             }
 
             entries[slot] = 0
-            entryIsUid[slot] = 0
+            entryIsUid[slot] = false
         }
 
         companion object {
-            const val BLOCK_SIZE = 4096
+            const val BLOCK_SIZE = 1024 * 128
         }
     }
 
@@ -926,7 +907,6 @@ class ResourceStore<T>(
         return result
     }
 
-    private val idIndexCreationMutex = Mutex()
     private suspend fun loadIdIndexes(vararg ids: Long) {
         val blocksToLoad = LongArray(ids.size)
         for ((index, id) in ids.withIndex()) {
@@ -945,42 +925,24 @@ class ResourceStore<T>(
             if (block > maxValid) continue
 
             val loadedIndex = initializeIdIndex(block)
-            idIndexCreationMutex.withLock {
-                val queryResult = findIdIndex(block)
-                if (queryResult.result == null) {
-                    val currentNext = queryResult.previous.next
-                    loadedIndex.next = currentNext
-                    queryResult.previous.next = loadedIndex
-                }
-            }
+            idIndex.putIfAbsent(loadedIndex.minimumId, loadedIndex)
         }
     }
 
-    private data class IdIndexFindResult(val previous: IdIndex, val result: IdIndex?)
-
-    private fun findIdIndex(id: Long): IdIndexFindResult {
-        val query = (id / IdIndex.BLOCK_SIZE) * IdIndex.BLOCK_SIZE
-
-        var previous: IdIndex? = null
-        var element: IdIndex? = idIndex
-        while (element != null) {
-            if (element.minimumId == query) {
-                return IdIndexFindResult(previous ?: idIndex, element)
-            } else if (element.minimumId > query) {
-                return IdIndexFindResult(previous ?: idIndex, null)
-            }
-
-            previous = element
-            element = element.next
+    private fun findIdIndex(id: Long): IdIndex? {
+        CreateCounters.idIndexFind.measureValue {
+            val query = (id / IdIndex.BLOCK_SIZE) * IdIndex.BLOCK_SIZE
+            return idIndex[query]
         }
-        return IdIndexFindResult(previous ?: idIndex, null)
     }
 
     private suspend fun findIdIndexOrLoad(id: Long): IdIndex? {
-        var queryResult = findIdIndex(id).result
+        var queryResult = findIdIndex(id)
         if (queryResult == null) {
-            loadIdIndexes(id)
-            queryResult = findIdIndex(id).result
+            CreateCounters.idIndexLoad.measureValue {
+                loadIdIndexes(id)
+            }
+            queryResult = findIdIndex(id)
         }
         return queryResult
     }
@@ -989,7 +951,7 @@ class ResourceStore<T>(
         val loaded = findIdIndexOrLoad(id) ?: return null
         val slot = (id - loaded.minimumId).toInt()
         val reference = loaded.entries[slot]
-        val referenceIsUid = loaded.entryIsUid[slot] == 1
+        val referenceIsUid = loaded.entryIsUid[slot]
 
         return findOrLoadStore(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
     }

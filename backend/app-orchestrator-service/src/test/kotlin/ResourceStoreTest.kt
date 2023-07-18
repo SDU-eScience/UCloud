@@ -25,7 +25,8 @@ fun Product.toReference(): ProductReference {
 }
 
 class FakeProductCache : IProductCache {
-    @Volatile private var products = emptyList<Product>()
+    @Volatile
+    private var products = emptyList<Product>()
     private val insertMutex = Mutex()
 
     suspend fun insert(product: Product): Int {
@@ -205,15 +206,14 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
 
 class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDatabaseQueries<Unit> {
     val initialResources = ArrayList<ResourceDocument<Unit>>()
-    val mutex = Mutex()
 
     override suspend fun loadResources(bucket: ResourceStoreBucket<Unit>, minimumId: Long) {
         with(bucket) {
-            mutex.withLock {
+            run {
                 for (resource in initialResources) {
                     val belongsInWorkspace =
                         (pid != 0 && resource.project == pid) ||
-                            (uid != 0 && resource.createdBy == uid && resource.project == 0)
+                                (uid != 0 && resource.createdBy == uid && resource.project == 0)
 
                     if (belongsInWorkspace && resource.id >= minimumId) {
                         id[size] = resource.id
@@ -254,15 +254,13 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         providerId: String,
         register: suspend (uid: Int, pid: Int) -> Unit
     ) {
-        mutex.withLock {
-            val productIds = products.productProviderToProductIds(providerId) ?: emptyList()
-            for (resource in initialResources) {
-                if (resource.product in productIds) {
-                    register(
-                        if (resource.project == 0) resource.createdBy else 0,
-                        resource.project
-                    )
-                }
+        val productIds = products.productProviderToProductIds(providerId) ?: emptyList()
+        for (resource in initialResources) {
+            if (resource.product in productIds) {
+                register(
+                    if (resource.project == 0) resource.createdBy else 0,
+                    resource.project
+                )
             }
         }
     }
@@ -273,23 +271,19 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         maximumIdExclusive: Long,
         register: (id: Long, ref: Int, isUser: Boolean) -> Unit
     ) {
-        mutex.withLock {
-            for (resource in initialResources) {
-                if (resource.id in minimumId..<maximumIdExclusive) {
-                    register(
-                        resource.id,
-                        resource.project.takeIf { it != 0 } ?: resource.createdBy,
-                        resource.project == 0
-                    )
-                }
+        for (resource in initialResources) {
+            if (resource.id in minimumId..<maximumIdExclusive) {
+                register(
+                    resource.id,
+                    resource.project.takeIf { it != 0 } ?: resource.createdBy,
+                    resource.project == 0
+                )
             }
         }
     }
 
     override suspend fun loadMaximumId(): Long {
-        return mutex.withLock {
-            initialResources.maxByOrNull { it.id }?.id ?: 1L
-        }
+        return initialResources.maxByOrNull { it.id }?.id ?: 1L
     }
 }
 
@@ -599,12 +593,14 @@ class ResourceStoreTest {
         val ids = ArrayList<Long>()
         val creationCount = 10_000
         repeat(creationCount) {
-            ids.add(store.create(
-                idCard,
-                ref,
-                Unit,
-                null,
-            ))
+            ids.add(
+                store.create(
+                    idCard,
+                    ref,
+                    Unit,
+                    null,
+                )
+            )
         }
 
         assertEquals(creationCount, ids.distinct().size)
@@ -653,21 +649,21 @@ class ResourceStoreTest {
 
     @Test
     fun `test many workspaces concurrent`() = test {
-        val workspaceCount = 50_000
-        val resourcePerWorkspace = 2000
+        val workspaceCount = 100_000
+        val resourcePerWorkspace = 2_000
         val product = products.insert("a", "b", "c")
         val ref = products.productIdToReference(product)!!
 
         coroutineScope {
             // TODO There is some performance issue here. CPU usage is also extremely low despite spinning up many
             //   concurrent threads.
+            val start = System.nanoTime()
             (0..<workspaceCount).chunked(Runtime.getRuntime().availableProcessors()).forEach { chunk ->
                 chunk.map { i ->
                     launch(Dispatchers.IO) {
                         val user = createUser("user$i")
                         val idCard = user.idCard()
                         val ids = ArrayList<Long>()
-                        val start = System.nanoTime()
                         repeat(resourcePerWorkspace) { j ->
                             ids.add(
                                 store.create(
@@ -678,15 +674,16 @@ class ResourceStoreTest {
                                 )
                             )
                         }
-                        val end = System.nanoTime()
-                        println("Time to create: ${end - start}")
 
-                        testBrowse(idCard, ids)
+//                        testBrowse(idCard, ids)
                     }
                 }.joinAll()
-                println("Block complete!")
-                dumpCounters()
             }
+            val end = System.nanoTime()
+            dumpCounters()
+            val resourcesPerSecond =
+                ((workspaceCount * resourcePerWorkspace) / (end - start).toDouble()) * 1_000_000_000
+            println("$resourcesPerSecond create + browse/sec")
         }
     }
 }

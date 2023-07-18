@@ -138,7 +138,11 @@ subprojects {
         tasks.withType<Test>().configureEach {
             systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
             systemProperty("java.io.tmpdir", System.getProperty("java.io.tmpdir"))
-            jvmArgs("--add-modules", "jdk.incubator.vector")
+            jvmArgs("--add-modules", "jdk.incubator.vector", "-Xmx32G")
+
+            testLogging {
+                showStandardStreams = true
+            }
 
             filter {
                 isFailOnNoMatchingTests = false

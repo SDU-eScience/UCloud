@@ -41,3 +41,37 @@ class ShardedSortedIntegerSet(private val numberOfShards: Int = 32) {
         }
     }
 }
+
+class ShardedSortedLongSet(private val numberOfShards: Int = 32) {
+    private val shards = Array(numberOfShards) { LongList() }
+    private val rwLocks = Array(numberOfShards) { ReentrantReadWriteLock() }
+
+    fun add(value: Long) {
+        val index = (value % numberOfShards).toInt()
+
+        rwLocks[index].write {
+            shards[index].addSortedSet(value)
+        }
+    }
+
+    fun findValues(output: LongList, minimumValueInclusive: Long, maximumSize: Int = Int.MAX_VALUE) {
+        for (i in 0..<numberOfShards) {
+            rwLocks[i].readLock().lock()
+        }
+
+        try {
+            for (shard in shards) {
+                for (entry in shard) {
+                    if (entry >= minimumValueInclusive) {
+                        output.addSortedSet(entry)
+                        if (output.size >= maximumSize) return
+                    }
+                }
+            }
+        } finally {
+            for (i in 0..<numberOfShards) {
+                rwLocks[i].readLock().unlock()
+            }
+        }
+    }
+}

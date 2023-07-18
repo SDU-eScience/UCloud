@@ -26,9 +26,13 @@ inline fun <R> PerfThreadLocal<PerfCounter>.measureValue(iterations: Long = 1, b
 }
 
 inline fun <R> PerfCounter.measureValue(iterations: Long = 1, block: () -> R): R {
-    val res = measureTimedValue(block)
-    measure(res.duration.inWholeNanoseconds, iterations)
-    return res.value
+    val start = System.nanoTime()
+    try {
+        return block()
+    } finally {
+        val end = System.nanoTime()
+        measure(end - start, iterations)
+    }
 }
 
 @JvmInline
@@ -88,11 +92,13 @@ class EnabledPerfCounter(val name: String, addToGlobals: Boolean = true) {
         appendLine("Min: $min ns")
         appendLine("Avg: ${samplesCopy.average()} ns")
         appendLine("Max: $max ns")
-        appendLine("P10: ${samplesCopy[(samplesCopy.size * 0.10).toInt()]} ns")
-        appendLine("P25: ${samplesCopy[(samplesCopy.size * 0.25).toInt()]} ns")
-        appendLine("P50: ${samplesCopy[(samplesCopy.size * 0.50).toInt()]} ns")
-        appendLine("P75: ${samplesCopy[(samplesCopy.size * 0.75).toInt()]} ns")
-        appendLine("P99: ${samplesCopy[(samplesCopy.size * 0.99).toInt()]} ns")
+        if (samplesCopy.isNotEmpty()) {
+            appendLine("P10: ${samplesCopy[(samplesCopy.size * 0.10).toInt()]} ns")
+            appendLine("P25: ${samplesCopy[(samplesCopy.size * 0.25).toInt()]} ns")
+            appendLine("P50: ${samplesCopy[(samplesCopy.size * 0.50).toInt()]} ns")
+            appendLine("P75: ${samplesCopy[(samplesCopy.size * 0.75).toInt()]} ns")
+            appendLine("P99: ${samplesCopy[(samplesCopy.size * 0.99).toInt()]} ns")
+        }
         appendLine()
     }
 
