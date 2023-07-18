@@ -34,6 +34,7 @@ import kotlin.collections.HashSet
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
+import kotlin.time.measureTimedValue
 
 class ResourceStore<T>(
     val type: String,
@@ -238,6 +239,24 @@ class ResourceStore<T>(
         }
     }
 
+
+    object CreateCounters {
+        const val base = "ResourceStore.create"
+
+        val cacheLookup = threadLocalCounter("$base.cacheLookup")
+        val findOrLoad = threadLocalCounter("$base.findOrLoad")
+        val findTail = threadLocalCounter("$base.findTail")
+        val bucketCreate = threadLocalCounter("$base.bucketCreate")
+        val bucketExpand = threadLocalCounter("$base.bucketExpand")
+        val idIndexFind = threadLocalCounter("$base.idIndexFind")
+        val idIndexRegister = threadLocalCounter("$base.idIndexRegister")
+        val providerIdLookup = threadLocalCounter("$base.providerIdLookup")
+        val providerIndexLookup = threadLocalCounter("$base.providerIndexLookup")
+        val providerIndexRegister = threadLocalCounter("$base.providerIndexRegister")
+        val providerIndexWriteLock = threadLocalCounter("$base.providerIndexWriteLock")
+        val providerIndexWriteAdd = threadLocalCounter("$base.providerIndexAdd")
+    }
+
     suspend fun create(
         idCard: IdCard,
         product: ProductReference,
@@ -248,8 +267,10 @@ class ResourceStore<T>(
             throw RPCException("Only end-users can use this endpoint", HttpStatusCode.Forbidden)
         }
 
-        val productId = productCache.referenceToProductId(product)
-            ?: throw RPCException("Invalid product supplied", HttpStatusCode.BadRequest)
+        val productId = CreateCounters.cacheLookup.measureValue {
+            productCache.referenceToProductId(product)
+                ?: throw RPCException("Invalid product supplied", HttpStatusCode.BadRequest)
+        }
 
         val uid = if (idCard.activeProject <= 0) idCard.uid else 0
         val pid = if (uid == 0) idCard.activeProject else 0
@@ -269,7 +290,7 @@ class ResourceStore<T>(
         val providerId = try {
             proxyBlock(doc)
         } catch (ex: Throwable) {
-            JobResourceService2.log.warn(ex.toReadableStacktrace().toString())
+            log.warn(ex.toReadableStacktrace().toString())
             // TODO(Dan): This is not guaranteed to run ever. We will get stuck if never "confirmed" by the provider.
             delete(idCard, longArrayOf(allocatedId))
             throw ex
@@ -313,20 +334,36 @@ class ResourceStore<T>(
         providerGeneratedId: String?,
         output: ResourceDocument<T>?
     ): Long {
-        val root = findOrLoadStore(if (pid == 0) uid else 0, pid)
+        val root = CreateCounters.findOrLoad.measureValue {
+            findOrLoadStore(if (pid == 0) uid else 0, pid)
+        }
 
-        var tail = root.findTail()
+        var tail = CreateCounters.findTail.measureValue { root.findTail() }
         while (true) {
-            val id = tail.create(uid, productId, data, providerGeneratedId, output)
+            val id = CreateCounters.bucketCreate.measureValue {
+                tail.create(uid, productId, data, providerGeneratedId, output)
+            }
             if (id < 0L) {
-                tail = tail.expand()
+                tail = CreateCounters.bucketExpand.measureValue { tail.expand() }
             } else {
-                val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
-                index.register(id, if (pid != 0) pid else uid, pid == 0)
+                val index = CreateCounters.idIndexFind.measureValue {
+                    findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
+                }
+                CreateCounters.idIndexRegister.measureValue {
+                    index.register(id, if (pid != 0) pid else uid, pid == 0)
+                }
 
-                val providerId =
+                val providerId = CreateCounters.providerIdLookup.measureValue {
                     productCache.productIdToReference(productId)?.provider ?: error("Unknown product?")
-                findOrLoadProviderIndex(providerId).registerUsage(uid, pid)
+                }
+
+                val providerIndex = CreateCounters.providerIndexLookup.measureValue {
+                    findOrLoadProviderIndex(providerId)
+                }
+
+                CreateCounters.providerIndexRegister.measureValue {
+                    providerIndex.registerUsage(uid, pid)
+                }
 
                 return id
             }
@@ -467,7 +504,8 @@ class ResourceStore<T>(
 
         when (idCard) {
             is IdCard.Provider -> {
-                val storeArray = IntArray(128)
+                val storeArray = IntList()
+                val storeArrayMaxResults = 128
                 val providerIndex = findOrLoadProviderIndex(idCard.name)
 
                 val nextSplit = next?.split("-")?.takeIf { it.size == 3 }
@@ -493,12 +531,13 @@ class ResourceStore<T>(
 
                 var offset = 0
                 while (minimumUid < Int.MAX_VALUE && offset < outputBufferLimit) {
-                    val resultCount = providerIndex.findUidStores(storeArray, minimumUid)
-                    for (i in 0..<resultCount) {
+                    storeArray.clear()
+                    val resultCount = providerIndex.findUidStores(storeArray, minimumUid, storeArrayMaxResults)
+                    for (elem in storeArray) {
                         if (offset >= outputBufferLimit) break
-                        minimumUid = storeArray[i]
+                        minimumUid = elem
 
-                        useStores(findOrLoadStore(storeArray[i], 0)) { store ->
+                        useStores(findOrLoadStore(elem, 0)) { store ->
                             offset += store.search(idCard, outputBuffer, offset, initialId, predicate = filter)
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
@@ -506,28 +545,29 @@ class ResourceStore<T>(
                         initialId = -1L
                     }
 
-                    if (resultCount < storeArray.size) {
+                    if (storeArray.size < storeArrayMaxResults) {
                         if (offset < outputBufferLimit) didCompleteUsers = true
                         break
                     }
                 }
 
                 while (minimumPid < Int.MAX_VALUE && offset < outputBufferLimit) {
-                    val resultCount = providerIndex.findPidStores(storeArray, minimumUid)
-                    for (i in 0..<resultCount) {
+                    storeArray.clear()
+                    val resultCount = providerIndex.findPidStores(storeArray, minimumUid, storeArrayMaxResults)
+                    for (elem in storeArray) {
                         if (offset >= outputBufferLimit) break
-                        useStores(findOrLoadStore(0, storeArray[i])) { store ->
+                        useStores(findOrLoadStore(0, elem)) { store ->
                             offset += store.search(idCard, outputBuffer, offset, initialId, predicate = filter)
                             initialId = -1L
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
                     }
 
-                    if (resultCount < storeArray.size) {
+                    if (storeArray.size < storeArrayMaxResults) {
                         if (offset < outputBufferLimit) didCompleteProjects = true
                         break
                     }
-                    minimumPid = storeArray[resultCount - 1]
+                    minimumPid = storeArray[storeArray.size - 1]
                 }
 
                 val idOfLastElement = if (offset >= outputBufferLimit) {
@@ -962,40 +1002,23 @@ class ResourceStore<T>(
     private val providerIndexMutex = Mutex() // NOTE(Dan): Only needed to modify the list of indices
 
     private class ProviderIndex(val provider: String) {
-        private val uidReferences = TreeSet<Int>()
-        private val pidReferences = TreeSet<Int>()
-        private val mutex = ReadWriterMutex()
+        private val uidReferences = ShardedSortedIntegerSet()
+        private val pidReferences = ShardedSortedIntegerSet()
 
-        suspend fun registerUsage(uid: Int, pid: Int) {
-            mutex.withWriter {
-                if (pid != 0) {
-                    pidReferences.add(pid)
-                } else {
-                    uidReferences.add(uid)
-                }
+        fun registerUsage(uid: Int, pid: Int) {
+            if (pid != 0) {
+                pidReferences.add(pid)
+            } else {
+                uidReferences.add(uid)
             }
         }
 
-        suspend fun findUidStores(output: IntArray, minimumUid: Int): Int {
-            mutex.withReader {
-                var ptr = 0
-                for (entry in uidReferences.tailSet(minimumUid, true)) {
-                    output[ptr++] = entry
-                    if (ptr >= output.size) break
-                }
-                return ptr
-            }
+        fun findUidStores(output: IntList, minimumUid: Int, maxCount: Int) {
+            uidReferences.findValues(output, minimumUid, maxCount)
         }
 
-        suspend fun findPidStores(output: IntArray, minimumPid: Int): Int {
-            mutex.withReader {
-                var ptr = 0
-                for (entry in pidReferences.tailSet(minimumPid, true)) {
-                    output[ptr++] = entry
-                    if (ptr >= output.size) break
-                }
-                return ptr
-            }
+        fun findPidStores(output: IntList, minimumPid: Int, maxCount: Int) {
+            pidReferences.findValues(output, minimumPid, maxCount)
         }
     }
 

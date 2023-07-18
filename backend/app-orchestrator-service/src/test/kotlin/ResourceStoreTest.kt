@@ -18,21 +18,21 @@ import dk.sdu.cloud.service.db.async.DBContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.elasticsearch.action.support.ActionFilter.Simple
 import kotlin.test.*
 
 fun Product.toReference(): ProductReference {
-    return ProductReference(id, category.name, category.provider)
+    return ProductReference(name, category.name, category.provider)
 }
 
 class FakeProductCache : IProductCache {
-    private val mutex = ReadWriterMutex()
-    private val products = ArrayList<Product>()
+    @Volatile private var products = emptyList<Product>()
+    private val insertMutex = Mutex()
 
     suspend fun insert(product: Product): Int {
-        return mutex.withWriter {
-            products.add(product)
-            products.size - 1
+        insertMutex.withLock {
+            val newList = products + product
+            products = newList
+            return newList.size - 1
         }
     }
 
@@ -41,51 +41,55 @@ class FakeProductCache : IProductCache {
     }
 
     override suspend fun referenceToProductId(ref: ProductReference): Int? {
-        return mutex.withReader {
-            products.indexOfFirst { it.toReference() == ref }.takeIf { it != -1 }
+        val list = products
+        for (i in list.indices) {
+            val product = list[i]
+            if (product.name == ref.id && product.category.name == ref.category && product.category.provider == ref.provider) {
+                return i
+            }
         }
+        return -1
     }
 
     override suspend fun productIdToReference(id: Int): ProductReference? {
-        return mutex.withReader { products.getOrNull(id)?.toReference() }
+        val list = products
+        if (id < 0 || id >= list.size) return null
+        return list[id].toReference()
     }
 
     override suspend fun productIdToProduct(id: Int): Product? {
-        return mutex.withReader { products.getOrNull(id) }
+        return products.getOrNull(id)
     }
 
     override suspend fun productNameToProductIds(name: String): List<Int>? {
-        return mutex.withReader {
-            val result = ArrayList<Int>()
-            for (i in products.indices) {
-                if (products[i].name == name) result.add(i)
-            }
-            result.takeIf { it.isNotEmpty() }
+        val result = ArrayList<Int>()
+        val list = products
+        for (i in list.indices) {
+            if (list[i].name == name) result.add(i)
         }
+        return result.takeIf { it.isNotEmpty() }
     }
 
     override suspend fun productCategoryToProductIds(category: String): List<Int>? {
-        return mutex.withReader {
-            val result = ArrayList<Int>()
-            for (i in products.indices) {
-                if (products[i].category.name == category) result.add(i)
-            }
-            result.takeIf { it.isNotEmpty() }
+        val result = ArrayList<Int>()
+        val list = products
+        for (i in list.indices) {
+            if (list[i].category.name == category) result.add(i)
         }
+        return result.takeIf { it.isNotEmpty() }
     }
 
     override suspend fun productProviderToProductIds(provider: String): List<Int>? {
-        return mutex.withReader {
-            val result = ArrayList<Int>()
-            for (i in products.indices) {
-                if (products[i].category.provider == provider) result.add(i)
-            }
-            result.takeIf { it.isNotEmpty() }
+        val result = ArrayList<Int>()
+        val list = products
+        for (i in list.indices) {
+            if (list[i].category.provider == provider) result.add(i)
         }
+        return result.takeIf { it.isNotEmpty() }
     }
 
     override suspend fun products(): List<Product> {
-        return mutex.withReader { ArrayList(products) }
+        return products
     }
 }
 
@@ -681,6 +685,7 @@ class ResourceStoreTest {
                     }
                 }.joinAll()
                 println("Block complete!")
+                dumpCounters()
             }
         }
     }
