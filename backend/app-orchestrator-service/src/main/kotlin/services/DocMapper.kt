@@ -38,6 +38,7 @@ class DocMapper<A, B>(
             run {
                 val myself = when (card) {
                     null -> emptyList()
+                    IdCard.System -> emptyList()
 
                     is IdCard.Provider -> {
                         listOf(Permission.PROVIDER, Permission.READ, Permission.EDIT)

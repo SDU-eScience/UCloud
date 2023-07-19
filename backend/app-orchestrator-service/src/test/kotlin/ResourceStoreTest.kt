@@ -18,6 +18,8 @@ import dk.sdu.cloud.service.db.async.DBContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.math.min
+import kotlin.random.Random
 import kotlin.test.*
 
 fun Product.toReference(): ProductReference {
@@ -26,7 +28,7 @@ fun Product.toReference(): ProductReference {
 
 class FakeProductCache : IProductCache {
     @Volatile
-    private var products = emptyList<Product>()
+    private var products = listOf<Product>(Product.Compute("-", 1L, ProductCategoryId("-", "-"), description = "-"))
     private val insertMutex = Mutex()
 
     suspend fun insert(product: Product): Int {
@@ -149,6 +151,15 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
         }
     }
 
+    suspend fun fetchProvider(providerId: String): IdCard {
+        return fetchIdCard(
+            ActorAndProject(
+                Actor.SystemOnBehalfOfUser(AuthProviders.PROVIDER_PREFIX + providerId),
+                null
+            )
+        )
+    }
+
     override suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
         val username = actorAndProject.actor.safeUsername()
         val project = actorAndProject.project
@@ -225,7 +236,7 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
                         aclEntities[size] = resource.acl.mapNotNull { it?.entity }.toIntArray()
                         aclIsUser[size] = resource.acl.mapNotNull { it?.isUser }.toBooleanArray()
                         aclPermissions[size] = resource.acl.mapNotNull { it?.permission?.toByte() }.toByteArray()
-                        _data[size] = Unit
+                        data[size] = Unit
                         updates[size] = CyclicArray<ResourceDocumentUpdate>(64).also {
                             val updates = resource.update.filterNotNull()
                             for (update in updates) {
@@ -417,7 +428,7 @@ class ResourceStoreTest {
                 product = product,
                 data = Unit,
             ).apply {
-                acl[0] = ResourceDocument.AclEntry(group, false, Permission.READ)
+                acl.add(ResourceDocument.AclEntry(group, false, Permission.READ))
             }
         )
 
@@ -428,9 +439,8 @@ class ResourceStoreTest {
                 project = project,
                 product = product,
                 data = Unit,
-            ).apply {
-                acl[0] = ResourceDocument.AclEntry(member.uid, true, Permission.READ)
-            }
+                acl = arrayListOf(ResourceDocument.AclEntry(member.uid, true, Permission.READ))
+            )
         )
 
         queries.initialResources.add(
@@ -440,7 +450,7 @@ class ResourceStoreTest {
                 project = 0,
                 product = product,
                 data = Unit,
-                acl = arrayOf(ResourceDocument.AclEntry(member.uid, true, Permission.READ))
+                acl = arrayListOf(ResourceDocument.AclEntry(member.uid, true, Permission.READ))
             )
         )
 
@@ -615,52 +625,125 @@ class ResourceStoreTest {
         testBrowse(idCard, ids)
     }
 
+    enum class SortType {
+        CUSTOM,
+        NONE,
+        CREATED_BY
+    }
+
     private suspend fun TestContext.testBrowse(
         idCard: IdCard,
-        ids: ArrayList<Long>
+        ids: List<Long>,
+        doCustomSorting: Boolean = true,
     ) {
         val dirs = listOf(SortDirection.ascending, SortDirection.descending)
-        for (dir in dirs) {
-            val collectedIds = ArrayList<Long>()
-            var next: String? = null
-            var shouldBreak = false
-            while (!shouldBreak) {
-                ResourceOutputPool.withInstance<Unit, Unit> { pool ->
-                    val res = store.browse(
-                        idCard,
-                        pool,
-                        next,
-                        SimpleResourceIncludeFlags(),
-                        sortDirection = dir,
-                    )
+        val shouldSort = SortType.entries
+        for (sort in shouldSort) {
+            if (sort != SortType.NONE && !doCustomSorting) continue
+            for (dir in dirs) {
+                val collectedIds = ArrayList<Long>()
+                var next: String? = null
+                var shouldBreak = false
+                while (!shouldBreak) {
+                    ResourceOutputPool.withInstance<Unit, Unit> { pool ->
+                        val res =
+                            when {
+                                sort == SortType.CREATED_BY -> {
+                                    store.browse(
+                                        idCard,
+                                        pool,
+                                        next,
+                                        SimpleResourceIncludeFlags(),
+                                        sortDirection = dir,
+                                        sortedBy = "createdBy",
+                                    )
+                                }
 
-                    for (i in 0 until res.count) {
-                        collectedIds.add(pool[i].id)
+                                sort == SortType.CUSTOM -> {
+                                    store.browseWithSort(
+                                        idCard,
+                                        pool,
+                                        next,
+                                        SimpleResourceIncludeFlags(),
+                                        keyExtractor = object : DocKeyExtractor<Unit, Long> {
+                                            override fun extract(doc: ResourceDocument<Unit>): Long = doc.id
+                                        },
+                                        comparator = Comparator.naturalOrder(),
+                                        sortDirection = dir,
+                                    )
+                                }
+                                else -> {
+                                    store.browse(
+                                        idCard,
+                                        pool,
+                                        next,
+                                        SimpleResourceIncludeFlags(),
+                                        sortDirection = dir,
+                                    )
+                                }
+                            }
+
+                        for (i in 0 until res.count) {
+                            collectedIds.add(pool[i].id)
+                        }
+
+                        next = res.next
+                        if (next == null) shouldBreak = true
+                    }
+                }
+
+                if (ids.size != collectedIds.size || ids.sorted() != collectedIds.sorted()) {
+                    val allIds = ids.toSet()
+                    val allCollected = collectedIds.toSet()
+
+                    data class Info(val id: Long, val uid: Int?, val pid: Int?)
+
+                    val missingInOutput = ArrayList<Info>()
+                    val unexpectedInOutput = ArrayList<Info>()
+                    for (id in ids) {
+                        if (id !in allCollected) {
+                            val retrieved = store.retrieve(IdCard.System, id)
+                            missingInOutput.add(Info(id, retrieved?.createdBy, retrieved?.project))
+                        }
                     }
 
-                    next = res.next
-                    if (next == null) shouldBreak = true
+                    for (id in collectedIds) {
+                        if (id !in allIds) {
+                            val retrieved = store.retrieve(IdCard.System, id)
+                            missingInOutput.add(Info(id, retrieved?.createdBy, retrieved?.project))
+                        }
+                    }
+
+                    for (missing in missingInOutput.take(50)) {
+                        println("Missing: $missing")
+                    }
+                    for (unexpected in unexpectedInOutput.take(50)) {
+                        println("Unexpected: $unexpected")
+                    }
+                    println(
+                        "($sort $dir) Number of missing: ${missingInOutput.size}. " +
+                                "Number of unexpected: ${unexpectedInOutput.size}. " +
+                                "Expected items: ${allIds.size} (${ids.size}). " +
+                                "Items collected: ${allCollected.size} (${collectedIds.size}). "
+                    )
+
+                    assertTrue(false, "Did not find the expected elements. See stdout for details.")
                 }
             }
-
-            assertEquals(ids.sorted(), collectedIds.sorted())
         }
     }
 
     @Test
     fun `test many workspaces concurrent`() = test {
-        val workspaceCount = 100_000
+        val workspaceCount = 100
         val resourcePerWorkspace = 2_000
         val product = products.insert("a", "b", "c")
         val ref = products.productIdToReference(product)!!
 
         coroutineScope {
-            // TODO There is some performance issue here. CPU usage is also extremely low despite spinning up many
-            //   concurrent threads.
-            val start = System.nanoTime()
-            (0..<workspaceCount).chunked(Runtime.getRuntime().availableProcessors()).forEach { chunk ->
+            val allIds = (0..<workspaceCount).chunked(Runtime.getRuntime().availableProcessors()).flatMap { chunk ->
                 chunk.map { i ->
-                    launch(Dispatchers.IO) {
+                    async(Dispatchers.IO) {
                         val user = createUser("user$i")
                         val idCard = user.idCard()
                         val ids = ArrayList<Long>()
@@ -675,15 +758,520 @@ class ResourceStoreTest {
                             )
                         }
 
-//                        testBrowse(idCard, ids)
+                        testBrowse(idCard, ids, false)
+
+                        ids
                     }
-                }.joinAll()
+                }.awaitAll().flatten()
             }
-            val end = System.nanoTime()
-            dumpCounters()
-            val resourcesPerSecond =
-                ((workspaceCount * resourcePerWorkspace) / (end - start).toDouble()) * 1_000_000_000
-            println("$resourcesPerSecond create + browse/sec")
+
+            val providerCard = idCards.fetchProvider(ref.provider)
+            testBrowse(providerCard, allIds, false)
+        }
+    }
+
+    @Test
+    fun `test created acl access`() = test {
+        val projectTitle = "project"
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+        val admin = createUser("admin")
+        val member = createUser("member")
+        val project = idCards.createProject(projectTitle)
+        val group = idCards.createGroup(project, "group")
+        idCards.addAdminToProject(admin.uid, project)
+        idCards.addUserToGroup(member.uid, group)
+        idCards.addUserToGroup(admin.uid, group)
+
+        val id = store.create(
+            admin.idCard(projectTitle),
+            ref,
+            Unit,
+            null,
+        )
+
+        assertEquals(null, store.retrieve(member.idCard(projectTitle), id))
+
+        // Should fail because member is not allowed to change ACL
+        store.updateAcl(
+            member.idCard(projectTitle),
+            id,
+            emptyList(),
+            listOf(NumericAclEntry(gid = group, permission = Permission.READ))
+        )
+
+        assertNotNull(store.retrieve(admin.idCard(projectTitle), id))
+        assertNull(store.retrieve(member.idCard(projectTitle), id))
+        assertNull(store.retrieve(member.idCard(projectTitle), id, Permission.EDIT))
+
+        // Should succeed because the admin is allowed to do it
+        store.updateAcl(
+            admin.idCard(projectTitle),
+            id,
+            emptyList(),
+            listOf(NumericAclEntry(gid = group, permission = Permission.READ))
+        )
+        assertNotNull(store.retrieve(admin.idCard(projectTitle), id))
+        assertNotNull(store.retrieve(member.idCard(projectTitle), id))
+        assertNull(store.retrieve(member.idCard(projectTitle), id, Permission.EDIT))
+
+        // Removing the entry should make it inaccessible to the member
+        store.updateAcl(
+            admin.idCard(projectTitle),
+            id,
+            listOf(NumericAclEntry(gid = group)),
+            emptyList()
+        )
+
+        assertNotNull(store.retrieve(admin.idCard(projectTitle), id))
+        assertNull(store.retrieve(member.idCard(projectTitle), id, Permission.READ))
+        assertNull(store.retrieve(member.idCard(projectTitle), id, Permission.EDIT))
+
+        // Deletions and additions should be allowed in the same request, meaning that the member should have read
+        // and edit
+        store.updateAcl(
+            admin.idCard(projectTitle),
+            id,
+            listOf(NumericAclEntry(gid = group)),
+            listOf(
+                NumericAclEntry(gid = group, permission = Permission.READ),
+                NumericAclEntry(gid = group, permission = Permission.EDIT),
+            )
+        )
+
+        assertNotNull(store.retrieve(admin.idCard(projectTitle), id))
+        assertNotNull(store.retrieve(member.idCard(projectTitle), id, Permission.READ))
+        assertNotNull(store.retrieve(member.idCard(projectTitle), id, Permission.EDIT))
+
+        // Verify that the ACL looks correct from admin point of view
+        val doc = store.retrieve(admin.idCard(projectTitle), id)!!
+        assertEquals(2, doc.acl.count { it != null })
+        assertTrue(doc.acl.all { it == null || (!it.isUser && it.entity == group) })
+        assertTrue(doc.acl.any { it != null && it.permission == Permission.READ })
+        assertTrue(doc.acl.any { it != null && it.permission == Permission.EDIT })
+    }
+
+    @Test
+    fun `test provider pagination`() = test {
+        val projectTitle = "project"
+        val projectTitle2 = "project2"
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+        val admin = createUser("admin")
+        val admin2 = createUser("admin2")
+        val project = idCards.createProject(projectTitle)
+        val project2 = idCards.createProject(projectTitle2)
+        idCards.addAdminToProject(admin.uid, project)
+        idCards.addAdminToProject(admin2.uid, project2)
+
+        // NOTE(Dan): Randomly selected seed by mashing buttons on my keyboard
+        val random = Random(5348192)
+
+        data class WorkspaceCreation(
+            val card: IdCard,
+
+            // NOTE(Dan): This will guarantee that we need multiple pages _and_ multiple buckets per workspace.
+            var remaining: Int = 2000 + random.nextInt(0, 452),
+
+            val myIds: ArrayList<Long> = ArrayList(),
+        )
+
+        val workspaces = listOf(
+            WorkspaceCreation(admin.idCard()),
+            WorkspaceCreation(admin2.idCard(projectTitle2)),
+            WorkspaceCreation(admin2.idCard()),
+            WorkspaceCreation(admin.idCard(projectTitle)),
+        )
+
+        val allIds = ArrayList<Long>()
+        while (true) {
+            val workspace = workspaces.random(random)
+            if (workspace.remaining <= 0) {
+                if (workspaces.all { it.remaining <= 0 }) break
+                else continue
+            }
+            val resourcesToCreate = random.nextInt(1, min(100, workspace.remaining + 1))
+            repeat(resourcesToCreate) {
+                val id = store.create(workspace.card, ref, Unit, null)
+                workspace.myIds.add(id)
+                allIds.add(id)
+            }
+            workspace.remaining -= resourcesToCreate
+        }
+
+        for (workspace in workspaces) {
+            testBrowse(workspace.card, workspace.myIds, false)
+        }
+
+        val providerCard = idCards.fetchProvider(ref.provider)
+        testBrowse(providerCard, allIds, false)
+    }
+
+    @Test
+    fun `test large acls`() = test {
+        val groupCount = 1_000
+
+        val projectTitle = "project"
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+
+        val admin = createUser("admin")
+        val project = idCards.createProject(projectTitle)
+        idCards.addAdminToProject(admin.uid, project)
+
+        val members = (0..<groupCount).map { createUser("member$it") }
+        val groups = (0..<groupCount).map { idCards.createGroup(project, "group$it") }
+        for (i in 0..<groupCount) {
+            idCards.addUserToGroup(admin.uid, groups[i])
+            idCards.addUserToGroup(members[i].uid, groups[i])
+        }
+
+        // Start with a test where we have many different ACLs
+        val ids = ArrayList<Long>()
+        for (i in 0..<groupCount) {
+            val id = store.create(admin.idCard(projectTitle), ref, Unit, null)
+            ids.add(id)
+            store.updateAcl(
+                admin.idCard(projectTitle),
+                id,
+                emptyList(),
+                listOf(NumericAclEntry(gid = groups[i], permission = Permission.READ))
+            )
+        }
+
+        for (i in 0..<groupCount) {
+            assertNotNull(store.retrieve(members[i].idCard(), ids[i]))
+            testBrowse(members[i].idCard(projectTitle), listOf(ids[i]), false)
+        }
+
+        testBrowse(admin.idCard(projectTitle), ids, false)
+
+        // Then another test where we have one very big ACL
+        val bigAclId = store.create(admin.idCard(projectTitle), ref, Unit, null)
+        store.updateAcl(
+            admin.idCard(projectTitle),
+            bigAclId,
+            emptyList(),
+            groups.map { gid ->
+                NumericAclEntry(gid = gid, permission = Permission.READ)
+            }
+        )
+
+        for (i in 0..<groupCount) {
+            assertNotNull(store.retrieve(members[i].idCard(), bigAclId, Permission.READ))
+            assertNull(store.retrieve(members[i].idCard(), bigAclId, Permission.EDIT))
+        }
+    }
+
+    @Test
+    fun `test mixed acl`() = test {
+        val projectTitle = "project"
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+
+        val admin = createUser("admin")
+        val member = createUser("member")
+        val user = createUser("user")
+        val project = idCards.createProject(projectTitle)
+        val group = idCards.createGroup(project, "group")
+        idCards.addAdminToProject(admin.uid, project)
+        idCards.addUserToGroup(member.uid, group)
+
+        val id = store.create(admin.idCard(), ref, Unit, null)
+        assertNotNull(store.retrieve(admin.idCard(), id))
+        assertNull(store.retrieve(member.idCard(), id))
+        assertNull(store.retrieve(user.idCard(), id))
+
+        store.updateAcl(admin.idCard(), id, emptyList(), listOf(NumericAclEntry(gid = group, permission = Permission.READ)))
+        assertNotNull(store.retrieve(admin.idCard(), id))
+        assertNotNull(store.retrieve(member.idCard(), id))
+        assertNull(store.retrieve(user.idCard(), id))
+
+        store.updateAcl(admin.idCard(), id, emptyList(), listOf(NumericAclEntry(uid = user.uid, permission = Permission.READ)))
+        assertNotNull(store.retrieve(admin.idCard(), id))
+        assertNotNull(store.retrieve(member.idCard(), id))
+        assertNotNull(store.retrieve(user.idCard(), id))
+
+        store.updateAcl(admin.idCard(), id, listOf(NumericAclEntry(uid = user.uid)), emptyList())
+        assertNotNull(store.retrieve(admin.idCard(), id))
+        assertNotNull(store.retrieve(member.idCard(), id))
+        assertNull(store.retrieve(user.idCard(), id))
+
+        store.updateAcl(admin.idCard(), id, listOf(NumericAclEntry(gid = group)), emptyList())
+        assertNotNull(store.retrieve(admin.idCard(), id))
+        assertNull(store.retrieve(member.idCard(), id))
+        assertNull(store.retrieve(user.idCard(), id))
+    }
+
+    @Test
+    fun `test bad acl updates`() = test {
+        val user = createUser("user")
+        val user2 = createUser("user2")
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+
+        val id = store.create(user.idCard(), ref, Unit, null)
+        assertFails {
+            store.updateAcl(
+                user.idCard(),
+                id,
+                emptyList(),
+                listOf(NumericAclEntry(uid = user2.uid, permission = Permission.ADMIN))
+            )
+        }
+
+        assertFails {
+            store.updateAcl(
+                user.idCard(),
+                id,
+                emptyList(),
+                listOf(NumericAclEntry(uid = user2.uid, permission = Permission.PROVIDER))
+            )
+        }
+    }
+
+    @Test
+    fun `test filtering`() = test {
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+        val user = createUser("user")
+        val providerCard = idCards.fetchProvider(ref.provider)
+
+        suspend fun browseWithFlags(
+            pool: Array<ResourceDocument<Unit>>,
+            flags: SimpleResourceIncludeFlags
+        ): Int {
+            return store.browse(user.idCard(), pool, null, flags).count
+        }
+
+        val ids = ArrayList<Long>()
+        val numberOfResources = 30
+        repeat(numberOfResources) {
+            ids.add(store.create(user.idCard(), ref, Unit, null))
+        }
+
+        ResourceOutputPool.withInstance<Unit, Unit> { pool ->
+
+            run {
+                // filterProviderIds
+                for (id in ids) {
+                    store.updateProviderId(providerCard, id, "$id")
+                }
+
+                val filterProviderIds = ids.take(10).joinToString(",") { "$it" }
+                assertEquals(
+                    10,
+                    browseWithFlags(pool, SimpleResourceIncludeFlags(filterProviderIds = filterProviderIds))
+                )
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProviderIds = "")))
+            }
+
+            run {
+                // filterCreatedBefore and filterCreatedAfter
+                assertEquals(1, store.retrieveBulk(providerCard, longArrayOf(ids[0]), pool, Permission.PROVIDER))
+                assertEquals(1, store.modify(providerCard, pool, longArrayOf(ids[0]), Permission.PROVIDER) { idx, doc ->
+                    createdAt[idx] = 1000L
+                })
+
+                assertEquals(1, browseWithFlags(pool, SimpleResourceIncludeFlags(filterCreatedBefore = 10_000L)))
+
+                val theFuture = System.currentTimeMillis() * 2
+                store.modify(providerCard, pool, longArrayOf(ids[0]), Permission.PROVIDER) { idx, doc ->
+                    createdAt[idx] = theFuture
+                }
+
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterCreatedBefore = 10_000L)))
+                assertEquals(1, browseWithFlags(pool, SimpleResourceIncludeFlags(filterCreatedAfter = theFuture - 1L)))
+
+                store.modify(providerCard, pool, longArrayOf(ids[0]), Permission.PROVIDER) { idx, doc ->
+                    createdAt[idx] = 1000L
+                }
+
+                store.modify(providerCard, pool, longArrayOf(ids[1]), Permission.PROVIDER) { idx, doc ->
+                    createdAt[idx] = 5000L
+                }
+                assertEquals(
+                    1,
+                    browseWithFlags(
+                        pool,
+                        SimpleResourceIncludeFlags(
+                            filterCreatedAfter = 0L,
+                            filterCreatedBefore = 4999L,
+                        )
+                    )
+                )
+
+                assertEquals(
+                    2,
+                    browseWithFlags(
+                        pool,
+                        SimpleResourceIncludeFlags(
+                            filterCreatedAfter = 0L,
+                            filterCreatedBefore = 10_000L,
+                        )
+                    )
+                )
+
+                assertEquals(
+                    1,
+                    browseWithFlags(
+                        pool,
+                        SimpleResourceIncludeFlags(
+                            filterCreatedAfter = 1001L,
+                            filterCreatedBefore = 10_000L,
+                        )
+                    )
+                )
+            }
+
+            run {
+                // filterProductId
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductId = "bad")))
+                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductId = ref.id)))
+            }
+
+            run {
+                // filterProductCategory
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductCategory = "bad")))
+                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductCategory = ref.category)))
+            }
+
+            run {
+                // filterProvider
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProvider = "bad")))
+                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProvider = ref.provider)))
+            }
+
+            run {
+                // hideProductId
+                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductId = "bad")))
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductId = ref.id)))
+            }
+
+            run {
+                // hideProductCategory
+                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductCategory = "bad")))
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductCategory = ref.category)))
+            }
+
+            run {
+                // hideProvider
+                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProvider = "bad")))
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProvider = ref.provider)))
+            }
+
+            run {
+                // filterIds
+                val filterIds = (5..15).map { ids[it] }
+                assertEquals(
+                    filterIds.size,
+                    browseWithFlags(
+                        pool,
+                        SimpleResourceIncludeFlags(
+                            filterIds = filterIds.joinToString(",") { it.toString() }
+                        )
+                    )
+                )
+
+                assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterIds = "")))
+            }
+        }
+    }
+
+    @Test
+    fun `test register call`() = test {
+        val product = products.insert("a", "b", "c")
+        val product2 = products.insert("a", "b", "d")
+        val ref = products.productIdToReference(product)!!
+        val ref2 = products.productIdToReference(product2)!!
+        val user = createUser("user")
+        val providerCard = idCards.fetchProvider(ref.provider)
+
+        val output = ResourceDocument<Unit>()
+        val id = store.register(providerCard, ref, user.uid, 0, Unit, null, output)
+        assertEquals(id, output.id)
+        assertEquals(user.uid, output.createdBy)
+        assertEquals(Unit, output.data)
+        assertEquals(0, output.acl.size)
+        assertTrue(output.update.filterNotNull().isEmpty())
+        assertEquals(0, output.project)
+        assertNull(output.providerId)
+        val now = System.currentTimeMillis()
+        assertTrue(now - output.createdAt < 5000L)
+
+        assertTrue(runCatching { store.register(providerCard, ref2, user.uid, 0, Unit, null, output) }.isFailure)
+        assertTrue(runCatching { store.register(providerCard, ProductReference("dd", "dd", "dd"), user.uid, 0, Unit, null, output) }.isFailure)
+        assertTrue(runCatching { store.register(user.idCard(), ref, user.uid, 0, Unit, null, output) }.isFailure)
+    }
+
+    @Test
+    fun `test update`() = test {
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+        val user = createUser("user")
+        val providerCard = idCards.fetchProvider(ref.provider)
+
+        run {
+            // Created resource
+            val output = ResourceDocument<Unit>()
+            val id = store.create(user.idCard(), ref, Unit, output)
+            assertEquals(id, output.id)
+
+            val update = "Testing"
+            store.addUpdate(providerCard, id, listOf(ResourceDocumentUpdate(update)))
+            assertEquals(update, store.retrieve(user.idCard(), id)!!.update.filterNotNull().first().update)
+        }
+
+        run {
+            // Registered resource
+            val output = ResourceDocument<Unit>()
+            val id = store.register(providerCard, ref, user.uid, 0, Unit, "providerId", output)
+            assertEquals(id, output.id)
+            assertEquals("providerId", output.providerId)
+
+            val update = "Testing"
+            store.addUpdate(providerCard, id, listOf(ResourceDocumentUpdate(update)))
+            assertEquals(update, store.retrieve(user.idCard(), id)!!.update.filterNotNull().first().update)
+        }
+
+        run {
+            // createViaProvider resource
+            val output = ResourceDocument<Unit>()
+            val id = store.createViaProvider(user.idCard(), ref, Unit, output) { "providerId" }
+            assertEquals(id, output.id)
+            assertEquals("providerId", output.providerId)
+
+            val update = "Testing"
+            store.addUpdate(providerCard, id, listOf(ResourceDocumentUpdate(update)))
+            assertEquals(update, store.retrieve(user.idCard(), id)!!.update.filterNotNull().first().update)
+        }
+
+        run {
+            // Multiple updates in single and cyclic behavior
+            val counts = listOf(1, 10, 64, 100, 1, 1)
+            val repeats = listOf(1, 1, 1, 1, 64, 100)
+
+            val expectedMaxUpdates = 64 // This might need to be updated later
+
+            for ((count, repeatCount) in counts.zip(repeats)) {
+                val allUpdateMessages = ArrayList<String>()
+                val id = store.create(user.idCard(), ref, Unit, null)
+                var existingCount = 0
+                repeat(repeatCount) {
+                    val updateMessages = (0 until count).map { "$it" }
+                    allUpdateMessages.addAll(updateMessages)
+                    val updates = updateMessages.map { ResourceDocumentUpdate(it) }
+                    store.addUpdate(providerCard, id, updates)
+                    existingCount += count
+
+                    val retrieved = store.retrieve(user.idCard(), id)!!
+                    assertEquals(expectedMaxUpdates, retrieved.update.size)
+                    val retrievedUpdates = retrieved.update.filterNotNull().mapNotNull { it.update }
+                    val expectedUpdates = allUpdateMessages.takeLast(min(expectedMaxUpdates, existingCount))
+
+                    assertEquals(expectedUpdates, retrievedUpdates)
+                }
+            }
         }
     }
 }

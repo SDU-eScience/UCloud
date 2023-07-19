@@ -25,19 +25,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
-import org.cliffc.high_scale_lib.NonBlockingHashMap
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.Comparator
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
@@ -70,46 +64,34 @@ class ResourceStore<T>(
         suspend fun saveState(ctx: DBContext, store: ResourceStoreBucket<T>, indices: IntArray, length: Int)
     }
 
-    // Blocks and stores
+    // Stores and shortcuts tables
     // =================================================================================================================
-    // The following calls deal with the blocks and the stores inside of them. This is where we store all the data
-    // relevant to this ResourceService. The main entrypoint to the data is a linked-list of blocks. These blocks
-    // contain references to "stores". Inside a store, you will are guaranteed to find _all_ of the resources owned by
-    // a single workspace. A store is by itself a linked-list structure, where each store contain a chunk of resources.
+    // The following calls deal with the buckets and the tables which contain references to the stores. All the data
+    // is within the individual buckets stored in the tables. The main entrypoint to the data is a non-blocking
+    // hash map, which maps either a UID or a PID to a bucket. Inside a bucket, you will are guaranteed to find _all_
+    // of the resources owned by a single workspace.
     //
-    // The block data-structure is defined below:
-    private data class Block<T>(
-        // NOTE(Dan): We only store the root stores in a block. Subsequent stores are accessed through the
-        // store's next property.
-        val stores: Array<ResourceStoreBucket<T>?> = arrayOfNulls(4096),
+    // The tables are stored below:
 
-        // TODO(Dan): This might need to be @Volatile
-        var next: Block<T>? = null,
-    )
+    private val uidShortcut = NonBlockingHashMapLong<ResourceStoreBucket<T>>()
+    private val pidShortcut = NonBlockingHashMapLong<ResourceStoreBucket<T>>()
 
-    // Whenever we need to make mutations to it, such as inserting a new store, we use the `blockMutationMutex`. We
-    // do not need to use the `blockMutationMutex` when we are just reading the data.
-    private val blockMutationMutex = Mutex()
-
-    // We store a reference to the head of the blockchain (sorry) in the `root` variable:
-    private val root: Block<T> = Block()
-
-    // Stores are always owned by a workspace. We identify a workspace by a tuple containing the user ID (`uid`) and
-    // the project ID (`pid`). We only use the numeric IDs for this, since it improves performance inside the stores by
+    // Buckets are always owned by a workspace. We identify a workspace by a tuple containing the user ID (`uid`) and
+    // the project ID (`pid`). We only use the numeric IDs for this, since it improves performance inside the buckets by
     // quite a bit. The translation from textual IDs to numeric IDs translation is done by the IdCardService. If the
     // `pid` is non-zero then the `uid` will always be ignored. This allows the callers to simply pass in the
     // information an ActorAndProject easily.
 
-    // To use the store of a workspace, you will need to call `findOrLoadStore`:
-    private suspend fun findOrLoadStore(uid: Int, pid: Int): ResourceStoreBucket<T> {
+    // To use the bucket of a workspace, you will need to call `findOrLoadBucket`:
+    private suspend fun findOrLoadBucket(uid: Int, pid: Int): ResourceStoreBucket<T> {
         require(uid == 0 || pid == 0)
-        return findStore(uid, pid) ?: loadStore(uid, pid)
+        return findBucket(uid, pid) ?: loadBucket(uid, pid)
     }
 
-    // Since the stores are linked-list like structure, you should make sure to iterate through all the stores. You need
-    // to do this using the `useStores` function. Note that you can terminate the search early once you have performed
+    // Since the buckets are linked-list like structure, you should make sure to iterate through all the buckets. You need
+    // to do this using the `useBuckets` function. Note that you can terminate the search early once you have performed
     // the request you need to do:
-    private inline fun useStores(
+    private inline fun useBuckets(
         root: ResourceStoreBucket<T>,
         reverseOrder: Boolean = false,
         consumer: (ResourceStoreBucket<T>) -> ShouldContinue
@@ -138,10 +120,10 @@ class ResourceStore<T>(
         }
     }
 
-    // In order to implement `findOrLoadStore` we must of course implement the two subcomponents. Finding a loaded store
-    // is relatively straight-forward, we simply iterate through the blocks until we find it:
-    private fun findStore(uid: Int, pid: Int): ResourceStoreBucket<T>? {
-        CreateCounters.findStore.measureValue {
+    // In order to implement `findOrLoadBucket` we must of course implement the two subcomponents. Finding a loaded
+    // bucket is relatively straight-forward, we simply look in the relevant hash map.
+    private fun findBucket(uid: Int, pid: Int): ResourceStoreBucket<T>? {
+        CreateCounters.findBucket.measureValue {
             require(uid == 0 || pid == 0)
 
             val map = if (uid != 0) uidShortcut else pidShortcut
@@ -151,17 +133,11 @@ class ResourceStore<T>(
         }
     }
 
-    private val uidShortcut = NonBlockingHashMapLong<ResourceStoreBucket<T>>()
-    private val pidShortcut = NonBlockingHashMapLong<ResourceStoreBucket<T>>()
-//    private val uidRwLock = ReentrantReadWriteLock()
-//    private val pidRwLock = ReentrantReadWriteLock()
-
-    // Loading the store is also fairly straightforward. We need to use the `blockMutationMutex` since we will be
-    // mutating the block list. The function will quickly reserve a spot in the block list and then trigger a load()
-    // inside the store. Note that the store itself is capable of handling the situation where it receives requests
-    // even though it hasn't finished loading.
-    private suspend fun loadStore(uid: Int, pid: Int): ResourceStoreBucket<T> {
-        CreateCounters.loadStore.measureValue {
+    // Loading the bucket is also fairly straightforward. The function will quickly reserve a spot in the map and then
+    // trigger a load() inside the bucket. Note that the bucket itself is capable of handling the situation where it
+    // receives requests even though it hasn't finished loading.
+    private suspend fun loadBucket(uid: Int, pid: Int): ResourceStoreBucket<T> {
+        CreateCounters.loadBucket.measureValue {
             require(uid == 0 || pid == 0)
 
             val map = if (uid != 0) uidShortcut else pidShortcut
@@ -175,7 +151,7 @@ class ResourceStore<T>(
         }
     }
 
-    // The blocks and stores are consumed by the public API.
+    // The buckets and shortcut tables are consumed by the public API.
 
     // Public API
     // =================================================================================================================
@@ -184,7 +160,7 @@ class ResourceStore<T>(
     //
     // 1. Locate (and potentially initialize) the appropriate stores which contain the resources. This will often use
     //    one of the indices we have available to us (see the following sections).
-    // 2. Iterate through all the relevant stores (via `useStores`) and perform the relevant operation.
+    // 2. Iterate through all the relevant stores (via `useBuckets`) and perform the relevant operation.
     // 3. If relevant, update one or more indices.
     // 4. Aggregate and filter the results. Finally return it to the caller.
     //
@@ -194,6 +170,22 @@ class ResourceStore<T>(
     fun startSynchronizationJob(
         scope: CoroutineScope,
     ): Job {
+        suspend fun syncTable(table: NonBlockingHashMapLong<ResourceStoreBucket<T>>) {
+            table.values.forEach { rootBucket ->
+                if (rootBucket != null) {
+                    useBuckets(rootBucket) {
+                        it.synchronizeToDatabase()
+                        ShouldContinue.YES
+                    }
+                }
+            }
+        }
+
+        suspend fun doCompleteSync() {
+            syncTable(uidShortcut)
+            syncTable(pidShortcut)
+        }
+
         Runtime.getRuntime().addShutdownHook(Thread {
             runBlocking { doCompleteSync() }
         })
@@ -213,27 +205,12 @@ class ResourceStore<T>(
         }
     }
 
-    private suspend fun doCompleteSync() {
-        var block = root
-        while (true) {
-            for (entry in block.stores) {
-                if (entry == null) continue
-                useStores(entry) {
-                    it.synchronizeToDatabase()
-                    ShouldContinue.YES
-                }
-            }
-            block = block.next ?: break
-        }
-    }
-
-
     object CreateCounters {
-        const val base = "ResourceStore.create"
+        private const val base = "ResourceStore.create"
 
         val cacheLookup = threadLocalCounter("$base.cacheLookup")
-        val findStore = threadLocalCounter("$base.findStore")
-        val loadStore = threadLocalCounter("$base.loadStore")
+        val findBucket = threadLocalCounter("$base.findBucket")
+        val loadBucket = threadLocalCounter("$base.loadBucket")
         val findTail = threadLocalCounter("$base.findTail")
         val bucketCreate = threadLocalCounter("$base.bucketCreate")
         val bucketExpand = threadLocalCounter("$base.bucketExpand")
@@ -243,8 +220,6 @@ class ResourceStore<T>(
         val providerIdLookup = threadLocalCounter("$base.providerIdLookup")
         val providerIndexLookup = threadLocalCounter("$base.providerIndexLookup")
         val providerIndexRegister = threadLocalCounter("$base.providerIndexRegister")
-        val providerIndexWriteLock = threadLocalCounter("$base.providerIndexWriteLock")
-        val providerIndexWriteAdd = threadLocalCounter("$base.providerIndexAdd")
     }
 
     suspend fun create(
@@ -262,19 +237,19 @@ class ResourceStore<T>(
                 ?: throw RPCException("Invalid product supplied", HttpStatusCode.BadRequest)
         }
 
-        val uid = if (idCard.activeProject <= 0) idCard.uid else 0
-        val pid = if (uid == 0) idCard.activeProject else 0
+        val pid = if (idCard.activeProject > 0) idCard.activeProject else 0
 
-        return createDocument(uid, pid, productId, data, null, output)
+        return createDocument(idCard.uid, pid, productId, data, null, output)
     }
 
     suspend fun createViaProvider(
         idCard: IdCard,
         product: ProductReference,
         data: T,
+        output: ResourceDocument<T>? = null,
         proxyBlock: suspend (doc: ResourceDocument<T>) -> String?,
     ): Long {
-        val doc = ResourceDocument<T>()
+        val doc = output ?: ResourceDocument<T>()
         val allocatedId = create(idCard, product, data, output = doc)
 
         val providerId = try {
@@ -288,6 +263,7 @@ class ResourceStore<T>(
 
         if (providerId != null) {
             updateProviderId(idCard, allocatedId, providerId)
+            doc.providerId = providerId
         }
 
         return allocatedId
@@ -324,7 +300,7 @@ class ResourceStore<T>(
         providerGeneratedId: String?,
         output: ResourceDocument<T>?
     ): Long {
-        val root = findOrLoadStore(if (pid == 0) uid else 0, pid)
+        val root = findOrLoadBucket(if (pid == 0) uid else 0, pid)
 
         var tail = CreateCounters.findTail.measureValue { root.findTail() }
         while (true) {
@@ -356,6 +332,7 @@ class ResourceStore<T>(
         }
     }
 
+    @Suppress("RemoveExplicitTypeArguments")
     private suspend fun buildFilterFunction(
         flags: ResourceIncludeFlags,
         additionalFilters: FilterFunction<T>?,
@@ -489,6 +466,8 @@ class ResourceStore<T>(
         val filter = buildFilterFunction(flags, additionalFilters)
 
         when (idCard) {
+            IdCard.System -> error("not allowed")
+
             is IdCard.Provider -> {
                 val storeArray = IntList()
                 val storeArrayMaxResults = 128
@@ -518,12 +497,12 @@ class ResourceStore<T>(
                 var offset = 0
                 while (minimumUid < Int.MAX_VALUE && offset < outputBufferLimit) {
                     storeArray.clear()
-                    val resultCount = providerIndex.findUidStores(storeArray, minimumUid, storeArrayMaxResults)
+                    providerIndex.findUidStores(storeArray, minimumUid, storeArrayMaxResults)
                     for (elem in storeArray) {
                         if (offset >= outputBufferLimit) break
                         minimumUid = elem
 
-                        useStores(findOrLoadStore(elem, 0)) { store ->
+                        useBuckets(findOrLoadBucket(elem, 0)) { store ->
                             offset += store.search(idCard, outputBuffer, offset, initialId, predicate = filter)
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
@@ -539,21 +518,23 @@ class ResourceStore<T>(
 
                 while (minimumPid < Int.MAX_VALUE && offset < outputBufferLimit) {
                     storeArray.clear()
-                    val resultCount = providerIndex.findPidStores(storeArray, minimumUid, storeArrayMaxResults)
+                    providerIndex.findPidStores(storeArray, minimumPid, storeArrayMaxResults)
                     for (elem in storeArray) {
                         if (offset >= outputBufferLimit) break
-                        useStores(findOrLoadStore(0, elem)) { store ->
+                        minimumPid = elem
+
+                        useBuckets(findOrLoadBucket(0, elem)) { store ->
                             offset += store.search(idCard, outputBuffer, offset, initialId, predicate = filter)
-                            initialId = -1L
                             ShouldContinue.ifThisIsTrue(offset < outputBuffer.size)
                         }
+
+                        initialId = -1L
                     }
 
                     if (storeArray.size < storeArrayMaxResults) {
                         if (offset < outputBufferLimit) didCompleteProjects = true
                         break
                     }
-                    minimumPid = storeArray[storeArray.size - 1]
                 }
 
                 val idOfLastElement = if (offset >= outputBufferLimit) {
@@ -581,7 +562,7 @@ class ResourceStore<T>(
                 val reverseOrder = sortDirection == SortDirection.descending
 
                 var offset = 0
-                useStores(findOrLoadStore(uid, pid), reverseOrder = reverseOrder) { store ->
+                useBuckets(findOrLoadBucket(uid, pid), reverseOrder = reverseOrder) { store ->
                     offset += store.search(
                         idCard,
                         outputBuffer,
@@ -628,7 +609,7 @@ class ResourceStore<T>(
         val uid = if (idCard.activeProject <= 0) idCard.uid else 0
         val pid = if (uid == 0) idCard.activeProject else 0
 
-        val rootStore = findOrLoadStore(uid, pid)
+        val rootStore = findOrLoadBucket(uid, pid)
 
         // NOTE(Dan): Sorting is quite a bit more expensive than normal browsing since we cannot use a stable key which
         // allows us to easily find the relevant dataset. Instead, we must always fetch _all_ resources, sort and then
@@ -639,7 +620,7 @@ class ResourceStore<T>(
         // big at this value. If there are too many resources, then we fall back to the normal browse endpoint,
         // producing results sorted by ID.
         var storeCount = 0
-        useStores(rootStore) { store ->
+        useBuckets(rootStore) { _ ->
             storeCount++
             ShouldContinue.YES
         }
@@ -666,7 +647,7 @@ class ResourceStore<T>(
             }
         }
 
-        useStores(rootStore) { store ->
+        useBuckets(rootStore) { store ->
             consumer.currentStore = store
             store.searchAndConsume(idCard, Permission.READ, consumer)
             ShouldContinue.YES
@@ -695,6 +676,8 @@ class ResourceStore<T>(
             .toLongArray()
 
         val count = retrieveBulk(idCard, idArray, outputBuffer)
+        check(count == idArray.size)
+        (count until outputBuffer.size).forEach { outputBuffer[it].id = 0L }
 
         val docComparator = Comparator<ResourceDocument<T>> { a, b ->
             when {
@@ -734,7 +717,7 @@ class ResourceStore<T>(
         output: Array<ResourceDocument<T>>,
         ids: LongArray,
         permission: Permission,
-        consumer: (arrIndex: Int, doc: ResourceDocument<T>) -> Unit,
+        consumer: ResourceStoreBucket<T>.(arrIndex: Int, doc: ResourceDocument<T>) -> Unit,
     ): Int {
         if (ids.isEmpty()) return 0
         val storesVisited = HashSet<Pair<Int, Int>>()
@@ -754,7 +737,7 @@ class ResourceStore<T>(
             if (storeKey in storesVisited) continue
             storesVisited.add(storeKey)
 
-            useStores(initialStore) { currentStore ->
+            useBuckets(initialStore) { currentStore ->
                 offset += currentStore.modify(
                     idCard,
                     output,
@@ -780,7 +763,7 @@ class ResourceStore<T>(
             throw RPCException("End-users are not allowed to add updates to a resource!", HttpStatusCode.Forbidden)
         }
 
-        useStores(findStoreByResourceId(id) ?: return) { store ->
+        useBuckets(findStoreByResourceId(id) ?: return) { store ->
             ShouldContinue.ifThisIsTrue(!store.addUpdates(idCard, id, updates, consumer))
         }
     }
@@ -825,7 +808,7 @@ class ResourceStore<T>(
             if (storeKey in storesVisited) continue
             storesVisited.add(storeKey)
 
-            useStores(initialStore) { currentStore ->
+            useBuckets(initialStore) { currentStore ->
                 offset += currentStore.search(
                     idCard,
                     output,
@@ -841,7 +824,7 @@ class ResourceStore<T>(
     }
 
     suspend fun updateProviderId(idCard: IdCard, id: Long, providerId: String?) {
-        useStores(findStoreByResourceId(id) ?: return) { store ->
+        useBuckets(findStoreByResourceId(id) ?: return) { store ->
             ShouldContinue.ifThisIsTrue(!store.updateProviderId(idCard, id, providerId))
         }
     }
@@ -856,7 +839,7 @@ class ResourceStore<T>(
             throw RPCException("Invalid request supplied", HttpStatusCode.BadRequest)
         }
 
-        useStores(findStoreByResourceId(id) ?: return) { store ->
+        useBuckets(findStoreByResourceId(id) ?: return) { store ->
             ShouldContinue.ifThisIsTrue(!store.updateAcl(idCard, id, deletions, additions))
         }
     }
@@ -880,16 +863,6 @@ class ResourceStore<T>(
 
             entries[slot] = reference
             entryIsUid[slot] = isUid
-        }
-
-        fun clear(id: Long) {
-            val slot = (id - minimumId).toInt()
-            require(slot in 0 until BLOCK_SIZE) {
-                "id is out of bounds for this block: minimum = $minimumId, id = $id"
-            }
-
-            entries[slot] = 0
-            entryIsUid[slot] = false
         }
 
         companion object {
@@ -953,7 +926,7 @@ class ResourceStore<T>(
         val reference = loaded.entries[slot]
         val referenceIsUid = loaded.entryIsUid[slot]
 
-        return findOrLoadStore(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
+        return findOrLoadBucket(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
     }
 
     // Provider index
@@ -1081,10 +1054,10 @@ class ResourceStoreBucket<T>(
     val aclIsUser = arrayOfNulls<BooleanArray>(STORE_SIZE)
     val aclPermissions = arrayOfNulls<ByteArray>(STORE_SIZE)
     val updates = arrayOfNulls<CyclicArray<ResourceDocumentUpdate>>(STORE_SIZE)
-    val _data = arrayOfNulls<Any>(STORE_SIZE)
+    val data = arrayOfNulls<Any>(STORE_SIZE)
     fun data(idx: Int): T? {
         @Suppress("UNCHECKED_CAST")
-        return _data[idx] as T?
+        return data[idx] as T?
     }
 
     // We store the number of valid entries in the `size` property. Each time a new entry is created, we increment
@@ -1166,7 +1139,7 @@ class ResourceStoreBucket<T>(
             this.createdBy[idx] = createdByUid
             this.project[idx] = pid
             this.product[idx] = product
-            this._data[idx] = data
+            this.data[idx] = data
             this.providerId[idx] = providerGeneratedId
             this.dirtyFlag[idx] = true
             anyDirty = true
@@ -1227,8 +1200,12 @@ class ResourceStoreBucket<T>(
                     }
                 }
 
-            val isOwnerOfEverything = idCard is IdCard.User &&
+            val isOwnerOfEverything =
+                idCard == IdCard.System ||
+                (
+                    idCard is IdCard.User &&
                     ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
+                )
 
             if (isOwnerOfEverything) {
                 val requiresOwnerPrivileges = permissionRequired == Permission.READ ||
@@ -1323,6 +1300,7 @@ class ResourceStoreBucket<T>(
                         if (entityConsumer.match != -1) consumer.call(i)
                     }
 
+
                     i += delta
                 }
             } else if (idCard is IdCard.Provider && idCard.providerOf.isNotEmpty()) {
@@ -1367,7 +1345,6 @@ class ResourceStoreBucket<T>(
         }
     }
 
-
     suspend fun search(
         idCard: IdCard,
         outputBuffer: Array<ResourceDocument<T>>,
@@ -1395,7 +1372,7 @@ class ResourceStoreBucket<T>(
                 loadIntoDocument(res, arrIdx)
 
                 @Suppress("UNCHECKED_CAST")
-                res.data = self._data[arrIdx] as T
+                res.data = self.data[arrIdx] as T
 
                 if (!predicate.filter(res)) {
                     outIdx--
@@ -1428,7 +1405,7 @@ class ResourceStoreBucket<T>(
             }
         }
         run {
-            Arrays.fill(res.acl, null)
+            res.acl.clear()
             val entities = this.aclEntities[arrIdx]
             val isUser = this.aclIsUser[arrIdx]
             val perms = this.aclPermissions[arrIdx]
@@ -1436,8 +1413,13 @@ class ResourceStoreBucket<T>(
             if (entities != null && isUser != null && perms != null) {
                 for (i in entities.indices) {
                     if (entities[i] == 0) break
-                    res.acl[i] =
-                        ResourceDocument.AclEntry(entities[i], isUser[i], Permission.fromByte(perms[i]))
+                    res.acl.add(
+                        ResourceDocument.AclEntry(
+                            entities[i],
+                            isUser[i],
+                            Permission.fromByte(perms[i])
+                        )
+                    )
                 }
             }
         }
@@ -1464,7 +1446,7 @@ class ResourceStoreBucket<T>(
                 for ((index, update) in newUpdates.withIndex()) {
                     @Suppress("UNCHECKED_CAST")
                     val shouldAddUpdate =
-                        if (consumer != null) consumer(self._data[arrIdx] as T, index, update) else true
+                        if (consumer != null) consumer(self.data[arrIdx] as T, index, update) else true
                     if (shouldAddUpdate) updates.add(update)
                 }
 
@@ -1481,7 +1463,7 @@ class ResourceStoreBucket<T>(
         predicate: FilterFunction<T>,
         permission: Permission,
         startIdExclusive: Long = -1L,
-        consumer: (arrIndex: Int, doc: ResourceDocument<T>) -> Unit,
+        consumer: ResourceStoreBucket<T>.(arrIndex: Int, doc: ResourceDocument<T>) -> Unit,
     ): Int {
         var outIdx = outputBufferOffset
         val self = this
@@ -1496,19 +1478,19 @@ class ResourceStoreBucket<T>(
                     if (self.id[arrIdx] == 0L) return
 
                     if (startIdExclusive != -1L) {
-                        if (self.id[arrIdx] >= startIdExclusive) return
+                        if (self.id[arrIdx] <= startIdExclusive) return
                     }
 
                     val res = outputBuffer[outIdx++]
                     loadIntoDocument(res, arrIdx)
 
                     @Suppress("UNCHECKED_CAST")
-                    res.data = self._data[arrIdx] as T
+                    res.data = self.data[arrIdx] as T
 
                     if (!predicate.filter(res)) {
                         outIdx--
                     } else {
-                        consumer(arrIdx, res)
+                        consumer.invoke(this@ResourceStoreBucket, arrIdx, res)
 
                         self.dirtyFlag[arrIdx] = true
                         anyDirty = true
@@ -1758,85 +1740,84 @@ class ResourceStoreBucket<T>(
         //
         // We purposefully warm up this function in the `init {}` block of this class to force proper JIT compilation of
         // the function.
+        @Suppress("DuplicatedCode")
         private fun searchInArray(
             needles: IntArray,
             haystack: IntArray,
             emit: SearchConsumer,
             startIndex: Int = 0,
         ) {
-            if (haystack.size < ivLength * 4 || haystack.size % 4 != 0) {
-                for ((index, hay) in haystack.withIndex()) {
-                    if (index < startIndex) continue
+            var idx = (startIndex / (ivLength * 4)) * (ivLength * 4)
+            while (idx < haystack.size - ivLength * 4) {
+                for (i in needles) {
+                    val needle = IntVector.broadcast(ivSpecies, i)
 
-                    for (needle in needles) {
-                        if (hay == needle) {
-                            emit.call(index)
-                            break
+                    val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
+                    val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength)
+                    val haystack3 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 2)
+                    val haystack4 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 3)
+
+                    val cr1 = haystack1.compare(VectorOperators.EQ, needle)
+                    val cr2 = haystack2.compare(VectorOperators.EQ, needle)
+                    val cr3 = haystack3.compare(VectorOperators.EQ, needle)
+                    val cr4 = haystack4.compare(VectorOperators.EQ, needle)
+
+                    run {
+                        var offset = idx
+                        var bits = cr1.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
+                            bits = bits shr (trailing + 1)
+                        }
+                    }
+
+                    run {
+                        var offset = idx + ivLength
+                        var bits = cr2.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
+                            bits = bits shr (trailing + 1)
+                        }
+                    }
+
+                    run {
+                        var offset = idx + ivLength * 2
+                        var bits = cr3.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
+                            bits = bits shr (trailing + 1)
+                        }
+                    }
+
+                    run {
+                        var offset = idx + ivLength * 3
+                        var bits = cr4.toLong()
+                        while (bits != 0L) {
+                            val trailing = java.lang.Long.numberOfTrailingZeros(bits)
+                            emit.call(offset + trailing)
+                            offset += trailing + 1
+                            bits = bits shr (trailing + 1)
                         }
                     }
                 }
-            } else {
-                var idx = (startIndex / (ivLength * 4)) * (ivLength * 4)
-                while (idx < haystack.size) {
-                    for (i in needles) {
-                        val needle = IntVector.broadcast(ivSpecies, i)
+                idx += ivLength * 4
+            }
 
-                        val haystack1 = IntVector.fromArray(ivSpecies, haystack, idx)
-                        val haystack2 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength)
-                        val haystack3 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 2)
-                        val haystack4 = IntVector.fromArray(ivSpecies, haystack, idx + ivLength * 3)
-
-                        val cr1 = haystack1.compare(VectorOperators.EQ, needle)
-                        val cr2 = haystack2.compare(VectorOperators.EQ, needle)
-                        val cr3 = haystack3.compare(VectorOperators.EQ, needle)
-                        val cr4 = haystack4.compare(VectorOperators.EQ, needle)
-
-                        run {
-                            var offset = idx
-                            var bits = cr1.toLong()
-                            while (bits != 0L) {
-                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                                emit.call(offset + trailing)
-                                offset += trailing + 1
-                                bits = bits shr (trailing + 1)
-                            }
-                        }
-
-                        run {
-                            var offset = idx + ivLength
-                            var bits = cr2.toLong()
-                            while (bits != 0L) {
-                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                                emit.call(offset + trailing)
-                                offset += trailing + 1
-                                bits = bits shr (trailing + 1)
-                            }
-                        }
-
-                        run {
-                            var offset = idx + ivLength * 2
-                            var bits = cr3.toLong()
-                            while (bits != 0L) {
-                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                                emit.call(offset + trailing)
-                                offset += trailing + 1
-                                bits = bits shr (trailing + 1)
-                            }
-                        }
-
-                        run {
-                            var offset = idx + ivLength * 3
-                            var bits = cr4.toLong()
-                            while (bits != 0L) {
-                                val trailing = java.lang.Long.numberOfTrailingZeros(bits)
-                                emit.call(offset + trailing)
-                                offset += trailing + 1
-                                bits = bits shr (trailing + 1)
-                            }
-                        }
+            while (idx < haystack.size) {
+                val hay = haystack[idx]
+                for (needle in needles) {
+                    if (hay == needle) {
+                        emit.call(idx)
+                        break
                     }
-                    idx += ivLength * 4
                 }
+                idx++
             }
         }
 
@@ -2157,7 +2138,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(private val db: DBContext) : ResourceS
                     idx -= rows.size
                     batchIndex = 0
                     for (row in rows) {
-                        this._data[idx++] = loadedState[batchIndex++]
+                        this.data[idx++] = loadedState[batchIndex++]
                     }
                     size += rows.size
 

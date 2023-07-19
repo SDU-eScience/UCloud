@@ -17,7 +17,7 @@ data class ResourceDocument<T>(
     var project: Int = 0,
     var product: Int = 0,
     var providerId: String? = null,
-    var acl: Array<AclEntry?> = arrayOfNulls(64),
+    var acl: ArrayList<AclEntry> = ArrayList(8),
     var update: Array<ResourceDocumentUpdate?> = arrayOfNulls(64),
     var data: T? = null,
 ) {
@@ -36,5 +36,7 @@ sealed class IdCard {
         val name: String,
         val providerOf: IntArray,
     ) : IdCard()
+
+    object System : IdCard()
 }
 

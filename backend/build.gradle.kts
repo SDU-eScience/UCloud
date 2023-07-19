@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import kotlin.system.exitProcess
 
@@ -141,12 +143,60 @@ subprojects {
             jvmArgs("--add-modules", "jdk.incubator.vector", "-Xmx32G")
 
             testLogging {
+                events(*TestLogEvent.values())
+                exceptionFormat = TestExceptionFormat.FULL
+                outputs.upToDateWhen { false }
+                showExceptions = true
+                showCauses = true
+                showStackTraces = true
                 showStandardStreams = true
+
+                debug {
+                    events(*TestLogEvent.values())
+                    exceptionFormat = TestExceptionFormat.FULL
+                }
+                info.events = debug.events
+                info.exceptionFormat = debug.exceptionFormat
+
+                addTestListener(object : TestListener {
+                    override fun beforeSuite(suite: TestDescriptor?) {
+                        // Empty
+                    }
+
+                    override fun afterSuite(suite: TestDescriptor, result: TestResult) {
+                        val size = 80
+                        if (suite.parent != null) return
+                        print(
+                            buildString {
+                                appendLine()
+                                repeat(size) { append('-') }
+                                appendLine()
+                                appendLine(result.resultType.toString())
+                                repeat(size) { append('-') }
+                                appendLine()
+
+                                append(" TESTS:".padEnd(size - result.testCount.toString().length))
+                                appendLine(result.testCount)
+                                append("PASSED:".padEnd(size - result.successfulTestCount.toString().length))
+                                appendLine(result.successfulTestCount)
+                                append("FAILED:".padEnd(size - result.failedTestCount.toString().length))
+                                appendLine(result.failedTestCount)
+                            }
+                        )
+                    }
+
+                    override fun beforeTest(testDescriptor: TestDescriptor?) {
+                        // Empty
+                    }
+
+                    override fun afterTest(testDescriptor: TestDescriptor?, result: TestResult?) {
+                        // Empty
+                    }
+                })
             }
 
             filter {
-                isFailOnNoMatchingTests = false
-                excludeTestsMatching("dk.sdu.cloud.integration.*")
+                includeTestsMatching("*Test")
             }
         }
 

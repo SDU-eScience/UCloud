@@ -16,7 +16,7 @@ object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
             doc.id = 0
             doc.providerId = null
             Arrays.fill(doc.update, null)
-            Arrays.fill(doc.acl, null)
+            doc.acl.clear()
         }
 
         return instance

@@ -4,11 +4,11 @@ import kotlin.time.measureTimedValue
 
 private val globalCounters = ArrayList<EnabledPerfCounter>()
 
-typealias PerfCounter = EnabledPerfCounter
-typealias PerfThreadLocal<T> = ThreadLocal<T>
-//
-//typealias PerfCounter = DisabledPerfCounter
-//typealias PerfThreadLocal<T> = DisabledThreadLocal<T>
+//typealias PerfCounter = EnabledPerfCounter
+//typealias PerfThreadLocal<T> = ThreadLocal<T>
+
+typealias PerfCounter = DisabledPerfCounter
+typealias PerfThreadLocal<T> = DisabledThreadLocal<T>
 
 class DisabledThreadLocal<T>(val value: T) {
     fun get() = value
