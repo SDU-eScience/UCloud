@@ -676,7 +676,6 @@ class ResourceStore<T>(
             .toLongArray()
 
         val count = retrieveBulk(idCard, idArray, outputBuffer)
-        check(count == idArray.size)
         (count until outputBuffer.size).forEach { outputBuffer[it].id = 0L }
 
         val docComparator = Comparator<ResourceDocument<T>> { a, b ->
@@ -768,8 +767,40 @@ class ResourceStore<T>(
         }
     }
 
-    suspend fun delete(idCard: IdCard, ids: LongArray) {
-        TODO("Not yet implemented")
+    suspend fun delete(
+        idCard: IdCard,
+        ids: LongArray,
+        permission: Permission = Permission.EDIT,
+    ): Int {
+        if (ids.isEmpty()) return 0
+        val storesVisited = HashSet<Pair<Int, Int>>()
+        val filter = object : FilterFunction<T> {
+            override fun filter(doc: ResourceDocument<T>): Boolean {
+                return doc.id in ids
+            }
+        }
+
+        val minimumIdExclusive = ids.min() - 1
+
+        var offset = 0
+        for (id in ids) {
+            val initialStore = findStoreByResourceId(id) ?: continue
+
+            val storeKey = Pair(initialStore.uid, initialStore.pid)
+            if (storeKey in storesVisited) continue
+            storesVisited.add(storeKey)
+
+            useBuckets(initialStore) { currentStore ->
+                offset += currentStore.delete(
+                    idCard,
+                    predicate = filter,
+                    permission = permission,
+                    startIdExclusive = minimumIdExclusive,
+                )
+                ShouldContinue.ifThisIsTrue(offset < ids.size)
+            }
+        }
+        return offset
     }
 
     suspend fun retrieve(
@@ -1054,6 +1085,7 @@ class ResourceStoreBucket<T>(
     val aclIsUser = arrayOfNulls<BooleanArray>(STORE_SIZE)
     val aclPermissions = arrayOfNulls<ByteArray>(STORE_SIZE)
     val updates = arrayOfNulls<CyclicArray<ResourceDocumentUpdate>>(STORE_SIZE)
+    val flaggedForDelete = BooleanArray(STORE_SIZE)
     val data = arrayOfNulls<Any>(STORE_SIZE)
     fun data(idx: Int): T? {
         @Suppress("UNCHECKED_CAST")
@@ -1157,6 +1189,18 @@ class ResourceStoreBucket<T>(
         }
     }
 
+    private fun SearchConsumer.withValidation(): SearchConsumer {
+        val base = this
+        return object : SearchConsumer {
+            override fun shouldTerminate(): Boolean = base.shouldTerminate()
+            override fun call(arrIdx: Int) {
+                if (flaggedForDelete[arrIdx]) return
+                if (id[arrIdx] == 0L) return
+                return base.call(arrIdx)
+            }
+        }
+    }
+
     // The searchAndConsume function is the primary function for finding data that a user/provider is allowed to access.
     // This function has several optimized paths for different edge-cases. The optimizations include:
     //
@@ -1179,6 +1223,7 @@ class ResourceStoreBucket<T>(
         reverseOrder: Boolean = false,
     ) {
         awaitReady()
+        val validatedConsumer = consumer.withValidation()
 
         mutex.withLock {
             val startIndex =
@@ -1215,43 +1260,43 @@ class ResourceStoreBucket<T>(
                 if (requiresOwnerPrivileges) {
                     if (reverseOrder) {
                         var idx = startIndex
-                        while (idx >= 0 && idx % 4 != 0 && !consumer.shouldTerminate()) {
-                            consumer.call(idx--)
+                        while (idx >= 0 && idx % 4 != 0 && !validatedConsumer.shouldTerminate()) {
+                            validatedConsumer.call(idx--)
                         }
 
-                        while (idx >= 4 && !consumer.shouldTerminate()) {
-                            consumer.call(idx)
-                            consumer.call(idx - 1)
-                            consumer.call(idx - 2)
-                            consumer.call(idx - 3)
+                        while (idx >= 4 && !validatedConsumer.shouldTerminate()) {
+                            validatedConsumer.call(idx)
+                            validatedConsumer.call(idx - 1)
+                            validatedConsumer.call(idx - 2)
+                            validatedConsumer.call(idx - 3)
 
                             idx -= 4
                         }
 
-                        while (idx >= 0 && !consumer.shouldTerminate()) {
-                            consumer.call(idx--)
+                        while (idx >= 0 && !validatedConsumer.shouldTerminate()) {
+                            validatedConsumer.call(idx--)
                         }
                     } else {
                         var idx = startIndex
 
-                        while (idx < STORE_SIZE && idx % 4 != 0 && !consumer.shouldTerminate()) {
+                        while (idx < STORE_SIZE && idx % 4 != 0 && !validatedConsumer.shouldTerminate()) {
                             if (this.id[idx] == 0L) break
-                            consumer.call(idx++)
+                            validatedConsumer.call(idx++)
                         }
 
-                        while (idx < STORE_SIZE - 3 && !consumer.shouldTerminate()) {
+                        while (idx < STORE_SIZE - 3 && !validatedConsumer.shouldTerminate()) {
                             if (this.id[idx] == 0L) break
-                            consumer.call(idx)
-                            consumer.call(idx + 1)
-                            consumer.call(idx + 2)
-                            consumer.call(idx + 3)
+                            validatedConsumer.call(idx)
+                            validatedConsumer.call(idx + 1)
+                            validatedConsumer.call(idx + 2)
+                            validatedConsumer.call(idx + 3)
 
                             idx += 4
                         }
 
-                        while (idx < STORE_SIZE && !consumer.shouldTerminate()) {
+                        while (idx < STORE_SIZE && !validatedConsumer.shouldTerminate()) {
                             if (this.id[idx] == 0L) break
-                            consumer.call(idx++)
+                            validatedConsumer.call(idx++)
                         }
                     }
                 }
@@ -1277,7 +1322,7 @@ class ResourceStoreBucket<T>(
 
                 var i = startIndex
                 val delta = if (reverseOrder) -1 else 1
-                while (i >= 0 && i < STORE_SIZE && !consumer.shouldTerminate()) {
+                while (i >= 0 && i < STORE_SIZE && !validatedConsumer.shouldTerminate()) {
                     val entities = aclEntities[i]
                     if (id[i] == 0L || entities == null) {
                         i += delta
@@ -1291,13 +1336,13 @@ class ResourceStoreBucket<T>(
                     entityConsumer.shouldBeUser = false
                     searchInArray(idCard.groups, entities, entityConsumer)
                     if (entityConsumer.match != -1) {
-                        consumer.call(i)
+                        validatedConsumer.call(i)
                     } else {
                         // If no groups match, try uid
                         entityConsumer.match = -1
                         entityConsumer.shouldBeUser = true
                         searchInArray(userNeedle, entities, entityConsumer)
-                        if (entityConsumer.match != -1) consumer.call(i)
+                        if (entityConsumer.match != -1) validatedConsumer.call(i)
                     }
 
 
@@ -1310,7 +1355,7 @@ class ResourceStoreBucket<T>(
                             permissionRequired == Permission.PROVIDER
 
                 if (requiresProviderPrivileges) {
-                    searchInArray(idCard.providerOf, product, consumer, startIndex)
+                    searchInArray(idCard.providerOf, product, validatedConsumer, startIndex)
                 }
             }
         }
@@ -1371,9 +1416,6 @@ class ResourceStoreBucket<T>(
                 val res = outputBuffer[outIdx++]
                 loadIntoDocument(res, arrIdx)
 
-                @Suppress("UNCHECKED_CAST")
-                res.data = self.data[arrIdx] as T
-
                 if (!predicate.filter(res)) {
                     outIdx--
                 }
@@ -1396,6 +1438,8 @@ class ResourceStoreBucket<T>(
         res.project = this.project[arrIdx]
         res.product = this.product[arrIdx]
         res.providerId = this.providerId[arrIdx]
+        @Suppress("UNCHECKED_CAST")
+        res.data = this.data[arrIdx] as T
         run {
             Arrays.fill(res.update, null)
             val resourceUpdates = this.updates[arrIdx] ?: return@run
@@ -1483,9 +1527,6 @@ class ResourceStoreBucket<T>(
 
                     val res = outputBuffer[outIdx++]
                     loadIntoDocument(res, arrIdx)
-
-                    @Suppress("UNCHECKED_CAST")
-                    res.data = self.data[arrIdx] as T
 
                     if (!predicate.filter(res)) {
                         outIdx--
@@ -1638,6 +1679,65 @@ class ResourceStoreBucket<T>(
         return consumer.done
     }
 
+    suspend fun delete(
+        idCard: IdCard,
+        predicate: FilterFunction<T>,
+        permission: Permission,
+        startIdExclusive: Long = -1L,
+    ): Int {
+        val temp = ResourceDocument<T>()
+        val self = this
+        var count = 0
+        searchAndConsume(
+            idCard,
+            permission,
+            object : SearchConsumer {
+                override fun call(arrIdx: Int) {
+                    if (startIdExclusive != -1L) {
+                        if (self.id[arrIdx] <= startIdExclusive) return
+                    }
+
+                    loadIntoDocument(temp, arrIdx)
+                    if (predicate.filter(temp)) {
+                        count++
+                        flaggedForDelete[arrIdx] = true
+                        createdAt[arrIdx] = 0L
+                        createdBy[arrIdx] = 0
+                        project[arrIdx] = 0
+                        product[arrIdx] = 0
+                        providerId[arrIdx] = null
+                        data[arrIdx] = null
+                        updates[arrIdx]?.clear()
+                        updates[arrIdx] = null
+
+                        run {
+                            val arr = aclEntities
+                            val elem = arr[arrIdx]
+                            if (elem != null) Arrays.fill(elem, 0)
+                            arr[arrIdx] = null
+                        }
+                        run {
+                            val arr = aclIsUser
+                            val elem = arr[arrIdx]
+                            if (elem != null) Arrays.fill(elem, false)
+                            arr[arrIdx] = null
+                        }
+                        run {
+                            val arr = aclPermissions
+                            val elem = arr[arrIdx]
+                            if (elem != null) Arrays.fill(elem, 0.toByte())
+                            arr[arrIdx] = null
+                        }
+
+                        dirtyFlag[arrIdx] = true
+                        anyDirty = true
+                    }
+                }
+            },
+            startIdExclusive,
+        )
+        return count
+    }
 
     // Saving data to the database
     // =================================================================================================================

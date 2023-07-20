@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import java.util.*
+
 /**
  * A cyclic array containing the latest [capacity] elements.
  *
@@ -29,6 +31,12 @@ class CyclicArray<T>(val capacity: Int) : Iterable<T> {
         require(index in 0 until size) { "index out of bounds $index !in 0..<$size" }
         @Suppress("UNCHECKED_CAST")
         return data[(head + index) % capacity] as T
+    }
+
+    fun clear() {
+        Arrays.fill(data, null)
+        size = 0
+        head = 0
     }
 
     override fun iterator(): Iterator<T> {

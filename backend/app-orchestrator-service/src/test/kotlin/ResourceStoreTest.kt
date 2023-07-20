@@ -1274,4 +1274,161 @@ class ResourceStoreTest {
             }
         }
     }
+
+    @Test
+    fun `test update acl works correctly`() = test {
+        val projectTitle = "project"
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+
+        val admin = createUser("admin")
+        val member = createUser("member")
+        val user = createUser("user")
+        val providerCard = idCards.fetchProvider(ref.provider)
+        val project = idCards.createProject(projectTitle)
+        val group = idCards.createGroup(project, "group")
+        idCards.addAdminToProject(admin.uid, project)
+        idCards.addUserToGroup(member.uid, group)
+
+        val id = store.create(admin.idCard(projectTitle), ref, Unit, null)
+
+        suspend fun updateAndConfirmAcl(performedBy: IdCard, shouldFail: Boolean) {
+            run {
+                val retrieved = store.retrieve(admin.idCard(projectTitle), id, Permission.READ)
+                assertNotNull(retrieved)
+                val acl = retrieved.acl.filterNotNull()
+                assertEquals(0, acl.size)
+            }
+
+            store.updateAcl(
+                performedBy,
+                id,
+                emptyList(),
+                listOf(NumericAclEntry(uid = user.uid, permission = Permission.READ))
+            )
+
+            val retrieved = store.retrieve(admin.idCard(projectTitle), id, Permission.READ)
+            assertNotNull(retrieved)
+            val acl = retrieved.acl.filterNotNull()
+
+            if (shouldFail) {
+                assertEquals(0, acl.size)
+            } else {
+                assertEquals(1, acl.size)
+                assertTrue(acl.single().isUser)
+                assertEquals(user.uid, acl.single().entity)
+                assertEquals(Permission.READ, acl.single().permission)
+            }
+
+            store.updateAcl(
+                admin.idCard(projectTitle),
+                id,
+                listOf(NumericAclEntry(uid = user.uid)),
+                emptyList(),
+            )
+        }
+
+        updateAndConfirmAcl(admin.idCard(projectTitle), shouldFail = false)
+        updateAndConfirmAcl(member.idCard(projectTitle), shouldFail = true)
+        updateAndConfirmAcl(user.idCard(projectTitle), shouldFail = true)
+        updateAndConfirmAcl(providerCard, shouldFail = false)
+    }
+
+    @Test
+    fun `test that providers cannot create resources`() = test {
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+
+        val providerCard = idCards.fetchProvider(ref.provider)
+        assertFails { store.create(providerCard, ref, Unit, null) }
+    }
+
+    @Test
+    fun `test that create does not allow invalid products`() = test {
+        val badProduct = ProductReference("bad", "bad", "bad")
+        val user = createUser("user")
+        assertFails { store.create(user.idCard(), badProduct, Unit, null) }
+    }
+
+    @Test
+    fun `test that register does not allow invalid products`() = test {
+        val badProduct = ProductReference("bad", "bad", "bad")
+        val otherProduct = products.insert("a", "b", "c")
+        val otherProductRef = products.productIdToReference(otherProduct)!!
+        val providerCard = idCards.fetchProvider("provider")
+        val user = createUser("user")
+
+        assertFails { store.register(providerCard, badProduct, user.uid, 0, Unit, null, null) }
+        assertFails { store.register(providerCard, otherProductRef, user.uid, 0, Unit, null, null) }
+    }
+
+    @Test
+    fun `test deletion of resources`() = test {
+        val projectTitle = "project"
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+
+        val admin = createUser("admin")
+        val member = createUser("member")
+        val user = createUser("user")
+        val providerCard = idCards.fetchProvider(ref.provider)
+        val project = idCards.createProject(projectTitle)
+        val group = idCards.createGroup(project, "group")
+        idCards.addAdminToProject(admin.uid, project)
+        idCards.addUserToGroup(member.uid, group)
+
+        suspend fun testDeletion(
+            deletedBy: IdCard,
+            permissionsToAdd: List<Permission>,
+            shouldSucceed: Boolean
+        ) {
+            val createdBy = admin.idCard(projectTitle)
+            testBrowse(createdBy, emptyList())
+            testBrowse(providerCard, emptyList())
+
+            val id = store.create(createdBy, ref, Unit, null)
+            if (permissionsToAdd.isNotEmpty()) {
+                store.updateAcl(
+                    createdBy,
+                    id,
+                    emptyList(),
+                    permissionsToAdd.map {
+                        NumericAclEntry(gid = group, permission = it)
+                    }
+                )
+            }
+
+            testBrowse(providerCard, listOf(id), doCustomSorting = false)
+            testBrowse(createdBy, listOf(id), doCustomSorting = false)
+            if (Permission.READ in permissionsToAdd) assertNotNull(store.retrieve(deletedBy, id))
+            assertNotNull(store.retrieve(createdBy, id))
+
+            val deletedCount = store.delete(deletedBy, longArrayOf(id))
+            if (shouldSucceed) assertEquals(1, deletedCount)
+            else assertEquals(0, deletedCount)
+
+            if (shouldSucceed) {
+                testBrowse(createdBy, emptyList())
+                testBrowse(providerCard, emptyList())
+                assertNull(store.retrieve(createdBy, id))
+            } else {
+                testBrowse(createdBy, listOf(id))
+                testBrowse(providerCard, listOf(id))
+                assertNotNull(store.retrieve(createdBy, id))
+
+                assertEquals(1, store.delete(createdBy, longArrayOf(id)))
+                assertNull(store.retrieve(createdBy, id))
+            }
+        }
+
+        testDeletion(admin.idCard(projectTitle), emptyList(), true)
+        testDeletion(admin.idCard(projectTitle), listOf(Permission.READ), true)
+        testDeletion(providerCard, emptyList(), true)
+        testDeletion(providerCard, listOf(Permission.READ), true)
+        testDeletion(member.idCard(), listOf(Permission.READ), false)
+        testDeletion(member.idCard(), listOf(Permission.READ, Permission.EDIT), true)
+        testDeletion(member.idCard(), listOf(Permission.EDIT), true)
+        testDeletion(user.idCard(), emptyList(), false)
+        testDeletion(user.idCard(), listOf(Permission.EDIT), false)
+    }
 }

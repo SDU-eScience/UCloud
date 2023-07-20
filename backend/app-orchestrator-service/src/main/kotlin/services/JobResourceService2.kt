@@ -173,6 +173,7 @@ class JobResourceService2(
                             val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
 
                             for (i in 0 until length) {
+                                if (store.flaggedForDelete[i]) TODO()
                                 val arrIdx = indices[i]
                                 val jobId = store.id[arrIdx]
                                 val job = store.data(arrIdx) ?: continue
