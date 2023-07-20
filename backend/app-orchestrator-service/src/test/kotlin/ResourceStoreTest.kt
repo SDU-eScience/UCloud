@@ -14,10 +14,10 @@ import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
 import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.db.async.DBContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import kotlin.math.min
 import kotlin.random.Random
 import kotlin.test.*
@@ -217,6 +217,7 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
 
 class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDatabaseQueries<Unit> {
     val initialResources = ArrayList<ResourceDocument<Unit>>()
+    val saveRequests = NonBlockingHashMapLong<Unit>()
 
     override suspend fun startTransaction(): Any = Unit
     override suspend fun abortTransaction(transaction: Any) {
@@ -271,7 +272,9 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         indices: IntArray,
         len: Int
     ) {
-        // OK
+        for (i in 0 until len) {
+            saveRequests[bucket.id[indices[i]]] = Unit
+        }
     }
 
     override suspend fun loadProviderIndex(
@@ -1446,5 +1449,162 @@ class ResourceStoreTest {
         testDeletion(member.idCard(), listOf(Permission.EDIT), true)
         testDeletion(user.idCard(), emptyList(), false)
         testDeletion(user.idCard(), listOf(Permission.EDIT), false)
+    }
+
+    @Test
+    fun `test that the correct data is saved`() = test {
+        val user = createUser("user")
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+        val providerCard = idCards.fetchProvider(ref.provider)
+
+        suspend fun withSaveRequests(block: suspend (List<Long>) -> Unit) {
+            store.synchronizeNow()
+            val saveRequests = queries.saveRequests.keys().toList()
+            queries.saveRequests.clear()
+            block(saveRequests)
+        }
+
+        val initialIds = ArrayList<Long>()
+        repeat(100) {
+            initialIds.add(it + 1L)
+            queries.initialResources.add(
+                ResourceDocument(
+                    id = it + 1L,
+                    createdBy = user.uid,
+                    product = product,
+                    data = Unit,
+                )
+            )
+        }
+
+        testBrowse(user.idCard(), initialIds)
+
+        withSaveRequests { reqs ->
+            assertEquals(0, reqs.size)
+        }
+
+        // Test that modification of a single element works
+        ResourceOutputPool.withInstance<Unit, Unit> { pool ->
+            val id = initialIds[5]
+            store.modify(user.idCard(), pool, longArrayOf(id), Permission.EDIT) { arrIdx, doc ->
+                createdAt[arrIdx] = 1111L
+            }
+
+            withSaveRequests { reqs ->
+                assertEquals(1, reqs.size)
+                assertEquals(id, reqs.single())
+            }
+
+            withSaveRequests { reqs ->
+                assertEquals(0, reqs.size)
+            }
+        }
+
+        // Test that bulk modification of a works
+        ResourceOutputPool.withInstance<Unit, Unit> { pool ->
+            store.modify(user.idCard(), pool, initialIds.toLongArray(), Permission.EDIT) { arrIdx, doc ->
+                createdAt[arrIdx] = 1111L
+            }
+
+            withSaveRequests { reqs ->
+                assertEquals(initialIds.size, reqs.size)
+                assertEquals(initialIds.toSet(), reqs.toSet())
+            }
+
+            withSaveRequests { reqs ->
+                assertEquals(0, reqs.size)
+            }
+        }
+
+        // Test that create triggers a save
+        run {
+            val id = store.create(user.idCard(), ref, Unit, null)
+            withSaveRequests { reqs ->
+                assertEquals(1, reqs.size)
+                assertEquals(id, reqs.single())
+            }
+        }
+
+        // Test that many creates triggers a save
+        run {
+            val ids = (0 until 2000).map { store.create(user.idCard(), ref, Unit, null) }
+            withSaveRequests { reqs ->
+                assertEquals(ids.size, reqs.size)
+                assertEquals(ids.toSet(), reqs.toSet())
+            }
+        }
+
+        // Test that a register triggers a save
+        run {
+            val ids = (0 until 50).map { store.create(user.idCard(), ref, Unit, null) }
+            withSaveRequests { reqs ->
+                assertEquals(ids.size, reqs.size)
+                assertEquals(ids.toSet(), reqs.toSet())
+            }
+        }
+
+        // Test that deletes are part of the save
+        run {
+            val id = store.create(user.idCard(), ref, Unit, null)
+            assertEquals(1, store.delete(user.idCard(), longArrayOf(id)))
+            withSaveRequests { reqs ->
+                assertEquals(1, reqs.size)
+                assertEquals(id, reqs.single())
+            }
+        }
+
+        withSaveRequests { reqs ->
+            assertEquals(0, reqs.size)
+        }
+    }
+
+    @Test
+    fun `test crashing during createViaProvider`() = test {
+        val user = createUser("user")
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+        val providerCard = idCards.fetchProvider(ref.provider)
+
+        testBrowse(user.idCard(), emptyList())
+        testBrowse(providerCard, emptyList())
+
+        assertFails {
+            store.createViaProvider(user.idCard(), ref, Unit) {
+                error("Crashing!")
+            }
+        }
+
+        testBrowse(user.idCard(), emptyList())
+        testBrowse(providerCard, emptyList())
+    }
+
+    @Test
+    fun `test complicated delete`() = test {
+        val user = createUser("user")
+        val user2 = createUser("user2")
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+        val providerCard = idCards.fetchProvider(ref.provider)
+
+        val id = store.create(user.idCard(), ref, Unit, null)
+        store.updateAcl(
+            user.idCard(),
+            id,
+            emptyList(),
+            listOf(
+                NumericAclEntry(uid = user2.uid, permission = Permission.READ),
+                NumericAclEntry(uid = user2.uid, permission = Permission.EDIT),
+            )
+        )
+        repeat(5) {
+            store.addUpdate(providerCard, id, listOf(ResourceDocumentUpdate("Test $it")))
+        }
+
+        assertNotNull(store.retrieve(user.idCard(), id))
+
+        store.delete(user.idCard(), longArrayOf(id))
+
+        assertNull(store.retrieve(user.idCard(), id))
     }
 }
