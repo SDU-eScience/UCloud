@@ -164,9 +164,8 @@ const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
 
 const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
     ${k} {
-        padding: 0px 10px 15px 0px;
-        margin-left: 10px;
-        margin-right: 10px;
+        padding: 15px 10px 15px 10px;
+        margin: 0 -10px;
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
         overflow-x: scroll;
@@ -279,13 +278,31 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
                     </Absolute>
                 </Relative>
             </>}
+
+            <div ref={scrollRef} className={TagGridBottomBoxClass}>
+                <Flex
+                    justifyContent="space-between"
+                    gap="10px"
+                    py="10px"
+                >
+                    {firstFour.map(app =>
+                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                            <AppCard
+                                type={ApplicationCardType.WIDE}
+                                onFavorite={() => onFavorite(app)}
+                                app={app}
+                                isFavorite={app.favorite}
+                                tags={app.tags}
+                            />
+                        </Link>
+                    )}
+                </Flex>
+            </div>
             <div ref={scrollRef} className={TagGridBottomBoxClass}>
                 <Grid
-                    p="8px"
-                    mx="auto"
-                    gridGap="10px"
+                    gridGap="25px"
                     gridTemplateRows={"repeat(1, 1fr)"}
-                    gridTemplateColumns={"repeat(auto-fill, 156px)"}
+                    gridTemplateColumns={"repeat(auto-fill, 166px)"}
                     style={{gridAutoFlow: "column"}}
                 >
                     {remaining.map(app =>
@@ -301,28 +318,6 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
                     )}
                 </Grid>
             </div>
-            <Grid
-                py="8px"
-                pl="4px"
-                mx="auto"
-                gridGap="4px"
-                gridTemplateRows={`repeat(1, 1fr)`}
-                gridTemplateColumns={"repeat(auto-fill, 332px)"}
-                style={{gridAutoFlow: "column"}}
-                overflowX={"scroll"}
-            >
-                {firstFour.map(app =>
-                    <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                        <AppCard
-                            type={ApplicationCardType.WIDE}
-                            onFavorite={() => onFavorite(app)}
-                            app={app}
-                            isFavorite={app.favorite}
-                            tags={app.tags}
-                        />
-                    </Link>
-                )}
-            </Grid>
         </>
     );
 };

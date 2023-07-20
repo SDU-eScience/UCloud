@@ -39,7 +39,7 @@ const AppCardBase = injectStyle("app-card-base", k => `
 
     ${k} > strong {
         margin-right: 16px;
-        font-weight: bold;
+        font-weight: 700;
         flex-shrink: 0;
     }
 
@@ -264,12 +264,12 @@ const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-align: left;
-    font-size: var(--secondaryText);
+    font-size: 13px;
 `);
 
 const TallApplicationCard = injectStyle("tall-application-card", k => `
     ${k} {
-        width: 156px;
+        width: 166px;
         height: 240px;
         cursor: pointer;
     }
@@ -277,8 +277,8 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
     ${k} > div.image {
         width: 75px;
         height: 75px;
-        margin-top: 25px;
-        margin-bottom: 8px;
+        margin-top: 8px;
+        margin-bottom: 10px;
     }
     
     ${k} > div.image > * {
@@ -296,21 +296,23 @@ const TitleAndDescriptionClass = injectStyleSimple("title-and-description", "");
 const WideApplicationCard = injectStyle("wide-application-card", k => `
     ${k} {
         display: flex;
-        width: 322px;
+        width: 312px;
         height: 142px;
     }
 
     ${k} > div.image {
-        width: 84px;
-        height: 84px;
+        width: 75px;
+        height: 75px;
         margin-top: auto;
         margin-bottom: auto;
         text-align: center;
     }
 
     ${k} > div.${TitleAndDescriptionClass} {
-        margin-top: 8px;
+        text-align: left;
         width: calc(322px - 100px);
+        padding-left: 15px;
+        margin-top: 5px;
     }
 
     ${k}[data-xl="true"] {
@@ -332,8 +334,24 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
         border-radius: 16px;
         box-shadow: ${theme.shadows.sm};
+        border: 1px solid var(--midGray);
         background-color: var(--lightGray);
         color: var(--text);
+        padding: 10px 15px;
+    }
+
+    html.dark ${k} {
+        border: 1px solid var(--lightGray);
+    }
+
+    html.dark ${k}:hover, ${k}:hover {
+        border-color: var(--blue);
+        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+        transform: translateY(-2px);
+    }
+
+    ${k} > div.${TitleAndDescriptionClass} {
+        font-size: var(--buttonText);
     }
 
     ${k} > div > span {
@@ -353,17 +371,25 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     }
 
     ${k} > div > .${MultiLineTruncateClass} {
-        margin-left: 10px;
-        margin-right: 10px;
         color: var(--text);
+        padding-top: 8px;
+    }
+
+    ${k} > .${TitleAndDescriptionClass} > div:first-child {
+        text-overflow: ellipsis;
+        overflow: hidden;
     }
 
     ${k} > div.image {
-        background-color: white;
+        background-color: var(--lightGray);
         border-radius: 12px;
         margin-left: auto;
         margin-right: auto;
         display: flex;
+    }
+
+    html.dark ${k} > div.image {
+        background-color: white;
     }
 
     ${k} > div {
@@ -378,14 +404,14 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
     }} {...p} />;
 }
 
-const FAV_ICON_SIZE = "24px";
+const FAV_ICON_SIZE = "20px";
 const FavIcon = injectStyleSimple("app-fav-icon", `
     position: relative; 
     cursor: pointer;
     height: 0;
     width: 0;
-    top: 4px;
-    left: calc(100% - ${FAV_ICON_SIZE} - 4px);
+    top: -5px;
+    left: calc(100% - ${FAV_ICON_SIZE} + 5px);
 `);
 
 export enum ApplicationCardType {
@@ -406,7 +432,7 @@ function lineCountFromType(t: ApplicationCardType): number {
         case ApplicationCardType.EXTRA_TALL:
             return 4;
         case ApplicationCardType.WIDE:
-            return 5;
+            return 4;
         case ApplicationCardType.EXTRA_WIDE:
             return 9;
     }
@@ -473,10 +499,6 @@ export function AppCard(props: AppCardProps): JSX.Element {
                         <AppToolLogo size={"52px"} name={app.metadata.name} type="APPLICATION" />
                     </div>
                     {titleAndDescription}
-                    {isExtraTall ?
-                        <Flex mb="4px" mx="4px" mt={"auto"}>
-                            <Button height="26px" width="100%">Try</Button>
-                        </Flex> : null}
                 </Flex>
             case ApplicationCardType.WIDE:
             case ApplicationCardType.EXTRA_WIDE:

@@ -184,7 +184,7 @@ html.light {
     --tableRowHighlight: #dae4fd;
     --black: #000;
     --text: #1e252e;
-    --lightGray: #f5f7f9;
+    --lightGray: #fafbfc;
     --lightBlue: #E6F1FF;
     --midGray: #c9d3df;
     --paginationDisabled: var(--lightGray, #f00);
