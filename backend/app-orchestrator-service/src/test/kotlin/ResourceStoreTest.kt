@@ -218,7 +218,16 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
 class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDatabaseQueries<Unit> {
     val initialResources = ArrayList<ResourceDocument<Unit>>()
 
-    override suspend fun loadResources(bucket: ResourceStoreBucket<Unit>, minimumId: Long) {
+    override suspend fun startTransaction(): Any = Unit
+    override suspend fun abortTransaction(transaction: Any) {
+        // OK
+    }
+
+    override suspend fun commitTransaction(transaction: Any) {
+        // OK
+    }
+
+    override suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<Unit>, minimumId: Long) {
         with(bucket) {
             run {
                 for (resource in initialResources) {
@@ -256,11 +265,17 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         }
     }
 
-    override suspend fun saveResources(bucket: ResourceStoreBucket<Unit>, indices: IntArray, len: Int) {
+    override suspend fun saveResources(
+        transaction: Any,
+        bucket: ResourceStoreBucket<Unit>,
+        indices: IntArray,
+        len: Int
+    ) {
         // OK
     }
 
     override suspend fun loadProviderIndex(
+        transaction: Any,
         type: String,
         providerId: String,
         register: suspend (uid: Int, pid: Int) -> Unit
@@ -277,6 +292,7 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
     }
 
     override suspend fun loadIdIndex(
+        transaction: Any,
         type: String,
         minimumId: Long,
         maximumIdExclusive: Long,
@@ -293,7 +309,7 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         }
     }
 
-    override suspend fun loadMaximumId(): Long {
+    override suspend fun loadMaximumId(transaction: Any): Long {
         return initialResources.maxByOrNull { it.id }?.id ?: 1L
     }
 }
@@ -307,12 +323,12 @@ class ResourceStoreTest {
         // NOTE(Dan): This is lazy to ensure that queries can be populated before the store begins to read from it.
         val store: ResourceStore<Unit> by lazy {
             ResourceStore("jobs", queries, products, idCards, object : ResourceStore.Callbacks<Unit> {
-                override suspend fun loadState(ctx: DBContext, count: Int, resources: LongArray): Array<Unit> {
+                override suspend fun loadState(transaction: Any, count: Int, resources: LongArray): Array<Unit> {
                     return Array(count) {}
                 }
 
                 override suspend fun saveState(
-                    ctx: DBContext,
+                    transaction: Any,
                     store: ResourceStoreBucket<Unit>,
                     indices: IntArray,
                     length: Int

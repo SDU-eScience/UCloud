@@ -26,6 +26,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.actorAndProject
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -41,7 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 
 class JobController(
-    private val db: DBContext,
+    private val db: AsyncDBSessionFactory,
     private val orchestrator: JobOrchestrator,
     private val micro: Micro,
 ) : Controller {
