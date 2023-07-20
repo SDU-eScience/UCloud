@@ -270,14 +270,13 @@ const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
 const TallApplicationCard = injectStyle("tall-application-card", k => `
     ${k} {
         width: 166px;
-        height: 240px;
+        height: 225px;
         cursor: pointer;
     }
 
     ${k} > div.image {
         width: 75px;
         height: 75px;
-        margin-top: 8px;
         margin-bottom: 10px;
     }
     
@@ -332,6 +331,7 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
 
 const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
+        user-select: none;
         border-radius: 16px;
         box-shadow: ${theme.shadows.sm};
         border: 1px solid var(--midGray);
