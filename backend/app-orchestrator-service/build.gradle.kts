@@ -18,4 +18,9 @@ kotlin.sourceSets {
             implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
         }
     }
+    val test by getting {
+        dependencies {
+            api("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.7.1")
+        }
+    }
 }

@@ -26,6 +26,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
+import java.lang.RuntimeException
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -91,22 +92,39 @@ class ResourceStore<T>(
     // Since the buckets are linked-list like structure, you should make sure to iterate through all the buckets. You need
     // to do this using the `useBuckets` function. Note that you can terminate the search early once you have performed
     // the request you need to do:
-    private inline fun useBuckets(
+    private inline suspend fun useBuckets(
         root: ResourceStoreBucket<T>,
         reverseOrder: Boolean = false,
         consumer: (ResourceStoreBucket<T>) -> ShouldContinue
     ) {
+        var currentRoot = root
         if (!reverseOrder) {
-            var current: ResourceStoreBucket<T>? = root
-            while (current != null) {
-                if (consumer(current) == ShouldContinue.NO) break
-                current = current.next
+            while (true) {
+                var current: ResourceStoreBucket<T>? = currentRoot
+                try {
+                    while (current != null) {
+                        if (consumer(current) == ShouldContinue.NO) break
+                        current = current.next
+                    }
+                    return
+                } catch (ex: EvictionException) {
+                    currentRoot = findOrLoadBucket(root.uid, root.pid)
+                    delay(5)
+                }
             }
         } else {
-            var current: ResourceStoreBucket<T>? = root.findTail()
-            while (current != null) {
-                if (consumer(current) == ShouldContinue.NO) break
-                current = current.previous
+            while (true) {
+                var current: ResourceStoreBucket<T>? = currentRoot.findTail()
+                try {
+                    while (current != null) {
+                        if (consumer(current) == ShouldContinue.NO) break
+                        current = current.previous
+                    }
+                    return
+                } catch (ex: EvictionException) {
+                    currentRoot = findOrLoadBucket(root.uid, root.pid)
+                    delay(5)
+                }
             }
         }
     }
@@ -122,14 +140,21 @@ class ResourceStore<T>(
 
     // In order to implement `findOrLoadBucket` we must of course implement the two subcomponents. Finding a loaded
     // bucket is relatively straight-forward, we simply look in the relevant hash map.
-    private fun findBucket(uid: Int, pid: Int): ResourceStoreBucket<T>? {
+    private suspend fun findBucket(uid: Int, pid: Int): ResourceStoreBucket<T>? {
         CreateCounters.findBucket.measureValue {
             require(uid == 0 || pid == 0)
 
             val map = if (uid != 0) uidShortcut else pidShortcut
             val ref = (if (uid != 0) uid else pid).toLong()
 
-            return map[ref]
+            val bucket = map[ref] ?: return null
+
+            if (bucket.evicted) {
+                bucket.awaitEvictionComplete()
+                map.remove(ref)
+            }
+
+            return bucket
         }
     }
 
@@ -305,34 +330,37 @@ class ResourceStore<T>(
         providerGeneratedId: String?,
         output: ResourceDocument<T>?
     ): Long {
-        val root = findOrLoadBucket(if (pid == 0) uid else 0, pid)
-
-        var tail = CreateCounters.findTail.measureValue { root.findTail() }
         while (true) {
-            val id = CreateCounters.bucketCreate.measureValue {
-                tail.create(uid, productId, data, providerGeneratedId, output)
-            }
-            if (id < 0L) {
-                tail = CreateCounters.bucketExpand.measureValue { tail.expand() }
-            } else {
-                val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
-                CreateCounters.idIndexRegister.measureValue {
-                    index.register(id, if (pid != 0) pid else uid, pid == 0)
+            val root = findOrLoadBucket(if (pid == 0) uid else 0, pid)
+            var tail = CreateCounters.findTail.measureValue { root.findTail() }
+            try {
+                val id = CreateCounters.bucketCreate.measureValue {
+                    tail.create(uid, productId, data, providerGeneratedId, output)
                 }
+                if (id < 0L) {
+                    tail = CreateCounters.bucketExpand.measureValue { tail.expand() }
+                } else {
+                    val index = findIdIndexOrLoad(id) ?: error("Index was never initialized. findIdIndex is buggy? $id")
+                    CreateCounters.idIndexRegister.measureValue {
+                        index.register(id, if (pid != 0) pid else uid, pid == 0)
+                    }
 
-                val providerId = CreateCounters.providerIdLookup.measureValue {
-                    productCache.productIdToReference(productId)?.provider ?: error("Unknown product?")
+                    val providerId = CreateCounters.providerIdLookup.measureValue {
+                        productCache.productIdToReference(productId)?.provider ?: error("Unknown product?")
+                    }
+
+                    val providerIndex = CreateCounters.providerIndexLookup.measureValue {
+                        findOrLoadProviderIndex(providerId)
+                    }
+
+                    CreateCounters.providerIndexRegister.measureValue {
+                        providerIndex.registerUsage(uid, pid)
+                    }
+
+                    return id
                 }
-
-                val providerIndex = CreateCounters.providerIndexLookup.measureValue {
-                    findOrLoadProviderIndex(providerId)
-                }
-
-                CreateCounters.providerIndexRegister.measureValue {
-                    providerIndex.registerUsage(uid, pid)
-                }
-
-                return id
+            } catch (ex: EvictionException) {
+                delay(5)
             }
         }
     }
@@ -604,6 +632,7 @@ class ResourceStore<T>(
     ): BrowseResult {
         @Suppress("NAME_SHADOWING")
         val sortDirection = sortDirection ?: SortDirection.ascending
+
         data class Entry(val id: Long, val key: K)
 
         if (idCard !is IdCard.User) {
@@ -880,6 +909,19 @@ class ResourceStore<T>(
         }
     }
 
+    // Evictions
+    // =================================================================================================================
+    // Buckets can be evicted from the store. All buckets of a workspace are always evicted together. Data of a bucket
+    // is flushed to the database before eviction is final. If an operation arrives at a bucket which has been marked
+    // for eviction, then an EvictionException is thrown. The useBuckets() function automatically retries an operation
+    // if it arrives at a bucket which has been marked for eviction.
+    suspend fun evict(uid: Int, pid: Int) {
+        val bucket = if (uid == 0) pidShortcut[pid.toLong()] else uidShortcut[uid.toLong()]
+        if (bucket == null) return // Nothing to do, it has essentially already been evicted
+
+        bucket.evictAll()
+    }
+
     // ID index
     // =================================================================================================================
     // NOTE(Dan): The IdIndex contains references to all resources that we have loaded by their ID. Indexes we have
@@ -1111,6 +1153,43 @@ class ResourceStoreBucket<T>(
     private val dirtyFlag = BooleanArray(STORE_SIZE)
     private var anyDirty = false
 
+    // Buckets can be evicted from the system. All buckets of a workspace are always evicted together. Once a bucket
+    // has been marked for eviction then no more operations will be accepted. Operations sent to an evicted bucket will
+    // throw an EvictionException which will cause the ResourceStore to retry the operation.
+    var evicted = false
+        private set
+
+    suspend fun awaitEvictionComplete() {
+        check(evicted) { "we have not been evicted?" }
+        mutex.withLock {  }
+    }
+
+    suspend fun evictAll() {
+        check(previous == null) { "evictions can only take place on the root!" }
+
+        val allLocks = ArrayList<Mutex>()
+
+        run {
+            var current: ResourceStoreBucket<T> = this
+            while (true) {
+                allLocks.add(current.mutex)
+                current.mutex.lock()
+                current.evicted = true
+                current = current.next ?: break
+            }
+        }
+
+        queries.withSession { session ->
+            var current: ResourceStoreBucket<T> = this
+            while (true) {
+                current.synchronizeToDatabase(session, hasLock = true)
+                current = current.next ?: break
+            }
+        }
+
+        allLocks.forEach { it.unlock() }
+    }
+
     // Loading data from the database
     // =================================================================================================================
     // The data stored in a bucket is loaded from a database and stored in the internal representation. During the load
@@ -1124,9 +1203,11 @@ class ResourceStoreBucket<T>(
     private val ready = AtomicBoolean(false)
     private suspend fun awaitReady() {
         while (true) {
-            if (ready.get()) break
+            if (ready.get() || evicted) break
             delay(1)
         }
+
+        if (evicted) throw EvictionException()
     }
 
     // Each bucket is assigned a minimum resource id. For the root bucket, this minimum id is 0. If we do not have
@@ -1141,6 +1222,8 @@ class ResourceStoreBucket<T>(
     // 3. If we run out of space in the current bucket, `expand()` with a new bucket and begin a new `load()`
     suspend fun load(minimumId: Long = 0) {
         mutex.withLock {
+            if (evicted) throw EvictionException()
+
             queries.withSession { session ->
                 queries.loadResources(session, this, minimumId)
             }
@@ -1258,10 +1341,10 @@ class ResourceStoreBucket<T>(
 
             val isOwnerOfEverything =
                 idCard == IdCard.System ||
-                (
-                    idCard is IdCard.User &&
-                    ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
-                )
+                        (
+                                idCard is IdCard.User &&
+                                        ((uid != 0 && idCard.uid == uid) || (pid != 0 && idCard.adminOf.contains(pid)))
+                                )
 
             if (isOwnerOfEverything) {
                 val requiresOwnerPrivileges = permissionRequired == Permission.READ ||
@@ -1429,6 +1512,10 @@ class ResourceStoreBucket<T>(
 
                 if (!predicate.filter(res)) {
                     outIdx--
+                } else {
+                    if (arrIdx == 0) {
+                        println("${self.id[arrIdx]} ${startIdExclusive}")
+                    }
                 }
             }
         }
@@ -1756,10 +1843,11 @@ class ResourceStoreBucket<T>(
     // called by the ResourceStore in a background task. The first stage attempts to determine which resources from
     // the bucket needs to be synchronized. The second stage, which takes place in `sync` actually writes the data to
     // the database. This will also invoke the callbacks to save the user data.
-    suspend fun synchronizeToDatabase(transaction: Any) {
+    suspend fun synchronizeToDatabase(transaction: Any, hasLock: Boolean = false) {
         if (!anyDirty) return
 
-        mutex.withLock {
+        if (!hasLock) mutex.lock()
+        try {
             var idx = 0
             val needle = ByteVector.broadcast(bvSpecies, 1.toByte())
 
@@ -1796,6 +1884,8 @@ class ResourceStoreBucket<T>(
             }
 
             anyDirty = false
+        } finally {
+            if (!hasLock) mutex.unlock()
         }
     }
 
@@ -2069,8 +2159,21 @@ interface ResourceStoreDatabaseQueries<T> {
     suspend fun abortTransaction(transaction: Any)
     suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<T>, minimumId: Long)
     suspend fun saveResources(transaction: Any, bucket: ResourceStoreBucket<T>, indices: IntArray, len: Int)
-    suspend fun loadProviderIndex(transaction: Any, type: String, providerId: String, register: suspend (uid: Int, pid: Int) -> Unit)
-    suspend fun loadIdIndex(transaction: Any, type: String, minimumId: Long, maximumIdExclusive: Long, register: (id: Long, ref: Int, isUser: Boolean) -> Unit)
+    suspend fun loadProviderIndex(
+        transaction: Any,
+        type: String,
+        providerId: String,
+        register: suspend (uid: Int, pid: Int) -> Unit
+    )
+
+    suspend fun loadIdIndex(
+        transaction: Any,
+        type: String,
+        minimumId: Long,
+        maximumIdExclusive: Long,
+        register: (id: Long, ref: Int, isUser: Boolean) -> Unit
+    )
+
     suspend fun loadMaximumId(transaction: Any): Long
 }
 
@@ -2087,6 +2190,8 @@ suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(block: (Any) 
         if (success) commitTransaction(session)
     }
 }
+
+class EvictionException : RuntimeException("This bucket has been evicted. Try again.")
 
 class ResourceStoreDatabaseQueriesImpl<T>(private val db: AsyncDBSessionFactory) : ResourceStoreDatabaseQueries<T> {
     override suspend fun startTransaction(): Any {

@@ -18,6 +18,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 import kotlin.random.Random
 import kotlin.test.*
@@ -216,7 +217,7 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
 }
 
 class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDatabaseQueries<Unit> {
-    val initialResources = ArrayList<ResourceDocument<Unit>>()
+    val initialResources = NonBlockingHashMapLong<ResourceDocument<Unit>>()
     val saveRequests = NonBlockingHashMapLong<Unit>()
 
     override suspend fun startTransaction(): Any = Unit
@@ -228,41 +229,46 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         // OK
     }
 
+    fun addResource(resource: ResourceDocument<Unit>) {
+        initialResources[resource.id] = resource
+    }
+
     override suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<Unit>, minimumId: Long) {
         with(bucket) {
-            run {
-                for (resource in initialResources) {
-                    val belongsInWorkspace =
-                        (pid != 0 && resource.project == pid) ||
-                                (uid != 0 && resource.createdBy == uid && resource.project == 0)
+            var needsToExpand = false
+            for (key in initialResources.keys()) {
+                val resource = initialResources[key]
+                val belongsInWorkspace =
+                    (pid != 0 && resource.project == pid) ||
+                            (uid != 0 && resource.createdBy == uid && resource.project == 0)
 
-                    if (belongsInWorkspace && resource.id >= minimumId) {
-                        id[size] = resource.id
-                        createdAt[size] = resource.createdAt
-                        createdBy[size] = resource.createdBy
-                        product[size] = resource.product
-                        project[size] = resource.project
-                        providerId[size] = resource.providerId
-                        aclEntities[size] = resource.acl.mapNotNull { it?.entity }.toIntArray()
-                        aclIsUser[size] = resource.acl.mapNotNull { it?.isUser }.toBooleanArray()
-                        aclPermissions[size] = resource.acl.mapNotNull { it?.permission?.toByte() }.toByteArray()
-                        data[size] = Unit
-                        updates[size] = CyclicArray<ResourceDocumentUpdate>(64).also {
-                            val updates = resource.update.filterNotNull()
-                            for (update in updates) {
-                                it.add(update)
-                            }
+                if (belongsInWorkspace && resource.id >= minimumId) {
+                    id[size] = resource.id
+                    createdAt[size] = resource.createdAt
+                    createdBy[size] = resource.createdBy
+                    product[size] = resource.product
+                    project[size] = resource.project
+                    providerId[size] = resource.providerId
+                    aclEntities[size] = resource.acl.mapNotNull { it?.entity }.toIntArray()
+                    aclIsUser[size] = resource.acl.mapNotNull { it?.isUser }.toBooleanArray()
+                    aclPermissions[size] = resource.acl.mapNotNull { it?.permission?.toByte() }.toByteArray()
+                    data[size] = Unit
+                    updates[size] = CyclicArray<ResourceDocumentUpdate>(64).also {
+                        val updates = resource.update.filterNotNull()
+                        for (update in updates) {
+                            it.add(update)
                         }
+                    }
 
-                        size++
+                    size++
 
-                        if (size >= ResourceStoreBucket.STORE_SIZE) {
-                            expand(loadRequired = true, hasLock = true).load(id[ResourceStoreBucket.STORE_SIZE - 1])
-                            break
-                        }
+                    if (size >= ResourceStoreBucket.STORE_SIZE) {
+                        needsToExpand = true
+                        break
                     }
                 }
             }
+            if (needsToExpand) expand(loadRequired = true, hasLock = true).load(id[ResourceStoreBucket.STORE_SIZE - 1])
         }
     }
 
@@ -273,7 +279,12 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         len: Int
     ) {
         for (i in 0 until len) {
-            saveRequests[bucket.id[indices[i]]] = Unit
+            val arrIdx = indices[i]
+            saveRequests[bucket.id[arrIdx]] = Unit
+
+            val res = ResourceDocument<Unit>()
+            bucket.loadIntoDocument(res, arrIdx)
+            initialResources[res.id] = res
         }
     }
 
@@ -284,7 +295,8 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         register: suspend (uid: Int, pid: Int) -> Unit
     ) {
         val productIds = products.productProviderToProductIds(providerId) ?: emptyList()
-        for (resource in initialResources) {
+        for (id in initialResources.keys()) {
+            val resource = initialResources[id] ?: continue
             if (resource.product in productIds) {
                 register(
                     if (resource.project == 0) resource.createdBy else 0,
@@ -301,7 +313,8 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         maximumIdExclusive: Long,
         register: (id: Long, ref: Int, isUser: Boolean) -> Unit
     ) {
-        for (resource in initialResources) {
+        for (id in initialResources.keys()) {
+            val resource = initialResources[id] ?: continue
             if (resource.id in minimumId..<maximumIdExclusive) {
                 register(
                     resource.id,
@@ -313,7 +326,7 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
     }
 
     override suspend fun loadMaximumId(transaction: Any): Long {
-        return initialResources.maxByOrNull { it.id }?.id ?: 1L
+        return initialResources.keys.maxOrNull() ?: 1L
     }
 }
 
@@ -419,7 +432,7 @@ class ResourceStoreTest {
         val memberByMemberViaAcl = 104L
         val personalResource = 105L
 
-        queries.initialResources.add(
+        queries.addResource(
             ResourceDocument(
                 id = adminOnlyResource,
                 createdBy = admin.uid,
@@ -429,7 +442,7 @@ class ResourceStoreTest {
             )
         )
 
-        queries.initialResources.add(
+        queries.addResource(
             ResourceDocument(
                 id = adminOnlyByMember,
                 createdBy = member.uid,
@@ -439,7 +452,7 @@ class ResourceStoreTest {
             )
         )
 
-        queries.initialResources.add(
+        queries.addResource(
             ResourceDocument(
                 id = memberByAdminViaGroup,
                 createdBy = admin.uid,
@@ -451,7 +464,7 @@ class ResourceStoreTest {
             }
         )
 
-        queries.initialResources.add(
+        queries.addResource(
             ResourceDocument(
                 id = memberByMemberViaAcl,
                 createdBy = member.uid,
@@ -462,7 +475,7 @@ class ResourceStoreTest {
             )
         )
 
-        queries.initialResources.add(
+        queries.addResource(
             ResourceDocument(
                 id = personalResource,
                 createdBy = member.uid,
@@ -663,6 +676,8 @@ class ResourceStoreTest {
                 val collectedIds = ArrayList<Long>()
                 var next: String? = null
                 var shouldBreak = false
+                val itemsPerPage = ArrayList<Int>()
+                val tokens = ArrayList<String>()
                 while (!shouldBreak) {
                     ResourceOutputPool.withInstance<Unit, Unit> { pool ->
                         val res =
@@ -691,6 +706,7 @@ class ResourceStoreTest {
                                         sortDirection = dir,
                                     )
                                 }
+
                                 else -> {
                                     store.browse(
                                         idCard,
@@ -702,18 +718,33 @@ class ResourceStoreTest {
                                 }
                             }
 
+                        itemsPerPage.add(res.count)
+
+
                         for (i in 0 until res.count) {
                             collectedIds.add(pool[i].id)
                         }
 
                         next = res.next
                         if (next == null) shouldBreak = true
+                        else tokens.add(next!!)
                     }
                 }
 
                 if (ids.size != collectedIds.size || ids.sorted() != collectedIds.sorted()) {
                     val allIds = ids.toSet()
-                    val allCollected = collectedIds.toSet()
+                    val duplicateCollected = HashMap<Long, Int>()
+                    val allCollected = HashSet<Long>()
+                    println(itemsPerPage)
+                    println(tokens)
+                    for ((index, collected) in collectedIds.withIndex()) {
+                        if (collected in allCollected) {
+                            val previous = duplicateCollected[collected]
+                            println("Duplicate: $collected at index $index was previously at $previous")
+                        }
+                        duplicateCollected[collected] = index
+                        allCollected.add(collected)
+                    }
 
                     data class Info(val id: Long, val uid: Int?, val pid: Int?)
 
@@ -1001,12 +1032,22 @@ class ResourceStoreTest {
         assertNull(store.retrieve(member.idCard(), id))
         assertNull(store.retrieve(user.idCard(), id))
 
-        store.updateAcl(admin.idCard(), id, emptyList(), listOf(NumericAclEntry(gid = group, permission = Permission.READ)))
+        store.updateAcl(
+            admin.idCard(),
+            id,
+            emptyList(),
+            listOf(NumericAclEntry(gid = group, permission = Permission.READ))
+        )
         assertNotNull(store.retrieve(admin.idCard(), id))
         assertNotNull(store.retrieve(member.idCard(), id))
         assertNull(store.retrieve(user.idCard(), id))
 
-        store.updateAcl(admin.idCard(), id, emptyList(), listOf(NumericAclEntry(uid = user.uid, permission = Permission.READ)))
+        store.updateAcl(
+            admin.idCard(),
+            id,
+            emptyList(),
+            listOf(NumericAclEntry(uid = user.uid, permission = Permission.READ))
+        )
         assertNotNull(store.retrieve(admin.idCard(), id))
         assertNotNull(store.retrieve(member.idCard(), id))
         assertNotNull(store.retrieve(user.idCard(), id))
@@ -1146,30 +1187,45 @@ class ResourceStoreTest {
             run {
                 // filterProductId
                 assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductId = "bad")))
-                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductId = ref.id)))
+                assertEquals(
+                    numberOfResources,
+                    browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductId = ref.id))
+                )
             }
 
             run {
                 // filterProductCategory
                 assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductCategory = "bad")))
-                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductCategory = ref.category)))
+                assertEquals(
+                    numberOfResources,
+                    browseWithFlags(pool, SimpleResourceIncludeFlags(filterProductCategory = ref.category))
+                )
             }
 
             run {
                 // filterProvider
                 assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProvider = "bad")))
-                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(filterProvider = ref.provider)))
+                assertEquals(
+                    numberOfResources,
+                    browseWithFlags(pool, SimpleResourceIncludeFlags(filterProvider = ref.provider))
+                )
             }
 
             run {
                 // hideProductId
-                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductId = "bad")))
+                assertEquals(
+                    numberOfResources,
+                    browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductId = "bad"))
+                )
                 assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductId = ref.id)))
             }
 
             run {
                 // hideProductCategory
-                assertEquals(numberOfResources, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductCategory = "bad")))
+                assertEquals(
+                    numberOfResources,
+                    browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductCategory = "bad"))
+                )
                 assertEquals(0, browseWithFlags(pool, SimpleResourceIncludeFlags(hideProductCategory = ref.category)))
             }
 
@@ -1219,7 +1275,17 @@ class ResourceStoreTest {
         assertTrue(now - output.createdAt < 5000L)
 
         assertTrue(runCatching { store.register(providerCard, ref2, user.uid, 0, Unit, null, output) }.isFailure)
-        assertTrue(runCatching { store.register(providerCard, ProductReference("dd", "dd", "dd"), user.uid, 0, Unit, null, output) }.isFailure)
+        assertTrue(runCatching {
+            store.register(
+                providerCard,
+                ProductReference("dd", "dd", "dd"),
+                user.uid,
+                0,
+                Unit,
+                null,
+                output
+            )
+        }.isFailure)
         assertTrue(runCatching { store.register(user.idCard(), ref, user.uid, 0, Unit, null, output) }.isFailure)
     }
 
@@ -1468,7 +1534,7 @@ class ResourceStoreTest {
         val initialIds = ArrayList<Long>()
         repeat(100) {
             initialIds.add(it + 1L)
-            queries.initialResources.add(
+            queries.addResource(
                 ResourceDocument(
                     id = it + 1L,
                     createdBy = user.uid,
@@ -1606,5 +1672,56 @@ class ResourceStoreTest {
         store.delete(user.idCard(), longArrayOf(id))
 
         assertNull(store.retrieve(user.idCard(), id))
+    }
+
+    @Test
+    fun `test evictions`() = test {
+        val product = products.insert("a", "b", "c")
+        val ref = products.productIdToReference(product)!!
+
+        coroutineScope {
+            val users = (0 until Runtime.getRuntime().availableProcessors()).map { createUser("user$it") }
+            for (user in users) testBrowse(user.idCard(), emptyList())
+            val didCreate = AtomicBoolean(false)
+
+            val deadline = System.currentTimeMillis() + 5000
+            val jobs = coroutineScope {
+                users.map { user ->
+                    async(Dispatchers.IO) {
+                        val myIds = ArrayList<Long>()
+                        try {
+                            while (System.currentTimeMillis() < deadline) {
+                                val id = store.create(user.idCard(), ref, Unit, null)
+                                if (myIds.isEmpty()) didCreate.set(true)
+                                myIds.add(id)
+                            }
+                        } catch (ex: Throwable) {
+                            ex.printStackTrace()
+                        }
+                        myIds
+                    }
+                }
+            }
+
+            val evictJob = launch(Dispatchers.IO) {
+                while (!didCreate.get()) delay(2000)
+
+                for (user in users) store.evict(user.uid, 0)
+            }
+
+            evictJob.join()
+            val allIds = jobs.awaitAll()
+            for ((user, ids) in users.zip(allIds)) {
+                testBrowse(user.idCard(), ids, doCustomSorting = false)
+            }
+
+            val createdBefore = queries.saveRequests.keys.size
+            println(createdBefore)
+            assertTrue(createdBefore > 0)
+            store.synchronizeNow()
+            val totalCount = allIds.fold(0) { a, b -> a + b.size }
+            println(totalCount)
+            assertEquals(totalCount, queries.saveRequests.keys.size)
+        }
     }
 }
