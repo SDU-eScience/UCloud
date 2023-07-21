@@ -52,6 +52,7 @@ class JobResourceService2(
         db,
         productCache,
         idCards,
+        backgroundScope,
         object : ResourceStore.Callbacks<InternalJobState> {
             override suspend fun loadState(
                 transaction: Any,
@@ -153,6 +154,7 @@ class JobResourceService2(
                 indices: IntArray,
                 length: Int
             ) {
+                println("Saving $length ${indices.slice(0 until length)}")
                 val session = transaction as AsyncDBConnection
                 session.sendPreparedStatement(
                     {
@@ -356,9 +358,11 @@ class JobResourceService2(
     // If we had singleton access to the database and serviceClients and if the docMapper becomes redundant:
     // private val proxy = ProxyToProvider(documents)
 
-
     init {
         documents.startSynchronizationJob(backgroundScope)
+        documents.initializeEvictionTriggersIfRelevant("app_orchestrator.jobs", "resource")
+        documents.initializeEvictionTriggersIfRelevant("app_orchestrator.job_resources", "job_id")
+        documents.initializeEvictionTriggersIfRelevant("app_orchestrator.job_input_parameters", "job_id")
     }
 
     suspend fun create(

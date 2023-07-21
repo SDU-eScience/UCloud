@@ -8,6 +8,7 @@ import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceAclEntry
@@ -53,14 +54,17 @@ class ResourceStore<T>(
         db: AsyncDBSessionFactory,
         productCache: ProductCache,
         idCardService: IdCardService,
+        backgroundScope: BackgroundScope,
         callbacks: Callbacks<T>
     ) : this(
         type,
-        ResourceStoreDatabaseQueriesImpl(db),
+        ResourceStoreDatabaseQueriesImpl(db, backgroundScope),
         productCache,
         idCardService,
         callbacks
-    )
+    ) {
+        if (queries is ResourceStoreDatabaseQueriesImpl<T>) queries.init(this)
+    }
 
     data class BrowseResult(val count: Int, val next: String?)
 
@@ -924,6 +928,14 @@ class ResourceStore<T>(
         if (bucket == null) return // Nothing to do, it has essentially already been evicted
 
         bucket.evictAll()
+    }
+
+
+    fun initializeEvictionTriggersIfRelevant(qualifiedTable: String, resourceKeyColumn: String) {
+        if (queries !is ResourceStoreDatabaseQueriesImpl<T>) return
+        runBlocking {
+            queries.initializeEvictionTriggers(qualifiedTable, resourceKeyColumn)
+        }
     }
 
     // ID index
@@ -2193,10 +2205,131 @@ suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(block: (Any) 
 
 class EvictionException : RuntimeException("This bucket has been evicted. Try again.")
 
-class ResourceStoreDatabaseQueriesImpl<T>(private val db: AsyncDBSessionFactory) : ResourceStoreDatabaseQueries<T> {
+class ResourceStoreDatabaseQueriesImpl<T>(
+    private val db: AsyncDBSessionFactory,
+    private val backgroundScope: BackgroundScope,
+) : ResourceStoreDatabaseQueries<T> {
+    fun init(store: ResourceStore<T>, ) {
+        backgroundScope.launch {
+            // NOTE(Dan): Annoyingly, it seems like we just have to hold this session open forever
+            val session = db.openSession()
+            session.sendPreparedStatement("listen resource_eviction")
+            session.registerNotifyListener { _, payload ->
+                val message = payload.split("-").takeIf { it.size == 3 }
+                val type = message?.get(0)
+                val pid = message?.get(1)?.toIntOrNull()
+                val uid = message?.get(2)?.toIntOrNull()
+                if (type != null && uid != null && pid != null) {
+                    if (type == store.type) {
+                        backgroundScope.launch {
+                            log.info("Evicting $uid, $pid")
+                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
+                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
+                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
+                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
+                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
+                            store.evict(uid, pid)
+                        }
+                    } else {
+                        log.debug("Ignoring $type")
+                    }
+                } else {
+                    log.info("Invalid message received: $payload")
+                }
+            }
+        }
+    }
+
+    suspend fun initializeEvictionTriggers(qualifiedTable: String, resourceKeyColumn: String) {
+        // NOTE(Dan): User-input should never be passed to this function. But we do a sanity check regardless.
+        if (!resourceKeyColumn.all { it.isJavaIdentifierPart() }) error("Illegal resource key: $resourceKeyColumn")
+
+        // NOTE(Dan): We do not need to check the table since it will fail the hasTrigger check if it contains an
+        // invalid reference.
+
+        db.withSession { session ->
+            val hasTrigger = session.sendPreparedStatement(
+                { setParameter("table", qualifiedTable) },
+                """
+                    select tgname
+                        from pg_catalog.pg_trigger
+                        where
+                    not tgisinternal
+                        and tgname = 'resource_trigger'
+                    and tgrelid = :table::regclass;        
+                """
+            ).rows.isNotEmpty()
+
+            if (!hasTrigger) {
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        create function ${qualifiedTable}_resource_updated() returns trigger language plpgsql as ${'$'}${'$'}
+                        begin
+                            perform pg_notify('resource_eviction', r.type || '-' || coalesce(p.pid, 0) || '-' || u.uid)
+                            from
+                                provider.resource r
+                                join auth.principals u on u.id = r.created_by
+                                left join project.projects p on r.project = p.id
+                            where
+                                r.id = new.$resourceKeyColumn;
+                            return new;
+                        end;
+                        ${'$'}${'$'}; 
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        create function ${qualifiedTable}_resource_deleted() returns trigger language plpgsql as ${'$'}${'$'}
+                        begin
+                            perform pg_notify('resource_eviction', r.type || '-' || coalesce(p.pid, 0) || '-' || u.uid)
+                            from
+                                provider.resource r
+                                join auth.principals u on u.id = r.created_by
+                                left join project.projects p on r.project = p.id
+                            where
+                                r.id = old.$resourceKeyColumn;
+                            return old;
+                        end;
+                        ${'$'}${'$'}; 
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        create trigger resource_trigger
+                            before insert or update on $qualifiedTable
+                            for each row
+                            when (current_setting('ucloud.performed_by_cache', true) is distinct from 'true')
+                            execute function ${qualifiedTable}_resource_updated();
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        create trigger resource_trigger_delete
+                            before delete on $qualifiedTable
+                            for each row
+                            when (current_setting('ucloud.performed_by_cache', true) is distinct from 'true')
+                            execute function ${qualifiedTable}_resource_deleted();
+                    """
+                )
+            }
+        }
+    }
+
     override suspend fun startTransaction(): Any {
         val session = db.openSession()
         db.openTransaction(session)
+        session.sendQuery("set local ucloud.performed_by_cache to 'true';")
+        println(session.sendPreparedStatement(
+            {},
+            """select current_setting('ucloud.performed_by_cache', true)"""
+        ).rows.singleOrNull()?.getString(0))
         return session
     }
 
@@ -2638,5 +2771,9 @@ class ResourceStoreDatabaseQueriesImpl<T>(private val db: AsyncDBSessionFactory)
                 from provider.resource
             """
         ).rows.singleOrNull()?.getLong(0) ?: 0L
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

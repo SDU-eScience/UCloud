@@ -116,7 +116,17 @@ typealias DBTransaction = AsyncDBConnection
 data class AsyncDBConnection(
     internal val conn: SuspendingConnectionImpl, // Internal jasync-sql connection
     internal val debug: DebugSystemFeature
-) : DBContext(), SuspendingConnection by conn
+) : DBContext(), SuspendingConnection by conn {
+    fun registerNotifyListener(handler: (channel: String, payload: String) -> Unit) {
+        (conn.connection as PostgreSQLConnection).registerNotifyListener { resp ->
+            handler(resp.channel, resp.payload)
+        }
+    }
+
+    fun clearNotifyListeners() {
+        (conn.connection as PostgreSQLConnection).clearNotifyListeners()
+    }
+}
 
 /**
  * A [DBSessionFactory] for the jasync library.
