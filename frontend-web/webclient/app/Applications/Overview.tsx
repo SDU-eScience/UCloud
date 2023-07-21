@@ -62,6 +62,66 @@ function ScrollButton({disabled, text, onClick}: {disabled: boolean; text: strin
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
+function LargeSearchBox(): JSX.Element {
+    const navigate = useNavigate();
+
+    const LargeSearchBoxClass = injectStyle("large-search-box", k => `
+        ${k} {
+            width: 400px;
+            margin: 0px auto;
+            position: relative;
+        }
+
+        ${k} input {
+            width: 100%;
+            border: 1px solid var(--midGray);
+            background: var(--white);
+            border-radius: 99px;
+            padding-left: 1.2em;
+            padding-right: 2.5rem;
+            box-shadow: inset 0 5px 5px var(--lightGray);
+        }
+
+        ${k} input:hover {
+            border-color: var(--gray);
+        }
+
+        ${k} input:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 3px -1px var(--blue);
+        }
+
+        ${k} button {
+            border: 1px solid pink;
+            background: none;
+            border: 0;
+            padding: 0 10px 1px 10px;
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            height: 2.5rem;
+        }
+    `);
+
+    return <div className={LargeSearchBoxClass}>
+            <Flex justifyContent="space-between">
+                <Input
+                    placeholder="Search for applications..."
+                    onKeyUp={e => {
+                        console.log(e);
+                        if (e.key === "Enter") {
+                            navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
+                        }
+                    }}
+                    autoFocus
+                />
+                <button>
+                    <Icon name="search" size={20} color="darkGray" my="auto" />
+                </button>
+            </Flex>
+        </div>;
+}
+
 const ApplicationsOverview: React.FunctionComponent = () => {
     const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
         {noop: true},
@@ -109,9 +169,6 @@ const ApplicationsOverview: React.FunctionComponent = () => {
         }
     }, [favoriteStatus]);
 
-    const [isSearching, setIsSearching] = useState(false);
-    const navigate = useNavigate();
-
     const main = (
         <Box mx="auto" maxWidth="1340px">
             <Box mt="12px" />
@@ -121,16 +178,9 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                 onFavorite={onFavorite}
                 refreshId={refreshId}
             />
-            <Divider mt="18px" />
-            <Spacer height={"40px"} left={null} right={<Flex height="40px">
-                <Input mr="12px" placeholder="Application name..." width="200px" hidden={!isSearching} onKeyUp={e => {
-                    console.log(e);
-                    if (e.key === "Enter") {
-                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
-                    }
-                }} />
-                <Icon name="search" cursor="pointer" color="black" my="auto" onClick={() => setIsSearching(is => !is)} />
-            </Flex>} />
+
+            <LargeSearchBox />
+
             {sections.data.sections.map(section =>
                 <TagGrid
                     key={section.name + section.type}
@@ -225,7 +275,7 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" |
     return <Flex overflowX="scroll" width="100%">
         <Flex mx="auto" mb="16px">
             {filteredItems.map(app =>
-                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} onFavorite={() => onFavorite(app)} />
+                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} title={app.metadata.title} onFavorite={() => onFavorite(app)} />
             )}
         </Flex>
     </Flex>

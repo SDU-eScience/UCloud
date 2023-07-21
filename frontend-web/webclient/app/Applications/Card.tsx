@@ -443,21 +443,29 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
         width: 76px;
         height: 76px;
         border-radius: 99999px;
-        box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 5px -1px inset, rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
+        box-shadow: rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
         display: flex;
         background-color: var(--fixedWhite);
         padding-left: 13px;
         align-items: center;
+        border: 1px solid var(--midGray);
     }
     
     html.dark ${k} {
+        border: 1px solid var(--lightGray);
         box-shadow: rgba(255, 255, 255, 0.2) 0px 3px 5px -1px, rgba(255, 255, 255, 0.14) 0px 6px 10px 0px;
+    }
+
+    html.dark ${k}:hover, ${k}:hover {
+        border: 1px solid var(--blue);
+        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+        transform: translateY(-2px);
     }
 `);
 
-export function FavoriteApp(props: {name: string, version: string, onFavorite(name: string, version: string): void;}): JSX.Element {
-    return <Flex mx="12px">
-        <Link to={Pages.run(props.name, props.version)}>
+export function FavoriteApp(props: {name: string, version: string, title: string, onFavorite(name: string, version: string): void;}): JSX.Element {
+    return <Flex mx="12px" py="20px">
+        <Link to={Pages.run(props.name, props.version)} title={props.title}>
             <div className={FavoriteAppClass}>
                 <AppToolLogo size="48px" name={props.name} type="APPLICATION" />
             </div>
