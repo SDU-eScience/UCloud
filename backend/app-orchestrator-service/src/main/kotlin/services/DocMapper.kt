@@ -94,7 +94,6 @@ class DocMapper<A, B>(
                         support
                     )
                 }
-                ?: error("Could not find product support: ${doc.product}")
         ).converter()
     }
 
@@ -113,6 +112,6 @@ class DocMapper<A, B>(
         val createdAt: Long,
         val permissions: ResourcePermissions,
         val resolvedProduct: Product,
-        val resolvedSupport: ResolvedSupport<Product, ProductSupport>,
+        val resolvedSupport: ResolvedSupport<Product, ProductSupport>?,
     )
 }

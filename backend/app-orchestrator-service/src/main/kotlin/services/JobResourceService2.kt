@@ -112,7 +112,7 @@ class JobResourceService2(
                                 name = row.getString(1)!!,
                                 version = row.getString(2)!!,
                             ),
-                            name = row.getString(3)!!,
+                            name = row.getString(3),
                             replicas = row.getInt(4)!!,
                             allowDuplicateJob = false,
                             parameters = row.getString(11)?.let { text ->
@@ -321,7 +321,13 @@ class JobResourceService2(
                     it.status = update.status
                 }
             },
-            data.specification,
+            data.specification.copy(
+                product = ProductReference(
+                    resolvedProduct.name,
+                    resolvedProduct.category.name,
+                    resolvedProduct.category.provider,
+                )
+            ),
             JobStatus(
                 data.state,
                 null,
@@ -339,7 +345,9 @@ class JobResourceService2(
                 data.allowRestart,
             ),
             createdAt,
-            JobOutput(),
+            JobOutput(
+                outputFolder = data.outputFolder,
+            ),
             permissions,
         )
     }
