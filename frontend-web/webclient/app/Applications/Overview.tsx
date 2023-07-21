@@ -18,7 +18,7 @@ import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
-import {useNavigate} from "react-router";
+import {useLocation, useNavigate, useParams} from "react-router";
 import AppRoutes from "@/Routes";
 
 export const ApiLike: ReducedApiInterface = {
@@ -61,6 +61,10 @@ function ScrollButton({disabled, text, onClick}: {disabled: boolean; text: strin
 }
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
+
+const LandingPage: React.FunctionComponent<{}> = props => {
+    return <> This is landing</>
+}
 
 function LargeSearchBox(): JSX.Element {
     const navigate = useNavigate();
@@ -123,6 +127,10 @@ function LargeSearchBox(): JSX.Element {
 }
 
 const ApplicationsOverview: React.FunctionComponent = () => {
+    const location = useLocation();
+
+    console.log(location.pathname);
+
     const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
         {noop: true},
         {sections: []}
@@ -181,18 +189,22 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
             <LargeSearchBox />
 
-            {sections.data.sections.map(section =>
-                <TagGrid
-                    key={section.name + section.type}
-                    tag={section.name}
-                    items={section.applications}
-                    columns={section.columns}
-                    favoriteStatus={favoriteStatus}
-                    onFavorite={onFavorite}
-                    tagBanList={[]}
-                    refreshId={refreshId}
-                />
-            )}
+            { !location.pathname.endsWith("full") && !location.pathname.endsWith("full/") ? 
+                <LandingPage />
+            :
+                sections.data.sections.map(section =>
+                    <TagGrid
+                        key={section.name + section.type}
+                        tag={section.name}
+                        items={section.applications}
+                        columns={section.columns}
+                        favoriteStatus={favoriteStatus}
+                        onFavorite={onFavorite}
+                        tagBanList={[]}
+                        refreshId={refreshId}
+                    />
+                )
+            }
         </Box>
     );
     return (<div className={AppOverviewMarginPaddingHack}><MainContainer main={main} /></div>);

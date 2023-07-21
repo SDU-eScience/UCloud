@@ -132,6 +132,8 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(Applications))} />
                         <Route path={AppRoutes.apps.overview()}
                             element={React.createElement(requireAuth(ApplicationsOverview))} />
+                        <Route path={AppRoutes.apps.landing()}
+                            element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 
                         {!inDevEnvironment() ? null :

@@ -48,7 +48,8 @@ const syncthing = {
 
 const apps = {
     applications: () => "/applications",
-    overview: () => "/applications/overview",
+    landing: () => "/applications/overview",
+    overview: () => "/applications/overview/full",
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     byTag: (tag: string) => buildQueryString("applications", {tag, itemsPerPage: 25, page: 0}),
     studio: () => "/applications/studio",

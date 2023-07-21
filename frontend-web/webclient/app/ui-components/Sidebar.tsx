@@ -253,7 +253,7 @@ export const sideBarMenuElements: [
                 {icon: "sidebarFiles", label: "Files", to: "/drives/"},
                 {icon: "sidebarProjects", label: "Projects"},
                 {icon: "dashboard", label: "Resources"},
-                {icon: "sidebarAppStore", label: "Apps", to: AppRoutes.apps.overview()},
+                {icon: "sidebarAppStore", label: "Apps", to: AppRoutes.apps.landing()},
                 {icon: "sidebarRuns", label: "Runs", to: "/jobs/"}
             ], predicate: () => Client.isLoggedIn
         },
