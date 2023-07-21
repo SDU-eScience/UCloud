@@ -236,13 +236,14 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
     override suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<Unit>, minimumId: Long) {
         with(bucket) {
             var needsToExpand = false
-            for (key in initialResources.keys()) {
+            val allKeys = initialResources.keys.toList().sorted()
+            for (key in allKeys) {
                 val resource = initialResources[key]
                 val belongsInWorkspace =
                     (pid != 0 && resource.project == pid) ||
                             (uid != 0 && resource.createdBy == uid && resource.project == 0)
 
-                if (belongsInWorkspace && resource.id >= minimumId) {
+                if (belongsInWorkspace && resource.id > minimumId) {
                     id[size] = resource.id
                     createdAt[size] = resource.createdAt
                     createdBy[size] = resource.createdBy
@@ -678,6 +679,7 @@ class ResourceStoreTest {
                 var shouldBreak = false
                 val itemsPerPage = ArrayList<Int>()
                 val tokens = ArrayList<String>()
+                val pages = ArrayList<List<Long>>()
                 while (!shouldBreak) {
                     ResourceOutputPool.withInstance<Unit, Unit> { pool ->
                         val res =
@@ -721,9 +723,12 @@ class ResourceStoreTest {
                         itemsPerPage.add(res.count)
 
 
+                        val newPage = ArrayList<Long>()
                         for (i in 0 until res.count) {
                             collectedIds.add(pool[i].id)
+                            newPage.add(pool[i].id)
                         }
+                        pages.add(newPage)
 
                         next = res.next
                         if (next == null) shouldBreak = true
@@ -737,6 +742,12 @@ class ResourceStoreTest {
                     val allCollected = HashSet<Long>()
                     println(itemsPerPage)
                     println(tokens)
+                    println("------")
+                    println("Pages:")
+                    for (page in pages) {
+                        println("${page.first()} - ${page.takeLast(3)} (${page.size})")
+                    }
+                    println("------")
                     for ((index, collected) in collectedIds.withIndex()) {
                         if (collected in allCollected) {
                             val previous = duplicateCollected[collected]
@@ -1682,31 +1693,35 @@ class ResourceStoreTest {
         coroutineScope {
             val users = (0 until Runtime.getRuntime().availableProcessors()).map { createUser("user$it") }
             for (user in users) testBrowse(user.idCard(), emptyList())
-            val didCreate = AtomicBoolean(false)
-
-            val deadline = System.currentTimeMillis() + 5000
-            val jobs = coroutineScope {
-                users.map { user ->
-                    async(Dispatchers.IO) {
-                        val myIds = ArrayList<Long>()
-                        try {
-                            while (System.currentTimeMillis() < deadline) {
-                                val id = store.create(user.idCard(), ref, Unit, null)
-                                if (myIds.isEmpty()) didCreate.set(true)
-                                myIds.add(id)
-                            }
-                        } catch (ex: Throwable) {
-                            ex.printStackTrace()
-                        }
-                        myIds
-                    }
-                }
-            }
+            val didEvict = AtomicBoolean(false)
 
             val evictJob = launch(Dispatchers.IO) {
-                while (!didCreate.get()) delay(2000)
-
+                delay(2000)
                 for (user in users) store.evict(user.uid, 0)
+                didEvict.set(true)
+            }
+
+            val jobs = users.map { user ->
+                async(Dispatchers.IO) {
+                    val myIds = ArrayList<Long>()
+                    try {
+                        var deadline: Long? = null
+                        while (true) {
+                            val id = store.create(user.idCard(), ref, Unit, null)
+
+                            if (myIds.isNotEmpty() && deadline == null && didEvict.get()) {
+                                deadline = System.currentTimeMillis() + 2000
+                            }
+
+                            myIds.add(id)
+
+                            if (deadline != null && System.currentTimeMillis() > deadline) break
+                        }
+                    } catch (ex: Throwable) {
+                        ex.printStackTrace()
+                    }
+                    myIds
+                }
             }
 
             evictJob.join()
@@ -1716,12 +1731,11 @@ class ResourceStoreTest {
             }
 
             val createdBefore = queries.saveRequests.keys.size
-            println(createdBefore)
             assertTrue(createdBefore > 0)
             store.synchronizeNow()
             val totalCount = allIds.fold(0) { a, b -> a + b.size }
-            println(totalCount)
             assertEquals(totalCount, queries.saveRequests.keys.size)
+            assertNotEquals(totalCount, createdBefore)
         }
     }
 }
