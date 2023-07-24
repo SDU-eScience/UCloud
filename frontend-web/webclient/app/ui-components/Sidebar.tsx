@@ -53,7 +53,6 @@ import Relative from "./Relative";
 import Absolute from "./Absolute";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
-import {toggleTheme} from "@/Core";
 
 const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
     ${k} {
