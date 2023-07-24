@@ -440,8 +440,8 @@ function lineCountFromType(t: ApplicationCardType): number {
 
 const FavoriteAppClass = injectStyle("favorite-app", k => `
     ${k} {
-        width: 76px;
-        height: 76px;
+        width: 64px;
+        height: 64px;
         border-radius: 99999px;
         box-shadow: rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
         display: flex;
@@ -467,7 +467,7 @@ export function FavoriteApp(props: {name: string, version: string, title: string
     return <Flex mx="12px" py="20px">
         <Link to={Pages.run(props.name, props.version)} title={props.title}>
             <div className={FavoriteAppClass}>
-                <AppToolLogo size="48px" name={props.name} type="APPLICATION" />
+                <AppToolLogo size="36px" name={props.name} type="APPLICATION" />
             </div>
         </Link>
         <Relative top="50px" right="24px" width="0px" height="0px">

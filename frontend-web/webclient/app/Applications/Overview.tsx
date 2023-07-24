@@ -1,7 +1,7 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Absolute, Box, Divider, Flex, Icon, Input, Link, Relative} from "@/ui-components";
+import {Absolute, Box, Button, Divider, Flex, Icon, Input, Link, Relative} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
@@ -20,6 +20,8 @@ import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useLocation, useNavigate, useParams} from "react-router";
 import AppRoutes from "@/Routes";
+import {TextSpan} from "@/ui-components/Text";
+import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -62,8 +64,34 @@ function ScrollButton({disabled, text, onClick}: {disabled: boolean; text: strin
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
-const LandingPage: React.FunctionComponent<{}> = props => {
-    return <> This is landing</>
+const FloatingButtonClass = injectStyle("floating-button", k => `
+    ${k} {
+        position: fixed;
+        bottom: 30px;
+        left: calc(50% - 50px);
+        width: 200px;
+    }
+
+    ${k} button {
+        width: 200px;
+        text-align: center;
+    }
+`);
+
+
+function FloatingButton(): JSX.Element {
+    const navigate = useNavigate();
+
+
+    return <div className={FloatingButtonClass}>
+        <Button
+            onClick={() => navigate(AppRoutes.apps.overview())}
+            borderRadius="99px"
+        >
+            <TextSpan pr="15px">Show more</TextSpan>
+            <Icon name="chevronDownLight" size="18px" />
+        </Button>
+    </div>;
 }
 
 function LargeSearchBox(): JSX.Element {
@@ -129,8 +157,6 @@ function LargeSearchBox(): JSX.Element {
 const ApplicationsOverview: React.FunctionComponent = () => {
     const location = useLocation();
 
-    console.log(location.pathname);
-
     const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
         {noop: true},
         {sections: []}
@@ -190,7 +216,40 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             <LargeSearchBox />
 
             { !location.pathname.endsWith("full") && !location.pathname.endsWith("full/") ? 
-                <LandingPage />
+                <>
+                    {sections.data.sections[7] ?
+                        <TagGrid
+                            key={sections.data.sections[7].name + sections.data.sections[7].type}
+                            tag=""
+                            items={sections.data.sections[7].applications}
+                            columns={sections.data.sections[7].columns}
+                            favoriteStatus={favoriteStatus}
+                            onFavorite={onFavorite}
+                            tagBanList={[]}
+                            refreshId={refreshId}
+                        />
+                    : <></>}
+
+                    <Flex style={{margin: "40px 0px"}} justifyContent="space-around">
+                        <Heading.h1 style={{textAlign: "center", marginTop: "50px"}}>Featured<br />Applications</Heading.h1>
+                        <img src={ucloudImage} style={{maxHeight: "250px"}} />
+                    </Flex>
+
+                    {sections.data.sections[7] ?
+                        <TagGrid
+                            key={sections.data.sections[7].name + sections.data.sections[7].type}
+                            tag=""
+                            items={sections.data.sections[7].applications}
+                            columns={sections.data.sections[7].columns}
+                            favoriteStatus={favoriteStatus}
+                            onFavorite={onFavorite}
+                            tagBanList={[]}
+                            refreshId={refreshId}
+                        />
+                    : <></>}
+
+                    <FloatingButton />
+                </>
             :
                 sections.data.sections.map(section =>
                     <TagGrid
@@ -236,7 +295,7 @@ const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
 
 
 interface TagGridProps {
-    tag: string;
+    tag?: string;
     items: ApplicationSummaryWithFavorite[];
     tagBanList?: string[];
     columns: number;
@@ -312,7 +371,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
 
     return (
         <>
-            <div className={TagGridTopBoxClass}>
+            {!tag ? null : <div className={TagGridTopBoxClass}>
                 <Spacer
                     mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{tag}</Heading.h2>}
@@ -322,7 +381,8 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
                         </ShowAllTagItem>
                     )}
                 />
-            </div>
+            </div>}
+            
             {!hasScroll ? null : <>
                 <Relative>
                     <Absolute height={0} width={0} top="152px">

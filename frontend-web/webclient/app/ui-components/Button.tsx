@@ -47,6 +47,10 @@ export const ButtonClass = injectStyle("button", k => `
         display: flex;
         align-items: center;
     }
+
+    ${k}:hover {
+        filter: brightness(120%);
+    }
     
     ${k}:disabled {
         opacity: 0.25;
@@ -108,7 +112,7 @@ const standardButtonSizes: {height: number; name: string;}[] = [
 export const Button: React.FunctionComponent<ButtonProps> = props => {
     const inlineStyles = unbox(props);
     let sizeName: string | undefined = undefined;
-    inlineStyles.backgroundColor = `var(--${props.color ?? "blue"})`;
+    //inlineStyles.backgroundColor = `var(--${props.color ?? "blue"})`;
     inlineStyles.color = `var(--${props.textColor ?? "white"})`;
     if (props.disableStandardSizes !== true) {
         let bestMatch = 1;
