@@ -156,7 +156,7 @@ const colors: ThemeColor[] = [
     "wayfGreen",
 ];
 
-export function UtilityBar<T>(props: {searchEnabled: boolean; operations: any[]; callbacks: any}): JSX.Element {
+export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
     return (<Flex>
         <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
         <Box width="32px"><RefreshThing /></Box>

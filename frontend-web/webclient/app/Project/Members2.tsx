@@ -49,6 +49,8 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {ProjectBreadcrumbs} from "./Breadcrumbs";
+import {Spacer} from "@/ui-components/Spacer";
 
 // UI state management
 // ================================================================================
@@ -568,14 +570,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     if (!project) return null;
 
     return <MainContainer
-        header={<Flex px="32px" mt="12px">
-            <BreadCrumbsBase className={ProjectBreadcrumbsWrapper} embedded={false}>
-                <span>My Projects</span>
-                <span>{shorten(20, project.specification.title)}</span>
-                <span>Members</span>
-            </BreadCrumbsBase>
-            <UtilityBar searchEnabled={false} operations={[]} callbacks={{}} />
-        </Flex>}
+        header={<Spacer
+            left={<ProjectBreadcrumbs crumbs={[{title: "Members"}]} />}
+            right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+        />}
         headerSize={72}
         main={
             <Box className={TwoColumnLayout} height="height: calc(100vh - 96px)">

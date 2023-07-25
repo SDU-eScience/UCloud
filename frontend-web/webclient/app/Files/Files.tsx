@@ -445,7 +445,7 @@ export const FilesBrowse: React.FunctionComponent<{
                     </BreadCrumbsBase>
                 </> : null}
                 <Flex flexGrow={1} />
-                <UtilityBar operations={[]} callbacks={callbacks} searchEnabled />
+                <UtilityBar searchEnabled />
             </Flex>
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch, activeProviderId]);

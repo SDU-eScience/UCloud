@@ -23,6 +23,7 @@ import {isAdminOrPI, useProjectId} from "./Api";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "./cache";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {UtilityBar} from "@/Playground/Playground";
 
 export interface SubAllocation {
     id: string;
@@ -103,11 +104,11 @@ function Allocations(): JSX.Element {
     }, [projectId]);
 
     return <MainContainer
-        header={<Spacer
-            width={"calc(100% - var(--sidebarWidth))"}
-            left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Allocations"}]} />}
-            right={<Box ml="12px" width="512px"></Box>}
-        />}
+        header={
+            <Spacer
+                left={<ProjectBreadcrumbs crumbs={[{title: "Allocations"}]} />}
+                right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+            />}
         main={<>
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
@@ -337,7 +338,7 @@ const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     </>
 }
 
-function AvailableBalance(props: {allocation: WalletAllocation, wallet: Wallet}) :JSX.Element {
+function AvailableBalance(props: {allocation: WalletAllocation, wallet: Wallet}): JSX.Element {
     let maxBalance = props.allocation.maxUsableBalance ?? props.allocation.balance
     if ((maxBalance - props.allocation.initialBalance) == (props.allocation.balance - props.allocation.initialBalance)) {
         return <div>

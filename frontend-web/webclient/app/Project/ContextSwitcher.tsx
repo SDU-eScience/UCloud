@@ -34,7 +34,7 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
         const child = await fetchProjects(result.next);
         return {
             items: result.items.concat(child.items),
-            itemsPerPage: result.itemsPerPage + child.itemsPerPage,            
+            itemsPerPage: result.itemsPerPage + child.itemsPerPage,
         }
     }
 
@@ -47,7 +47,7 @@ export function ContextSwitcher(): JSX.Element {
 
     const project = useProject();
     const projectId = useProjectId();
-    const [error,setError] = React.useState(""); 
+    const [error, setError] = React.useState("");
 
     const [projectList, setProjectList] = React.useState<PageV2<Project>>(emptyPageV2);
 
@@ -70,7 +70,10 @@ export function ContextSwitcher(): JSX.Element {
 
     let activeContext = "My Workspace";
     if (activeProject) {
-        const title = projectId === project.fetch().id ? project.fetch().specification.title : projectList.items.find(it => it.id === projectId)?.specification.title ?? "";
+        const title =
+            projectId === project.fetch().id ?
+                project.fetch().specification.title :
+                projectList.items.find(it => it.id === projectId)?.specification.title ?? "";
         if (title) {
             activeContext = title;
         } else {

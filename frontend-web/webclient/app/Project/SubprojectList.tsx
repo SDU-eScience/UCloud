@@ -20,6 +20,8 @@ import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectR
 import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";
+import {UtilityBar} from "@/Playground/Playground";
+import {Spacer} from "@/ui-components/Spacer";
 
 interface MemberInProjectCallbacks {
     startCreation: () => void;
@@ -243,7 +245,10 @@ export default function SubprojectList(): JSX.Element | null {
 
     if (isPersonalWorkspace) return null;
     return <MainContainer
-        header={<ProjectBreadcrumbs omitActiveProject allowPersonalProject={false} crumbs={[{title: "Subprojects"}]} />}
+        header={<Spacer
+            left={<ProjectBreadcrumbs crumbs={[{title: "Subprojects"}]} />}
+            right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+        />}
         main={
             isPersonalWorkspace || !projectId ? <Text fontSize={"24px"}>Missing subproject</Text> :
                 <StandardBrowse

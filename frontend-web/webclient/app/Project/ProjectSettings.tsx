@@ -40,6 +40,7 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import {TwoColumnLayout} from "./Members2";
 import {CardClass} from "@/ui-components/Card";
 import {JobCreateInput} from "@/Applications/Jobs/Widgets/Reservation";
+import {Spacer} from "@/ui-components/Spacer";
 
 const ActionContainer = injectStyle("action-container", k => `
     ${k} {
@@ -105,10 +106,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
     return (
         <MainContainer
             key={project.id}
-            header={<Flex>
-                <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Settings"}]} />
-                <UtilityBar searchEnabled={false} callbacks={{}} operations={[]} />
-            </Flex>}
+            header={<Spacer
+                left={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
+                right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+            />}
             headerSize={64}
             main={!isAdminOrPI(status.myRole) ? (
                 <Heading.h1>Only project or admin and PIs can view settings.</Heading.h1>

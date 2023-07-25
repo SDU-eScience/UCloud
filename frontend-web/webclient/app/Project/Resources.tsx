@@ -35,6 +35,8 @@ import {Spacer} from "@/ui-components/Spacer";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {injectStyleSimple} from "@/Unstyled";
+import {ContextSwitcher} from "./ContextSwitcher";
+import {UtilityBar} from "@/Playground/Playground";
 
 
 const ANIMATION_DURATION = 1000;
@@ -75,7 +77,6 @@ const ResourcesGrid = injectStyleSimple("resource-grid", `
 `);
 
 const Resources: React.FunctionComponent = () => {
-
     const pastMonthEnd = new Date(timestampUnixMs()).getTime();
     const pastMonthStart = pastMonthEnd - (30 * 1000 * 60 * 60 * 24);
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
@@ -137,9 +138,8 @@ const Resources: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={<Spacer
-                width={"calc(100% - var(--sidebarWidth))"}
                 left={<ProjectBreadcrumbs crumbs={[{title: "Resource Usage"}]} />}
-                right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
+                right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
             />}
 
             main={<>
