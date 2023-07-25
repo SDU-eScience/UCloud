@@ -137,10 +137,9 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                     }
                 });
 
-                browser.on("fetchOperationsCallback", () =>
-                    /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0})
-                );
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch, navigate, api: {}, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0
+                }));
 
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
