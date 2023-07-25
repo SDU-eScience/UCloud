@@ -32,7 +32,7 @@ export const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
-            <UtilityBar searchEnabled operations={[]} callbacks={{}} />
+            <UtilityBar searchEnabled />
             <Toggle checked={checked} onChange={() => setChecked(e => !e)} />
 
             <ProductSelectorPlayground />

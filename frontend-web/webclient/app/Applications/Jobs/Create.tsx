@@ -310,7 +310,7 @@ export const Create: React.FunctionComponent = () => {
                                 <Icon name="documentation" color="blue" />
                             </ExternalLink>
                         )}
-                        <UtilityBar callbacks={[]} operations={[]} searchEnabled={false} />
+                        <UtilityBar searchEnabled={false} />
                     </>} />
                 </Box>
                 <ContainerForText left>

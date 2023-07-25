@@ -12,7 +12,6 @@ import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
 import {STATE_ICON_AND_COLOR} from "./GrantApplications";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {image} from "@/Utilities/HTMLUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -26,7 +25,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean}}): JSX.Element {
+export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
     const dispatch = useDispatch();
@@ -107,7 +106,10 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
 
                 browser.setEmptyIcon("fileSignatureSolid");
 
-                browser.on("generateBreadcrumbs", () => [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => {
+                    if (opts?.omitBreadcrumbs) return [];
+                    return [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}];
+                });
                 browser.on("renderEmptyPage", reason => {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {

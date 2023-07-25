@@ -33,7 +33,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const logoDataUrls = new AsyncCache<string>();
 
-function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Element {
+function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -226,7 +226,10 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
                     return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
                 });
-                browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => {
+                    if (opts?.omitBreadcrumbs) return [];
+                    return [{title: "Jobs", absolutePath: ""}]
+                });
                 browser.on("search", query => {
                     browser.searchQuery = query;
                     browser.currentPath = "/search";

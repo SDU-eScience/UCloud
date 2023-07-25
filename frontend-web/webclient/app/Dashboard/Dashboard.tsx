@@ -121,7 +121,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
     }
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} operations={[]} callbacks={{}} /></Flex>
+        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
             <DashboardNews news={news} />
 
@@ -374,7 +374,7 @@ function DashboardRuns({runs}: {
                     <Button mt={8}>View applications</Button>
                 </Link>
             </NoResultsCardBody>
-        ) : <ExperimentalJobs opts={{embedded: true}} />}
+        ) : <ExperimentalJobs opts={{embedded: true, omitBreadcrumbs: true}} />}
     </HighlightedCard>;
 }
 
@@ -498,7 +498,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
         error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
-        <ExperimentalGrantApplications opts={{embedded: true}} />
+        <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true}} />
     </HighlightedCard>;
 };
 

@@ -807,8 +807,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
                     }
 
-                    console.log(result);
-
                     return result;
                 });
 
