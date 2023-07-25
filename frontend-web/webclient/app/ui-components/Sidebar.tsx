@@ -166,6 +166,10 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", `
     flex-direction: column;
     height: 100vh;
     width: var(--sidebarWidth);
+
+    /* Required by Safari */
+    min-width: var(--sidebarWidth);
+    
     background-color: var(--sidebarColor);
     gap: 18px;
     z-index: 1000;
