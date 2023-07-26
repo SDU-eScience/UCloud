@@ -412,6 +412,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                                 browser.ensureRowIsVisible(idx, true, true);
                                 browser.select(idx, SelectionMode.SINGLE);
                             }
+
                             callAPI(FilesApi.createFolder(bulkRequestOf({id: realPath, conflictPolicy: "RENAME"})))
                                 .catch(err => {
                                     snackbarStore.addFailure(extractErrorMessage(err), false);
@@ -443,6 +444,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                                     browser.ensureRowIsVisible(newRow, true, true);
                                     browser.select(newRow, SelectionMode.SINGLE);
                                 }
+
+                                if (oldId === actualFile.id) return; // No change
 
                                 callAPI(FilesApi.move(bulkRequestOf({
                                     oldId,
