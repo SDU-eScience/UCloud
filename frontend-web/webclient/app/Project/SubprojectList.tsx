@@ -86,7 +86,7 @@ const projectOperations: ProjectOperation[] = [
     },
     {
         enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role),
-        onClick: ([{project}], extra) => extra.navigate(`/subprojects/?subproject=${project.id}`),
+        onClick: ([{project}], extra) =>  extra.setActiveProject(project.id, project.title),
         text: "View subprojects",
         icon: "projects",
     },
