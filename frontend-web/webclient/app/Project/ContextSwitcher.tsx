@@ -16,6 +16,7 @@ import {injectStyle} from "@/Unstyled";
 import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {PageV2} from "@/UCloud";
+import AppRoutes from "@/Routes";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -169,16 +170,20 @@ function Favorite({project}: {project: Project}): JSX.Element {
 function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
     const {pathname} = window.location;
     runThisFunction();
-    const splitPath = pathname.split("/").filter(it => it);
     let doRefresh = true;
     if (["/app/files/", "/app/files"].includes(pathname)) {
         navigate("/drives")
         doRefresh = false;
-    } else if (splitPath.length === 5) {
-        if (splitPath[0] === "app" && splitPath[2] === "grants" && splitPath[3] == "view") {
-            navigate(`/project/grants/ingoing/${projectId}`);
+    }
+
+    if (!projectId) {
+        if (["/app/projects/members", "/app/projects/members/"].includes(pathname)
+            || ["/app/subprojects/", "/app/subprojects"].includes(pathname)) {
+            navigate(AppRoutes.dashboard.dashboardA());
+            doRefresh = false;
         }
     }
+
     initializeResources();
     if (doRefresh) refresh?.();
 }
