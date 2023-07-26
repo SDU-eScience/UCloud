@@ -791,12 +791,12 @@ export class ResourceBrowser<T> {
         this.clearFilters();
         if (this.cantConsumeResources) {
             this.renderCantConsumeResources();
-            return;
-        }
-        if (this.features.sortDirection) this.renderSortOrder();
-        if (this.features.filters) {
-            this.renderFilters();
-            this.rerenderSessionFilterIcons();
+        } else {
+            if (this.features.sortDirection) this.renderSortOrder();
+            if (this.features.filters) {
+                this.renderFilters();
+                this.rerenderSessionFilterIcons();
+            }
         }
     }
 
@@ -3373,16 +3373,14 @@ export function checkCanConsumeResources(callbacks: null | {api: {isCoreResource
     if (!Client.hasActiveProject) {
         return true;
     }
-    if (!callbacks) {
-        return false;
-    }
+    if (!callbacks) return true;
     const {api} = callbacks;
     if (!api) return false;
     if (api.isCoreResource) {
         return true;
     }
     const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === Client.projectId);
-    if (!project) return false;
+    if (!project) return true; // Don't consider yet-to-be-fetched projects as non-consumer
     return project.specification.canConsumeResources !== false;
 }
 
