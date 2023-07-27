@@ -1,7 +1,7 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Absolute, Box, Button, Divider, Flex, Icon, Input, Link, Relative} from "@/ui-components";
+import {Absolute, Box, Button, Divider, Flex, Icon, Input, Link, Relative, theme} from "@/ui-components";
 import Grid from "@/ui-components/Grid";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
@@ -22,6 +22,7 @@ import {useLocation, useNavigate, useParams} from "react-router";
 import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
+import bgImage from "@/Assets/Images/background_polygons.png";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -75,6 +76,7 @@ const FloatingButtonClass = injectStyle("floating-button", k => `
     ${k} button {
         width: 200px;
         text-align: center;
+        box-shadow: ${theme.shadows.sm};
     }
 `);
 
@@ -88,19 +90,34 @@ function FloatingButton(): JSX.Element {
             onClick={() => navigate(AppRoutes.apps.overview())}
             borderRadius="99px"
         >
-            <TextSpan pr="15px">Show more</TextSpan>
+            <TextSpan pr="15px">View all</TextSpan>
             <Icon name="chevronDownLight" size="18px" />
         </Button>
     </div>;
 }
 
-function LargeSearchBox(): JSX.Element {
-    const navigate = useNavigate();
+const LandingDivider = injectStyle("landing-divider", k => `
+    ${k} {
+        margin-top: 50px;
+        margin-bottom: 50px;
+    }
 
-    const LargeSearchBoxClass = injectStyle("large-search-box", k => `
+    ${k} h1 {
+        text-align: center;
+        margin-top: 50px;
+        color: #5c89f4;
+    }
+
+    ${k} img {
+        max-height: 250px;
+        transform: scaleX(-1);
+    }
+`);
+
+  const LargeSearchBoxClass = injectStyle("large-search-box", k => `
         ${k} {
             width: 400px;
-            margin: 0px auto;
+            margin: 30px auto;
             position: relative;
         }
 
@@ -135,6 +152,10 @@ function LargeSearchBox(): JSX.Element {
         }
     `);
 
+
+function LargeSearchBox(): JSX.Element {
+    const navigate = useNavigate();
+  
     return <div className={LargeSearchBoxClass}>
             <Flex justifyContent="space-between">
                 <Input
@@ -203,6 +224,11 @@ const ApplicationsOverview: React.FunctionComponent = () => {
         }
     }, [favoriteStatus]);
 
+    const featured1 = sections.data.sections[7]?.applications.slice(0, 4);
+    const featured12 = sections.data.sections[7]?.applications.slice(0,6);
+    const featured2 = sections.data.sections[7];
+    const featured22 = sections.data.sections[7];
+
     const main = (
         <Box mx="auto" maxWidth="1340px">
             <Box mt="12px" />
@@ -218,33 +244,56 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             { !location.pathname.endsWith("full") && !location.pathname.endsWith("full/") ? 
                 <>
                     {sections.data.sections[7] ?
-                        <TagGrid
+                        <ApplicationRow
                             key={sections.data.sections[7].name + sections.data.sections[7].type}
-                            tag=""
-                            items={sections.data.sections[7].applications}
-                            columns={sections.data.sections[7].columns}
+                            items={featured1}
+                            type={ApplicationCardType.WIDE}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
-                            tagBanList={[]}
                             refreshId={refreshId}
+                            scrolling={false}
                         />
                     : <></>}
 
-                    <Flex style={{margin: "40px 0px"}} justifyContent="space-around">
-                        <Heading.h1 style={{textAlign: "center", marginTop: "50px"}}>Featured<br />Applications</Heading.h1>
-                        <img src={ucloudImage} style={{maxHeight: "250px"}} />
+                    {sections.data.sections[7] ?
+                        <ApplicationRow
+                            key={sections.data.sections[7].name + sections.data.sections[7].type}
+                            items={featured12}
+                            type={ApplicationCardType.TALL}
+                            favoriteStatus={favoriteStatus}
+                            onFavorite={onFavorite}
+                            refreshId={refreshId}
+                            scrolling={false}
+                        />
+                    : <></>}
+
+
+                    <Flex className={LandingDivider} justifyContent="space-around">
+                        <Heading.h1>Featured<br />Applications</Heading.h1>
+                        <img src={ucloudImage} />
                     </Flex>
 
                     {sections.data.sections[7] ?
-                        <TagGrid
+                        <ApplicationRow
                             key={sections.data.sections[7].name + sections.data.sections[7].type}
-                            tag=""
-                            items={sections.data.sections[7].applications}
-                            columns={sections.data.sections[7].columns}
+                            items={featured1}
+                            type={ApplicationCardType.WIDE}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
-                            tagBanList={[]}
                             refreshId={refreshId}
+                            scrolling={false}
+                        />
+                    : <></>}
+
+                    {sections.data.sections[7] ?
+                        <ApplicationRow
+                            key={sections.data.sections[7].name + sections.data.sections[7].type}
+                            items={featured12}
+                            type={ApplicationCardType.TALL}
+                            favoriteStatus={favoriteStatus}
+                            onFavorite={onFavorite}
+                            refreshId={refreshId}
+                            scrolling={false}
                         />
                     : <></>}
 
@@ -266,20 +315,35 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             }
         </Box>
     );
-    return (<div className={AppOverviewMarginPaddingHack}><MainContainer main={main} /></div>);
+    return (
+        <div className={AppOverviewMarginPaddingHack}>
+            { !location.pathname.endsWith("full") && !location.pathname.endsWith("full/") ? 
+                <div className={PolygonBackgroundClass}>
+                    <MainContainer main={main} />
+                </div>
+            :
+                <MainContainer main={main} />
+            }
+        </div>
+    );
 };
 
 const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
 /* HACK */
     margin-top: -12px;
-    padding-top: 12px;
 /* HACK */
+`);
+
+const PolygonBackgroundClass = injectStyleSimple("polygon-background", `
+    background-image: url(${bgImage}), linear-gradient(#b7d8fb, #fff);
+    background-position: 0% 35%;
+    background-repeat: repeat;
+    padding-bottom: 75px;
 `);
 
 const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
     ${k} {
-        border-top-left-radius: 10px;
-        border-top-right-radius: 10px;
+        margin-top: 25px;
     }
 `);
 
@@ -287,8 +351,6 @@ const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
     ${k} {
         padding: 15px 10px 15px 10px;
         margin: 0 -10px;
-        border-bottom-left-radius: 10px;
-        border-bottom-right-radius: 10px;
         overflow-x: scroll;
     }
 `);
@@ -304,10 +366,19 @@ interface TagGridProps {
     refreshId: number;
 }
 
+interface ApplicationRowProps {
+    items: ApplicationSummaryWithFavorite[];
+    type: ApplicationCardType;
+    favoriteStatus: React.MutableRefObject<FavoriteStatus>;
+    onFavorite: (app: ApplicationSummaryWithFavorite) => void;
+    refreshId: number;
+    scrolling: boolean;
+}
+
 function filterAppsByFavorite(
     items: compute.ApplicationSummaryWithFavorite[],
     showFavorites: boolean,
-    tagBanList: string[],
+    tagBanList: string[] = [],
     favoriteStatus: React.MutableRefObject<FavoriteStatus>
 ): compute.ApplicationSummaryWithFavorite[] {
     let _filteredItems = items
@@ -353,6 +424,108 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" |
 }
 
 const SCROLL_SPEED = 156 * 4;
+
+const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
+    items, type, favoriteStatus, onFavorite, scrolling
+}: ApplicationRowProps) => {
+    const filteredItems = React.useMemo(() =>
+        filterAppsByFavorite(items, false, [], favoriteStatus),
+        [items, favoriteStatus.current]);
+
+    const scrollRef = React.useRef<HTMLDivElement>(null);
+
+    if (filteredItems.length === 0) return null;
+
+    const hasScroll = scrollRef.current && scrollRef.current.scrollWidth > scrollRef.current.clientWidth;
+
+    return (
+        <>
+            {!hasScroll ? null : <>
+                <Relative>
+                    <Absolute height={0} width={0} top="152px">
+                        <ScrollButton disabled={false} text={"⟨"} onClick={() => {
+                            if (scrollRef.current) scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
+
+                        }} />
+                    </Absolute>
+                </Relative>
+                <Relative>
+                    <Absolute height={0} width={0} right="0" top="152px">
+                        <ScrollButton disabled={false} text={"⟩"} onClick={() => {
+                            if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED, behavior: "smooth"});
+                        }} />
+                    </Absolute>
+                </Relative>
+            </>}
+
+            {type === ApplicationCardType.WIDE ?
+                <div ref={scrollRef} className={TagGridBottomBoxClass}>
+                    <Flex
+                        justifyContent="space-between"
+                        gap="10px"
+                        py="10px"
+                    >
+                        {filteredItems.map(app =>
+                            <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                                <AppCard
+                                    type={ApplicationCardType.WIDE}
+                                    onFavorite={() => onFavorite(app)}
+                                    app={app}
+                                    isFavorite={app.favorite}
+                                    tags={app.tags}
+                                />
+                            </Link>
+                        )}
+                    </Flex>
+                </div>
+            :
+                scrolling ?
+                    <div ref={scrollRef} className={TagGridBottomBoxClass}>
+                        <Grid
+                            gridGap="25px"
+                            gridTemplateRows={"repeat(1, 1fr)"}
+                            gridTemplateColumns={"repeat(auto-fill, 166px)"}
+                            style={{gridAutoFlow: "column"}}
+                        >
+                            {filteredItems.map(app =>
+                                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                                    <AppCard
+                                        type={ApplicationCardType.EXTRA_TALL}
+                                        onFavorite={() => onFavorite(app)}
+                                        app={app}
+                                        isFavorite={app.favorite}
+                                        tags={app.tags}
+                                    />
+                                </Link>
+                            )}
+                        </Grid>
+                    </div>
+                :
+                    <div ref={scrollRef} className={TagGridBottomBoxClass}>
+                        <Flex
+                            justifyContent="space-between"
+                            gap="10px"
+                            py="10px"
+                        >
+                            {filteredItems.map(app =>
+                                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                                    <AppCard
+                                        type={ApplicationCardType.EXTRA_TALL}
+                                        onFavorite={() => onFavorite(app)}
+                                        app={app}
+                                        isFavorite={app.favorite}
+                                        tags={app.tags}
+                                    />
+                                </Link>
+                            )}
+                        </Flex>
+                    </div>
+            }
+        </>
+    )
+
+};
+
 const TagGrid: React.FunctionComponent<TagGridProps> = ({
     tag, items, tagBanList = [], favoriteStatus, onFavorite
 }: TagGridProps) => {
@@ -371,17 +544,19 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
 
     return (
         <>
-            {!tag ? null : <div className={TagGridTopBoxClass}>
-                <Spacer
-                    mt="15px" px="10px" alignItems={"center"}
-                    left={<Heading.h2>{tag}</Heading.h2>}
-                    right={(
-                        <ShowAllTagItem tag={tag}>
-                            <Heading.h4>Show All</Heading.h4>
-                        </ShowAllTagItem>
-                    )}
-                />
-            </div>}
+            <div className={TagGridTopBoxClass}>
+                {!tag ? null :
+                    <Spacer
+                        mt="15px" px="10px" alignItems={"center"}
+                        left={<Heading.h2>{tag}</Heading.h2>}
+                        right={(
+                            <ShowAllTagItem tag={tag}>
+                                <Heading.h4>Show All</Heading.h4>
+                            </ShowAllTagItem>
+                        )}
+                    />
+                }
+            </div>
             
             {!hasScroll ? null : <>
                 <Relative>
