@@ -53,8 +53,6 @@ import ExperimentalJobs from "@/Applications/Jobs/ExperimentalJobs";
 import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
-const MY_WORKSPACE = "My Workspace";
-
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
 
@@ -328,7 +326,7 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (<div>
         <div>
-            <Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource usage</Heading.h3></Link>
+            <Link to={AppRoutes.project.usage()}><Heading.h3>Resource usage</Heading.h3></Link>
         </div>
         <div>
             {props.charts.data.charts.length !== 0 ? null : (
@@ -431,7 +429,7 @@ function DashboardResources({products}: {
 
     return (
         <div>
-            <Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource allocations</Heading.h3></Link>
+            <Link to={AppRoutes.project.allocations()}><Heading.h3>Resource allocations</Heading.h3></Link>
             {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
