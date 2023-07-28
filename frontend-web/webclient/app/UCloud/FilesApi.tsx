@@ -160,6 +160,7 @@ export function isSensitivitySupported(resource: UFile): boolean {
     if (inDevEnvironment() || onDevSite()) {
         switch (resource.specification.product.provider) {
             case "k8":
+            case "K8":
             case "ucloud":
                 return true;
 
@@ -946,7 +947,7 @@ async function queryTemplateName(name: string, invokeCommand: InvokeCommand, nex
     return id;
 }
 
-function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
+function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invokeCommand: InvokeCommand; onUpdated(value: SensitivityLevelMap): void;}): JSX.Element {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
     const selection = React.useRef<HTMLSelectElement>(null);
     const reason = React.useRef<HTMLInputElement>(null);
@@ -960,10 +961,15 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
             if (!value) return;
             if (value === SensitivityLevelMap.INHERIT) {
                 // Find latest that is active and remove that one. At most one will be active.
-                const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId].find(
+                const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId]?.find(
                     it => ["approved", "not_required"].includes(it.status.approval.type)
                 );
-                if (!entryToDelete) return;
+                if (!entryToDelete) {
+                    // Note(Jonas): In this case, I believe that user is setting to "inherit", despite it already being
+                    // the case, as it hasn't been set to anything yet, so do nothing.
+                    dialogStore.success();
+                    return;
+                }
                 await invokeCommand(
                     metadataDocumentApi.delete(
                         bulkRequestOf({
@@ -982,6 +988,8 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
                     }
                 }
 
+                onUpdated(value as SensitivityLevelMap);
+
                 await invokeCommand(
                     metadataDocumentApi.create(bulkRequestOf({
                         fileId: file.id,
@@ -998,9 +1006,9 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
                 );
             }
 
-            reload();
             dialogStore.success();
         } catch (e) {
+            onUpdated(originalSensitivity as SensitivityLevelMap);
             displayErrorMessageOrDefault(e, "Failed to update sensitivity.")
         }
     }, []);
@@ -1038,7 +1046,7 @@ function downloadFile(url: string, usePopup: boolean) {
     document.body.removeChild(element);
 }
 
-async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): Promise<void> {
+export async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, onUpdated: (value: SensitivityLevelMap) => void): Promise<void> {
     if (!isSensitivitySupported(file)) {
         dialogStore.addDialog(
             <>
@@ -1071,7 +1079,7 @@ async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeComman
         sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
     }
 
-    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
+    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();

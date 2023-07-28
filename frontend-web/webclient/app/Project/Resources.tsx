@@ -8,7 +8,7 @@ import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {Box, Flex, Grid, Heading, Icon, Text} from "@/ui-components";
+import {Box, Button, Flex, Grid, Heading, Icon, Link, Text} from "@/ui-components";
 import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
@@ -37,6 +37,8 @@ import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {injectStyleSimple} from "@/Unstyled";
 import {ContextSwitcher} from "./ContextSwitcher";
 import {UtilityBar} from "@/Playground/Playground";
+import {Client} from "@/Authentication/HttpClientInstance";
+import AppRoutes from "@/Routes";
 
 
 const ANIMATION_DURATION = 1000;
@@ -139,7 +141,9 @@ const Resources: React.FunctionComponent = () => {
         <MainContainer
             header={<Spacer
                 left={<ProjectBreadcrumbs crumbs={[{title: "Resource Usage"}]} />}
-                right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+                right={<Flex mr="36px" height={"26px"}>
+                    <UtilityBar searchEnabled={false} />
+                </Flex>}
             />}
 
             main={<>

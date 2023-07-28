@@ -19,6 +19,7 @@ import {
     SelectionMode
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
+    addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
     FileSensitivityVersion, FilesMoveRequestItem,
@@ -39,7 +40,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import {accounting, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import {bulkRequestOf, SensitivityLevel} from "@/DefaultObjects";
+import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
 import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
@@ -142,8 +143,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     return entry.specification.document.favorite;
                 };
 
-                const findSensitivity = async (file: UFile): Promise<SensitivityLevel> => {
-                    if (!isSensitivitySupported(file)) return SensitivityLevel.PRIVATE;
+                const findSensitivity = async (file: UFile): Promise<SensitivityLevel | null> => {
+                    if (!isSensitivitySupported(file)) return null;
 
                     const sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace,
                         FileSensitivityVersion);
@@ -677,7 +678,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         button.style.height = "32px";
                         button.style.width = "64px";
                         button.onclick = e => {
-                            e.stopImmediatePropagation(); 
+                            e.stopImmediatePropagation();
                             opts.selection?.onSelect(file);
                         }
                         row.stat3.replaceChildren(button);
@@ -718,6 +719,19 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         badge.classList.add("sensitivity-badge");
                         badge.classList.add(sensitivity.toString());
                         badge.innerText = sensitivity.toString()[0];
+                        badge.style.cursor = "pointer";
+                        badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), value => {
+                            // TODO(Jonas): handle inherit better.
+                            if (value === SensitivityLevelMap.INHERIT) {
+                                browserRef.current?.refresh();
+                                return;
+                            }
+                            const b: HTMLDivElement | null = row.stat1.querySelector("div.sensitivity-badge");
+                            if (!b) return;
+                            b.classList.remove(sensitivity.toString());
+                            b.classList.add(value);
+                            b.innerText = value.toString()[0];
+                        });
 
                         row.stat1.append(badge);
                     });
@@ -807,7 +821,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         });
                         icon.style.marginRight = "8px";
                         pIcon.replaceChildren(icon);
-
                     }
 
                     return result;
