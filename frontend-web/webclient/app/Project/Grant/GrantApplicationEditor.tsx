@@ -1201,16 +1201,18 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             }
 
             main={<>
-                {target !== RequestTarget.VIEW_APPLICATION ? (<>
-                    <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
-                        Submit Application
-                    </Button>
-                    {target === RequestTarget.NEW_PROJECT ? null : (
-                        <Button mt="8px" fullWidth onClick={newProjectWarningOnClick}>
-                            Apply for new project instead
+                {target !== RequestTarget.VIEW_APPLICATION ? (
+                    <Flex mx="auto" my="8px">
+                        <Button ml="auto" mr={target === RequestTarget.NEW_PROJECT ? "auto" : undefined} disabled={grantFinalized || submitLoading} onClick={submitRequest}>
+                            Submit Application
                         </Button>
-                    )}
-                </>) : null}
+                        {target === RequestTarget.NEW_PROJECT ? null : (
+                            <Button ml="8px" mr="auto" onClick={newProjectWarningOnClick}>
+                                Apply for new project instead
+                            </Button>
+                        )}
+                    </Flex>
+                ) : null}
                 {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
                     isLocked ? (
                         (isRecipient || isApprover ?

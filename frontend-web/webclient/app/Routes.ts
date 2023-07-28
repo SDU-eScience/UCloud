@@ -39,7 +39,9 @@ const project = {
     grantsOutgoing: () => `/project/grants/outgoing/`,
     grant: (id: string) => `/project/grants/view/${id}`,
     settings: (page: string) => `/project/settings/${page}`,
-    subprojects: () => `/subprojects/`,
+    subprojects: () => "/subprojects/",
+    grantExisting: () => "/project/grants/existing",
+    grantPersonal: () => "/project/grants/personal"
 }
 
 const syncthing = {

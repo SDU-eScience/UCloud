@@ -402,9 +402,6 @@ function DashboardResources({products}: {
         return wallets;
     }, [products.data.items]);
 
-    const projectId = useProjectId();
-
-
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -423,7 +420,7 @@ function DashboardResources({products}: {
         return (a.balance < b.balance) ? 1 : -1;
     });
 
-    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
+    const applyLinkButton = <Link to={Client.hasActiveProject ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 
@@ -440,7 +437,7 @@ function DashboardResources({products}: {
             ) :
                 <>
                     {/* height is 100% - height of Heading 36px  */}
-                    <Flex flexDirection="column" height={"calc(100% - 36px)"}>
+                    <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                         <Box my="5px">
                             <Table>
                                 <tbody>
@@ -461,6 +458,7 @@ function DashboardResources({products}: {
                             </Table>
                         </Box>
                         <Box flexGrow={1} />
+                        <Flex mx="auto">{applyLinkButton}</Flex>
                     </Flex>
                 </>
             }
