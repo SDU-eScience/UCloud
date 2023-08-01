@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.time.LocalDateTime
 import java.util.*
@@ -550,6 +549,93 @@ class AppStoreAsyncDao(
                             )
                         )
                     order by order_id, a.title
+                """
+            ).rows.forEach { row ->
+                val refId = row.getString("reference_id")!!
+                val tagName = row.getString("tag_name")
+                val type = AppStoreSectionType.valueOf(row.getString("reference_type")!!)
+                val applicationMetadata = ApplicationMetadata(
+                    row.getString("name")!!,
+                    row.getString("version")!!,
+                    defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
+                    row.getString("title")!!,
+                    row.getString("description")!!,
+                    row.getString("website"),
+                    row.getBoolean("is_public")!!
+                )
+                val favorite = row.getBoolean("favorite")!!
+                val columns = row.getInt("columns")!!
+                val rows = row.getInt("rows")!!
+                val tags = defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
+                val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, tags)
+
+                val section = sections.find { it.name == tagName || it.name == refId }
+                if (section != null) {
+                    when (section) {
+                        is AppStoreSection.Tag -> {
+                            section.applications.add(appWithFavorite)
+                        }
+                        is AppStoreSection.Tool -> {
+                            section.applications.add(appWithFavorite)
+                        }
+                    }
+                } else {
+                    val newSection = when (type) {
+                        AppStoreSectionType.TAG -> {
+                            AppStoreSection.Tag(
+                                tagName ?: "",
+                                arrayListOf(appWithFavorite),
+                                columns,
+                                rows
+                            )
+                        }
+                        AppStoreSectionType.TOOL -> {
+                            AppStoreSection.Tool(
+                                refId,
+                                arrayListOf(appWithFavorite),
+                                columns,
+                                rows
+                            )
+                        }
+                    }
+
+                    sections.add(newSection)
+                }
+            }
+        }
+
+        return sections
+    }
+
+    suspend fun browseSections(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
+        pageType: AppStorePageType
+    ): List<AppStoreSection> {
+        val groups = if (memberGroups.isEmpty()) {
+            listOf("")
+        } else {
+            memberGroups
+        }
+
+        val sections = ArrayList<AppStoreSection>()
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("user", user.username)
+                    setParameter("is_admin", Roles.PRIVILEGED.contains(user.role))
+                    setParameter("project", project)
+                    setParameter("groups", groups)
+                    setParameter("page", pageType.name)
+                },
+                """
+                    select *
+                    from app_store.sections s
+                    join app_store.section_tags st on st.section_id = s.id
+                    join app_store.applications on 
+                    where page == :page
                 """
             ).rows.forEach { row ->
                 val refId = row.getString("reference_id")!!

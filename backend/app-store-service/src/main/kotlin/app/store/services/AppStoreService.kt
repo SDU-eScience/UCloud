@@ -331,6 +331,20 @@ class AppStoreService(
         )
     }
 
+    suspend fun browseSections(securityPrincipal: SecurityPrincipal, project: String?, pageType: AppStorePageType): AppStoreOverviewResponse {
+        val projectGroups = if (project.isNullOrBlank()) {
+            emptyList()
+        } else {
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
+        }
+
+        return AppStoreOverviewResponse(
+            db.withTransaction {
+                applicationDao.browseSections(db, securityPrincipal, project, projectGroups, pageType)
+            }
+        )
+    }
+
     suspend fun create(actorAndProject: ActorAndProject, application: Application, content: String) {
         db.withTransaction { session ->
             applicationDao.create(session, actorAndProject, application, content)

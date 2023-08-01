@@ -5,8 +5,8 @@ create table if not exists app_store.application_groups (
     description text
 );
 
-alter table app_store.applications add column group_id int references app_store.application_groups(id);
-alter table app_store.applications add column flavor_name text;
+alter table app_store.applications add column if not exists group_id int references app_store.application_groups(id);
+alter table app_store.applications add column if not exists flavor_name text;
 
 create table if not exists app_store.group_tags (
     group_id int references application_groups(id),
@@ -30,9 +30,10 @@ create table if not exists app_store.section_featured_items (
 
 create table if not exists app_store.section_tags (
     section_id int references sections(id),
-    tag_id int references application_groups(id),
+    tag_id int references tags(id),
     primary key (section_id, tag_id)
 );
 
-drop table app_store.overview;
-drop table app_store.application_tags;
+drop table if exists app_store.overview;
+drop table if exists app_store.application_tags;
+

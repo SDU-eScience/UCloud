@@ -188,6 +188,22 @@ data class AppStoreOverviewResponse(
 )
 
 @Serializable
+enum class AppStorePageType {
+    LANDING,
+    OVERVIEW
+}
+
+@Serializable
+data class AppStoreSectionsRequest(
+    val page: AppStorePageType
+)
+
+@Serializable
+data class AppStoreSectionsResponse(
+    val sections: List<AppStoreSection>
+)
+
+@Serializable
 sealed class AppStoreSection {
     abstract val name: String
     @Serializable
@@ -924,6 +940,26 @@ ${ApiConventions.nonConformingApiWarning}
 
             documentation {
                 summary = "Returns the application catalog overview"
+            }
+        }
+    }
+
+    val sections = call("sections", AppStoreSectionsRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"sections"
+            }
+
+            documentation {
+                summary = "Returns the application catalog sections"
             }
         }
     }
