@@ -317,6 +317,15 @@ class AppStoreService(
         }
     }
 
+    suspend fun listFlavors(
+        securityPrincipal: SecurityPrincipal,
+        project: String?,
+        group: String
+    ): PageV2<ApplicationSummary> {
+        //TODO(Brian)
+        return PageV2(25, emptyList(), null)
+    }
+
     suspend fun overview(securityPrincipal: SecurityPrincipal, project: String?): AppStoreOverviewResponse {
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
@@ -325,9 +334,10 @@ class AppStoreService(
         }
 
         return AppStoreOverviewResponse(
-            db.withTransaction {
+            /*db.withTransaction {
                 applicationDao.overview(db, securityPrincipal, project, projectGroups)
-            }
+            }*/
+            emptyList()
         )
     }
 

@@ -180,6 +180,12 @@ typealias FindLatestByToolResponse = Page<Application>
 data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
 
+
+@Serializable
+data class ListFlavorsRequest (
+    val group: String
+)
+
 typealias AppStoreOverviewRequest = Unit
 
 @Serializable
@@ -190,7 +196,7 @@ data class AppStoreOverviewResponse(
 @Serializable
 enum class AppStorePageType {
     LANDING,
-    OVERVIEW
+    FULL
 }
 
 @Serializable
@@ -204,31 +210,18 @@ data class AppStoreSectionsResponse(
 )
 
 @Serializable
-sealed class AppStoreSection {
-    abstract val name: String
-    @Serializable
-    @SerialName("tag")
-    data class Tag(
-        override val name: String,
-        val applications: MutableList<ApplicationSummaryWithFavorite>,
-        override val columns: Int,
-        override val rows: Int
-    ) : AppStoreSection(), WithDimensions
+data class ApplicationGroup (
+    val id: Int,
+    val title: String,
+    val logo: String?,
+    val description: String?
+)
 
-    @Serializable
-    @SerialName("tool")
-    data class Tool(
-        override val name: String,
-        val applications: MutableList<ApplicationSummaryWithFavorite>,
-        override val columns: Int,
-        override val rows: Int
-    ) : AppStoreSection(), WithDimensions
-}
-
-interface WithDimensions {
-    val rows: Int
-    val columns: Int
-}
+@Serializable
+data class AppStoreSection (
+    val name: String,
+    val applications: MutableList<ApplicationGroup>
+)
 
 @Serializable
 enum class AppStoreSectionType {
@@ -924,6 +917,28 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
+    val listFlavors = call("listFlavors", ListFlavorsRequest.serializer(), PageV2.serializer(ApplicationSummary.serializer()), CommonErrorMessage.serializer())  {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +"flavors"
+            }
+
+            params {
+                +boundTo(ListFlavorsRequest::group)
+            }
+        }
+
+        documentation {
+            summary = "Lists all flavors of an application"
+        }
+    }
+
     val overview = call("overview", AppStoreOverviewRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
@@ -944,7 +959,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val sections = call("sections", AppStoreSectionsRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
+    val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -955,7 +970,11 @@ ${ApiConventions.nonConformingApiWarning}
 
             path {
                 using(baseContext)
-                +"sections"
+                +"store"
+            }
+
+            params {
+                +boundTo(AppStoreSectionsRequest::page)
             }
 
             documentation {

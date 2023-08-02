@@ -63,11 +63,15 @@ class AppStoreController(
             ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
         }
 
+        implement(AppStore.listFlavors) {
+            ok(appStore.listFlavors(ctx.securityPrincipal, ctx.project, request.group))
+        }
+
         implement(AppStore.overview) {
             ok(appStore.overview(ctx.securityPrincipal, ctx.project))
         }
 
-        implement(AppStore.sections) {
+        implement(AppStore.store) {
             ok(appStore.browseSections(ctx.securityPrincipal, ctx.project, request.page))
         }
 
