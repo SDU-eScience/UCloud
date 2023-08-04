@@ -33,22 +33,31 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const logoDataUrls = new AsyncCache<string>();
 
-function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean}}): JSX.Element {
+function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    
     if (!opts?.embedded) {
         useTitle("Jobs");
     }
+
+    const omitFilters = !!opts?.omitFilters;
+
+    const features: ResourceBrowseFeatures = {
+        ...FEATURES,
+        filters: !omitFilters,
+        sortDirection: !omitFilters,
+    };
 
     const dateRanges = dateRangeFilters("Created after");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 

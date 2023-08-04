@@ -5,7 +5,6 @@ import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
-import {HexSpinWrapper} from "@/LoadingIcon/LoadingIcon";
 import {
     Absolute,
     Box,
@@ -576,48 +575,46 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         />}
         headerSize={72}
         main={
-            <Box className={TwoColumnLayout} height="height: calc(100vh - 96px)">
+            <Box className={TwoColumnLayout} height="calc(100vh - 92px)">
                 <div className="left">
                     <Flex className={SearchContainer} flexWrap="wrap">
                         {!isAdmin ? null : (
-                            <>
-                                <form onSubmit={onAddMember}>
-                                    <Input
-                                        height={"48px"}
-                                        width="100%"
-                                        id="new-project-member"
-                                        placeholder="Username"
-                                        autoComplete="off"
-                                        inputRef={newMemberRef}
-                                    />
-                                    <Button ml="10px" my="auto" height="36px" type={"submit"}>
-                                        <Text fontSize={"20px"}>Add</Text>
-                                    </Button>
-                                    <Relative width={"0px"} height={"0px"} left="-132px" top="8px">
-                                        {USER_ID_HELP}
-                                    </Relative>
-                                    <Button
-                                        mt={"6px"}
-                                        mx={10}
-                                        height="36px"
-                                        color="green"
-                                        type="button"
-                                        title="Invite with link"
-                                        onClick={async () => {
-                                            dialogStore.addDialog(
-                                                <InviteLinkEditor
-                                                    groups={groups}
-                                                    project={project}
-                                                />,
-                                                doNothing,
-                                                true
-                                            );
-                                        }}
-                                    >
-                                        <Text fontSize="20px">+</Text>
-                                    </Button>
-                                </form>
-                            </>
+                            <form onSubmit={onAddMember}>
+                                <Input
+                                    height={"48px"}
+                                    width="100%"
+                                    id="new-project-member"
+                                    placeholder="Username"
+                                    autoComplete="off"
+                                    inputRef={newMemberRef}
+                                />
+                                <Button ml="10px" my="auto" height="36px" type={"submit"}>
+                                    <Text fontSize={"20px"}>Add</Text>
+                                </Button>
+                                <Relative width={"0px"} height={"0px"} left="-132px" top="8px">
+                                    {USER_ID_HELP}
+                                </Relative>
+                                <Button
+                                    mt={"6px"}
+                                    mx={10}
+                                    height="36px"
+                                    color="green"
+                                    type="button"
+                                    title="Invite with link"
+                                    onClick={async () => {
+                                        dialogStore.addDialog(
+                                            <InviteLinkEditor
+                                                groups={groups}
+                                                project={project}
+                                            />,
+                                            doNothing,
+                                            true
+                                        );
+                                    }}
+                                >
+                                    <Text fontSize="20px">+</Text>
+                                </Button>
+                            </form>
                         )}
                     </Flex>
                     <form onSubmit={preventDefault}>
@@ -1043,7 +1040,6 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
     const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
     const [selectedRole, setSelectedRole] = useState<string>("USER");
-    const linkToggleSet = useToggleSet([]);
 
     const roles = [
         {text: "User", value: "USER"},
@@ -1320,19 +1316,6 @@ const MemberRowWrapper = injectStyleSimple("member-row-wrapper", `
   display: flex;
   align-items: center;
   gap: 10px;
-`);
-
-const ProjectBreadcrumbsWrapper = injectStyle("project-breadcrumbs", k => `
-    ${k} {
-        width: 100%;
-        max-width: unset;
-        flex-grow: 1;
-    }
-
-    ${k} ${HexSpinWrapper} {
-        margin: 0;
-        display: inline;
-    }
 `);
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `

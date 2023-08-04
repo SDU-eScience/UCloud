@@ -52,7 +52,7 @@
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.12",
         "@types/jsrsasign": "^10.5.8",
-        "@types/react": "18.2.17",
+        "@types/react": "18.2.18",
         "@types/react-datepicker": "4.15.0",
         "@types/react-dom": "18.2.7",
         "@types/react-dropzone": "5.1.0",
@@ -67,6 +67,6 @@
         "redux-devtools-extension": "2.13.9",
         "ts-loader": "9.4.4",
         "typescript": "5.1.6",
-        "vite": "4.4.7"
+        "vite": "4.4.8"
     }
 }

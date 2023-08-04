@@ -32,6 +32,7 @@ export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOpt
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string>;
     embedded?: boolean;
+    omitFilters?: boolean;
     selection?: {
         onSelect(res: T): void;
         onSelectRestriction(res: T): boolean;
@@ -792,7 +793,9 @@ export class ResourceBrowser<T> {
         if (this.cantConsumeResources) {
             this.renderCantConsumeResources();
         } else {
-            if (this.features.sortDirection) this.renderSortOrder();
+            if (this.features.sortDirection) {
+                this.renderSortOrder();
+            }
             if (this.features.filters) {
                 this.renderFilters();
                 this.rerenderSessionFilterIcons();

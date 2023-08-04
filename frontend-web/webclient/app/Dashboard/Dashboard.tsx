@@ -436,7 +436,7 @@ function DashboardResources({products}: {
                 </NoResultsCardBody>
             ) :
                 <>
-                    {/* height is 100% - height of Heading 36px  */}
+                    {/* height is 100% - height of Heading 55px */}
                     <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                         <Box my="5px">
                             <Table>
@@ -494,7 +494,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
         error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
-        <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true}} />
+        <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />
     </HighlightedCard>;
 };
 
