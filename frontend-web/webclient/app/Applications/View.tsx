@@ -54,7 +54,6 @@ export const AppHeader: React.FunctionComponent<{
                                                 <Box
                                                     cursor="pointer"
                                                     width="auto"
-                                                    color="white"
                                                     key={f.metadata.name}
                                                     onClick={() => navigate(Pages.runApplication(f.metadata))}
                                                 >

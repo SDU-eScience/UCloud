@@ -487,7 +487,7 @@ class AppStoreAsyncDao(
         }
     }
 
-    suspend fun overview(
+    /*suspend fun overview(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -605,7 +605,7 @@ class AppStoreAsyncDao(
         }
 
         return sections
-    }
+    }*/
 
     suspend fun browseSections(
         ctx: DBContext,
@@ -631,67 +631,61 @@ class AppStoreAsyncDao(
                     setParameter("page", pageType.name)
                 },
                 """
-                    select *
+                    select s.title as section, g.id, g.title as title, logo, description
                     from app_store.sections s
-                    join app_store.section_tags st on st.section_id = s.id
-                    join app_store.applications on 
-                    where page == :page
+                        join app_store.section_featured_items f on f.section_id = s.id
+                        join app_store.application_groups g on g.id = f.group_id
+                    where page = 'LANDING'
+                    order by s.order_index
                 """
             ).rows.forEach { row ->
-                val refId = row.getString("reference_id")!!
-                val tagName = row.getString("tag_name")
-                val type = AppStoreSectionType.valueOf(row.getString("reference_type")!!)
-                val applicationMetadata = ApplicationMetadata(
-                    row.getString("name")!!,
-                    row.getString("version")!!,
-                    defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
-                    row.getString("title")!!,
-                    row.getString("description")!!,
-                    row.getString("website"),
-                    row.getBoolean("is_public")!!
-                )
-                val favorite = row.getBoolean("favorite")!!
-                val columns = row.getInt("columns")!!
-                val rows = row.getInt("rows")!!
-                val tags = defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
-                val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, tags)
+                val sectionName = row.getString("section")!!
+                val groupId = row.getInt("id")!!
+                val groupTitle = row.getString("title")!!
+                val description = row.getString("description")
 
-                val section = sections.find { it.name == tagName || it.name == refId }
-                if (section != null) {
-                    when (section) {
-                        is AppStoreSection.Tag -> {
-                            section.applications.add(appWithFavorite)
-                        }
-                        is AppStoreSection.Tool -> {
-                            section.applications.add(appWithFavorite)
-                        }
-                    }
+                val section = sections.find { it.name == sectionName }
+
+
+                if (section == null) {
+                    sections.add(
+                        AppStoreSection(
+                            sectionName,
+                            mutableListOf(ApplicationGroup(groupId, groupTitle, null, description))
+                        )
+                    )
                 } else {
-                    val newSection = when (type) {
-                        AppStoreSectionType.TAG -> {
-                            AppStoreSection.Tag(
-                                tagName ?: "",
-                                arrayListOf(appWithFavorite),
-                                columns,
-                                rows
-                            )
-                        }
-                        AppStoreSectionType.TOOL -> {
-                            AppStoreSection.Tool(
-                                refId,
-                                arrayListOf(appWithFavorite),
-                                columns,
-                                rows
-                            )
-                        }
-                    }
-
-                    sections.add(newSection)
+                    section.applications.add(ApplicationGroup(groupId, groupTitle, null, description))
                 }
             }
         }
 
         return sections
+    }
+
+    suspend fun listFlavors(
+        ctx: DBContext,
+        project: String?,
+        applicationName: String
+    ): PageV2<ApplicationSummary> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appName", applicationName)
+                },
+                """
+                    select *
+                    from app_store.applications
+                    where group_id = (
+                        select group_id
+                        from app_store.applications
+                        where name = :appName
+                    )
+                """
+            ).rows.map {
+                it.toApplicationSummary()
+            }.let { PageV2(25, it, null) }
+        }
     }
 
     suspend fun delete(

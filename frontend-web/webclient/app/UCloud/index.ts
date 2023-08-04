@@ -1570,6 +1570,7 @@ export interface ApplicationMetadata {
     description: string,
     website?: string,
     public: boolean,
+    group: ApplicationGroup
 }
 export interface ApplicationInvocationDescription {
     tool: ToolReference,
@@ -2622,16 +2623,21 @@ export interface TagSearchRequest {
     page?: number /* int32 */,
 }
 export interface ListTagsRequest {}
-export interface AppStoreOverviewRequest {}
-export interface AppStoreOverview {
+export interface AppStoreSectionsRequest {
+    page: string,
+}
+export interface AppStoreSections {
     sections: AppStoreSection[],
+}
+export interface ApplicationGroup {
+    id: number,
+    title: string,
+    logo?: string,
+    description?: string
 }
 export interface AppStoreSection {
     name: string,
-    type: AppStoreSectionType,
-    applications: ApplicationSummaryWithFavorite[],
-    columns: number,
-    rows: number
+    applications: ApplicationGroup[],
 }
 export enum AppStoreSectionType {
     TAG = "tag",
@@ -3063,6 +3069,17 @@ export function findByName(
         reloadId: Math.random(),
     };
 }
+export function listFlavors(
+    request: FindByNameAndPagination 
+): APICallParameters<FindByNameAndPagination, Page<ApplicationSummaryWithFavorite>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/hpc/apps" + "/flavors", {appName: request.appName, itemsPerPage: request.itemsPerPage, page: request.page}),
+        parameters: request,
+        reloadId: Math.random(),
+    }
+}
 export function listAll(
     request: PaginationRequest
 ): APICallParameters<PaginationRequest, Page<ApplicationSummaryWithFavorite>> {
@@ -3182,12 +3199,14 @@ export function listTags(
         reloadId: Math.random(),
     }
 }
-export function appStoreOverview(): APICallParameters<AppStoreOverviewRequest, AppStoreOverview> {
+export function appStoreSections(
+    request: AppStoreSectionsRequest
+): APICallParameters<AppStoreSectionsRequest, AppStoreSections> {
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/hpc/apps/overview", {}),
-        parameters: requestAnimationFrame,
+        path: buildQueryString("/api/hpc/apps/store", {page: request.page}),
+        parameters: request,
         reloadId: Math.random(),
     }
 }

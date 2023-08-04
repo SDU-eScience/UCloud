@@ -183,7 +183,7 @@ typealias DeleteAppResponse = Unit
 
 @Serializable
 data class ListFlavorsRequest (
-    val group: String
+    val appName: String
 )
 
 typealias AppStoreOverviewRequest = Unit
@@ -930,7 +930,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             params {
-                +boundTo(ListFlavorsRequest::group)
+                +boundTo(ListFlavorsRequest::appName)
             }
         }
 

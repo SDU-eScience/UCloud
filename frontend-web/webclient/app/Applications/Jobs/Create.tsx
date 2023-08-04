@@ -25,7 +25,7 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
@@ -63,6 +63,11 @@ export const Create: React.FunctionComponent = () => {
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
         null
+    );
+
+    const [appFlavors, fetchAppFlavors] = useCloudAPI<UCloud.PageV2<UCloud.compute.ApplicationSummaryWithFavorite>>(
+        {noop: true},
+        emptyPageV2
     );
 
     const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
@@ -103,9 +108,13 @@ export const Create: React.FunctionComponent = () => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
-        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
+        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}));
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);
+
+    useEffect(() => {
+        fetchAppFlavors(UCloud.compute.apps.listFlavors({appName, itemsPerPage: 50, page: 0}));
+    }, [appName]);
 
     const application = applicationResp.data;
 
@@ -298,13 +307,11 @@ export const Create: React.FunctionComponent = () => {
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
 
-    const appFlavors = [];
-
     return <MainContainer
         main={
             <>
                 <Box mx="50px" mt="32px">
-                    <Spacer left={<AppHeader slim application={application} flavors={appFlavors} allVersions={previousResp.data?.items ?? []} />} right={<>
+                    <Spacer left={<AppHeader slim application={application} flavors={appFlavors.data.items} allVersions={previousResp.data?.items ?? []} />} right={<>
                         {!application.metadata.website ? null : (
                             <ExternalLink title="Documentation" href={application.metadata.website}>
                                 <Icon name="documentation" color="blue" />

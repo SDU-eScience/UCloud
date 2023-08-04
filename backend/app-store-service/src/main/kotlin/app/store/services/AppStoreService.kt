@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
@@ -320,10 +319,11 @@ class AppStoreService(
     suspend fun listFlavors(
         securityPrincipal: SecurityPrincipal,
         project: String?,
-        group: String
+        applicationName: String
     ): PageV2<ApplicationSummary> {
-        //TODO(Brian)
-        return PageV2(25, emptyList(), null)
+        return db.withTransaction { session ->
+            applicationDao.listFlavors(session, project, applicationName)
+        }
     }
 
     suspend fun overview(securityPrincipal: SecurityPrincipal, project: String?): AppStoreOverviewResponse {

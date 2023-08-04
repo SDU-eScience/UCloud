@@ -64,7 +64,7 @@ class AppStoreController(
         }
 
         implement(AppStore.listFlavors) {
-            ok(appStore.listFlavors(ctx.securityPrincipal, ctx.project, request.group))
+            ok(appStore.listFlavors(ctx.securityPrincipal, ctx.project, request.appName))
         }
 
         implement(AppStore.overview) {
