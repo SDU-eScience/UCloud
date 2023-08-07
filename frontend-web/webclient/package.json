@@ -41,7 +41,7 @@
         "react-window": "^1.8.9",
         "recharts": "2.1.13",
         "redux": "4.2.1",
-        "styled-components": "6.0.5",
+        "styled-components": "6.0.7",
         "styled-system": "5.1.5",
         "svgi": "1.1.2",
         "ua-parser-js": "1.0.35",
