@@ -38,7 +38,7 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, Ingre
     globalTtl: 60_000
 });
 
-const DUMMY_ENTRY_ID = "dummy";
+const DUMMY_ENTRY_ID = "$$$dummy$$$";
 
 export function ExperimentalPublicLinks(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
@@ -109,6 +109,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                                     product: productReference
                                 },
                             } as Ingress;
+
 
 
                             browser.insertEntryIntoCurrentPage(ingressBeingCreated);
@@ -200,11 +201,55 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     }
                 ]);
 
+                browser.on("startRenderPage", () => {
+                    const inputField = browser.renameField;
+                    const parent = inputField?.parentElement;
+                    const prefix = browser.root.querySelector(".PREFIX");
+                    const postfix = browser.root.querySelector(".POSTFIX");
+                    if (!parent) return;
+                    if (prefix) parent.removeChild(prefix);
+                    if (postfix) parent.removeChild(postfix);
+                });
+
+                browser.on("endRenderPage", () => {
+                    const inputField = browser.renameField;
+                    const parent = inputField?.parentElement;
+                    if (!parent) return;
+                    const prefix = browser.root.querySelector(".PREFIX");
+                    const postfix = browser.root.querySelector(".POSTFIX");
+                    {
+                        if (inputField?.style.display !== "none") {
+                            if (!prefix) {
+                                const newPrefix = document.createElement("span");
+                                newPrefix.innerText = browser.renamePrefix;
+                                newPrefix.className = "PREFIX";
+                                newPrefix.style.position = "absolute";
+                                newPrefix.style.top = inputField.style.top;
+                                newPrefix.style.left = inputField.getBoundingClientRect().left - 120 + "px";
+                                parent.prepend(newPrefix);
+                            }
+                            if (!postfix) {
+                                const newPostfix = document.createElement("span");
+                                newPostfix.innerText = browser.renamePostfix;
+                                newPostfix.className = "POSTFIX";
+                                newPostfix.style.position = "absolute";
+                                newPostfix.style.top = inputField.style.top;
+                                newPostfix.style.left = inputField.getBoundingClientRect().right - 80 + "px";
+                                parent.prepend(newPostfix);
+                            }
+                        }
+                    }
+                });
+
                 browser.on("renderRow", (link, row, dims) => {
-                    const icon = providerIcon(link.specification.product.provider);
-                    icon.style.marginRight = "8px";
-                    row.title.append(icon);
-                    row.title.append(browser.defaultTitleRenderer(link.specification.domain, dims));
+                    const {provider} = link.specification.product;
+
+                    if (provider) {
+                        const icon = providerIcon(link.specification.product.provider);
+                        icon.style.marginRight = "8px";
+                        row.title.append(icon);
+                        row.title.append(browser.defaultTitleRenderer(link.specification.domain, dims));
+                    }
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
@@ -270,6 +315,10 @@ export function ExperimentalPublicLinks(): JSX.Element {
 
                 browser.on("pathToEntry", entry => entry.id);
             });
+        }
+        const renameField = browserRef.current?.root.querySelector(".rename-field") as HTMLInputElement | null;
+        if (renameField) {
+            renameField.style.left = "90px";
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         // TODO(Jonas): Creation

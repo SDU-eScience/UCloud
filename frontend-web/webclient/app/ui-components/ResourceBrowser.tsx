@@ -257,7 +257,7 @@ export interface ResourceBrowseFeatures {
 
 export class ResourceBrowser<T> {
     // DOM component references
-    private root: HTMLElement;
+    /* private */ root: HTMLElement;
     private operations: HTMLElement;
     /* private */ filters: HTMLElement;
     /* private */ rightFilters: HTMLElement;
@@ -3010,7 +3010,7 @@ export class ResourceBrowser<T> {
         `);
     }
 
-    private addCheckboxToFilter<T>(filter: FilterCheckbox) {
+    private addCheckboxToFilter(filter: FilterCheckbox) {
         const wrapper = document.createElement("label");
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "8px";
@@ -3053,7 +3053,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    private addOptionsToFilter<T>(filter: FilterWithOptions | MultiOptionFilter) {
+    private addOptionsToFilter(filter: FilterWithOptions | MultiOptionFilter) {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
