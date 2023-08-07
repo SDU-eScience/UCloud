@@ -172,7 +172,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         color: statusIconColor,
                         color2: statusIconColor
                     }).then(setStatus);
-                    row.stat1.append(status);
+                    row.stat3.append(status);
                 });
 
                 browser.setEmptyIcon("play");
