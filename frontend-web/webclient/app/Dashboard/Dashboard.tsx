@@ -41,7 +41,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
-import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -372,7 +372,7 @@ function DashboardRuns({runs}: {
                     <Button mt={8}>View applications</Button>
                 </Link>
             </NoResultsCardBody>
-        ) : <ExperimentalJobs opts={{embedded: true, omitBreadcrumbs: true}} />}
+        ) : <ExperimentalJobs opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />}
     </HighlightedCard>;
 }
 

@@ -1,8 +1,5 @@
-import {HttpClient} from "@/Authentication/lib";
 import {emptyPage} from "@/DefaultObjects";
 import {Action} from "redux";
-import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
 
 declare global {
     const DEVELOPMENT_ENV: boolean;
