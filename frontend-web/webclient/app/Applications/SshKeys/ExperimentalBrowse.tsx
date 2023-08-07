@@ -8,6 +8,7 @@ import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {image} from "@/Utilities/HTMLUtilities";
+import AppRoutes from "@/Routes";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -41,10 +42,10 @@ export function ExperimentalSSHKey(): JSX.Element {
                     cancelCreation: () => void 0,
                 };
 
-
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        // TODO(Jonas): Handle properties
+                        navigate(AppRoutes.resources.sshKeysCreate());
+                        return;
                     }
 
                     callAPI(SshKeyApi.browse({
