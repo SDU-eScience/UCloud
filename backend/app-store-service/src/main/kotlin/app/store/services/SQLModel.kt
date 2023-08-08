@@ -38,7 +38,7 @@ object FavoriteApplicationTable : SQLTable("favorited_by") {
  * - V3__Applications.sql
  * - V4__Tools.sql
  */
-object ApplicationTable : SQLTable("applications") {
+/*object ApplicationTable : SQLTable("applications") {
     val owner = text("owner", notNull = true)
     val createdAt = timestamp("created_at", notNull = true)
     val modifiedAt = timestamp("modified_at", notNull = true)
@@ -52,7 +52,7 @@ object ApplicationTable : SQLTable("applications") {
     val isPublic = bool("is_public", notNull = true)
     val idName = text("name", notNull = true)
     val idVersion = text("version", notNull = true)
-}
+}*/
 
 object ApplicationLogosTable : SQLTable("application_logos") {
     val application = text("application", notNull = true)

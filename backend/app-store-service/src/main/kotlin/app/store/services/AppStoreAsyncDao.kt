@@ -294,14 +294,14 @@ class AppStoreAsyncDao(
             mapper = { _, rows ->
                 rows.filter { rowData ->
                     defaultMapper.decodeFromString<ApplicationInvocationDescription>(
-                        rowData.getField(ApplicationTable.application)
+                        rowData.getString("application")!!
                     ).parameters.all { it.optional }
                 }
                 .map {
                     ApplicationWithExtension(
                         it.toApplicationMetadata(),
                         defaultMapper.decodeFromString<ApplicationInvocationDescription>(
-                            it.getField(ApplicationTable.application)
+                            it.getString("application")!!
                         ).fileExtensions
                     )
                 }
@@ -444,26 +444,31 @@ class AppStoreAsyncDao(
         }
 
         ctx.withSession { session ->
-            session.insert(ApplicationTable) {
-                set(ApplicationTable.owner, username)
-                set(ApplicationTable.createdAt, LocalDateTime.now())
-                set(ApplicationTable.modifiedAt, LocalDateTime.now())
-                set(ApplicationTable.authors, defaultMapper.encodeToString(description.metadata.authors))
-                set(ApplicationTable.title, description.metadata.title)
-                set(ApplicationTable.description, description.metadata.description)
-                set(ApplicationTable.website, description.metadata.website)
-                set(ApplicationTable.toolName, existingTool.getField(ToolTable.idName))
-                set(ApplicationTable.toolVersion, existingTool.getField(ToolTable.idVersion))
-                set(ApplicationTable.isPublic, description.metadata.isPublic)
-                set(ApplicationTable.idName, description.metadata.name)
-                set(ApplicationTable.idVersion, description.metadata.version)
-                set(ApplicationTable.application, defaultMapper.encodeToString(description.invocation))
-            }
+            session.sendPreparedStatement(
+                {
+                    setParameter("owner", username)
+                    setParameter("created_at", LocalDateTime.now())
+                    setParameter("modified_at", LocalDateTime.now())
+                    setParameter("authors", defaultMapper.encodeToString(description.metadata.authors))
+                    setParameter("title", description.metadata.title)
+                    setParameter("description", description.metadata.description)
+                    setParameter("website", description.metadata.website)
+                    setParameter("tool_name", existingTool.getField(ToolTable.idName))
+                    setParameter("tool_version", existingTool.getField(ToolTable.idVersion))
+                    setParameter("is_public", description.metadata.isPublic)
+                    setParameter("id_name", description.metadata.name)
+                    setParameter("id_version", description.metadata.version)
+                    setParameter("application", defaultMapper.encodeToString(description.invocation))
+                },
+                """
+                    insert into app_store.applications
+                        (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, tags, title, description, website) 
+                    values 
+                        (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :tags, :title, :description, :website)
+                """
+            )
 
             if (isProvider) {
-                // TODO(Dan): Need to rework how this app-store works. There isn't even a unique constraint on
-                //  (application, tag)
-                // UPDATE(Brian): There is now
                 val tagId = session.sendPreparedStatement(
                     {
                         setParameter("provider_tag", providerName)
@@ -745,14 +750,14 @@ class AppStoreAsyncDao(
 
             cleanupBeforeDelete(
                 session,
-                existingApp.getField(ApplicationTable.idName),
-                existingApp.getField(ApplicationTable.idVersion))
+                existingApp.getString("name")!!,
+                existingApp.getString("version")!!)
 
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("appname", existingApp.getField(ApplicationTable.idName))
-                        setParameter("appversion", existingApp.getField(ApplicationTable.idVersion))
+                        setParameter("appname", existingApp.getString("name")!!)
+                        setParameter("appversion", existingApp.getString("version"))
                     },
                     """
                         DELETE FROM applications
@@ -955,16 +960,15 @@ class AppStoreAsyncDao(
 }
 
 internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
-    val authors = defaultMapper.decodeFromString<List<String>>(getField(ApplicationTable.authors))
-
     return ApplicationMetadata(
-        getField(ApplicationTable.idName),
-        getField(ApplicationTable.idVersion),
-        authors,
-        getField(ApplicationTable.title),
-        getField(ApplicationTable.description),
-        getField(ApplicationTable.website),
-        getField(ApplicationTable.isPublic)
+        this.getString("name")!!,
+        this.getString("version")!!,
+        defaultMapper.decodeFromString(this.getString("authors")!!),
+        this.getString("title")!!,
+        this.getString("description")!!,
+        this.getString("website"),
+        this.getBoolean("is_public")!!,
+        this.getString("flavor_name")
     )
 }
 
@@ -973,7 +977,7 @@ internal fun RowData.toApplicationSummary(): ApplicationSummary {
 }
 
 internal fun RowData.toApplicationWithInvocation(): Application {
-    val application = getField(ApplicationTable.application)
+    val application = this.getString("application")!!
     val invocations = defaultMapper.decodeFromString<ApplicationInvocationDescription>(application)
     return Application(
         toApplicationMetadata(),

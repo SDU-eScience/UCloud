@@ -140,18 +140,18 @@ class Server(override val micro: Micro) : CommonServer {
                     db.withSession { session ->
                         val apps = applicationDAO.getAllApps(session, dummyUser)
                         apps.forEach { app ->
-                            val name = app.getField(ApplicationTable.idName).toLowerCase()
-                            val version = app.getField(ApplicationTable.idVersion).toLowerCase()
-                            val description = app.getField(ApplicationTable.description).toLowerCase()
-                            val title = app.getField(ApplicationTable.title).toLowerCase()
+                            val name = app.getString("name")!!.lowercase()
+                            val version = app.getString("version")!!.lowercase()
+                            val description = app.getString("description")!!.lowercase()
+                            val title = app.getString("title")!!.lowercase()
                             val tags = tagDAO.findTagsForApp(
                                 session,
-                                app.getField(ApplicationTable.idName)
+                                app.getString("name")!!
                             )
 
                             elasticDAO?.createApplicationInElastic(name, version, description, title, tags)
-                            log.info("created: ${app.getField(ApplicationTable.idName)}" +
-                                    ":${app.getField(ApplicationTable.idVersion)}"
+                            log.info("created: ${app.getString("name")!!}" +
+                                    ":${app.getString("version")!!}"
                             )
                         }
                         log.info("DONE Migrating")

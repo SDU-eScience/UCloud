@@ -58,8 +58,8 @@ class FavoriteAsyncDao(
                     user,
                     project,
                     memberGroups,
-                    foundApp.getField(ApplicationTable.idName),
-                    foundApp.getField(ApplicationTable.idVersion),
+                    foundApp.getString("name")!!,
+                    foundApp.getString("version")!!,
                     ApplicationAccessRight.LAUNCH,
                     publicDao,
                     aclDao
@@ -69,11 +69,11 @@ class FavoriteAsyncDao(
                     session.insert(FavoriteApplicationTable) {
                         set(
                             FavoriteApplicationTable.applicationName,
-                            foundApp.getField(ApplicationTable.idName)
+                            foundApp.getString("name")!!
                         )
                         set(
                             FavoriteApplicationTable.applicationVersion,
-                            foundApp.getField(ApplicationTable.idVersion)
+                            foundApp.getString("version")!!
                         )
                         set(FavoriteApplicationTable.user, user.username)
                         set(FavoriteApplicationTable.id, id)

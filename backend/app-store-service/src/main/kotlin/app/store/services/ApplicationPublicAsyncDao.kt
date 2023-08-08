@@ -20,14 +20,14 @@ class ApplicationPublicAsyncDao() {
                     """
                         SELECT *
                         FROM applications
-                        WHERE (name = ?name) AND (version = ?version)
+                        WHERE (name = :name) AND (version = :version)
                     """.trimIndent()
                 )
                 .rows
                 .singleOrNull() ?: throw ApplicationException.NotFound()
 
         }
-        return result.getField(ApplicationTable.isPublic)
+        return result.getBoolean("is_public")!!
     }
 
     suspend fun setPublic(
