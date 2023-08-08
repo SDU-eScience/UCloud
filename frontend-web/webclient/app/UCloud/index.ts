@@ -2633,11 +2633,12 @@ export interface ApplicationGroup {
     id: number,
     title: string,
     logo?: string,
-    description?: string
+    description?: string,
+    application: ApplicationSummaryWithFavorite
 }
 export interface AppStoreSection {
     name: string,
-    applications: ApplicationGroup[],
+    items: ApplicationGroup[],
 }
 export enum AppStoreSectionType {
     TAG = "tag",

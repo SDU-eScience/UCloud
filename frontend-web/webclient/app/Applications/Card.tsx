@@ -8,13 +8,13 @@ import {EllipsedText, TextClass} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
 import * as Pages from "./Pages";
 import {compute} from "@/UCloud";
-import ApplicationWithFavoriteAndTags = compute.ApplicationWithFavoriteAndTags;
+import ApplicationGroup = compute.ApplicationGroup;
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
-    app: Pick<ApplicationWithFavoriteAndTags, "tags" | "metadata">;
+    app: ApplicationGroup;
     isFavorite?: boolean;
     linkToRun?: boolean;
     colorBySpecificTag?: string;
@@ -77,13 +77,13 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
 `);
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const {metadata} = props.app;
+    const {metadata} = props.app.application;
     return (
         <Link className={AppCardBase} to={Pages.runApplication(metadata)}>
             <Box mr={16}>
                 <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
             </Box>
-            <b>{metadata.title}</b>
+            <b>{props.app.title}</b>
             <EllipsedText>
                 <Markdown
                     disallowedElements={[
@@ -110,7 +110,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                         "html"]}
                     unwrapDisallowed
                 >
-                    {metadata.description}
+                    {props.app.description ?? ""}
                 </Markdown>
             </EllipsedText>
             <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
@@ -480,22 +480,22 @@ export function AppCard(props: AppCardProps): JSX.Element {
 
     const favorite = React.useCallback((e: React.SyntheticEvent) => {
         stopPropagationAndPreventDefault(e);
-        props.onFavorite?.(props.app.metadata.name, props.app.metadata.version);
-    }, [props.app.metadata]);
+        props.onFavorite?.(props.app.application.metadata.name, props.app.application.metadata.version);
+    }, [props.app.application]);
 
 
     return React.useMemo(() => {
         let lineCount = lineCountFromType(props.type);
         const app = props.app;
-        const {metadata} = app;
+        const {application} = app;
         const favoriteDiv =
             <div className={FavIcon} onClick={favorite}>
                 <Icon color="var(--blue)" hoverColor="blue" size={FAV_ICON_SIZE} name={"starEmpty"} />
             </div>
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
-                <div><b>{metadata.title}</b></div>
-                <MultiLineTruncate lines={lineCount}>{metadata.description}</MultiLineTruncate>
+                <div><b>{app.title}</b></div>
+                <MultiLineTruncate lines={lineCount}>{app.description}</MultiLineTruncate>
             </div>;
         switch (props.type) {
             case ApplicationCardType.EXTRA_TALL:
@@ -504,7 +504,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
                 return <Flex flexDirection="column" className={ApplicationCardClass + " " + TallApplicationCard} data-xl={isExtraTall}>
                     {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={"52px"} name={app.metadata.name} type="APPLICATION" />
+                        <AppToolLogo size={"52px"} name={application.metadata.name} type="APPLICATION" />
                     </div>
                     {titleAndDescription}
                 </Flex>
@@ -514,7 +514,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
                 return <div className={ApplicationCardClass + " " + WideApplicationCard} data-xl={isExtraWide}>
                     {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={app.metadata.name} type="APPLICATION" />
+                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={application.metadata.name} type="APPLICATION" />
                     </div>
                     {titleAndDescription}
                 </div>

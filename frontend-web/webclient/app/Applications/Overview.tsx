@@ -13,7 +13,8 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import AppStoreOverview = compute.AppStoreOverview;
+import AppStoreSections = compute.AppStoreSections;
+import ApplicationGroup = compute.ApplicationGroup;
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
@@ -157,28 +158,30 @@ function LargeSearchBox(): JSX.Element {
     const navigate = useNavigate();
   
     return <div className={LargeSearchBoxClass}>
-            <Flex justifyContent="space-between">
-                <Input
-                    placeholder="Search for applications..."
-                    onKeyUp={e => {
-                        console.log(e);
-                        if (e.key === "Enter") {
-                            navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
-                        }
-                    }}
-                    autoFocus
-                />
-                <button>
-                    <Icon name="search" size={20} color="darkGray" my="auto" />
-                </button>
-            </Flex>
-        </div>;
+        <Flex justifyContent="space-between">
+            <Input
+                placeholder="Search for applications..."
+                onKeyUp={e => {
+                    console.log(e);
+                    if (e.key === "Enter") {
+                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
+                    }
+                }}
+                autoFocus
+            />
+            <button>
+                <Icon name="search" size={20} color="darkGray" my="auto" />
+            </button>
+        </Flex>
+    </div>;
 }
 
 const ApplicationsOverview: React.FunctionComponent = () => {
     const location = useLocation();
 
-    const [sections, fetchOverview] = useCloudAPI<AppStoreOverview>(
+    const isLanding = !location.pathname.endsWith("full") && !location.pathname.endsWith("full/");
+
+    const [sections, fetchSections] = useCloudAPI<AppStoreSections>(
         {noop: true},
         {sections: []}
     );
@@ -186,7 +189,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     const [refreshId, setRefreshId] = useState<number>(0);
 
     useEffect(() => {
-        fetchOverview(UCloud.compute.apps.appStoreOverview());
+        fetchSections(UCloud.compute.apps.appStoreSections({page: isLanding ? "LANDING" : "FULL"}));
     }, [refreshId]);
 
     useResourceSearch(ApiLike);
@@ -224,16 +227,10 @@ const ApplicationsOverview: React.FunctionComponent = () => {
         }
     }, [favoriteStatus]);
 
-    const featured1 = sections.data.sections[7]?.applications.slice(0, 4);
-    const featured12 = sections.data.sections[7]?.applications.slice(0,6);
-    const featured2 = sections.data.sections[7];
-    const featured22 = sections.data.sections[7];
-
     const main = (
         <Box mx="auto" maxWidth="1340px">
             <Box mt="12px" />
             <FavoriteAppRow
-                columns={7}
                 favoriteStatus={favoriteStatus}
                 onFavorite={onFavorite}
                 refreshId={refreshId}
@@ -241,12 +238,13 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
             <LargeSearchBox />
 
-            { !location.pathname.endsWith("full") && !location.pathname.endsWith("full/") ? 
+
+            { isLanding ?
                 <>
-                    {sections.data.sections[7] ?
+                    {sections.data.sections[0] ?
                         <ApplicationRow
-                            key={sections.data.sections[7].name + sections.data.sections[7].type}
-                            items={featured1}
+                            key={sections.data.sections[0].name}
+                            items={sections.data.sections[0].items}
                             type={ApplicationCardType.WIDE}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
@@ -255,10 +253,10 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                         />
                     : <></>}
 
-                    {sections.data.sections[7] ?
+                    {sections.data.sections[1] ?
                         <ApplicationRow
-                            key={sections.data.sections[7].name + sections.data.sections[7].type}
-                            items={featured12}
+                            key={sections.data.sections[1].name}
+                            items={sections.data.sections[1].items}
                             type={ApplicationCardType.TALL}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
@@ -273,10 +271,10 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                         <img src={ucloudImage} />
                     </Flex>
 
-                    {sections.data.sections[7] ?
+                    {sections.data.sections[0] ?
                         <ApplicationRow
-                            key={sections.data.sections[7].name + sections.data.sections[7].type}
-                            items={featured1}
+                            key={sections.data.sections[0].name}
+                            items={sections.data.sections[0].items}
                             type={ApplicationCardType.WIDE}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
@@ -285,10 +283,10 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                         />
                     : <></>}
 
-                    {sections.data.sections[7] ?
+                    {sections.data.sections[1] ?
                         <ApplicationRow
-                            key={sections.data.sections[7].name + sections.data.sections[7].type}
-                            items={featured12}
+                            key={sections.data.sections[1].name}
+                            items={sections.data.sections[1].items}
                             type={ApplicationCardType.TALL}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
@@ -302,10 +300,9 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             :
                 sections.data.sections.map(section =>
                     <TagGrid
-                        key={section.name + section.type}
+                        key={section.name}
                         tag={section.name}
-                        items={section.applications}
-                        columns={section.columns}
+                        items={section.items}
                         favoriteStatus={favoriteStatus}
                         onFavorite={onFavorite}
                         tagBanList={[]}
@@ -358,16 +355,15 @@ const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
 
 interface TagGridProps {
     tag?: string;
-    items: ApplicationSummaryWithFavorite[];
+    items: ApplicationGroup[];
     tagBanList?: string[];
-    columns: number;
     favoriteStatus: React.MutableRefObject<FavoriteStatus>;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
     refreshId: number;
 }
 
 interface ApplicationRowProps {
-    items: ApplicationSummaryWithFavorite[];
+    items: ApplicationGroup[];
     type: ApplicationCardType;
     favoriteStatus: React.MutableRefObject<FavoriteStatus>;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
@@ -429,12 +425,14 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
     items, type, favoriteStatus, onFavorite, scrolling
 }: ApplicationRowProps) => {
     const filteredItems = React.useMemo(() =>
-        filterAppsByFavorite(items, false, [], favoriteStatus),
-        [items, favoriteStatus.current]);
+        items,
+        [items]
+    );
+        // TODO(Brian)
+        //filterAppsByFavorite(items, false, [], favoriteStatus),
+        //[items, favoriteStatus.current]);
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
-
-    if (filteredItems.length === 0) return null;
 
     const hasScroll = scrollRef.current && scrollRef.current.scrollWidth > scrollRef.current.clientWidth;
 
@@ -466,13 +464,13 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                         py="10px"
                     >
                         {filteredItems.map(app =>
-                            <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                            <Link key={app.id} to={Pages.run(app.application.metadata.name, app.application.metadata.version)}>
                                 <AppCard
                                     type={ApplicationCardType.WIDE}
-                                    onFavorite={() => onFavorite(app)}
+                                    onFavorite={() => onFavorite(app.application)}
                                     app={app}
-                                    isFavorite={app.favorite}
-                                    tags={app.tags}
+                                    isFavorite={false}
+                                    tags={[]}
                                 />
                             </Link>
                         )}
@@ -488,13 +486,13 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             style={{gridAutoFlow: "column"}}
                         >
                             {filteredItems.map(app =>
-                                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                                <Link key={app.id} to={Pages.run(app.application.metadata.name, app.application.metadata.version)}>
                                     <AppCard
                                         type={ApplicationCardType.EXTRA_TALL}
-                                        onFavorite={() => onFavorite(app)}
+                                        onFavorite={() => onFavorite(app.application)}
                                         app={app}
-                                        isFavorite={app.favorite}
-                                        tags={app.tags}
+                                        isFavorite={false}
+                                        tags={[]}
                                     />
                                 </Link>
                             )}
@@ -508,13 +506,13 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             py="10px"
                         >
                             {filteredItems.map(app =>
-                                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                                <Link key={app.id} to={Pages.run(app.application.metadata.name, app.application.metadata.version)}>
                                     <AppCard
                                         type={ApplicationCardType.EXTRA_TALL}
-                                        onFavorite={() => onFavorite(app)}
+                                        onFavorite={() => onFavorite(app.application)}
                                         app={app}
-                                        isFavorite={app.favorite}
-                                        tags={app.tags}
+                                        isFavorite={false}
+                                        tags={[]}
                                     />
                                 </Link>
                             )}
@@ -530,8 +528,9 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
     tag, items, tagBanList = [], favoriteStatus, onFavorite
 }: TagGridProps) => {
     const filteredItems = React.useMemo(() =>
-        filterAppsByFavorite(items, false, tagBanList, favoriteStatus),
-        [items, favoriteStatus.current]);
+        items, []);
+        //filterAppsByFavorite(items, false, tagBanList, favoriteStatus),
+        //[items, favoriteStatus.current]);
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -583,13 +582,16 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
                     py="10px"
                 >
                     {firstFour.map(app =>
-                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                        <Link
+                            key={app.application.metadata.name + app.application.metadata.version}
+                            to={Pages.run(app.application.metadata.name, app.application.metadata.version)}
+                        >
                             <AppCard
                                 type={ApplicationCardType.WIDE}
-                                onFavorite={() => onFavorite(app)}
+                                onFavorite={() => onFavorite(app.application)}
                                 app={app}
-                                isFavorite={app.favorite}
-                                tags={app.tags}
+                                isFavorite={false}
+                                tags={[]}
                             />
                         </Link>
                     )}
@@ -603,13 +605,13 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
                     style={{gridAutoFlow: "column"}}
                 >
                     {remaining.map(app =>
-                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                        <Link key={app.id} to={Pages.run(app.application.metadata.name, app.application.metadata.version)}>
                             <AppCard
                                 type={ApplicationCardType.EXTRA_TALL}
-                                onFavorite={() => onFavorite(app)}
+                                onFavorite={() => onFavorite(app.application)}
                                 app={app}
-                                isFavorite={app.favorite}
-                                tags={app.tags}
+                                isFavorite={false}
+                                tags={[]}
                             />
                         </Link>
                     )}

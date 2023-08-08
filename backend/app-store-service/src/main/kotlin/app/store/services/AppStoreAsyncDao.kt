@@ -631,31 +631,59 @@ class AppStoreAsyncDao(
                     setParameter("page", pageType.name)
                 },
                 """
-                    select s.title as section, g.id, g.title as title, logo, description
-                    from app_store.sections s
-                        join app_store.section_featured_items f on f.section_id = s.id
-                        join app_store.application_groups g on g.id = f.group_id
-                    where page = 'LANDING'
-                    order by s.order_index
+                    with cte as (
+                        select
+                            distinct on (g.id) g.id,
+                            a.name,
+                            a.version,
+                            a.authors,
+                            a.title,
+                            a.description as app_description,
+                            a.website,
+                            a.is_public,
+                            exists(select * from app_store.favorited_by where the_user = :user and application_name = a.name) favorite,
+                            s.title as section,
+                            g.title as title,
+                            g.logo,
+                            g.description,
+                            f.order_index
+                        from app_store.sections s
+                            join app_store.section_featured_items f on f.section_id = s.id
+                            join app_store.application_groups g on g.id = f.group_id
+                            join app_store.applications a on g.id = a.group_id
+                        where page = 'LANDING'
+                    )
+                    select * from cte order by order_index
                 """
             ).rows.forEach { row ->
                 val sectionName = row.getString("section")!!
                 val groupId = row.getInt("id")!!
                 val groupTitle = row.getString("title")!!
                 val description = row.getString("description")
+                val applicationMetadata = ApplicationMetadata(
+                    row.getString("name")!!,
+                    row.getString("version")!!,
+                    defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
+                    row.getString("title")!!,
+                    row.getString("app_description")!!,
+                    row.getString("website"),
+                    row.getBoolean("is_public")!!
+                )
+
+                val favorite = row.getBoolean("favorite")!!
+                val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, emptyList())
 
                 val section = sections.find { it.name == sectionName }
-
 
                 if (section == null) {
                     sections.add(
                         AppStoreSection(
                             sectionName,
-                            mutableListOf(ApplicationGroup(groupId, groupTitle, null, description))
+                            mutableListOf(ApplicationGroup(groupId, groupTitle, null, description, appWithFavorite))
                         )
                     )
                 } else {
-                    section.applications.add(ApplicationGroup(groupId, groupTitle, null, description))
+                    section.items.add(ApplicationGroup(groupId, groupTitle, null, description, appWithFavorite))
                 }
             }
         }

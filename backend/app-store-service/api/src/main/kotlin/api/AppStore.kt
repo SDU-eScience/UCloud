@@ -214,13 +214,14 @@ data class ApplicationGroup (
     val id: Int,
     val title: String,
     val logo: String?,
-    val description: String?
+    val description: String?,
+    val application: ApplicationSummaryWithFavorite
 )
 
 @Serializable
 data class AppStoreSection (
     val name: String,
-    val applications: MutableList<ApplicationGroup>
+    val items: MutableList<ApplicationGroup>
 )
 
 @Serializable
