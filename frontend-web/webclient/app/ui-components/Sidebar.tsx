@@ -446,6 +446,7 @@ export function Sidebar(): JSX.Element | null {
             </div>
 
             <SecondarySidebar
+                key={selectedPage} /* Note(Jonas) Needed for Safari to update correctly  */
                 data-tag="secondary"
                 hovered={hoveredPage}
                 clicked={selectedPage}
