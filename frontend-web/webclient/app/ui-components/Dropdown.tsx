@@ -59,7 +59,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
     
     ${k}[data-padding-controlled="false"] {
-        padding: 12px 16px;
+        padding: 0px 17px;
     }
     
     ${k}[data-padding-controlled="false"] > div {
@@ -67,6 +67,22 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         margin-right: -17px;
         padding-left: 17px;
         padding-right: 17px;
+        white-space: nowrap;
+    }
+
+    ${k} > div {
+        padding-top: 5px;
+        padding-bottom: 5px;
+    }
+
+    ${k} > div:first-child {
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+    }
+
+    ${k} > div:last-child {
+        border-bottom-left-radius: 4px;
+        border-bottom-right-radius: 4px;
     }
     
     ${k}[data-square="true"] {
@@ -119,7 +135,7 @@ export const DropdownContent: React.FunctionComponent<DropdownContentProps & {
 DropdownContent.defaultProps = {
     squareTop: false,
     hover: true,
-    width: "138px",
+    width: "auto",
     backgroundColor: "--white",
     color: "black",
     colorOnHover: true,

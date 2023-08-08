@@ -1570,7 +1570,7 @@ export interface ApplicationMetadata {
     description: string,
     website?: string,
     public: boolean,
-    group: ApplicationGroup
+    flavorName?: string
 }
 export interface ApplicationInvocationDescription {
     tool: ToolReference,

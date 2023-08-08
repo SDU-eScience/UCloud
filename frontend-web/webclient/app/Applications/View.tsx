@@ -43,13 +43,12 @@ export const AppHeader: React.FunctionComponent<{
                                 <Flex style={{alignSelf: "center"}}>
                                     {props.flavors.length === 0 ? null :
                                         <ClickableDropdown
-                                            colorOnHover={false}
+                                            colorOnHover={true}
                                             trigger={
-                                                <Flex my="auto" height="30px" ml="12px" borderRadius="16px" px="8px" fontSize={"var(--secondaryText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
-                                                    {props.application.metadata.name} <Icon ml="8px" name="chevronDownLight" size={12} />
+                                                <Flex my="auto" height="30px" ml="12px" borderRadius="16px" px="15px" fontSize={"var(--secondaryText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
+                                                    {props.application.metadata.flavorName ?? props.application.metadata.title} <Icon ml="8px" name="chevronDownLight" size={12} />
                                                 </Flex>
                                             }>
-                                            <Text bold>Select flavor</Text>
                                             {props.flavors.map(f =>
                                                 <Box
                                                     cursor="pointer"
@@ -57,7 +56,7 @@ export const AppHeader: React.FunctionComponent<{
                                                     key={f.metadata.name}
                                                     onClick={() => navigate(Pages.runApplication(f.metadata))}
                                                 >
-                                                    {f.metadata.name}
+                                                    {f.metadata.flavorName ?? f.metadata.title}
                                                 </Box>
                                             )}
                                         </ClickableDropdown>
