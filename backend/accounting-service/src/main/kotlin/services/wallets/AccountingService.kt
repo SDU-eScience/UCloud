@@ -1163,7 +1163,7 @@ class AccountingService(
                         project_size as (
                             select p.id, p.title, count(*) number_of_members
                             from
-                                project.projects p join
+                                projects p join
                                 project.project_members pm on p.id = pm.project_id
                             group by p.id, p.title
                         ),
@@ -1206,7 +1206,7 @@ class AccountingService(
                 """,
                 "Accounting Retrieve Recipient"
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
-                ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
+            ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
         }
     }
 
