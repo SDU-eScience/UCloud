@@ -460,6 +460,10 @@ export class ResourceBrowser<T> {
             providerReason: this.root.querySelector(".page-empty .provider-reason")!,
         };
 
+        if (this.opts.embedded) {
+            this.emptyPageElement.container.style.marginTop = "80px";
+        }
+
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());

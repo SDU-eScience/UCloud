@@ -366,13 +366,7 @@ function DashboardRuns({runs}: {
         isLoading={runs.loading}
         error={runs.error?.why}
     >
-        {runs.data.items.length === 0 ? (
-            <NoResultsCardBody title={"No previous jobs found"}>
-                <Link to="/applications/overview" mt={8}>
-                    <Button mt={8}>View applications</Button>
-                </Link>
-            </NoResultsCardBody>
-        ) : <ExperimentalJobs opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />}
+        <ExperimentalJobs opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />
     </HighlightedCard>;
 }
 

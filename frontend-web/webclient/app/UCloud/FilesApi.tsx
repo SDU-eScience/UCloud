@@ -10,7 +10,7 @@ import {
 import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -332,7 +332,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 const file = props.resource as UFile;
                 return <>
                     <HighlightedCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
-                        <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
+                        <div><b>Path:</b> <Truncate title={file.id}><PrettyFilePath path={file.id} /></Truncate></div>
                         <div>
                             <b>Product: </b>
                             {file.specification.product.id === file.specification.product.category ?

@@ -281,7 +281,6 @@ const Uploader: React.FunctionComponent = () => {
         // Note(Jonas): Find possible entries in paused uploads and remove it. 
         setPausedFilesInFolder(entries => {
             let cpy = [...entries];
-            console.log(cpy, batch);
             for (const upload of batch) {
                 cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.row.rootEntry.name);
             }
