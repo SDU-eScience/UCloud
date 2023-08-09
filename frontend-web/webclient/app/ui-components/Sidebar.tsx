@@ -288,7 +288,7 @@ const SIDEBAR_IDENTIFIER = "SIDEBAR_IDENTIFIER";
 
 const SidebarItemsClass = injectStyle("sidebar-items", k => `
     ${k} {
-        padding-top: 7px 0;
+        padding-top: 7px;
         flex-grow: 1;
     }
 `);
@@ -446,7 +446,7 @@ export function Sidebar(): JSX.Element | null {
             </div>
 
             <SecondarySidebar
-                key={selectedPage} /* Note(Jonas) Needed for Safari to update correctly  */
+                key={(!!selectedPage).toString()} /* Note(Jonas) Needed for Safari to update correctly  */
                 data-tag="secondary"
                 hovered={hoveredPage}
                 clicked={selectedPage}

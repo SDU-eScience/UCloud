@@ -520,7 +520,9 @@ const BootstrapReplacement = styled.div`
         }
 
     & form > button {
-        font-smoothing: antialiased;
+        font-smooth: auto;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: auto;
         display: inline-flex;
         justify-content: center;
         align-items: center;
@@ -566,8 +568,8 @@ const BootstrapReplacement = styled.div`
 `;
 
 const JsonSchemaFormBootstrapReplacement = styled.div`
-
     & button {
+        /* Non-standard */
         font-smoothing: antialiased;
         display: inline-flex;
         justify-content: center;

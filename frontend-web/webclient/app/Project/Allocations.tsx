@@ -363,7 +363,7 @@ export const AllocationViewer: React.FunctionComponent<{
 }> = ({wallet, allocation, simple = true}) => {
     const url = "/project/grants/view/" + allocation.grantedIn;
     return <HighlightedCard color={"red"} width={"400px"} height="100%">
-        <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
+        <Flex flexDirection={"row"} mt={"8px"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                 size={"54px"} mr={"16px"} />
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
@@ -379,7 +379,7 @@ export const AllocationViewer: React.FunctionComponent<{
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
-                <div> {allocation.grantedIn != null ? <><Link to={url}> Show Grant </Link> </> : null}  </div>
+                <div> {allocation.grantedIn != null ? <Link to={url}> Show Grant </Link> : null}  </div>
             </Flex>
         </Flex>
     </HighlightedCard>;
@@ -388,15 +388,15 @@ export const AllocationViewer: React.FunctionComponent<{
 const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | null;}> = ({startDate, endDate}) => {
     const now = timestampUnixMs();
     if (now < startDate) {
-        return <>Starts in {formatDistance(new Date(startDate), new Date(now))}</>;
+        return `Starts in ${formatDistance(new Date(startDate), new Date(now))}`;
     } else if (endDate == null) {
-        return <>No expiration</>;
+        return "No expiration";
     } else if (now < endDate) {
-        return <>Expires in {formatDistance(new Date(endDate), new Date(now))}</>;
+        return `Expires in ${formatDistance(new Date(endDate), new Date(now))}`;
     } else if (now > endDate) {
-        return <>Expired</>;
+        return "Expired";
     } else {
-        return <>Expires soon</>;
+        return "Expires soon";
     }
 };
 

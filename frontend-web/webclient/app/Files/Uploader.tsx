@@ -558,7 +558,7 @@ const UploaderRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k} > div > div:nth-child(2) {
-        vertical-align: center;
+        vertical-align: middle;
         margin-left: 8px;
     }
     

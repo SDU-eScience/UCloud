@@ -75,7 +75,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
     
     ${k}[data-fixed="true"] {
-        display: fixed;
+        position: fixed;
     }
     
     ${k}[data-visible="false"] {
