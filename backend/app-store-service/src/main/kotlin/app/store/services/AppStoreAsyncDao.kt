@@ -656,7 +656,7 @@ class AppStoreAsyncDao(
                             join app_store.section_featured_items f on f.section_id = s.id
                             join app_store.application_groups g on g.id = f.group_id
                             join app_store.applications a on g.id = a.group_id
-                        where page = 'LANDING'
+                        where page = :page
                     )
                     select * from cte order by order_index
                 """
@@ -696,28 +696,36 @@ class AppStoreAsyncDao(
         return sections
     }
 
-    suspend fun listFlavors(
+    suspend fun findGroup(
         ctx: DBContext,
         project: String?,
         applicationName: String
-    ): PageV2<ApplicationSummary> {
+    ): FindGroupResponse {
         return ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("appName", applicationName)
                 },
                 """
-                    select *
-                    from app_store.applications
-                    where group_id = (
+                    select a.name, a.version, a.authors, a.title, a.description, a.website, a.is_public, a.flavor_name, g.title as group
+                    from app_store.applications a
+                    join app_store.application_groups g on group_id = g.id
+                    where a.group_id = (
                         select group_id
                         from app_store.applications
                         where name = :appName
                     )
                 """
-            ).rows.map {
-                it.toApplicationSummary()
-            }.let { PageV2(25, it, null) }
+            ).rows.map { row ->
+                val groupTitle = row.getString("group")!!
+                val application = row.toApplicationSummary()
+
+                groupTitle to application
+            }.let { result ->
+                val apps = result.map { it.second }
+
+                FindGroupResponse(result.first().first , apps)
+            }
         }
     }
 

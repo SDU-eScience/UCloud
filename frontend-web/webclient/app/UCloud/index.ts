@@ -3070,17 +3070,6 @@ export function findByName(
         reloadId: Math.random(),
     };
 }
-export function listFlavors(
-    request: FindByNameAndPagination 
-): APICallParameters<FindByNameAndPagination, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/flavors", {appName: request.appName, itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    }
-}
 export function listAll(
     request: PaginationRequest
 ): APICallParameters<PaginationRequest, Page<ApplicationSummaryWithFavorite>> {

@@ -316,13 +316,13 @@ class AppStoreService(
         }
     }
 
-    suspend fun listFlavors(
+    suspend fun findGroup(
         securityPrincipal: SecurityPrincipal,
         project: String?,
         applicationName: String
-    ): PageV2<ApplicationSummary> {
+    ): FindGroupResponse {
         return db.withTransaction { session ->
-            applicationDao.listFlavors(session, project, applicationName)
+            applicationDao.findGroup(session, project, applicationName)
         }
     }
 

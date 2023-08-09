@@ -182,8 +182,14 @@ typealias DeleteAppResponse = Unit
 
 
 @Serializable
-data class ListFlavorsRequest (
+data class FindGroupRequest(
     val appName: String
+)
+
+@Serializable
+data class FindGroupResponse(
+    val title: String,
+    val applications: List<ApplicationSummary>
 )
 
 typealias AppStoreOverviewRequest = Unit
@@ -918,7 +924,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val listFlavors = call("listFlavors", ListFlavorsRequest.serializer(), PageV2.serializer(ApplicationSummary.serializer()), CommonErrorMessage.serializer())  {
+    val findGroup = call("findGroup", FindGroupRequest.serializer(), FindGroupResponse.serializer(), CommonErrorMessage.serializer())  {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -927,16 +933,16 @@ ${ApiConventions.nonConformingApiWarning}
         http {
             path {
                 using(baseContext)
-                +"flavors"
+                +"group"
             }
 
             params {
-                +boundTo(ListFlavorsRequest::appName)
+                +boundTo(FindGroupRequest::appName)
             }
         }
 
         documentation {
-            summary = "Lists all flavors of an application"
+            summary = "Find group and all flavors of the application group"
         }
     }
 

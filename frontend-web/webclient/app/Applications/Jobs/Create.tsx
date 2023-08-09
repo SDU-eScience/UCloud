@@ -26,7 +26,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
-import {getQueryParam} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {Product} from "@/Accounting";
@@ -44,6 +44,27 @@ import {UtilityBar} from "@/Playground/Playground";
 interface InsufficientFunds {
     why?: string;
     errorCode?: string;
+}
+
+interface FindGroupRequest {
+    name: string;
+}
+
+interface FindGroupResponse {
+    title: string;
+    applications: UCloud.compute.ApplicationSummaryWithFavorite[];
+}
+
+function findGroup(
+    request: FindGroupRequest
+): APICallParameters<FindGroupRequest, FindGroupResponse> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/hpc/apps" + "/group", {appName: request.name}),
+        parameters: request,
+        reloadId: Math.random(),
+    }
 }
 
 const PARAMETER_TYPE_FILTER = ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"];
@@ -65,9 +86,9 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [appFlavors, fetchAppFlavors] = useCloudAPI<UCloud.PageV2<UCloud.compute.ApplicationSummaryWithFavorite>>(
+    const [appGroup, fetchAppGroup] = useCloudAPI<FindGroupResponse | null>(
         {noop: true},
-        emptyPageV2
+        null
     );
 
     const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
@@ -113,7 +134,7 @@ export const Create: React.FunctionComponent = () => {
     }, [appName, appVersion]);
 
     useEffect(() => {
-        fetchAppFlavors(UCloud.compute.apps.listFlavors({appName, itemsPerPage: 50, page: 0}));
+        fetchAppGroup(findGroup({name: appName}));
     }, [appName]);
 
     const application = applicationResp.data;
@@ -311,14 +332,27 @@ export const Create: React.FunctionComponent = () => {
         main={
             <>
                 <Box mx="50px" mt="32px">
-                    <Spacer left={<AppHeader slim application={application} flavors={appFlavors.data.items} allVersions={previousResp.data?.items ?? []} />} right={<>
-                        {!application.metadata.website ? null : (
-                            <ExternalLink title="Documentation" href={application.metadata.website}>
-                                <Icon name="documentation" color="blue" />
-                            </ExternalLink>
-                        )}
-                        <UtilityBar callbacks={[]} operations={[]} searchEnabled={false} />
-                    </>} />
+                    <Spacer
+                        left={
+                            <AppHeader
+                                slim
+                                title={appGroup?.data?.title ?? application.metadata.title}
+                                application={application}
+                                flavors={appGroup?.data?.applications ?? []}
+                                allVersions={previousResp.data?.items ?? []}
+                            />
+                        }
+                        right={
+                            <>
+                                {!application.metadata.website ? null : (
+                                    <ExternalLink title="Documentation" href={application.metadata.website}>
+                                        <Icon name="documentation" color="blue" />
+                                    </ExternalLink>
+                                )}
+                                <UtilityBar callbacks={[]} operations={[]} searchEnabled={false} />
+                            </>
+                        }
+                    />
                 </Box>
                 <ContainerForText left>
                     <Markdown

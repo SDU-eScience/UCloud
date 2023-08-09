@@ -19,6 +19,7 @@ export const AppHeader: React.FunctionComponent<{
     slim?: boolean;
     allVersions: UCloud.compute.ApplicationSummaryWithFavorite[];
     flavors: UCloud.compute.ApplicationSummaryWithFavorite[];
+    title: string;
 }> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "64px" : "128px";
@@ -37,15 +38,15 @@ export const AppHeader: React.FunctionComponent<{
                     <>
                         <Box>
                             <Flex>
-                                <Text verticalAlign="center" alignItems="center" fontSize={30}>
-                                    {props.application.metadata.title}
+                                <Text verticalAlign="center" alignItems="center" fontSize={30} mr="15px">
+                                    {props.title}
                                 </Text>
                                 <Flex style={{alignSelf: "center"}}>
                                     {props.flavors.length === 0 ? null :
                                         <ClickableDropdown
                                             colorOnHover={true}
                                             trigger={
-                                                <Flex my="auto" height="30px" ml="12px" borderRadius="16px" px="15px" fontSize={"var(--secondaryText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
+                                                <Flex my="auto" height="30px" borderRadius="16px" px="15px" fontSize={"var(--secondaryText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
                                                     {props.application.metadata.flavorName ?? props.application.metadata.title} <Icon ml="8px" name="chevronDownLight" size={12} />
                                                 </Flex>
                                             }>

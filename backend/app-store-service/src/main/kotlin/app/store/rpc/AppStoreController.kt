@@ -63,8 +63,8 @@ class AppStoreController(
             ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
         }
 
-        implement(AppStore.listFlavors) {
-            ok(appStore.listFlavors(ctx.securityPrincipal, ctx.project, request.appName))
+        implement(AppStore.findGroup) {
+            ok(appStore.findGroup(ctx.securityPrincipal, ctx.project, request.appName))
         }
 
         implement(AppStore.overview) {
