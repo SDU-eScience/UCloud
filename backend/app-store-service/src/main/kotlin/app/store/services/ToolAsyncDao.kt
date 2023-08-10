@@ -133,15 +133,24 @@ class ToolAsyncDao {
         if (existing != null) throw ToolException.AlreadyExists()
 
         ctx.withSession { session ->
-            session.insert(ToolTable) {
-                set(ToolTable.owner, username)
-                set(ToolTable.createdAt, LocalDateTime.now())
-                set(ToolTable.modifiedAt, LocalDateTime.now())
-                set(ToolTable.tool, defaultMapper.encodeToString(description))
-                set(ToolTable.originalDocument, originalDocument)
-                set(ToolTable.idName, description.info.name)
-                set(ToolTable.idVersion, description.info.version)
-            }
+            session.sendPreparedStatement(
+                {
+                    setParameter("owner", username)
+                    setParameter("created_at", LocalDateTime.now())
+                    setParameter("modified_at", LocalDateTime.now())
+                    setParameter("modifiedAt", LocalDateTime.now())
+                    setParameter("tool", defaultMapper.encodeToString(description))
+                    setParameter("original_document", originalDocument)
+                    setParameter("name", description.info.name)
+                    setParameter("version", description.info.version)
+                },
+                """
+                    insert into app_store.tools
+                        (name, version, created_at, modified_at, original_document, owner, tool) 
+                    values 
+                        (:name, :version, :created_at, :modified_at, :original_document, :owner, :tool)
+                """
+            )
         }
     }
 
@@ -165,10 +174,15 @@ class ToolAsyncDao {
             }
         } else {
             ctx.withSession { session ->
-                session.insert(ToolLogoTable) {
-                    set(ToolLogoTable.application, name)
-                    set(ToolLogoTable.data, imageBytes)
-                }
+                session.sendPreparedStatement(
+                    {
+                        setParameter("application", name)
+                        setParameter("data", imageBytes)
+                    },
+                    """
+                        insert into app_store.tool_logos (application, data) values (:application, :data)
+                    """
+                )
             }
         }
     }
@@ -199,7 +213,7 @@ class ToolAsyncDao {
                     WHERE (application = :appname)
                 """.trimIndent()
             )
-        }.rows.singleOrNull()?.getField(ToolLogoTable.data)
+        }.rows.singleOrNull()?.getAs<ByteArray>("data")
 
     }
 
@@ -219,7 +233,7 @@ class ToolAsyncDao {
             },
             mapper = { session, rows ->
                 rows.map {
-                    Pair(it.getField(ToolLogoTable.application), it.getField(ToolLogoTable.data))
+                    Pair(it.getString("application")!!, it.getAs<ByteArray>("data"))
                 }
             }
         )
@@ -245,12 +259,12 @@ class ToolAsyncDao {
 }
 
 internal fun RowData.toTool(): Tool {
-    val normalizedToolDesc = defaultMapper.decodeFromString<NormalizedToolDescription>(getField(ToolTable.tool))
+    val normalizedToolDesc = defaultMapper.decodeFromString<NormalizedToolDescription>(this.getString("tool")!!)
 
     return Tool(
-        getField(ToolTable.owner),
-        getField(ToolTable.createdAt).toTimestamp(),
-        getField(ToolTable.modifiedAt).toTimestamp(),
+        this.getString("owner")!!,
+        this.getLong("created_at")!!,
+        this.getLong("modified_at")!!,
         normalizedToolDesc
     )
 }

@@ -453,8 +453,8 @@ class AppStoreAsyncDao(
                     setParameter("title", description.metadata.title)
                     setParameter("description", description.metadata.description)
                     setParameter("website", description.metadata.website)
-                    setParameter("tool_name", existingTool.getField(ToolTable.idName))
-                    setParameter("tool_version", existingTool.getField(ToolTable.idVersion))
+                    setParameter("tool_name", existingTool.getString("name"))
+                    setParameter("tool_version", existingTool.getString("version"))
                     setParameter("is_public", description.metadata.isPublic)
                     setParameter("id_name", description.metadata.name)
                     setParameter("id_version", description.metadata.version)
@@ -832,8 +832,8 @@ class AppStoreAsyncDao(
             }
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
-                    fav.getField(FavoriteApplicationTable.applicationName) == item.metadata.name &&
-                            fav.getField(FavoriteApplicationTable.applicationVersion) == item.metadata.version
+                    fav.getString("application_name") == item.metadata.name &&
+                            fav.getString("application_version") == item.metadata.version
                 }
 
                 val allTagsForApplication = allTagsForApplicationsOnPage

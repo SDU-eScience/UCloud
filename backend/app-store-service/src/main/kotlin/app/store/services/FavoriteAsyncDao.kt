@@ -66,18 +66,20 @@ class FavoriteAsyncDao(
                 )
                 if (userHasPermission) {
                     val id = session.allocateId()
-                    session.insert(FavoriteApplicationTable) {
-                        set(
-                            FavoriteApplicationTable.applicationName,
-                            foundApp.getString("name")!!
-                        )
-                        set(
-                            FavoriteApplicationTable.applicationVersion,
-                            foundApp.getString("version")!!
-                        )
-                        set(FavoriteApplicationTable.user, user.username)
-                        set(FavoriteApplicationTable.id, id)
-                    }
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("name", foundApp.getString("name"))
+                            setParameter("version", foundApp.getString("version"))
+                            setParameter("user", user.username)
+                            setParameter("id", id)
+                        },
+                        """
+                            insert into app_store.favorited_by
+                                (id, the_user, application_name, application_version)
+                            values
+                                (:id, :user, :name, :version)
+                        """
+                    )
                 } else {
                     throw RPCException("Unauthorized favorite request", HttpStatusCode.Unauthorized)
                 }

@@ -89,7 +89,7 @@ class ApplicationLogoAsyncDao(
                     WHERE application = :toolname
                 """
             )
-        }.rows.singleOrNull()?.getField(ToolLogoTable.data)
+        }.rows.singleOrNull()?.getAs<ByteArray>("data")
     }
 
     suspend fun browseAll(ctx: DBContext, request: NormalizedPaginationRequestV2): PageV2<Pair<String, ByteArray>> {
