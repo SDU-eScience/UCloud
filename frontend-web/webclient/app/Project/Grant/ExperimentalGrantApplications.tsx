@@ -45,6 +45,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
         ...FEATURES,
         filters: !omitsFilters,
         sortDirection: !omitsFilters,
+        dragToSelect: !opts?.embedded,
     };
 
     React.useLayoutEffect(() => {
