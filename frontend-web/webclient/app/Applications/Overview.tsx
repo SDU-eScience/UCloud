@@ -20,6 +20,7 @@ import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -114,6 +115,11 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
     const main = (
         <Box mx="auto" maxWidth="1340px">
+            <Flex width="100%">
+                <Box ml="auto">
+                    <ContextSwitcher />
+                </Box>
+            </Flex>
             <Box mt="12px" />
             <FavoriteAppRow
                 columns={7}
@@ -124,7 +130,6 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             <Divider mt="18px" />
             <Spacer height={"40px"} left={null} right={<Flex height="40px">
                 <Input mr="12px" placeholder="Application name..." width="200px" hidden={!isSearching} onKeyUp={e => {
-                    console.log(e);
                     if (e.key === "Enter") {
                         navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
                     }

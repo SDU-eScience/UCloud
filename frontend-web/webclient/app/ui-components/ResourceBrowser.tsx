@@ -812,6 +812,7 @@ export class ResourceBrowser<T> {
         const filters = this.dispatchMessage("fetchFilters", fn => fn()).filter(it => it.type === "input");
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
+            if (!filter) return;
             this.icons.renderIcon({name: filter.icon, color: "black", color2: "iconColor2", height: 32, width: 32}).then(icon =>
                 it.src = icon
             );
@@ -1389,14 +1390,14 @@ export class ResourceBrowser<T> {
                 const listHeight = opCount * itemSize;
                 const listWidth = 400;
 
-                const windowWidth = window.innerWidth;
-                const windowHeight = window.innerHeight;
+                const rootWidth = this.root.getBoundingClientRect().width;
+                const rootHeight = this.root.getBoundingClientRect().height;
 
-                if (posX + listWidth >= windowWidth - 32) {
+                if (posX + listWidth >= rootWidth - 32) {
                     actualPosX -= listWidth;
                 }
 
-                if (posY + listHeight >= windowHeight - 32) {
+                if (posY + listHeight >= rootHeight - 32) {
                     actualPosY -= listHeight;
                 }
 

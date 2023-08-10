@@ -18,7 +18,7 @@ import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
-import {margin, MarginProps} from "styled-system";
+import {MarginProps} from "styled-system";
 import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -45,7 +45,7 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 
 const enterAnimation = keyframes`
@@ -799,13 +799,20 @@ const RunningInfoWrapper = injectStyleSimple("running-info-wrapper", `
   justify-content: center;
 `);
 
-const AltButtonGroup = styled.div<{minButtonWidth: string} & MarginProps>`
+function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} & MarginProps>) {
+    return <div
+        style={{
+            ...unbox(props),
+            gridTemplateColumns: `repeat(auto-fit, minmax(${props.minButtonWidth}, max-content))`
+        }}
+    />
+}
+
+const AltButtonGroupClass = injectStyleSimple("alt-button-group", `
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(${props => props.minButtonWidth}, max-content));
   grid-gap: 8px;
-  ${margin}
-`;
+`);
 
 AltButtonGroup.defaultProps = {
     marginTop: "8px",
@@ -1297,7 +1304,7 @@ const RunningJobRank: React.FunctionComponent<{
 
 const CompletedTextWrapper = styled.div`
   ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${AltButtonGroup} {
+    ${AltButtonGroupClass} {
       justify-content: center;
     }
   }
@@ -1515,7 +1522,7 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [updateListeners]);
-    return <Box height={"200px"} divRef={termRef}/>
+    return <Box height={"200px"} divRef={termRef} />
 };
 
 export default View;
