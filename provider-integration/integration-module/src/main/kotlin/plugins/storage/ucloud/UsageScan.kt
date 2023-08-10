@@ -47,6 +47,7 @@ class UsageScan(
     }
 
     suspend fun startScanIfNeeded() {
+        println("if needed")
         var lastRun = 0L
         db.withSession { session ->
             session.prepareStatement(
@@ -67,6 +68,7 @@ class UsageScan(
 
         val oneDay = 1000L * 60 * 15//60 * 24
         val now = Time.now()
+        println("$now, $lastRun")
         if (now - lastRun < oneDay) return
         if (!isRunning.compareAndSet(false, true)) return
 
@@ -82,6 +84,7 @@ class UsageScan(
             val chunkSize = 50
 
             var next: String? = null
+            println("Running")
             while (true) {
                 val page = pathConverter.locator.enumerateDrives(next = next)
 
@@ -109,6 +112,7 @@ class UsageScan(
 
             db.withSession { session ->
                 for (chunk in dataPoints.values.chunked(100)) {
+                    println("Charinging")
                     val allRequests = chunk.mapNotNull { dataPoint ->
                         val chargeId = when (val owner = dataPoint.key.owner) {
                             is WalletOwner.Project -> owner.projectId
@@ -130,7 +134,7 @@ class UsageScan(
 
                     charge(scanId, session, chunk, allRequests)
                 }
-
+                println("Charged all")
                 session.prepareStatement(
                     """
                         delete from ucloud_storage_quota_locked
