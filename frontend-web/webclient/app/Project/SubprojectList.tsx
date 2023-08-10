@@ -16,7 +16,7 @@ import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
 import {Toggle} from "@/ui-components/Toggle";
 import {ProjectBreadcrumbs} from "./Breadcrumbs";
-import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectFromParams, useProjectId} from "./Api";
+import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectId} from "./Api";
 import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";

@@ -38,8 +38,6 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, Ingre
     globalTtl: 60_000
 });
 
-const DUMMY_ENTRY_ID = "$$$dummy$$$";
-
 export function ExperimentalPublicLinks(): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Ingress> | null>(null);
@@ -55,8 +53,6 @@ export function ExperimentalPublicLinks(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Ingress>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
-                // TODO(Jonas): Set filter to "RUNNING" initially for state.
-
                 let startCreation: () => void = doNothing;
                 const ingressBeingCreated = "collectionBeingCreated$$___$$";
                 const isCreatingPrefix = "creating-";
@@ -321,7 +317,6 @@ export function ExperimentalPublicLinks(): JSX.Element {
             renameField.style.left = "90px";
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
-        // TODO(Jonas): Creation
     }, [])
 
     useRefreshFunction(() => {

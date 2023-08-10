@@ -164,12 +164,12 @@ export const RequestForSingleResourceWrapper = styled.div`
     }
 `;
 
-const ResourceContainer = styled.div`
+const ResourceContainerClass = injectStyleSimple("resource-container", `
     display: grid;
     grid-gap: 32px;
     grid-template-columns: repeat(auto-fit, minmax(500px, auto));
     margin: 32px 0;
-`;
+`);
 
 const RequestFormContainer = styled.div`
     width: 100%;
@@ -1197,7 +1197,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     return (
         <MainContainer
             header={target === RequestTarget.EXISTING_PROJECT ?
-                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
+                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : <Box height="32px" />
             }
 
             main={<>
@@ -1843,7 +1843,7 @@ function AsProductType(props: {
     if (props.target === RequestTarget.VIEW_APPLICATION && noEntries) return null;
     return <>
         <Heading.h4 mt={32}><Flex>{productTypeToTitle(props.type)} <ProductLink /></Flex></Heading.h4>
-        {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <ResourceContainer>
+        {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <div className={ResourceContainerClass}>
             {filteredProductCategories.map((pc, idx) =>
                 <GenericRequestCard
                     key={idx}
@@ -1864,7 +1864,7 @@ function AsProductType(props: {
                     )}
                 />
             )}
-        </ResourceContainer>}
+        </div>}
     </>;
 }
 
@@ -2101,8 +2101,9 @@ const ProductLinkBox = injectStyleSimple("product-link-box", `
     width: 35px;
     height: 35px;
     margin-left: 9px;
-    padding-left: 10px;
+    padding-left: 11px;
     margin-top: -2px;
+    padding-top: 3px;
 `);
 
 export function isGrantFinalized(status: State): boolean {

@@ -211,7 +211,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                 browser.on("nameOfEntry", j => j.specification.name ?? j.id ?? "");
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
-                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): We need to do something different here.
+                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): I assume that we need to do something different here.
                     const callbacks: ResourceBrowseCallbacks<Job> = {
                         api: JobsApi,
                         navigate: to => navigate(to),

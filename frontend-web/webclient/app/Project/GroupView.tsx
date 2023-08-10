@@ -5,8 +5,9 @@ import {ConfirmCancelButtons} from "@/UtilityComponents";
 import {MembersList} from "@/Project/MembersList";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import ProjectAPI, {isAdminOrPI, ProjectMember, useGroupIdAndMemberId, useProjectFromParams} from "@/Project/Api";
+import ProjectAPI, {isAdminOrPI, ProjectMember, useGroupIdAndMemberId} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {emptyProject} from "./cache";
 
 // UNUSED (Used by unused component)
 const GroupView: React.FunctionComponent = () => {
@@ -33,7 +34,7 @@ const GroupView: React.FunctionComponent = () => {
     }
 
     // TODO(Jonas): Is this always correct?
-    const {project, projectId, reload} = useProjectFromParams("");
+    const {project, projectId, reload} = {project: emptyProject(), projectId: "NOT IN USE", reload: () => void 0};
     const allowManagement = isAdminOrPI(project?.status.myRole);
 
     const group = project?.status.groups?.find(it => it.id === groupId);
