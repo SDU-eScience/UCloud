@@ -158,7 +158,7 @@ function LargeSearchBox(): JSX.Element {
     const navigate = useNavigate();
   
     return <div className={LargeSearchBoxClass}>
-        <Flex justifyContent="space-between">
+        <Flex justifyContent="space-evenly">
             <Input
                 placeholder="Search for applications..."
                 onKeyUp={e => {
@@ -242,27 +242,27 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             { isLanding ?
                 <>
                     {sections.data.sections[0] ?
-                        <ApplicationRow
-                            key={sections.data.sections[0].name}
-                            items={sections.data.sections[0].items}
-                            type={ApplicationCardType.WIDE}
-                            favoriteStatus={favoriteStatus}
-                            onFavorite={onFavorite}
-                            refreshId={refreshId}
-                            scrolling={false}
-                        />
-                    : <></>}
+                        <>
+                            <ApplicationRow
+                                key={1}
+                                items={sections.data.sections[0].items.slice(0, 4)}
+                                type={ApplicationCardType.WIDE}
+                                favoriteStatus={favoriteStatus}
+                                onFavorite={onFavorite}
+                                refreshId={refreshId}
+                                scrolling={false}
+                            />
 
-                    {sections.data.sections[1] ?
-                        <ApplicationRow
-                            key={sections.data.sections[1].name}
-                            items={sections.data.sections[1].items}
-                            type={ApplicationCardType.TALL}
-                            favoriteStatus={favoriteStatus}
-                            onFavorite={onFavorite}
-                            refreshId={refreshId}
-                            scrolling={false}
-                        />
+                            <ApplicationRow
+                                key={2}
+                                items={sections.data.sections[0].items.slice(4)}
+                                type={ApplicationCardType.TALL}
+                                favoriteStatus={favoriteStatus}
+                                onFavorite={onFavorite}
+                                refreshId={refreshId}
+                                scrolling={false}
+                            />
+                        </>
                     : <></>}
 
 
@@ -271,7 +271,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                         <img src={ucloudImage} />
                     </Flex>
 
-                    {sections.data.sections[0] ?
+                    {sections.data.sections[1] ?
                         <ApplicationRow
                             key={sections.data.sections[0].name}
                             items={sections.data.sections[0].items}
@@ -285,8 +285,8 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
                     {sections.data.sections[1] ?
                         <ApplicationRow
-                            key={sections.data.sections[1].name}
-                            items={sections.data.sections[1].items}
+                            key={sections.data.sections[0].name}
+                            items={sections.data.sections[0].items}
                             type={ApplicationCardType.TALL}
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
@@ -428,9 +428,6 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
         items,
         [items]
     );
-        // TODO(Brian)
-        //filterAppsByFavorite(items, false, [], favoriteStatus),
-        //[items, favoriteStatus.current]);
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -459,7 +456,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
             {type === ApplicationCardType.WIDE ?
                 <div ref={scrollRef} className={TagGridBottomBoxClass}>
                     <Flex
-                        justifyContent="space-between"
+                        justifyContent={filteredItems.length < 3 ? "space-evenly" : "space-between"}
                         gap="10px"
                         py="10px"
                     >
@@ -486,6 +483,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             style={{gridAutoFlow: "column"}}
                         >
                             {filteredItems.map(app =>
+                            <>
                                 <Link key={app.id} to={Pages.run(app.application.metadata.name, app.application.metadata.version)}>
                                     <AppCard
                                         type={ApplicationCardType.EXTRA_TALL}
@@ -495,13 +493,23 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                                         tags={[]}
                                     />
                                 </Link>
+                                <Link key={app.id} to={Pages.run(app.application.metadata.name, app.application.metadata.version)}>
+                                    <AppCard
+                                        type={ApplicationCardType.EXTRA_TALL}
+                                        onFavorite={() => onFavorite(app.application)}
+                                        app={app}
+                                        isFavorite={false}
+                                        tags={[]}
+                                    />
+                                </Link>
+                            </>
                             )}
                         </Grid>
                     </div>
                 :
                     <div ref={scrollRef} className={TagGridBottomBoxClass}>
                         <Flex
-                            justifyContent="space-between"
+                            justifyContent="space-evenly"
                             gap="10px"
                             py="10px"
                         >
@@ -577,7 +585,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
 
             <div ref={scrollRef} className={TagGridBottomBoxClass}>
                 <Flex
-                    justifyContent="space-between"
+                    justifyContent="space-evenly"
                     gap="10px"
                     py="10px"
                 >

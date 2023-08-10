@@ -254,7 +254,6 @@ const SmallCardClass = injectStyle("small-card", k => `
 
     ${k}:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        transform: translateY(-2px);
         color: var(--white, #f00);
     }
 `);
@@ -347,7 +346,6 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     html.dark ${k}:hover, ${k}:hover {
         border-color: var(--blue);
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        transform: translateY(-2px);
     }
 
     ${k} > div.${TitleAndDescriptionClass} {
@@ -459,7 +457,6 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
     html.dark ${k}:hover, ${k}:hover {
         border: 1px solid var(--blue);
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        transform: translateY(-2px);
     }
 `);
 
