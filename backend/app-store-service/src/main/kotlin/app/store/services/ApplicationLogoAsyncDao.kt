@@ -30,10 +30,15 @@ class ApplicationLogoAsyncDao(
             }
         } else {
             ctx.withSession { session ->
-                session.insert(ApplicationLogosTable) {
-                    set(ApplicationLogosTable.application, name)
-                    set(ApplicationLogosTable.data, imageBytes)
-                }
+                session.sendPreparedStatement(
+                    {
+                        setParameter("application", name)
+                        setParameter("data", imageBytes)
+                    },
+                    """
+                        insert into app_store.application_logos (application, data) VALUES (:application, :data)
+                    """
+                )
             }
         }
     }
@@ -63,7 +68,7 @@ class ApplicationLogoAsyncDao(
                     FROM application_logos
                     WHERE application = :appname
                 """
-            ).rows.singleOrNull()?.getField(ApplicationLogosTable.data)
+            ).rows.singleOrNull()?.getAs<ByteArray>("data")
         }
         if (logoFromApp != null) return logoFromApp
         val app = ctx.withSession { session ->
@@ -106,9 +111,9 @@ class ApplicationLogoAsyncDao(
                     """
                 )
             },
-            mapper = { session, rows ->
+            mapper = { _, rows ->
                 rows.map {
-                    Pair(it.getField(ApplicationLogosTable.application), it.getField(ApplicationLogosTable.data))
+                    Pair(it.getString("application")!!, it.getAs("data"))
                 }
             }
         )

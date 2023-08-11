@@ -17,6 +17,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
+const val LOGO_MAX_SIZE = 1024 * 1024 * 5
+
 enum class LogoType {
     APPLICATION,
     TOOL

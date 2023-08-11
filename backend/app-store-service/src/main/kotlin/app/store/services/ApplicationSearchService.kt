@@ -16,6 +16,12 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
 import org.elasticsearch.action.search.SearchResponse
+import java.io.Serializable
+
+data class EmbeddedNameAndVersion(
+    var name: String = "",
+    var version: String = ""
+) : Serializable
 
 class ApplicationSearchService (
     private val db: AsyncDBSessionFactory,
