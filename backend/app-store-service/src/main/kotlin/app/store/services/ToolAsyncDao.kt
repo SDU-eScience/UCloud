@@ -233,7 +233,7 @@ class ToolAsyncDao {
             },
             mapper = { session, rows ->
                 rows.map {
-                    Pair(it.getString("application")!!, it.getAs<ByteArray>("data"))
+                    Pair(it.getString("application")!!, it.getAs("data"))
                 }
             }
         )
@@ -263,8 +263,8 @@ internal fun RowData.toTool(): Tool {
 
     return Tool(
         this.getString("owner")!!,
-        this.getLong("created_at")!!,
-        this.getLong("modified_at")!!,
+        this.getDate("created_at")!!.toTimestamp(),
+        this.getDate("modified_at")!!.toTimestamp(),
         normalizedToolDesc
     )
 }
