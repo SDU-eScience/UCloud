@@ -2623,6 +2623,7 @@ export interface TagSearchRequest {
     page?: number /* int32 */,
 }
 export interface ListTagsRequest {}
+export interface ListGroupsRequest {}
 export interface AppStoreSectionsRequest {
     page: string,
 }
@@ -3185,6 +3186,17 @@ export function listTags(
         context: "",
         method: "GET",
         path: buildQueryString("/api/hpc/apps" + "/listTags", {}),
+        parameters: request,
+        reloadId: Math.random(),
+    }
+}
+export function listGroups(
+    request: ListGroupsRequest
+): APICallParameters<ListGroupsRequest, ApplicationGroup[]> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/hpc/apps" + "/listGroups", {}),
         parameters: request,
         reloadId: Math.random(),
     }

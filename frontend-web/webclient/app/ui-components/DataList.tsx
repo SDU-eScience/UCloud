@@ -67,17 +67,17 @@ export class DataList extends React.PureComponent<DataListProps, {
                                 }
                             }}
                         />
-                        <Icon name="chevronDown" ml="-32px" size={14} />
+                        <Icon name="chevronDownLight" ml="-32px" size={14} />
                     </div>
                 )}
             >
                 {results.map(({content, value}) => (
-                    <Box key={content} onClick={() => this.onSelect(content, value)} mb="0.5em">
+                    <Box key={content} onClick={() => this.onSelect(content, value)}>
                         {content}
                     </Box>
                 ))}
-                {results.length > this.totalShown ? <Box mb="0.5em">...</Box> : null}
-                {results.length === 0 ? <Box mb="0.5em">No Results</Box> : null}
+                {results.length > this.totalShown ? <Box>...</Box> : null}
+                {results.length === 0 ? <Box>No results</Box> : null}
             </ClickableDropdown>
         );
     }

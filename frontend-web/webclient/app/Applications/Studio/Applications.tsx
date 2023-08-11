@@ -27,6 +27,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import ApplicationGroup = compute.ApplicationGroup;
 
 interface AppVersion {
     version: string;
@@ -88,6 +89,13 @@ export const App: React.FunctionComponent = () => {
     );
     const [selectedTag, setSelectedTag] = useState<string>("");
 
+    const [allGroups, fetchAllGroups] = useCloudAPI<ApplicationGroup[]>(
+        {noop: true},
+        []
+    );
+    const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | null>();
+    
+
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI<UCloud.compute.DetailedEntityWithPermission[]>(
         {noop: true},
         []
@@ -125,6 +133,7 @@ export const App: React.FunctionComponent = () => {
     const refresh = useCallback(() => {
         setAppParameters(UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}));
         fetchAllTags(UCloud.compute.apps.listTags({}));
+        fetchAllGroups(UCloud.compute.apps.listGroups({}));
     }, [name]);
 
     useRefreshFunction(refresh);
@@ -244,6 +253,22 @@ export const App: React.FunctionComponent = () => {
                                 </Flex>
                             </form>
                         </Box>
+                    </Box>
+                    <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
+                        <Heading.h2>Group</Heading.h2>
+                        <Flex>
+                            <DataList
+                                rightLabel
+                                options={allGroups.data.map(group => ({value: group.id.toString(), content: group.title}))}
+                                onSelect={item => setSelectedGroup(allGroups.data?.find(it => it.id.toString() === item))}
+                                onChange={item => setSelectedGroup(allGroups.data?.find(it => it.id.toString() === item))}
+                                placeholder={"Enter or select group..."}
+                            />
+                            <Button disabled={commandLoading} type="submit" width={100} attached>
+                                Save
+                            </Button>
+                        </Flex>
+
                     </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>
