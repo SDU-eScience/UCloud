@@ -67,10 +67,6 @@ class AppStoreController(
             ok(appStore.findGroup(ctx.securityPrincipal, ctx.project, request.appName))
         }
 
-        implement(AppStore.overview) {
-            ok(appStore.overview(ctx.securityPrincipal, ctx.project))
-        }
-
         implement(AppStore.store) {
             ok(appStore.browseSections(ctx.securityPrincipal, ctx.project, request.page))
         }

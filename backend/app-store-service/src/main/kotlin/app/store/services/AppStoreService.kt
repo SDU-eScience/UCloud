@@ -326,21 +326,6 @@ class AppStoreService(
         }
     }
 
-    suspend fun overview(securityPrincipal: SecurityPrincipal, project: String?): AppStoreOverviewResponse {
-        val projectGroups = if (project.isNullOrBlank()) {
-            emptyList()
-        } else {
-            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
-        }
-
-        return AppStoreOverviewResponse(
-            /*db.withTransaction {
-                applicationDao.overview(db, securityPrincipal, project, projectGroups)
-            }*/
-            emptyList()
-        )
-    }
-
     suspend fun browseSections(securityPrincipal: SecurityPrincipal, project: String?, pageType: AppStorePageType): AppStoreOverviewResponse {
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()

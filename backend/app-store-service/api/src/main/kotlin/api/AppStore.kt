@@ -946,26 +946,6 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val overview = call("overview", AppStoreOverviewRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"overview"
-            }
-
-            documentation {
-                summary = "Returns the application catalog overview"
-            }
-        }
-    }
-
     val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
