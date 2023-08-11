@@ -599,6 +599,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         invokeCommand: call => callAPI(call),
                         api: FilesApi,
                         isCreating: false,
+                        onSelectRestriction: opts?.selection?.onSelectRestriction,
                         onSelect: opts?.selection?.onSelect,
                     };
 

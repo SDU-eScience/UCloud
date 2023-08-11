@@ -51,6 +51,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
         filters: !omitFilters,
         sortDirection: !omitFilters,
         dragToSelect: !opts?.embedded,
+        search: !opts?.embedded
     };
 
     const dateRanges = dateRangeFilters("Created after");
