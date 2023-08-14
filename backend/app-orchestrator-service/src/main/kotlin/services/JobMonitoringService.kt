@@ -68,6 +68,7 @@ class JobMonitoringService(
     }
 
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock?) {
+        /*
         var nextScan = 0L
 
         while (isActive) {
@@ -182,6 +183,7 @@ class JobMonitoringService(
             }
             delay(1000)
         }
+         */
     }
 
     private suspend fun terminateAndUpdateJob(

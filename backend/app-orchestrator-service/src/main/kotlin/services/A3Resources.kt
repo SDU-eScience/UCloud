@@ -2223,11 +2223,6 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                     if (type == store.type) {
                         backgroundScope.launch {
                             log.info("Evicting $uid, $pid")
-                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
-                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
-                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
-                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
-                            TODO THIS SHOULD NOT BE EVICTING ON A LOOP
                             store.evict(uid, pid)
                         }
                     } else {
@@ -2326,10 +2321,6 @@ class ResourceStoreDatabaseQueriesImpl<T>(
         val session = db.openSession()
         db.openTransaction(session)
         session.sendQuery("set local ucloud.performed_by_cache to 'true';")
-        println(session.sendPreparedStatement(
-            {},
-            """select current_setting('ucloud.performed_by_cache', true)"""
-        ).rows.singleOrNull()?.getString(0))
         return session
     }
 

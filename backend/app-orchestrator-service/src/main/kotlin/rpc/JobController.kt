@@ -340,22 +340,6 @@ class JobController(
                         get("/api/overheadTest") {
                             call.respondBytes(ByteArray(0))
                         }
-
-                        get("/api/dbTest") {
-                            db.withSession { session ->
-                                val rows = session.sendPreparedStatement(
-                                    {},
-                                    "select array[1, 2, 3, 4]"
-                                ).rows
-
-                                val result = rows.first().get(0)
-                                println(result?.javaClass)
-
-                                println(result)
-                            }
-
-                            call.respondBytes(ByteArray(0))
-                        }
                     }
                 }
             }

@@ -464,7 +464,6 @@ class JobResourceService2(
         val browseStart = System.nanoTime()
         val card = idCards.fetchIdCard(actorAndProject)
         val normalizedRequest = request.normalize()
-        println("req $normalizedRequest")
         val customFilter = if (request.flags.filterApplication != null || request.flags.filterState != null) {
             object : FilterFunction<InternalJobState> {
                 override fun filter(doc: ResourceDocument<InternalJobState>): Boolean {
