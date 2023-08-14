@@ -44,18 +44,10 @@ import kotlinx.serialization.encodeToString
 class JobController(
     private val db: AsyncDBSessionFactory,
     private val orchestrator: JobOrchestrator,
+    private val jobs: JobResourceService2,
     private val micro: Micro,
 ) : Controller {
-    val jobs = run {
-        val productCache = ProductCache(db)
-        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        JobResourceService2(
-            db,
-            ProviderCommunications(micro.backgroundScope, serviceClient, productCache),
-            micro.backgroundScope,
-            productCache
-        )
-    }
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         if (micro.developmentModeEnabled) {
@@ -114,7 +106,7 @@ class JobController(
                                             }
                                         }
 
-                                        "browse-simple", "browse" -> {
+                                        "browse-simple", "browse", "browse-running" -> {
                                             val username = args.getOrNull(0)
                                             val project = args.getOrNull(1)
                                             val next = args.getOrNull(2)
@@ -127,15 +119,17 @@ class JobController(
                                                     ResourceBrowseRequest(
                                                         JobIncludeFlags(
                                                             includeParameters = true,
-                                                            includeOthers = true
+                                                            includeOthers = true,
+                                                            filterState = if (command == "browse-running") JobState.RUNNING else null
                                                         ),
                                                         itemsPerPage = 250,
                                                         next
                                                     )
                                                 )
 
-                                                if (command == "browse-simple") {
-                                                    sendMessage(result.next ?: "no next token")
+                                                if (command == "browse-simple" || command == "browse-running") {
+                                                    sendMessage("Next token: ${result.next ?: "no next token"}")
+                                                    if (result.items.isEmpty()) sendMessage("No results")
                                                     for (item in result.items) {
                                                         sendMessage(item.id)
                                                     }

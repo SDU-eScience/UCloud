@@ -8,11 +8,13 @@ import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
@@ -26,6 +28,8 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
+import org.cliffc.high_scale_lib.NonBlockingHashMapLong
+import java.security.AuthProvider
 import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.math.min
@@ -44,7 +48,11 @@ class JobResourceService2(
     private val providers: ProviderCommunications,
     private val backgroundScope: BackgroundScope,
     private val productCache: ProductCache,
+    private val appCache: AppStoreCache,
+    private val fileCollections: FileCollectionService,
 ) {
+    private val allRunningJobs = NonBlockingHashMapLong<Unit>()
+
     private val idCards = IdCardService(db)
     private val applicationCache = ApplicationCache(db)
     private val documents = ResourceStore(
@@ -105,6 +113,10 @@ class JobResourceService2(
                 ).rows.forEach { row ->
                     val id = row.getLong(0)!!
                     val slot = resources.indexOf(id)
+                    val currentState = JobState.valueOf(row.getString(10)!!)
+
+                    if (currentState == JobState.RUNNING) allRunningJobs[id] = Unit
+                    else allRunningJobs.remove(id)
 
                     state[slot] = InternalJobState(
                         JobSpecification(
@@ -133,7 +145,7 @@ class JobResourceService2(
                             restartOnExit = row.getBoolean(7),
                             sshEnabled = row.getBoolean(8),
                         ),
-                        state = JobState.valueOf(row.getString(10)!!),
+                        state = currentState,
                         outputFolder = row.getString(9),
                         startedAt = row.getLong(13),
                         allowRestart = row.getBoolean(14) ?: false,
@@ -358,11 +370,36 @@ class JobResourceService2(
     // If we had singleton access to the database and serviceClients and if the docMapper becomes redundant:
     // private val proxy = ProxyToProvider(documents)
 
+    private val validation = JobVerificationService2(appCache, this, fileCollections)
+
     init {
-        documents.startSynchronizationJob(backgroundScope)
+        documents.initializeBackgroundTasks(backgroundScope)
         documents.initializeEvictionTriggersIfRelevant("app_orchestrator.jobs", "resource")
         documents.initializeEvictionTriggersIfRelevant("app_orchestrator.job_resources", "job_id")
         documents.initializeEvictionTriggersIfRelevant("app_orchestrator.job_input_parameters", "job_id")
+
+        runBlocking {
+            initializeRunningJobsIndex()
+        }
+    }
+
+    private suspend fun initializeRunningJobsIndex() {
+        db.withSession { session ->
+            val rows = session.sendPreparedStatement(
+                {},
+                """
+                    select j.resource
+                    from app_orchestrator.jobs j
+                    where
+                        j.current_state = 'RUNNING'
+                """
+            ).rows
+
+            rows.forEach { row ->
+                val id = row.getLong(0)!!
+                allRunningJobs[id] = Unit
+            }
+        }
     }
 
     suspend fun create(
@@ -461,6 +498,58 @@ class JobResourceService2(
         actorAndProject: ActorAndProject,
         request: ResourceBrowseRequest<JobIncludeFlags>,
     ): PageV2<Job> {
+        if (actorAndProject.actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX) &&
+            request.flags.filterState == JobState.RUNNING) {
+            // Use allRunningJobs index if a provider is requesting running jobs. We do this since the operation is
+            // otherwise extremely slow. We do this in phases:
+
+            val itemsPerPage = request.normalize().itemsPerPage
+            val card = idCards.fetchIdCard(actorAndProject)
+            var nextToken: String? = null
+            val page = ArrayList<Job>()
+            ResourceOutputPool.withInstance<InternalJobState, Unit> { pool ->
+                // Phase 1: Figure out which of the running IDs the provider can access by looking them up
+                val allIds = ArrayList<Long>()
+                allRunningJobs.keys().asSequence().chunked(pool.size).map { it.toLongArray() }.forEach { chunk ->
+                    val count = documents.retrieveBulk(card, chunk, pool, Permission.READ)
+                    for (i in 0 until count) allIds.add(pool[i].id)
+                }
+
+                // Phase 2: Sort them and paginate to the correct place
+                allIds.sort()
+                var idxToStartAt = 0
+                val nextId = request.next?.toLongOrNull()
+                if (nextId != null) {
+                    var i = 0
+
+                    while (i < allIds.size) {
+                        if (allIds[i] >= nextId) break
+                        i++
+                    }
+                    idxToStartAt = i
+                }
+
+                val idsToReturn = allIds
+                    .asSequence()
+                    .drop(idxToStartAt)
+                    .take(itemsPerPage)
+                    .toList().toLongArray()
+
+                // Phase 3: Lookup the relevant results and place them in the output page
+                val count = documents.retrieveBulk(card, idsToReturn, pool, Permission.READ)
+                for (i in 0 until count) {
+                    if (pool[i].data?.state != JobState.RUNNING) continue
+                    page.add(docMapper.map(card, pool[i]))
+                }
+
+                if (allIds.size - idxToStartAt - itemsPerPage > 0) {
+                    nextToken = page.lastOrNull()?.id?.toLongOrNull()?.let { it + 1 }?.toString()
+                }
+            }
+
+            return PageV2(itemsPerPage, page, nextToken)
+        }
+
         val browseStart = System.nanoTime()
         val card = idCards.fetchIdCard(actorAndProject)
         val normalizedRequest = request.normalize()
@@ -588,7 +677,10 @@ class JobResourceService2(
                         job.state = newState
 
                         if (newState == JobState.RUNNING) {
+                            allRunningJobs[jobId.toLongOrNull()] = Unit
                             job.startedAt = Time.now()
+                        } else {
+                            allRunningJobs.remove(jobId.toLongOrNull())
                         }
                     }
 
@@ -1007,7 +1099,7 @@ class JobResourceService2(
     }
 
     private suspend fun validate(actorAndProject: ActorAndProject, job: JobSpecification) {
-        // TODO do something
+        validation.verifyOrThrow(actorAndProject, job)
     }
 
     private suspend fun proxyToProvider(
@@ -1058,6 +1150,27 @@ class JobResourceService2(
         actorAndProject: ActorAndProject,
     ): SupportByProvider<Product.Compute, ComputeSupport> {
         return providers.retrieveProducts(actorAndProject, Jobs)
+    }
+
+    suspend fun validatePermission(
+        actorAndProject: ActorAndProject,
+        ids: Collection<String>,
+        permission: Permission,
+    ): List<String> {
+        val result = ArrayList<String>()
+        ResourceOutputPool.withInstance<InternalJobState, Unit> { pool ->
+            val count = documents.retrieveBulk(
+                idCards.fetchIdCard(actorAndProject),
+                ids.mapNotNull { it.toLongOrNull() }.toLongArray(),
+                pool,
+                permission = permission
+            )
+
+            for (i in 0 until count) {
+                result.add(pool[i].id.toString())
+            }
+        }
+        return result
     }
 
     companion object : Loggable {

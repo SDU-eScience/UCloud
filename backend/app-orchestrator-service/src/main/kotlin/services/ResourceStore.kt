@@ -27,10 +27,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileWriter
-import java.io.PrintWriter
 import java.lang.RuntimeException
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
@@ -221,7 +217,7 @@ class ResourceStore<T>(
         }
     }
 
-    fun startSynchronizationJob(
+    fun initializeBackgroundTasks(
         scope: CoroutineScope,
     ): Job {
         Runtime.getRuntime().addShutdownHook(Thread {

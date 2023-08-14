@@ -133,10 +133,22 @@ class Server(override val micro: Micro) : CommonServer {
 
         runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
 
+        val jobs = run {
+            val productCache = ProductCache(db)
+            JobResourceService2(
+                db,
+                ProviderCommunications(micro.backgroundScope, serviceClient, productCache),
+                micro.backgroundScope,
+                productCache,
+                appStoreCache,
+                fileCollections,
+            )
+        }
+
         if (streams != null) AppProcessor(streams, jobOrchestrator, appStoreCache).init()
 
         configureControllers(
-            JobController(db, jobOrchestrator, micro),
+            JobController(db, jobOrchestrator, jobs, micro),
             ingressService.asController(),
             licenseService.asController(),
             NetworkIPController(networkService),
