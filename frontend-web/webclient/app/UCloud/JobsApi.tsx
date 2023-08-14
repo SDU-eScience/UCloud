@@ -340,7 +340,6 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         return apiUpdate(request, this.baseContext, "unsuspend")
     }
 
-    /* Untested */
     openInteractiveSession(
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {

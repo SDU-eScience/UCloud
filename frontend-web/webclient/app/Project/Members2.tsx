@@ -50,6 +50,7 @@ import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {ProjectBreadcrumbs} from "./Breadcrumbs";
 import {Spacer} from "@/ui-components/Spacer";
+import {ListClass} from "@/ui-components/List";
 
 // UI state management
 // ================================================================================
@@ -1339,9 +1340,14 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
             border-right: 2px solid var(--gray, #f00);
             height: 100%;
             flex: 1;
-            overflow-y: auto;
+            overflow-y: hidden;
             margin-right: 16px;
             padding-right: 16px;
+        }
+
+        ${k} > .left > .${ListClass} {
+            overflow-y: scroll;
+            max-height: calc(100% - 48px - 48px - 10px);
         }
         
         ${k}[data-hide-border="true"] > .left {
