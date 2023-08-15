@@ -35,12 +35,12 @@ class AppLogoController (
         }
 
         implement(AppStore.clearLogo) {
-            logoService.clearLogo(ctx.securityPrincipal, LogoType.APPLICATION, request.name)
+            logoService.clearLogo(actorAndProject, LogoType.APPLICATION, request.name)
             ok(Unit)
         }
 
         implement(AppStore.fetchLogo) {
-            val logo = logoService.fetchLogo(LogoType.APPLICATION, request.name)
+            val logo = logoService.fetchLogo(actorAndProject, LogoType.APPLICATION, request.name)
 
             (ctx as HttpCall).call.respond(
                 object : OutgoingContent.ReadChannelContent() {

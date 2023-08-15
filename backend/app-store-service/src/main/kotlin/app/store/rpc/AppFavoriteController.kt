@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 
 class AppFavoriteController (
     private val favoriteService: FavoriteService
@@ -13,11 +14,11 @@ class AppFavoriteController (
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.toggleFavorite) {
-            ok(favoriteService.toggleFavorite(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
+            ok(favoriteService.toggleFavorite(actorAndProject, request.appName, request.appVersion))
         }
 
         implement(AppStore.retrieveFavorites) {
-            ok(favoriteService.retrieveFavorites(ctx.securityPrincipal, ctx.project, request))
+            ok(favoriteService.retrieveFavorites(actorAndProject, request))
         }
     }
 }

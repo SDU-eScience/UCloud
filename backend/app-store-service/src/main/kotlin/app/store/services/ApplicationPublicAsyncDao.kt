@@ -6,7 +6,7 @@ import dk.sdu.cloud.service.db.async.*
 class ApplicationPublicAsyncDao() {
     suspend fun isPublic(
         ctx: DBContext,
-        user: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         appName: String,
         appVersion: String
     ): Boolean {

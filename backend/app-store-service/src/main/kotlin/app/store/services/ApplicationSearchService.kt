@@ -1,15 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
 import co.elastic.clients.elasticsearch.core.search.Hit
-import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.mapItems
-import dk.sdu.cloud.paginate
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -27,27 +24,25 @@ class ApplicationSearchService (
     private val db: AsyncDBSessionFactory,
     private val searchDao: ApplicationSearchAsyncDao,
     private val elasticDao: ElasticDao?,
-    private val applicationDao: AppStoreAsyncDao,
+    private val appStoreService: AppStoreService,
     private val authenticatedClient: AuthenticatedClient
 ) {
     suspend fun searchByTags(
-        securityPrincipal: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         tags: List<String>,
         normalizedPaginationRequest: NormalizedPaginationRequest,
         excludeTools: List<String>? = emptyList()
     ): Page<ApplicationSummaryWithFavorite> {
-        val projectGroups = if (project.isNullOrBlank()) {
+        val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
+            retrieveUserProjectGroups(actorAndProject, authenticatedClient)
         }
 
         return db.withSession { session ->
             searchDao.searchByTags(
                 session,
-                securityPrincipal,
-                project,
+                actorAndProject,
                 projectGroups,
                 tags,
                 normalizedPaginationRequest,
@@ -57,22 +52,20 @@ class ApplicationSearchService (
     }
 
     suspend fun searchApps(
-        securityPrincipal: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         query: String,
         normalizedPaginationRequest: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val projectGroups = if (project.isNullOrBlank()) {
+        val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
+            retrieveUserProjectGroups(actorAndProject, authenticatedClient)
         }
 
         return db.withSession { session ->
             searchDao.search(
                 session,
-                securityPrincipal,
-                project,
+                actorAndProject,
                 projectGroups as List<String>,
                 query,
                 normalizedPaginationRequest
@@ -81,8 +74,7 @@ class ApplicationSearchService (
     }
 
     suspend fun advancedSearch(
-        user: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         query: String?,
         tagFilter: List<String>?,
         showAllVersions: Boolean,
@@ -123,10 +115,10 @@ class ApplicationSearchService (
             )
         }
 
-        val projectGroups = if (project.isNullOrBlank()) {
+        val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(user, project, authenticatedClient)
+            retrieveUserProjectGroups(actorAndProject, authenticatedClient)
         }
 
         if (showAllVersions) {
@@ -135,11 +127,8 @@ class ApplicationSearchService (
                 EmbeddedNameAndVersion(result!!.name, result!!.version)
             }
 
-            val applications = db.withSession { session ->
-                applicationDao.findAllByID(session, user, project, projectGroups, embeddedNameAndVersionList, paging)
-            }
-
-            return sortAndCreatePageByScore(applications, results, user, paging)
+            val applications = appStoreService.findAllByID(actorAndProject, projectGroups, embeddedNameAndVersionList, paging)
+            return sortAndCreatePageByScore(applications, results, actorAndProject, paging)
 
         } else {
             val titles = hits.map {
@@ -148,17 +137,17 @@ class ApplicationSearchService (
             }
 
             val applications = db.withSession { session ->
-                searchDao.multiKeywordsearch(session, user, project, projectGroups, titles.toList(), paging)
+                searchDao.multiKeywordsearch(session, actorAndProject, projectGroups, titles.toList(), paging)
             }
 
-            return sortAndCreatePageByScore(applications, results, user, paging)
+            return sortAndCreatePageByScore(applications, results, actorAndProject, paging)
         }
     }
 
     private suspend fun sortAndCreatePageByScore(
         applications: List<Application>,
         results: List<Hit<ElasticIndexedApplication>>?,
-        user: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
         val map = applications.associateBy(
@@ -181,7 +170,7 @@ class ApplicationSearchService (
         val sortedResultsPage = sortedList.paginate(paging)
 
         return db.withSession { session ->
-            applicationDao.preparePageForUser(session, user.username, sortedResultsPage)
+            appStoreService.preparePageForUser(session, actorAndProject.actor.username, sortedResultsPage)
                 .mapItems { it.withoutInvocation() }
         }
     }

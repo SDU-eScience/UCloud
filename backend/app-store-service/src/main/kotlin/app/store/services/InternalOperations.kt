@@ -25,8 +25,7 @@ import kotlinx.serialization.builtins.serializer
 */
 internal suspend fun internalHasPermission(
     ctx: DBContext,
-    user: SecurityPrincipal,
-    project: String?,
+    actorAndProject: ActorAndProject,
     memberGroups: List<String>,
     appName: String,
     appVersion: String,
@@ -34,13 +33,12 @@ internal suspend fun internalHasPermission(
     publicDao: ApplicationPublicAsyncDao,
     aclDao: AclAsyncDao
 ): Boolean {
-    if (user.role in Roles.PRIVILEGED) return true
-    if (ctx.withSession { session -> publicDao.isPublic(session, user, appName, appVersion)}) return true
+    if ((actorAndProject.actor as? Actor.User)?.principal?.role in Roles.PRIVILEGED) return true
+    if (ctx.withSession { session -> publicDao.isPublic(session, actorAndProject, appName, appVersion)}) return true
     return ctx.withSession { session ->
         aclDao.hasPermission(
             session,
-            user,
-            project,
+            actorAndProject,
             memberGroups,
             appName,
             setOf(permission)
@@ -48,7 +46,7 @@ internal suspend fun internalHasPermission(
     }
 }
 
-internal suspend fun internalFindAllByName(
+/*internal suspend fun internalFindAllByName(
     ctx: DBContext,
     user: SecurityPrincipal?,
     currentProject: String?,
@@ -101,7 +99,7 @@ internal suspend fun internalFindAllByName(
             ).rows.paginate(paging).mapItems { it.toApplicationWithInvocation() }
         )
     }
-}
+}*/
 
 internal suspend fun internalByNameAndVersion(
     ctx: DBContext,
@@ -117,23 +115,22 @@ internal suspend fun internalByNameAndVersion(
             """
                     SELECT *
                     FROM applications
-                    WHERE (name = ?name) AND (version = ?version)
+                    WHERE (name = :name) AND (version = :version)
                 """.trimIndent()
         ).rows.singleOrNull()
     }
 }
 
 internal suspend fun retrieveUserProjectGroups(
-    user: SecurityPrincipal,
-    project: String,
+    actorAndProject: ActorAndProject,
     authenticatedClient: AuthenticatedClient
 ): List<String> =
     ProjectMembers.userStatus.call(
-        UserStatusRequest(user.username),
+        UserStatusRequest(actorAndProject.actor.username),
         authenticatedClient
     ).orRethrowAs {
         throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-    }.groups.filter { it.project == project }.map { it.group }
+    }.groups.filter { it.project == actorAndProject.project }.map { it.group }
 
 
 internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: String): String? {

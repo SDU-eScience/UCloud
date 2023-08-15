@@ -26,7 +26,7 @@ class AppStoreAsyncDao(
 ) {
     private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Application, Long>>())
 
-    internal suspend fun findAppNamesFromTags(
+   /*internal suspend fun findAppNamesFromTags(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -179,9 +179,9 @@ class AppStoreAsyncDao(
                 this
             ).mapItems { it.withoutInvocation() }
         }
-    }
+    }*/
 
-    suspend fun findByNameAndVersion(
+    /*suspend fun findByNameAndVersion(
         ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
@@ -232,9 +232,9 @@ class AppStoreAsyncDao(
         } else {
             throw ApplicationException.NotFound()
         }
-    }
+    }*/
 
-    suspend fun findBySupportedFileExtension(
+    /*suspend fun findBySupportedFileExtension(
         db: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
@@ -307,9 +307,9 @@ class AppStoreAsyncDao(
                 }
             }
         )
-    }
+    }*/
 
-    suspend fun findByNameAndVersionForUser(
+    /*suspend fun findByNameAndVersionForUser(
         ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
@@ -337,9 +337,9 @@ class AppStoreAsyncDao(
 
             preparePageForUser(session, user.username, Page(1, 1, 0, listOf(application))).items.first()
         }
-    }
+    }*/
 
-    suspend fun listLatestVersion(
+    /*suspend fun listLatestVersion(
         ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
@@ -414,9 +414,9 @@ class AppStoreAsyncDao(
                 )
             ).mapItems { it.withoutInvocation() }
         }
-    }
+    }*/
 
-    suspend fun create(
+    /*suspend fun create(
         ctx: DBContext,
         actorAndProject: ActorAndProject,
         description: Application,
@@ -490,7 +490,7 @@ class AppStoreAsyncDao(
                 )
             }
         }
-    }
+    }*/
 
     /*suspend fun overview(
         ctx: DBContext,
@@ -612,91 +612,7 @@ class AppStoreAsyncDao(
         return sections
     }*/
 
-    suspend fun browseSections(
-        ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
-        memberGroups: List<String>,
-        pageType: AppStorePageType
-    ): List<AppStoreSection> {
-        val groups = if (memberGroups.isEmpty()) {
-            listOf("")
-        } else {
-            memberGroups
-        }
-
-        val sections = ArrayList<AppStoreSection>()
-        ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("user", user.username)
-                    setParameter("is_admin", Roles.PRIVILEGED.contains(user.role))
-                    setParameter("project", project)
-                    setParameter("groups", groups)
-                    setParameter("page", pageType.name)
-                },
-                """
-                    with cte as (
-                        select
-                            distinct on (g.id) g.id,
-                            a.name,
-                            a.version,
-                            a.authors,
-                            a.title,
-                            a.description as app_description,
-                            a.website,
-                            a.is_public,
-                            exists(select * from app_store.favorited_by where the_user = :user and application_name = a.name) favorite,
-                            s.title as section,
-                            g.title as title,
-                            g.logo,
-                            g.description,
-                            f.order_index
-                        from app_store.sections s
-                            join app_store.section_featured_items f on f.section_id = s.id
-                            join app_store.application_groups g on g.id = f.group_id
-                            join app_store.applications a on g.id = a.group_id
-                        where page = :page
-                    )
-                    select * from cte order by order_index
-                """
-            ).rows.forEach { row ->
-                val sectionName = row.getString("section")!!
-                val groupId = row.getInt("id")!!
-                val groupTitle = row.getString("title")!!
-                val description = row.getString("description")
-                val applicationMetadata = ApplicationMetadata(
-                    row.getString("name")!!,
-                    row.getString("version")!!,
-                    defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
-                    row.getString("title")!!,
-                    row.getString("app_description")!!,
-                    row.getString("website"),
-                    row.getBoolean("is_public")!!
-                )
-
-                val favorite = row.getBoolean("favorite")!!
-                val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, emptyList())
-
-                val section = sections.find { it.name == sectionName }
-
-                if (section == null) {
-                    sections.add(
-                        AppStoreSection(
-                            sectionName,
-                            mutableListOf(ApplicationGroup(groupId, groupTitle, null, description, appWithFavorite))
-                        )
-                    )
-                } else {
-                    section.items.add(ApplicationGroup(groupId, groupTitle, null, description, appWithFavorite))
-                }
-            }
-        }
-
-        return sections
-    }
-
-    suspend fun findGroup(
+    /*suspend fun findGroup(
         ctx: DBContext,
         project: String?,
         applicationName: String
@@ -791,150 +707,9 @@ class AppStoreAsyncDao(
                 )
                 .rows
         }
-    }
+    }*/
 
-    suspend fun preparePageForUser(
-        ctx: DBContext,
-        user: String?,
-        page: Page<Application>
-    ): Page<ApplicationWithFavoriteAndTags> {
-        if (!user.isNullOrBlank()) {
-            val allFavorites = ctx.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("user", user)
-                        },
-                        """
-                            SELECT * 
-                            FROM favorited_by
-                            WHERE the_user = :user
-                        """
-                    )
-                    .rows
-            }
-
-            val allApplicationsOnPage = page.items.map { it.metadata.name }.toSet()
-
-            val allTagsForApplicationsOnPage = ctx.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("allapps", allApplicationsOnPage.toList())
-                        },
-                        """
-                            select application_name, tag
-                            from application_tags, tags
-                            where application_name in (select unnest(:allapps::text[])) and tag_id = tags.id
-                        """
-                    )
-                    .rows
-            }
-            val preparedPageItems = page.items.map { item ->
-                val isFavorite = allFavorites.any { fav ->
-                    fav.getString("application_name") == item.metadata.name &&
-                            fav.getString("application_version") == item.metadata.version
-                }
-
-                val allTagsForApplication = allTagsForApplicationsOnPage
-                    .filter { item.metadata.name == it.getString("application_name") }
-                    .mapNotNull { it.getString("tag") }
-                    .toSet()
-                    .toList()
-
-                ApplicationWithFavoriteAndTags(item.metadata, item.invocation, isFavorite, allTagsForApplication)
-            }
-
-            return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
-        } else {
-            val preparedPageItems = page.items.map { item ->
-                val allTagsForApplication = ctx.withSession { session ->
-                    session
-                        .sendPreparedStatement(
-                            {
-                                setParameter("appname", item.metadata.name)
-                            },
-                            """
-                                select distinct tag
-                                from application_tags, tags
-                                where application_name = :appname and tag_id = tags.id
-                            """
-                        )
-                        .rows
-                        .mapNotNull {
-                            it.getString("tag")
-                        }
-                }
-
-                ApplicationWithFavoriteAndTags(item.metadata, item.invocation, false, allTagsForApplication)
-            }
-            return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
-        }
-    }
-
-    suspend fun findLatestByTool(
-        ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
-        projectGroups: List<String>,
-        tool: String,
-        paging: NormalizedPaginationRequest
-    ): Page<Application> {
-        val groups = if (projectGroups.isEmpty()) {
-            listOf("")
-        } else {
-            projectGroups
-        }
-
-        val items = ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("toolName", tool)
-                        setParameter("user", user.username)
-                        setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
-                        setParameter("project", project)
-                        setParameter("groups", groups)
-                    },
-                    """
-                        SELECT A.*
-                        FROM applications AS A 
-                        WHERE 
-                            (A.created_at) IN (
-                                SELECT MAX(created_at)
-                                FROM applications AS B
-                                WHERE A.name = B.name
-                                GROUP BY name
-                            ) AND A.tool_name = :toolName AND (
-                                (
-                                    A.is_public = TRUE
-                                ) OR (
-                                    cast(:project as text) is null AND :user in (
-                                        SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
-                                    )
-                                ) OR (
-                                    cast(:project as text) is not null AND exists (
-                                        SELECT P2.project_group
-                                        FROM permissions AS P2
-                                        WHERE
-                                            P2.application_name = A.name AND
-                                            P2.project = cast(:project as text) AND
-                                            P2.project_group in (:groups)
-                                    )
-                                ) or (
-                                    :isAdmin
-                                ) 
-                            )
-                        order by A.name
-                    """
-                )
-                .rows
-        }
-
-        return Page(items.size, paging.itemsPerPage, paging.page, items.map { it.toApplicationWithInvocation() })
-    }
-
-    suspend fun findAllByID(
+    /*suspend fun findAllByID(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -964,39 +739,7 @@ class AppStoreAsyncDao(
                 .rows
                 .map { it.toApplicationWithInvocation() }
         }
-    }
+    }*/
 }
 
-internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
-    return ApplicationMetadata(
-        this.getString("name")!!,
-        this.getString("version")!!,
-        defaultMapper.decodeFromString(this.getString("authors")!!),
-        this.getString("title")!!,
-        this.getString("description")!!,
-        this.getString("website"),
-        this.getBoolean("is_public")!!,
-        this.getString("flavor_name")
-    )
-}
 
-internal fun RowData.toApplicationSummary(): ApplicationSummary {
-    return ApplicationSummary(toApplicationMetadata())
-}
-
-internal fun RowData.toApplicationWithInvocation(): Application {
-    val application = this.getString("application")!!
-    val invocations = defaultMapper.decodeFromString<ApplicationInvocationDescription>(application)
-    return Application(
-        toApplicationMetadata(),
-        invocations
-    )
-}
-
-sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
-    class NotFound : ApplicationException("Not found", HttpStatusCode.NotFound)
-    class NotAllowed : ApplicationException("Not allowed", HttpStatusCode.Forbidden)
-    class AlreadyExists : ApplicationException("Already exists", HttpStatusCode.Conflict)
-    class BadToolReference : ApplicationException("Tool does not exist", HttpStatusCode.BadRequest)
-    class BadApplication : ApplicationException("Application does not exists", HttpStatusCode.NotFound)
-}

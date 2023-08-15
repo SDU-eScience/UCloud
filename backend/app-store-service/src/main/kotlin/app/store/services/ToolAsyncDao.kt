@@ -187,7 +187,7 @@ class ToolAsyncDao {
         }
     }
 
-    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
+    suspend fun clearLogo(ctx: DBContext, actorAndProject: ActorAndProject, name: String) {
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {

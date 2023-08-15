@@ -1,12 +1,9 @@
 package dk.sdu.cloud.app.store.services
 
 import com.github.jasync.sql.db.ResultSet
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
-import dk.sdu.cloud.mapItems
-import dk.sdu.cloud.paginate
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
@@ -14,12 +11,11 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 
 class ApplicationSearchAsyncDao(
-    val appStoreAsyncDao: AppStoreAsyncDao
+    val appStoreService: AppStoreService
 ) {
     suspend fun searchByTags(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         memberGroups: List<String>,
         tags: List<String>,
         paging: NormalizedPaginationRequest,
@@ -31,11 +27,11 @@ class ApplicationSearchAsyncDao(
             memberGroups
         }
         return ctx.withSession { session ->
-            val applications = appStoreAsyncDao.findAppNamesFromTags(session, user, project, groups, tags, excludeTools)
+            val applications = appStoreService.findAppNamesFromTags(actorAndProject, groups, tags, excludeTools)
             if (applications.isEmpty()) {
-                appStoreAsyncDao.preparePageForUser(
+                appStoreService.preparePageForUser(
                     session,
-                    user.username,
+                    actorAndProject.actor.username,
                     Page(
                         0,
                         paging.itemsPerPage,
@@ -44,18 +40,16 @@ class ApplicationSearchAsyncDao(
                     )
                 ).mapItems { it.withoutInvocation() }
             } else {
-                val (apps, itemsInTotal) = appStoreAsyncDao.findAppsFromAppNames(
-                    session,
-                    user,
-                    project,
+                val (apps, itemsInTotal) = appStoreService.findAppsFromAppNames(
+                    actorAndProject,
                     groups,
                     applications,
                     excludeTools
                 )
                 val items = apps.paginate(paging).items
-                appStoreAsyncDao.preparePageForUser(
+                appStoreService.preparePageForUser(
                     session,
-                    user.username,
+                    actorAndProject.actor.username,
                     Page(
                         itemsInTotal,
                         paging.itemsPerPage,
@@ -69,8 +63,7 @@ class ApplicationSearchAsyncDao(
 
     suspend fun search(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        currentProject: String?,
+        actorAndProject: ActorAndProject,
         projectGroups: List<String>,
         query: String,
         paging: NormalizedPaginationRequest
@@ -82,19 +75,18 @@ class ApplicationSearchAsyncDao(
         val keywords = trimmedNormalizedQuery.split(" ").filter { it.isNotBlank() }
         if (keywords.size == 1) {
             return ctx.withSession { session ->
-                doSearch(session, user, currentProject, projectGroups, trimmedNormalizedQuery, paging)
+                doSearch(session, actorAndProject, projectGroups, trimmedNormalizedQuery, paging)
             }
         }
         val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
         return ctx.withSession { session ->
-            doMultiKeywordSearch(session, user, currentProject, projectGroups, firstTenKeywords, paging)
+            doMultiKeywordSearch(session, actorAndProject, projectGroups, firstTenKeywords, paging)
         }
     }
 
     suspend fun multiKeywordsearch(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        currentProject: String?,
+        actorAndProject: ActorAndProject,
         projectGroups: List<String>,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
@@ -104,8 +96,7 @@ class ApplicationSearchAsyncDao(
         return ctx.withSession { session ->
             createMultiKeyWordApplicationEntityQuery(
                 session,
-                user,
-                currentProject,
+                actorAndProject,
                 projectGroups,
                 keywords,
                 keywordsQuery
@@ -129,8 +120,7 @@ class ApplicationSearchAsyncDao(
 
     private suspend fun createMultiKeyWordApplicationEntityQuery(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         projectGroups: List<String>,
         keywords: List<String>,
         keywordsQuery: String
@@ -142,15 +132,15 @@ class ApplicationSearchAsyncDao(
         }
 
         return ctx.withSession { session ->
-            val isAdmin = Roles.PRIVILEGED.contains(user.role)
+            val isAdmin = Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role)
             session
                 .sendPreparedStatement(
                     {
                         keywords.forEachIndexed { index, keyword ->
                             setParameter("query$index", keyword)
                         }
-                        setParameter("user", user.username)
-                        setParameter("project", project)
+                        setParameter("user", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
                         setParameter("groups", groups)
                         setParameter("isAdmin", isAdmin)
                     },
@@ -184,8 +174,7 @@ class ApplicationSearchAsyncDao(
 
     private suspend fun doMultiKeywordSearch(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         projectGroups: List<String>,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
@@ -201,8 +190,7 @@ class ApplicationSearchAsyncDao(
         val items = ctx.withSession { session ->
             createMultiKeyWordApplicationEntityQuery(
                 session,
-                user,
-                project,
+                actorAndProject,
                 groups,
                 keywords,
                 keywordsQuery
@@ -211,9 +199,9 @@ class ApplicationSearchAsyncDao(
         }
 
         return ctx.withSession { session ->
-            appStoreAsyncDao.preparePageForUser(
+            appStoreService.preparePageForUser(
                 session,
-                user.username,
+                actorAndProject.actor.username,
                 items
             ).mapItems { it.withoutInvocation() }
         }
@@ -221,8 +209,7 @@ class ApplicationSearchAsyncDao(
 
     private suspend fun doSearch(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        currentProject: String?,
+        actorAndProject: ActorAndProject,
         memberGroups: List<String>,
         normalizedQuery: String,
         paging: NormalizedPaginationRequest
@@ -232,14 +219,14 @@ class ApplicationSearchAsyncDao(
         } else {
             memberGroups
         }
-        val isAdmin = Roles.PRIVILEGED.contains(user.role)
+        val isAdmin = Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role)
         val items = ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("query", normalizedQuery)
-                        setParameter("user", user.username)
-                        setParameter("project", currentProject)
+                        setParameter("user", actorAndProject.actor.username)
+                        setParameter("project", actorAndProject.project)
                         setParameter("groups", groups)
                         setParameter("isAdmin", isAdmin)
                     },
@@ -279,9 +266,9 @@ class ApplicationSearchAsyncDao(
             }
 
         return ctx.withSession { session ->
-            appStoreAsyncDao.preparePageForUser(
+            appStoreService.preparePageForUser(
                 session,
-                user.username,
+                actorAndProject.actor.username,
                 items
             ).mapItems { it.withoutInvocation() }
         }

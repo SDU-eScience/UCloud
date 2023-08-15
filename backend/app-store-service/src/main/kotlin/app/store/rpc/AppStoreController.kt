@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.mapItems
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.actorAndProject
@@ -29,15 +30,15 @@ class AppStoreController(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.findByNameAndVersion) {
-            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
+            ok(appStore.findByNameAndVersion(actorAndProject, request.appName, request.appVersion))
         }
 
         implement(AppStore.hasPermission) {
-            ok(appStore.hasPermission(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion, request.permission))
+            ok(appStore.hasPermission(actorAndProject, request.appName, request.appVersion, request.permission))
         }
 
         implement(AppStore.listAcl) {
-            ok(appStore.listAcl(ctx.securityPrincipal, request.appName))
+            ok(appStore.listAcl(actorAndProject, request.appName))
         }
 
         implement(AppStore.updateAcl) {
@@ -47,7 +48,7 @@ class AppStoreController(
         implement(AppStore.findBySupportedFileExtension) {
             ok(
                 appStore.findBySupportedFileExtension(
-                    ctx.securityPrincipal,
+                    actorAndProject,
                     request.normalize(),
                     ctx.project,
                     request.files
@@ -56,19 +57,23 @@ class AppStoreController(
         }
 
         implement(AppStore.findByName) {
-            ok(appStore.findByName(ctx.securityPrincipal, ctx.project, request.appName, request.normalize()))
+            ok(appStore.findByName(actorAndProject, request.appName, request.normalize()).mapItems { it.withoutInvocation() })
         }
 
         implement(AppStore.listAll) {
-            ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
+            ok(appStore.listAll(actorAndProject, request.normalize()))
         }
 
         implement(AppStore.findGroup) {
-            ok(appStore.findGroup(ctx.securityPrincipal, ctx.project, request.appName))
+            ok(appStore.findGroup(actorAndProject, request.appName))
         }
 
         implement(AppStore.store) {
-            ok(appStore.browseSections(ctx.securityPrincipal, ctx.project, request.page))
+            ok(appStore.browseSections(actorAndProject, request.page))
+        }
+
+        implement(AppStore.setGroup) {
+            ok(appStore.setGroup(actorAndProject, request.applicationName, request.groupId))
         }
 
         implement(AppStore.create) {
@@ -112,12 +117,12 @@ class AppStoreController(
         }
 
         implement(AppStore.delete) {
-            appStore.delete(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion)
+            appStore.delete(actorAndProject, request.appName, request.appVersion)
             ok(Unit)
         }
 
         implement(AppStore.findLatestByTool) {
-            ok(appStore.findLatestByTool(ctx.securityPrincipal, ctx.project, request.tool, request.normalize()))
+            ok(appStore.findLatestByTool(actorAndProject, request.tool, request.normalize()))
         }
 
         importer?.let { im ->

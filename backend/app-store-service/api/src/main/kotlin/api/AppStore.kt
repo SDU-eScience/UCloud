@@ -192,18 +192,19 @@ data class FindGroupResponse(
     val applications: List<ApplicationSummary>
 )
 
-typealias AppStoreOverviewRequest = Unit
-
-@Serializable
-data class AppStoreOverviewResponse(
-    val sections: List<AppStoreSection>
-)
-
 @Serializable
 enum class AppStorePageType {
     LANDING,
     FULL
 }
+
+@Serializable
+data class SetGroupRequest(
+    val groupId: Int,
+    val applicationName: String
+)
+
+typealias SetGroupResponse = Unit
 
 @Serializable
 data class AppStoreSectionsRequest(
@@ -229,12 +230,6 @@ data class AppStoreSection (
     val name: String,
     val items: MutableList<ApplicationGroup>
 )
-
-@Serializable
-enum class AppStoreSectionType {
-    TAG,
-    TOOL
-}
 
 @UCloudApiExampleValue
 fun exampleApplication(
@@ -946,7 +941,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
+    val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreSectionsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -967,6 +962,22 @@ ${ApiConventions.nonConformingApiWarning}
             documentation {
                 summary = "Returns the application catalog sections"
             }
+        }
+    }
+
+    val setGroup = call("setGroup", SetGroupRequest.serializer(), SetGroupResponse.serializer(), CommonErrorMessage.serializer())  {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"group"
+            }
+            body { bindEntireRequestFromBody() }
         }
     }
 

@@ -9,11 +9,11 @@ import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
 
 class ApplicationLogoAsyncDao(
-    private val appStoreAsyncDao: AppStoreAsyncDao
+    private val appStoreService: AppStoreService
 ) {
 
     suspend fun createLogo(ctx: DBContext, actorAndProject: ActorAndProject, name: String, imageBytes: ByteArray) {
-        val exists = fetchLogo(ctx, name)
+        val exists = fetchLogo(ctx, actorAndProject, name)
         if (exists != null) {
             ctx.withSession { session ->
                 session.sendPreparedStatement(
@@ -43,7 +43,7 @@ class ApplicationLogoAsyncDao(
         }
     }
 
-    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
+    suspend fun clearLogo(ctx: DBContext, actorAndProject: ActorAndProject, name: String) {
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -57,7 +57,7 @@ class ApplicationLogoAsyncDao(
         }
     }
 
-    suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
+    suspend fun fetchLogo(ctx: DBContext, actorAndProject: ActorAndProject, name: String): ByteArray? {
         val logoFromApp = ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -71,17 +71,12 @@ class ApplicationLogoAsyncDao(
             ).rows.singleOrNull()?.getAs<ByteArray>("data")
         }
         if (logoFromApp != null) return logoFromApp
-        val app = ctx.withSession { session ->
-            internalFindAllByName(
-                session,
-                null,
-                null,
-                emptyList(),
-                name,
-                PaginationRequest().normalize(),
-                appStoreAsyncDao
-            ).items.firstOrNull()
-        } ?: return null
+        val app = appStoreService.findByName(
+            actorAndProject,
+            name,
+            PaginationRequest().normalize(),
+        ).items.firstOrNull() ?: return null
+
         val toolName = app.invocation.tool.name
         return ctx.withSession { session ->
             session.sendPreparedStatement(

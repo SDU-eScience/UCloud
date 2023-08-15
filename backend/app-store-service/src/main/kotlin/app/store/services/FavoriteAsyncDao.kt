@@ -1,13 +1,11 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.offset
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
@@ -24,8 +22,7 @@ class FavoriteAsyncDao(
 
     suspend fun toggleFavorite(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         memberGroups: List<String>,
         appName: String,
         appVersion: String
@@ -33,14 +30,14 @@ class FavoriteAsyncDao(
         ctx.withSession { session ->
             val foundApp =
                 internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.BadApplication()
-            val isFavorite = isFavorite(session, user, appName, appVersion)
+            val isFavorite = isFavorite(session, actorAndProject, appName, appVersion)
 
             if (isFavorite) {
 
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("user", user.username)
+                            setParameter("user", actorAndProject.actor.username)
                             setParameter("appname", appName)
                             setParameter("appversion", appVersion)
                         },
@@ -55,8 +52,7 @@ class FavoriteAsyncDao(
             } else {
                 val userHasPermission = internalHasPermission(
                     session,
-                    user,
-                    project,
+                    actorAndProject,
                     memberGroups,
                     foundApp.getString("name")!!,
                     foundApp.getString("version")!!,
@@ -70,7 +66,7 @@ class FavoriteAsyncDao(
                         {
                             setParameter("name", foundApp.getString("name"))
                             setParameter("version", foundApp.getString("version"))
-                            setParameter("user", user.username)
+                            setParameter("user", actorAndProject.actor.username)
                             setParameter("id", id)
                         },
                         """
@@ -89,7 +85,7 @@ class FavoriteAsyncDao(
 
     private suspend fun isFavorite(
         ctx: DBContext,
-        user: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         appName: String,
         appVersion: String
     ): Boolean {
@@ -97,7 +93,7 @@ class FavoriteAsyncDao(
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("user", user.username)
+                        setParameter("user", actorAndProject.actor.username)
                         setParameter("name", appName)
                         setParameter("version", appVersion)
                     },
@@ -116,8 +112,7 @@ class FavoriteAsyncDao(
 
     suspend fun retrieveFavorites(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         memberGroups: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
@@ -126,7 +121,7 @@ class FavoriteAsyncDao(
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("user", user.username)
+                            setParameter("user", actorAndProject.actor.username)
                         },
                         """
                         SELECT COUNT(*)
@@ -148,9 +143,9 @@ class FavoriteAsyncDao(
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("user", user.username)
-                            setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
-                            setParameter("project", project)
+                            setParameter("user", actorAndProject.actor.username)
+                            setParameter("isAdmin", Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role))
+                            setParameter("project", actorAndProject.project)
                             setParameter("groups", groups)
                             setParameter("limit", paging.itemsPerPage)
                             setParameter("offset", paging.offset)

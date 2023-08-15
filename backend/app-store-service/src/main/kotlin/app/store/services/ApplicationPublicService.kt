@@ -11,7 +11,7 @@ class ApplicationPublicService(
     private val applicationPublicAsyncDao: ApplicationPublicAsyncDao
 ) {
     suspend fun isPublic(
-        securityPrincipal: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         applications: List<NameAndVersion>
     ): Map<NameAndVersion, Boolean> {
         return ctx.withSession { session ->
@@ -20,7 +20,7 @@ class ApplicationPublicService(
                     NameAndVersion(app.name, app.version),
                     applicationPublicAsyncDao.isPublic(
                         session,
-                        securityPrincipal,
+                        actorAndProject,
                         app.name,
                         app.version
                     )

@@ -53,10 +53,7 @@ class Server(override val micro: Micro) : CommonServer {
         val toolDAO = ToolAsyncDao()
         val aclDao = AclAsyncDao()
         val publicDAO = ApplicationPublicAsyncDao()
-        val applicationDAO = AppStoreAsyncDao(toolDAO, aclDao, publicDAO)
-        val appLogoDAO = ApplicationLogoAsyncDao(applicationDAO)
         val tagDAO = ApplicationTagsAsyncDao()
-        val searchDAO = ApplicationSearchAsyncDao(applicationDAO)
         val favoriteDAO = FavoriteAsyncDao(publicDAO, aclDao)
 
         val db = AsyncDBSessionFactory(micro)
@@ -64,17 +61,19 @@ class Server(override val micro: Micro) : CommonServer {
         val appStoreService = AppStoreService(
             db,
             authenticatedClient,
-            applicationDAO,
             publicDAO,
             toolDAO,
             aclDao,
             elasticDAO,
             micro.eventStreamServiceOrNull?.createProducer(AppStoreStreams.AppDeletedStream)
         )
-        val logoService = LogoService(db, applicationDAO, appLogoDAO, toolDAO)
+
+        val appLogoDao = ApplicationLogoAsyncDao(appStoreService)
+        val searchDao = ApplicationSearchAsyncDao(appStoreService)
+        val logoService = LogoService(db, appStoreService, appLogoDao, toolDAO)
         val tagService = ApplicationTagsService(db, tagDAO, elasticDAO)
         val publicService = ApplicationPublicService(db, publicDAO)
-        val searchService = ApplicationSearchService(db, searchDAO, elasticDAO, applicationDAO, authenticatedClient)
+        val searchService = ApplicationSearchService(db, searchDao, elasticDAO, appStoreService, authenticatedClient)
         val favoriteService = FavoriteService(db, favoriteDAO, authenticatedClient)
         val importer = if (micro.developmentModeEnabled) {
             Importer(db, logoService, tagService, toolDAO, appStoreService)
@@ -98,9 +97,12 @@ class Server(override val micro: Micro) : CommonServer {
 
         if (micro.developmentModeEnabled) {
             runBlocking {
-                val listOfApps = db.withTransaction {
-                    applicationDAO.listLatestVersion(it, null, null, emptyList(), NormalizedPaginationRequest(null, null))
-                }
+                val listOfApps = appStoreService.listLatestVersion(
+                    null,
+                    null,
+                    emptyList(),
+                    NormalizedPaginationRequest(null, null)
+                )
 
                 if (listOfApps.itemsInTotal == 0) {
                     val systemUser = ActorAndProject(Actor.System, null)
@@ -121,7 +123,7 @@ class Server(override val micro: Micro) : CommonServer {
                         apps.listFiles()?.forEach {
                             try {
                                 val description = yamlMapper.readValue<ApplicationDescription>(it)
-                                applicationDAO.create(session, systemUser, description.normalize(), "original")
+                                appStoreService.create(systemUser, description.normalize(), "original")
                             } catch (ex: Exception) {
                                 log.info("Could not create app: $it")
                                 log.info(ex.stackTraceToString())
@@ -138,7 +140,7 @@ class Server(override val micro: Micro) : CommonServer {
                 val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin")
                 runBlocking {
                     db.withSession { session ->
-                        val apps = applicationDAO.getAllApps(session, dummyUser)
+                        val apps = appStoreService.getAllApps(dummyUser)
                         apps.forEach { app ->
                             val name = app.getString("name")!!.lowercase()
                             val version = app.getString("version")!!.lowercase()

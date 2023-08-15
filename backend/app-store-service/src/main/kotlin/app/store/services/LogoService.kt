@@ -26,7 +26,7 @@ enum class LogoType {
 
 class LogoService(
     private val db: AsyncDBSessionFactory,
-    private val appService: AppStoreAsyncDao,
+    private val appService: AppStoreService,
     private val appDao: ApplicationLogoAsyncDao,
     private val toolDao: ToolAsyncDao
 ) {
@@ -61,38 +61,33 @@ class LogoService(
         }
     }
 
-    suspend fun clearLogo(user: SecurityPrincipal, type: LogoType, name: String) {
+    suspend fun clearLogo(actorAndProject: ActorAndProject, type: LogoType, name: String) {
         db.withSession { session ->
             when (type) {
-                LogoType.APPLICATION -> appDao.clearLogo(session, user, name)
-                LogoType.TOOL -> toolDao.clearLogo(session, user, name)
+                LogoType.APPLICATION -> appDao.clearLogo(session, actorAndProject, name)
+                LogoType.TOOL -> toolDao.clearLogo(session, actorAndProject, name)
             }
         }
     }
 
-    suspend fun fetchLogo(type: LogoType, name: String): ByteArray {
+    suspend fun fetchLogo(actorAndProject: ActorAndProject, type: LogoType, name: String): ByteArray {
         return db.withSession { session ->
             when (type) {
-                LogoType.APPLICATION -> appDao.fetchLogo(session, name)
+                LogoType.APPLICATION -> appDao.fetchLogo(session, actorAndProject, name)
                 LogoType.TOOL -> toolDao.fetchLogo(session, name)
             } ?: when (type) {
                 LogoType.APPLICATION -> {
-                    val app = appService.findAllByName(
-                        session,
-                        null,
-                        null,
-                        emptyList(),
+                    val app = appService.findByName(
+                        actorAndProject,
                         name,
                         NormalizedPaginationRequest(10, 0)
                     ).items.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
                     fetchLogo(
+                        actorAndProject,
                         LogoType.TOOL,
                         appService.findByNameAndVersion(
-                            session,
-                            null,
-                            null,
-                            emptyList(),
+                            actorAndProject,
                             app.metadata.name,
                             app.metadata.version
                         ).invocation.tool.name

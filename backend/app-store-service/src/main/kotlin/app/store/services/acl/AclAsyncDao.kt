@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services.acl
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
@@ -24,8 +25,7 @@ object PermissionTable : SQLTable("permissions") {
 class AclAsyncDao {
      suspend fun hasPermission(
         ctx: DBContext,
-        user: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         memberGroups: List<String>,
         applicationName: String,
         permissions: Set<ApplicationAccessRight>
@@ -33,8 +33,8 @@ class AclAsyncDao {
         val result = ctx.withSession{ session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("user", user.username)
-                    setParameter("project", project)
+                    setParameter("user", actorAndProject.actor.username)
+                    setParameter("project", actorAndProject.project)
                     setParameter("groups", memberGroups)
                     setParameter("appname", applicationName)
                 },
@@ -77,9 +77,9 @@ class AclAsyncDao {
                 """
                     SELECT * 
                     FROM permissions
-                    WHERE (application_name = ?appname) AND
-                     (username = ?user) AND (project = ?project)
-                     AND (project_group = ?group)
+                    WHERE (application_name = :appname) AND
+                     (username = :user) AND (project = :project)
+                     AND (project_group = :group)
                 """.trimIndent()
             ).rows.singleOrNull()
 
@@ -94,10 +94,10 @@ class AclAsyncDao {
                     },
                     """
                         UPDATE permissions
-                        SET permission = ?permission
-                        WHERE (application_name = ?appname) AND
-                            (username = ?user) AND (project = ?project)
-                            AND (project_group = ?group)                    
+                        SET permission = :permission
+                        WHERE (application_name = :appname) AND
+                            (username = :user) AND (project = :project)
+                            AND (project_group = :group)                    
                     """.trimIndent()
                 )
             } else {
@@ -127,9 +127,9 @@ class AclAsyncDao {
                 },
                 """
                     DELETE FROM permissions
-                    WHERE (application_name = ?appname) AND
-                            (username = ?user) AND (project = ?project)
-                            AND (project_group = ?group)     
+                    WHERE (application_name = :appname) AND
+                            (username = :user) AND (project = :project)
+                            AND (project_group = :group)     
                 """.trimIndent()
             )
         }
@@ -147,7 +147,7 @@ class AclAsyncDao {
                 """
                     SELECT *
                     FROM permissions
-                    WHERE application_name = ?appname
+                    WHERE application_name = :appname
                 """.trimIndent()
             ).rows.map {
                 EntityWithPermission(

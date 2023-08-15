@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PaginationRequest
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
@@ -13,18 +14,17 @@ class FavoriteService (
     private val favoriteDao: FavoriteAsyncDao,
     private val authenticatedClient: AuthenticatedClient
 ) {
-    suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, project: String?, appName: String, appVersion: String) {
-        val projectGroups = if (project.isNullOrBlank()) {
+    suspend fun toggleFavorite(actorAndProject: ActorAndProject, appName: String, appVersion: String) {
+        val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
+            retrieveUserProjectGroups(actorAndProject, authenticatedClient)
         }
 
         db.withSession { session ->
             favoriteDao.toggleFavorite(
                 session,
-                securityPrincipal,
-                project,
+                actorAndProject,
                 projectGroups,
                 appName,
                 appVersion
@@ -33,21 +33,19 @@ class FavoriteService (
     }
 
     suspend fun retrieveFavorites(
-        securityPrincipal: SecurityPrincipal,
-        project: String?,
+        actorAndProject: ActorAndProject,
         request: PaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val projectGroups = if (project.isNullOrBlank()) {
+        val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
+            retrieveUserProjectGroups(actorAndProject, authenticatedClient)
         }
 
         return db.withSession { session ->
             favoriteDao.retrieveFavorites(
                 session,
-                securityPrincipal,
-                project,
+                actorAndProject,
                 projectGroups as List<String>,
                 request.normalize()
             )

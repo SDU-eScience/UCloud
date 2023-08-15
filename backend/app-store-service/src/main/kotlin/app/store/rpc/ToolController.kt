@@ -119,12 +119,12 @@ class ToolController(
         }
 
         implement(ToolStore.clearLogo) {
-            logoService.clearLogo(ctx.securityPrincipal, LogoType.TOOL, request.name)
+            logoService.clearLogo(actorAndProject, LogoType.TOOL, request.name)
             ok(Unit)
         }
 
         implement(ToolStore.fetchLogo) {
-            val logo = logoService.fetchLogo(LogoType.TOOL, request.name)
+            val logo = logoService.fetchLogo(actorAndProject, LogoType.TOOL, request.name)
             (ctx as HttpCall).call.respond(
                 object : OutgoingContent.ReadChannelContent() {
                     override val contentLength = logo.size.toLong()

@@ -35,5 +35,3 @@ create table if not exists app_store.section_tags (
 );
 
 drop table if exists app_store.overview;
-drop table if exists app_store.application_tags;
-
