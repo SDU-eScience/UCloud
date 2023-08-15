@@ -835,7 +835,7 @@ class ResourceStore<T>(
         idCard: IdCard,
         id: Long,
         updates: List<ResourceDocumentUpdate>,
-        consumer: ((state: T, updateIdx: Int, update: ResourceDocumentUpdate) -> Boolean)? = null,
+        consumer: (ResourceStoreBucket<T>.(state: T, updateIdx: Int, arrIdx: Int) -> Boolean)? = null,
     ) {
         if (idCard !is IdCard.Provider) {
             throw RPCException("End-users are not allowed to add updates to a resource!", HttpStatusCode.Forbidden)
@@ -1629,7 +1629,7 @@ class ResourceStoreBucket<T>(
         idCard: IdCard,
         id: Long,
         newUpdates: List<ResourceDocumentUpdate>,
-        consumer: ((state: T, updateIdx: Int, update: ResourceDocumentUpdate) -> Boolean)? = null,
+        consumer: (ResourceStoreBucket<T>.(state: T, updateIdx: Int, arrIdx: Int) -> Boolean)? = null,
     ): Boolean {
         val self = this
         var isDone = false
@@ -1646,7 +1646,7 @@ class ResourceStoreBucket<T>(
                 for ((index, update) in newUpdates.withIndex()) {
                     @Suppress("UNCHECKED_CAST")
                     val shouldAddUpdate =
-                        if (consumer != null) consumer(self.data[arrIdx] as T, index, update) else true
+                        if (consumer != null) consumer(self.data[arrIdx] as T, index, arrIdx) else true
                     if (shouldAddUpdate) updates.add(update)
                 }
 

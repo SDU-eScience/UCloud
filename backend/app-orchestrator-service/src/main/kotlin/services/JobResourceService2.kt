@@ -691,6 +691,7 @@ class JobResourceService2(
         // TODO(Dan): Allocates a lot of memory which isn't needed
         val card = idCards.fetchIdCard(actorAndProject)
         val updatesByJob = request.items.groupBy { it.id }.mapValues { it.value.map { it.update } }
+        val jobsToRestart = HashSet<Long>()
 
         for ((jobId, updates) in updatesByJob) {
             documents.addUpdate(
@@ -702,7 +703,7 @@ class JobResourceService2(
                         defaultMapper.encodeToJsonElement(JobUpdate.serializer(), it)
                     )
                 },
-                consumer = f@{ job, uIdx, _ ->
+                consumer = f@{ job, uIdx, arrIdx ->
                     val update = updates[uIdx]
                     val newState = update.state
                     val expectedState = update.expectedState
@@ -711,6 +712,9 @@ class JobResourceService2(
                     val allowRestart = update.allowRestart
                     val outputFolder = update.outputFolder
                     val newMounts = update.newMounts
+
+                    val uid = createdBy[arrIdx]
+                    val pid = project[arrIdx]
 
                     if (expectedState != null && job.state != expectedState) {
                         return@f false
@@ -727,6 +731,11 @@ class JobResourceService2(
                         } else {
                             allRunningJobs.remove(jobId.toLongOrNull())
                         }
+
+                        if (job.specification.restartOnExit == true && newState.isFinal() && update.allowRestart == true) {
+                            job.state = JobState.SUSPENDED
+                            jobsToRestart.add(id[arrIdx])
+                        }
                     }
 
                     if (timeAllocation != null) {
@@ -742,12 +751,41 @@ class JobResourceService2(
                     }
 
                     if (newMounts != null) {
-                        TODO()
+                        val allResources = job.specification.resources ?: emptyList()
+                        val nonMountResources = allResources.filter { it !is AppParameterValue.File }
+                        val validMountResources = runBlocking {
+                            // TODO(Dan): This is really not ideal, we should not be blocking here.
+                            val createdBy = idCards.lookupUid(uid)?.let {
+                                Actor.SystemOnBehalfOfUser(it)
+                            } ?: Actor.guest
+
+                            val project = if (pid != 0) {
+                                idCards.lookupPid(pid)
+                            } else {
+                                null
+                            }
+
+                            validation.checkAndReturnValidFiles(
+                                ActorAndProject(createdBy, project),
+                                newMounts.map { AppParameterValue.File(it) }
+                            )
+                        }
+
+                        job.specification = job.specification.copy(
+                            resources = nonMountResources + validMountResources
+                        )
                     }
 
                     return@f true
                 }
             )
+        }
+
+        if (jobsToRestart.isNotEmpty()) {
+            backgroundScope.launch {
+                val jobs = retrieveBulk(ActorAndProject.System, jobsToRestart.toLongArray(), Permission.READ)
+                performUnsuspension(jobs)
+            }
         }
     }
 
@@ -1200,31 +1238,35 @@ class JobResourceService2(
 
     suspend fun performUnsuspension(jobs: List<Job>) {
         for (job in jobs) {
-            val actorAndProject = job.owner.toActorAndProject()
+            try {
+                val actorAndProject = job.owner.toActorAndProject()
 
-            // NOTE(Dan): This will throw if modify the specification to ensure that only the valid files are still
-            // present.
-            validate(actorAndProject, job.specification)
+                // NOTE(Dan): This will modify the specification to ensure that only the valid files are still
+                // present.
+                validate(actorAndProject, job.specification)
 
-            val output = Array<ResourceDocument<InternalJobState>>(1) { ResourceDocument() }
-            documents.modify(
-                IdCard.System,
-                output,
-                longArrayOf(job.id.toLong()),
-                Permission.READ,
-                consumer = { arrIdx, doc ->
-                    val data = doc.data!!
-                    data.specification = job.specification
-                }
-            )
+                val output = Array<ResourceDocument<InternalJobState>>(1) { ResourceDocument() }
+                documents.modify(
+                    IdCard.System,
+                    output,
+                    longArrayOf(job.id.toLong()),
+                    Permission.READ,
+                    consumer = { arrIdx, doc ->
+                        val data = doc.data!!
+                        data.specification = job.specification
+                    }
+                )
 
-            // TODO(Dan): We do not have any signed intent from the user which cause an issue with #3367
-            providers.invokeCall(
-                job.specification.product.provider,
-                actorAndProject,
-                { JobsProvider(it).unsuspend },
-                BulkRequest(listOf(JobsProviderUnsuspendRequestItem(job))),
-            )
+                // TODO(Dan): We do not have any signed intent from the user which cause an issue with #3367
+                providers.invokeCall(
+                    job.specification.product.provider,
+                    actorAndProject,
+                    { JobsProvider(it).unsuspend },
+                    BulkRequest(listOf(JobsProviderUnsuspendRequestItem(job))),
+                )
+            } catch (ex: Throwable) {
+                log.info("Failed to restart job: $job\n${ex.stackTraceToString()}")
+            }
         }
     }
 
