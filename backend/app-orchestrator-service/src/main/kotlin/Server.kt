@@ -34,6 +34,7 @@ class Server(override val micro: Micro) : CommonServer {
         val appStoreCache = AppStoreCache(serviceClient)
 
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
+        val productCache = ProductCache(db)
 
         val altProviders = dk.sdu.cloud.accounting.util.Providers(serviceClient) { comms ->
             ComputeCommunication(
@@ -85,7 +86,7 @@ class Server(override val micro: Micro) : CommonServer {
         val ingressService =
             IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
 
-        val exporter = ParameterExportService(db, ingressService)
+        val exporter = ParameterExportService(ingressService, productCache)
         jobOrchestrator.exporter = exporter // TODO(Dan): Cyclic-dependency hack
 
         val licenseSupport = ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>(
@@ -136,7 +137,6 @@ class Server(override val micro: Micro) : CommonServer {
         val payment = PaymentService(db, serviceClient)
 
         val jobs = run {
-            val productCache = ProductCache(db)
             JobResourceService2(
                 db,
                 ProviderCommunications(micro.backgroundScope, serviceClient, productCache),
@@ -146,6 +146,7 @@ class Server(override val micro: Micro) : CommonServer {
                 fileCollections,
                 serviceClient,
                 payment,
+                exporter,
             )
         }
 

@@ -23,42 +23,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 
 class ParameterExportService(
-    private val db: DBContext,
     private val ingresses: IngressService,
+    private val productCache: ProductCache,
 ) {
-    private val productCache = SimpleCache<ProductReference, Product.Compute>(
-        maxAge = 60_000 * 15L,
-        lookup = { reference ->
-            db.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("provider", reference.provider)
-                        setParameter("category", reference.category)
-                        setParameter("name", reference.id)
-                    },
-                    """
-                        select accounting.product_to_json(p, pc, null)
-                        from
-                            accounting.products p join
-                            accounting.product_categories pc on p.category = pc.id
-                        where
-                            pc.provider = :provider and
-                            pc.category = :category and
-                            p.name = :name
-                        order by p.version desc
-                        limit 1
-                    """
-                )
-            }.rows.singleOrNull()?.let {
-                runCatching {
-                    defaultMapper.decodeFromString<Product.Compute>(it.getString(0)!!)
-                }.getOrNull()
-            }
-        }
-    )
-
     suspend fun exportParameters(parameters: JobSpecification): ExportedParameters {
-        val resolvedProduct = productCache.get(parameters.product)
+        val resolvedProduct = productCache.referenceToProduct(parameters.product) as? Product.Compute?
             ?: throw RPCException("Unknown machine reservation", HttpStatusCode.BadRequest)
 
         return ExportedParameters(
@@ -119,4 +88,3 @@ class ParameterExportService(
         const val VERSION = 3
     }
 }
-

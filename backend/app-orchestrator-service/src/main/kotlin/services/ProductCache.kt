@@ -12,6 +12,11 @@ import java.util.HashMap
 import java.util.concurrent.atomic.AtomicLong
 
 interface IProductCache {
+    suspend fun referenceToProduct(ref: ProductReference): Product? {
+        val id = referenceToProductId(ref) ?: return null
+        return productIdToProduct(id)
+    }
+
     suspend fun referenceToProductId(ref: ProductReference): Int?
     suspend fun productIdToReference(id: Int): ProductReference?
     suspend fun productIdToProduct(id: Int): Product?

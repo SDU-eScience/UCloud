@@ -41,7 +41,7 @@ data class InternalJobState(
     var outputFolder: String? = null,
     var startedAt: Long? = null,
     var allowRestart: Boolean = false,
-    var jobParameters: JsonElement? = null,
+    var jobParameters: ExportedParameters? = null,
 )
 
 class JobResourceService2(
@@ -53,6 +53,7 @@ class JobResourceService2(
     private val fileCollections: FileCollectionService,
     private val serviceClient: AuthenticatedClient,
     private val payment: PaymentService,
+    private val exporter: ParameterExportService,
 ) {
     private val allRunningJobs = NonBlockingHashMapLong<Unit>()
 
@@ -153,7 +154,7 @@ class JobResourceService2(
                         startedAt = row.getLong(13),
                         allowRestart = row.getBoolean(14) ?: false,
                         jobParameters = row.getString(15)?.let { text ->
-                            defaultMapper.decodeFromString(JsonElement.serializer(), text)
+                            defaultMapper.decodeFromString(ExportedParameters.serializer(), text)
                         },
                     )
                 }
@@ -225,7 +226,7 @@ class JobResourceService2(
                                 startedAtTimestamps.add(job.startedAt)
                                 jobIds.add(jobId)
                                 jobParameterFiles.add(job.jobParameters?.let {
-                                    defaultMapper.encodeToString(JsonElement.serializer(), it)
+                                    defaultMapper.encodeToString(ExportedParameters.serializer(), it)
                                 })
                                 openedFiles.add(job.specification.openedFile)
                             }
@@ -373,7 +374,7 @@ class JobResourceService2(
             ),
             JobStatus(
                 data.state,
-                null,
+                data.jobParameters,
                 data.startedAt,
                 if (data.startedAt != null && data.specification.timeAllocation != null) {
                     (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
@@ -461,13 +462,14 @@ class JobResourceService2(
 
         for (job in request.items) {
             val provider = job.product.provider
+            val parameters = exporter.exportParameters(job)
 
             output.add(
                 FindByStringId(
                     documents.createViaProvider(
                         card,
                         job.product,
-                        InternalJobState(job),
+                        InternalJobState(job, jobParameters = parameters),
                         proxyBlock = { doc ->
                             providers.invokeCall(
                                 provider,
