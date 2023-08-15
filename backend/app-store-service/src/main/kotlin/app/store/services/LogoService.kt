@@ -1,15 +1,11 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.NormalizedPaginationRequest
-import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PaginationRequestV2Consistency
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import org.imgscalr.Scalr
@@ -25,9 +21,8 @@ enum class LogoType {
 }
 
 class LogoService(
-    private val db: AsyncDBSessionFactory,
-    private val appService: AppStoreService,
-    private val appDao: ApplicationLogoAsyncDao,
+    private val db: DBContext,
+    private val appStoreService: AppStoreService,
     private val toolDao: ToolAsyncDao
 ) {
     suspend fun acceptUpload(
@@ -50,7 +45,30 @@ class LogoService(
             when (type) {
                 LogoType.APPLICATION -> {
                     verifyAppUpdatePermission(actorAndProject, session, name)
-                    appDao.createLogo(session, actorAndProject, name, imageBytes)
+                    val exists = fetchLogo(actorAndProject, LogoType.APPLICATION, name)
+                    if (exists != null) {
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("bytes", imageBytes)
+                                setParameter("appname", name)
+                            },
+                            """
+                                UPDATE application_logos
+                                SET data = :bytes
+                                WHERE application = :appname
+                            """
+                        )
+                    } else {
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("application", name)
+                                setParameter("data", imageBytes)
+                            },
+                            """
+                                insert into app_store.application_logos (application, data) VALUES (:application, :data)
+                            """
+                        )
+                    }
                 }
 
                 LogoType.TOOL -> {
@@ -64,7 +82,17 @@ class LogoService(
     suspend fun clearLogo(actorAndProject: ActorAndProject, type: LogoType, name: String) {
         db.withSession { session ->
             when (type) {
-                LogoType.APPLICATION -> appDao.clearLogo(session, actorAndProject, name)
+                LogoType.APPLICATION -> {
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("appname", name)
+                        },
+                        """
+                            DELETE FROM application_logos
+                            WHERE application = :appname
+                        """
+                    )
+                }
                 LogoType.TOOL -> toolDao.clearLogo(session, actorAndProject, name)
             }
         }
@@ -73,11 +101,11 @@ class LogoService(
     suspend fun fetchLogo(actorAndProject: ActorAndProject, type: LogoType, name: String): ByteArray {
         return db.withSession { session ->
             when (type) {
-                LogoType.APPLICATION -> appDao.fetchLogo(session, actorAndProject, name)
+                LogoType.APPLICATION -> fetchApplicationLogo(actorAndProject, name)
                 LogoType.TOOL -> toolDao.fetchLogo(session, name)
             } ?: when (type) {
                 LogoType.APPLICATION -> {
-                    val app = appService.findByName(
+                    val app = appStoreService.findByName(
                         actorAndProject,
                         name,
                         NormalizedPaginationRequest(10, 0)
@@ -86,7 +114,7 @@ class LogoService(
                     fetchLogo(
                         actorAndProject,
                         LogoType.TOOL,
-                        appService.findByNameAndVersion(
+                        appStoreService.findByNameAndVersion(
                             actorAndProject,
                             app.metadata.name,
                             app.metadata.version
@@ -100,6 +128,98 @@ class LogoService(
             }
         }
     }
+
+    private suspend fun fetchApplicationLogo(actorAndProject: ActorAndProject, name: String): ByteArray?  {
+        val logoFromApp = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", name)
+                },
+                """
+                    SELECT *
+                    FROM application_logos
+                    WHERE application = :appname
+                """
+            ).rows.singleOrNull()?.getAs<ByteArray>("data")
+        }
+
+        if (logoFromApp != null) return logoFromApp
+
+        val app = appStoreService.findByName(
+            actorAndProject,
+            name,
+            PaginationRequest().normalize(),
+        ).items.firstOrNull() ?: return null
+
+        val toolName = app.invocation.tool.name
+
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("toolname", toolName)
+                },
+                """
+                    SELECT *
+                    FROM tool_logos
+                    WHERE application = :toolname
+                """
+            )
+        }.rows.singleOrNull()?.getAs<ByteArray>("data")
+    }
+
+    private suspend fun browseAll(request: NormalizedPaginationRequestV2): PageV2<Pair<String, ByteArray>> {
+        return db.paginateV2(
+            Actor.System,
+            request,
+            create = { session ->
+                session.sendPreparedStatement(
+                    {},
+
+                    """
+                        declare c cursor for
+                            select * from application_logos
+                    """
+                )
+            },
+            mapper = { _, rows ->
+                rows.map {
+                    Pair(it.getString("application")!!, it.getAs("data"))
+                }
+            }
+        )
+    }
+
+    private suspend fun createLogo(actorAndProject: ActorAndProject, name: String, imageBytes: ByteArray) {
+        val exists = fetchLogo(actorAndProject, LogoType.APPLICATION, name)
+        if (exists != null) {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("bytes", imageBytes)
+                        setParameter("appname", name)
+                    },
+                    """
+                        UPDATE application_logos
+                        SET data = :bytes
+                        WHERE application = :appname
+                    """
+                )
+            }
+        } else {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("application", name)
+                        setParameter("data", imageBytes)
+                    },
+                    """
+                        insert into app_store.application_logos (application, data) VALUES (:application, :data)
+                    """
+                )
+            }
+        }
+    }
+
 
     fun resizeLogo(logoBytes: ByteArray): ByteArray {
         val parsedLogo = ByteArrayInputStream(logoBytes).use { ins ->
@@ -127,9 +247,9 @@ class LogoService(
         run {
             var req = NormalizedPaginationRequestV2(250, null, PaginationRequestV2Consistency.PREFER, null)
             while (true) {
-                val nextPage = appDao.browseAll(db, req)
+                val nextPage = browseAll(req)
                 nextPage.items.forEach { (tool, logoBytes) ->
-                    appDao.createLogo(db, ActorAndProject(Actor.System, null), tool, resizeLogo(logoBytes))
+                    createLogo(ActorAndProject(Actor.System, null), tool, resizeLogo(logoBytes))
                 }
 
                 req = req.copy(next = nextPage.next)

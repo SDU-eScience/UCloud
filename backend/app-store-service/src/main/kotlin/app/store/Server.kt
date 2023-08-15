@@ -68,9 +68,8 @@ class Server(override val micro: Micro) : CommonServer {
             micro.eventStreamServiceOrNull?.createProducer(AppStoreStreams.AppDeletedStream)
         )
 
-        val appLogoDao = ApplicationLogoAsyncDao(appStoreService)
         val searchDao = ApplicationSearchAsyncDao(appStoreService)
-        val logoService = LogoService(db, appStoreService, appLogoDao, toolDAO)
+        val logoService = LogoService(db, appStoreService, toolDAO)
         val tagService = ApplicationTagsService(db, tagDAO, elasticDAO)
         val publicService = ApplicationPublicService(db, publicDAO)
         val searchService = ApplicationSearchService(db, searchDao, elasticDAO, appStoreService, authenticatedClient)
