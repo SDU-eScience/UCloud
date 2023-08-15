@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.util.PaymentService
 import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.asController
@@ -132,6 +133,7 @@ class Server(override val micro: Micro) : CommonServer {
         )
 
         runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
+        val payment = PaymentService(db, serviceClient)
 
         val jobs = run {
             val productCache = ProductCache(db)
@@ -143,13 +145,14 @@ class Server(override val micro: Micro) : CommonServer {
                 appStoreCache,
                 fileCollections,
                 serviceClient,
+                payment,
             )
         }
 
         if (streams != null) AppProcessor(streams, jobOrchestrator, appStoreCache).init()
 
         configureControllers(
-            JobController(db, jobOrchestrator, jobs, micro),
+            JobController(jobs, micro),
             ingressService.asController(),
             licenseService.asController(),
             NetworkIPController(networkService),

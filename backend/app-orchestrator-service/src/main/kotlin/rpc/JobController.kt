@@ -8,16 +8,12 @@ import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
-import dk.sdu.cloud.app.orchestrator.services.ProductCache
-import dk.sdu.cloud.app.orchestrator.services.ProviderCommunications
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.provider.api.*
@@ -26,9 +22,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -41,8 +34,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 
 class JobController(
-    private val db: AsyncDBSessionFactory,
-    private val orchestrator: JobOrchestrator,
     private val jobs: JobResourceService2,
     private val micro: Micro,
 ) : Controller {
@@ -452,17 +443,12 @@ class JobController(
             ok(jobs.register(actorAndProject, request))
         }
 
-        // Old implementation below this line
-        // ==================================
-
-        val userApi = orchestrator.userApi()
-        val controlApi = orchestrator.controlApi()
-        implement(controlApi.chargeCredits) {
-            ok(orchestrator.chargeCredits(actorAndProject, request))
+        implement(JobsControl.chargeCredits) {
+            ok(jobs.chargeOrCheckCredits(actorAndProject, request, checkOnly = false))
         }
 
-        implement(controlApi.checkCredits) {
-            ok(orchestrator.chargeCredits(actorAndProject, request, checkOnly = true))
+        implement(JobsControl.checkCredits) {
+            ok(jobs.chargeOrCheckCredits(actorAndProject, request, checkOnly = true))
         }
     }
 

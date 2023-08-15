@@ -504,6 +504,8 @@ sealed class Product : DocVisualizable {
         }
     }
 
+    fun toReference(): ProductReference = ProductReference(name, category.name, category.provider)
+
     override fun toString(): String {
         return "${name}/${category.name}@${category.provider}"
     }

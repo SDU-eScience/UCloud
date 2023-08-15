@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -51,6 +52,7 @@ class JobResourceService2(
     private val appCache: AppStoreCache,
     private val fileCollections: FileCollectionService,
     private val serviceClient: AuthenticatedClient,
+    private val payment: PaymentService,
 ) {
     private val allRunningJobs = NonBlockingHashMapLong<Unit>()
 
@@ -1090,9 +1092,9 @@ class JobResourceService2(
 
                         val jobName = data.specification.name
                         val appName = data.specification.application.name
-                        if (jobName != null && request.query.contains(jobName, ignoreCase = true)) return true
-                        if (request.query.contains(appName, ignoreCase = true)) return true
-                        if (request.query.contains(doc.id.toString())) return true
+                        if (jobName != null && jobName.contains(request.query, ignoreCase = true)) return true
+                        if (appName.contains(request.query, ignoreCase = true)) return true
+                        if (doc.id.toString().contains(request.query)) return true
                         return false
                     }
                 }
@@ -1105,6 +1107,73 @@ class JobResourceService2(
 
             return PageV2(normalizedRequest.itemsPerPage, page, result.next)
         }
+    }
+
+    // TODO(Dan): As we expand this to multiple resources, then we probably need to extract this into some sort of
+    //  utility method.
+    suspend fun chargeOrCheckCredits(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ResourceChargeCredits>,
+        checkOnly: Boolean
+    ): ResourceChargeCreditsResponse {
+        val ids = request.items.mapNotNull { it.id.toLongOrNull() }.toSet().toLongArray()
+        val card = idCards.fetchIdCard(actorAndProject)
+
+        val paymentRequests = ArrayList<Payment>()
+        val paymentResourceIds = ArrayList<String>()
+
+        ResourceOutputPool.withInstance<InternalJobState, Unit> { pool ->
+            val count = documents.retrieveBulk(card, ids, pool, Permission.PROVIDER)
+            for (i in 0 until count) {
+                val doc = pool[i]
+                for (reqItem in request.items) {
+                    if (reqItem.id.toLongOrNull() != doc.id) continue
+
+                    val project =
+                        if (doc.project == 0) null
+                        else idCards.lookupPid(doc.project)
+
+                    val createdBy = idCards.lookupUid(doc.createdBy)
+                        ?: throw RPCException("Could not lookup user: ${doc.createdBy}", HttpStatusCode.InternalServerError)
+
+                    val resolvedProduct = productCache.productIdToProduct(doc.product)
+                        ?: throw RPCException("Could not lookup product: ${doc.product}", HttpStatusCode.InternalServerError)
+
+                    paymentRequests.add(Payment(
+                        reqItem.chargeId,
+                        reqItem.periods,
+                        reqItem.units,
+                        resolvedProduct.pricePerUnit,
+                        reqItem.id,
+                        reqItem.performedBy ?: createdBy,
+                        if (project != null) {
+                            WalletOwner.Project(project)
+                        } else {
+                            WalletOwner.User(createdBy)
+                        },
+                        resolvedProduct.toReference(),
+                        reqItem.description,
+                        reqItem.chargeId
+                    ))
+
+                    paymentResourceIds.add(doc.id.toString())
+                }
+            }
+        }
+
+        val chargeResult =
+            if (checkOnly) payment.creditCheckForPayments(paymentRequests)
+            else payment.charge(paymentRequests)
+
+        val insufficient = chargeResult.mapIndexedNotNull { index, result ->
+            when (result) {
+                PaymentService.ChargeResult.Charged -> null
+                PaymentService.ChargeResult.Duplicate -> null
+                PaymentService.ChargeResult.InsufficientFunds -> FindByStringId(paymentResourceIds[index])
+            }
+        }
+
+        return ResourceChargeCreditsResponse(insufficient, emptyList())
     }
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {
