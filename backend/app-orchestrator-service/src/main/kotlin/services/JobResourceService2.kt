@@ -169,155 +169,181 @@ class JobResourceService2(
             ) {
                 println("Saving $length ${indices.slice(0 until length)}")
                 val session = transaction as AsyncDBConnection
-                session.sendPreparedStatement(
-                    {
-                        val applicationNames = ArrayList<String>().also { setParameter("application_name", it) }
-                        val applicationVersions =
-                            ArrayList<String>().also { setParameter("application_version", it) }
-                        val timeAllocations = ArrayList<Long?>().also { setParameter("time_allocation", it) }
-                        val names = ArrayList<String?>().also { setParameter("name", it) }
-                        val outputFolders = ArrayList<String?>().also { setParameter("output_folder", it) }
-                        val currentStates = ArrayList<String>().also { setParameter("current_state", it) }
-                        val startedAtTimestamps = ArrayList<Long?>().also { setParameter("started_at", it) }
-                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
-                        val jobParameterFiles = ArrayList<String?>().also { setParameter("job_parameters", it) }
-                        val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
 
-                        for (i in 0 until length) {
-                            if (store.flaggedForDelete[i]) TODO()
-                            val arrIdx = indices[i]
-                            val jobId = store.id[arrIdx]
-                            val job = store.data(arrIdx) ?: continue
+                val jobsToDelete = ArrayList<Long>()
+                for (i in 0 until length) {
+                    val arrIdx = indices[i]
+                    if (store.flaggedForDelete[arrIdx]) jobsToDelete.add(store.id[arrIdx])
+                }
 
-                            applicationNames.add(job.specification.application.name)
-                            applicationVersions.add(job.specification.application.version)
-                            timeAllocations.add(job.specification.timeAllocation?.toMillis())
-                            names.add(job.specification.name)
-                            outputFolders.add(job.outputFolder)
-                            currentStates.add(job.state.name)
-                            startedAtTimestamps.add(job.startedAt)
-                            jobIds.add(jobId)
-                            jobParameterFiles.add(job.jobParameters?.let {
-                                defaultMapper.encodeToString(JsonElement.serializer(), it)
-                            })
-                            openedFiles.add(job.specification.openedFile)
-                        }
-                    },
-                    """
-                        with
-                            data as (
-                                select
-                                    unnest(:application_name::text[]) application_name,
-                                    unnest(:application_version::text[]) application_version,
-                                    unnest(:time_allocation::int8[]) time_allocation,
-                                    unnest(:name::text[]) name,
-                                    unnest(:output_folder::text[]) output_folder,
-                                    unnest(:current_state::text[]) current_state,
-                                    to_timestamp(unnest(:started_at::int8[]) / 1000) started_at,
-                                    unnest(:job_id::int8[]) job_id,
-                                    unnest(:job_parameters::jsonb[]) job_parameters,
-                                    unnest(:opened_file::text[][]) opened_file
-                            )
-                        insert into app_orchestrator.jobs 
-                            (application_name, application_version, time_allocation_millis, name, output_folder, 
-                            current_state, started_at, resource, job_parameters, opened_file) 
-                        select 
-                            data.application_name, application_version, time_allocation, name, output_folder, 
-                            current_state, started_at, job_id, job_parameters, opened_file
-                        from data
-                        on conflict (resource) do update set 
-                            application_name = excluded.application_name,
-                            application_version = excluded.application_version,
-                            time_allocation_millis = excluded.time_allocation_millis,
-                            name = excluded.name,
-                            output_folder = excluded.output_folder,
-                            current_state = excluded.current_state,
-                            started_at = excluded.started_at,
-                            job_parameters = excluded.job_parameters,
-                            opened_file = excluded.opened_file
-                    """
-                )
+                if (jobsToDelete.isNotEmpty()) {
+                    session.sendPreparedStatement(
+                        { setParameter("job_ids", jobsToDelete) },
+                        "delete from app_orchestrator.job_resources where job_id = some(:job_ids::bigint[])"
+                    )
 
-                session.sendPreparedStatement(
-                    {
-                        val names = ArrayList<String>().also { setParameter("name", it) }
-                        val values = ArrayList<String>().also { setParameter("value", it) }
-                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+                    session.sendPreparedStatement(
+                        { setParameter("job_ids", jobsToDelete) },
+                        "delete from app_orchestrator.job_input_parameters where job_id = some(:job_ids::bigint[])"
+                    )
 
-                        for (i in 0 until length) {
-                            val arrIdx = indices[i]
-                            val jobId = store.id[arrIdx]
-                            val job = store.data(arrIdx) ?: continue
+                    session.sendPreparedStatement(
+                        { setParameter("job_ids", jobsToDelete) },
+                        "delete from app_orchestrator.jobs where resource = some(:job_ids::bigint[])"
+                    )
+                }
 
-                            for ((name, value) in job.specification.parameters ?: emptyMap()) {
+                if (jobsToDelete.size != length) {
+                    session.sendPreparedStatement(
+                        {
+                            val applicationNames = ArrayList<String>().also { setParameter("application_name", it) }
+                            val applicationVersions =
+                                ArrayList<String>().also { setParameter("application_version", it) }
+                            val timeAllocations = ArrayList<Long?>().also { setParameter("time_allocation", it) }
+                            val names = ArrayList<String?>().also { setParameter("name", it) }
+                            val outputFolders = ArrayList<String?>().also { setParameter("output_folder", it) }
+                            val currentStates = ArrayList<String>().also { setParameter("current_state", it) }
+                            val startedAtTimestamps = ArrayList<Long?>().also { setParameter("started_at", it) }
+                            val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+                            val jobParameterFiles = ArrayList<String?>().also { setParameter("job_parameters", it) }
+                            val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
+
+                            for (i in 0 until length) {
+                                val arrIdx = indices[i]
+                                if (store.flaggedForDelete[arrIdx]) continue
+                                val jobId = store.id[arrIdx]
+                                val job = store.data(arrIdx) ?: continue
+
+                                applicationNames.add(job.specification.application.name)
+                                applicationVersions.add(job.specification.application.version)
+                                timeAllocations.add(job.specification.timeAllocation?.toMillis())
+                                names.add(job.specification.name)
+                                outputFolders.add(job.outputFolder)
+                                currentStates.add(job.state.name)
+                                startedAtTimestamps.add(job.startedAt)
                                 jobIds.add(jobId)
-                                names.add(name)
-                                values.add(
-                                    defaultMapper.encodeToString(
-                                        AppParameterValue.serializer(),
-                                        value
-                                    )
-                                )
+                                jobParameterFiles.add(job.jobParameters?.let {
+                                    defaultMapper.encodeToString(JsonElement.serializer(), it)
+                                })
+                                openedFiles.add(job.specification.openedFile)
                             }
-                        }
-                    },
-                    """
-                        with
-                            data as (
-                                select
-                                    unnest(:job_id::int8[]) job_id,
-                                    unnest(:name::text[]) name,
-                                    unnest(:value::jsonb[]) value
-                            ),
-                            deleted_entries as (
-                                delete from app_orchestrator.job_input_parameters p
-                                using data d
-                                where p.job_id = d.job_id
-                            )
-                        insert into app_orchestrator.job_input_parameters (name, value, job_id) 
-                        select name, value, job_id
-                        from data
-                    """
-                )
-
-                session.sendPreparedStatement(
-                    {
-                        val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
-                        val resources = ArrayList<String>().also { setParameter("resource", it) }
-
-                        for (i in 0 until length) {
-                            val arrIdx = indices[i]
-                            val jobId = store.id[arrIdx]
-                            val job = store.data(arrIdx) ?: continue
-
-                            for (value in job.specification.resources ?: emptyList()) {
-                                jobIds.add(jobId)
-                                resources.add(
-                                    defaultMapper.encodeToString(
-                                        AppParameterValue.serializer(),
-                                        value
-                                    )
+                        },
+                        """
+                            with
+                                data as (
+                                    select
+                                        unnest(:application_name::text[]) application_name,
+                                        unnest(:application_version::text[]) application_version,
+                                        unnest(:time_allocation::int8[]) time_allocation,
+                                        unnest(:name::text[]) name,
+                                        unnest(:output_folder::text[]) output_folder,
+                                        unnest(:current_state::text[]) current_state,
+                                        to_timestamp(unnest(:started_at::int8[]) / 1000) started_at,
+                                        unnest(:job_id::int8[]) job_id,
+                                        unnest(:job_parameters::jsonb[]) job_parameters,
+                                        unnest(:opened_file::text[][]) opened_file
                                 )
+                            insert into app_orchestrator.jobs 
+                                (application_name, application_version, time_allocation_millis, name, output_folder, 
+                                current_state, started_at, resource, job_parameters, opened_file) 
+                            select 
+                                data.application_name, application_version, time_allocation, name, output_folder, 
+                                current_state, started_at, job_id, job_parameters, opened_file
+                            from data
+                            on conflict (resource) do update set 
+                                application_name = excluded.application_name,
+                                application_version = excluded.application_version,
+                                time_allocation_millis = excluded.time_allocation_millis,
+                                name = excluded.name,
+                                output_folder = excluded.output_folder,
+                                current_state = excluded.current_state,
+                                started_at = excluded.started_at,
+                                job_parameters = excluded.job_parameters,
+                                opened_file = excluded.opened_file
+                        """
+                    )
+
+                    session.sendPreparedStatement(
+                        {
+                            val names = ArrayList<String>().also { setParameter("name", it) }
+                            val values = ArrayList<String>().also { setParameter("value", it) }
+                            val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+
+                            for (i in 0 until length) {
+                                val arrIdx = indices[i]
+                                val jobId = store.id[arrIdx]
+                                val job = store.data(arrIdx) ?: continue
+
+                                for ((name, value) in job.specification.parameters ?: emptyMap()) {
+                                    jobIds.add(jobId)
+                                    names.add(name)
+                                    values.add(
+                                        defaultMapper.encodeToString(
+                                            AppParameterValue.serializer(),
+                                            value
+                                        )
+                                    )
+                                }
                             }
-                        }
-                    },
-                    """
-                        with
-                            data as (
-                                select
-                                    unnest(:job_id::int8[]) job_id,
-                                    unnest(:resource::jsonb[]) resource
-                            ),
-                            deleted_entries as (
-                                delete from app_orchestrator.job_resources r
-                                using data d
-                                where r.job_id = d.job_id
-                            )
-                        insert into app_orchestrator.job_resources (resource, job_id) 
-                        select d.resource, d.job_id
-                        from data d
-                    """
-                )
+                        },
+                        """
+                            with
+                                data as (
+                                    select
+                                        unnest(:job_id::int8[]) job_id,
+                                        unnest(:name::text[]) name,
+                                        unnest(:value::jsonb[]) value
+                                ),
+                                deleted_entries as (
+                                    delete from app_orchestrator.job_input_parameters p
+                                    using data d
+                                    where p.job_id = d.job_id
+                                )
+                            insert into app_orchestrator.job_input_parameters (name, value, job_id) 
+                            select name, value, job_id
+                            from data
+                        """
+                    )
+
+                    session.sendPreparedStatement(
+                        {
+                            val jobIds = ArrayList<Long>().also { setParameter("job_id", it) }
+                            val resources = ArrayList<String>().also { setParameter("resource", it) }
+
+                            for (i in 0 until length) {
+                                val arrIdx = indices[i]
+                                val jobId = store.id[arrIdx]
+                                val job = store.data(arrIdx) ?: continue
+
+                                for (value in job.specification.resources ?: emptyList()) {
+                                    jobIds.add(jobId)
+                                    resources.add(
+                                        defaultMapper.encodeToString(
+                                            AppParameterValue.serializer(),
+                                            value
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        """
+                            with
+                                data as (
+                                    select
+                                        unnest(:job_id::int8[]) job_id,
+                                        unnest(:resource::jsonb[]) resource
+                                ),
+                                deleted_entries as (
+                                    delete from app_orchestrator.job_resources r
+                                    using data d
+                                    where r.job_id = d.job_id
+                                )
+                            insert into app_orchestrator.job_resources (resource, job_id) 
+                            select d.resource, d.job_id
+                            from data d
+                        """
+                    )
+                }
             }
         }
     )
@@ -493,6 +519,17 @@ class JobResourceService2(
         return BulkResponse(ids)
     }
 
+    suspend fun delete(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+    ) {
+        val ids = request.items.mapNotNull { it.id.toLongOrNull() }.toLongArray()
+        if (ids.isEmpty()) return
+
+        val card = idCards.fetchIdCard(actorAndProject)
+        documents.delete(card, ids)
+    }
+
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ResourceBrowseRequest<JobIncludeFlags>,
@@ -549,7 +586,6 @@ class JobResourceService2(
             return PageV2(itemsPerPage, page, nextToken)
         }
 
-        val browseStart = System.nanoTime()
         val card = idCards.fetchIdCard(actorAndProject)
         val normalizedRequest = request.normalize()
         val customFilter = if (request.flags.filterApplication != null || request.flags.filterState != null) {

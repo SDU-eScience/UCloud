@@ -2586,152 +2586,189 @@ class ResourceStoreDatabaseQueriesImpl<T>(
     ) {
         val session = (transaction as AsyncDBConnection)
         with(bucket) {
-            session.sendPreparedStatement(
-                {
-                    setParameter("type", type)
-                    setParameter("id", (0 until len).map { id[indices[it]] })
-                    setParameter("created_at", (0 until len).map { createdAt[indices[it]] })
-                    setParameter("created_by", (0 until len).map { createdBy[indices[it]] })
-                    setParameter("project", (0 until len).map { project[indices[it]] })
-                    setParameter("product", (0 until len).map { product[indices[it]] })
-                    setParameter("provider_id", (0 until len).map { providerId[indices[it]] })
-                },
-                """
-                    with
-                        data as (
-                            select
-                                unnest(:id::int8[]) id,
-                                unnest(:created_at::int8[]) created_at,
-                                unnest(:created_by::int[]) created_by,
-                                unnest(:project::int[]) project,
-                                unnest(:product::int[]) product,
-                                unnest(:provider_id::text[]) provider_id
+            val resourcesToDelete = ArrayList<Long>()
+            for (i in 0 until len) {
+                val arrIdx = indices[i]
+                if (bucket.flaggedForDelete[arrIdx]) resourcesToDelete.add(bucket.id[arrIdx])
+            }
+
+            if (resourcesToDelete.size != len) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("type", type)
+                        val id = ArrayList<Long>().also { setParameter("id", it) }
+                        val createdAt = ArrayList<Long>().also { setParameter("created_at", it) }
+                        val createdBy = ArrayList<Int>().also { setParameter("created_by", it) }
+                        val project = ArrayList<Int>().also { setParameter("project", it) }
+                        val product = ArrayList<Int>().also { setParameter("product", it) }
+                        val providerId = ArrayList<String?>().also { setParameter("provider_id", it) }
+
+                        for (ii in 0 until len) {
+                            val arrIdx = indices[ii]
+                            if (bucket.flaggedForDelete[arrIdx]) continue
+                            id.add(bucket.id[arrIdx])
+                            createdAt.add(bucket.createdAt[arrIdx])
+                            createdBy.add(bucket.createdBy[arrIdx])
+                            project.add(bucket.project[arrIdx])
+                            product.add(bucket.product[arrIdx])
+                            providerId.add(bucket.providerId[arrIdx])
+                        }
+                    },
+                    """
+                        with
+                            data as (
+                                select
+                                    unnest(:id::int8[]) id,
+                                    unnest(:created_at::int8[]) created_at,
+                                    unnest(:created_by::int[]) created_by,
+                                    unnest(:project::int[]) project,
+                                    unnest(:product::int[]) product,
+                                    unnest(:provider_id::text[]) provider_id
+                            )
+                        insert into provider.resource (type, id, created_at, created_by, project, product, provider_generated_id, confirmed_by_provider)
+                        select :type, d.id, to_timestamp(d.created_at / 1000), u.id, p.id, d.product, d.provider_id, true
+                        from
+                            data d
+                            join auth.principals u on d.created_by = u.uid
+                            left join project.projects p on d.project = p.pid
+                        on conflict (id) do update set
+                            created_at = excluded.created_at,
+                            created_by = excluded.created_by,
+                            project = excluded.project,
+                            product = excluded.product,
+                            provider_generated_id = excluded.provider_generated_id
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter(
+                            "id",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { id[arrIdx] } ?: emptyList()
+                            }
                         )
-                    insert into provider.resource (type, id, created_at, created_by, project, product, provider_generated_id, confirmed_by_provider)
-                    select :type, d.id, to_timestamp(d.created_at / 1000), u.id, p.id, d.product, d.provider_id, true
-                    from
-                        data d
-                        join auth.principals u on d.created_by = u.uid
-                        left join project.projects p on d.project = p.pid
-                    on conflict (id) do update set
-                        created_at = excluded.created_at,
-                        created_by = excluded.created_by,
-                        project = excluded.project,
-                        product = excluded.product,
-                        provider_generated_id = excluded.provider_generated_id
-                """
-            )
 
-            session.sendPreparedStatement(
-                {
-                    setParameter(
-                        "id",
-                        (0 until len).flatMap { i ->
-                            val arrIdx = indices[i]
-                            updates[arrIdx]?.map { id[arrIdx] } ?: emptyList()
-                        }
-                    )
-
-                    setParameter(
-                        "created_at",
-                        (0 until len).flatMap { i ->
-                            val arrIdx = indices[i]
-                            updates[arrIdx]?.map { it.createdAt } ?: emptyList()
-                        }
-                    )
-
-                    setParameter(
-                        "message",
-                        (0 until len).flatMap { i ->
-                            val arrIdx = indices[i]
-                            updates[arrIdx]?.map { it.update } ?: emptyList()
-                        }
-                    )
-
-                    setParameter(
-                        "extra",
-                        (0 until len).flatMap { i ->
-                            val arrIdx = indices[i]
-                            updates[arrIdx]?.map { it.extra } ?: emptyList()
-                        }
-                    )
-                },
-                """
-                    with
-                        data as (
-                            select
-                                unnest(:id::int8[]) id,
-                                to_timestamp(unnest(:created_at::int8[]) / 1000) created_at,
-                                unnest(:message::text[]) message,
-                                unnest(:extra::jsonb[]) extra
-                        ),
-                        deleted_updates as (
-                            delete from provider.resource_update
-                            using data d
-                            where resource = d.id
+                        setParameter(
+                            "created_at",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { it.createdAt } ?: emptyList()
+                            }
                         )
-                    insert into provider.resource_update(resource, created_at, status, extra) 
-                    select distinct d.id, d.created_at, d.message, d.extra
-                    from data d
-                """
-            )
 
-            session.sendPreparedStatement(
-                {
-                    val ids = ArrayList<Long>()
-                    val entity = ArrayList<Int>()
-                    val entityIsUser = ArrayList<Boolean>()
-                    val permission = ArrayList<String>()
-
-                    for (i in 0 until len) {
-                        val arrIdx = indices[i]
-
-                        val entities = aclEntities[arrIdx] ?: continue
-                        val isUser = aclIsUser[arrIdx] ?: continue
-                        val perm = aclPermissions[arrIdx] ?: continue
-
-                        for ((j, e) in entities.withIndex()) {
-                            if (e == 0) break
-
-                            ids.add(id[arrIdx])
-                            entity.add(e)
-                            entityIsUser.add(isUser[j])
-                            permission.add(Permission.fromByte(perm[j]).name)
-                        }
-                    }
-
-                    setParameter("id", ids)
-                    setParameter("entity", entity)
-                    setParameter("is_user", entityIsUser)
-                    setParameter("perm", permission)
-                },
-                """
-                    with
-                        data as (
-                            select
-                                unnest(:id::int8[]) id,
-                                unnest(:entity::int[]) entity,
-                                unnest(:is_user::bool[]) is_user,
-                                unnest(:perm::text[]) perm
-                        ),
-                        deleted_entries as (
-                            delete from provider.resource_acl_entry
-                            using data d
-                            where resource_id = d.id
-                            returning resource_id
+                        setParameter(
+                            "message",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { it.update } ?: emptyList()
+                            }
                         )
-                    insert into provider.resource_acl_entry(group_id, username, permission, resource_id)
-                    select distinct g.id, u.id, d.perm, d.id
-                    from
-                        data d join
-                        deleted_entries de on d.id = de.resource_id
-                        left join auth.principals u on d.is_user and d.entity = u.uid
-                        left join project.groups g on not d.is_user and d.entity = g.gid
-                                       
-                """
-            )
 
+                        setParameter(
+                            "extra",
+                            (0 until len).flatMap { i ->
+                                val arrIdx = indices[i]
+                                updates[arrIdx]?.map { it.extra } ?: emptyList()
+                            }
+                        )
+                    },
+                    """
+                        with
+                            data as (
+                                select
+                                    unnest(:id::int8[]) id,
+                                    to_timestamp(unnest(:created_at::int8[]) / 1000) created_at,
+                                    unnest(:message::text[]) message,
+                                    unnest(:extra::jsonb[]) extra
+                            ),
+                            deleted_updates as (
+                                delete from provider.resource_update
+                                using data d
+                                where resource = d.id
+                            )
+                        insert into provider.resource_update(resource, created_at, status, extra) 
+                        select distinct d.id, d.created_at, d.message, d.extra
+                        from data d
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {
+                        val ids = ArrayList<Long>()
+                        val entity = ArrayList<Int>()
+                        val entityIsUser = ArrayList<Boolean>()
+                        val permission = ArrayList<String>()
+
+                        for (i in 0 until len) {
+                            val arrIdx = indices[i]
+
+                            val entities = aclEntities[arrIdx] ?: continue
+                            val isUser = aclIsUser[arrIdx] ?: continue
+                            val perm = aclPermissions[arrIdx] ?: continue
+
+                            for ((j, e) in entities.withIndex()) {
+                                if (e == 0) break
+
+                                ids.add(id[arrIdx])
+                                entity.add(e)
+                                entityIsUser.add(isUser[j])
+                                permission.add(Permission.fromByte(perm[j]).name)
+                            }
+                        }
+
+                        setParameter("id", ids)
+                        setParameter("entity", entity)
+                        setParameter("is_user", entityIsUser)
+                        setParameter("perm", permission)
+                    },
+                    """
+                        with
+                            data as (
+                                select
+                                    unnest(:id::int8[]) id,
+                                    unnest(:entity::int[]) entity,
+                                    unnest(:is_user::bool[]) is_user,
+                                    unnest(:perm::text[]) perm
+                            ),
+                            deleted_entries as (
+                                delete from provider.resource_acl_entry
+                                using data d
+                                where resource_id = d.id
+                                returning resource_id
+                            )
+                        insert into provider.resource_acl_entry(group_id, username, permission, resource_id)
+                        select distinct g.id, u.id, d.perm, d.id
+                        from
+                            data d join
+                            deleted_entries de on d.id = de.resource_id
+                            left join auth.principals u on d.is_user and d.entity = u.uid
+                            left join project.groups g on not d.is_user and d.entity = g.gid
+                                           
+                    """
+                )
+            }
+
+            // The callback will delete its own data and must happen before we delete data from the other tables
             callbacks.saveState(session, this, indices, len)
+
+            if (resourcesToDelete.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    { setParameter("resource_ids", resourcesToDelete) },
+                    "delete from provider.resource_acl_entry where resource_id = some(:resource_ids::bigint[])"
+                )
+
+                session.sendPreparedStatement(
+                    { setParameter("resource_ids", resourcesToDelete) },
+                    "delete from provider.resource_update where resource = some(:resource_ids::bigint[])"
+                )
+
+                session.sendPreparedStatement(
+                    { setParameter("resource_ids", resourcesToDelete) },
+                    "delete from provider.resource where id = some(:resource_ids::bigint[])"
+                )
+            }
         }
     }
 

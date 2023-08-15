@@ -1,9 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
@@ -22,9 +19,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -279,6 +274,18 @@ class JobController(
                                                     )
                                                 )
                                             )
+                                        }
+
+                                        "delete" -> {
+                                            val id = args.getOrNull(0)
+                                            val username = args.getOrNull(1)
+                                            val project = args.getOrNull(2)?.takeIf { it != "-" && it != "null" }
+                                            jobs.delete(
+                                                ActorAndProject(Actor.SystemOnBehalfOfUser(username ?: "_ucloud"), project),
+                                                bulkRequestOf(FindByStringId(id.toString()))
+                                            )
+
+                                            sendMessage("OK")
                                         }
 
                                         "update" -> {
