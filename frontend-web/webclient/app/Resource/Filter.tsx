@@ -5,7 +5,6 @@ import {Box, Flex, Grid, Icon, Input, Stamp} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Cursor} from "@/ui-components/Types";
-import styled from "styled-components";
 import {ListRow, ListRowStat} from "@/ui-components/List";
 import {SlimDatePickerClass} from "@/ui-components/DatePicker";
 import {enGB} from "date-fns/locale";
@@ -16,7 +15,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {SortEntry} from "@/UCloud/ResourceApi";
 import {BrowseType} from "./BrowseType";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 export interface FilterWidgetProps {
     properties: Record<string, string>;
@@ -177,11 +176,11 @@ interface BaseFilterWidgetProps {
     title: string;
 }
 
-const FilterWidgetWrapper = styled(Box)`
+const FilterWidgetWrapper = injectStyleSimple("filter-widget-wrapper", `
     display: flex;
     align-items: center;
     user-select: none;
-`;
+`);
 
 export const FilterWidget: React.FunctionComponent<{
     cursor?: Cursor;
@@ -189,11 +188,11 @@ export const FilterWidget: React.FunctionComponent<{
     browseType?: BrowseType;
     children?: React.ReactNode;
 } & BaseFilterWidgetProps> = props => {
-    return <FilterWidgetWrapper mr={props.browseType === BrowseType.Embedded ? "16px" : undefined} cursor={props.cursor} onClick={props.onClick}>
+    return <Box className={FilterWidgetWrapper} mr={props.browseType === BrowseType.Embedded ? "16px" : undefined} cursor={props.cursor} onClick={props.onClick}>
         <Icon name={props.icon} size={"16px"} color={"iconColor"} color2={"iconColor2"} mr={"8px"} />
         <b>{props.title}</b>
         {props.children}
-    </FilterWidgetWrapper>
+    </Box>
 };
 
 export const ExpandableFilterWidget: React.FunctionComponent<{
