@@ -24,6 +24,6 @@ if [ $# -eq 0 ]
     echo "  job: Apply ad hoc job resources"
     echo ""
 else
-    gradle :runApp --console plain -Pcwd="${working_dir}" -q --args "$*"
+    ./gradlew :runApp --console plain -Pcwd="${working_dir}" -q --args "$*"
 fi
 popd
