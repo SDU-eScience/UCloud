@@ -52,16 +52,17 @@ class Server(override val micro: Micro) : CommonServer {
         val elasticDAO = if (elasticClientOrNull != null) ElasticDao(elasticClientOrNull) else null
         val toolDAO = ToolAsyncDao()
         val aclDao = AclAsyncDao()
-        val publicDAO = ApplicationPublicAsyncDao()
         val tagDAO = ApplicationTagsAsyncDao()
-        val favoriteDAO = FavoriteAsyncDao(publicDAO, aclDao)
 
         val db = AsyncDBSessionFactory(micro)
+        val publicService = ApplicationPublicService(db)
+        val favoriteDAO = FavoriteAsyncDao(publicService, aclDao)
+
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val appStoreService = AppStoreService(
             db,
             authenticatedClient,
-            publicDAO,
+            publicService,
             toolDAO,
             aclDao,
             elasticDAO,
@@ -71,7 +72,6 @@ class Server(override val micro: Micro) : CommonServer {
         val searchDao = ApplicationSearchAsyncDao(appStoreService)
         val logoService = LogoService(db, appStoreService, toolDAO)
         val tagService = ApplicationTagsService(db, tagDAO, elasticDAO)
-        val publicService = ApplicationPublicService(db, publicDAO)
         val searchService = ApplicationSearchService(db, searchDao, elasticDAO, appStoreService, authenticatedClient)
         val favoriteService = FavoriteService(db, favoriteDAO, authenticatedClient)
         val importer = if (micro.developmentModeEnabled) {

@@ -16,7 +16,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 
 class FavoriteAsyncDao(
-    private val publicDao: ApplicationPublicAsyncDao,
+    private val publicService: ApplicationPublicService,
     private val aclDao: AclAsyncDao
 ) {
 
@@ -57,7 +57,7 @@ class FavoriteAsyncDao(
                     foundApp.getString("name")!!,
                     foundApp.getString("version")!!,
                     ApplicationAccessRight.LAUNCH,
-                    publicDao,
+                    publicService,
                     aclDao
                 )
                 if (userHasPermission) {

@@ -21,14 +21,13 @@ import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.serialization.encodeToString
 import java.time.LocalDateTime
 
 class AppStoreService(
     private val db: DBContext,
     private val authenticatedClient: AuthenticatedClient,
-    private val publicDao: ApplicationPublicAsyncDao,
+    private val publicService: ApplicationPublicService,
     private val toolDao: ToolAsyncDao,
     private val aclDao: AclAsyncDao,
     private val elasticDao: ElasticDao?,
@@ -54,7 +53,7 @@ class AppStoreService(
                 appName,
                 appVersion,
                 ApplicationAccessRight.LAUNCH,
-                publicDao,
+                publicService,
                 aclDao
             )
 
@@ -97,7 +96,7 @@ class AppStoreService(
         }
 
         return db.withSession { session ->
-            publicDao.isPublic(session, actorAndProject, appName, appVersion) ||
+            publicService.isPublic(session, actorAndProject, appName, appVersion) ||
                 aclDao.hasPermission(
                     session,
                     actorAndProject,

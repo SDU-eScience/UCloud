@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.auth.api.AuthProviders
@@ -30,11 +31,11 @@ internal suspend fun internalHasPermission(
     appName: String,
     appVersion: String,
     permission: ApplicationAccessRight,
-    publicDao: ApplicationPublicAsyncDao,
+    publicService: ApplicationPublicService,
     aclDao: AclAsyncDao
 ): Boolean {
     if ((actorAndProject.actor as? Actor.User)?.principal?.role in Roles.PRIVILEGED) return true
-    if (ctx.withSession { session -> publicDao.isPublic(session, actorAndProject, appName, appVersion)}) return true
+    if (ctx.withSession { session -> publicService.isPublic(session, actorAndProject, appName, appVersion)}) return true
     return ctx.withSession { session ->
         aclDao.hasPermission(
             session,
