@@ -531,24 +531,30 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
-                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelectRestriction={f => f.status.type === "DIRECTORY"
-                        } onSelect={async res => {
-                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                        <ExperimentalBrowse opts={{
+                            embedded: true, selection: {
+                                onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
+                                onSelect: async (res) => {
+                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
-                            await cb.invokeCommand(
-                                this.copy({
-                                    type: "bulk",
-                                    items: selected.map(file => ({
-                                        oldId: file.id,
-                                        conflictPolicy: "RENAME",
-                                        newId: target + "/" + fileName(file.id)
-                                    }))
-                                })
-                            );
+                                    await cb.invokeCommand(
+                                        this.copy({
+                                            type: "bulk",
+                                            items: selected.map(file => ({
+                                                oldId: file.id,
+                                                conflictPolicy: "RENAME",
+                                                newId: target + "/" + fileName(file.id)
+                                            }))
+                                        })
+                                    );
 
-                            cb.reload();
+                                    cb.reload();
 
-                            dialogStore.success();
+                                    dialogStore.success();
+                                }
+                            },
+                            initialPath: pathRef.current,
+                            providerFilter: selected[0].specification.product.provider
                         }} />,
                         doNothing,
                         true,
