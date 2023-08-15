@@ -37,6 +37,8 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
 };
 
+const memberFilesKey = "filterMemberFiles";
+
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
     supportsMove: false,
@@ -202,9 +204,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     }]
 
                     if (Client.hasActiveProject) {
-                        filters.push({type: "checkbox", key: "filterMemberFiles", icon: "user", text: "View show member files"})
-                    } else {
-                        delete browser.browseFilters["filterMemberFiles"]
+                        filters.push({type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"})
                     }
 
                     return filters;
@@ -359,7 +359,10 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         return;
                     }
 
-                    collectionsOnOpen.retrieve("", () =>
+                    // Note(Jonas): This is to ensure no project and active project correctly reloads. Using "" as the key
+                    // will not always work correctly, e.g. going from project to personal workspace with "View member files" active.
+                    const collectionKey = `${Client.projectId}-${browser.browseFilters[memberFilesKey]}`;
+                    collectionsOnOpen.retrieve(collectionKey, () =>
                         callAPI(FileCollectionsApi.browse({
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters
