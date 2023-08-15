@@ -418,7 +418,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                         left={null}
                     />
                     {recipient.suballocations.map(row => {
-                        const productAndProvider = row.wallet ? <Flex>{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
+                        const productAndProvider = row.wallet ? <Flex my="auto">{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
                         const remainingProductTypes = productTypes.filter(it => it !== row.productType);
                         const recipientId = newRecipients.findIndex(it => it.id === recipient.id);
                         const suballocationId = newRecipients[recipientId].suballocations.findIndex(it => it.id === row.id);
@@ -450,7 +450,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                     </ClickableDropdown>
                                 </Box>}
                                 left={<Flex>
-                                    <Flex cursor="pointer" my="auto" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], recipientId, suballocationId)}>
+                                    <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], recipientId, suballocationId)}>
                                         {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
                                     </Flex>
                                     <Flex backgroundColor="var(--lightGray)" borderRadius="12px" ml="12px">
