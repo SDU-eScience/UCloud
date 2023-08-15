@@ -396,8 +396,8 @@ const Uploader: React.FunctionComponent = () => {
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
                     <Text color="white">{uploadingText}</Text>
                 </div>
-                <div className="uploads" style={{overflowY: "hidden", height: "100%"}}>
-                    <div style={{overflowY: "scroll", width: "100%", height: "100%", maxHeight: "300px"}}>
+                <div className="uploads" style={{overflowY: "hidden"}}>
+                    <div style={{overflowY: "scroll", width: "100%", maxHeight: "calc(80vh - 55px - 150px)"}}>
                         {uploads.map((upload, idx) => (
                             <UploadRow
                                 key={`${"upload.row.rootEntry.name"}-${idx}`}
@@ -433,7 +433,7 @@ const Uploader: React.FunctionComponent = () => {
 
                 {resumables.length === 0 ? null :
                     <div style={{
-                        marginTop: hasUploads ? "66px" : "-18px",
+                        marginTop: hasUploads ? "-60px" : "-18px",
                         marginBottom: "4px",
                         marginLeft: "4px",
                         marginRight: "4px"
@@ -520,6 +520,7 @@ const UploadMoreClass = injectStyle("upload-more", k => `
     
     ${k} > div.upload-more-text {
         color: var(--white);
+        margin-top: 18px;
     }
 
     ${k}[data-has-uploads="true"] {
@@ -670,7 +671,7 @@ const modalStyle = {
         width: "600px",
         maxWidth: "600px",
         background: "",
-        overflowY: "hidden" as const
+        overflowY: "scroll" as const
     }
 };
 
