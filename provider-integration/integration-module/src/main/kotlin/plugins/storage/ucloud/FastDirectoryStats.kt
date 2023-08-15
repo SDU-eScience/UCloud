@@ -46,6 +46,9 @@ class WekaDirectoryStats(private val nativeFs: NativeFS) : Loggable, FastDirecto
     override val log = logger()
 
     override suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean): Long? {
+        if (!allowSlowPath) {
+            return null
+        }
         return try {
             val (_, stdout, _) = executeCommandToText("/usr/bin/du") {
                 addArg("-s")
