@@ -8,7 +8,7 @@ import {EventHandler, MouseEvent, useCallback} from "react";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {extractSize, injectStyle, unbox} from "@/Unstyled";
 
-const ListClass = injectStyle("list", k => `
+export const ListClass = injectStyle("list", k => `
     ${k} {
         --listChildPadding: 0;
     }

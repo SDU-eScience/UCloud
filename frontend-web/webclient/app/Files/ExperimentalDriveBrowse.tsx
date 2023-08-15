@@ -9,6 +9,7 @@ import {
     resourceCreationWithProductSelector,
     providerIcon,
     checkIsWorkspaceAdmin,
+    Filter,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -16,7 +17,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
 import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {FindByStringId, PageV2, provider} from "@/UCloud";
+import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
@@ -26,7 +27,6 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {image} from "@/Utilities/HTMLUtilities";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
@@ -185,20 +185,30 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     );
                 };
 
-                browser.on("fetchFilters", () => [{
-                    key: "sortBy",
-                    text: "Sort by",
-                    type: "options",
-                    icon: "properties",
-                    clearable: false,
-                    options: [{
-                        color: "black", icon: "id", text: "Name", value: "title"
-                    }, {
-                        color: "black", icon: "calendar", text: "Date created", value: "createdAt"
-                    }, {
-                        color: "black", icon: "user", text: "Created by", value: "createdBy"
+                browser.on("fetchFilters", () => {
+                    const filters: Filter[] = [{
+                        key: "sortBy",
+                        text: "Sort by",
+                        type: "options",
+                        icon: "properties",
+                        clearable: false,
+                        options: [{
+                            color: "black", icon: "id", text: "Name", value: "title"
+                        }, {
+                            color: "black", icon: "calendar", text: "Date created", value: "createdAt"
+                        }, {
+                            color: "black", icon: "user", text: "Created by", value: "createdBy"
+                        }]
                     }]
-                }]);
+
+                    if (Client.hasActiveProject) {
+                        filters.push({type: "checkbox", key: "filterMemberFiles", icon: "user", text: "View show member files"})
+                    } else {
+                        delete browser.browseFilters["filterMemberFiles"]
+                    }
+
+                    return filters;
+                });
 
                 browser.on("fetchOperationsCallback", () => {
                     const cachedSupport = supportByProvider.retrieveFromCacheOnly("");

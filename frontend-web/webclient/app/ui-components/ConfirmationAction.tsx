@@ -172,10 +172,6 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         left: 15px;
     }
     
-    ${k}[data-square="false"]:hover {
-        transform: translateY(-2px);
-    }
-    
     ${k}[data-square="true"]:hover {
         transform: scale(1);
     }

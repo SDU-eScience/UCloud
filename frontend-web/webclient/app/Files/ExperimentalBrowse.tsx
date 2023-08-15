@@ -501,10 +501,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         },
                     ];
 
-                    if (Client.hasActiveProject) {
-                        // TODO(Jonas): Add stuff like include member files.
-                    }
-
                     return filters;
                 });
 

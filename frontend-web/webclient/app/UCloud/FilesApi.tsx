@@ -598,26 +598,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             initialPath: pathRef.current,
                             providerFilter: selected[0].specification.product.provider
                         }} />
-
-
-                        {/* <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
-                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                            await cb.invokeCommand(
-                                this.move({
-                                    type: "bulk",
-                                    items: selected.map(file => ({
-                                        oldId: file.id,
-                                        conflictPolicy: "RENAME",
-                                        newId: target + "/" + fileName(file.id)
-                                    }))
-                                })
-                            );
-
-                            cb.reload();
-
-                            dialogStore.success();
-                        }} /> */}
                     </>,
                         doNothing,
                         true,
