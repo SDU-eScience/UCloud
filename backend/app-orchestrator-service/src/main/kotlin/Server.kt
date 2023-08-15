@@ -66,6 +66,25 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
 
+        val providerSupport = StorageProviderSupport(storageProviders, serviceClient) { comms ->
+            comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
+        }
+
+        val payment = PaymentService(db, serviceClient)
+        val providerComms = ProviderCommunications(micro.backgroundScope, serviceClient, productCache)
+        val fileCollections = FileCollectionService(projectCache, db, storageProviders, providerSupport, serviceClient)
+
+        val jobs = JobResourceService2(
+            db,
+            providerComms,
+            micro.backgroundScope,
+            productCache,
+            appStoreCache,
+            fileCollections,
+            serviceClient,
+            payment,
+        )
+
         val jobOrchestrator = JobOrchestrator(
             projectCache,
             db,
@@ -84,10 +103,8 @@ class Server(override val micro: Micro) : CommonServer {
         )
 
         val ingressService =
-            IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
+            IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobs)
 
-        val exporter = ParameterExportService(ingressService, productCache)
-        jobOrchestrator.exporter = exporter // TODO(Dan): Cyclic-dependency hack
 
         val licenseSupport = ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>(
             altProviders,
@@ -98,7 +115,7 @@ class Server(override val micro: Micro) : CommonServer {
         )
 
         val licenseService =
-            LicenseService(projectCache, db, altProviders, licenseSupport, serviceClient, jobOrchestrator)
+            LicenseService(projectCache, db, altProviders, licenseSupport, serviceClient, jobs)
 
         val networkIpSupport = ProviderSupport<ComputeCommunication, Product.NetworkIP, NetworkIPSupport>(
             altProviders,
@@ -108,33 +125,15 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
         val networkService =
-            NetworkIPService(projectCache, db, altProviders, networkIpSupport, serviceClient, jobOrchestrator)
-
-        val providerSupport = StorageProviderSupport(storageProviders, serviceClient) { comms ->
-            comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
-        }
-
-        val fileCollections = FileCollectionService(projectCache, db, storageProviders, providerSupport, serviceClient)
+            NetworkIPService(projectCache, db, altProviders, networkIpSupport, serviceClient, jobs)
 
         val syncthingService = SyncthingService(storageProviders, serviceClient, fileCollections)
 
         val sshService = SshKeyService(db, jobOrchestrator, altProviders)
 
-
-        val payment = PaymentService(db, serviceClient)
-        val providerComms = ProviderCommunications(micro.backgroundScope, serviceClient, productCache)
-
-        val jobs = JobResourceService2(
-            db,
-            providerComms,
-            micro.backgroundScope,
-            productCache,
-            appStoreCache,
-            fileCollections,
-            serviceClient,
-            payment,
-            exporter,
-        )
+        val exporter = ParameterExportService(ingressService, productCache)
+        jobs.exporter = exporter // TODO(Dan): Cyclic-dependency hack
+        jobOrchestrator.exporter = exporter // TODO(Dan): Cyclic-dependency hack
 
         val jobMonitoring = JobMonitoringService(
             micro.feature(DebugSystemFeature).system,
@@ -151,7 +150,7 @@ class Server(override val micro: Micro) : CommonServer {
 
         runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
 
-        if (streams != null) AppProcessor(streams, jobOrchestrator, appStoreCache).init()
+        if (streams != null) AppProcessor(streams, appStoreCache).init()
 
         configureControllers(
             JobController(jobs, micro),

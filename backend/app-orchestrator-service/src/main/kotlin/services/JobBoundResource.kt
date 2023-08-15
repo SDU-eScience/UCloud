@@ -22,7 +22,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
     providers: Providers<Comms>,
     support: ProviderSupport<Comms, Prod, Support>,
     serviceClient: AuthenticatedClient,
-    protected val orchestrator: JobOrchestrator
+    protected val orchestrator: JobResourceService2,
 ) : ResourceService<Res, Spec, Update, Flags, Status, Prod, Support, Comms>(projectCache, db, providers, support, serviceClient)
         where Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : JobBoundUpdate<*>,
               Flags : ResourceIncludeFlags, Status : JobBoundStatus<Prod, Support>, Prod : Product,
@@ -30,25 +30,18 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
     protected abstract val currentStateColumn: SqlObject.Column
     protected abstract val statusBoundToColumn: SqlObject.Column
 
-    protected abstract fun resourcesFromJob(job: Job): List<Val>
+    protected abstract fun resourcesFromJob(job: JobSpecification): List<Val>
     protected abstract fun isReady(res: Res): Boolean
     protected abstract fun boundUpdate(binding: JobBinding): Update
     protected open fun bindsExclusively(): Boolean = true
 
     init {
-        orchestrator.addListener(object : JobListener {
-            override suspend fun onVerified(ctx: DBContext, job: Job) {
-                val resources = resourcesFromJob(job)
+        orchestrator.addListener(object : JobListener2 {
+            override suspend fun onVerified(actorAndProject: ActorAndProject, specification: JobSpecification) {
+                val resources = resourcesFromJob(specification)
                 if (resources.isEmpty()) return
 
-                val computeProvider = job.specification.product.provider
-                val jobProject = job.owner.project
-                val jobLauncher = job.owner.createdBy
-
-                val actorAndProject = ActorAndProject(
-                    Actor.SystemOnBehalfOfUser(job.owner.createdBy),
-                    job.owner.project
-                )
+                val computeProvider = specification.product.provider
 
                 val allResources = retrieveBulk(
                     actorAndProject,
@@ -64,7 +57,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                         throw RPCException("Not all resources are ready", HttpStatusCode.BadRequest)
                     }
 
-                    if (resource.owner.project != jobProject ||
+                    if (resource.owner.project != actorAndProject.project ||
                         resource.specification.product.provider != computeProvider
                     ) {
                         throw RPCException(
@@ -75,8 +68,8 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                 }
             }
 
-            override suspend fun onCreate(ctx: DBContext, job: Job) {
-                val resources = resourcesFromJob(job)
+            override suspend fun onCreate(job: Job) {
+                val resources = resourcesFromJob(job.specification)
                 if (resources.isEmpty()) return
 
                 val actorAndProject = ActorAndProject(Actor.System, job.owner.project)
@@ -94,8 +87,9 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                 )
             }
 
-            override suspend fun onTermination(ctx: DBContext, job: Job) {
-                val resources = resourcesFromJob(job)
+            override suspend fun onTermination(job: Job) {
+                val resources = resourcesFromJob(job.specification)
+                println("onTermination(${job.id}, ${this.javaClass.simpleName}, ${resources})")
                 if (resources.isEmpty()) return
 
                 val actorAndProject = ActorAndProject(

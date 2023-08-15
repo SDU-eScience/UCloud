@@ -20,7 +20,7 @@ class IngressService(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>,
     serviceClient: AuthenticatedClient,
-    orchestrator: JobOrchestrator,
+    orchestrator: JobResourceService2,
 ) : JobBoundResource<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
         Product.Ingress, IngressSupport, ComputeCommunication, AppParameterValue.Ingress>(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.ingresses")
@@ -38,7 +38,7 @@ class IngressService(
     override fun boundUpdate(binding: JobBinding): IngressUpdate = IngressUpdate(binding = binding)
 
     override fun isReady(res: Ingress): Boolean = res.status.state == IngressState.READY
-    override fun resourcesFromJob(job: Job): List<AppParameterValue.Ingress> = job.ingressPoints
+    override fun resourcesFromJob(job: JobSpecification): List<AppParameterValue.Ingress> = job.ingressPoints
 
     override fun userApi() = Ingresses
     override fun controlApi() = IngressControl

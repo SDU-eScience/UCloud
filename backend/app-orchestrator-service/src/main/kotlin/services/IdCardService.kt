@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.auth.api.AuthProviders
@@ -229,6 +230,8 @@ class IdCardService(
     )
 
     override suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
+        if (actorAndProject.actor == Actor.System) return IdCard.System
+
         var card = cached.get(actorAndProject.actor.safeUsername())
             ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 

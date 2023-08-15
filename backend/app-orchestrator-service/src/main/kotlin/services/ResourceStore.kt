@@ -166,7 +166,6 @@ class ResourceStore<T>(
     // trigger a load() inside the bucket. Note that the bucket itself is capable of handling the situation where it
     // receives requests even though it hasn't finished loading.
     private suspend fun loadBucket(uid: Int, pid: Int): ResourceStoreBucket<T> {
-        println("Loading bucket $uid $pid")
         CreateCounters.loadBucket.measureValue {
             require(uid == 0 || pid == 0)
 
@@ -176,7 +175,6 @@ class ResourceStore<T>(
             val result = ResourceStoreBucket(type, uid, pid, queries, callbacks)
             val existing = map.putIfAbsent(ref, result)
             if (existing == null) result.load()
-            println("Got a bucket for $uid $pid")
 
             return existing ?: result
         }
@@ -517,7 +515,6 @@ class ResourceStore<T>(
         sortedBy: String? = null,
         sortDirection: SortDirection? = null,
     ): BrowseResult {
-        println("Arrived in resource store")
         @Suppress("NAME_SHADOWING")
         val sortDirection = sortDirection ?: SortDirection.ascending
 
@@ -540,7 +537,6 @@ class ResourceStore<T>(
         // If we are not sorting by `createdBy` and it is not a custom sort, then we just assume that we are sorting by
         // "createdAt" (i.e. ID).
 
-        println("On the expected path")
         val filter = buildFilterFunction(flags, additionalFilters)
 
         when (idCard) {
@@ -1274,14 +1270,10 @@ class ResourceStoreBucket<T>(
     // 2. Fetch data from the cursor and translate into our internal representation
     // 3. If we run out of space in the current bucket, `expand()` with a new bucket and begin a new `load()`
     suspend fun load(minimumId: Long = 0) {
-        println("load $uid $pid $minimumId")
         mutex.withLock {
-            println("got lock $uid $pid $minimumId")
             if (evicted) throw EvictionException()
-            println("not evicted $uid $pid $minimumId")
 
             val nextId = queries.withSession { session ->
-                println("got session $uid $pid $minimumId")
                 queries.loadResources(session, this, minimumId)
             }
 

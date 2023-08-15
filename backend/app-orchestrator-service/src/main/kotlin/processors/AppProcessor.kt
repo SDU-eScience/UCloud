@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.processors
 
 import dk.sdu.cloud.app.orchestrator.services.AppStoreCache
-import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.store.api.AppEvent
 import dk.sdu.cloud.app.store.api.AppStoreStreams
 import dk.sdu.cloud.events.EventConsumer
@@ -10,7 +9,6 @@ import dk.sdu.cloud.service.Loggable
 
 class AppProcessor(
     private val streams: EventStreamService,
-    private val jobService: JobOrchestrator,
     private val appService: AppStoreCache
 ) {
     fun init() {

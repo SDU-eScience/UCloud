@@ -44,6 +44,20 @@ data class InternalJobState(
     var jobParameters: ExportedParameters? = null,
 )
 
+interface JobListener2 {
+    suspend fun onVerified(actorAndProject: ActorAndProject, specification: JobSpecification) {
+        // Empty
+    }
+
+    suspend fun onCreate(job: Job) {
+        // Empty
+    }
+
+    suspend fun onTermination(job: Job) {
+        // Empty
+    }
+}
+
 class JobResourceService2(
     private val db: AsyncDBSessionFactory,
     private val providers: ProviderCommunications,
@@ -53,8 +67,9 @@ class JobResourceService2(
     private val fileCollections: FileCollectionService,
     private val serviceClient: AuthenticatedClient,
     private val payment: PaymentService,
-    private val exporter: ParameterExportService,
 ) {
+    lateinit var exporter: ParameterExportService
+    private val listeners = ArrayList<JobListener2>()
     private val allRunningJobs = NonBlockingHashMapLong<Unit>()
 
     private val idCards = IdCardService(db, backgroundScope, serviceClient)
@@ -454,6 +469,7 @@ class JobResourceService2(
 
         for (job in request.items) {
             validate(actorAndProject, job)
+            listeners.forEach { it.onVerified(actorAndProject, job) }
         }
 
         val output = ArrayList<FindByStringId>()
@@ -471,12 +487,17 @@ class JobResourceService2(
                         job.product,
                         InternalJobState(job, jobParameters = parameters),
                         proxyBlock = { doc ->
-                            providers.invokeCall(
+                            val mapped = docMapper.map(null, doc)
+                            val result = providers.invokeCall(
                                 provider,
                                 actorAndProject,
                                 { JobsProvider(provider).create },
-                                bulkRequestOf(docMapper.map(null, doc))
+                                bulkRequestOf(mapped)
                             ).responses.singleOrNull()?.id
+
+                            listeners.forEach { it.onCreate(mapped) }
+
+                            result
                         }
                     ).toString()
                 )
@@ -678,7 +699,7 @@ class JobResourceService2(
         ResourceOutputPool.withInstance<InternalJobState, Unit> { pool ->
             val count = documents.retrieveBulk(card, jobIds, pool, permission)
             for (i in 0 until count) {
-                docMapper.map(card, pool[i])
+                result.add(docMapper.map(card, pool[i]))
             }
         }
         return result
@@ -692,6 +713,7 @@ class JobResourceService2(
         val card = idCards.fetchIdCard(actorAndProject)
         val updatesByJob = request.items.groupBy { it.id }.mapValues { it.value.map { it.update } }
         val jobsToRestart = HashSet<Long>()
+        val terminatedJobs = HashSet<Long>()
 
         for ((jobId, updates) in updatesByJob) {
             documents.addUpdate(
@@ -735,6 +757,10 @@ class JobResourceService2(
                         if (job.specification.restartOnExit == true && newState.isFinal() && update.allowRestart == true) {
                             job.state = JobState.SUSPENDED
                             jobsToRestart.add(id[arrIdx])
+                        }
+
+                        if (job.state.isFinal()) {
+                            terminatedJobs.add(id[arrIdx])
                         }
                     }
 
@@ -785,6 +811,21 @@ class JobResourceService2(
             backgroundScope.launch {
                 val jobs = retrieveBulk(ActorAndProject.System, jobsToRestart.toLongArray(), Permission.READ)
                 performUnsuspension(jobs)
+            }
+        }
+
+        if (terminatedJobs.isNotEmpty()) {
+            val jobs = retrieveBulk(ActorAndProject.System, terminatedJobs.toLongArray(), Permission.READ)
+            backgroundScope.launch {
+                for (job in jobs) {
+                    try {
+                        for (listener in listeners) {
+                            listener.onTermination(job)
+                        }
+                    } catch (ex: Throwable) {
+                        log.info("Caught exception while running termination handler:\n${ex.toReadableStacktrace()}")
+                    }
+                }
             }
         }
     }
@@ -1366,6 +1407,10 @@ class JobResourceService2(
             }
         }
         return result
+    }
+
+    fun addListener(listener: JobListener2) {
+        listeners.add(listener)
     }
 
     companion object : Loggable {

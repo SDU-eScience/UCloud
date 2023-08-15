@@ -542,17 +542,23 @@ val Job.peers: List<AppParameterValue.Peer>
             (specification.parameters?.values?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList())
     }
 
-val Job.ingressPoints: List<AppParameterValue.Ingress>
+val JobSpecification.ingressPoints: List<AppParameterValue.Ingress>
     get() {
-        return (specification.resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
-            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+        return (resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
+                (parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+    }
+
+val Job.ingressPoints: List<AppParameterValue.Ingress>
+    get() = specification.ingressPoints
+
+val JobSpecification.networks: List<AppParameterValue.Network>
+    get() {
+        return (resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
+            (parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
     }
 
 val Job.networks: List<AppParameterValue.Network>
-    get() {
-        return (specification.resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
-            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
-    }
+    get() = specification.networks
 
 val Job.blockStorage: List<AppParameterValue.BlockStorage>
     get() {
