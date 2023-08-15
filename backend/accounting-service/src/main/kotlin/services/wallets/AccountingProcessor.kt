@@ -1517,10 +1517,12 @@ class AccountingProcessor(
                             idx == 0,
                             request.dryRun
                         )
+                        println("charged alloc: ${alloc.id} this amount: ${charge.amount}. Total = $charged")
                     }
                 }
 
                 val success = charged == charge.amount
+                println(success)
                 if (!success) {
                     // NOTE(Dan): After charging all, we still have some which hasn't been charged. Unlike
                     // ABSOLUTE payment, we keep charging and going into the negatives. This is based on the
