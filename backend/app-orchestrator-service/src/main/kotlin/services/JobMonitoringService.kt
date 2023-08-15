@@ -5,12 +5,9 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.MessageImportance
@@ -38,8 +35,8 @@ class JobMonitoringService(
     private val scope: BackgroundScope,
     private val distributedLocks: DistributedLockFactory,
     private val db: AsyncDBSessionFactory,
-    private val jobOrchestrator: JobOrchestrator,
-    private val providers: Providers<ComputeCommunication>,
+    private val jobOrchestrator: JobResourceService2,
+    private val providers: ProviderCommunications,
     private val fileCollectionService: FileCollectionService,
     private val ingressService: IngressService,
     private val networkIPService: NetworkIPService,
@@ -47,7 +44,7 @@ class JobMonitoringService(
 ) {
     suspend fun initialize(useDistributedLocks: Boolean) {
         scope.launch {
-            val lock = 
+            val lock =
                 if (useDistributedLocks) distributedLocks.create("app-orchestrator-watcher", duration = 60_000)
                 else null
 
@@ -68,7 +65,6 @@ class JobMonitoringService(
     }
 
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock?) {
-        /*
         var nextScan = 0L
 
         while (isActive) {
@@ -82,63 +78,34 @@ class JobMonitoringService(
                         "Job monitoring",
                         MessageImportance.TELL_ME_EVERYTHING
                     ) {
-                        val jobIds = db.withSession { session ->
-                            session
-                                .sendPreparedStatement(
-                                    {
-                                        setParameter(
-                                            "nonFinalStates",
-                                            JobState.values().filter { !it.isFinal() }.map { it.name }
-                                        )
-                                    },
-                                    """
-                                update app_orchestrator.jobs
-                                set last_scan = now()
-                                where
-                                    resource in (
-                                        select resource
-                                        from
-                                            app_orchestrator.jobs j join
-                                            provider.resource r on r.id = j.resource
-                                        where
-                                            current_state = some(:nonFinalStates::text[]) and
-                                            last_scan <= now() - '30 seconds'::interval and
-                                            r.confirmed_by_provider = true
-                                        limit 100
-                                    )
-                                returning resource;
-                            """,
-                                    "job monitoring loop"
-                                )
-                                .rows
-                                .map { it.getLong(0)!! }
-                                .toSet()
-                        }
+                        val jobIds = jobOrchestrator.listRunningJobs()
 
-                        val jobs = db.withSession { session ->
-                            jobOrchestrator.retrieveBulk(
-                                actorAndProject = ActorAndProject(Actor.System, null),
-                                jobIds.map { id -> id.toString() },
-                                permissionOneOf = listOf(Permission.READ),
-                                requireAll = false
-                            )
-                        }
+                        val jobs = jobOrchestrator.retrieveBulk(
+                            ActorAndProject.System,
+                            jobIds.toLongArray(),
+                            Permission.READ
+                        )
 
-                        val jobsByProvider = jobs.map { it }.groupBy { it.specification.product.provider }
+                        val jobsByProvider = jobs
+                            .filter { it.status.state == JobState.RUNNING }
+                            .groupBy { it.specification.product.provider }
+
                         scope.launch {
                             jobsByProvider.forEach { (provider, jobs) ->
-                                val comm = providers.prepareCommunication(provider)
-                                val resp = comm.api.verify.call(
-                                    bulkRequestOf(jobs),
-                                    comm.client
-                                )
-
-                                if (!resp.statusCode.isSuccess()) {
+                                try {
+                                    providers.invokeCall(
+                                        provider,
+                                        ActorAndProject.System,
+                                        { JobsProvider(it).verify },
+                                        bulkRequestOf(jobs),
+                                        isUserRequest = false
+                                    )
+                                } catch (ex: Throwable) {
                                     log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
                                 }
 
                                 val requiresRestart = jobs.filter {
-                                    it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
+                                    it.status.state == JobState.SUSPENDED && it.status.allowRestart
                                 }
                                 if (requiresRestart.isNotEmpty()) {
                                     for (job in requiresRestart) {
@@ -183,7 +150,6 @@ class JobMonitoringService(
             }
             delay(1000)
         }
-         */
     }
 
     private suspend fun terminateAndUpdateJob(
@@ -192,18 +158,18 @@ class JobMonitoringService(
     ) {
         log.trace("Permission check failed for ${job.id}")
         jobOrchestrator.terminate(
-            ActorAndProject(Actor.System, null),
+            ActorAndProject.System,
             bulkRequestOf(FindByStringId(job.id))
         )
 
         jobOrchestrator.addUpdate(
-            ActorAndProject(Actor.System, null),
+            ActorAndProject.System,
             bulkRequestOf(
                 ResourceUpdateAndId(
                     job.id,
                     JobUpdate(
                         status = "System initiated cancel: " +
-                            "You no longer have permissions to use '${lostPermissionTo?.joinToString()}'"
+                                "You no longer have permissions to use '${lostPermissionTo?.joinToString()}'"
 
                     )
                 )
@@ -308,8 +274,8 @@ class JobMonitoringService(
         val resources = job.specification.resources ?: return HasPermissionForExistingMounts(false, listOf("/"))
         val allFiles =
             parameters.values.filterIsInstance<AppParameterValue.File>() +
-                resources.filterIsInstance<AppParameterValue.File>() +
-                outputFolder
+                    resources.filterIsInstance<AppParameterValue.File>() +
+                    outputFolder
 
         log.trace("ALL FILES: ${allFiles.map { extractPathMetadata(it.path).collection }}")
 

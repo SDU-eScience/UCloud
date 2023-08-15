@@ -36,7 +36,7 @@ import java.util.concurrent.CancellationException
 import kotlin.math.min
 
 data class InternalJobState(
-    val specification: JobSpecification,
+    var specification: JobSpecification,
     var state: JobState = JobState.IN_QUEUE,
     var outputFolder: String? = null,
     var startedAt: Long? = null,
@@ -668,6 +668,22 @@ class JobResourceService2(
         return docMapper.map(card, doc)
     }
 
+    suspend fun retrieveBulk(
+        actorAndProject: ActorAndProject,
+        jobIds: LongArray,
+        permission: Permission,
+    ): List<Job> {
+        val card = idCards.fetchIdCard(actorAndProject)
+        val result = ArrayList<Job>()
+        ResourceOutputPool.withInstance<InternalJobState, Unit> { pool ->
+            val count = documents.retrieveBulk(card, jobIds, pool, permission)
+            for (i in 0 until count) {
+                docMapper.map(card, pool[i])
+            }
+        }
+        return result
+    }
+
     suspend fun addUpdate(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ResourceUpdateAndId<JobUpdate>>
@@ -1176,6 +1192,47 @@ class JobResourceService2(
         }
 
         return ResourceChargeCreditsResponse(insufficient, emptyList())
+    }
+
+    fun listRunningJobs(): List<Long> {
+        return allRunningJobs.keys().toList()
+    }
+
+    suspend fun performUnsuspension(jobs: List<Job>) {
+        for (job in jobs) {
+            val actorAndProject = job.owner.toActorAndProject()
+
+            // NOTE(Dan): This will throw if modify the specification to ensure that only the valid files are still
+            // present.
+            validate(actorAndProject, job.specification)
+
+            val output = Array<ResourceDocument<InternalJobState>>(1) { ResourceDocument() }
+            documents.modify(
+                IdCard.System,
+                output,
+                longArrayOf(job.id.toLong()),
+                Permission.READ,
+                consumer = { arrIdx, doc ->
+                    val data = doc.data!!
+                    data.specification = job.specification
+                }
+            )
+
+            // TODO(Dan): We do not have any signed intent from the user which cause an issue with #3367
+            providers.invokeCall(
+                job.specification.product.provider,
+                actorAndProject,
+                { JobsProvider(it).unsuspend },
+                BulkRequest(listOf(JobsProviderUnsuspendRequestItem(job))),
+            )
+        }
+    }
+
+    private fun ResourceOwner.toActorAndProject(): ActorAndProject {
+        return ActorAndProject(
+            Actor.SystemOnBehalfOfUser(createdBy),
+            project
+        )
     }
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {

@@ -120,13 +120,29 @@ class Server(override val micro: Micro) : CommonServer {
 
         val sshService = SshKeyService(db, jobOrchestrator, altProviders)
 
+
+        val payment = PaymentService(db, serviceClient)
+        val providerComms = ProviderCommunications(micro.backgroundScope, serviceClient, productCache)
+
+        val jobs = JobResourceService2(
+            db,
+            providerComms,
+            micro.backgroundScope,
+            productCache,
+            appStoreCache,
+            fileCollections,
+            serviceClient,
+            payment,
+            exporter,
+        )
+
         val jobMonitoring = JobMonitoringService(
             micro.feature(DebugSystemFeature).system,
             micro.backgroundScope,
             distributedLocks,
             db,
-            jobOrchestrator,
-            altProviders,
+            jobs,
+            providerComms,
             fileCollections,
             ingressService,
             networkService,
@@ -134,21 +150,6 @@ class Server(override val micro: Micro) : CommonServer {
         )
 
         runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
-        val payment = PaymentService(db, serviceClient)
-
-        val jobs = run {
-            JobResourceService2(
-                db,
-                ProviderCommunications(micro.backgroundScope, serviceClient, productCache),
-                micro.backgroundScope,
-                productCache,
-                appStoreCache,
-                fileCollections,
-                serviceClient,
-                payment,
-                exporter,
-            )
-        }
 
         if (streams != null) AppProcessor(streams, jobOrchestrator, appStoreCache).init()
 
