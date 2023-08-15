@@ -4,6 +4,8 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -11,6 +13,8 @@ import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
 import dk.sdu.cloud.app.orchestrator.services.ProductCache
 import dk.sdu.cloud.app.orchestrator.services.ProviderCommunications
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -251,6 +255,30 @@ class JobController(
                                                     next = result.next ?: break
                                                 }
                                             }
+                                        }
+
+                                        "register" -> {
+                                            val username = args.getOrNull(0)
+                                            val project = args.getOrNull(1)
+                                            jobs.register(
+                                                ActorAndProject(Actor.SystemOnBehalfOfUser("#P_k8"), null),
+                                                bulkRequestOf(
+                                                    ProviderRegisteredResource(
+                                                        JobSpecification(
+                                                            NameAndVersion("unknown", "unknown"),
+                                                            ProductReference("cpu-1", "cpu", "k8"),
+                                                            parameters = emptyMap(),
+                                                            resources = emptyList(),
+                                                            timeAllocation = SimpleDuration.fromMillis(1000L),
+                                                        ),
+                                                        providerGeneratedId = "test-${System.currentTimeMillis()}",
+                                                        createdBy = username,
+                                                        project = project,
+                                                        projectAllRead = true,
+                                                        projectAllWrite = true,
+                                                    )
+                                                )
+                                            )
                                         }
 
                                         "update" -> {

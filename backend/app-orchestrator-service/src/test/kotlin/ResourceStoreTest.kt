@@ -214,6 +214,8 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
     override suspend fun lookupPidFromProjectId(projectId: String): Int? {
         return mutex.withReader { projects.indexOfFirst { it == projectId }.takeIf { it != -1 } }
     }
+
+    override suspend fun fetchAllUserGroup(pid: Int): Int = 1 // TODO(Dan): Missing realistic implementation
 }
 
 class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDatabaseQueries<Unit> {
@@ -233,7 +235,7 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
         initialResources[resource.id] = resource
     }
 
-    override suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<Unit>, minimumId: Long) {
+    override suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<Unit>, minimumId: Long): Long? {
         with(bucket) {
             var needsToExpand = false
             val allKeys = initialResources.keys.toList().sorted()
@@ -269,8 +271,9 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
                     }
                 }
             }
-            if (needsToExpand) expand(loadRequired = true, hasLock = true).load(id[ResourceStoreBucket.STORE_SIZE - 1])
+            if (needsToExpand) return id[ResourceStoreBucket.STORE_SIZE - 1]
         }
+        return null
     }
 
     override suspend fun saveResources(
@@ -1274,7 +1277,7 @@ class ResourceStoreTest {
         val providerCard = idCards.fetchProvider(ref.provider)
 
         val output = ResourceDocument<Unit>()
-        val id = store.register(providerCard, ref, user.uid, 0, Unit, null, output)
+        val id = store.register(providerCard, ref, user.uid, 0, Unit, null, output = output)
         assertEquals(id, output.id)
         assertEquals(user.uid, output.createdBy)
         assertEquals(Unit, output.data)
@@ -1285,7 +1288,7 @@ class ResourceStoreTest {
         val now = System.currentTimeMillis()
         assertTrue(now - output.createdAt < 5000L)
 
-        assertTrue(runCatching { store.register(providerCard, ref2, user.uid, 0, Unit, null, output) }.isFailure)
+        assertTrue(runCatching { store.register(providerCard, ref2, user.uid, 0, Unit, null, output = output) }.isFailure)
         assertTrue(runCatching {
             store.register(
                 providerCard,
@@ -1294,10 +1297,10 @@ class ResourceStoreTest {
                 0,
                 Unit,
                 null,
-                output
+                output = output
             )
         }.isFailure)
-        assertTrue(runCatching { store.register(user.idCard(), ref, user.uid, 0, Unit, null, output) }.isFailure)
+        assertTrue(runCatching { store.register(user.idCard(), ref, user.uid, 0, Unit, null, output = output) }.isFailure)
     }
 
     @Test
@@ -1321,7 +1324,7 @@ class ResourceStoreTest {
         run {
             // Registered resource
             val output = ResourceDocument<Unit>()
-            val id = store.register(providerCard, ref, user.uid, 0, Unit, "providerId", output)
+            val id = store.register(providerCard, ref, user.uid, 0, Unit, "providerId", output = output)
             assertEquals(id, output.id)
             assertEquals("providerId", output.providerId)
 
@@ -1454,8 +1457,8 @@ class ResourceStoreTest {
         val providerCard = idCards.fetchProvider("provider")
         val user = createUser("user")
 
-        assertFails { store.register(providerCard, badProduct, user.uid, 0, Unit, null, null) }
-        assertFails { store.register(providerCard, otherProductRef, user.uid, 0, Unit, null, null) }
+        assertFails { store.register(providerCard, badProduct, user.uid, 0, Unit, null, output = null) }
+        assertFails { store.register(providerCard, otherProductRef, user.uid, 0, Unit, null, output = null) }
     }
 
     @Test

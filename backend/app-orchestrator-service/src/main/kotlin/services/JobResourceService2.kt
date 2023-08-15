@@ -10,6 +10,7 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
@@ -29,7 +30,6 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
-import java.security.AuthProvider
 import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.math.min
@@ -50,10 +50,11 @@ class JobResourceService2(
     private val productCache: ProductCache,
     private val appCache: AppStoreCache,
     private val fileCollections: FileCollectionService,
+    private val serviceClient: AuthenticatedClient,
 ) {
     private val allRunningJobs = NonBlockingHashMapLong<Unit>()
 
-    private val idCards = IdCardService(db)
+    private val idCards = IdCardService(db, backgroundScope, serviceClient)
     private val applicationCache = ApplicationCache(db)
     private val documents = ResourceStore(
         "job",
@@ -422,12 +423,16 @@ class JobResourceService2(
             }
         }
 
+        for (job in request.items) {
+            validate(actorAndProject, job)
+        }
+
         val output = ArrayList<FindByStringId>()
 
         val card = idCards.fetchIdCard(actorAndProject)
+
         for (job in request.items) {
             val provider = job.product.provider
-            validate(actorAndProject, job)
 
             output.add(
                 FindByStringId(
@@ -480,16 +485,10 @@ class JobResourceService2(
                 pid,
                 InternalJobState(reqItem.spec),
                 reqItem.providerGeneratedId,
-                null,
+                output = null,
+                projectAllRead = reqItem.projectAllRead,
+                projectAllWrite = reqItem.projectAllWrite,
             )
-
-            if (reqItem.projectAllRead) {
-                TODO()
-            }
-
-            if (reqItem.projectAllWrite) {
-                TODO()
-            }
         }
         return BulkResponse(ids)
     }
@@ -570,8 +569,6 @@ class JobResourceService2(
         }
 
         return ResourceOutputPool.withInstance { buffer ->
-            println("about to browse")
-            val start = System.nanoTime()
             val result = when (request.sortBy) {
                 "name" -> {
                     documents.browseWithSort(
@@ -612,20 +609,12 @@ class JobResourceService2(
                 }
             }
 
-            val end = System.nanoTime()
-            println("Time was ${end - start}ns")
-            println("Got ${result.count} results")
-
             val page = ArrayList<Job>(result.count)
             for (idx in 0 until min(normalizedRequest.itemsPerPage, result.count)) {
                 page.add(docMapper.map(card, buffer[idx]))
             }
-            val unmarshallEnd = System.nanoTime()
-            println("Conversion to output format took: ${unmarshallEnd - end}ns")
 
-            return PageV2(normalizedRequest.itemsPerPage, page, result.next).also {
-                println("Browse took: ${System.nanoTime() - browseStart}")
-            }
+            return PageV2(normalizedRequest.itemsPerPage, page, result.next)
         }
     }
 

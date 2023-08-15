@@ -166,6 +166,7 @@ class ResourceStore<T>(
     // trigger a load() inside the bucket. Note that the bucket itself is capable of handling the situation where it
     // receives requests even though it hasn't finished loading.
     private suspend fun loadBucket(uid: Int, pid: Int): ResourceStoreBucket<T> {
+        println("Loading bucket $uid $pid")
         CreateCounters.loadBucket.measureValue {
             require(uid == 0 || pid == 0)
 
@@ -175,6 +176,7 @@ class ResourceStore<T>(
             val result = ResourceStoreBucket(type, uid, pid, queries, callbacks)
             val existing = map.putIfAbsent(ref, result)
             if (existing == null) result.load()
+            println("Got a bucket for $uid $pid")
 
             return existing ?: result
         }
@@ -273,7 +275,7 @@ class ResourceStore<T>(
 
         val pid = if (idCard.activeProject > 0) idCard.activeProject else 0
 
-        return createDocument(idCard.uid, pid, productId, data, null, output)
+        return createDocument(idCard.uid, pid, productId, data, null, output = output)
     }
 
     suspend fun createViaProvider(
@@ -309,8 +311,10 @@ class ResourceStore<T>(
         uid: Int,
         pid: Int,
         data: T,
-        providerId: String?,
-        output: ResourceDocument<T>?,
+        providerId: String? = null,
+        projectAllWrite: Boolean = false,
+        projectAllRead: Boolean = false,
+        output: ResourceDocument<T>? = null,
     ): Long {
         if (idCard !is IdCard.Provider) {
             throw RPCException("Only providers can use this endpoint", HttpStatusCode.Forbidden)
@@ -323,7 +327,16 @@ class ResourceStore<T>(
             throw RPCException("Invalid product supplied", HttpStatusCode.Forbidden)
         }
 
-        return createDocument(uid, pid, productId, data, providerId, output)
+        return createDocument(
+            uid,
+            pid,
+            productId,
+            data,
+            providerId,
+            output = output,
+            projectAllRead = projectAllRead,
+            projectAllWrite = projectAllWrite,
+        )
     }
 
     private suspend fun createDocument(
@@ -331,8 +344,10 @@ class ResourceStore<T>(
         pid: Int,
         productId: Int,
         data: T,
-        providerGeneratedId: String?,
-        output: ResourceDocument<T>?
+        providerGeneratedId: String? = null,
+        projectAllRead: Boolean = false,
+        projectAllWrite: Boolean = false,
+        output: ResourceDocument<T>? = null,
     ): Long {
         while (true) {
             val root = findOrLoadBucket(if (pid == 0) uid else 0, pid)
@@ -359,6 +374,30 @@ class ResourceStore<T>(
 
                     CreateCounters.providerIndexRegister.measureValue {
                         providerIndex.registerUsage(uid, pid)
+                    }
+
+                    if (pid != 0 && (projectAllRead || projectAllWrite)) {
+                        val allUserGroupId = idCardService.fetchAllUserGroup(pid)
+                        require(
+                            tail.updateAcl(
+                                IdCard.System,
+                                id,
+                                emptyList(),
+                                buildList {
+                                    if (projectAllRead) {
+                                        add(NumericAclEntry(gid = allUserGroupId, permission = Permission.READ))
+                                    }
+
+                                    if (projectAllWrite) {
+                                        add(NumericAclEntry(gid = allUserGroupId, permission = Permission.EDIT))
+                                    }
+                                }
+                            ),
+
+                            lazyMessage = {
+                                "updateAcl should not fail when granting permissions to the 'All Users' group"
+                            }
+                        )
                     }
 
                     return id
@@ -478,6 +517,7 @@ class ResourceStore<T>(
         sortedBy: String? = null,
         sortDirection: SortDirection? = null,
     ): BrowseResult {
+        println("Arrived in resource store")
         @Suppress("NAME_SHADOWING")
         val sortDirection = sortDirection ?: SortDirection.ascending
 
@@ -500,6 +540,7 @@ class ResourceStore<T>(
         // If we are not sorting by `createdBy` and it is not a custom sort, then we just assume that we are sorting by
         // "createdAt" (i.e. ID).
 
+        println("On the expected path")
         val filter = buildFilterFunction(flags, additionalFilters)
 
         when (idCard) {
@@ -1233,12 +1274,21 @@ class ResourceStoreBucket<T>(
     // 2. Fetch data from the cursor and translate into our internal representation
     // 3. If we run out of space in the current bucket, `expand()` with a new bucket and begin a new `load()`
     suspend fun load(minimumId: Long = 0) {
+        println("load $uid $pid $minimumId")
         mutex.withLock {
+            println("got lock $uid $pid $minimumId")
             if (evicted) throw EvictionException()
+            println("not evicted $uid $pid $minimumId")
 
-            queries.withSession { session ->
+            val nextId = queries.withSession { session ->
+                println("got session $uid $pid $minimumId")
                 queries.loadResources(session, this, minimumId)
             }
+
+            if (nextId != null) {
+                expand(loadRequired = true, hasLock = true).load(nextId)
+            }
+
             ready.set(true)
         }
     }
@@ -2165,7 +2215,7 @@ interface ResourceStoreDatabaseQueries<T> {
     suspend fun startTransaction(): Any
     suspend fun commitTransaction(transaction: Any)
     suspend fun abortTransaction(transaction: Any)
-    suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<T>, minimumId: Long)
+    suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<T>, minimumId: Long): Long?
     suspend fun saveResources(transaction: Any, bucket: ResourceStoreBucket<T>, indices: IntArray, len: Int)
     suspend fun loadProviderIndex(
         transaction: Any,
@@ -2336,7 +2386,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(
         transaction: Any,
         bucket: ResourceStoreBucket<T>,
         minimumId: Long
-    ) {
+    ): Long? {
         val session = (transaction as AsyncDBConnection)
         with(bucket) {
             var idx = 0
@@ -2521,11 +2571,11 @@ class ResourceStoreDatabaseQueriesImpl<T>(
 
                 if (rows.size < batchCount) break
             }
-
             if (idx == ResourceStoreBucket.STORE_SIZE) {
-                expand(loadRequired = true, hasLock = true).load(this.id[ResourceStoreBucket.STORE_SIZE - 1])
+                return this.id[ResourceStoreBucket.STORE_SIZE - 1]
             }
         }
+        return null
     }
 
     override suspend fun saveResources(

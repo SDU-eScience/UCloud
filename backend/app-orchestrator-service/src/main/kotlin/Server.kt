@@ -142,6 +142,7 @@ class Server(override val micro: Micro) : CommonServer {
                 productCache,
                 appStoreCache,
                 fileCollections,
+                serviceClient,
             )
         }
 

@@ -5,6 +5,13 @@ import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.project.api.v2.FindByProjectId
+import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.SimpleCache
@@ -13,6 +20,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 
 interface IIdCardService {
+    suspend fun fetchAllUserGroup(pid: Int): Int
     suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard
     suspend fun lookupUid(uid: Int): String?
     suspend fun lookupPid(pid: Int): String?
@@ -22,7 +30,11 @@ interface IIdCardService {
     suspend fun lookupPidFromProjectId(projectId: String): Int?
 }
 
-class IdCardService(private val db: DBContext) : IIdCardService {
+class IdCardService(
+    private val db: DBContext,
+    private val scope: BackgroundScope,
+    private val serviceClient: AuthenticatedClient,
+) : IIdCardService {
     private val reverseUidCache = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { uid ->
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -191,6 +203,31 @@ class IdCardService(private val db: DBContext) : IIdCardService {
         }
     }
 
+    private val allUserGroupCache = AsyncCache<Int, Int>(
+        scope,
+        timeToLiveMs = 60 * 60 * 1000L,
+        timeoutException = {
+            throw RPCException(
+                "Failed to fetch information about the project. Try again later.",
+                HttpStatusCode.BadGateway
+            )
+        },
+        retrieve = { pid ->
+            fun fail(): Nothing = throw RPCException(
+                "Failed to fetch information about the project. Try again later.",
+                HttpStatusCode.BadGateway
+            )
+
+            val projectId = reversePidCache.get(pid) ?: fail()
+            val groupId = Projects.retrieveAllUsersGroup.call(
+                bulkRequestOf(FindByProjectId(projectId)),
+                serviceClient
+            ).orNull()?.responses?.singleOrNull()?.id ?: fail()
+
+            gidCache.get(groupId) ?: fail()
+        }
+    )
+
     override suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
         var card = cached.get(actorAndProject.actor.safeUsername())
             ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -235,5 +272,9 @@ class IdCardService(private val db: DBContext) : IIdCardService {
 
     override suspend fun lookupPidFromProjectId(projectId: String): Int? {
         return pidCache.get(projectId)
+    }
+
+    override suspend fun fetchAllUserGroup(pid: Int): Int {
+        return allUserGroupCache.retrieve(pid)
     }
 }
