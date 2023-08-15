@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Button from "@/ui-components/Button";
@@ -95,6 +94,7 @@ import {isAdminOrPI, OldProjectRole, useProjectId} from "../Api";
 import {useProject} from "../cache";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {injectStyleSimple} from "@/Unstyled";
+import {ProjectPageTitle} from "../Allocations";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -1197,7 +1197,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     return (
         <MainContainer
             header={target === RequestTarget.EXISTING_PROJECT ?
-                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : <Box height="32px" />
+                <ProjectPageTitle>Request for Resources</ProjectPageTitle> : <Box height="32px" />
             }
 
             main={<>

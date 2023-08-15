@@ -18,7 +18,6 @@ import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
-import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {isAdminOrPI, useProjectId} from "./Api";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "./cache";
@@ -106,7 +105,7 @@ function Allocations(): JSX.Element {
     return <MainContainer
         header={
             <Spacer
-                left={<ProjectBreadcrumbs crumbs={[{title: "Allocations"}]} />}
+                left={<ProjectPageTitle>Allocations</ProjectPageTitle>}
                 right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
             />}
         main={<>
@@ -175,6 +174,10 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
             </Accordion>
         })}
     </>;
+}
+
+export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
+    return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
 }
 
 function ProductTypeProgressBars(props: {walletsByProductTypes: Wallet[]}) {

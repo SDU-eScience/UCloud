@@ -9,10 +9,9 @@ import {
 import {emptyPage} from "@/DefaultObjects";
 import * as Pagination from "@/Pagination";
 import {ListRow, ListRowStat} from "@/ui-components/List";
-import {Flex, List, VerticalButtonGroup} from "@/ui-components";
+import {Flex, List} from "@/ui-components";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useNavigate} from "react-router";
 import {dateToString} from "@/Utilities/DateUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -23,6 +22,7 @@ import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
 import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
 import {PageV2} from "@/UCloud";
+import {ProjectPageTitle} from "../Allocations";
 
 export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (props) => {
     const [scrollGeneration, setScrollGeneration] = useState(0);
@@ -83,10 +83,9 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
     );
 
     return <MainContainer
-        header={<ProjectBreadcrumbs
-            allowPersonalProject
-            crumbs={[{title: `${baseName} Grants`}]}
-        />}
+        header={<ProjectPageTitle>
+            {baseName} grants
+        </ProjectPageTitle>}
         main={
             <>
                 <ResourceFilter

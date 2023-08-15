@@ -2,13 +2,12 @@ import {Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxi
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {Box, Button, Flex, Grid, Heading, Icon, Link, Text} from "@/ui-components";
+import {Box, Flex, Grid, Heading, Icon, Link, Text} from "@/ui-components";
 import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
@@ -35,11 +34,8 @@ import {Spacer} from "@/ui-components/Spacer";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {injectStyleSimple} from "@/Unstyled";
-import {ContextSwitcher} from "./ContextSwitcher";
 import {UtilityBar} from "@/Playground/Playground";
-import {Client} from "@/Authentication/HttpClientInstance";
-import AppRoutes from "@/Routes";
-
+import {ProjectPageTitle} from "./Allocations";
 
 const ANIMATION_DURATION = 1000;
 
@@ -140,7 +136,7 @@ const Resources: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={<Spacer
-                left={<ProjectBreadcrumbs crumbs={[{title: "Resource Usage"}]} />}
+                left={<ProjectPageTitle>Resource Usage</ProjectPageTitle>}
                 right={<Flex mr="36px" height={"26px"}>
                     <UtilityBar searchEnabled={false} />
                 </Flex>}

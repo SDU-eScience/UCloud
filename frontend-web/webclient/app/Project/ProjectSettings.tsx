@@ -15,7 +15,6 @@ import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentic
 import {useNavigate} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {GrantProjectSettings, ProjectLogo, ProjectDescription} from "@/Project/Grant/Settings";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -41,6 +40,7 @@ import {TwoColumnLayout} from "./Members2";
 import {CardClass} from "@/ui-components/Card";
 import {JobCreateInput} from "@/Applications/Jobs/Widgets/Reservation";
 import {Spacer} from "@/ui-components/Spacer";
+import {ProjectPageTitle} from "./Allocations";
 
 const ActionContainer = injectStyle("action-container", k => `
     ${k} {
@@ -107,7 +107,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         <MainContainer
             key={project.id}
             header={<Spacer
-                left={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
+                left={<ProjectPageTitle>Settings</ProjectPageTitle>}
                 right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
             />}
             headerSize={64}

@@ -48,9 +48,9 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {ProjectBreadcrumbs} from "./Breadcrumbs";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListClass} from "@/ui-components/List";
+import {ProjectPageTitle} from "./Allocations";
 
 // UI state management
 // ================================================================================
@@ -571,7 +571,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
     return <MainContainer
         header={<Spacer
-            left={<ProjectBreadcrumbs crumbs={[{title: "Members"}]} />}
+            left={<ProjectPageTitle>Members</ProjectPageTitle>}
             right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
         />}
         headerSize={72}
