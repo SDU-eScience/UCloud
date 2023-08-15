@@ -18,7 +18,7 @@ class AppFavoriteController (
         }
 
         implement(AppStore.retrieveFavorites) {
-            ok(favoriteService.retrieveFavorites(actorAndProject, request))
+            ok(favoriteService.retrieveFavorites(actorAndProject, request.normalize()))
         }
     }
 }
