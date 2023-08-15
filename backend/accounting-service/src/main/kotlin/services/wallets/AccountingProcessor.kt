@@ -1711,6 +1711,7 @@ class AccountingProcessor(
             )
             updateParentTreeUsage(alloc, min(diff, alloc.quota))
         }
+        println("Total: $totalCharged, Usage: $totalUsage")
         if (totalCharged != totalUsage) {
             val difference = totalUsage - totalCharged
             val amountPerAllocation = difference / activeAllocations.size

@@ -112,7 +112,6 @@ class UsageScan(
 
             db.withSession { session ->
                 for (chunk in dataPoints.values.chunked(100)) {
-                    println("Charinging")
                     val allRequests = chunk.mapNotNull { dataPoint ->
                         val chargeId = when (val owner = dataPoint.key.owner) {
                             is WalletOwner.Project -> owner.projectId
@@ -134,7 +133,6 @@ class UsageScan(
 
                     charge(scanId, session, chunk, allRequests)
                 }
-                println("Charged all")
                 session.prepareStatement(
                     """
                         delete from ucloud_storage_quota_locked
@@ -284,6 +282,7 @@ class UsageScan(
                 log.warn("Could not lock resource: ${resourceId}. Something is wrong!")
                 null
             } else {
+                println("failed to charge: $resourceId, ${request[requestIdx]}")
                 requestIdx
             }
         }

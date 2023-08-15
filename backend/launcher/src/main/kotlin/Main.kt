@@ -236,7 +236,7 @@ suspend fun main(args: Array<String>) {
                         "user",
                         "mypassword",
                         role = Role.ADMIN,
-                        email = "user@localhost.direct",
+                        email = "user@localhost.something",
                         firstnames = "user",
                         lastname = "test"
                     )

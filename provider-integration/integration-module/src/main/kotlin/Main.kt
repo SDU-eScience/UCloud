@@ -871,6 +871,7 @@ val dbConnection: DBContext by lazy {
         error("Config not found for DB")
     } else {
         val connection = createDBConnection(config)
+        println(config)
         runBlocking { testDB(connection) }
         connection
     }
