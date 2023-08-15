@@ -65,11 +65,11 @@ class UsageScan(
             )
         }
 
-        val oneDay = 1000L * 60 * 15
+        val oneDay = 1000L * 60 * 60 * 24
         val now = Time.now()
         if (now - lastRun < oneDay) return
         if (!isRunning.compareAndSet(false, true)) return
-        println("IS SCAN TIME")
+
         val taskName = "file_usage_scan"
         Prometheus.countBackgroundTask(taskName)
         try {
@@ -280,7 +280,6 @@ class UsageScan(
                 log.warn("Could not lock resource: ${resourceId}. Something is wrong!")
                 null
             } else {
-                println("Resource not enough: $resourceId, ${request[requestIdx]}")
                 requestIdx
             }
         }
