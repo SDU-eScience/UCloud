@@ -378,15 +378,7 @@ class AppStoreService(
             projectGroups
         }
 
-        val cleanRole = if (user != null) {
-            if (user.role != null) {
-                user.role
-            } else {
-                Role.UNKNOWN
-            }
-        } else {
-            Role.UNKNOWN
-        }
+        val cleanRole = user?.role ?: Role.UNKNOWN
 
         return db.withSession { session ->
             val items = session.sendPreparedStatement(
@@ -455,10 +447,8 @@ class AppStoreService(
             )
         }
 
-        val groups = if (projectGroups.isNullOrEmpty()) {
+        val groups = projectGroups.ifEmpty {
             listOf("")
-        } else {
-            projectGroups
         }
 
         val result = db.withSession { session ->

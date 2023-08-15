@@ -14,9 +14,8 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.serialization.decodeFromString
-import org.elasticsearch.action.search.SearchResponse
 import java.io.Serializable
+import java.util.*
 
 data class EmbeddedNameAndVersion(
     var name: String = "",
@@ -97,13 +96,13 @@ class ApplicationSearchService (
                 doSearch(session, actorAndProject, groups, trimmedNormalizedQuery, paging)
             }
         }
-        val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
+        val firstTenKeywords = keywords.filter { it.isNotBlank() }.take(10)
         return db.withSession { session ->
             doMultiKeywordSearch(session, actorAndProject, groups, firstTenKeywords, paging)
         }
     }
 
-    suspend fun multiKeywordsearch(
+    private suspend fun multiKeywordsearch(
         ctx: DBContext,
         actorAndProject: ActorAndProject,
         projectGroups: List<String>,
@@ -139,7 +138,7 @@ class ApplicationSearchService (
             )
         }
 
-        val normalizedQuery = query?.toLowerCase() ?: ""
+        val normalizedQuery = query?.lowercase(Locale.getDefault()) ?: ""
 
         val normalizedTags = mutableListOf<String>()
         tagFilter?.forEach { tag ->
@@ -232,10 +231,8 @@ class ApplicationSearchService (
         keywords: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val groups = if (projectGroups.isEmpty()) {
+        val groups = projectGroups.ifEmpty {
             listOf("")
-        } else {
-            projectGroups
         }
 
         val keywordsQuery = createKeywordQuery(keywords)
@@ -267,10 +264,8 @@ class ApplicationSearchService (
         normalizedQuery: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val groups = if (memberGroups.isEmpty()) {
+        val groups = memberGroups.ifEmpty {
             listOf("")
-        } else {
-            memberGroups
         }
         val isAdmin = Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role)
         val items = ctx.withSession { session ->
@@ -348,10 +343,8 @@ class ApplicationSearchService (
         keywords: List<String>,
         keywordsQuery: String
     ): ResultSet {
-        val groups = if (projectGroups.isEmpty()) {
+        val groups = projectGroups.ifEmpty {
             listOf("")
-        } else {
-            projectGroups
         }
 
         return ctx.withSession { session ->
