@@ -45,8 +45,9 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
+import {injectStyle, injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
+import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -1302,13 +1303,13 @@ const RunningJobRank: React.FunctionComponent<{
     </>;
 };
 
-const CompletedTextWrapper = styled.div`
+const CompletedTextWrapper = injectStyle("completed-text", k => `
   ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${AltButtonGroupClass} {
+    ${k} > ${AltButtonGroupClass} {
       justify-content: center;
     }
   }
-`;
+`);
 
 function jobStateToText(state: JobState) {
     switch (state) {
@@ -1327,7 +1328,7 @@ function jobStateToText(state: JobState) {
 
 const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const app = job.specification.application;
-    return <CompletedTextWrapper>
+    return <div className={CompletedTextWrapper}>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         {state === "FAILURE" ?
             <Heading.h3>
@@ -1350,26 +1351,16 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
                 </Link>
             </AltButtonGroup>
         }
-    </CompletedTextWrapper>;
+    </div>;
 };
 
-const OutputFilesWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-
-  h1, h2, h3, h4 {
-    margin-top: 15px;
-    margin-bottom: 15px;
-  }
-`;
-
-const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
-    return <OutputFilesWrapper>
-        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true}
-            allowMoveCopyOverride />
-    </OutputFilesWrapper>;
+    return <div style={{width: "100%", marginTop: "18px"}}>
+        <ExperimentalBrowse
+            opts={{initialPath: pathRef.current, embedded: true}}
+        />
+    </div>;
 };
 
 function getAppType(job: Job): string {

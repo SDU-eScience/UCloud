@@ -105,13 +105,19 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
 
+    const features = {
+        ...FEATURES
+    };
+
+    if (opts?.embedded) features.locationBar = false;
+
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
 
                 // Metadata utilities
                 // =========================================================================================================
@@ -1210,7 +1216,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         const b = browserRef.current;
         if (!b) return;
 
-        if (isSelector) {
+        if (opts?.initialPath) {
             b.open(selectorPathRef.current);
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
