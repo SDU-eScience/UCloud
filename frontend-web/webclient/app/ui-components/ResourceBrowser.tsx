@@ -1375,8 +1375,8 @@ export class ResourceBrowser<T> {
                 const listHeight = opCount * itemSize;
                 const listWidth = 400;
 
-                const rootWidth = this.root.getBoundingClientRect().width;
-                const rootHeight = this.root.getBoundingClientRect().height;
+                const rootWidth = window.innerWidth;
+                const rootHeight = window.innerHeight;
 
                 if (posX + listWidth >= rootWidth - 32) {
                     actualPosX -= listWidth;
