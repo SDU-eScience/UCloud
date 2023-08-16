@@ -143,8 +143,10 @@ check if the end of results has been reached is by checking i `next == null`."""
         DocVisualization.Card("PageV2", emptyList(), items.map { visualizeValue(it) })
 }
 
+fun <T> emptyPageV2(): PageV2<T> = PageV2<T>(100, emptyList(), null)
+
 fun <T> singlePageOf(vararg items: T): PageV2<T> {
-    return PageV2(50, listOf(*items), null)
+    return PageV2(100, listOf(*items), null)
 }
 
 @Serializable

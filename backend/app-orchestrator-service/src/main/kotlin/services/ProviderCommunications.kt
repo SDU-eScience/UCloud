@@ -258,13 +258,10 @@ class ProviderCommunications(
         return providerSpec.retrieve(providerId).toHostInfo()
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun forEachRelevantProvider(
+    suspend fun findRelevantProviders(
         actorAndProject: ActorAndProject,
-        deadlineMs: Long = 10_000L,
-        fn: suspend (providerId: String) -> Unit,
-    ) {
-        val providers = Accounting.findRelevantProviders.call(
+    ): List<String> {
+        return Accounting.findRelevantProviders.call(
             bulkRequestOf(
                 FindRelevantProvidersRequestItem(
                     actorAndProject.actor.safeUsername(),
@@ -278,6 +275,15 @@ class ProviderCommunications(
                 HttpStatusCode.BadGateway
             )
         }.responses.single().providers
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    suspend fun forEachRelevantProvider(
+        actorAndProject: ActorAndProject,
+        deadlineMs: Long = 10_000L,
+        fn: suspend (providerId: String) -> Unit,
+    ) {
+        val providers = findRelevantProviders(actorAndProject)
 
         coroutineScope {
             val jobs = providers.map { providerId ->
