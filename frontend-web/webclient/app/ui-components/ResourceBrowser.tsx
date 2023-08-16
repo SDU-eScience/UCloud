@@ -788,22 +788,16 @@ export class ResourceBrowser<T> {
 
     private cantConsumeResources = false;
     public rerender() {
-        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn()) as {api: {isCoreResource: boolean}} | null;
-        this.cantConsumeResources = !checkCanConsumeResources(callbacks);
         this.renderBreadcrumbs();
         this.renderOperations();
         this.renderRows();
         this.clearFilters();
-        if (this.cantConsumeResources) {
-            this.renderCantConsumeResources();
-        } else {
-            if (this.features.sortDirection) {
-                this.renderSortOrder();
-            }
-            if (this.features.filters) {
-                this.renderFilters();
-                this.rerenderSessionFilterIcons();
-            }
+        if (this.features.sortDirection) {
+            this.renderSortOrder();
+        }
+        if (this.features.filters) {
+            this.renderFilters();
+            this.rerenderSessionFilterIcons();
         }
     }
 
@@ -877,8 +871,6 @@ export class ResourceBrowser<T> {
         }
 
         this.renameField.style.display = "none";
-
-        if (this.cantConsumeResources) return;
 
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
@@ -1001,9 +993,6 @@ export class ResourceBrowser<T> {
 
     renderBreadcrumbs() {
         this.breadcrumbs.innerHTML = "";
-        if (this.cantConsumeResources) {
-            return;
-        }
 
         const crumbs = this.dispatchMessage("generateBreadcrumbs", fn => fn(this.currentPath));
         // NOTE(Dan): The next section computes which crumbs should be shown and what the content of them should be.
@@ -1108,10 +1097,6 @@ export class ResourceBrowser<T> {
     }
 
     renderOperations() {
-        if (this.cantConsumeResources) {
-            this.operations.innerHTML = "";
-            return;
-        }
         this.renderOperationsIn(false);
     }
 
