@@ -79,6 +79,7 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
     contentWrapper.style.width = `${width}px`;
+    contentWrapper.style.display = "none";
 
     function onHover(ev: MouseEvent) {
         const wrapperRect = trigger.getBoundingClientRect();
