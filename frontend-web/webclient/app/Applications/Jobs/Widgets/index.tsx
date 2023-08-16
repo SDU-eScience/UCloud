@@ -7,7 +7,6 @@ import AppParameterValue = compute.AppParameterValue;
 import ApplicationParameter = compute.ApplicationParameter;
 import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
-import styled from "styled-components";
 import {EllipsedText, TextClass, TextP, TextSpan} from "@/ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
@@ -19,7 +18,8 @@ import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/
 import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
 import {ButtonClass} from "@/ui-components/Button";
 import {JobCreateInput} from "./Reservation";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {FlexCProps} from "@/ui-components/Flex";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -87,37 +87,43 @@ interface RootWidgetProps {
     onActivate?: () => void;
 }
 
-const InactiveWidget = styled(Flex)`
-    align-items: center;
-    cursor: pointer;
+function InactiveWidget(props: React.PropsWithChildren<FlexCProps>) {
+    return <Flex className={InactiveWidgetClass} {...props} />
+}
 
-    strong, & > .${TextClass} {
+const InactiveWidgetClass = injectStyle("inactive-widget", k => `
+    ${k} {
+        align-items: center;
+        cursor: pointer;
+    }
+
+    ${k} > strong, ${k} > .${TextClass} {
         user-select: none;
     }
 
-    strong {
+    ${k} strong {
         margin-right: 16px;
         font-weight: bold;
         flex-shrink: 0;
     }
 
-    & > .${TextClass} {
+    ${k} > .${TextClass} {
         color: var(--gray, #f00);
         flex-grow: 1;
     }
 
-    & > .${TextClass} > p {
+    ${k} > .${TextClass} > p {
         margin: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    & > .${ButtonClass} {
+    ${k} > .${ButtonClass} {
         margin-left: 16px;
         flex-shrink: 0;
     }
-`;
+`);
 
 export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = props => {
     const error = props.errors[props.parameter.name];

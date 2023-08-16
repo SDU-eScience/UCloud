@@ -13,7 +13,6 @@ import * as Heading from "@/ui-components/Heading";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
-import styled from "styled-components";
 import {ListRowStat} from "@/ui-components/List";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {UFile} from "@/UCloud/FilesApi";
@@ -21,6 +20,7 @@ import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Bro
 import {Operation} from "@/ui-components/Operation";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {injectStyle} from "@/Unstyled";
 
 export const History: React.FunctionComponent<{
     file: UFile;
@@ -118,12 +118,12 @@ export const History: React.FunctionComponent<{
                 </Flex>
             </Box>
             <Button onClick={close} mr={"34px"}>
-                <Icon name={"backward"} mr={16}/>
+                <Icon name={"backward"} mr={16} />
                 Back to overview
             </Button>
         </Flex>
 
-        <Layout>
+        <div className={Layout}>
             <div className={"doc-viewer"}>
                 <Box mb={"16px"}>
                     {documentInspection && documentInspection !== activeDocument ?
@@ -140,11 +140,11 @@ export const History: React.FunctionComponent<{
                             <>
                                 <Heading.h3 flexGrow={1}>New document</Heading.h3>
                                 <Label>
-                                    Changes<br/>
-                                    <TextArea width={"100%"} rows={4} inputRef={changeLogRef}/>
+                                    Changes<br />
+                                    <TextArea width={"100%"} rows={4} inputRef={changeLogRef} />
                                 </Label>
                                 <ConfirmationButton mt={"8px"} color={"green"} icon={"check"} actionText={"Save"}
-                                                    onAction={submitNewVersion} fullWidth/>
+                                    onAction={submitNewVersion} fullWidth />
                             </>
                     }
                 </Box>
@@ -160,33 +160,33 @@ export const History: React.FunctionComponent<{
                         }
 
                         {documentInspection.status.approval.type === "pending" &&
-                        file.permissions.myself.some(it => it === "ADMIN") ?
+                            file.permissions.myself.some(it => it === "ADMIN") ?
                             <Grid gridTemplateColumns={"1fr 1fr"} gridGap={"8px"} mt={"8px"}>
                                 <ConfirmationButton actionText={"Approve change"} icon={"check"} color={"green"}
-                                                    onAction={approveChange}/>
+                                    onAction={approveChange} />
                                 <ConfirmationButton actionText={"Reject change"} icon={"trash"} color={"red"}
-                                                    onAction={rejectChange}/>
+                                    onAction={rejectChange} />
                             </Grid> : null
                         }
 
                         {documentInspection.type === "deleted" ? "The metadata has been deleted" : null}
-                        {documentInspection.type !== "metadata" ? null : <FormWrapper>
+                        {documentInspection.type !== "metadata" ? null : <div className={FormWrapper}>
                             <JsonSchemaForm
                                 disabled={true}
                                 schema={template.schema}
                                 uiSchema={template.uiSchema}
                                 formData={documentInspection.specification.document}
                             />
-                        </FormWrapper>
+                        </div>
                         }
-                    </> : <FormWrapper>
+                    </> : <div className={FormWrapper}>
                         <JsonSchemaForm
                             schema={template.schema}
                             uiSchema={template.uiSchema}
                             formData={editingDocument}
                             onChange={(e) => setEditingDocument(e.formData)}
                         />
-                    </FormWrapper>}
+                    </div>}
                 </div>
             </div>
 
@@ -197,11 +197,11 @@ export const History: React.FunctionComponent<{
                             generateCall={noopCall} renderer={entryRenderer} embedded={"inline"}
                             title={"Activity entry"} titlePlural={"Activity"} preloadedResources={activityRows}
                             navigate={activityNavigate} operations={entryOperations}
-                            extraCallbacks={activityCallbacks}/>
+                            extraCallbacks={activityCallbacks} />
                     </div>
                 </div> : null
             }
-        </Layout>
+        </div>
     </Box>;
 };
 
@@ -224,12 +224,12 @@ const entryRenderer: ItemRenderer<DocumentRow> = {
         const isActive = props.resource.isActive;
         const status = props.resource.doc.status.approval;
         const hasBeenApproved = status.type === "approved" || status.type === "not_required";
-        if (isActive && hasBeenApproved) return <Icon name={"check"} color={"green"} size={props.size}/>;
-        else if (status.type === "pending") return <Icon name={"warning"} color={"orange"} size={props.size}/>;
-        else if (status.type === "rejected") return <Icon name={"trash"} color={"red"} size={props.size}/>;
+        if (isActive && hasBeenApproved) return <Icon name={"check"} color={"green"} size={props.size} />;
+        else if (status.type === "pending") return <Icon name={"warning"} color={"orange"} size={props.size} />;
+        else if (status.type === "rejected") return <Icon name={"trash"} color={"red"} size={props.size} />;
         return <SvgFt width={props.size} height={props.size} type={"text"} ext={"meta"}
-                      color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
-                      hasExt={true}/>
+            color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
+            hasExt={true} />
     },
     MainTitle: props => {
         if (!props.resource) return null;
@@ -251,11 +251,11 @@ const entryRenderer: ItemRenderer<DocumentRow> = {
         if (!props.resource) return null;
         const entry = props.resource.doc;
         return <>
-            <ApprovalStatusStat approval={entry.status.approval}/>
+            <ApprovalStatusStat approval={entry.status.approval} />
             <ListRowStat icon={"calendar"}>{dateToString(entry.createdAt)}</ListRowStat>
             <ListRowStat icon={"user"}>{entry.createdBy}</ListRowStat>
             <ListRowStat icon={entry.type === "metadata" ? "upload" : "trash"}
-                         color={"iconColor"} color2={"iconColor2"}>
+                color={"iconColor"} color2={"iconColor2"}>
                 Document was {entry.type === "metadata" ? "updated" : "deleted"}
             </ListRowStat>
         </>;
@@ -344,7 +344,7 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
     },
 ];
 
-const Layout = styled.div`
+const Layout = injectStyle("layout", k => `
   display: grid;
   grid-gap: 16px;
   margin-bottom: 16px;
@@ -361,37 +361,37 @@ const Layout = styled.div`
     grid-template-areas: "doc-viewer activity"
   }
 
-  .doc-viewer {
+  ${k} > .doc-viewer {
     grid-area: doc-viewer;
   }
 
-  .activity {
+  ${k} > .activity {
     grid-area: activity;
   }
 
-  .scroll-area {
+  ${k} .scroll-area {
     max-height: 700px;
     overflow-y: auto;
   }
-`;
+`);
 
-const FormWrapper = styled.div`
-  button[type=submit] {
+const FormWrapper = injectStyle("form-wrapper", k => `
+  ${k} button[type=submit] {
     display: none;
   }
-`;
+`);
 
-const ApprovalStatusStat: React.FunctionComponent<{ approval: FileMetadataDocumentApproval }> = ({approval}) => {
+const ApprovalStatusStat: React.FunctionComponent<{approval: FileMetadataDocumentApproval}> = ({approval}) => {
     switch (approval.type) {
         case "approved":
             return <ListRowStat icon={"verified"} color={"green"} textColor={"green"}
-                                children={"Approved by " + approval.approvedBy}/>;
+                children={"Approved by " + approval.approvedBy} />;
         case "not_required":
             return null;
         case "pending":
-            return <ListRowStat icon={"notchedCircle"} children={"Approval pending"}/>;
+            return <ListRowStat icon={"notchedCircle"} children={"Approval pending"} />;
         case "rejected":
             return <ListRowStat icon={"verified"} color={"red"} textColor={"red"}
-                                children={"Rejected by " + approval.rejectedBy}/>;
+                children={"Rejected by " + approval.rejectedBy} />;
     }
 };
