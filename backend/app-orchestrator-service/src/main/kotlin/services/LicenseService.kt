@@ -18,7 +18,7 @@ class LicenseService(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>,
     serviceClient: AuthenticatedClient,
-    orchestrator: JobResourceService2,
+    orchestrator: JobResourceService,
 ) : JobBoundResource<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus, Product.License,
         LicenseSupport, ComputeCommunication,
         AppParameterValue.License>(projectCache, db, providers, support, serviceClient, orchestrator) {

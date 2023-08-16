@@ -6,8 +6,7 @@ import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
-import dk.sdu.cloud.app.orchestrator.services.JobResourceService2
+import dk.sdu.cloud.app.orchestrator.services.JobResourceService
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkResponse
@@ -21,7 +20,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.actorAndProject
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -34,7 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 
 class JobController(
-    private val jobs: JobResourceService2,
+    private val jobs: JobResourceService,
     private val micro: Micro,
 ) : Controller {
 

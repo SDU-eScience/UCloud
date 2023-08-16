@@ -22,7 +22,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -35,7 +34,7 @@ class JobMonitoringService(
     private val scope: BackgroundScope,
     private val distributedLocks: DistributedLockFactory,
     private val db: AsyncDBSessionFactory,
-    private val jobOrchestrator: JobResourceService2,
+    private val jobOrchestrator: JobResourceService,
     private val providers: ProviderCommunications,
     private val fileCollectionService: FileCollectionService,
     private val ingressService: IngressService,

@@ -42,14 +42,22 @@ class ApplicationCache(private val db: DBContext) {
         }
     }
 
-    suspend fun retrieveApplication(name: String, version: String, allowLookup: Boolean = true): Application? {
+    suspend fun invalidate(name: String, version: String) {
+        mutex.withWriter { applications.remove(NameAndVersion(name, version)) }
+    }
+
+    suspend fun resolveApplication(name: String, version: String, allowLookup: Boolean = true): Application? {
+        return resolveApplication(NameAndVersion(name, version), allowLookup)
+    }
+
+    suspend fun resolveApplication(nameAndVersion: NameAndVersion, allowLookup: Boolean = true): Application? {
         if (didWarmup.compareAndSet(false, true)) fillCache()
 
-        val result = mutex.withReader { applications[NameAndVersion(name, version)] }
+        val result = mutex.withReader { applications[nameAndVersion] }
         if (result != null) return result
         if (!allowLookup) return null
 
-        fillCache(name)
-        return retrieveApplication(name, version, allowLookup = false)
+        fillCache(nameAndVersion.name)
+        return resolveApplication(nameAndVersion, allowLookup = false)
     }
 }

@@ -31,10 +31,10 @@ class Server(override val micro: Micro) : CommonServer {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val streams = micro.eventStreamServiceOrNull
         val distributedLocks = DistributedLockFactory(micro)
-        val appStoreCache = AppStoreCache(serviceClient)
 
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
         val productCache = ProductCache(db)
+        val appStoreCache = ApplicationCache(db)
 
         val altProviders = dk.sdu.cloud.accounting.util.Providers(serviceClient) { comms ->
             ComputeCommunication(
@@ -58,14 +58,6 @@ class Server(override val micro: Micro) : CommonServer {
             )
         }
 
-        val jobSupport = ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>(
-            altProviders,
-            serviceClient,
-            fetchSupport = { comms ->
-                comms.api.retrieveProducts.call(Unit, comms.client).orThrow().responses.map { it }
-            }
-        )
-
         val providerSupport = StorageProviderSupport(storageProviders, serviceClient) { comms ->
             comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
         }
@@ -74,7 +66,7 @@ class Server(override val micro: Micro) : CommonServer {
         val providerComms = ProviderCommunications(micro.backgroundScope, serviceClient, productCache)
         val fileCollections = FileCollectionService(projectCache, db, storageProviders, providerSupport, serviceClient)
 
-        val jobs = JobResourceService2(
+        val jobs = JobResourceService(
             db,
             providerComms,
             micro.backgroundScope,
@@ -83,15 +75,6 @@ class Server(override val micro: Micro) : CommonServer {
             fileCollections,
             serviceClient,
             payment,
-        )
-
-        val jobOrchestrator = JobOrchestrator(
-            projectCache,
-            db,
-            altProviders,
-            jobSupport,
-            serviceClient,
-            appStoreCache,
         )
 
         val ingressSupport = ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>(
@@ -104,7 +87,6 @@ class Server(override val micro: Micro) : CommonServer {
 
         val ingressService =
             IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobs)
-
 
         val licenseSupport = ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>(
             altProviders,
@@ -133,7 +115,6 @@ class Server(override val micro: Micro) : CommonServer {
 
         val exporter = ParameterExportService(ingressService, productCache)
         jobs.exporter = exporter // TODO(Dan): Cyclic-dependency hack
-        jobOrchestrator.exporter = exporter // TODO(Dan): Cyclic-dependency hack
 
         val jobMonitoring = JobMonitoringService(
             micro.feature(DebugSystemFeature).system,

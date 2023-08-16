@@ -22,7 +22,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
     providers: Providers<Comms>,
     support: ProviderSupport<Comms, Prod, Support>,
     serviceClient: AuthenticatedClient,
-    protected val orchestrator: JobResourceService2,
+    protected val orchestrator: JobResourceService,
 ) : ResourceService<Res, Spec, Update, Flags, Status, Prod, Support, Comms>(projectCache, db, providers, support, serviceClient)
         where Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : JobBoundUpdate<*>,
               Flags : ResourceIncludeFlags, Status : JobBoundStatus<Prod, Support>, Prod : Product,
@@ -36,7 +36,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
     protected open fun bindsExclusively(): Boolean = true
 
     init {
-        orchestrator.addListener(object : JobListener2 {
+        orchestrator.addListener(object : JobListener {
             override suspend fun onVerified(actorAndProject: ActorAndProject, specification: JobSpecification) {
                 val resources = resourcesFromJob(specification)
                 if (resources.isEmpty()) return

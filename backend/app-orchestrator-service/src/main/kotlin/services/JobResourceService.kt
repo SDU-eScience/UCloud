@@ -28,7 +28,6 @@ import kotlinx.coroutines.selects.select
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
@@ -44,7 +43,7 @@ data class InternalJobState(
     var jobParameters: ExportedParameters? = null,
 )
 
-interface JobListener2 {
+interface JobListener {
     suspend fun onVerified(actorAndProject: ActorAndProject, specification: JobSpecification) {
         // Empty
     }
@@ -58,22 +57,21 @@ interface JobListener2 {
     }
 }
 
-class JobResourceService2(
+class JobResourceService(
     private val db: AsyncDBSessionFactory,
     private val providers: ProviderCommunications,
     private val backgroundScope: BackgroundScope,
     private val productCache: ProductCache,
-    private val appCache: AppStoreCache,
+    private val appCache: ApplicationCache,
     private val fileCollections: FileCollectionService,
     private val serviceClient: AuthenticatedClient,
     private val payment: PaymentService,
 ) {
     lateinit var exporter: ParameterExportService
-    private val listeners = ArrayList<JobListener2>()
+    private val listeners = ArrayList<JobListener>()
     private val allRunningJobs = NonBlockingHashMapLong<Unit>()
 
     private val idCards = IdCardService(db, backgroundScope, serviceClient)
-    private val applicationCache = ApplicationCache(db)
     private val documents = ResourceStore(
         "job",
         db,
@@ -397,7 +395,7 @@ class JobResourceService2(
                     null
                 },
                 data.specification.application.let { (name, version) ->
-                    applicationCache.retrieveApplication(name, version)
+                    appCache.resolveApplication(name, version)
                 },
                 resolvedSupport as ResolvedSupport<Product.Compute, ComputeSupport>,
                 resolvedProduct as Product.Compute,
@@ -415,7 +413,7 @@ class JobResourceService2(
     // If we had singleton access to the database and serviceClients and if the docMapper becomes redundant:
     // private val proxy = ProxyToProvider(documents)
 
-    private val validation = JobVerificationService2(appCache, this, fileCollections)
+    private val validation = JobVerificationService(appCache, this, fileCollections)
 
     init {
         documents.initializeBackgroundTasks(backgroundScope)
@@ -1367,7 +1365,7 @@ class JobResourceService2(
         support: ComputeSupport
     ): SupportInfo {
         val (appName, appVersion) = spec.application
-        val application = applicationCache.retrieveApplication(appName, appVersion)
+        val application = appCache.resolveApplication(appName, appVersion)
             ?: error("Unknown application")
 
         val tool = application.invocation.tool.tool ?: error("No tool")
@@ -1409,7 +1407,7 @@ class JobResourceService2(
         return result
     }
 
-    fun addListener(listener: JobListener2) {
+    fun addListener(listener: JobListener) {
         listeners.add(listener)
     }
 

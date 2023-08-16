@@ -20,7 +20,7 @@ class IngressService(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>,
     serviceClient: AuthenticatedClient,
-    orchestrator: JobResourceService2,
+    orchestrator: JobResourceService,
 ) : JobBoundResource<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
         Product.Ingress, IngressSupport, ComputeCommunication, AppParameterValue.Ingress>(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.ingresses")

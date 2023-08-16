@@ -1,7 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import kotlin.time.measureTimedValue
-
 private val globalCounters = ArrayList<EnabledPerfCounter>()
 
 //typealias PerfCounter = EnabledPerfCounter

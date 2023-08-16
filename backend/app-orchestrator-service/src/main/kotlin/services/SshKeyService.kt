@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class SshKeyService(
     private val db: DBContext,
-    private val jobs: JobResourceService2,
+    private val jobs: JobResourceService,
     private val providers: ProviderCommunications,
 ) {
     suspend fun create(

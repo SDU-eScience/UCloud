@@ -30,7 +30,7 @@ class NetworkIPService(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.NetworkIP, NetworkIPSupport>,
     serviceClient: AuthenticatedClient,
-    orchestrator: JobResourceService2,
+    orchestrator: JobResourceService,
 ) : Super(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.network_ips")
     override val defaultSortColumn = SqlObject.Column(table, "ip_address")
