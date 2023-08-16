@@ -8,7 +8,7 @@ import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import styled, {keyframes} from "styled-components";
+import styled from "styled-components";
 import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {IconName} from "@/ui-components/Icon";
@@ -45,10 +45,10 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {injectStyleSimple, unbox} from "@/Unstyled";
+import {injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 
-const enterAnimation = keyframes`
+const enterAnimation = makeKeyframe("enter-animation", `
   from {
     transform: scale3d(1, 1, 1);
   }
@@ -58,18 +58,18 @@ const enterAnimation = keyframes`
   to {
     transform: scale3d(1, 1, 1);
   }
-`;
+`);
 
-const busyAnim = keyframes`
+const busyAnim = makeKeyframe("busy-anim", `
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
   }
-`;
+`);
 
-const zoomInAnim = keyframes`
+const zoomInAnim = makeKeyframe("zoom-in-anim", `
   from {
     opacity: 0;
     transform: scale3d(0.3, 0.3, 0.3);
@@ -77,7 +77,7 @@ const zoomInAnim = keyframes`
   50% {
     opacity: 1;
   }
-`;
+`);
 
 const Container = styled.div`
   --logoScale: 1;

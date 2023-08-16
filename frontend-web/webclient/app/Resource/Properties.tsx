@@ -1,5 +1,5 @@
 import * as React from "react";
-import styled, {keyframes} from "styled-components";
+import styled from "styled-components";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
     ProductSupport,
@@ -30,10 +30,10 @@ import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {Truncate} from "@/ui-components";
 
-const enterAnimation = keyframes`
+const enterAnimation = makeKeyframe("enter-animation", `
   from {
     transform: scale3d(1, 1, 1);
   }
@@ -43,7 +43,7 @@ const enterAnimation = keyframes`
   to {
     transform: scale3d(1, 1, 1);
   }
-`;
+`);
 
 const Container = styled.div`
   --logoScale: 1;

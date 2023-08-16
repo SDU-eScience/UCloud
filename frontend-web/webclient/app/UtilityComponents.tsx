@@ -2,7 +2,7 @@ import {KeyCode} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled, {keyframes, css} from "styled-components";
+import styled, {css} from "styled-components";
 import {
     Box, Button, Divider, Flex, ButtonGroup, Link, Text
 } from "@/ui-components";
@@ -15,7 +15,7 @@ import {ErrorWrapper} from "@/ui-components/Error";
 import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
-import {injectStyle, injectStyleSimple} from "./Unstyled";
+import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
 
 interface StandardDialog {
     title?: string;
@@ -304,7 +304,7 @@ export function useTraceUpdate(props: any, msg?: string): void {
     });
 }
 
-const shakeKeyframes = keyframes`
+const shakeKeyframes = makeKeyframe("shake", `
   10%, 90% {
     transform: translate3d(-1px, 0, 0);
   }
@@ -320,7 +320,7 @@ const shakeKeyframes = keyframes`
   40%, 60% {
     transform: translate3d(4px, 0, 0);
   }
-`;
+`);
 
 export const shakeAnimation = css<{shaking?: boolean}>`
   &.shaking {
