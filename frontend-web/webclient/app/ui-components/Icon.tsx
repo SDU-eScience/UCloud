@@ -77,7 +77,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = props => {
 Icon.displayName = "Icon";
 
 Icon.defaultProps = {
-    size: 24,
+    size: 18,
     squared: true
 };
 

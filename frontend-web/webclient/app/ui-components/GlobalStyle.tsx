@@ -114,13 +114,14 @@ html {
     /* LIGHT */
     --gradientStart: #B6D8FB;
     --gradientEnd: #fff;    
-    --inputColor: #E9E9E9;
+    --inputColor: #fff;
 
     /* FONT-SIZES */
-    --secondaryText: 12px;
-    --buttonText: 14px;
-    --breadText: 16px;
+    --secondaryText: 10px;
+    --buttonText: 12px;
+    --breadText: 14px;
     --interactiveElementsSize: 20px;
+    font-size: 15px;
     /* FONT-SIZES end */
     
 

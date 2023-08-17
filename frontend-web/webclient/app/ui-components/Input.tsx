@@ -36,14 +36,26 @@ export const InputClass = injectStyle("input", k => `
         border-radius: 5px;
         padding: 7px 12px;
         height: 42px;
-        
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
+
         --inputBorder: var(--blue);
         --inputDisabledBorder: var(--lightGray);
+
+        border: 1px solid #ddd;
     }
     
+    ${k}:hover {
+        border-color: #b6b6b6;
+    }
+
     ${k}:focus {
         outline: 0;
-        border-color: var(--inputBorder);
+        border-color: var(--blue);
+        box-shadow: 0 0 3px -1px var(--blue);
+    }
+
+    ${k}::placeholder {
+        color: var(--gray);
     }
     
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
@@ -139,8 +151,8 @@ const InputLabelClass = injectStyle("input-label", k => `
         padding-top: 6px;
         height: 42px;
         border-radius: 5px;
+        background-color: red;
     }
-
     
     ${k}[data-left-label="true"] {
         border-top-left-radius: 5px;
