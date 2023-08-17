@@ -2,6 +2,9 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.jobs
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -15,11 +18,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class SshKeyService(
-    private val db: DBContext,
-    private val jobs: JobResourceService,
-    private val providers: ProviderCommunications,
-) {
+class SshKeyService {
     suspend fun create(
         actorAndProject: ActorAndProject,
         keys: List<SSHKey.Spec>,
@@ -63,7 +62,7 @@ class SshKeyService(
             val allKeys = browse(actorAndProject, null, session)
             providers.forEachRelevantProvider(actorAndProject.copy(project = null)) { providerId ->
                 runCatching {
-                    providers.invokeCall(
+                    providers.call(
                         providerId,
                         actorAndProject,
                         { SSHKeysProvider(it).onKeyUploaded },

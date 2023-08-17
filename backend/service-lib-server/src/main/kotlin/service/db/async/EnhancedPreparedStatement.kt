@@ -97,6 +97,12 @@ class EnhancedPreparedStatement(
         rawParameters.putAll(newMap)
     }
 
+    fun <T> setParameterList(name: String): ArrayList<T> {
+        val result = ArrayList<T>()
+        setParameter(name, result)
+        return result
+    }
+
     fun setParameterAsNull(name: String) {
         setParameterUntyped(name, null)
     }
@@ -232,7 +238,7 @@ class EnhancedPreparedStatement(
         return response
     }
 
-    inline fun <T> splitCollection(collection: Collection<T>, builder: SplitBuilder<T>.() -> Unit) {
+    inline fun <T> splitCollection(collection: Iterable<T>, builder: SplitBuilder<T>.() -> Unit) {
         collection.split(builder)
     }
 
@@ -326,6 +332,11 @@ class SplitBuilder<T>(
     private val statement: EnhancedPreparedStatement
 ) {
     private val splits = ArrayList<Pair<String, (T) -> Any?>>()
+    private val skipIf = ArrayList<(T) -> Boolean>()
+
+    fun skipIf(predicate: (T) -> Boolean) {
+        skipIf.add(predicate)
+    }
 
     fun <R> into(name: String, splitter: (T) -> R): SplitBuilder<T> {
         splits.add(Pair(name, splitter))
@@ -340,7 +351,11 @@ class SplitBuilder<T>(
             statement.setParameter(name, args)
         }
 
-        for (item in collection) {
+        outer@for (item in collection) {
+            for (predicate in skipIf) {
+                if (predicate(item)) continue@outer
+            }
+
             for ((name, splitter) in splits) {
                 allArgumentLists.getValue(name).add(splitter(item))
             }

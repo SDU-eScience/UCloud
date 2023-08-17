@@ -5,6 +5,8 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.publicLinks
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -22,10 +24,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 
-class ParameterExportService(
-    private val ingresses: IngressService,
-    private val productCache: ProductCache,
-) {
+class ParameterExportService {
     suspend fun exportParameters(parameters: JobSpecification): ExportedParameters {
         val resolvedProduct = productCache.referenceToProduct(parameters.product) as? Product.Compute?
             ?: throw RPCException("Unknown machine reservation", HttpStatusCode.BadRequest)
@@ -59,7 +58,7 @@ class ParameterExportService(
                         allIngress.add(param.id)
                     }
 
-                    val resolvedIngress = ingresses.retrieveBulk(
+                    val resolvedIngress = publicLinks.retrieveBulk(
                         // NOTE(Dan): Permissions have already been checked by the verification service. Skip the
                         // check for performance reasons.
                         ActorAndProject(Actor.System, null),

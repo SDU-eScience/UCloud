@@ -10,7 +10,7 @@ import dk.sdu.cloud.provider.api.Permission
 import java.util.ArrayList
 
 class ProxyToProvider<Internal, External>(
-    val idCards: IdCardService,
+    val idCards: IIdCardService,
     val documents: ResourceStore<Internal>,
     val mapper: DocMapper<Internal, External>,
     val productCache: ProductCache,
@@ -21,13 +21,13 @@ class ProxyToProvider<Internal, External>(
         val products: ArrayList<ProductReference> = ArrayList(),
     )
 
-    suspend fun send(
+    suspend fun <T> send(
         actorAndProject: ActorAndProject,
         ids: List<Long>,
         permission: Permission,
         actionDescription: String,
         featureValidation: (suspend (resource: External, support: ProductSupport) -> Unit)?,
-        fn: suspend (providerId: String, resources: List<External>) -> Unit
+        fn: suspend (providerId: String, resources: List<External>) -> T
     ) {
         val card = idCards.fetchIdCard(actorAndProject)
         val grouped = HashMap<String, Entry<External>>()

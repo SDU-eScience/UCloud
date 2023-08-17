@@ -82,7 +82,7 @@ class ProviderCommunications(
         retrieve = { key ->
             val call = retrieveSupportCall(key.providerId, key.api.namespace, key.api.typeInfo.supportSerializer)
 
-            invokeCall(
+            call(
                 key.providerId,
                 ActorAndProject(Actor.System, null),
                 { call },
@@ -103,31 +103,21 @@ class ProviderCommunications(
 
     private val rpcClient = serviceClient.withoutAuthentication()
 
-    suspend fun <Support : ProductSupport> requireSupportAndCheckAllocations(
+    suspend fun <Spec : ResourceSpecification, Support : ProductSupport> runChecksForCreate(
         actorAndProject: ActorAndProject,
         api: UnknownResourceApi<Support>,
-        request: BulkRequest<ResourceSpecification>,
+        request: BulkRequest<Spec>,
         actionDescription: String,
-        validator: suspend (Support) -> Unit,
+        validator: suspend (Support, Spec) -> Unit,
     ) {
-        requireSupportAndCheckAllocations(
-            actorAndProject,
-            api,
-            request.items.map { it.product },
-            actionDescription,
-            validator
-        )
-    }
-
-    suspend fun <Support : ProductSupport> requireSupportAndCheckAllocations(
-        actorAndProject: ActorAndProject,
-        api: UnknownResourceApi<Support>,
-        productReferences: Collection<ProductReference>,
-        actionDescription: String,
-        validator: suspend (Support) -> Unit,
-    ) {
+        val productReferences = request.items.map { it.product }
         requireAllocation(actorAndProject, productReferences, actionDescription)
-        requireSupport(api, productReferences, actionDescription, validator)
+        requireSupport(api, productReferences, actionDescription) { support ->
+            for (reqItem in request.items) {
+                if (reqItem.product != support.product) continue
+                validator(support, reqItem)
+            }
+        }
     }
 
     suspend fun <Support : ProductSupport> requireSupportProductIds(
@@ -345,7 +335,7 @@ class ProviderCommunications(
         return SupportByProvider(result)
     }
 
-    suspend fun <R : Any, S : Any> invokeCall(
+    suspend fun <R : Any, S : Any> call(
         provider: String,
         actorAndProject: ActorAndProject,
         call: (providerId: String) -> CallDescription<R, S, *>,

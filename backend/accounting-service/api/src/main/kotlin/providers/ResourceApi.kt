@@ -28,20 +28,20 @@ interface SortFlags {
 @UCloudApiOwnedBy(Resources::class)
 @UCloudApiStable
 data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
-    val flags: Flags,
+    override val flags: Flags,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
     override val sortBy: String? = null,
     override val sortDirection: SortDirection? = SortDirection.ascending,
-) : WithPaginationRequestV2, SortFlags
+) : WithBrowseRequest<Flags>
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
 @UCloudApiStable
 data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
-    val flags: Flags,
+    override val flags: Flags,
     val query: String,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -49,7 +49,11 @@ data class ResourceSearchRequest<Flags : ResourceIncludeFlags>(
     override val itemsToSkip: Long? = null,
     override val sortBy: String? = null,
     override val sortDirection: SortDirection? = SortDirection.ascending,
-) : WithPaginationRequestV2, SortFlags
+) : WithBrowseRequest<Flags>
+
+interface WithBrowseRequest<Flags : ResourceIncludeFlags> : WithPaginationRequestV2, SortFlags {
+    val flags: Flags
+}
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)

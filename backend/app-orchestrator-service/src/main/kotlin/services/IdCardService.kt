@@ -29,6 +29,16 @@ interface IIdCardService {
     suspend fun lookupUidFromUsername(username: String): Int?
     suspend fun lookupGidFromGroupId(groupId: String): Int?
     suspend fun lookupPidFromProjectId(projectId: String): Int?
+
+    suspend fun lookupUidFromUsernameOrFail(username: String?): Int {
+        if (username == null) return 0
+        return lookupUidFromUsername(username) ?: throw RPCException("Unknown user: $username", HttpStatusCode.NotFound)
+    }
+
+    suspend fun lookupPidFromProjectIdOrFail(projectId: String?): Int {
+        if (projectId == null) return 0
+        return lookupPidFromProjectId(projectId) ?: throw RPCException("Unknown project: $projectId", HttpStatusCode.NotFound)
+    }
 }
 
 class IdCardService(

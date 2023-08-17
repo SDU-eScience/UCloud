@@ -12,7 +12,7 @@ import java.util.HashMap
 import java.util.HashSet
 
 class DocMapper<A, B>(
-    private val idCards: IdCardService,
+    private val idCards: IIdCardService,
     private val productCache: ProductCache,
     private val providers: ProviderCommunications,
     private val converter: suspend DocMapperInfo<A>.() -> B,

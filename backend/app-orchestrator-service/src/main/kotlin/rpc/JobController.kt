@@ -102,7 +102,7 @@ class JobController(
                                             if (username == null) {
                                                 sendMessage("usage: browse <username> [project (can be null)] [next]")
                                             } else {
-                                                val result = jobs.browse(
+                                                val result = jobs.browseOrSearch(
                                                     ActorAndProject(Actor.SystemOnBehalfOfUser(username), project?.takeIf { it != "-" && it != "null" }),
                                                     ResourceBrowseRequest(
                                                         JobIncludeFlags(
@@ -141,7 +141,7 @@ class JobController(
                                             } else {
                                                 var next: String? = null
                                                 while (true) {
-                                                    val result = jobs.browse(
+                                                    val result = jobs.browseOrSearch(
                                                         ActorAndProject(
                                                             Actor.SystemOnBehalfOfUser(username),
                                                             project?.takeIf { it != "-" && it != "null" }
@@ -181,7 +181,7 @@ class JobController(
                                             } else {
                                                 var next: String? = null
                                                 while (true) {
-                                                    val result = jobs.browse(
+                                                    val result = jobs.browseOrSearch(
                                                         ActorAndProject(
                                                             Actor.SystemOnBehalfOfUser(username),
                                                             project,
@@ -216,7 +216,7 @@ class JobController(
                                             } else {
                                                 var next: String? = null
                                                 while (true) {
-                                                    val result = jobs.browse(
+                                                    val result = jobs.browseOrSearch(
                                                         ActorAndProject(
                                                             Actor.SystemOnBehalfOfUser(username),
                                                             project,
@@ -263,18 +263,6 @@ class JobController(
                                                     )
                                                 )
                                             )
-                                        }
-
-                                        "delete" -> {
-                                            val id = args.getOrNull(0)
-                                            val username = args.getOrNull(1)
-                                            val project = args.getOrNull(2)?.takeIf { it != "-" && it != "null" }
-                                            jobs.delete(
-                                                ActorAndProject(Actor.SystemOnBehalfOfUser(username ?: "_ucloud"), project),
-                                                bulkRequestOf(FindByStringId(id.toString()))
-                                            )
-
-                                            sendMessage("OK")
                                         }
 
                                         "update" -> {
@@ -364,7 +352,7 @@ class JobController(
         }
 
         implement(Jobs.browse) {
-            ok(jobs.browse(actorAndProject, request))
+            ok(jobs.browseOrSearch(actorAndProject, request))
         }
 
         implement(Jobs.retrieve) {
@@ -376,7 +364,7 @@ class JobController(
         }
 
         implement(JobsControl.browse) {
-            ok(jobs.browse(actorAndProject, request))
+            ok(jobs.browseOrSearch(actorAndProject, request))
         }
 
         implement(JobsControl.retrieve) {
@@ -430,7 +418,7 @@ class JobController(
         }
 
         implement(Jobs.search) {
-            ok(jobs.search(actorAndProject, request))
+            ok(jobs.browseOrSearch(actorAndProject, request, request.query))
         }
 
         implement(Jobs.init) {

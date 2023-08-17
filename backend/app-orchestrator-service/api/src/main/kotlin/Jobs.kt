@@ -503,8 +503,8 @@ typealias JobsFollowRequest = FindByStringId
 @Serializable
 @UCloudApiStable
 data class JobsFollowResponse(
-    val updates: List<JobUpdate>,
-    val log: List<JobsLog>,
+    val updates: List<JobUpdate> = emptyList(),
+    val log: List<JobsLog> = emptyList(),
     val newStatus: JobStatus? = null,
 )
 

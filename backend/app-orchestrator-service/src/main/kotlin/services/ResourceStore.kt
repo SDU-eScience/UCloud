@@ -1,10 +1,13 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
+import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
@@ -49,7 +52,7 @@ class ResourceStore<T>(
         type: String,
         db: AsyncDBSessionFactory,
         productCache: ProductCache,
-        idCardService: IdCardService,
+        idCardService: IIdCardService,
         backgroundScope: BackgroundScope,
         callbacks: Callbacks<T>
     ) : this(
@@ -314,6 +317,10 @@ class ResourceStore<T>(
         projectAllRead: Boolean = false,
         output: ResourceDocument<T>? = null,
     ): Long {
+        if (providerId?.contains(",") == true) {
+            throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
+        }
+
         if (idCard !is IdCard.Provider) {
             throw RPCException("Only providers can use this endpoint", HttpStatusCode.Forbidden)
         }
@@ -334,6 +341,25 @@ class ResourceStore<T>(
             output = output,
             projectAllRead = projectAllRead,
             projectAllWrite = projectAllWrite,
+        )
+    }
+
+    suspend fun register(
+        idCard: IdCard,
+        request: ProviderRegisteredResource<*>,
+        data: T,
+        output: ResourceDocument<T>? = null,
+    ): Long {
+        return register(
+            idCard,
+            request.spec.product,
+            idCardService.lookupUidFromUsernameOrFail(request.createdBy),
+            idCardService.lookupPidFromProjectIdOrFail(request.project),
+            data,
+            request.providerGeneratedId,
+            output = output,
+            projectAllRead = request.projectAllRead,
+            projectAllWrite = request.projectAllWrite,
         )
     }
 
@@ -781,6 +807,55 @@ class ResourceStore<T>(
             null
         } else {
             nextIndex.toString()
+        }
+
+        return BrowseResult(count, nextToken)
+    }
+
+    suspend fun paginateUsingIdsFromCustomIndex(
+        idCard: IdCard,
+        output: Array<ResourceDocument<T>>,
+        index: Collection<Long>,
+        filter: FilterFunction<T>,
+        outputBufferLimit: Int = output.size,
+        next: String? = null,
+    ): BrowseResult {
+        // Phase 1: Figure out which of the running IDs the provider can access by looking them up
+        val allIds = java.util.ArrayList<Long>()
+        index.asSequence().chunked(output.size).map { it.toLongArray() }.forEach { chunk ->
+            val count = retrieveBulk(idCard, chunk, output, Permission.READ)
+            for (i in 0 until count) {
+                if (!filter.filter(output[i])) continue
+                allIds.add(output[i].id)
+            }
+        }
+
+        // Phase 2: Sort them and paginate to the correct place
+        allIds.sort()
+        var idxToStartAt = 0
+        val nextId = next?.toLongOrNull()
+        if (nextId != null) {
+            var i = 0
+
+            while (i < allIds.size) {
+                if (allIds[i] >= nextId) break
+                i++
+            }
+            idxToStartAt = i
+        }
+
+        val idsToReturn = allIds
+            .asSequence()
+            .drop(idxToStartAt)
+            .take(outputBufferLimit)
+            .toList().toLongArray()
+
+        // Phase 3: Lookup the relevant results and place them in the output page
+        val count = retrieveBulk(idCard, idsToReturn, output, Permission.READ)
+        val nextToken = if (allIds.size - idxToStartAt - outputBufferLimit > 0) {
+            output[count - 1].id.toString()
+        } else {
+            null
         }
 
         return BrowseResult(count, nextToken)
@@ -2126,6 +2201,21 @@ object ResourceIdAllocator {
 
 interface FilterFunction<T> {
     fun filter(doc: ResourceDocument<T>): Boolean
+
+    companion object {
+        fun <T> noFilter() = object : FilterFunction<T> {
+            override fun filter(doc: ResourceDocument<T>): Boolean = true
+        }
+    }
+}
+
+fun <T> FilterFunction<T>.and(other: FilterFunction<T>): FilterFunction<T> {
+    val self = this
+    return object : FilterFunction<T> {
+        override fun filter(doc: ResourceDocument<T>): Boolean {
+            return self.filter(doc) && other.filter(doc)
+        }
+    }
 }
 
 interface DocKeyExtractor<T, K> {
@@ -2154,7 +2244,7 @@ data class NumericAclEntry(
     val permission: Permission? = null,
 ) {
     companion object {
-        suspend fun fromAclEntry(cards: IdCardService, entry: ResourceAclEntry): List<NumericAclEntry> {
+        suspend fun fromAclEntry(cards: IIdCardService, entry: ResourceAclEntry): List<NumericAclEntry> {
             val uid = when (val entity = entry.entity) {
                 is AclEntity.ProjectGroup -> null
                 is AclEntity.User -> cards.lookupUidFromUsername(entity.username)
@@ -2168,7 +2258,7 @@ data class NumericAclEntry(
             return entry.permissions.map { NumericAclEntry(uid, gid, it) }
         }
 
-        suspend fun fromAclEntity(cards: IdCardService, entity: AclEntity): NumericAclEntry {
+        suspend fun fromAclEntity(cards: IIdCardService, entity: AclEntity): NumericAclEntry {
             val uid = when (entity) {
                 is AclEntity.ProjectGroup -> null
                 is AclEntity.User -> cards.lookupUidFromUsername(entity.username)

@@ -5,22 +5,27 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.backgroundScope
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.debug
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.distributedLocks
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.fileCollections
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.jobs
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.licenses
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.providers
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.publicIps
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.publicLinks
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.debug.DebugContextType
-import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
-import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.DistributedLock
-import dk.sdu.cloud.service.DistributedLockFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.CoroutineScope
@@ -29,20 +34,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
-class JobMonitoringService(
-    private val debug: DebugSystem,
-    private val scope: BackgroundScope,
-    private val distributedLocks: DistributedLockFactory,
-    private val db: AsyncDBSessionFactory,
-    private val jobOrchestrator: JobResourceService,
-    private val providers: ProviderCommunications,
-    private val fileCollectionService: FileCollectionService,
-    private val ingressService: IngressService,
-    private val networkIPService: NetworkIPService,
-    private val licenseService: LicenseService
-) {
+class JobMonitoringService {
     suspend fun initialize(useDistributedLocks: Boolean) {
-        scope.launch {
+        backgroundScope.launch {
             val lock =
                 if (useDistributedLocks) distributedLocks.create("app-orchestrator-watcher", duration = 60_000)
                 else null
@@ -77,39 +71,39 @@ class JobMonitoringService(
                         "Job monitoring",
                         MessageImportance.TELL_ME_EVERYTHING
                     ) {
-                        val jobIds = jobOrchestrator.listRunningJobs()
+                        val jobIds = jobs.listRunningJobs()
 
-                        val jobs = jobOrchestrator.retrieveBulk(
+                        val allJobs = jobs.retrieveBulk(
                             ActorAndProject.System,
                             jobIds.toLongArray(),
                             Permission.READ
                         )
 
-                        val jobsByProvider = jobs
+                        val jobsByProvider = allJobs
                             .filter { it.status.state == JobState.RUNNING }
                             .groupBy { it.specification.product.provider }
 
-                        scope.launch {
-                            jobsByProvider.forEach { (provider, jobs) ->
+                        backgroundScope.launch {
+                            jobsByProvider.forEach { (provider, localJobs) ->
                                 try {
-                                    providers.invokeCall(
+                                    providers.call(
                                         provider,
                                         ActorAndProject.System,
                                         { JobsProvider(it).verify },
-                                        bulkRequestOf(jobs),
+                                        bulkRequestOf(localJobs),
                                         isUserRequest = false
                                     )
                                 } catch (ex: Throwable) {
-                                    log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                                    log.info("Failed to verify block in $provider. Jobs: ${localJobs.map { it.id }}")
                                 }
 
-                                val requiresRestart = jobs.filter {
+                                val requiresRestart = localJobs.filter {
                                     it.status.state == JobState.SUSPENDED && it.status.allowRestart
                                 }
                                 if (requiresRestart.isNotEmpty()) {
                                     for (job in requiresRestart) {
                                         try {
-                                            jobOrchestrator.performUnsuspension(listOf(job))
+                                            jobs.performUnsuspension(listOf(job))
                                         } catch (ex: Throwable) {
                                             log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
                                         }
@@ -119,7 +113,7 @@ class JobMonitoringService(
                         }
 
                         db.withSession { session ->
-                            for (job in jobs) {
+                            for (job in allJobs) {
                                 // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
                                 // right now.
                                 if (job.status.state == JobState.SUSPENDED) continue
@@ -156,12 +150,12 @@ class JobMonitoringService(
         lostPermissionTo: List<String>?
     ) {
         log.trace("Permission check failed for ${job.id}")
-        jobOrchestrator.terminate(
+        jobs.terminate(
             ActorAndProject.System,
             bulkRequestOf(FindByStringId(job.id))
         )
 
-        jobOrchestrator.addUpdate(
+        jobs.addUpdate(
             ActorAndProject.System,
             bulkRequestOf(
                 ResourceUpdateAndId(
@@ -190,10 +184,10 @@ class JobMonitoringService(
     ): HasResource {
         val ingress = job.ingressPoints.map { it.id }.toSet()
         val networkIPs = job.networks.map { it.id }.toSet()
-        val licenses = job.licences.map { it.id }.toSet()
+        val allLicenses = job.licences.map { it.id }.toSet()
 
         if (ingress.isNotEmpty()) {
-            val available = ingressService.retrieveBulk(
+            val available = publicLinks.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 ingress,
                 listOf(Permission.READ),
@@ -213,7 +207,7 @@ class JobMonitoringService(
         }
 
         if (networkIPs.isNotEmpty()) {
-            val available = networkIPService.retrieveBulk(
+            val available = publicIps.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 networkIPs,
                 listOf(Permission.READ),
@@ -231,21 +225,21 @@ class JobMonitoringService(
             }
         }
 
-        if (licenses.isNotEmpty()) {
-            val available = licenseService.retrieveBulk(
+        if (allLicenses.isNotEmpty()) {
+            val available = licenses.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
-                licenses,
+                allLicenses,
                 listOf(Permission.READ),
                 requireAll = false,
                 ctx = session
             )
-            if (available.size != licenses.size) {
+            if (available.size != allLicenses.size) {
                 val licensesAvailable = available.map { it.id }
-                val lostPermissionTo = licenses.filterNot { licensesAvailable.contains(it) }
+                val lostPermissionTo = allLicenses.filterNot { licensesAvailable.contains(it) }
 
                 val lostLicenses =
                     available.filter { lostPermissionTo.contains(it.id) }.map { it.specification.product.id }
-                log.debug("Failed access to license (${available.size} != ${licenses.size})")
+                log.debug("Failed access to license (${available.size} != ${allLicenses.size})")
                 return HasResource(false, lostLicenses)
             }
         }
@@ -302,7 +296,7 @@ class JobMonitoringService(
     ): HasPermissionForExistingMounts {
         if (files.isEmpty()) return HasPermissionForExistingMounts(true, null)
 
-        val canAccess = fileCollectionService.retrieveBulk(
+        val canAccess = fileCollections.retrieveBulk(
             ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
             files,
             if (readOnly) listOf(Permission.READ) else listOf(Permission.EDIT),
