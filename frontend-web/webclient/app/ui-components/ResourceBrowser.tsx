@@ -1293,6 +1293,8 @@ export class ResourceBrowser<T> {
 
 
             if (isConfirmButton) {
+                const opEnabled = op.enabled(selected, callbacks, page) === true;
+
                 const button = ConfirmationButtonPlainHTML(
                     icon,
                     operationText,
@@ -1300,7 +1302,7 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: inContextMenu, color: "red", hoverColor: "darkRed"}
+                    {asSquare: inContextMenu, color: "red", hoverColor: "darkRed", disabled: !opEnabled}
                 );
 
                 if (inContextMenu) {

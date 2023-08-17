@@ -390,10 +390,11 @@ export function ConfirmationButtonPlainHTML(
         color?: string,
         hoverColor?: string,
         textColor?: string,
+        disabled?: boolean,
     },
 ): HTMLElement {
     const button = document.createElement("button");
-    
+
     {
         button.className = classConcat(ButtonClass, ConfirmButtonClass);
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
@@ -407,6 +408,7 @@ export function ConfirmationButtonPlainHTML(
         button.setAttribute("data-fullwidth", "false");
         button.setAttribute("data-size", "standard");
         button.style.removeProperty("background-color");
+        if (opts.disabled) button.disabled = opts.disabled;
     }
 
 
