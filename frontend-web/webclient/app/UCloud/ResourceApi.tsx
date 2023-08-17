@@ -129,6 +129,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     supportByProvider: SupportByProvider;
     isWorkspaceAdmin: boolean;
     inPopIn?: boolean;
+    creationDisabled?: boolean;
 }
 
 export interface SortFlags {

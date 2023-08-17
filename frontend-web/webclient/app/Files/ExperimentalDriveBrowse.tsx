@@ -233,7 +233,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
                         api: FileCollectionsApi,
-                        isCreating: false
+                        isCreating: false,
+                        creationDisabled: browser.browseFilters[memberFilesKey] === "true",
                     };
 
                     return callbacks;
@@ -242,11 +243,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    return FileCollectionsApi.retrieveOperations().filter(op => {
-                        /* TODO(Jonas): Stupid temporary solution. Instead, this should be a disabled button with tooltip. */
-                        if (op.tag === "create" && browser.browseFilters[memberFilesKey] === "true") return false;
-                        return op.enabled(selected, callbacks, selected)
-                    });
+                    return FileCollectionsApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                 });
 
                 browser.on("unhandledShortcut", (ev) => {

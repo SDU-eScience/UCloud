@@ -1467,6 +1467,17 @@ export class ResourceBrowser<T> {
             element.classList.add("operation");
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
+            const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
+            const handleDisabled = !useContextMenu && typeof enabled === "string";
+
+            if (handleDisabled) {
+                const d = document.createElement("div");
+                d.innerText = enabled;
+                element.style.cursor = "not-allowed";
+                HTMLTooltip(element, d, {tooltipContentWidth: 230});
+            }
+
+
             const altKey = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
             renderOpIconAndText(op, element, useShortcuts ? `[${altKey}${this.altKeys[opCount].replace("Key", "")}]` : undefined);
 
@@ -1481,7 +1492,7 @@ export class ResourceBrowser<T> {
                             elementBounding.left,
                             (elementBounding.top + elementBounding.height),
                         );
-                    } else if (isOperation(op)) {
+                    } else if (isOperation(op) && enabled === true) {
                         op.onClick(selected, callbacks, page);
                     }
                 };
