@@ -46,7 +46,7 @@ export const AppHeader: React.FunctionComponent<{
                                         <ClickableDropdown
                                             colorOnHover={true}
                                             trigger={
-                                                <Flex my="auto" height="30px" borderRadius="16px" px="15px" fontSize={"var(--secondaryText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
+                                                <Flex my="auto" height="30px" borderRadius="16px" px="15px" fontSize={"var(--buttonText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
                                                     {props.application.metadata.flavorName ?? props.application.metadata.title} <Icon ml="8px" name="chevronDownLight" size={12} />
                                                 </Flex>
                                             }>

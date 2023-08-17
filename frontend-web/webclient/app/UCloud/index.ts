@@ -2,6 +2,7 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
+import {ApplicationGroup} from "@/Applications/Studio";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 
 /**
@@ -1570,7 +1571,8 @@ export interface ApplicationMetadata {
     description: string,
     website?: string,
     public: boolean,
-    flavorName?: string
+    flavorName?: string,
+    group?: ApplicationGroup
 }
 export interface ApplicationInvocationDescription {
     tool: ToolReference,
@@ -2623,19 +2625,11 @@ export interface TagSearchRequest {
     page?: number /* int32 */,
 }
 export interface ListTagsRequest {}
-export interface ListGroupsRequest {}
 export interface AppStoreSectionsRequest {
     page: string,
 }
 export interface AppStoreSections {
     sections: AppStoreSection[],
-}
-export interface ApplicationGroup {
-    id: number,
-    title: string,
-    logo?: string,
-    description?: string,
-    application: ApplicationSummaryWithFavorite
 }
 export interface AppStoreSection {
     name: string,
@@ -3186,17 +3180,6 @@ export function listTags(
         context: "",
         method: "GET",
         path: buildQueryString("/api/hpc/apps" + "/listTags", {}),
-        parameters: request,
-        reloadId: Math.random(),
-    }
-}
-export function listGroups(
-    request: ListGroupsRequest
-): APICallParameters<ListGroupsRequest, ApplicationGroup[]> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/listGroups", {}),
         parameters: request,
         reloadId: Math.random(),
     }

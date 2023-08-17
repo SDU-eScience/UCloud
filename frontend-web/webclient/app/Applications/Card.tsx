@@ -7,10 +7,9 @@ import Markdown from "@/ui-components/Markdown";
 import {EllipsedText, TextClass} from "@/ui-components/Text";
 import theme from "@/ui-components/theme";
 import * as Pages from "./Pages";
-import {compute} from "@/UCloud";
-import ApplicationGroup = compute.ApplicationGroup;
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {ApplicationGroup} from "./api";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;

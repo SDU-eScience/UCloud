@@ -20,14 +20,13 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {clearLogo, uploadLogo} from "@/Applications/api";
+import {ApplicationGroup, clearLogo, listGroups, setGroup, uploadLogo} from "@/Applications/api";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import ApplicationGroup = compute.ApplicationGroup;
 
 interface AppVersion {
     version: string;
@@ -89,11 +88,11 @@ export const App: React.FunctionComponent = () => {
     );
     const [selectedTag, setSelectedTag] = useState<string>("");
 
-    const [allGroups, fetchAllGroups] = useCloudAPI<ApplicationGroup[]>(
+    const [allGroups, setGroups] = useCloudAPI<ApplicationGroup[]>(
         {noop: true},
         []
     );
-    const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | null>();
+    const [selectedGroup, setSelectedGroup] = useState<string | null>();
     
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI<UCloud.compute.DetailedEntityWithPermission[]>(
@@ -116,7 +115,14 @@ export const App: React.FunctionComponent = () => {
     useEffect(() => {
         fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
         fetchAllTags(UCloud.compute.apps.listTags({}));
+        setGroups(listGroups({}));
     }, [name]);
+
+    useEffect(() => {
+        if (!allGroups) return;
+
+        setSelectedGroup(apps.data.items[0].metadata.group?.title ?? undefined);
+    }, [allGroups, apps]);
 
     // Loading of application versions
     useEffect(() => {
@@ -133,7 +139,7 @@ export const App: React.FunctionComponent = () => {
     const refresh = useCallback(() => {
         setAppParameters(UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}));
         fetchAllTags(UCloud.compute.apps.listTags({}));
-        fetchAllGroups(UCloud.compute.apps.listGroups({}));
+        setGroups(listGroups({}));
     }, [name]);
 
     useRefreshFunction(refresh);
@@ -255,20 +261,39 @@ export const App: React.FunctionComponent = () => {
                         </Box>
                     </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
-                        <Heading.h2>Group</Heading.h2>
-                        <Flex>
-                            <DataList
-                                rightLabel
-                                options={allGroups.data.map(group => ({value: group.id.toString(), content: group.title}))}
-                                onSelect={item => setSelectedGroup(allGroups.data?.find(it => it.id.toString() === item))}
-                                onChange={item => setSelectedGroup(allGroups.data?.find(it => it.id.toString() === item))}
-                                placeholder={"Enter or select group..."}
-                            />
-                            <Button disabled={commandLoading} type="submit" width={100} attached>
-                                Save
-                            </Button>
-                        </Flex>
+                        <form
+                            onSubmit={ async e => {
+                                e.preventDefault();
+                                if (commandLoading) return;
 
+                                if (!selectedGroup) return;
+
+                                await invokeCommand(setGroup({
+                                    groupName: selectedGroup,
+                                    applicationName: name
+                                }));
+
+                                snackbarStore.addSuccess(`Added to group ${selectedGroup}`, false);
+                        
+                                refresh();
+                            }}
+                        >
+                            <Heading.h2>Group</Heading.h2>
+                            <Flex>
+                                {allGroups.data.length > 0 ?
+                                    <DataList
+                                        rightLabel
+                                        options={allGroups.data.map(group => ({value: group.title, content: group.title}))}
+                                        onSelect={item => setSelectedGroup(item)}
+                                        onChange={item => setSelectedGroup(item)}
+                                        placeholder={"Enter or select group..."}
+                                    />
+                                : <></>}
+                                <Button disabled={commandLoading} type="submit" width={100} attached>
+                                    Save
+                                </Button>
+                            </Flex>
+                        </form>
                     </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>

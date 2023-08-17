@@ -128,7 +128,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
     }, []);
 
     if (props.active !== false) {
-        return <Box mt={"1em"} data-param-type={props.parameter.type} data-component={`app-parameter`}>
+        return <Box data-param-type={props.parameter.type} data-component={`app-parameter`}>
             <Label htmlFor={parameter.name}>
                 <Flex>
                     <Flex data-component={"param-title"}>

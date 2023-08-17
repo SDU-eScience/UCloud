@@ -403,6 +403,7 @@ const SelectorDialog = styled.div<BoxShadowProps>`
     th, td {
         text-align: left;
         overflow: hidden;
+        padding-left: 5px;
     }
 
     table {
@@ -411,7 +412,7 @@ const SelectorDialog = styled.div<BoxShadowProps>`
 
     table > tbody > tr:hover {
         cursor: pointer;
-        background-color: var(--lightGray, #f00);
+        background-color: var(--lightBlue);
     }
 
     td[colspan] div.spacer {

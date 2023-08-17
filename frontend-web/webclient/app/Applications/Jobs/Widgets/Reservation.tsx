@@ -1,6 +1,7 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {Box, Flex, Heading, Input, Label, theme} from "@/ui-components";
+import {Box, Flex, Input, Label, theme} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 import {TextP} from "@/ui-components/Text";
 import {
     findRelevantMachinesForApplication, Machines, setMachineReservationFromRef, validateMachineReservation
@@ -89,9 +90,9 @@ export const ReservationParameter: React.FunctionComponent<{
     const toolBackend = application.invocation.tool.tool?.description?.backend ?? "DOCKER";
 
     return <div>
-        <Flex>
+        <Flex justifyContent="space-between" gap="15px">
             <Label mb={"4px"}>
-                <Heading>Job name</Heading>
+                Job name
                 <Input
                     className={classConcat(JobCreateInput, "name-kind")}
                     id={reservationName}
@@ -101,10 +102,8 @@ export const ReservationParameter: React.FunctionComponent<{
             </Label>
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
                 <>
-                    <Box ml="4px" />
-
                     <Label>
-                        <Heading>Hours<MandatoryField /></Heading>
+                        Hours<MandatoryField />
                         <Input
                             id={reservationHours}
                             className={classConcat(JobCreateInput, "hours-kind")}
@@ -127,7 +126,7 @@ export const ReservationParameter: React.FunctionComponent<{
             <>
                 <Flex mb={"1em"}>
                     <Label>
-                        <Heading>Number of nodes</Heading>
+                        <Heading.h4>Number of nodes</Heading.h4>
                         <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost} defaultValue={"1"} />
                     </Label>
                 </Flex>
@@ -135,7 +134,7 @@ export const ReservationParameter: React.FunctionComponent<{
             </>
         )}
 
-        <div>
+        <div style={{paddingTop: "20px"}}>
             <Label>Machine type <MandatoryField /></Label>
             <Machines machines={allMachines} loading={machineSupport.loading} support={support} onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
@@ -147,19 +146,12 @@ export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "
 
 export const JobCreateInput = injectStyle("job-or-hours-input", k => `
     ${k} {
-        background-color: var(--white);
-        box-shadow: ${theme.shadows.sm};
-        border-radius: 12px;
     }
 
     ${k}.name-kind {
-        margin-right: auto;
-        width: calc(100% - 12px);
     }
 
     ${k}.hours-kind {
-        margin-left: auto;
-        width: calc(100% - 12px);
     }
 
     ${k}::placeholder {

@@ -3,6 +3,50 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {inSuccessRange} from "@/UtilityFunctions";
 import {appLogoCache, toolLogoCache} from "@/Applications/AppToolLogo";
+import {compute} from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {buildQueryString} from "@/Utilities/URIUtilities";
+
+export interface ApplicationGroup {
+    id: number,
+    title: string,
+    logo?: string,
+    description?: string,
+    application?: ApplicationSummaryWithFavorite
+}
+
+export interface SetGroupRequest{
+    groupName: string,
+    applicationName: string
+}
+export interface SetGroupResponse{}
+
+export interface ListGroupsRequest {}
+
+export function setGroup(
+    request: SetGroupRequest 
+): APICallParameters<SetGroupRequest, SetGroupResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: buildQueryString("/api/hpc/apps" + "/group", {}),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request
+    }
+}
+
+export function listGroups(
+    request: ListGroupsRequest
+): APICallParameters<ListGroupsRequest, ApplicationGroup[]> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/hpc/apps" + "/groups", {}),
+        parameters: request,
+        reloadId: Math.random(),
+    }
+}
 
 export type AppOrTool = "APPLICATION" | "TOOL";
 

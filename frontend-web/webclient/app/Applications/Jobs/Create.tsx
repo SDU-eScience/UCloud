@@ -377,29 +377,36 @@ export const Create: React.FunctionComponent = () => {
                                 </Link>
                             </Box> :
                             <Spacer
-                                left={
-                                    <ImportParameters application={application} onImport={onLoadParameters}
-                                        importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
-                                        onImportDialogClose={() => setImportDialogOpen(false)} />
-                                }
-                                right={anyError ?
-                                    <Tooltip trigger={
-                                        <Button type="button" color="green" disabled>
-                                            Submit
-                                        </Button>
-                                    }>
-                                        {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
-                                    </Tooltip> : <Button
-                                        type={"button"}
-                                        color={"green"}
-                                        disabled={isLoading || !sshValid || isMissingConnection}
-                                        onClick={() => submitJob(false)}
-                                    >
-                                        Submit
-                                    </Button>}
+                                left={<></>}
+                                right={
+                                    <>
+                                        <ImportParameters application={application} onImport={onLoadParameters}
+                                            importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
+                                            onImportDialogClose={() => setImportDialogOpen(false)} />
+
+                                        {anyError ?
+                                            <Tooltip trigger={
+                                                <Button ml={"10px"} type="button" color="green" disabled>
+                                                    Submit
+                                                </Button>
+                                            }>
+                                                {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
+                                            </Tooltip>
+                                        :
+                                            <Button
+                                                type={"button"}
+                                                color={"green"}
+                                                ml={"10px"}
+                                                disabled={isLoading || !sshValid || isMissingConnection}
+                                                onClick={() => submitJob(false)}
+                                            >
+                                                Submit
+                                            </Button>
+                                        }
+                                    </>}
                             />
                         }
-                        <Card>
+                        <Card pt="25px">
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
@@ -411,7 +418,7 @@ export const Create: React.FunctionComponent = () => {
                         {mandatoryParameters.length === 0 ? null : (
                             <Card>
                                 <Heading.h4>Mandatory Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
+                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"} mt="-20px">
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             setErrors={setErrors}

@@ -14,7 +14,6 @@ import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreSections = compute.AppStoreSections;
-import ApplicationGroup = compute.ApplicationGroup;
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
@@ -24,6 +23,7 @@ import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import bgImage from "@/Assets/Images/background_polygons.png";
+import {ApplicationGroup} from "./api";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -129,20 +129,9 @@ const LandingDivider = injectStyle("landing-divider", k => `
             border-radius: 99px;
             padding-left: 1.2em;
             padding-right: 2.5rem;
-            box-shadow: inset 0 5px 5px var(--lightGray);
-        }
-
-        ${k} input:hover {
-            border-color: var(--gray);
-        }
-
-        ${k} input:focus {
-            border-color: var(--blue);
-            box-shadow: 0 0 3px -1px var(--blue);
         }
 
         ${k} button {
-            border: 1px solid pink;
             background: none;
             border: 0;
             padding: 0 10px 1px 10px;
