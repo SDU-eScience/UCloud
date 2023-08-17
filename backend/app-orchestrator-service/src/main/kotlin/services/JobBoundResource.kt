@@ -36,7 +36,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
     protected open fun bindsExclusively(): Boolean = true
 
     init {
-        orchestrator.addListener(object : JobListener {
+        orchestrator.addListener(object : JobResourceService.JobListener {
             override suspend fun onVerified(actorAndProject: ActorAndProject, specification: JobSpecification) {
                 val resources = resourcesFromJob(specification)
                 if (resources.isEmpty()) return

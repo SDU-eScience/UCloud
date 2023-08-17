@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.appCache
@@ -38,6 +37,7 @@ import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.collections.ArrayList
+import kotlin.time.measureTimedValue
 
 // `Job`s in UCloud are the core abstraction used to describe units of computation. The code in this file implements
 // the orchestrating part of Jobs. We suggest you read more about jobs before trying to understand this file.
@@ -70,7 +70,7 @@ class JobResourceService {
     // Components can hook into lifetime events of a job. This is primarily used to implement features such as
     // public links.
     interface JobListener {
-        // A job is considered verified after the user has request the job to be started and this component has
+        // A job is considered verified after the user has requested the job to be started and this component has
         // verified that the provider can fulfill the request. The provider has not yet been notified.
         // The listener is now allowed to further inspect the request and can abort the request if they deem it
         // necessary. The exception will be propagated to the end-user.
@@ -94,13 +94,13 @@ class JobResourceService {
 
     // Basic read operations
     // =================================================================================================================
-    // Jobs, like any other resource, has several read operations. These operations fetch either specific jobs (by ID)
+    // Jobs, like any other resource, have several read operations. These operations fetch either specific jobs (by ID)
     // or a paginated list by some criteria. We also have specialized operations which can fetch very specific
     // information efficiently (e.g. currently running jobs).
     //
     // Summary:
     // - `retrieveBulk`/`retrieve`: fetches one or more jobs by ID
-    // - `browseOrSearch`         : fetches a paginated list of jobs by some query
+    // - `browseBy`               : fetches a paginated list of jobs by some query
     // - `listRunningJobs`        : efficiently fetches a list of all running jobs
     // - `validatePermission`     : efficiently returns which jobs from a list of jobs an actor has access to
 
@@ -125,10 +125,10 @@ class JobResourceService {
         return retrieveBulk(actorAndProject, longArrayOf(id), Permission.READ).singleOrNull()
     }
 
-    // browseOrSearch is a generic function for retrieving a paginated list of jobs. This function will be invoked by
+    // browseBy is a generic function for retrieving a paginated list of jobs. This function will be invoked by
     // both providers and end-users. This function mostly implements the filtering logic along with choosing a strategy
     // for fetching data.
-    suspend fun browseOrSearch(
+    suspend fun browseBy(
         actorAndProject: ActorAndProject,
         request: WithBrowseRequest<JobIncludeFlags>,
         query: String? = null,
@@ -217,7 +217,7 @@ class JobResourceService {
     //
     // Summary:
     // - `create`   : invoked by end-users when they wish to create a job, providers are notified of the request
-    // - `register` : invoked by providers to put a job in the list, invoked when an end-user requests a job outside UCloud
+    // - `register` : invoked by providers to put a job in the list
     // - `updateAcl`: updates the acl of a job allowing users to collaborate on a single job
     // - `addUpdate`: updates from the provider, primary way for providers to mutate the state of a job
 
@@ -248,7 +248,7 @@ class JobResourceService {
             validation.verifyOrThrow(actorAndProject, job)
 
             // We invoke the listeners once all other steps have passed. Be aware that listeners are allowed to throw
-            // an exception if they do not believe that processing show proceed.
+            // an exception if they do not believe that processing should proceed.
             //
             // (please keep this at the end of this block).
             listeners.forEach { it.onVerified(actorAndProject, job) }
@@ -900,7 +900,7 @@ class JobResourceService {
     // Persistent storage and indices
     // =================================================================================================================
     // All data is stored persistently using a ResourceStore. The following sections configure this store and
-    // establishes indices for efficient lookups (see `browseOrSearch` for details).
+    // establishes indices for efficient lookups (see `browseBy` for details).
 
     // This component keeps track of all jobs that are in the `RUNNING` state. This is needed to give providers a quick
     // way of accessing running jobs (a common query). The only other alternative is to load all jobs ever and filter

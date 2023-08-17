@@ -10,7 +10,6 @@ import dk.sdu.cloud.accounting.api.providers.WithBrowseRequest
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.Payment
 import dk.sdu.cloud.accounting.util.PaymentService
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -37,6 +36,7 @@ suspend fun <Internal, Result> ResourceStore<Internal>.browseWithStrategy(
     val pagination = request.normalize()
 
     ResourceOutputPool.withInstance { pool ->
+        val start = System.nanoTime()
         val result = when (strategy) {
             is BrowseStrategy.Index -> {
                 paginateUsingIdsFromCustomIndex(card, pool, strategy.index, filterFunction,
@@ -71,6 +71,8 @@ suspend fun <Internal, Result> ResourceStore<Internal>.browseWithStrategy(
                 )
             }
         }
+        val end = System.nanoTime()
+        println("Cache took: ${end - start}")
 
         val page = ArrayList<Result>(result.count)
         for (idx in 0 until min(pagination.itemsPerPage, result.count)) {

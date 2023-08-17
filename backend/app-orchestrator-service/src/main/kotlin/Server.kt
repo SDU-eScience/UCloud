@@ -82,6 +82,7 @@ class Server(override val micro: Micro) : CommonServer {
             projectCache = ProjectCache(distributedState, db)
             productCache = ProductCache(db)
             appCache = ApplicationCache(db)
+            idCards = IdCardService(db, backgroundScope, serviceClient)
 
             altProviders = dk.sdu.cloud.accounting.util.Providers(serviceClient) { comms ->
                 ComputeCommunication(
