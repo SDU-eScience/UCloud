@@ -42,7 +42,7 @@ export const AppHeader: React.FunctionComponent<{
                                     {props.title}
                                 </Text>
                                 <Flex style={{alignSelf: "center"}}>
-                                    {props.flavors.length === 0 ? null :
+                                    {props.flavors.length <= 1 ? null :
                                         <ClickableDropdown
                                             colorOnHover={true}
                                             trigger={
