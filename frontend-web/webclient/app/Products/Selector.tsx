@@ -16,6 +16,7 @@ import {boxShadow, BoxShadowProps} from "styled-system";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {IconClass} from "@/ui-components/Icon";
+import {injectStyle} from "@/Unstyled";
 
 const NEED_CONNECT = "need-connection";
 
@@ -223,37 +224,39 @@ export const ProductSelector: React.FunctionComponent<{
     const showHeadings = filteredProducts.length >= 5 || categorizedProducts.some(it => it === NEED_CONNECT);
 
     return <>
-        <SelectorBox className={props.slim === true ? "slim" : undefined} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
+        <div className={props.slim === true ? SelectorBoxClass + " slim" : SelectorBoxClass} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
             <div className="selected">
-                <b>{selected ? selected.name : <>No {productName} selected</>}</b><br />
-                <table>
-                    <thead>
-                        <tr>
-                            {headers.map(it =>
-                                <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
-                                    {it}
-                                </th>
-                            )}
-                            <th>Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            {selected ? <>
-                                <ProductStats product={selected} />
-                                <td>{priceExplainer(selected)}</td>
-                            </> : <>
-                                {headers.map((it, i) => <td key={i}>-</td>)}
-                                <td>-</td>
-                            </>}
-                        </tr>
-                    </tbody>
-                </table>
-                <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
+                {selected ? selected.name : <>No {productName} selected</>}<br />
+                {selected ? <>
+                    <table>
+                        <thead>
+                            <tr>
+                                {headers.map(it =>
+                                    <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
+                                        {it}
+                                    </th>
+                                )}
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                {selected ? <>
+                                    <ProductStats product={selected} />
+                                    <td>{priceExplainer(selected)}</td>
+                                </> : <>
+                                    {headers.map((it, i) => <td key={i}>-</td>)}
+                                    <td>-</td>
+                                </>}
+                            </tr>
+                        </tbody>
+                    </table>
+                    <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
+                </> : null}
             </div>
 
-            <Icon name="chevronDown" />
-        </SelectorBox>
+            <Icon name="chevronDownLight" />
+        </div>
 
         {!isOpen ? null :
             ReactDOM.createPortal(
@@ -470,77 +473,85 @@ const HardwareModel: React.FunctionComponent<{model?: string | null}> = props =>
     return <span style={{color: "#a9b0b9"}}>{" "}({props.model})</span>
 }
 
-const SelectorBox = styled.div`
-    position: relative;
-    cursor: pointer;
-    border-radius: 5px;
-    border: ${theme.borderWidth} solid var(--midGray, #f00);
-    width: 100%;
-    user-select: none;
-    min-width: 500px;
-    font-size: initial;
+const SelectorBoxClass = injectStyle("selector-box", k => `
+    ${k} {
+        position: relative;
+        cursor: pointer;
+        border-radius: 5px;
+        border: 1px solid var(--midGray, #f00);
+        width: 100%;
+        user-select: none;
+        min-width: 500px;
+        background: var(--inputColor);
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
+    }
 
-    &[data-omit-border="true"] {
+    ${k}:hover {
+        border-color: var(--gray);
+    }
+
+    ${k} &[data-omit-border="true"] {
         border: unset;
     }
 
-    & p {
+    ${k} & p {
         margin: 0;
     }
 
-    & .${IconClass} {
+    ${k} svg {
         position: absolute;
-        bottom: 15px;
+        bottom: 13px;
         right: 15px;
-        height: 8px;
+        height: 16px;
     }
 
-    .selected {
+    ${k} .selected {
         cursor: pointer;
-        padding: 16px;
-
-        ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        li {
-            display: inline-block;
-            margin-right: 16px;
-        }
-
-        table {
-            margin-top: 16px;
-            width: 100%;
-
-            thead th {
-                text-align: left;
-                font-weight: bold;
-            }
-        }
+        padding: 7px 12px;
+        line-height: 28px;
     }
 
-    .provider-logo {
+    ${k} .selected ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    ${k} .selected li {
+        display: inline-block;
+        margin-right: 16px;
+    }
+
+    ${k} .selected table {
+        margin-top: 16px;
+        width: 100%;
+    }
+
+    ${k} .selected thead th {
+        text-align: left;
+        font-weight: bold;
+    }
+
+    ${k} .provider-logo {
         position: absolute;
         top: 16px;
         right: 16px;
     }
 
-    &.slim table, &.slim .provider-logo {
+    ${k}.slim table, ${k}.slim .provider-logo {
         display: none;
     }
 
-    &.slim .selected {
+    ${k}.slim .selected {
         padding: 5px;
     }
 
-    &.slim .${IconClass} {
+    ${k}.slim svg {
         position: absolute;
         top: calc(50% - 4px);
         right: 5px;
     }
-`;
+`);
 
 export const ProductSelectorPlayground: React.FunctionComponent = () => {
     const [selected, setSelected] = React.useState<Product | null>(null);

@@ -12,7 +12,7 @@ import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import {compute} from "@/UCloud";
 import Application = compute.Application;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 export const AppHeader: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags;
@@ -46,7 +46,7 @@ export const AppHeader: React.FunctionComponent<{
                                         <ClickableDropdown
                                             colorOnHover={true}
                                             trigger={
-                                                <Flex my="auto" height="30px" borderRadius="16px" px="15px" fontSize={"var(--buttonText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
+                                                <Flex className={FlavorSelectorClass}>
                                                     {props.application.metadata.flavorName ?? props.application.metadata.title} <Icon ml="8px" name="chevronDownLight" size={12} />
                                                 </Flex>
                                             }>
@@ -111,6 +111,23 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     background-color: var(--blue);
     border-radius: 20px;
     cursor: pointer;
+`);
+
+const FlavorSelectorClass = injectStyle("flavor-selector", k => `
+    ${k} {
+        height: 30px;
+        border-radius: 16px;
+        padding: 0px 15px;
+        font-size: var(--buttonText);
+        align-items: center;
+        background-color: var(--blue);
+        color: white;
+        margin: auto 0px;
+    }
+
+    ${k}:hover {
+        filter: brightness(115%);
+    }
 `);
 
 function Tags({tags}: {tags: string[]}): JSX.Element | null {

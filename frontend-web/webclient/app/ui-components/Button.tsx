@@ -50,7 +50,7 @@ export const ButtonClass = injectStyle("button", k => `
     }
 
     ${k}:hover {
-        filter: brightness(120%);
+        filter: brightness(115%);
     }
     
     ${k}:disabled {
