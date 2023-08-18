@@ -714,8 +714,20 @@ export class ResourceBrowser<T> {
 
         addThemeListener(this.resourceName, () => this.rerender());
         const path = this.initialPath;
-        if (path !== undefined) addProjectListener(this.resourceName, () => this.open(path, true));
+        if (path !== undefined) {
+            console.log("Registering project listener", this.resourceName);
+            addProjectListener(this.resourceName, project => {
+                this.canConsumeResources = checkCanConsumeResources(
+                    project,
+                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}}
+                );
+                console.log(this.canConsumeResources);
+                this.open(path, true);
+            })
+        };
     }
+
+    private canConsumeResources = true;
 
     refresh() {
         this.open(this.currentPath, true);
@@ -786,7 +798,6 @@ export class ResourceBrowser<T> {
         this.emptyPageElement.container.replaceChildren(wrapper);
     }
 
-    private cantConsumeResources = false;
     public rerender() {
         this.renderBreadcrumbs();
         this.renderOperations();
@@ -993,6 +1004,8 @@ export class ResourceBrowser<T> {
 
     renderBreadcrumbs() {
         this.breadcrumbs.innerHTML = "";
+
+        if (!this.canConsumeResources) return;
 
         const crumbs = this.dispatchMessage("generateBreadcrumbs", fn => fn(this.currentPath));
         // NOTE(Dan): The next section computes which crumbs should be shown and what the content of them should be.
@@ -1248,9 +1261,8 @@ export class ResourceBrowser<T> {
         if (callbacks === null) return;
 
         const operations = this.dispatchMessage("fetchOperations", fn => fn());
-        if (operations.length === 0) {
-            const target = this.operations;
-            target.innerHTML = "";
+        if (operations.length === 0 || !this.canConsumeResources) {
+            this.operations.innerHTML = "";
             return;
         }
 
@@ -3375,18 +3387,18 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(callbacks: null | {api: {isCoreResource: boolean}}): boolean {
-    if (!Client.hasActiveProject) {
-        return true;
-    }
+export function checkCanConsumeResources(projectId: string | null, callbacks: null | {api: {isCoreResource: boolean}}): boolean {
+    if (!projectId) return true;
     if (!callbacks) return true;
+
     const {api} = callbacks;
     if (!api) return false;
-    if (api.isCoreResource) {
-        return true;
-    }
-    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === Client.projectId);
-    if (!project) return true; // Don't consider yet-to-be-fetched projects as non-consumer
+    
+    if (api.isCoreResource) return true;
+    
+    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+    if (!project) return true;
+    // Don't consider yet-to-be-fetched projects as non-consumer
     return project.specification.canConsumeResources !== false;
 }
 

@@ -57,7 +57,7 @@ export function ContextSwitcher(): JSX.Element {
             fetchProjects()
         ).then(res => {
             setProjectList(res);
-            emitProjects();
+            emitProjects(projectId ?? null);
         }).catch(err => {
             setError(errorMessageOrDefault(err, "Failed to fetch your projects."));
         });
