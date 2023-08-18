@@ -241,13 +241,8 @@ export const ProductSelector: React.FunctionComponent<{
                         </thead>
                         <tbody>
                             <tr>
-                                {selected ? <>
-                                    <ProductStats product={selected} />
-                                    <td>{priceExplainer(selected)}</td>
-                                </> : <>
-                                    {headers.map((it, i) => <td key={i}>-</td>)}
-                                    <td>-</td>
-                                </>}
+                                <ProductStats product={selected} />
+                                <td>{priceExplainer(selected)}</td>
                             </tr>
                         </tbody>
                     </table>

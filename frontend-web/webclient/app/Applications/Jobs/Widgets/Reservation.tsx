@@ -138,7 +138,7 @@ export const ReservationParameter: React.FunctionComponent<{
             <Label>Machine type <MandatoryField /></Label>
             <Machines machines={allMachines} loading={machineSupport.loading} support={support} onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
-        </div>        
+        </div>
     </div>
 };
 

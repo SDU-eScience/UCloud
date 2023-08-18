@@ -559,7 +559,7 @@ export function normalizeBalanceForFrontend(
     }
 }
 
-function currencyFormatter(credits: number, precision = 2, forceInteger: boolean): string {
+export function currencyFormatter(credits: number, precision = 2, forceInteger: boolean): string {
     if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
 
     if (forceInteger) {
@@ -669,7 +669,7 @@ export function costOfDuration(minutes: number, numberOfProducts: number, produc
             break;
     }
 
-    return unitsToBuy * product.pricePerUnit * numberOfProducts * cpuFactor;
+    return unitsToBuy * product.pricePerUnit * cpuFactor;
 }
 
 export function usageExplainer(

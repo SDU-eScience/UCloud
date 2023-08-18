@@ -29,7 +29,7 @@ import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {Product} from "@/Accounting";
+import {Product, usageExplainer} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -40,6 +40,7 @@ import {validateMachineReservation} from "./Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {Spacer} from "@/ui-components/Spacer";
 import {UtilityBar} from "@/Playground/Playground";
+import {injectStyleSimple} from "@/Unstyled";
 
 interface InsufficientFunds {
     why?: string;
@@ -66,6 +67,11 @@ function findGroup(
         reloadId: Math.random(),
     }
 }
+
+const EstimatesContainerClass = injectStyleSimple("estimates-container", `
+    padding-bottom: 20px;
+    text-align: right;
+`);
 
 const PARAMETER_TYPE_FILTER = ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"];
 
@@ -354,18 +360,6 @@ export const Create: React.FunctionComponent = () => {
                         }
                     />
                 </Box>
-                <ContainerForText left>
-                    <Markdown
-                        unwrapDisallowed
-                        disallowedElements={[
-                            "image",
-                            "heading"
-                        ]}
-                    >
-                        {application.metadata.description}
-                    </Markdown>
-                    <Information simple application={application} />
-                </ContainerForText>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
@@ -377,33 +371,54 @@ export const Create: React.FunctionComponent = () => {
                                 </Link>
                             </Box> :
                             <Spacer
-                                left={<></>}
+                                left={<>
+                                    <Markdown
+                                        unwrapDisallowed
+                                        disallowedElements={[
+                                            "image",
+                                            "heading"
+                                        ]}
+                                    >
+                                        {application.metadata.description}
+                                    </Markdown>
+                                    <Information simple application={application} />
+                                </>}
                                 right={
-                                    <>
-                                        <ImportParameters application={application} onImport={onLoadParameters}
-                                            importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
-                                            onImportDialogClose={() => setImportDialogOpen(false)} />
+                                    <div>
+                                        {estimatedCost.product ? <div className={EstimatesContainerClass}>
+                                            Estimated cost: {usageExplainer(estimatedCost.cost, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
+                                            Current balance: {usageExplainer(estimatedCost.balance, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
+                                        </div> : <></>}
 
-                                        {anyError ?
-                                            <Tooltip trigger={
-                                                <Button ml={"10px"} type="button" color="green" disabled>
+                                        <Flex>
+                                            <ImportParameters application={application} onImport={onLoadParameters}
+                                                importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
+                                                onImportDialogClose={() => setImportDialogOpen(false)} />
+
+                                            {anyError ?
+                                                <Tooltip trigger={
+                                                    <Button ml={"10px"} type="button" color={"green"} disabled>
+                                                        <Icon name="play" />
+                                                        Submit
+                                                    </Button>
+                                                }>
+                                                    {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
+                                                </Tooltip>
+                                            :
+                                                <Button
+                                                    color={"green"}
+                                                    type={"button"}
+                                                    ml={"10px"}
+                                                    disabled={isLoading || !sshValid || isMissingConnection}
+                                                    onClick={() => submitJob(false)}
+                                                >
+                                                    <Icon name="play" />
                                                     Submit
                                                 </Button>
-                                            }>
-                                                {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
-                                            </Tooltip>
-                                        :
-                                            <Button
-                                                type={"button"}
-                                                color={"green"}
-                                                ml={"10px"}
-                                                disabled={isLoading || !sshValid || isMissingConnection}
-                                                onClick={() => submitJob(false)}
-                                            >
-                                                Submit
-                                            </Button>
-                                        }
-                                    </>}
+                                            }
+                                        </Flex>
+                                    </div>
+                                }
                             />
                         }
                         <Card pt="25px">
