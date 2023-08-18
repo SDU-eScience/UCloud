@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2023.3.5-ui-redesign.4",
+    "version": "2023.3.5-ui-redesign.5",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
@@ -28,22 +28,22 @@
         "localforage": "1.10.0",
         "path-browserify": "1.0.1",
         "react": "18.2.0",
-        "react-datepicker": "4.15.0",
+        "react-datepicker": "4.16.0",
         "react-dom": "18.2.0",
         "react-markdown": "8.0.7",
         "react-modal": "3.16.1",
-        "react-redux": "8.1.1",
-        "react-router": "6.14.1",
-        "react-router-dom": "6.14.1",
+        "react-redux": "8.1.2",
+        "react-router": "6.15.0",
+        "react-router-dom": "6.15.0",
         "react-syntax-highlighter": "15.5.0",
         "react-transition-group": "4.4.5",
         "react-virtualized-auto-sizer": "^1.0.20",
         "react-window": "^1.8.9",
         "recharts": "2.1.13",
         "redux": "4.2.1",
-        "styled-components": "6.0.2",
+        "styled-components": "6.0.7",
         "styled-system": "5.1.5",
-        "svgi": "1.1.1",
+        "svgi": "1.1.2",
         "ua-parser-js": "1.0.35",
         "xterm": "4.19.0",
         "xterm-addon-fit": "0.5.0"
@@ -52,9 +52,9 @@
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.12",
         "@types/jsrsasign": "^10.5.8",
-        "@types/react": "18.2.14",
-        "@types/react-datepicker": "4.11.2",
-        "@types/react-dom": "18.2.6",
+        "@types/react": "18.2.20",
+        "@types/react-datepicker": "4.15.0",
+        "@types/react-dom": "18.2.7",
         "@types/react-dropzone": "5.1.0",
         "@types/react-modal": "3.16.0",
         "@types/react-redux": "7.1.25",
@@ -67,6 +67,6 @@
         "redux-devtools-extension": "2.13.9",
         "ts-loader": "9.4.4",
         "typescript": "5.1.6",
-        "vite": "4.4.1"
+        "vite": "4.4.9"
     }
 }

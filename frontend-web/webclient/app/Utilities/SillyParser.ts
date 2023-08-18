@@ -65,6 +65,9 @@ export class SillyParser {
                 isWhitespace = true;
                 break;
         }
+
+        // return [" ", "\t", "\n", "\r"].includes(char);
+
         return isWhitespace;
     }
 }

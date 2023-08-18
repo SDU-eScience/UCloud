@@ -11,7 +11,6 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
-import styled from "styled-components";
 import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
@@ -417,7 +416,7 @@ export const Overview: React.FunctionComponent = () => {
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
         main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />;
     } else {
-        main = <OverviewStyle>
+        main = <div className={OverviewStyle}>
             {uiState.showDeviceWizard !== true ? null :
                 <ReactModal
                     isOpen={true}
@@ -430,7 +429,7 @@ export const Overview: React.FunctionComponent = () => {
                 </ReactModal>
             }
 
-            <TwoPanelLayout>
+            <div className={TwoPanelLayout}>
                 <HighlightedCard
                     icon="hdd"
                     title="My devices"
@@ -498,7 +497,7 @@ export const Overview: React.FunctionComponent = () => {
                         </>}
                     </HighlightedCard>
                 }
-            </TwoPanelLayout>
+            </div>
 
             <HighlightedCard
                 className="folders"
@@ -534,7 +533,7 @@ export const Overview: React.FunctionComponent = () => {
                     </>
                 }
             </HighlightedCard>
-        </OverviewStyle>;
+        </div>;
     }
 
     return <MainContainer main={main} />;
@@ -1035,39 +1034,41 @@ const AddDeviceWizard: React.FunctionComponent<{
 
 // Styling
 // ================================================================================
-const OverviewStyle = styled.div`
-    .row-left {
+const OverviewStyle = injectStyle("overview-style", k => `
+    ${k} > .row-left {
         max-width: unset;
     }
-`;
+`);
 
-const TwoPanelLayout = styled.div`
-  display: flex;
-  flex-flow: row wrap;
+const TwoPanelLayout = injectStyle("two-panel-layout", k => `
+    ${k} {
+        display: flex;
+        flex-flow: row wrap;
 
-  margin-bottom: 16px;
-  gap: 16px;
-
-  & > * {
-    flex-basis: 100%;
-  }
-
-  @media all and (min-width: 1000px) {
-    & > * {
-      flex-basis: 400px;
+        margin-bottom: 16px;
+        gap: 16px;
     }
 
-    .devices {
-      order: 1;
-      flex-grow: 2;
+    ${k} > * {
+        flex-basis: 100%;
     }
 
-    .servers {
-      order: 2;
-      flex-grow: 1;
+    @media all and (min-width: 1000px) {
+        ${k} > * {
+            flex-basis: 400px;
+        }
+
+        .devices {
+            order: 1;
+            flex-grow: 2;
+        }
+
+        .servers {
+            order: 2;
+            flex-grow: 1;
+        }
     }
-  }
-`;
+`);
 
 function TutorialList(props: React.PropsWithChildren): JSX.Element {
     return <ol className={TutorialListClass} {...props} />

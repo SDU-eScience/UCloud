@@ -281,7 +281,6 @@ const Uploader: React.FunctionComponent = () => {
         // Note(Jonas): Find possible entries in paused uploads and remove it. 
         setPausedFilesInFolder(entries => {
             let cpy = [...entries];
-            console.log(cpy, batch);
             for (const upload of batch) {
                 cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.row.rootEntry.name);
             }
@@ -382,53 +381,59 @@ const Uploader: React.FunctionComponent = () => {
 
     return <>
         <ReactModal
-
             isOpen={uploaderVisible}
             style={modalStyle}
             shouldCloseOnEsc
             ariaHideApp={false}
             onRequestClose={closeModal}
         >
-            <div className={DropZoneWrapper + " " + FlexClass} data-has-uploads={hasUploads} data-tag="uploadModal">
-                <Relative overflowX="hidden" onClick={closeModal} right="calc(100% - 32px)" top="18px">
-                    <Icon color="var(--white)" size="16px" name="close" />
-                </Relative>
-                <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
-                <Text color="white">{uploadingText}</Text>
-                <Box overflowY={"scroll"} width="100%">
-                    {uploads.map((upload, idx) => (
-                        <UploadRow
-                            key={`${"upload.row.rootEntry.name"}-${idx}`}
-                            upload={upload}
-                            callbacks={callbacks}
-                        />
-                    ))}
-                </Box>
-                <label htmlFor={"fileUploadBrowse"}>
-                    <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                        onDragOver={preventDefault} data-slim={hasUploads}>
-                        <div data-has-uploads={hasUploads} className={UploadMoreClass}>
-                            {hasUploads ? null :
-                                <UploaderArt />
-                            }
-                            <div className="upload-more-text" color="white">
-                                <TextSpan mr="0.5em"><Icon hoverColor="white" name="upload" /></TextSpan>
-                                <TextSpan mr="0.3em">Drop files here or</TextSpan>
-                                <i style={{cursor: "pointer"}}>browse</i>
-                                <input
-                                    id={"fileUploadBrowse"}
-                                    type={"file"}
-                                    style={{display: "none"}}
-                                    onChange={onSelectedFile}
-                                />
+            <div style={{maxHeight: "calc(80vh - 75px)"}} className={classConcat(DropZoneWrapper, FlexClass)} data-has-uploads={hasUploads} data-tag="uploadModal">
+                <div className="title" style={{height: "55px"}}>
+                    <Flex onClick={closeModal}>
+                        <Box ml="auto" />
+                        <Icon mr="8px" mt="8px" cursor="pointer" color="var(--white)" size="16px" name="close" />
+                    </Flex>
+                    <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
+                    <Text color="white">{uploadingText}</Text>
+                </div>
+                <div className="uploads" style={{overflowY: "hidden"}}>
+                    <div style={{overflowY: "scroll", width: "100%", maxHeight: "calc(80vh - 55px - 150px)"}}>
+                        {uploads.map((upload, idx) => (
+                            <UploadRow
+                                key={`${"upload.row.rootEntry.name"}-${idx}`}
+                                upload={upload}
+                                callbacks={callbacks}
+                            />
+                        ))}
+                    </div>
+                </div>
+                <Box minHeight={"150px"}>
+                    <label htmlFor={"fileUploadBrowse"}>
+                        <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
+                            onDragOver={preventDefault} data-slim={hasUploads}>
+                            <div data-has-uploads={hasUploads} className={UploadMoreClass}>
+                                {hasUploads ? null :
+                                    <UploaderArt />
+                                }
+                                <div className="upload-more-text" color="white">
+                                    <TextSpan mr="0.5em"><Icon hoverColor="white" name="upload" /></TextSpan>
+                                    <TextSpan mr="0.3em">Drop files here or</TextSpan>
+                                    <i style={{cursor: "pointer"}}>browse</i>
+                                    <input
+                                        id={"fileUploadBrowse"}
+                                        type={"file"}
+                                        style={{display: "none"}}
+                                        onChange={onSelectedFile}
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </label>
+                    </label>
+                </Box>
 
                 {resumables.length === 0 ? null :
                     <div style={{
-                        marginTop: hasUploads ? "66px" : "-18px",
+                        marginTop: hasUploads ? "-60px" : "-18px",
                         marginBottom: "4px",
                         marginLeft: "4px",
                         marginRight: "4px"
@@ -494,6 +499,10 @@ const UploaderText = injectStyle("uploader-text", k => `
         font-size: 25px;
     }
 
+    ${k}[data-has-uploads="true"] {
+        margin-top: -22px;
+    }
+
     ${k}[data-has-uploads="true"]::after {
         content: "File uploads";
         margin-left: auto;
@@ -506,13 +515,12 @@ const UploadMoreClass = injectStyle("upload-more", k => `
         align-items: center;
         text-align: center;
         flex-direction: column;
-        margin-top: 32px;
+        margin-top: 82px;
     }
     
     ${k} > div.upload-more-text {
         color: var(--white);
-        margin-top: auto;
-        margin-bottom: auto;
+        margin-top: 18px;
     }
 
     ${k}[data-has-uploads="true"] {
@@ -559,7 +567,7 @@ const UploaderRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k} > div > div:nth-child(2) {
-        vertical-align: center;
+        vertical-align: middle;
         margin-left: 8px;
     }
     
@@ -647,15 +655,14 @@ const UploaderArt: React.FunctionComponent = () => {
 // Styles
 
 const modalStyle = {
-    // https://github.com/reactjs/react-modal/issues/62
     content: {
         borderRadius: "16px",
         bottom: "auto",
+        height: "auto",
         minHeight: "460px",
         maxHeight: "80vh",
         left: "50%",
         padding: "2rem",
-        position: "fixed" as const,
         right: "auto",
         top: "50%",
         transform: "translate(-50%,-50%)",
@@ -663,7 +670,8 @@ const modalStyle = {
         minWidth: "250px",
         width: "600px",
         maxWidth: "600px",
-        background: ""
+        background: "",
+        overflowY: "scroll" as const
     }
 };
 

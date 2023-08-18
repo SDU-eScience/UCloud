@@ -14,8 +14,9 @@ import {useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {Spacer} from "@/ui-components/Spacer";
 import {Operation, Operations} from "@/ui-components/Operation";
-import ProjectAPI, {isAdminOrPI, ProjectGroup, useGroupIdAndMemberId, useProjectFromParams} from "@/Project/Api";
+import ProjectAPI, {isAdminOrPI, ProjectGroup, useGroupIdAndMemberId} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {emptyProject} from "./cache";
 
 export interface GroupWithSummary {
     groupId: string;
@@ -29,7 +30,7 @@ const baseContext = "/projects/groups";
 // UNUSED
 const GroupList: React.FunctionComponent = () => {
     const navigate = useNavigate();
-    const {project, reload} = useProjectFromParams("");
+    const {project, reload} = {project: emptyProject(), reload: () => void 0};
     const [groupId, membersPage] = useGroupIdAndMemberId();
 
     const allowManagement = isAdminOrPI(project?.status.myRole);

@@ -2,13 +2,12 @@ import {Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxi
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {Box, Flex, Grid, Heading, Icon, Text} from "@/ui-components";
+import {Box, Flex, Grid, Heading, Icon, Link, Text} from "@/ui-components";
 import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
@@ -35,7 +34,8 @@ import {Spacer} from "@/ui-components/Spacer";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {injectStyleSimple} from "@/Unstyled";
-
+import {UtilityBar} from "@/Playground/Playground";
+import {ProjectPageTitle} from "./Allocations";
 
 const ANIMATION_DURATION = 1000;
 
@@ -75,7 +75,6 @@ const ResourcesGrid = injectStyleSimple("resource-grid", `
 `);
 
 const Resources: React.FunctionComponent = () => {
-
     const pastMonthEnd = new Date(timestampUnixMs()).getTime();
     const pastMonthStart = pastMonthEnd - (30 * 1000 * 60 * 60 * 24);
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
@@ -137,9 +136,10 @@ const Resources: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={<Spacer
-                width={"calc(100% - var(--sidebarWidth))"}
-                left={<ProjectBreadcrumbs crumbs={[{title: "Resource Usage"}]} />}
-                right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
+                left={<ProjectPageTitle>Resource Usage</ProjectPageTitle>}
+                right={<Flex mr="36px" height={"26px"}>
+                    <UtilityBar searchEnabled={false} />
+                </Flex>}
             />}
 
             main={<>

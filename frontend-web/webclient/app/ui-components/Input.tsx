@@ -3,6 +3,7 @@ import {
     BorderProps,
     BorderRadiusProps,
     FontSizeProps,
+    MarginProps,
     SpaceProps, TextAlignProps,
     WidthProps
 } from "styled-system";
@@ -28,7 +29,7 @@ export const InputClass = injectStyle("input", k => `
         display: block;
         font-family: inherit;
         color: var(--black);
-        background: var(--inputColor);
+        background-color: var(--inputColor);
         margin: 0;
         border-width: 0px;
         
@@ -138,7 +139,7 @@ export const HiddenInputField: React.FunctionComponent<InputProps> = props => {
 
 export default Input;
 
-export interface InputLabelProps extends WidthProps, TextAlignProps {
+export interface InputLabelProps extends WidthProps, TextAlignProps, MarginProps {
     leftLabel?: boolean;
     rightLabel?: boolean;
     independent?: boolean;
@@ -146,17 +147,19 @@ export interface InputLabelProps extends WidthProps, TextAlignProps {
 
 const InputLabelClass = injectStyle("input-label", k => `
     ${k} {
-        padding-left: 1em;
-        padding-right: 1em;
-        padding-top: 6px;
         height: 42px;
         border-radius: 5px;
-        background-color: red;
+        padding-top: 10px;
+        padding-right: 14px;
+        font-size: 14px;
+        background-color: var(--inputColor);
     }
     
     ${k}[data-left-label="true"] {
         border-top-left-radius: 5px;
         border-bottom-left-radius: 5px;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
         border-right: 0;
         margin-right: 0;
     }
@@ -164,11 +167,13 @@ const InputLabelClass = injectStyle("input-label", k => `
     ${k}[data-right-label="true"] {
         border-top-right-radius: 5px;
         border-bottom-right-radius: 5px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
         border-left: 0;
         margin-left: 0;
     }
 `);
 
 export const InputLabel: React.FunctionComponent<InputLabelProps & {children?: React.ReactNode}> = props => {
-    return <div style={unbox(props)} className={InputLabelClass}>{props.children}</div>;
+    return <div style={unbox(props)} data-right-label={props.rightLabel} data-left-label={props.leftLabel} className={InputLabelClass}>{props.children}</div>;
 }

@@ -33,22 +33,33 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const logoDataUrls = new AsyncCache<string>();
 
-function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Element {
+function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    
     if (!opts?.embedded) {
         useTitle("Jobs");
     }
+
+    const omitFilters = !!opts?.omitFilters;
+
+    const features: ResourceBrowseFeatures = {
+        ...FEATURES,
+        filters: !omitFilters,
+        sortDirection: !omitFilters,
+        dragToSelect: !opts?.embedded,
+        search: !opts?.embedded
+    };
 
     const dateRanges = dateRangeFilters("Created after");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
@@ -163,7 +174,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                         color: statusIconColor,
                         color2: statusIconColor
                     }).then(setStatus);
-                    row.stat1.append(status);
+                    row.stat3.append(status);
                 });
 
                 browser.setEmptyIcon("play");
@@ -202,7 +213,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                 browser.on("nameOfEntry", j => j.specification.name ?? j.id ?? "");
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
-                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): We need to do something different here.
+                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): I assume that we need to do something different here.
                     const callbacks: ResourceBrowseCallbacks<Job> = {
                         api: JobsApi,
                         navigate: to => navigate(to),
@@ -226,7 +237,10 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job>}): JSX.Elemen
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
                     return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
                 });
-                browser.on("generateBreadcrumbs", () => [{title: "Jobs", absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => {
+                    if (opts?.omitBreadcrumbs) return [];
+                    return [{title: "Jobs", absolutePath: ""}]
+                });
                 browser.on("search", query => {
                     browser.searchQuery = query;
                     browser.currentPath = "/search";

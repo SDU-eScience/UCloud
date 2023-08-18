@@ -8,7 +8,7 @@ import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import styled, {keyframes} from "styled-components";
+import styled from "styled-components";
 import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {IconName} from "@/ui-components/Icon";
@@ -18,7 +18,7 @@ import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
-import {margin, MarginProps} from "styled-system";
+import {MarginProps} from "styled-system";
 import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -45,10 +45,11 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
+import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
-const enterAnimation = keyframes`
+const enterAnimation = makeKeyframe("enter-animation", `
   from {
     transform: scale3d(1, 1, 1);
   }
@@ -58,18 +59,18 @@ const enterAnimation = keyframes`
   to {
     transform: scale3d(1, 1, 1);
   }
-`;
+`);
 
-const busyAnim = keyframes`
+const busyAnim = makeKeyframe("busy-anim", `
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
   }
-`;
+`);
 
-const zoomInAnim = keyframes`
+const zoomInAnim = makeKeyframe("zoom-in-anim", `
   from {
     opacity: 0;
     transform: scale3d(0.3, 0.3, 0.3);
@@ -77,7 +78,7 @@ const zoomInAnim = keyframes`
   50% {
     opacity: 1;
   }
-`;
+`);
 
 const Container = styled.div`
   --logoScale: 1;
@@ -799,13 +800,20 @@ const RunningInfoWrapper = injectStyleSimple("running-info-wrapper", `
   justify-content: center;
 `);
 
-const AltButtonGroup = styled.div<{minButtonWidth: string} & MarginProps>`
+function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} & MarginProps>) {
+    return <div
+        style={{
+            ...unbox(props),
+            gridTemplateColumns: `repeat(auto-fit, minmax(${props.minButtonWidth}, max-content))`
+        }}
+    />
+}
+
+const AltButtonGroupClass = injectStyleSimple("alt-button-group", `
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(${props => props.minButtonWidth}, max-content));
   grid-gap: 8px;
-  ${margin}
-`;
+`);
 
 AltButtonGroup.defaultProps = {
     marginTop: "8px",
@@ -1295,13 +1303,13 @@ const RunningJobRank: React.FunctionComponent<{
     </>;
 };
 
-const CompletedTextWrapper = styled.div`
+const CompletedTextWrapper = injectStyle("completed-text", k => `
   ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${AltButtonGroup} {
+    ${k} > ${AltButtonGroupClass} {
       justify-content: center;
     }
   }
-`;
+`);
 
 function jobStateToText(state: JobState) {
     switch (state) {
@@ -1320,7 +1328,7 @@ function jobStateToText(state: JobState) {
 
 const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const app = job.specification.application;
-    return <CompletedTextWrapper>
+    return <div className={CompletedTextWrapper}>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         {state === "FAILURE" ?
             <Heading.h3>
@@ -1343,26 +1351,16 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
                 </Link>
             </AltButtonGroup>
         }
-    </CompletedTextWrapper>;
+    </div>;
 };
 
-const OutputFilesWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-
-  h1, h2, h3, h4 {
-    margin-top: 15px;
-    margin-bottom: 15px;
-  }
-`;
-
-const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
-    return <OutputFilesWrapper>
-        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true}
-            allowMoveCopyOverride />
-    </OutputFilesWrapper>;
+    return <div style={{width: "100%", marginTop: "18px"}}>
+        <ExperimentalBrowse
+            opts={{initialPath: pathRef.current, embedded: true}}
+        />
+    </div>;
 };
 
 function getAppType(job: Job): string {
@@ -1515,7 +1513,7 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [updateListeners]);
-    return <Box height={"200px"} divRef={termRef}/>
+    return <Box height={"200px"} divRef={termRef} />
 };
 
 export default View;

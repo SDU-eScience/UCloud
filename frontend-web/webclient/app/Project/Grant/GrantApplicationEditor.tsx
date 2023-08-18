@@ -1,14 +1,13 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Button from "@/ui-components/Button";
 import {CardClass} from "@/ui-components/Card";
 import ExternalLink from "@/ui-components/ExternalLink";
 import Flex from "@/ui-components/Flex";
-import Icon, {IconClass, IconName} from "@/ui-components/Icon";
+import Icon, {IconBaseProps, IconClass, IconName} from "@/ui-components/Icon";
 import Input, {HiddenInputField} from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import List from "@/ui-components/List";
@@ -35,7 +34,6 @@ import {
     Wallet,
     WalletAllocation
 } from "@/Accounting";
-import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {
     GrantsRetrieveAffiliationsResponse, isAllocationSuitableForSubAllocation,
@@ -94,7 +92,8 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI, OldProjectRole, useProjectId} from "../Api";
 import {useProject} from "../cache";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {ProjectPageTitle} from "../Allocations";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -103,32 +102,15 @@ export enum RequestTarget {
     VIEW_APPLICATION = "view"
 }
 
-/*
-        - Find new In Progress Icon (General)
-        - Remember to update documentation
-            - New features:
-                - Select multiple grant givers.
-                - Select parent project (automatic, selects first grant giver that user selects, likely not relevant for most users.)
-                - The parent project is the one used as the template for the form.
-                - Rejections can be undone.
-                - Approvals can be undone provided that not all grant givers has approved the grant application yet.
-                - Show revisions
-                - Prompt user for a comment before transferring grant application to other project.
-                - Allow selecting allocations to draw from.
-                - Auto selects allocations if only one.
-                - Shows active project at top, others in accordion.
-                - If recipient, all grant givers are shown in alphabetical order.
-*/
-
 const THIRTY_DAYS_AGO = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
 
-export const RequestForSingleResourceWrapper = styled.div`
-    .${IconClass} {
+export const RequestForSingleResourceWrapper = injectStyle("request-for-single-resource-wrapper", k => `
+    ${k} .${IconClass} {
         float: right;
         margin-left: 10px;
     }
 
-    .${CardClass} {
+    ${k} .${CardClass} {
         height: 100%;
 
         .dashboard-card-inner {
@@ -136,50 +118,52 @@ export const RequestForSingleResourceWrapper = styled.div`
         }
     }
 
-    table {
+    ${k} table {
         margin: 16px;
     }
 
-    th {
+    ${k} th {
         width: 100%;
         text-align: left;
         padding-right: 30px
     }
 
-    td {
+    ${k} td {
         margin-left: 10px;
         padding-bottom: 16px;
         min-width: 350px;
     }
 
-    tr {
+    ${k} tr {
         vertical-align: top;
         height: 40px;
     }
 
-    .unit {
+    ${k} .unit {
         flex-shrink: 0;
         margin-left: 10px;
         width: 55px;
     }
-`;
+`);
 
-const ResourceContainer = styled.div`
+const ResourceContainerClass = injectStyleSimple("resource-container", `
     display: grid;
     grid-gap: 32px;
     grid-template-columns: repeat(auto-fit, minmax(500px, auto));
     margin: 32px 0;
-`;
+`);
 
-const RequestFormContainer = styled.div`
-    width: 100%;
+const RequestFormContainer = injectStyle("request-form-container", k => `
+    ${k} {
+        width: 100%;
+    }
 
-    textarea {
+    ${k} > textarea {
         width: 100%;
         height: calc(100% - 40px);
         margin: 10px 0;
     }
-`;
+`);
 
 function productCategoryId(pid: ProductCategoryId, projectId: string): string {
     return `${pid.name}/${pid.provider}/${projectId}`;
@@ -237,17 +221,17 @@ function parseDateFromInput(input?: HTMLInputElement | null): number | undefined
     return time;
 }
 
-const Wrapper = styled.div`
-    & > table {
+const Wrapper = injectStyle("wrapper", k => `
+    ${k} > table {
         margin-left: -9px;
     }
 
-    & > table > tbody > tr:hover {
+    ${k} > table > tbody > tr:hover {
         cursor: pointer;
         background-color: var(--lightGray, #f00);
         color: var(--black, #f00);
     }
-`;
+`);
 
 function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication, adminOrPi: boolean): boolean {
     if (target !== RequestTarget.VIEW_APPLICATION) return true;
@@ -298,7 +282,7 @@ const GenericRequestCard: React.FunctionComponent<{
         let normalizedValue = defaultValue != null ?
             normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.unitOfPrice, 2, true) :
             undefined;
-        return <RequestForSingleResourceWrapper>
+        return <div className={RequestForSingleResourceWrapper}>
             <HighlightedCard color="blue" isLoading={false}>
                 <table>
                     <tbody>
@@ -379,15 +363,15 @@ const GenericRequestCard: React.FunctionComponent<{
                     isLocked={isLocked}
                 />
             </HighlightedCard>
-        </RequestForSingleResourceWrapper>;
+        </div>;
     }
 };
 
-const AllocationBox = styled.div`
+const AllocationBox = injectStyleSimple("allocation-box", `
     padding: 8px 8px 8px 8px;
     border-radius: 6px;
     border: 2px solid var(--borderGray); 
-`;
+`);
 
 function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllocationSelection, projectId}: {
     wallets: Wallet[];
@@ -444,11 +428,11 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
         <HiddenInputField value={allocationId} data-auto-assigned={allocation?.autoAssigned ?? "false"} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category, projectId)} />
         {!showAllocationSelection ? null : !isLocked ?
             <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={
-                <AllocationBox>
+                <div className={AllocationBox}>
                     {!allocation ?
                         <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
                         <>{allocationText}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}
-                </AllocationBox>
+                </div>
             }>
                 <Table>
                     <TableHeader>
@@ -1137,7 +1121,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                 colorOnHover={false}
                 trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="18px" ml=".7em" color={"darkGray"} /></Flex>}
             >
-                <Wrapper>
+                <div className={Wrapper}>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -1154,7 +1138,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                             )}
                         </tbody>
                     </Table>
-                </Wrapper>
+                </div>
             </ClickableDropdown>
     }, [grantGivers, grantGiversInUse]);
 
@@ -1197,20 +1181,22 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
     return (
         <MainContainer
             header={target === RequestTarget.EXISTING_PROJECT ?
-                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
+                <ProjectPageTitle>Request for Resources</ProjectPageTitle> : <Box height="32px" />
             }
 
             main={<>
-                {target !== RequestTarget.VIEW_APPLICATION ? (<>
-                    <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
-                        Submit Application
-                    </Button>
-                    {target === RequestTarget.NEW_PROJECT ? null : (
-                        <Button mt="8px" fullWidth onClick={newProjectWarningOnClick}>
-                            Apply for new project instead
+                {target !== RequestTarget.VIEW_APPLICATION ? (
+                    <Flex mx="auto" my="8px">
+                        <Button ml="auto" mr={target === RequestTarget.NEW_PROJECT ? "auto" : undefined} disabled={grantFinalized || submitLoading} onClick={submitRequest}>
+                            Submit Application
                         </Button>
-                    )}
-                </>) : null}
+                        {target === RequestTarget.NEW_PROJECT ? null : (
+                            <Button ml="8px" mr="auto" onClick={newProjectWarningOnClick}>
+                                Apply for new project instead
+                            </Button>
+                        )}
+                    </Flex>
+                ) : null}
                 {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
                     isLocked ? (
                         (isRecipient || isApprover ?
@@ -1488,14 +1474,14 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                     />))}
 
                         <div className={CommentApplicationWrapper} style={{display: target === RequestTarget.VIEW_APPLICATION || grantGiversInUse.length > 0 ? undefined : "none"}}>
-                            <RequestFormContainer>
+                            <div className={RequestFormContainer}>
                                 <Heading.h4>Application</Heading.h4>
                                 <TextArea
                                     disabled={grantFinalized || isLocked}
                                     rows={25}
                                     inputRef={documentRef}
                                 />
-                            </RequestFormContainer>
+                            </div>
 
                             <Comments
                                 target={target}
@@ -1841,7 +1827,7 @@ function AsProductType(props: {
     if (props.target === RequestTarget.VIEW_APPLICATION && noEntries) return null;
     return <>
         <Heading.h4 mt={32}><Flex>{productTypeToTitle(props.type)} <ProductLink /></Flex></Heading.h4>
-        {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <ResourceContainer>
+        {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <div className={ResourceContainerClass}>
             {filteredProductCategories.map((pc, idx) =>
                 <GenericRequestCard
                     key={idx}
@@ -1862,22 +1848,25 @@ function AsProductType(props: {
                     )}
                 />
             )}
-        </ResourceContainer>}
+        </div>}
     </>;
 }
 
-const ParentProjectIcon = styled(Icon) <{isSelected: boolean;}>`
-    color: var(--${p => p.isSelected ? "blue" : "gray"});
+function ParentProjectIcon({isSelected, ...props}: {isSelected: boolean} & IconBaseProps): JSX.Element {
+    return <Icon className={ParentProjectIconClass} {...props} color={isSelected ? "var(--blue)" : "var(--gray)"} />
+}
 
-    transition: color 0.4s;
+const ParentProjectIconClass = injectStyle("parent-project-icon", k => `
+    ${k} {
+        transition: color 0.4s;
+        margin-top: 12px;
+        margin-left: 8px;
+    }
 
-    margin-top: 12px;
-    margin-left: 8px;
-
-    &:hover {
+    ${k}:hover {
         color: var(--blue);
     }
-`;
+`);
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
@@ -1946,23 +1935,25 @@ const CommentApplicationWrapper = injectStyleSimple("comment-application-wrapper
     margin-top: 32px;
 `);
 
-const CommentBoxWrapper = styled.div`
-    display: flex;
-    margin: 10px 0;
+const CommentBoxWrapper = injectStyle("comment-box-wrapper", k => `
+    ${k} {
+        display: flex;
+        margin: 10px 0;
+    }
 
-    .body {
+    ${k} > .body {
         flex-grow: 1;
         margin: 0 6px;
     }
 
-    time {
+    ${k} time {
         color: var(--gray, #ff0);
     }
 
-    p {
+    ${k} p {
         margin: 0;
     }
-`;
+`);
 
 const CommentBox: React.FunctionComponent<{
     comment: Comment,
@@ -1991,7 +1982,7 @@ const CommentBox: React.FunctionComponent<{
 
     if (!grantId) return null;
 
-    return <CommentBoxWrapper>
+    return <div className={CommentBoxWrapper}>
         <div className="avatar">
             <UserAvatar avatar={avatar} width={"48px"} />
         </div>
@@ -2007,25 +1998,25 @@ const CommentBox: React.FunctionComponent<{
                 <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete} />
             </div>
         ) : null}
-    </CommentBoxWrapper>;
+    </div>;
 };
 
-const PostCommentWrapper = styled.form`
-    .wrapper {
+const PostCommentWrapper = injectStyle("post-comment-wrapper", k => `
+    ${k} > .wrapper {
         display: flex;
     }
 
-    textarea {
+    ${k} textarea {
         flex-grow: 1;
         margin-left: 6px;
     }
 
-    .buttons {
+    ${k} .buttons {
         display: flex;
         margin-top: 6px;
         justify-content: flex-end;
     }
-`;
+`);
 
 function piForProject(target: RequestTarget, projectPi?: string): string {
     switch (target) {
@@ -2070,7 +2061,7 @@ const PostCommentWidget: React.FunctionComponent<{
         }
     }, [runWork, grantId, commentBoxRef.current]);
 
-    return <PostCommentWrapper onSubmit={submitComment}>
+    return <form className={PostCommentWrapper} onSubmit={submitComment}>
         <div className="wrapper">
             <UserAvatar avatar={avatar} width={"48px"} />
             <TextArea rows={3} inputRef={commentBoxRef} disabled={disabled} placeholder={"Your comment"} />
@@ -2079,7 +2070,7 @@ const PostCommentWidget: React.FunctionComponent<{
             {disabled ? <Tooltip trigger={<Button disabled>Send</Button>}>Submit application to allow comments</Tooltip> :
                 <Button disabled={loading}>Send</Button>}
         </div>
-    </PostCommentWrapper>;
+    </form>;
 };
 
 function getDocument(grantApplication: GrantApplication): Document {
@@ -2099,8 +2090,9 @@ const ProductLinkBox = injectStyleSimple("product-link-box", `
     width: 35px;
     height: 35px;
     margin-left: 9px;
-    padding-left: 10px;
+    padding-left: 11px;
     margin-top: -2px;
+    padding-top: 3px;
 `);
 
 export function isGrantFinalized(status: State): boolean {

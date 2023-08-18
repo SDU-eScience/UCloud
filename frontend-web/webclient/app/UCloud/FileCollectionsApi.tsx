@@ -137,6 +137,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         if (createOperation) {
             const enabled = createOperation.enabled;
             createOperation.enabled = (selected, cb, all) => {
+                if (cb.creationDisabled) return "You cannot create drives while viewing member files.";
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
 

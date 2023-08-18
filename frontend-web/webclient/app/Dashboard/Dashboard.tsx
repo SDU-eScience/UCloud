@@ -41,7 +41,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
-import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -52,8 +52,6 @@ import {UtilityBar} from "@/Playground/Playground";
 import ExperimentalJobs from "@/Applications/Jobs/ExperimentalJobs";
 import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
-
-const MY_WORKSPACE = "My Workspace";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -121,7 +119,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
     }
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} operations={[]} callbacks={{}} /></Flex>
+        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
             <DashboardNews news={news} />
 
@@ -328,7 +326,7 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (<div>
         <div>
-            <Link to={`/project/resources/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource usage</Heading.h3></Link>
+            <Link to={AppRoutes.project.usage()}><Heading.h3>Resource usage</Heading.h3></Link>
         </div>
         <div>
             {props.charts.data.charts.length !== 0 ? null : (
@@ -368,13 +366,7 @@ function DashboardRuns({runs}: {
         isLoading={runs.loading}
         error={runs.error?.why}
     >
-        {runs.data.items.length === 0 ? (
-            <NoResultsCardBody title={"No previous jobs found"}>
-                <Link to="/applications/overview" mt={8}>
-                    <Button mt={8}>View applications</Button>
-                </Link>
-            </NoResultsCardBody>
-        ) : <ExperimentalJobs opts={{embedded: true}} />}
+        <ExperimentalJobs opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />
     </HighlightedCard>;
 }
 
@@ -404,9 +396,6 @@ function DashboardResources({products}: {
         return wallets;
     }, [products.data.items]);
 
-    const projectId = useProjectId();
-
-
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -425,13 +414,13 @@ function DashboardResources({products}: {
         return (a.balance < b.balance) ? 1 : -1;
     });
 
-    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
+    const applyLinkButton = <Link to={Client.hasActiveProject ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 
     return (
         <div>
-            <Link to={`/project/allocations/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Resource allocations</Heading.h3></Link>
+            <Link to={AppRoutes.project.allocations()}><Heading.h3>Resource allocations</Heading.h3></Link>
             {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
@@ -441,8 +430,8 @@ function DashboardResources({products}: {
                 </NoResultsCardBody>
             ) :
                 <>
-                    {/* height is 100% - height of Heading 36px  */}
-                    <Flex flexDirection="column" height={"calc(100% - 36px)"}>
+                    {/* height is 100% - height of Heading 55px */}
+                    <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                         <Box my="5px">
                             <Table>
                                 <tbody>
@@ -463,6 +452,7 @@ function DashboardResources({products}: {
                             </Table>
                         </Box>
                         <Box flexGrow={1} />
+                        <Flex mx="auto">{applyLinkButton}</Flex>
                     </Flex>
                 </>
             }
@@ -498,7 +488,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
         error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
-        <ExperimentalGrantApplications opts={{embedded: true}} />
+        <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />
     </HighlightedCard>;
 };
 

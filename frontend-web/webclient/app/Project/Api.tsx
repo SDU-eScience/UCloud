@@ -354,43 +354,6 @@ interface UseProjectFromParams {
     breadcrumbs: {title: string, link?: string}[];
 }
 
-export function useProjectIdFromParams(): string {
-    const params = useParams<{project: string}>();
-    return params.project ?? "";
-}
-
-export function useProjectFromParams(pageTitle: string): UseProjectFromParams {
-    const projectId = useProjectIdFromParams();
-
-    const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
-    const isPersonalWorkspace = projectId === "My Workspace"
-
-    const reload = useCallback(() => {
-        if (!isPersonalWorkspace && projectId) {
-            fetchProject(api.retrieve({
-                id: projectId,
-                includePath: true,
-                includeMembers: true,
-                includeArchived: true,
-                includeGroups: true,
-                includeSettings: true,
-            }));
-        }
-    }, [projectId]);
-
-    useEffect(() => {
-        reload();
-    }, [projectId]);
-
-    const breadcrumbs = [
-        {title: isPersonalWorkspace ? projectId : projectFromApi.data?.specification.title ?? "", link: `/projects/${projectId}`},
-        {title: pageTitle}
-    ];
-
-    return {project: projectFromApi.data, projectId, reload, loading: projectFromApi.loading, isPersonalWorkspace, breadcrumbs};
-}
-
-
 const api = new ProjectApi();
 export {api};
 export default api;

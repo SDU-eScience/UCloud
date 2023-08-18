@@ -37,7 +37,7 @@ import {AllocationViewer, resultAsPercent, SubAllocation, allocationText, percen
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
-import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
+import ProjectAPI, {useProjectId} from "@/Project/Api";
 import {isAllocationSuitableForSubAllocation} from "@/Project/Grant";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {FlexClass} from "@/ui-components/Flex";
@@ -54,6 +54,10 @@ function getParentAllocationFromSuballocation(alloc: SubAllocation): string {
 function rawAllocationTitleInRow(category: string, provider: string) {
     return `${category} @ ${getProviderTitle(provider)}`;
 }
+
+
+// FIXME(Jonas): A lot of this file has duplication, due to differences big enough to make it easier to repeat 
+// instead of generalizing. Generalizing of part of it would be a big improvement to the code.
 
 export const SubAllocationViewer: React.FunctionComponent<{
     wallets: APICallState<PageV2<Wallet>>;
@@ -122,7 +126,7 @@ interface Recipient {
 
 function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}): JSX.Element {
     const [newRecipients, setRecipients] = useState<Recipient[]>([]);
-    const projectId = useProjectIdFromParams();
+    const projectId = useProjectId();
 
     const newRecipientId = useRef(0);
 
@@ -414,7 +418,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                         left={null}
                     />
                     {recipient.suballocations.map(row => {
-                        const productAndProvider = row.wallet ? <Flex>{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
+                        const productAndProvider = row.wallet ? <Flex my="auto">{row.wallet.paysFor.name} @ <ProviderTitle providerId={row.wallet.paysFor.provider} /><TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
                         const remainingProductTypes = productTypes.filter(it => it !== row.productType);
                         const recipientId = newRecipients.findIndex(it => it.id === recipient.id);
                         const suballocationId = newRecipients[recipientId].suballocations.findIndex(it => it.id === row.id);
@@ -422,7 +426,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                             <ListRow
                                 key={row.id}
                                 icon={<Box pl="20px">
-                                    <ClickableDropdown width="190px" useMousePositioning chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
+                                    <ClickableDropdown width="200px" useMousePositioning chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
                                         {remainingProductTypes.map(pt => {
                                             const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                             return allowProductSelect ?
@@ -449,11 +453,12 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                     <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], recipientId, suballocationId)}>
                                         {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
                                     </Flex>
-                                    <Flex color="var(--gray)" ml="12px">
+                                    <Flex backgroundColor="var(--lightGray)" borderRadius="12px" ml="12px">
                                         <DatePicker
                                             selectsRange
                                             dateFormat="dd/MM/yy"
                                             width="215px"
+                                            height="42px"
                                             startDate={new Date(row.startDate)}
                                             isClearable={row.endDate != null}
                                             endDate={row.endDate != null ? new Date(row.endDate) : undefined}
@@ -471,12 +476,13 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                     <Input
                                         width="100%"
                                         type="number"
+                                        fontSize={"14px"}
                                         rightLabel
                                         min={0}
                                         placeholder="Amount..."
                                         onChange={e => newRecipients[recipientId].suballocations[suballocationId].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
                                     />
-                                    <InputLabel textAlign="center" width={labelSpace(row.wallet)} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
+                                    <InputLabel textAlign="center" my="auto" width={labelSpace(row.wallet)} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
                                     <Icon mt="9px" ml="12px" name="close" color="red" cursor="pointer" onClick={() => removeSubAllocation(recipient.id, row.id)} />
                                 </Flex>}
                             />);
@@ -494,7 +500,7 @@ function flexRequiresMoreSpace(type: ProductType): boolean {
 function labelSpace(wallet?: {productType: ProductType, unit: ProductPriceUnit}): string {
     if (!wallet) return "0px";
     const PADDING = "20px";
-    return `calc(${explainAllocation(wallet.productType, wallet.unit).length * 3}em + ${PADDING})`;
+    return `calc(${explainAllocation(wallet.productType, wallet.unit).length}em + ${PADDING})`;
 }
 
 function SuballocationRows(props: {
@@ -856,7 +862,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 </Flex>
             </>}
             titleContentOnOpened={<>
-                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" onClick={addNewRow}>New row</Button> :
+                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" width="120px" onClick={addNewRow}>New row</Button> :
                     <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" width="100px" disabled>New row</Button>}>
                         No allocations available for use.
                     </Tooltip>
@@ -908,6 +914,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                         py="0"
                                         dateFormat="dd/MM/yy"
                                         width="215px"
+                                        height="42px"
                                         startDate={new Date(row.startDate)}
                                         isClearable={creationRows[index].endDate != null}
                                         endDate={row.endDate != null ? new Date(row.endDate) : undefined}
@@ -921,12 +928,13 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                     />
                                 </Flex>
                             </Flex>}
-                            right={row.wallet == null ? null : <Flex width={["NETWORK_IP", "INGRESS", "LICENSE"].includes(row.productType) ? "330px" : "280px"}>
+                            right={row.wallet == null ? null : <Flex width={flexRequiresMoreSpace(row.productType) ? "330px" : "280px"}>
                                 <Input
                                     width="100%"
                                     type="number"
                                     rightLabel
                                     min={0}
+                                    fontSize="14px"
                                     placeholder="Amount..."
                                     onChange={e => creationRows[index].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
                                 />
@@ -947,8 +955,6 @@ const UsageRowsWithMargin = injectStyle("usage-rows-with-margin", k => `
 `);
 
 function findValidAllocations(wallets: Wallet[], productType: ProductType): {wallet: Wallet, allocations: WalletAllocation[]}[] {
-    const now = new Date().getTime();
-
     return wallets.filter(it => it.productType === productType).flatMap(w => ({
         wallet: w,
         allocations: w.allocations.filter(it => isAllocationSuitableForSubAllocation(it))
@@ -973,7 +979,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                 key={entry.id}
                 icon={<Box pl="20px"><Icon name={productTypeToIcon(entry.productType)} /></Box>}
                 left={<Flex>
-                    <Text>{titleForSubAllocation(entry)}</Text>
+                    <Text my="auto">{titleForSubAllocation(entry)}</Text>
                     <Flex color="var(--gray)" ml="12px">
                         <Text color="var(--gray)" mt="3px" fontSize="18px">
                             <DatePicker
@@ -981,6 +987,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                                 py="0"
                                 width="215px"
                                 pl={0}
+                                height="42px"
                                 dateFormat="dd/MM/yy"
                                 isClearable={dates[1] != null}
                                 startDate={new Date(dates[0])}
@@ -1004,6 +1011,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                         type="number"
                         rightLabel
                         min={0}
+                        fontSize={"14px"}
                         placeholder={normalizeSuballocationBalanceForFrontend(entry, entry.chargeType === "ABSOLUTE" ? entry.remaining : entry.initialBalance)}
                         onChange={e => {
                             const {chargeType} = props.editEntries.current[entry.id];
@@ -1015,7 +1023,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                             }
                         }}
                     />
-                    <InputLabel textAlign={"center"} width={["INGRESS", "LICENSE"].includes(entry.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(entry)}</InputLabel>
+                    <InputLabel textAlign={"center"} width={labelSpace(entry)} rightLabel>{explainSubAllocation(entry)}</InputLabel>
                 </Flex>}
             />
         );

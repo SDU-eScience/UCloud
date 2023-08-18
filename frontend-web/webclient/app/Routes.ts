@@ -29,6 +29,7 @@ const resources = {
     licenses: () => "/licenses",
     sshKeys: () => "/ssh-keys",
     sshKeysCreate: () => "/ssh-keys/create",
+    sshKeysProperties: () => "/ssh-keys/properties"
 }
 
 const project = {
@@ -39,7 +40,9 @@ const project = {
     grantsOutgoing: () => `/project/grants/outgoing/`,
     grant: (id: string) => `/project/grants/view/${id}`,
     settings: (page: string) => `/project/settings/${page}`,
-    subprojects: () => `/subprojects/`,
+    subprojects: () => "/subprojects/",
+    grantExisting: () => "/project/grants/existing",
+    grantPersonal: () => "/project/grants/personal"
 }
 
 const syncthing = {

@@ -5,7 +5,6 @@ import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
-import {HexSpinWrapper} from "@/LoadingIcon/LoadingIcon";
 import {
     Absolute,
     Box,
@@ -49,6 +48,9 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {Spacer} from "@/ui-components/Spacer";
+import {ListClass} from "@/ui-components/List";
+import {ProjectPageTitle} from "./Allocations";
 
 // UI state management
 // ================================================================================
@@ -568,58 +570,52 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     if (!project) return null;
 
     return <MainContainer
-        header={<Flex px="32px" mt="12px">
-            <BreadCrumbsBase className={ProjectBreadcrumbsWrapper} embedded={false}>
-                <span>My Projects</span>
-                <span>{shorten(20, project.specification.title)}</span>
-                <span>Members</span>
-            </BreadCrumbsBase>
-            <UtilityBar searchEnabled={false} operations={[]} callbacks={{}} />
-        </Flex>}
+        header={<Spacer
+            left={<ProjectPageTitle>Members</ProjectPageTitle>}
+            right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+        />}
         headerSize={72}
         main={
-            <Box className={TwoColumnLayout} height="height: calc(100vh - 96px)">
+            <Box className={TwoColumnLayout} height="calc(100vh - 92px)">
                 <div className="left">
                     <Flex className={SearchContainer} flexWrap="wrap">
                         {!isAdmin ? null : (
-                            <>
-                                <form onSubmit={onAddMember}>
-                                    <Input
-                                        height={"48px"}
-                                        width="100%"
-                                        id="new-project-member"
-                                        placeholder="Username"
-                                        autoComplete="off"
-                                        inputRef={newMemberRef}
-                                    />
-                                    <Button ml="10px" my="auto" height="36px" type={"submit"}>
-                                        <Text fontSize={"20px"}>Add</Text>
-                                    </Button>
-                                    <Relative width={"0px"} height={"0px"} left="-132px" top="8px">
-                                        {USER_ID_HELP}
-                                    </Relative>
-                                    <Button
-                                        mt={"6px"}
-                                        mx={10}
-                                        height="36px"
-                                        color="green"
-                                        type="button"
-                                        title="Invite with link"
-                                        onClick={async () => {
-                                            dialogStore.addDialog(
-                                                <InviteLinkEditor
-                                                    groups={groups}
-                                                    project={project}
-                                                />,
-                                                doNothing,
-                                                true
-                                            );
-                                        }}
-                                    >
-                                        <Text fontSize="20px">+</Text>
-                                    </Button>
-                                </form>
-                            </>
+                            <form onSubmit={onAddMember}>
+                                <Input
+                                    height={"48px"}
+                                    width="100%"
+                                    id="new-project-member"
+                                    placeholder="Username"
+                                    autoComplete="off"
+                                    inputRef={newMemberRef}
+                                />
+                                <Button ml="10px" my="auto" height="36px" type={"submit"}>
+                                    <Text fontSize={"20px"}>Add</Text>
+                                </Button>
+                                <Relative width={"0px"} height={"0px"} left="-132px" top="8px">
+                                    {USER_ID_HELP}
+                                </Relative>
+                                <Button
+                                    mt={"6px"}
+                                    mx={10}
+                                    height="36px"
+                                    color="green"
+                                    type="button"
+                                    title="Invite with link"
+                                    onClick={async () => {
+                                        dialogStore.addDialog(
+                                            <InviteLinkEditor
+                                                groups={groups}
+                                                project={project}
+                                            />,
+                                            doNothing,
+                                            true
+                                        );
+                                    }}
+                                >
+                                    <Text fontSize="20px">+</Text>
+                                </Button>
+                            </form>
                         )}
                     </Flex>
                     <form onSubmit={preventDefault}>
@@ -1045,7 +1041,6 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
     const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
     const [selectedRole, setSelectedRole] = useState<string>("USER");
-    const linkToggleSet = useToggleSet([]);
 
     const roles = [
         {text: "User", value: "USER"},
@@ -1324,19 +1319,6 @@ const MemberRowWrapper = injectStyleSimple("member-row-wrapper", `
   gap: 10px;
 `);
 
-const ProjectBreadcrumbsWrapper = injectStyle("project-breadcrumbs", k => `
-    ${k} {
-        width: 100%;
-        max-width: unset;
-        flex-grow: 1;
-    }
-
-    ${k} ${HexSpinWrapper} {
-        margin: 0;
-        display: inline;
-    }
-`);
-
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
         display: flex;
@@ -1358,9 +1340,14 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
             border-right: 2px solid var(--gray, #f00);
             height: 100%;
             flex: 1;
-            overflow-y: auto;
+            overflow-y: hidden;
             margin-right: 16px;
             padding-right: 16px;
+        }
+
+        ${k} > .left > .${ListClass} {
+            overflow-y: scroll;
+            max-height: calc(100% - 48px - 48px - 10px);
         }
         
         ${k}[data-hide-border="true"] > .left {

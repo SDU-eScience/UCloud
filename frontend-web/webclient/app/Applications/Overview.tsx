@@ -24,6 +24,7 @@ import {TextSpan} from "@/ui-components/Text";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import bgImage from "@/Assets/Images/background_polygons.png";
 import {ApplicationGroup} from "./api";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -218,6 +219,11 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
     const main = (
         <Box mx="auto" maxWidth="1340px">
+            <Flex width="100%">
+                <Box ml="auto">
+                    <ContextSwitcher />
+                </Box>
+            </Flex>
             <Box mt="12px" />
             <FavoriteAppRow
                 favoriteStatus={favoriteStatus}
@@ -299,6 +305,27 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                     />
                 )
             }
+            {/*<Divider mt="18px" />
+            <Spacer height={"40px"} left={null} right={<Flex height="40px">
+                <Input mr="12px" placeholder="Application name..." width="200px" hidden={!isSearching} onKeyUp={e => {
+                    if (e.key === "Enter") {
+                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
+                    }
+                }} />
+                <Icon name="search" cursor="pointer" color="black" my="auto" onClick={() => setIsSearching(is => !is)} />
+            </Flex>} />
+            {sections.data.sections.map(section =>
+                <TagGrid
+                    key={section.name + section.type}
+                    tag={section.name}
+                    items={section.applications}
+                    columns={section.columns}
+                    favoriteStatus={favoriteStatus}
+                    onFavorite={onFavorite}
+                    tagBanList={[]}
+                    refreshId={refreshId}
+                />
+            )}*/}
         </Box>
     );
     return (

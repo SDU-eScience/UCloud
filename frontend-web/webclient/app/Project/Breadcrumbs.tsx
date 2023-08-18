@@ -24,7 +24,7 @@ const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
     }
 `;
 
-export function ProjectBreadcrumbs(props: ProjectBreadcrumbsProps): JSX.Element {
+function ProjectBreadcrumbs(props: ProjectBreadcrumbsProps): JSX.Element {
     const projectId = useProjectId();
     const project = useProject();
     let projectNameComponent = <Spinner />;

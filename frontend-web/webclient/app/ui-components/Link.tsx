@@ -2,7 +2,7 @@ import * as React from "react";
 import {Link as ReactRouterLink, LinkProps as LProps} from "react-router-dom";
 import {BaseLinkClass, BaseLinkProps} from "./BaseLink";
 import {CSSProperties} from "react";
-import {extractEventHandlers, unbox} from "@/Unstyled";
+import {classConcat, extractEventHandlers, unbox} from "@/Unstyled";
 
 export type LinkProps = LProps & BaseLinkProps & {
     active?: boolean;
@@ -13,7 +13,7 @@ function Link({active, ...props}: LinkProps): JSX.Element {
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
 
     return <ReactRouterLink
-        className={BaseLinkClass}
+        className={classConcat(BaseLinkClass, props.className)}
         style={style}
         children={props.children}
         to={props.to}

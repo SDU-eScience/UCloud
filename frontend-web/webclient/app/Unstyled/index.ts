@@ -148,12 +148,21 @@ export function injectStyle(title: string, fn: (k: string) => string): string {
     return className;
 }
 
+export function makeKeyframe(title: string, rules: string): string {
+    const animationName = `${title}${styleIdCounter++}`;
+    styleTag.innerHTML += `@keyframes ${animationName} {
+        ${rules}
+    }`;
+
+    return animationName;
+}
+
 export function injectStyleSimple(title: string, css: string): string {
     return injectStyle(title, (k) => `
         ${k} {
             ${css}
         }
-    `)
+    `);
 }
 
 export type WithEventHandlers = Omit<Omit<React.DOMAttributes<any>, "dangerouslySetInnerHTML">, "children">;

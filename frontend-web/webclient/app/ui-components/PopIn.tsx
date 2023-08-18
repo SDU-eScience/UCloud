@@ -24,10 +24,12 @@ const PopInClass = injectStyle("popin-class", k => `
         right: 0;
         background-color: var(--white);
         width: 0;
+        max-width: var(--popInWidth);
     }
 
     ${k}[data-has-content="true"] {
         width: var(--popInWidth);
+        max-width: var(--popInWidth);
         padding: 4px 4px 4px 4px;
     }
 `);

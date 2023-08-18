@@ -15,11 +15,13 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
 import {Toggle} from "@/ui-components/Toggle";
-import {ProjectBreadcrumbs} from "./Breadcrumbs";
-import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectFromParams, useProjectId} from "./Api";
+import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectId} from "./Api";
 import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";
+import {UtilityBar} from "@/Playground/Playground";
+import {Spacer} from "@/ui-components/Spacer";
+import {ProjectPageTitle} from "./Allocations";
 
 interface MemberInProjectCallbacks {
     startCreation: () => void;
@@ -84,7 +86,7 @@ const projectOperations: ProjectOperation[] = [
     },
     {
         enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role),
-        onClick: ([{project}], extra) => extra.navigate(`/subprojects/?subproject=${project.id}`),
+        onClick: ([{project}], extra) =>  extra.setActiveProject(project.id, project.title),
         text: "View subprojects",
         icon: "projects",
     },
@@ -243,7 +245,10 @@ export default function SubprojectList(): JSX.Element | null {
 
     if (isPersonalWorkspace) return null;
     return <MainContainer
-        header={<ProjectBreadcrumbs omitActiveProject allowPersonalProject={false} crumbs={[{title: "Subprojects"}]} />}
+        header={<Spacer
+            left={<ProjectPageTitle>Subprojects</ProjectPageTitle>}
+            right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+        />}
         main={
             isPersonalWorkspace || !projectId ? <Text fontSize={"24px"}>Missing subproject</Text> :
                 <StandardBrowse

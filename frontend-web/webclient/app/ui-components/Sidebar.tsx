@@ -53,7 +53,6 @@ import Relative from "./Relative";
 import Absolute from "./Absolute";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
-import {toggleTheme} from "@/Core";
 
 const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
     ${k} {
@@ -167,6 +166,10 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", `
     flex-direction: column;
     height: 100vh;
     width: var(--sidebarWidth);
+
+    /* Required by Safari */
+    min-width: var(--sidebarWidth);
+    
     background-color: var(--sidebarColor);
     gap: 18px;
     z-index: 1000;
@@ -285,7 +288,7 @@ const SIDEBAR_IDENTIFIER = "SIDEBAR_IDENTIFIER";
 
 const SidebarItemsClass = injectStyle("sidebar-items", k => `
     ${k} {
-        padding-top: 7px 0;
+        padding-top: 7px;
         flex-grow: 1;
     }
 `);
@@ -443,6 +446,7 @@ export function Sidebar(): JSX.Element | null {
             </div>
 
             <SecondarySidebar
+                key={(!!selectedPage).toString()} /* Note(Jonas) Needed for Safari to update correctly  */
                 data-tag="secondary"
                 hovered={hoveredPage}
                 clicked={selectedPage}

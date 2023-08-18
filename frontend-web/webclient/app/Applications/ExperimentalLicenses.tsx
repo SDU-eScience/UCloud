@@ -183,12 +183,16 @@ export function ExperimentalLicenses(): JSX.Element {
                 }
 
                 browser.on("renderRow", (license, row, dims) => {
-                    const icon = providerIcon(license.specification.product.provider);
-                    icon.style.marginRight = "8px";
-                    row.title.append(icon);
+                    const {provider} = license.specification.product;
+                    if (provider) {
+                        const icon = providerIcon(license.specification.product.provider);
+                        icon.style.marginRight = "8px";
+                        row.title.append(icon);
+                    }
+
                     if (license.id !== DUMMY_ENTRY_ID) {
                         const {product} = license.specification;
-                        const title = product.id + (license.id ? ` (${license.id})` : "")
+                        const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
                         row.title.append(browser.defaultTitleRenderer(title, dims));
                     }
                 });

@@ -1,5 +1,5 @@
 import * as React from "react";
-import styled, {keyframes} from "styled-components";
+import styled from "styled-components";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
     ProductSupport,
@@ -30,9 +30,10 @@ import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple, makeKeyframe} from "@/Unstyled";
+import {Truncate} from "@/ui-components";
 
-const enterAnimation = keyframes`
+const enterAnimation = makeKeyframe("enter-animation", `
   from {
     transform: scale3d(1, 1, 1);
   }
@@ -42,7 +43,7 @@ const enterAnimation = keyframes`
   to {
     transform: scale3d(1, 1, 1);
   }
-`;
+`);
 
 const Container = styled.div`
   --logoScale: 1;
@@ -292,11 +293,11 @@ export function ResourceProperties<Res extends Resource>(
                 <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"} data-in-pop-in={props.inPopIn}>
                     <div className={"fake-logo"} />
                     <div className={"header-text"}>
-                        <div>
+                        <div style={{width: props.inPopIn ? "210px" : undefined}}>
                             <Heading.h2>
-                                {!renderer.MainTitle ? null : <>
+                                {!renderer.MainTitle ? null : <Truncate>
                                     <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource} callbacks={{}} />
-                                </>}
+                                </Truncate>}
                             </Heading.h2>
                             <Heading.h3>{props.api.title}</Heading.h3>
                         </div>

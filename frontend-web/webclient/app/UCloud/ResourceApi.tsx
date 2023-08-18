@@ -129,6 +129,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     supportByProvider: SupportByProvider;
     isWorkspaceAdmin: boolean;
     inPopIn?: boolean;
+    creationDisabled?: boolean;
 }
 
 export interface SortFlags {
@@ -220,6 +221,7 @@ export abstract class ResourceApi<Res extends Resource,
             {
                 text: "Use",
                 primary: true,
+                icon: "check",
                 enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) ?? true),
                 canAppearInLocation: loc => loc === "IN_ROW",
                 onClick: (selected, cb) => {

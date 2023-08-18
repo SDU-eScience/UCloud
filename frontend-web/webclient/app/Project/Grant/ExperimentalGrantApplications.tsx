@@ -12,7 +12,6 @@ import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
 import {STATE_ICON_AND_COLOR} from "./GrantApplications";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {image} from "@/Utilities/HTMLUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -26,12 +25,13 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean}}): JSX.Element {
+export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean; omitFilters?: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+    
     if (!opts?.embedded) {
         useTitle("Grant Applications");
     }
@@ -39,10 +39,19 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
     const location = useLocation();
     let isIngoing = location.pathname.endsWith("/ingoing/");
 
+    const omitsFilters = !!opts?.omitFilters;
+
+    const features: ResourceBrowseFeatures = {
+        ...FEATURES,
+        filters: !omitsFilters,
+        sortDirection: !omitsFilters,
+        dragToSelect: !opts?.embedded,
+    };
+
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<GrantApplication>(mount, "Grant Application", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<GrantApplication>(mount, "Grant Application", opts).init(browserRef, features, "", browser => {
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.project.grant(resource.id));
@@ -107,7 +116,10 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
 
                 browser.setEmptyIcon("fileSignatureSolid");
 
-                browser.on("generateBreadcrumbs", () => [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => {
+                    if (opts?.omitBreadcrumbs) return [];
+                    return [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}];
+                });
                 browser.on("renderEmptyPage", reason => {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
@@ -137,10 +149,9 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                     }
                 });
 
-                browser.on("fetchOperationsCallback", () =>
-                    /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0})
-                );
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch, navigate, api: {}, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0
+                }));
 
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();

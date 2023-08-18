@@ -17,7 +17,7 @@ export const DatePickerClass = injectStyle("date-picker", k => `
         border-width: 0;
         border-style: solid;
         border-color: var(--borderGray, #f00);
-        padding: 14px 12px;
+        padding: 8px 12px;
         margin: 0;
         width: 100%;
         font-size: 18px;

@@ -32,6 +32,7 @@ export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOpt
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string>;
     embedded?: boolean;
+    omitFilters?: boolean;
     selection?: {
         onSelect(res: T): void;
         onSelectRestriction(res: T): boolean;
@@ -256,7 +257,7 @@ export interface ResourceBrowseFeatures {
 
 export class ResourceBrowser<T> {
     // DOM component references
-    private root: HTMLElement;
+    /* private */ root: HTMLElement;
     private operations: HTMLElement;
     /* private */ filters: HTMLElement;
     /* private */ rightFilters: HTMLElement;
@@ -458,6 +459,10 @@ export class ResourceBrowser<T> {
             reason: this.root.querySelector(".page-empty .reason")!,
             providerReason: this.root.querySelector(".page-empty .provider-reason")!,
         };
+
+        if (this.opts.embedded) {
+            this.emptyPageElement.container.style.marginTop = "80px";
+        }
 
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
@@ -709,8 +714,20 @@ export class ResourceBrowser<T> {
 
         addThemeListener(this.resourceName, () => this.rerender());
         const path = this.initialPath;
-        if (path !== undefined) addProjectListener(this.resourceName, () => this.open(path, true));
+        if (path !== undefined) {
+            console.log("Registering project listener", this.resourceName);
+            addProjectListener(this.resourceName, project => {
+                this.canConsumeResources = checkCanConsumeResources(
+                    project,
+                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}}
+                );
+                console.log(this.canConsumeResources);
+                this.open(path, true);
+            })
+        };
     }
+
+    private canConsumeResources = true;
 
     refresh() {
         this.open(this.currentPath, true);
@@ -781,19 +798,14 @@ export class ResourceBrowser<T> {
         this.emptyPageElement.container.replaceChildren(wrapper);
     }
 
-    private cantConsumeResources = false;
     public rerender() {
-        const callbacks = this.dispatchMessage("fetchOperationsCallback", fn => fn()) as {api: {isCoreResource: boolean}} | null;
-        this.cantConsumeResources = !checkCanConsumeResources(callbacks);
         this.renderBreadcrumbs();
         this.renderOperations();
         this.renderRows();
         this.clearFilters();
-        if (this.cantConsumeResources) {
-            this.renderCantConsumeResources();
-            return;
+        if (this.features.sortDirection) {
+            this.renderSortOrder();
         }
-        if (this.features.sortDirection) this.renderSortOrder();
         if (this.features.filters) {
             this.renderFilters();
             this.rerenderSessionFilterIcons();
@@ -805,6 +817,7 @@ export class ResourceBrowser<T> {
         const filters = this.dispatchMessage("fetchFilters", fn => fn()).filter(it => it.type === "input");
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
+            if (!filter) return;
             this.icons.renderIcon({name: filter.icon, color: "black", color2: "iconColor2", height: 32, width: 32}).then(icon =>
                 it.src = icon
             );
@@ -869,8 +882,6 @@ export class ResourceBrowser<T> {
         }
 
         this.renameField.style.display = "none";
-
-        if (this.cantConsumeResources) return;
 
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
@@ -993,9 +1004,8 @@ export class ResourceBrowser<T> {
 
     renderBreadcrumbs() {
         this.breadcrumbs.innerHTML = "";
-        if (this.cantConsumeResources) {
-            return;
-        }
+
+        if (!this.canConsumeResources) return;
 
         const crumbs = this.dispatchMessage("generateBreadcrumbs", fn => fn(this.currentPath));
         // NOTE(Dan): The next section computes which crumbs should be shown and what the content of them should be.
@@ -1100,10 +1110,6 @@ export class ResourceBrowser<T> {
     }
 
     renderOperations() {
-        if (this.cantConsumeResources) {
-            this.operations.innerHTML = "";
-            return;
-        }
         this.renderOperationsIn(false);
     }
 
@@ -1255,9 +1261,8 @@ export class ResourceBrowser<T> {
         if (callbacks === null) return;
 
         const operations = this.dispatchMessage("fetchOperations", fn => fn());
-        if (operations.length === 0) {
-            const target = this.operations;
-            target.innerHTML = "";
+        if (operations.length === 0 || !this.canConsumeResources) {
+            this.operations.innerHTML = "";
             return;
         }
 
@@ -1300,6 +1305,8 @@ export class ResourceBrowser<T> {
 
 
             if (isConfirmButton) {
+                const opEnabled = op.enabled(selected, callbacks, page) === true;
+
                 const button = ConfirmationButtonPlainHTML(
                     icon,
                     operationText,
@@ -1307,7 +1314,7 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: inContextMenu, color: "red", hoverColor: "darkRed"}
+                    {asSquare: inContextMenu, color: "red", hoverColor: "darkRed", disabled: !opEnabled}
                 );
 
                 if (inContextMenu) {
@@ -1382,14 +1389,14 @@ export class ResourceBrowser<T> {
                 const listHeight = opCount * itemSize;
                 const listWidth = 400;
 
-                const windowWidth = window.innerWidth;
-                const windowHeight = window.innerHeight;
+                const rootWidth = window.innerWidth;
+                const rootHeight = window.innerHeight;
 
-                if (posX + listWidth >= windowWidth - 32) {
+                if (posX + listWidth >= rootWidth - 32) {
                     actualPosX -= listWidth;
                 }
 
-                if (posY + listHeight >= windowHeight - 32) {
+                if (posY + listHeight >= rootHeight - 32) {
                     actualPosY -= listHeight;
                 }
 
@@ -1474,6 +1481,17 @@ export class ResourceBrowser<T> {
             element.classList.add("operation");
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
+            const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
+            const handleDisabled = !useContextMenu && typeof enabled === "string";
+
+            if (handleDisabled) {
+                const d = document.createElement("div");
+                d.innerText = enabled;
+                element.style.cursor = "not-allowed";
+                HTMLTooltip(element, d, {tooltipContentWidth: 230});
+            }
+
+
             const altKey = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
             renderOpIconAndText(op, element, useShortcuts ? `[${altKey}${this.altKeys[opCount].replace("Key", "")}]` : undefined);
 
@@ -1488,7 +1506,7 @@ export class ResourceBrowser<T> {
                             elementBounding.left,
                             (elementBounding.top + elementBounding.height),
                         );
-                    } else if (isOperation(op)) {
+                    } else if (isOperation(op) && enabled === true) {
                         op.onClick(selected, callbacks, page);
                     }
                 };
@@ -3007,7 +3025,7 @@ export class ResourceBrowser<T> {
         `);
     }
 
-    private addCheckboxToFilter<T>(filter: FilterCheckbox) {
+    private addCheckboxToFilter(filter: FilterCheckbox) {
         const wrapper = document.createElement("label");
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "8px";
@@ -3050,7 +3068,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    private addOptionsToFilter<T>(filter: FilterWithOptions | MultiOptionFilter) {
+    private addOptionsToFilter(filter: FilterWithOptions | MultiOptionFilter) {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
@@ -3369,20 +3387,18 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(callbacks: null | {api: {isCoreResource: boolean}}): boolean {
-    if (!Client.hasActiveProject) {
-        return true;
-    }
-    if (!callbacks) {
-        return false;
-    }
+export function checkCanConsumeResources(projectId: string | null, callbacks: null | {api: {isCoreResource: boolean}}): boolean {
+    if (!projectId) return true;
+    if (!callbacks) return true;
+
     const {api} = callbacks;
     if (!api) return false;
-    if (api.isCoreResource) {
-        return true;
-    }
-    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === Client.projectId);
-    if (!project) return false;
+    
+    if (api.isCoreResource) return true;
+    
+    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+    if (!project) return true;
+    // Don't consider yet-to-be-fetched projects as non-consumer
     return project.specification.canConsumeResources !== false;
 }
 

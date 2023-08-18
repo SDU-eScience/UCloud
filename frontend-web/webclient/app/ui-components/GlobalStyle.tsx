@@ -80,7 +80,10 @@ div.modal-footer > button {
 }
 
 div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondary {
-    font-smoothing: antialiased;
+    /* Non-standard */
+    font-smooth: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: auto;
     display: inline-flex;
     justify-content: center;
     align-items: center;

@@ -1,4 +1,4 @@
-import { useForcedRender } from "@/Utilities/ReactUtilities";
+import {useForcedRender} from "@/Utilities/ReactUtilities";
 import * as React from "react";
 
 export abstract class UState<Self extends UState<Self>> {
@@ -50,7 +50,7 @@ export function useUState<State extends UState<State>>(state: State): State {
         };
 
         state.subscribe(listener);
-        return () => { state.unsubscribe(listener); };
+        return () => {state.unsubscribe(listener);};
     }, []);
     return state;
 }

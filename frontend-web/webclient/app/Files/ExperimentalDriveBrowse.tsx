@@ -9,6 +9,7 @@ import {
     resourceCreationWithProductSelector,
     providerIcon,
     checkIsWorkspaceAdmin,
+    Filter,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -16,7 +17,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
 import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {FindByStringId, PageV2, provider} from "@/UCloud";
+import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
@@ -26,7 +27,6 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {image} from "@/Utilities/HTMLUtilities";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
@@ -36,6 +36,8 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileC
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
 };
+
+const memberFilesKey = "filterMemberFiles";
 
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
@@ -185,20 +187,28 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     );
                 };
 
-                browser.on("fetchFilters", () => [{
-                    key: "sortBy",
-                    text: "Sort by",
-                    type: "options",
-                    icon: "properties",
-                    clearable: false,
-                    options: [{
-                        color: "black", icon: "id", text: "Name", value: "title"
-                    }, {
-                        color: "black", icon: "calendar", text: "Date created", value: "createdAt"
-                    }, {
-                        color: "black", icon: "user", text: "Created by", value: "createdBy"
+                browser.on("fetchFilters", () => {
+                    const filters: Filter[] = [{
+                        key: "sortBy",
+                        text: "Sort by",
+                        type: "options",
+                        icon: "properties",
+                        clearable: false,
+                        options: [{
+                            color: "black", icon: "id", text: "Name", value: "title"
+                        }, {
+                            color: "black", icon: "calendar", text: "Date created", value: "createdAt"
+                        }, {
+                            color: "black", icon: "user", text: "Created by", value: "createdBy"
+                        }]
                     }]
-                }]);
+
+                    if (Client.hasActiveProject) {
+                        filters.push({type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"})
+                    }
+
+                    return filters;
+                });
 
                 browser.on("fetchOperationsCallback", () => {
                     const cachedSupport = supportByProvider.retrieveFromCacheOnly("");
@@ -223,7 +233,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
                         api: FileCollectionsApi,
-                        isCreating: false
+                        isCreating: false,
+                        creationDisabled: browser.browseFilters[memberFilesKey] === "true",
                     };
 
                     return callbacks;
@@ -349,7 +360,10 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         return;
                     }
 
-                    collectionsOnOpen.retrieve("", () =>
+                    // Note(Jonas): This is to ensure no project and active project correctly reloads. Using "" as the key
+                    // will not always work correctly, e.g. going from project to personal workspace with "View member files" active.
+                    const collectionKey = `${Client.projectId}-${browser.browseFilters[memberFilesKey]}`;
+                    collectionsOnOpen.retrieve(collectionKey, () =>
                         callAPI(FileCollectionsApi.browse({
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters
