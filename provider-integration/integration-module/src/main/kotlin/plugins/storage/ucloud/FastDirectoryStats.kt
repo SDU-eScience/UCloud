@@ -24,7 +24,7 @@ class FastDirectoryStats(
 
     override suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean): Long? {
         return when (locator.resolveDriveByInternalFile(file).system.type) {
-            FsType.CephFS -> ceph.getRecursiveSize(file, allowSlowPath)
+            //FsType.CephFS -> ceph.getRecursiveSize(file, allowSlowPath)
             else -> weka.getRecursiveSize(file, allowSlowPath)
         }
     }

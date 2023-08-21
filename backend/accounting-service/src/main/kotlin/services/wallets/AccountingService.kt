@@ -91,7 +91,6 @@ class AccountingService(
                 )
             ).success
         }
-
         return BulkResponse(result)
     }
 

@@ -40,9 +40,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 import kotlin.random.Random
 
 const val doDebug = false
@@ -1489,7 +1487,6 @@ class AccountingProcessor(
                 (it.paysFor?.provider == request.productCategory.provider &&
                     it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
-
         return if (productCategory.isPeriodic()) {
             applyPeriodCharge(request.usage, wallet.allocations, request.description)
         } else {
@@ -1655,7 +1652,9 @@ class AccountingProcessor(
                     )
                 }
             }
-            return AccountingResponse.Charge(false)
+            if (delta > activeQuota) {
+                return AccountingResponse.Charge(false)
+            }
         }
         return AccountingResponse.Charge(true)
     }
@@ -1685,7 +1684,7 @@ class AccountingProcessor(
             alloc.localUsage = 0L
             if (activeAllocations.contains(allocation.id)) {
                 val weight = allocation.quota.toDouble() / activeQuota.toDouble()
-                val toCharge = (totalUsage.toDouble() * weight).toLong()
+                val toCharge = round(totalUsage.toDouble() * weight).toLong()
                 diff = toCharge - oldValue
                 if (diff < 0 && abs(diff) > quota) {
                     diff = diff + quota
@@ -1711,7 +1710,7 @@ class AccountingProcessor(
             )
             updateParentTreeUsage(alloc, min(diff, alloc.quota))
         }
-        println("Total: $totalCharged, Usage: $totalUsage")
+
         if (totalCharged != totalUsage) {
             val difference = totalUsage - totalCharged
             val amountPerAllocation = difference / activeAllocations.size
@@ -1747,7 +1746,9 @@ class AccountingProcessor(
                     )
                 )
             }
-            return AccountingResponse.Charge(false)
+            if (activeQuota < totalUsage) {
+                return AccountingResponse.Charge(false)
+            }
         }
         return AccountingResponse.Charge(true)
     }

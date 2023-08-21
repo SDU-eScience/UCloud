@@ -47,7 +47,6 @@ class UsageScan(
     }
 
     suspend fun startScanIfNeeded() {
-        println("if needed")
         var lastRun = 0L
         db.withSession { session ->
             session.prepareStatement(
@@ -66,9 +65,8 @@ class UsageScan(
             )
         }
 
-        val oneDay = 1000L * 60 * 15//60 * 24
+        val oneDay = 1000L * 60 * 5//60 * 24
         val now = Time.now()
-        println("$now, $lastRun")
         if (now - lastRun < oneDay) return
         if (!isRunning.compareAndSet(false, true)) return
 
@@ -84,7 +82,6 @@ class UsageScan(
             val chunkSize = 50
 
             var next: String? = null
-            println("Running")
             while (true) {
                 val page = pathConverter.locator.enumerateDrives(next = next)
 
@@ -282,7 +279,6 @@ class UsageScan(
                 log.warn("Could not lock resource: ${resourceId}. Something is wrong!")
                 null
             } else {
-                println("failed to charge: $resourceId, ${request[requestIdx]}")
                 requestIdx
             }
         }
