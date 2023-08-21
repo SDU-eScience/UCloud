@@ -1,4 +1,5 @@
 import * as UCloud from "@/UCloud";
+import Fuse from "fuse.js";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {Tag} from "@/Applications/Card";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -17,7 +18,7 @@ import * as Heading from "@/ui-components/Heading";
 import Input, {HiddenInputField, InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {PropType, stopPropagation} from "@/UtilityFunctions";
+import {PropType, doNothing, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {ApplicationGroup, clearLogo, listGroups, setGroup, uploadLogo} from "@/Applications/api";
@@ -44,6 +45,124 @@ const entityTypes = [
 ];
 
 type ApplicationAccessRight = PropType<UCloud.compute.DetailedEntityWithPermission, "permission">;
+
+interface GroupSelectorProps {
+    options: ApplicationGroup[];
+    onSelect: (id: number) => void;
+    placeholder: string;
+    width?: number | string;
+    clearOnSelect?: boolean;
+    rightLabel?: boolean;
+    leftLabel?: boolean;
+}
+
+const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        font-family: inherit;
+        color: var(--black);
+        background-color: var(--inputColor);
+        margin: 0;
+        border-width: 0px;
+        
+        width: 100%;
+        border-radius: 5px;
+        padding: 7px 12px;
+        height: 42px;
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
+
+        --inputBorder: var(--blue);
+        --inputDisabledBorder: var(--lightGray);
+
+        border: 1px solid var(--midGray);
+    }
+    
+    ${k}:hover {
+        border-color: var(--gray);
+    }
+`);
+
+
+const GroupSelectorClass = injectStyle("group-selector", k => `
+    ${k} {
+
+    }
+
+    ${k} input {
+        margin-bottom: 20px;
+    }
+
+    ${k} div {
+        overflow-y: scroll;
+        max-height: 300px;
+        line-height: 2em;
+    }
+
+    ${k} div div:hover {
+        background-color: var(--lightBlue);
+        cursor: pointer;
+    }
+`);
+
+const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
+    const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup>();
+    return (
+        <div
+            className={GroupSelectorTriggerClass}
+            onClick={() => dialogStore.addDialog(
+                <FilterThingamagic options={props.options} setSelectedGroup={setSelectedGroup} />
+            , doNothing, true)}
+        >
+            <Text>{selectedGroup ? selectedGroup.title : "Select group..."}</Text>
+            <Icon name="chevronDownLight" ml="-32px" size={14} />
+        </div >
+    );
+}
+
+function FilterThingamagic(props: {options: ApplicationGroup[], setSelectedGroup: (appGroup: ApplicationGroup) => void}): JSX.Element {
+    const [filter, setTitleFilter] = React.useState("");
+    const results = React.useMemo(() =>
+        props.options.filter(it => it.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
+        , [props.options, filter]);
+    return (
+        <div className={GroupSelectorClass}>
+            <Input
+                placeholder="Enter group.."
+                defaultValue={filter}
+                type="text"
+                autoFocus
+                onChange={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")}
+            />
+            <div key={results.length}>
+                {results.map((appGroup) => (
+                    <Flex key={appGroup.id} justifyContent="space-between">
+                        <Box onClick={() => {
+                            props.setSelectedGroup(appGroup);
+                            dialogStore.success();
+                        }}>
+                            {appGroup.title}
+                        </Box>
+                        <Button color="red" height="20px" width="20px">
+                            <Icon size={14} name="trash" />
+                        </Button>
+                    </Flex>
+                ))}
+                {results.length === 0 ? <Box>No results</Box> : null}
+                {filter.length > 0 ?
+                    <div style={{textAlign: "center", marginTop: "20px"}}>
+                        <Button>Create group</Button>
+                    </div>
+                : null}
+            </div>
+        </div>
+
+    )
+
+}
+
 
 function prettifyAccessRight(accessRight: ApplicationAccessRight): "Can launch" {
     switch (accessRight) {
@@ -92,8 +211,8 @@ export const App: React.FunctionComponent = () => {
         {noop: true},
         []
     );
-    const [selectedGroup, setSelectedGroup] = useState<string | null>();
-    
+    const [selectedGroup, setSelectedGroup] = useState<number | null>();
+
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI<UCloud.compute.DetailedEntityWithPermission[]>(
         {noop: true},
@@ -121,7 +240,9 @@ export const App: React.FunctionComponent = () => {
     useEffect(() => {
         if (!allGroups) return;
 
-        setSelectedGroup(apps.data.items[0].metadata.group?.title ?? undefined);
+        if (apps.data.items[0]) {
+            setSelectedGroup(apps.data.items[0].metadata.group?.title ?? undefined);
+        }
     }, [allGroups, apps]);
 
     // Loading of application versions
@@ -262,36 +383,30 @@ export const App: React.FunctionComponent = () => {
                     </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <form
-                            onSubmit={ async e => {
+                            onSubmit={async e => {
                                 e.preventDefault();
                                 if (commandLoading) return;
 
                                 if (!selectedGroup) return;
 
-                                await invokeCommand(setGroup({
+                                /*await invokeCommand(setGroup({
                                     groupName: selectedGroup,
                                     applicationName: name
-                                }));
+                                }));*/
 
                                 snackbarStore.addSuccess(`Added to group ${selectedGroup}`, false);
-                        
+
                                 refresh();
                             }}
                         >
                             <Heading.h2>Group</Heading.h2>
                             <Flex>
-                                {allGroups.data.length > 0 ?
-                                    <DataList
-                                        rightLabel
-                                        options={allGroups.data.map(group => ({value: group.title, content: group.title}))}
-                                        onSelect={item => setSelectedGroup(item)}
-                                        onChange={item => setSelectedGroup(item)}
-                                        placeholder={"Enter or select group..."}
-                                    />
-                                : <></>}
-                                <Button disabled={commandLoading} type="submit" width={100} attached>
-                                    Save
-                                </Button>
+                                <GroupSelector
+                                    rightLabel
+                                    options={allGroups.data}
+                                    onSelect={item => setSelectedGroup(item)}
+                                    placeholder={allGroups.data.find(it => it.id === selectedGroup)?.title ?? "Select group..."}
+                                />
                             </Flex>
                         </form>
                     </Box>
@@ -394,7 +509,7 @@ export const App: React.FunctionComponent = () => {
                                             />
                                         </>
                                     )}
-                                    <InputLabel width={300} rightLabel>
+                                    <InputLabel width={300} rightLabel leftLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"

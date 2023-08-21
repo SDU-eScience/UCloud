@@ -60,14 +60,9 @@ export const ButtonClass = injectStyle("button", k => `
     ${k}:focus {
         outline: none;
     }
-
-    ${k}[data-attached=true] {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;   
-    }
-    
+   
     ${k}[data-square=true] {
-        border-radius: 0 !important;
+        border-radius: 0;
     }
     
     ${k}[data-fullwidth=true] {
@@ -96,6 +91,11 @@ export const ButtonClass = injectStyle("button", k => `
         height: 25px;
         border-radius: 14px;
         font-size: 12px;
+    }
+
+    ${k}[data-attached=true] {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
     }
 
     ${k} svg {

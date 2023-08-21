@@ -149,10 +149,10 @@ const InputLabelClass = injectStyle("input-label", k => `
     ${k} {
         height: 42px;
         border-radius: 5px;
-        padding-top: 10px;
-        padding-right: 14px;
+        padding: 7px 12px;
         font-size: 14px;
         background-color: var(--inputColor);
+        border: 1px solid var(--midGray);
     }
     
     ${k}[data-left-label="true"] {

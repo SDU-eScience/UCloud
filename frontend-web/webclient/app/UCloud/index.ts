@@ -2,7 +2,7 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
-import {ApplicationGroup} from "@/Applications/Studio";
+import {ApplicationGroup} from "@/Applications/api";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 
 /**
