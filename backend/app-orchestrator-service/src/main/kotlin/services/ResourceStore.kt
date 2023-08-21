@@ -2380,11 +2380,11 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                 { setParameter("table", qualifiedTable) },
                 """
                     select tgname
-                        from pg_catalog.pg_trigger
-                        where
-                    not tgisinternal
+                    from pg_catalog.pg_trigger
+                    where
+                        not tgisinternal
                         and tgname = 'resource_trigger'
-                    and tgrelid = :table::regclass;        
+                        and tgrelid = :table::regclass;        
                 """
             ).rows.isNotEmpty()
 
