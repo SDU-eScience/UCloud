@@ -38,7 +38,9 @@ data class ApplicationMetadata(
     @UCloudApiDoc("A flag which describes if this Application is publicly accessible")
     val public: Boolean,
 
-    val flavorName: String? = null
+    val flavorName: String? = null,
+
+    val group: ApplicationGroup? = null
 ) : WithNameAndVersion {
     @Deprecated("Replaced with public") @Transient val isPublic = public
 }
@@ -279,5 +281,4 @@ data class ApplicationSummaryWithFavorite(
     override val metadata: ApplicationMetadata,
     override val favorite: Boolean,
     override val tags: List<String>,
-    val group: ApplicationGroup? = null
 ) : WithAppMetadata, WithAppFavorite, WithAllAppTags

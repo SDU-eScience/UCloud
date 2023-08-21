@@ -200,11 +200,37 @@ enum class AppStorePageType {
 
 @Serializable
 data class SetGroupRequest(
-    val groupId: Int,
+    val group: Int,
     val applicationName: String
 )
 
 typealias SetGroupResponse = Unit
+
+@Serializable
+data class CreateGroupRequest(
+    val title: String
+)
+
+typealias CreateGroupResponse = Unit
+
+@Serializable
+data class DeleteGroupRequest(
+    val id: Int
+)
+
+typealias DeleteGroupResponse = Unit
+
+@Serializable
+data class UpdateGroupRequest(
+    val id: Int,
+    val logo: ByteArray?,
+    val description: String?
+)
+
+typealias UpdateGroupResponse = Unit
+
+
+typealias ListGroupsRequest = Unit
 
 @Serializable
 data class AppStoreSectionsRequest(
@@ -220,15 +246,27 @@ data class AppStoreSectionsResponse(
 data class ApplicationGroup (
     val id: Int,
     val title: String,
-    val logo: String?,
-    val description: String?,
-    val application: ApplicationSummaryWithFavorite
+    val logo: String? = null,
+    val description: String? = null,
+    val application: ApplicationSummaryWithFavorite? = null
 )
 
 @Serializable
 data class AppStoreSection (
     val name: String,
     val items: MutableList<ApplicationGroup>
+)
+
+@Serializable
+data class PageSection(
+    val featured: List<ApplicationGroup>,
+    val title: String? = null,
+    val tags: List<String> = emptyList()
+)
+
+@Serializable
+data class StorePage(
+    val sections: List<PageSection>
 )
 
 @UCloudApiExampleValue
@@ -250,7 +288,11 @@ fun exampleApplication(
             listOf("UCloud"),
             title,
             "An example application",
-            public = true
+            public = true,
+            group = ApplicationGroup(
+                0,
+                "Test Group"
+            )
         ),
         ApplicationInvocationDescription(
             ToolReference(
@@ -975,9 +1017,77 @@ ${ApiConventions.nonConformingApiWarning}
             method = HttpMethod.Post
             path {
                 using(baseContext)
-                +"group"
+                +"group/"
+                +"set"
             }
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val createGroup = call("createGroup", CreateGroupRequest.serializer(), CreateGroupResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"group"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val deleteGroup = call("deleteGroup", DeleteGroupRequest.serializer(), DeleteGroupResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+            path {
+                using(baseContext)
+                +"group"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val updateGroup = call("updateGroup", UpdateGroupRequest.serializer(), UpdateGroupResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"group/"
+                +"update"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val listGroups = call("listGroups", ListGroupsRequest.serializer(), ListSerializer(ApplicationGroup.serializer()), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"groups"
+            }
         }
     }
 
@@ -997,6 +1107,47 @@ ${ApiConventions.nonConformingApiWarning}
             summary = "Creates a new Application and inserts it into the catalog"
         }
     }
+
+    val updateLanding = call("updateLanding", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = setOf(Role.ADMIN, Role.SERVICE)
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Put
+            path {
+                using(baseContext)
+                +"updateLanding"
+            }
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Updates the landing page of the application store"
+        }
+    }
+
+    val updateOverview = call("updateOverview", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = setOf(Role.ADMIN, Role.SERVICE)
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Put
+            path {
+                using(baseContext)
+                +"updateOverview"
+            }
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Updates the overview page of the application store"
+        }
+    }
+
 
     val delete = call("delete", DeleteAppRequest.serializer(), DeleteAppResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
