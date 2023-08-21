@@ -31,7 +31,6 @@ interface VisualizationFlags {
     val filterWorkspace: String?
     val filterWorkspaceProject: Boolean?
 }
-
 @Serializable
 @UCloudApiInternal(InternalLevel.STABLE)
 data class VisualizationRetrieveUsageRequest(

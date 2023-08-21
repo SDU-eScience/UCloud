@@ -157,7 +157,7 @@ object Commands {
                         ]
                       }
                     """.trimIndent()
-                )
+                ) ?: error("Failed to create root deposit for $category")
             }
         }
     }

@@ -3,7 +3,6 @@ package dk.sdu.cloud.accounting.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Time
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlin.random.Random
@@ -18,6 +17,7 @@ import kotlin.random.Random
     """, importance = 1000
 )
 @UCloudApiInternal(InternalLevel.BETA)
+@Deprecated("Use WalletV2 instead")
 data class Wallet(
     val owner: WalletOwner,
     val paysFor: ProductCategoryId,
@@ -138,6 +138,7 @@ data class Wallet(
     }
 }
 
+//TODO(HENRIK) IS THERE A NEED FOR THIS STILL?
 /*
  * EXPIRE_FIRST takes the wallet allocation with end date closes to now.
  * ORDERED takes the wallet allocation in a user specified order.
@@ -150,7 +151,10 @@ enum class AllocationSelectorPolicy {
     EXPIRE_FIRST,
     // ORDERED (Planned not yet implemented)
 }
-
+@Serializable
+data class WalletsInternalRetrieveResponse(
+    val wallets: List<Wallet>
+)
 @Serializable
 @UCloudApiDoc(
     """
@@ -161,6 +165,7 @@ enum class AllocationSelectorPolicy {
     """, importance = 990
 )
 @UCloudApiInternal(InternalLevel.BETA)
+@Deprecated("Use WalletAllocationV2 instead")
 data class WalletAllocation(
     @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
@@ -202,7 +207,8 @@ data class PushWalletChangeRequestItem(
     val allocationId: String,
     val amount: Long,
 )
-
+//TODO(HENRIK)DELETE
+/*
 @Serializable
 @UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
 data class RegisterWalletRequestItem(
@@ -225,11 +231,6 @@ data class WalletBrowseRequest(
     val filterType: ProductType? = null
 ) : WithPaginationRequestV2, BrowseAllocationsFlags
 
-interface BrowseAllocationsFlags{
-    val includeMaxUsableBalance: Boolean?
-    val filterEmptyAllocations: Boolean?
-}
-
 @Serializable
 data class WalletsInternalRetrieveRequest(
     val owner: WalletOwner
@@ -238,6 +239,7 @@ data class WalletsInternalRetrieveRequest(
 data class WalletsInternalRetrieveResponse(
     val wallets: List<Wallet>
 )
+ */
 @Serializable
 data class WalletAllocationsInternalRetrieveRequest (
     val owner: WalletOwner,
@@ -254,6 +256,7 @@ typealias PushWalletChangeResponse = Unit
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
 @UCloudApiInternal(InternalLevel.BETA)
+@Deprecated("Use SubAllocationV2 instead")
 data class SubAllocation(
     val id: String,
     val path: String,
@@ -275,10 +278,6 @@ data class SubAllocation(
 
     val grantedIn: Long?
 )
-
-interface SubAllocationQuery : WithPaginationRequestV2 {
-    val filterType: ProductType?
-}
 
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -302,38 +301,6 @@ data class WalletsBrowseSubAllocationsRequest(
 ) : SubAllocationQuery
 
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-data class WalletsRetrieveRecipientRequest(
-    val query: String,
-)
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-data class WalletsRetrieveRecipientResponse(
-    val id: String,
-    val isProject: Boolean,
-    val title: String,
-    val principalInvestigator: String,
-    val numberOfMembers: Int,
-)
-
-typealias ResetState = Unit
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-data class WalletsRetrieveProviderSummaryRequest(
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-
-    val filterOwnerId: String? = null,
-    val filterOwnerIsProject: Boolean? = null,
-
-    val filterCategory: String? = null,
-) : WithPaginationRequestV2
 
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -380,10 +347,8 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
         description = """
             Wallets hold allocations which grant access to a provider's resources.
-
             $TYPE_REF Wallet s are the core abstraction used in the accounting system of UCloud. This feature builds
             on top of various other features of UCloud. Here is a quick recap:
-
             - The users of UCloud are members of 
               [Workspaces and Projects](/docs/developer-guide/accounting-and-projects/projects/projects.md). These form 
               the foundation of all collaboration in UCloud.
@@ -396,21 +361,17 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
               payments and periodic payments (`ABSOLUTE`). All absolute payment models support paying in a 
               product-specific unit or in DKK.
             - All $TYPE_REF Product s in a category share the exact same payment model
-
             Allocators grant access to $Resource s via $TYPE_REF WalletAllocation s. In a simplified view, an 
             allocation is:
-
             - An initial balance, specified in the "unit of allocation" which the $TYPE_REF Product specifies. 
               For example: 1000 DKK or 500 Core Hours.
             - Start date and optional end date.
             - An optional parent allocation.
             - A current balance, the balance remaining for this allocation and all descendants.
             - A local balance, the balance remaining if it had no descendants
-
             UCloud combines allocations of the same category into a $TYPE_REF Wallet. Every $TYPE_REF Wallet has 
             exactly one owner, [a workspace](/docs/developer-guide/accounting-and-projects/projects/projects.md). 
             $TYPE_REF Wallet s create a natural hierarchical structure. Below we show an example of this:
-
             ![](/backend/accounting-service/wiki/allocations.png)
             
             __Figure:__ Allocations create a natural _allocation hierarchy_.
@@ -558,25 +519,6 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
-@UCloudApiOwnedBy(Wallets::class)
-sealed class WalletOwner : DocVisualizable {
-    @Serializable
-    @SerialName("user")
-    @UCloudApiInternal(InternalLevel.BETA)
-    data class User(val username: String) : WalletOwner() {
-        override fun visualize(): DocVisualization = DocVisualization.Inline("$username (User)")
-    }
-
-    @Serializable
-    @SerialName("project")
-    @UCloudApiInternal(InternalLevel.BETA)
-    data class Project(val projectId: String) : WalletOwner() {
-        override fun visualize(): DocVisualization = DocVisualization.Inline("$projectId (Project)")
-    }
-}
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
 data class ChargeWalletRequestItem(
     @UCloudApiDoc("The payer of this charge")
     val payer: WalletOwner,
@@ -705,17 +647,6 @@ data class UpdateAllocationRequestItem(
 
 typealias UpdateAllocationResponse = Unit
 
-@Serializable
-data class FindRelevantProvidersRequestItem(
-    val username: String,
-    val project: String? = null,
-    val useProject: Boolean
-)
-@Serializable
-data class FindRelevantProvidersResponse(
-    val providers: List<String>
-)
-
 @UCloudApiDoc("See `DepositToWalletRequestItem`")
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -736,27 +667,18 @@ object Accounting : CallDescriptionContainer("accounting") {
     const val baseContext = "/api/accounting"
 
     init {
-        serializerLookupTable = mapOf(
-            serializerEntry(WalletOwner.User.serializer()),
-            serializerEntry(WalletOwner.Project.serializer())
-        )
 
         description = """
             The accounting system of UCloud has three core operations.
-
             The three core operations of the UCloud accounting system are:
-
             - $CALL_REF accounting.charge: Records usage in the system. For absolute payment models, this will deduct 
               the balance and local balance of an allocation. All ancestor allocations have their balance deducted by 
               the same amount. The local balances of an ancestor remains unchanged. 
             - $CALL_REF accounting.deposit: Creates a new _sub-allocation_ from a parent allocation. The new allocation
               will have the current allocation as a parent. The balance of the parent allocation is not changed.
-
             ---
-
             __📝 NOTE:__ We recommend that you first read and understand the 
             [Wallet system](/docs/developer-guide/accounting-and-projects/accounting/wallets.md) of UCloud.
-
             ---
             
             __📝 Provider Note:__ This API is invoked by internal UCloud/Core services. As a 
@@ -769,9 +691,7 @@ object Accounting : CallDescriptionContainer("accounting") {
             understand the accounting system of UCloud.
             
             ## A note on the examples
-
             In the examples below, we will be using a consistent set of $TYPE_REF Product s:
-
             - `example-slim-1` / `example-slim` @ `example`
                - Type: Compute
                - `ChargeType.ABSOLUTE`
@@ -1731,55 +1651,40 @@ object Accounting : CallDescriptionContainer("accounting") {
                 indirectly to this API through the outgoing `Control` API. This endpoint causes changes in the balances 
                 of the targeted allocation and ancestors. UCloud will change the `balance` and `localBalance` property 
                 of the targeted allocation. Ancestors of the targeted allocation will only update their `balance`.
-
                 UCloud returns a boolean, for every request, indicating if the charge was successful. A charge is 
                 successful if no affected allocation went into a negative balance.
-
                 ---
                 
                 __📝 NOTE:__ Unsuccessful charges are still deducted in their balances.
                 
                 ---
-
                 The semantics of `charge` depends on the Product's payment model.
-
                 __Absolute:__
-
                 - UCloud calculates the change in balances by multiplying: the Product's pricePerUnit, the number of 
                   units, the number of periods
                 - UCloud subtracts this change from the balances
-
                 __Differential:__
-
                 - UCloud calculates the change in balances by comparing the units with the current `localBalance`
                 - UCloud subtracts this change from the balances
                 - Note: This change can cause the balance to go up, if the usage is lower than last period
-
                 #### Selecting Allocations
-
                 The charge operation targets a wallet (by combining the ProductCategoryId and WalletOwner). This means 
                 that the charge operation have multiple allocations to consider. We explain the approach for absolute 
                 payment models. The approach is similar for differential products.
-
                 UCloud first finds a set of leaf allocations which, when combined, can carry the full change. UCloud 
                 first finds a set of candidates. We do this by sorting allocations by the Wallet's `chargePolicy`. By 
                 default, this means that UCloud prioritizes allocations that expire soon. UCloud only considers 
                 allocations which are active and have a positive balance.
-
                 ---
-
                 __📝 NOTE:__ UCloud does not consider ancestors at this point in the process.
                 
                 ---
-
                 UCloud now creates the list of allocations which it will use. We do this by performing a rolling sum of 
                 the balances. UCloud adds an allocation to the set if the rolling sum has not yet reached the total 
                 amount.
-
                 UCloud will use the full balance of each selected allocation. The only exception is the last element, 
                 which might use less. If the change in balance is never reached, then UCloud will further charge the 
                 first selected allocation. In this case, the priority allocation will have to pay the difference.
-
                 Finally, the system updates the balances of each selected leaf, and all of their ancestors.
             """.trimIndent()
 

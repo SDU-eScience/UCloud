@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromString
@@ -115,17 +116,18 @@ class GrantApplicationService(
                                 unnest(:providers::text[]) provider,
                                 unnest(:category_names::text[]) category_name
                         )
-                        select accounting.product_to_json(p, pc, null)
+                        select accounting.product_to_json(p, pc, au, null)
                         from
                             accounting.products p join
                             accounting.product_categories pc on p.category = pc.id join 
+                            accounting.accounting_units au on pc.accounting_unit = au.id join
                             names_and_providers nap on pc.provider = nap.provider and pc.category = nap.category_name                        
                         where
                             pc.allow_allocation_requests_from = 'ALL'::accounting.allocation_requests_group or 
                             pc.allow_allocation_requests_from = :allocation_request_group::accounting.allocation_requests_group
                         order by pc.provider, pc.category
                     """.trimIndent()
-                ).rows.map { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }
+                ).rows.map { defaultMapper.decodeFromString<ProductV2>(it.getString(0)!!).toV1() }
                 results
             } else {
                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not allowed to make requests to grant")
@@ -543,7 +545,7 @@ class GrantApplicationService(
             accounting.retrieveAllocationsInternal(
                 ActorAndProject(Actor.System, null),
                 WalletOwner.Project(req.grantGiver),
-                ProductCategoryId(req.category, req.provider)
+                ProductCategoryIdV2(req.category, req.provider)
             ).isNotEmpty()
         }.filter { it }
 
@@ -1282,24 +1284,23 @@ class GrantApplicationService(
         }
 
         val requestItems = application.currentRevision.document.allocationRequests.map {
-            if (it.sourceAllocation == null) throw RPCException.fromStatusCode(
-                HttpStatusCode.BadRequest,
-                "Source Allocations not chosen"
-            )
-            DepositToWalletRequestItem(
-                recipient = if (type == GrantApplication.Recipient.PersonalWorkspace) WalletOwner.User(workspaceId) else WalletOwner.Project(
-                    workspaceId
-                ),
-                sourceAllocation = it.sourceAllocation.toString(),
-                amount = it.balanceRequested!!,
-                description = "Granted In $applicationId",
-                startDate = it.period.start,
-                endDate = it.period.end,
-                grantedIn = applicationId
+            if (it.sourceAllocation == null ) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Source Allocations not chosen")
+            SubAllocationRequestItem(
+                owner = if (type == GrantApplication.Recipient.PersonalWorkspace)
+                    WalletOwner.User(workspaceId)
+                else WalletOwner.Project(workspaceId),
+                parentAllocation = it.sourceAllocation.toString(),
+                quota = it.balanceRequested!!,
+                start = it.period.start ?: Time.now(),
+                end = it.period.end,
+                grantedIn = applicationId,
+                deicAllocationId = if(application.currentRevision.document.referenceId?.lowercase()?.startsWith("deic") == true) {
+                    application.currentRevision.document.referenceId
+                } else {null}
             )
         }
 
-        accounting.deposit(actorAndProject, bulkRequestOf(requestItems))
+        accounting.subAllocate(actorAndProject, bulkRequestOf(requestItems))
 
         if (application.currentRevision.document.recipient is GrantApplication.Recipient.NewProject) {
             projectNotifications.notifyChange(listOf(workspaceId), session)

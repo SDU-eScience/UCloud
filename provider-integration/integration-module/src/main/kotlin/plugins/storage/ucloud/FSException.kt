@@ -13,6 +13,7 @@ private const val NO_SUCH_DEVICE_OR_ADDRESS = 6
 private const val PERMISSION_DENIED = 13
 private const val DEVICE_OR_RESOURCE_BUSY = 16
 private const val FILE_EXISTS = 17
+private const val CROSS_DEVICE_LINK = 18
 private const val NO_SUCH_DEVICE = 19
 private const val NOT_A_DIRECTORY = 20
 private const val IS_A_DIRECTORY = 21
@@ -44,7 +45,7 @@ fun throwExceptionBasedOnStatus(status: Int, cause: Throwable? = null): Nothing 
 
         IO_ERROR, NO_SUCH_DEVICE_OR_ADDRESS, DEVICE_OR_RESOURCE_BUSY,
         NO_SUCH_DEVICE, FILE_TABLE_OVERFLOW, TOO_MANY_OPEN_FILES, FILE_TOO_LARGE,
-        NO_SPACE_LEFT_ON_DEVICE, READ_ONLY_FILE_SYSTEM, TOO_MANY_LINKS -> throw FSException.IOException(cause = cause)
+        NO_SPACE_LEFT_ON_DEVICE, READ_ONLY_FILE_SYSTEM, TOO_MANY_LINKS, CROSS_DEVICE_LINK -> throw FSException.IOException(cause = cause)
 
         PERMISSION_DENIED -> throw FSException.PermissionException(cause = cause)
 

@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import java.security.cert.CertPathValidatorException
 
 class ProviderIntegrationService(
     private val db: DBContext,
@@ -159,20 +160,25 @@ class ProviderIntegrationService(
             ).rows
 
             val items = rows.mapNotNull { row ->
-                val providerTitle = row.getString(2)!!
-                val manifest = communicationCache.get(row.getLong(0)!!.toString())
+                //TODO(HENRIK )Try catch might only be temp solution to help on dev
+                try {
+                    val providerTitle = row.getString(2)!!
+                    val manifest = communicationCache.get(row.getLong(0)!!.toString())
 
-                IntegrationBrowseResponseItem(
-                    row.getLong(0)!!.toString(),
-                    when {
-                        providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
-                        providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
-                        manifest != null && !manifest.manifest.enabled -> true
-                        else -> row.getBoolean(1)!!
-                    },
-                    providerTitle,
-                    manifest?.manifest?.requiresMessageSigning ?: false
-                )
+                    IntegrationBrowseResponseItem(
+                        row.getLong(0)!!.toString(),
+                        when {
+                            providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
+                            providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
+                            manifest != null && !manifest.manifest.enabled -> true
+                            else -> row.getBoolean(1)!!
+                        },
+                        providerTitle,
+                        manifest?.manifest?.requiresMessageSigning ?: false
+                    )
+                } catch (ex: CertPathValidatorException) {
+                    return@mapNotNull null
+                }
             }
 
             val next = if (items.size < itemsPerPage) {

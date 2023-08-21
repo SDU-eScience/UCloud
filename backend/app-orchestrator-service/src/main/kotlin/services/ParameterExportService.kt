@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.publicLinks
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -87,3 +88,4 @@ class ParameterExportService {
         const val VERSION = 3
     }
 }
+

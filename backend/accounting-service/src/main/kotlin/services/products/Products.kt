@@ -3,10 +3,16 @@ package dk.sdu.cloud.accounting.services.products
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
+import dk.sdu.cloud.accounting.services.wallets.AccountingRequest
+import dk.sdu.cloud.accounting.services.wallets.retrieveWalletsInternal
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.provider.api.basicTranslationToAccountingUnit
+import dk.sdu.cloud.provider.api.translateToAccountingFrequency
+import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
@@ -16,9 +22,97 @@ class ProductService(
     private val db: DBContext,
     private val processor: AccountingProcessor
 ) {
-    suspend fun create(
+
+    suspend fun productV1toV2(product: Product): ProductV2 {
+        val category = ProductCategory(
+                product.category.name,
+                product.category.provider,
+                product.productType,
+                basicTranslationToAccountingUnit(product.unitOfPrice, product.productType),
+                translateToAccountingFrequency(product.unitOfPrice),
+                emptyList()
+            )
+
+        return when (product) {
+            is Product.Compute -> {
+                ProductV2.Compute(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    cpu = product.cpu,
+                    memoryInGigs = product.memoryInGigs,
+                    gpu = product.gpu,
+                    cpuModel = product.cpuModel,
+                    memoryModel = product.memoryModel,
+                    gpuModel = product.gpuModel,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            is Product.Storage -> {
+                ProductV2.Storage(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            is Product.License -> {
+                ProductV2.License(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications,
+                    tags = product.tags
+                )
+            }
+            is Product.NetworkIP -> {
+                ProductV2.NetworkIP(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            is Product.Ingress -> {
+                ProductV2.Ingress(
+                    name = product.name,
+                    price = product.pricePerUnit,
+                    category = category,
+                    description = product.description,
+                    freeToUse = product.freeToUse,
+                    hiddenInGrantApplications = product.hiddenInGrantApplications
+                )
+            }
+            else -> {
+                throw RPCException("Unknown Product Type", HttpStatusCode.InternalServerError)
+            }
+        }
+
+    }
+    suspend fun createV1(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Product>
+    ) {
+        val newProducts = request.items.map { product ->
+            productV1toV2(product)
+        }
+
+        createV2(
+            actorAndProject,
+            bulkRequestOf(newProducts)
+        )
+    }
+    suspend fun createV2(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProductV2>
     ) {
         for (req in request.items) {
             requirePermission(actorAndProject.actor, req.category.provider, readOnly = false)
@@ -31,28 +125,46 @@ class ProductService(
                     {
                         setParameter("provider", req.category.provider)
                         setParameter("category", req.category.name)
-                        setParameter("charge_type", req.chargeType.name)
+
+                        setParameter("acname", req.category.accountingUnit.name)
+                        setParameter("name_plural", req.category.accountingUnit.namePlural)
+                        setParameter("floating", req.category.accountingUnit.floatingPoint)
+                        setParameter("display", req.category.accountingUnit.displayFrequencySuffix)
+
+                        setParameter("frequency", req.category.accountingFrequency.name)
                         setParameter("product_type", req.productType.name)
-                        setParameter("unit_of_price", req.unitOfPrice.name)
-                        setParameter("allow_allocation_requests_from", req.allowAllocationRequestsFrom.name)
+                        //TODO(HENRIK) There is no need for this in the future
+                        setParameter("charge_type", translateToChargeType(req.category).name)
                     },
                     """
-                        insert into accounting.product_categories
-                        (provider, category, product_type, charge_type, unit_of_price, allow_allocation_requests_from) 
-                        values (
-                            :provider, 
-                            :category, 
-                            :product_type::accounting.product_type, 
-                            :charge_type::accounting.charge_type, 
-                            :unit_of_price::accounting.product_price_unit,
-                            :allow_allocation_requests_from::accounting.allocation_requests_group
+                        with acinsert as (
+                            insert into accounting.accounting_units 
+                            (name, name_plural, floating_point, display_frequency_suffix)
+                            values (
+                                :acname,
+                                :name_plural,
+                                :floating,
+                                :display
+                            ) on conflict (name, name_plural, floating_point, display_frequency_suffix)
+                            do update set name_plural = :name_plural
+                            returning id 
+                        ), inserts as (
+                            select 
+                                :provider provider, 
+                                :category category, 
+                                :product_type::accounting.product_type product_type, 
+                                ac.id accounting_unit,
+                                :frequency frequency,
+                                :charge_type::accounting.charge_type charge_t
+                            from acinsert ac
                         )
+                        insert into accounting.product_categories
+                        (provider, category, product_type, accounting_unit, accounting_frequency, charge_type) 
+                            select provider, category, product_type, accounting_unit, frequency, charge_t
+                            from inserts
                         on conflict (provider, category)  
                         do update set
-                            charge_type = excluded.charge_type,
-                            product_type = excluded.product_type,
-                            unit_of_price = excluded.unit_of_price,
-                            allow_allocation_requests_from = excluded.allow_allocation_requests_from
+                            product_type = excluded.product_type
                     """
                 )
             }
@@ -61,7 +173,7 @@ class ProductService(
                 {
                     // NOTE(Dan): The version property is no longer used and instead we simply update the products
                     val names by parameterList<String>()
-                    val pricesPerUnit by parameterList<Long>()
+                    val prices by parameterList<Long>()
                     val cpus by parameterList<Int?>()
                     val gpus by parameterList<Int?>()
                     val memoryInGigs by parameterList<Int?>()
@@ -76,21 +188,21 @@ class ProductService(
 
                     for (req in request.items) {
                         names.add(req.name)
-                        pricesPerUnit.add(req.pricePerUnit)
+                        prices.add(req.price)
                         categories.add(req.category.name)
                         providers.add(req.category.provider)
                         freeToUse.add(req.freeToUse)
-                        licenseTags.add(if (req is Product.License) defaultMapper.encodeToString(req.tags) else null)
+                        licenseTags.add(if (req is ProductV2.License) defaultMapper.encodeToString(req.tags) else null)
                         description.add(req.description)
 
                         run {
-                            cpus.add(if (req is Product.Compute) req.cpu else null)
-                            gpus.add(if (req is Product.Compute) req.gpu else null)
-                            memoryInGigs.add(if (req is Product.Compute) req.memoryInGigs else null)
+                            cpus.add(if (req is ProductV2.Compute) req.cpu else null)
+                            gpus.add(if (req is ProductV2.Compute) req.gpu else null)
+                            memoryInGigs.add(if (req is ProductV2.Compute) req.memoryInGigs else null)
 
-                            cpuModel.add(if (req is Product.Compute) req.cpuModel else null)
-                            gpuModel.add(if (req is Product.Compute) req.gpuModel else null)
-                            memoryModel.add(if (req is Product.Compute) req.memoryModel else null)
+                            cpuModel.add(if (req is ProductV2.Compute) req.cpuModel else null)
+                            gpuModel.add(if (req is ProductV2.Compute) req.gpuModel else null)
+                            memoryModel.add(if (req is ProductV2.Compute) req.memoryModel else null)
                         }
                     }
                 },
@@ -98,7 +210,7 @@ class ProductService(
                     with requests as (
                         select
                             unnest(:names::text[]) uname,
-                            unnest(:prices_per_unit::bigint[]) price_per_unit,
+                            unnest(:prices::bigint[]) price,
                             unnest(:cpus::int[]) cpu,
                             unnest(:gpus::int[]) gpu,
                             unnest(:memory_in_gigs::int[]) memory_in_gigs,
@@ -112,10 +224,10 @@ class ProductService(
                             unnest(:memory_model::text[]) memory_model
                     )
                     insert into accounting.products
-                        (name, price_per_unit, cpu, gpu, memory_in_gigs, license_tags, category,
+                        (name, price, cpu, gpu, memory_in_gigs, license_tags, category,
                          free_to_use, version, description, cpu_model, gpu_model, memory_model) 
                     select
-                        req.uname, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
+                        req.uname, req.price, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
                         pc.id, req.free_to_use, 1, req.description, req.cpu_model, req.gpu_model, req.memory_model
                     from
                         requests req join
@@ -127,7 +239,7 @@ class ProductService(
                             existing.category = pc.id
                     on conflict (name, category, version)
                     do update set
-                        price_per_unit = excluded.price_per_unit,
+                        price = excluded.price,
                         cpu = excluded.cpu,
                         gpu = excluded.gpu,
                         memory_in_gigs = excluded.memory_in_gigs,
@@ -158,10 +270,51 @@ class ProductService(
         ).items.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
+    suspend fun retrieve(
+        actorAndProject: ActorAndProject,
+        request: ProductsV2RetrieveRequest
+    ): ProductV2 {
+        return browse(
+            actorAndProject,
+            ProductsV2BrowseRequest(
+                filterName = request.filterName,
+                filterCategory = request.filterCategory,
+                filterProvider = request.filterProvider,
+                filterProductType = request.filterProductType,
+                includeBalance = request.includeBalance
+            )
+        ).items.singleOrNull()?.first ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+    }
+
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ProductsBrowseRequest
     ): PageV2<Product> {
+        val newRequests = ProductsV2BrowseRequest(
+            itemsPerPage = request.itemsPerPage,
+            next = request.next,
+            consistency = request.consistency,
+            itemsToSkip = request.itemsToSkip,
+            filterName = request.filterName,
+            filterProvider = request.filterProvider,
+            filterProductType = request.filterArea,
+            filterCategory = request.filterCategory,
+            includeBalance = request.includeBalance,
+            includeMaxBalance = request.includeMaxBalance
+        )
+        val page = browse(actorAndProject, newRequests)
+        val items = page.items.map {
+            val product = it.first.toV1()
+            product.balance= it.second
+            product
+        }
+        return PageV2(page.itemsPerPage, items, page.next)
+    }
+
+    suspend fun browse(
+        actorAndProject: ActorAndProject,
+        request: ProductsV2BrowseRequest
+    ): PageV2<Pair<ProductV2,Long?>> {
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
 
@@ -169,9 +322,8 @@ class ProductService(
                 {
                     setParameter("name_filter", request.filterName)
                     setParameter("provider_filter", request.filterProvider)
-                    setParameter("product_filter", request.filterArea?.name)
+                    setParameter("product_filter", request.filterProductType?.name)
                     setParameter("category_filter", request.filterCategory)
-                    setParameter("version_filter", request.filterVersion)
                     setParameter("accountId", actorAndProject.project ?: actorAndProject.actor.safeUsername())
                     setParameter("account_is_project", actorAndProject.project != null)
 
@@ -185,11 +337,13 @@ class ProductService(
                     select accounting.product_to_json(
                         p,
                         pc,
+                        au,
                         0
                     )
                     from
                         accounting.products p join
-                        accounting.product_categories pc on pc.id = p.category 
+                        accounting.product_categories pc on pc.id = p.category join 
+                        accounting.accounting_units au on au.id = pc.accounting_unit
                     where
                         (
                             (:next_provider::text is null or :next_category::text is null or :next_name::text is null) or
@@ -218,27 +372,31 @@ class ProductService(
                     limit $itemsPerPage;
                 """
             ).rows
-
             val result = rows.mapNotNull {
-                val product = defaultMapper.decodeFromString(Product.serializer(), it.getString(0)!!)
-                if (request.includeBalance == true) {
+                val product = defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
+                val balance = if (request.includeBalance == true) {
                     val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
-                    val balance = processor.retrieveBalanceFromProduct(owner, product.category)
+                    val usage = processor.retrieveUsageFromProduct(owner, ProductCategoryIdV2(product.category.name, product.category.provider))
                         ?: return@mapNotNull null
-                    product.balance = balance
-                }
-                return@mapNotNull product
+                    val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(Actor.System, owner))
+                        .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
+                        ?.allocations
+                        ?.sumOf { allocation -> allocation.quota }
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
+                    quota - usage
+                } else {null}
+                return@mapNotNull Pair(product,balance)
             }
-
+            println(result)
             val next = if (result.size < itemsPerPage) {
                 null
             } else buildString {
-                val last = result.last()
-                append(last.category.provider)
+                val lastElement = result.last().first
+                append(lastElement.category.provider)
                 append('@')
-                append(last.category.name)
+                append(lastElement.category.name)
                 append('@')
-                append(last.name)
+                append(lastElement.name)
             }
 
             PageV2(

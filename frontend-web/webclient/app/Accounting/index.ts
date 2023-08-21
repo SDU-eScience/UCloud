@@ -671,7 +671,7 @@ export function costOfDuration(minutes: number, numberOfProducts: number, produc
             break;
     }
 
-    return unitsToBuy * product.pricePerUnit * numberOfProducts * cpuFactor;
+    return unitsToBuy * product.pricePerUnit * numberOfProducts;
 }
 
 export function usageExplainer(

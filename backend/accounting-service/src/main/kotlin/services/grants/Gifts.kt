@@ -3,15 +3,14 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import java.util.*
 
@@ -89,7 +88,7 @@ class GiftService(
 
             rows.forEach { row ->
                 val balance = row.getLong(0)!!
-                val category = ProductCategoryId(row.getString(1)!!, row.getString(2)!!)
+                val category = ProductCategoryIdV2(row.getString(1)!!, row.getString(2)!!)
                 val sourceProject = row.getString(3)!!
 
                 val allocations = accountingService.retrieveAllocationsInternal(
@@ -97,18 +96,23 @@ class GiftService(
                     WalletOwner.Project(sourceProject),
                     category
                 )
-                val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
-                    throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
+                val sourceAllocation = allocations.find { (it.quota - (it.treeUsage ?: it.localUsage)) >= balance }
+                    ?: allocations.firstOrNull()
+                    ?: throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 
-                accountingService.deposit(
+                accountingService.subAllocate(
                     ActorAndProject(Actor.System, null),
-                    bulkRequestOf(DepositToWalletRequestItem(
-                        WalletOwner.User(actorAndProject.actor.safeUsername()),
-                        sourceAllocation.id,
-                        balance,
-                        "Gift for ${category.name} / ${category.provider}",
-                        grantedIn =  null
-                    ))
+                    bulkRequestOf(
+                        SubAllocationRequestItem(
+                            owner = WalletOwner.User(actorAndProject.actor.safeUsername()),
+                            parentAllocation = sourceAllocation.id,
+                            quota = balance,
+                            grantedIn =  null,
+                            start = Time.now(),
+                            //gifts ends after 1 year
+                            end = Time.now() + (1000L * 3600 * 24 * 365),
+                        )
+                    )
                 )
             }
         }
@@ -175,6 +179,7 @@ class GiftService(
                     }
 
                     gift.resources.split {
+                        into("h") {it.period}
                         into("resource_cat_name") { it.category }
                         into("resource_provider") { it.provider }
                         into("credits") { it.balanceRequested }

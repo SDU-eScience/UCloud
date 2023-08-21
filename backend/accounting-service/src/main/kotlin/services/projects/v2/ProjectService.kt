@@ -926,6 +926,13 @@ class ProjectService(
     ): PageV2<ProjectInvite> {
         val pagination = request.normalize()
         return ctx.withSession { session ->
+            val isAdmin =
+                try {
+                    requireAdmin(actorAndProject.actor, listOf(actorAndProject.project ?: "").toSet(), session)
+                    true
+                } catch (ex: Throwable) {
+                    false
+                }
             val items = session.sendPreparedStatement(
                 {
                     setParameter("next", pagination.next?.toLongOrNull()?.let { it / 1000 })
@@ -973,7 +980,9 @@ class ProjectService(
                             }
 
                             ProjectInviteType.OUTGOING -> {
-                                appendLine("and i.invited_by = :username")
+                                if (!isAdmin) {
+                                  appendLine("and i.invited_by = :username")
+                                }
                                 appendLine("and i.project_id = :project_filter")
                             }
 

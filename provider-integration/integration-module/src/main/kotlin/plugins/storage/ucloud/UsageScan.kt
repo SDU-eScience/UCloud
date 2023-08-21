@@ -65,7 +65,7 @@ class UsageScan(
             )
         }
 
-        val oneDay = 1000L * 60 * 60 * 24
+        val oneDay = 1000L * 60 * 5//60 * 24
         val now = Time.now()
         if (now - lastRun < oneDay) return
         if (!isRunning.compareAndSet(false, true)) return
@@ -130,7 +130,6 @@ class UsageScan(
 
                     charge(scanId, session, chunk, allRequests)
                 }
-
                 session.prepareStatement(
                     """
                         delete from ucloud_storage_quota_locked

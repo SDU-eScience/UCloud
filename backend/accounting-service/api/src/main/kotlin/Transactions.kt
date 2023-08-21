@@ -36,7 +36,7 @@ sealed class Transaction {
     abstract val timestamp: Long
 
     @UCloudApiDoc("The product category which this transaction belongs to")
-    abstract val resolvedCategory: ProductCategoryId
+    abstract val resolvedCategory: ProductCategoryIdV2
 
     @UCloudApiDoc("ID of the transaction that was received from provider or user. Used for traceability and duplicate prevention")
     abstract val initialTransactionId: String
@@ -86,7 +86,7 @@ sealed class Transaction {
         override val actionPerformedBy: String,
         override val description: String,
         override val timestamp: Long,
-        override val resolvedCategory: ProductCategoryId,
+        override val resolvedCategory: ProductCategoryIdV2,
         override val initialTransactionId: String,
         override val transactionId: String
     ) : Transaction()
@@ -106,7 +106,7 @@ sealed class Transaction {
         override val description: String,
         override val affectedAllocationId: String,
         override val timestamp: Long,
-        override val resolvedCategory: ProductCategoryId,
+        override val resolvedCategory: ProductCategoryIdV2,
         override val initialTransactionId: String,
         override val transactionId: String
     ) : Transaction()
@@ -124,7 +124,7 @@ sealed class Transaction {
         override val description: String,
         override val affectedAllocationId: String,
         override val timestamp: Long,
-        override val resolvedCategory: ProductCategoryId,
+        override val resolvedCategory: ProductCategoryIdV2,
         override val initialTransactionId: String,
         override val transactionId: String
     ) : Transaction()
