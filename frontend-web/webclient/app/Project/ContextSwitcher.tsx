@@ -100,8 +100,8 @@ export function ContextSwitcher(): JSX.Element {
             <ClickableDropdown
                 trigger={
                     <Flex>
-                        <Truncate title={activeContext} fontSize={16} width="130px"><b>{activeContext}</b></Truncate>
-                        <Icon name="chevronDown" size="12px" ml="4px" mt="6px" />
+                        <Truncate title={activeContext} fontSize={14} width="130px"><b>{activeContext}</b></Truncate>
+                        <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px" />
                     </Flex>
                 }
                 colorOnHover={false}
@@ -114,13 +114,13 @@ export function ContextSwitcher(): JSX.Element {
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
                         <Input placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
-                        <Relative right="34px" top="6px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
-                    <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px"}}>
+                        <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
+                    <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
                         {projectId !== undefined ? (
                             <div key={"My Workspace"} style={{width: "100%"}} data-active={projectId === undefined} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(), refresh, "")
                             }}>
-                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="4px" size="16px" color="blue" hoverColor="blue" name={"starFilled"} />
+                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={"starFilled"} />
                                 <Text fontSize="var(--breadText)">My Workspace</Text>
                             </div>
                         ) : null}
@@ -164,7 +164,7 @@ function Favorite({project}: {project: Project}): JSX.Element {
         }
     }, [commandLoading]);
 
-    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="4px" size="16px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
 function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {

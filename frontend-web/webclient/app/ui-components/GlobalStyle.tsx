@@ -124,7 +124,7 @@ html {
     --buttonText: 12px;
     --breadText: 14px;
     --interactiveElementsSize: 20px;
-    font-size: 15px;
+    font-size: 14px;
     /* FONT-SIZES end */
     
 
