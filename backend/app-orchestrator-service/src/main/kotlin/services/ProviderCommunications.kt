@@ -31,7 +31,7 @@ class ProviderCommunications(
 ) {
     private val providerSpec = AsyncCache<String, ProviderSpecification>(
         backgroundScope,
-        timeToLiveMs = AsyncCache.DONT_EXPIRE,
+        timeToLiveMilliseconds = AsyncCache.DONT_EXPIRE,
         timeoutException = {
             throw RPCException("Failed to establish communication with $it", HttpStatusCode.BadGateway)
         },
@@ -45,7 +45,7 @@ class ProviderCommunications(
 
     private val communicationCache = AsyncCache<String, SimpleProviderCommunication>(
         backgroundScope,
-        timeToLiveMs = AsyncCache.DONT_EXPIRE,
+        timeToLiveMilliseconds = AsyncCache.DONT_EXPIRE,
         timeoutException = {
             throw RPCException("Failed to establish communication with $it", HttpStatusCode.BadGateway)
         },
@@ -75,7 +75,8 @@ class ProviderCommunications(
 
     private val supportCache = AsyncCache<SupportCacheKey, List<ProductSupport>>(
         backgroundScope,
-        timeToLiveMs = 1000L * 60 * 5,
+        timeToLiveMilliseconds = 1000L * 60 * 5,
+        fetchEagerly = true,
         timeoutException = {
             throw RPCException("Timeout while waiting for ${it.providerId}", HttpStatusCode.BadGateway)
         },
@@ -173,7 +174,7 @@ class ProviderCommunications(
 
     private val allocationCache = AsyncCache<Pair<WalletOwner, ProductCategoryId>, Boolean>(
         backgroundScope,
-        timeToLiveMs = 1000L * 60 * 30,
+        timeToLiveMilliseconds = 1000L * 60 * 30,
         timeoutException = { throw RPCException("Failed to fetch information about allocations", HttpStatusCode.BadGateway) },
         retrieve = { (owner, category) ->
             Wallets.retrieveAllocationsInternal

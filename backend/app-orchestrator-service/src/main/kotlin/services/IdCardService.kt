@@ -216,7 +216,7 @@ class IdCardService(
 
     private val allUserGroupCache = AsyncCache<Int, Int>(
         scope,
-        timeToLiveMs = 60 * 60 * 1000L,
+        timeToLiveMilliseconds = 60 * 60 * 1000L,
         timeoutException = {
             throw RPCException(
                 "Failed to fetch information about the project. Try again later.",
