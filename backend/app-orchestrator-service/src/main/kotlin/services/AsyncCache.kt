@@ -88,7 +88,6 @@ class AsyncCache<K, V>(
                             }
 
                             onTimeout(timeoutMilliseconds) {
-                                println("Timeout!")
                                 retrievalJob.cancel()
                                 timeoutException(key)
                             }

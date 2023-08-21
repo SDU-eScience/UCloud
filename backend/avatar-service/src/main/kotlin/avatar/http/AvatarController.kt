@@ -16,8 +16,6 @@ class AvatarController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AvatarDescriptions.update) {
-            println(request.encodeToJson())
-            println(request.hatColor)
             val username = actorAndProject.actor.safeUsername()
 
             avatarService.upsert(username, request)

@@ -36,7 +36,6 @@ suspend fun <Internal, Result> ResourceStore<Internal>.browseWithStrategy(
     val pagination = request.normalize()
 
     ResourceOutputPool.withInstance { pool ->
-        val start = System.nanoTime()
         val result = when (strategy) {
             is BrowseStrategy.Index -> {
                 paginateUsingIdsFromCustomIndex(card, pool, strategy.index, filterFunction,
@@ -71,14 +70,13 @@ suspend fun <Internal, Result> ResourceStore<Internal>.browseWithStrategy(
                 )
             }
         }
-        val end = System.nanoTime()
-        println("Cache took: ${end - start}")
 
         val page = ArrayList<Result>(result.count)
         for (idx in 0 until min(pagination.itemsPerPage, result.count)) {
             page.add(mapper.map(card, pool[idx]))
         }
 
+        check(result.next == null || result.next != request.next) // no loops are allowed
         return PageV2(pagination.itemsPerPage, page, result.next)
     }
 }

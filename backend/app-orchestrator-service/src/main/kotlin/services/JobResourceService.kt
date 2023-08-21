@@ -37,7 +37,6 @@ import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.collections.ArrayList
-import kotlin.time.measureTimedValue
 
 // `Job`s in UCloud are the core abstraction used to describe units of computation. The code in this file implements
 // the orchestrating part of Jobs. We suggest you read more about jobs before trying to understand this file.
@@ -114,6 +113,7 @@ class JobResourceService {
         val card = idCards.fetchIdCard(actorAndProject)
         val result = ArrayList<Job>()
         ResourceOutputPool.withInstance { pool ->
+            check(jobIds.size <= pool.size) { "too many items requested at the same time: ${jobIds.size}" }
             val count = documents.retrieveBulk(card, jobIds, pool, permission)
             for (i in 0 until count) result.add(docMapper.map(card, pool[i]))
         }
@@ -163,7 +163,7 @@ class JobResourceService {
 
         val strategy = when {
             card is IdCard.Provider && request.flags.filterState == JobState.RUNNING -> {
-                BrowseStrategy.Index(allRunningJobs.keys)
+                BrowseStrategy.Index(allActiveJobs.keys)
             }
 
             request.sortBy == "name" -> { // The name of the job (not the name of the application)
@@ -185,8 +185,8 @@ class JobResourceService {
         return documents.browseWithStrategy(docMapper, card, request, filterFunction, strategy)
     }
 
-    fun listRunningJobs(): List<Long> {
-        return allRunningJobs.keys().toList()
+    fun listActiveJobs(): List<Long> {
+        return allActiveJobs.keys().toList()
     }
 
     suspend fun validatePermission(
@@ -274,6 +274,7 @@ class JobResourceService {
                     providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
                         .singleIdOrNull()
                         ?.also { _ -> listeners.forEach { it.onCreate(mapped) } }
+                        ?.also { allActiveJobs[it.toLong()] = Unit }
                 }
             } catch (ex: Throwable) {
                 if (firstException == null) firstException = ex
@@ -292,8 +293,20 @@ class JobResourceService {
         request: BulkRequest<ProviderRegisteredResource<JobSpecification>>,
     ): BulkResponse<FindByStringId> {
         val card = idCards.fetchIdCard(actorAndProject)
+        for (reqItem in request.items) {
+            val onBehalfOf = ActorAndProject(Actor.SystemOnBehalfOfUser(reqItem.createdBy ?: "ghost"), reqItem.project)
+            validation.verifyOrThrow(onBehalfOf, reqItem.spec)
+            listeners.forEach { it.onVerified(onBehalfOf, reqItem.spec) }
+        }
+
+        val doc = ResourceDocument<InternalJobState>()
+
         return request.items.map {
-            documents.register(card, it, InternalJobState(it.spec))
+            documents.register(card, it, InternalJobState(it.spec), output = doc).also { id ->
+                val mapped = docMapper.map(null, doc)
+                listeners.forEach { it.onCreate(mapped) }
+                allActiveJobs[id] = Unit
+            }
         }.asFindByIdResponse()
     }
 
@@ -304,12 +317,23 @@ class JobResourceService {
         request: BulkRequest<UpdatedAcl>
     ) {
         val card = idCards.fetchIdCard(actorAndProject)
+        var didFindAny = false
         for (reqItem in request.items) {
-            documents.updateAcl(
+            val id = reqItem.id.toLongOrNull() ?: continue
+            val success = documents.updateAcl(
                 card,
-                reqItem.id.toLongOrNull() ?: throw RPCException("Invalid ID supplied", HttpStatusCode.NotFound),
+                id,
                 reqItem.deleted.map { NumericAclEntry.fromAclEntity(idCards, it) },
                 reqItem.added.flatMap { NumericAclEntry.fromAclEntry(idCards, it) }
+            )
+
+            if (success) didFindAny = true
+        }
+
+        if (!didFindAny) {
+            throw RPCException(
+                "Could not apply update, the request did not return any results! Do you have permission to do this?",
+                HttpStatusCode.NotFound
             )
         }
 
@@ -323,7 +347,6 @@ class JobResourceService {
         actorAndProject: ActorAndProject,
         request: BulkRequest<ResourceUpdateAndId<JobUpdate>>
     ) {
-        // TODO(Dan): Allocates a lot of memory which isn't needed
         val card = idCards.fetchIdCard(actorAndProject)
         val updatesByJob = request.items.groupBy { it.id }.mapValues { it.value.map { it.update } }
 
@@ -366,11 +389,12 @@ class JobResourceService {
                         state?.also { newState ->
                             job.state = newState
 
-                            if (newState == JobState.RUNNING) {
-                                allRunningJobs[jobId.toLongOrNull()] = Unit
-                                job.startedAt = Time.now()
+                            if (newState == JobState.RUNNING) job.startedAt = Time.now()
+
+                            if (!newState.isFinal()) {
+                                allActiveJobs[jobId.toLongOrNull()] = Unit
                             } else {
-                                allRunningJobs.remove(jobId.toLongOrNull())
+                                allActiveJobs.remove(jobId.toLongOrNull())
                             }
 
                             if (job.specification.restartOnExit == true && newState.isFinal() && allowRestart == true) {
@@ -384,7 +408,7 @@ class JobResourceService {
                         }
 
                         newMounts?.also { newMounts ->
-                            // NOTE(Dan, 17/09/23): This is used primarily by Syncthing at the moment. This code needs
+                            // NOTE(Dan, 17/08/23): This is used primarily by Syncthing at the moment. This code needs
                             // to find which mounts among the list are still valid for the user. When we restart the
                             // job later, then the job will receive the new list of mounts by inspecting the resources.
                             val allResources = job.specification.resources ?: emptyList()
@@ -462,7 +486,7 @@ class JobResourceService {
     // The `retrieveUtilization` endpoint allows the end-user to ask the provider how busy the cluster is for a given
     // product category. This allows the provider to report back if the cluster is extremely busy.
     //
-    // NOTE(Dan, 17/09/23): This endpoint is currently not used at all, we likely want to change how this work. I
+    // NOTE(Dan, 17/08/23): This endpoint is currently not used at all, we likely want to change how this work. I
     // suspect, we will want to collect this information in a different format and for all product categories at once.
     // We should then cache and simply respond to the end-user with the information in the cache.
     suspend fun retrieveUtilization(
@@ -671,7 +695,10 @@ class JobResourceService {
         actorAndProject: ActorAndProject,
         request: BulkRequest<JobsOpenInteractiveSessionRequestItem>,
     ): BulkResponse<OpenSessionWithProvider?> {
-        val responses = ArrayList<OpenSessionWithProvider>()
+        if (request.items.isEmpty()) return BulkResponse(emptyList())
+
+        var firstException: Throwable? = null
+        val responses = ArrayList<OpenSessionWithProvider?>()
         proxy(
             actorAndProject,
             request.extractIds { it.id },
@@ -713,22 +740,30 @@ class JobResourceService {
                     .toList()
 
                 val providerDomain = providers.retrieveProviderHostInfo(provider).toString()
-                responses.addAll(
-                    providers
-                        .call(
-                            provider,
-                            actorAndProject,
-                            { JobsProvider(it).openInteractiveSession },
-                            BulkRequest(providerRequest),
-                        )
-                        .responses
-                        .asSequence()
-                        .filterNotNull()
-                        .map { OpenSessionWithProvider(providerDomain, provider, it) }
-                )
+                try {
+                    responses.addAll(
+                        providers
+                            .call(
+                                provider,
+                                actorAndProject,
+                                { JobsProvider(it).openInteractiveSession },
+                                BulkRequest(providerRequest),
+                            )
+                            .responses
+                            .asSequence()
+                            .filterNotNull()
+                            .map { OpenSessionWithProvider(providerDomain, provider, it) }
+                    )
+                } catch (ex: Throwable) {
+                    if (firstException == null) firstException = ex
+                    log.info("Caught exception while opening interactive session (${jobs.map { it.id }}): " +
+                            "${ex.toReadableStacktrace()}")
+                    responses.addAll(jobs.map { null })
+                }
             }
         )
 
+        if (responses.count { it != null } == 0 && firstException != null) throw firstException!!
         return BulkResponse(responses)
     }
 
@@ -740,6 +775,8 @@ class JobResourceService {
     ) {
         val ids = request.extractIds { it.jobId }
 
+        var anySuccess = false
+        var firstException: Throwable? = null
         proxy(actorAndProject, ids, "extend duration", featureValidator { it.timeExtension }) { provider, jobs ->
             val providerRequest = jobs.map { job ->
                 JobsProviderExtendRequestItem(
@@ -748,8 +785,21 @@ class JobResourceService {
                 )
             }
 
-            providers.call(provider, actorAndProject, { JobsProvider(provider).extend }, BulkRequest(providerRequest))
+            try {
+                providers.call(
+                    provider,
+                    actorAndProject,
+                    { JobsProvider(provider).extend },
+                    BulkRequest(providerRequest)
+                )
+                anySuccess = true
+            } catch (ex: Throwable) {
+                if (firstException == null) firstException = ex
+                log.info("Caught exception while trying to extend job: ${ex.toReadableStacktrace()}")
+            }
         }
+
+        if (!anySuccess && firstException != null) throw firstException!!
     }
 
     // The terminate call tells the provider to shut down a job. We do not need to perform any state changes since we
@@ -758,9 +808,19 @@ class JobResourceService {
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ) {
+        var anySuccess = false
+        var firstException: Throwable? = null
         proxy(actorAndProject, request.extractIds { it.id }, "terminate job") { provider, jobs ->
-            providers.call(provider, actorAndProject, { JobsProvider(provider).terminate }, BulkRequest(jobs))
+            try {
+                providers.call(provider, actorAndProject, { JobsProvider(provider).terminate }, BulkRequest(jobs))
+                anySuccess = true
+            } catch (ex: Throwable) {
+                if (firstException == null) firstException = ex
+                log.info("Caught exception while trying to terminate job: ${ex.toReadableStacktrace()}")
+            }
         }
+
+        if (!anySuccess && firstException != null) throw firstException!!
     }
 
     // The suspend and unsuspend endpoints are very similar to the terminate endpoint. The main difference here is that
@@ -772,6 +832,8 @@ class JobResourceService {
         request: BulkRequest<JobsSuspendRequestItem>,
         shouldSuspend: Boolean,
     ) {
+        var anySuccess = false
+        var firstException: Throwable? = null
         proxy(
             actorAndProject,
             request.extractIds { it.id },
@@ -785,9 +847,17 @@ class JobResourceService {
                 val providerRequest = jobs.map { JobsProviderSuspendRequestItem(it) }
                 val call = if (shouldSuspend) JobsProvider(provider).suspend else JobsProvider(provider).unsuspend
 
-                providers.call(provider, actorAndProject, { call }, BulkRequest(providerRequest))
+                try {
+                    providers.call(provider, actorAndProject, { call }, BulkRequest(providerRequest))
+                    anySuccess = true
+                } catch (ex: Throwable) {
+                    if (firstException == null) firstException = ex
+                    log.info("Caught exception while trying to suspend/unsuspend a job: ${ex.toReadableStacktrace()}")
+                }
             }
         )
+
+        if (!anySuccess && firstException != null) throw firstException!!
     }
 
     suspend fun performUnsuspension(jobs: List<Job>) {
@@ -822,17 +892,21 @@ class JobResourceService {
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {
         providers.forEachRelevantProvider(actorAndProject) { provider ->
-            providers.call(
-                provider,
-                actorAndProject,
-                { JobsProvider(it).init },
-                ResourceInitializationRequest(
-                    ResourceOwner(
-                        actorAndProject.actor.safeUsername(),
-                        actorAndProject.project
+            try {
+                providers.call(
+                    provider,
+                    actorAndProject,
+                    { JobsProvider(it).init },
+                    ResourceInitializationRequest(
+                        ResourceOwner(
+                            actorAndProject.actor.safeUsername(),
+                            actorAndProject.project
+                        )
                     )
                 )
-            )
+            } catch (ex: Throwable) {
+                log.info("Failed to initialize jobs at provider: $provider. ${ex.toReadableStacktrace()}")
+            }
         }
     }
 
@@ -842,8 +916,8 @@ class JobResourceService {
     // is supported.
     //
     // Summary:
-    // - `proxy`: proxies an operation from the end-user to the relevant providers
-    // - `findSupportBlock`: utility function for finding the appropiate support information for a given job + operation
+    // - `proxy`           : proxies an operation from the end-user to the relevant providers
+    // - `findSupportBlock`: utility function for finding the appropriate support information for a given job + operation
     // - `featureValidator`: utility function for creating `FeatureValidator`s (used by `proxy`)
 
     private suspend fun <T> proxy(
@@ -902,13 +976,13 @@ class JobResourceService {
     // All data is stored persistently using a ResourceStore. The following sections configure this store and
     // establishes indices for efficient lookups (see `browseBy` for details).
 
-    // This component keeps track of all jobs that are in the `RUNNING` state. This is needed to give providers a quick
+    // This component keeps track of all jobs that are not in a final state. This is needed to give providers a quick
     // way of accessing running jobs (a common query). The only other alternative is to load all jobs ever and filter
     // them.
     //
     // This state is loaded at startup and then periodically maintained as we receive state updates from the provider.
-    private val allRunningJobs = NonBlockingHashMapLong<Unit>()
-    private suspend fun initializeRunningJobsIndex() {
+    private val allActiveJobs = NonBlockingHashMapLong<Unit>()
+    private suspend fun initializeActiveJobsIndex() {
         db.withSession { session ->
             val rows = session.sendPreparedStatement(
                 {},
@@ -916,13 +990,14 @@ class JobResourceService {
                     select j.resource
                     from app_orchestrator.jobs j
                     where
-                        j.current_state = 'RUNNING'
+                        j.current_state != 'SUCCESS' and
+                        j.current_state != 'FAILURE'
                 """
             ).rows
 
             rows.forEach { row ->
                 val id = row.getLong(0)!!
-                allRunningJobs[id] = Unit
+                allActiveJobs[id] = Unit
             }
         }
     }
@@ -976,8 +1051,8 @@ class JobResourceService {
                     val slot = resources.indexOf(id)
                     val currentState = JobState.valueOf(row.getString(10)!!)
 
-                    if (currentState == JobState.RUNNING) allRunningJobs[id] = Unit
-                    else allRunningJobs.remove(id)
+                    if (!currentState.isFinal()) allActiveJobs[id] = Unit
+                    else allActiveJobs.remove(id)
 
                     state[slot] = InternalJobState(
                         JobSpecification(
@@ -1026,7 +1101,6 @@ class JobResourceService {
                 indices: IntArray,
                 length: Int
             ) {
-                println("Saving $length ${indices.slice(0 until length)}")
                 val session = transaction as AsyncDBConnection
 
                 val jobsToDelete = ArrayList<Long>()
@@ -1235,7 +1309,7 @@ class JobResourceService {
         documents.initializeEvictionTriggersIfRelevant("app_orchestrator.job_input_parameters", "job_id")
 
         runBlocking {
-            initializeRunningJobsIndex()
+            initializeActiveJobsIndex()
         }
     }
 

@@ -53,7 +53,6 @@ class IngoingHttpInterceptor(
 
             route(httpDescription.path.toPath(), HttpMethod(httpDescription.method.value)) {
                 handle {
-                    val start = System.nanoTime()
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
 
                     debug.system.useContext(
@@ -76,9 +75,6 @@ class IngoingHttpInterceptor(
                             }
                         }
                     )
-
-                    val end = System.nanoTime()
-                    if (call.fullName == "jobs.browse") println("Call took: ${end - start}ns")
                 }
             }
         }
@@ -216,18 +212,14 @@ class IngoingHttpInterceptor(
                 }
             }
 
-            val encodingStart = System.nanoTime()
             val encoded = defaultMapper.encodeToString(serializer, data)
-            val encodingEnd = System.nanoTime()
-            if (callName == "jobs.browse") println("Encoding took: ${encodingEnd - encodingStart}")
             ctx.ktor.call.respond(
+                statusCode,
                 TextContent(
                     encoded,
                     ContentType.Application.Json.withCharset(Charsets.UTF_8)
                 )
             )
-            val responseEnd = System.nanoTime()
-            if (callName == "jobs.browse") println("Response took: ${responseEnd - encodingEnd}")
         }
     }
 

@@ -89,7 +89,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
 
             override suspend fun onTermination(job: Job) {
                 val resources = resourcesFromJob(job.specification)
-                println("onTermination(${job.id}, ${this.javaClass.simpleName}, ${resources})")
                 if (resources.isEmpty()) return
 
                 val actorAndProject = ActorAndProject(

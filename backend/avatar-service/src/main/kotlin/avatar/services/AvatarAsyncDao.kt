@@ -87,7 +87,6 @@ class AvatarStore(private val db: DBContext,) {
                     setParameter("skin_colors", avatar.skinColors.serialName)
                     setParameter("clothes_graphic", avatar.clothesGraphic.serialName)
                     setParameter("hat_color", avatar.hatColor.serialName)
-                    println(avatar.hatColor.serialName)
                 },
                 """
                     insert into avatar.avatars

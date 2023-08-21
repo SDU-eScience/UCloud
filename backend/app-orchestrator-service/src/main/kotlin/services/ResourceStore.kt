@@ -1015,14 +1015,19 @@ class ResourceStore<T>(
         id: Long,
         deletions: List<NumericAclEntry>,
         additions: List<NumericAclEntry>
-    ) {
+    ): Boolean {
         if (!additions.all { it.permission?.canBeGranted == true }) {
             throw RPCException("Invalid request supplied", HttpStatusCode.BadRequest)
         }
 
-        useBuckets(findStoreByResourceId(id) ?: return) { store ->
-            ShouldContinue.ifThisIsTrue(!store.updateAcl(idCard, id, deletions, additions))
+        var didFindAny = false
+        useBuckets(findStoreByResourceId(id) ?: return false) { store ->
+            val foundSomething = store.updateAcl(idCard, id, deletions, additions)
+            if (foundSomething) didFindAny = true
+            ShouldContinue.ifThisIsTrue(!foundSomething)
         }
+
+        return didFindAny
     }
 
     // Evictions
@@ -2193,7 +2198,7 @@ object ResourceIdAllocator {
         initMutex.withLock {
             if (idAllocator.get() >= 0L) return
             queries.withSession { session ->
-                idAllocator.set(queries.loadMaximumId(session))
+                idAllocator.set(min(5_000_000L, queries.loadMaximumId(session)))
             }
         }
     }
