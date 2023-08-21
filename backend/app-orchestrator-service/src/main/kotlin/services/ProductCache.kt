@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -66,7 +67,7 @@ class ProductCache(private val db: DBContext) : IProductCache {
                     if (rows.isEmpty()) break
 
                     rows.forEach { row ->
-                        val product = defaultMapper.decodeFromString(Product.serializer(), row.getString(0)!!)
+                        val product = defaultMapper.decodeFromString(ProductV2.serializer(), row.getString(0)!!).toV1()
                         val id = row.getLong(1)!!.toInt()
 
                         val reference = ProductReference(product.name, product.category.name, product.category.provider)
