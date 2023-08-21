@@ -54,11 +54,11 @@ class ProductCache(private val db: DBContext) : IProductCache {
                     {},
                     """
                         declare product_load cursor for
-                        select accounting.product_to_json(p, pc, 0), p.id
+                        select accounting.product_to_json(p, pc, au, 0), p.id
                         from
                             accounting.products p join
-                            accounting.product_categories pc on
-                                p.category = pc.id
+                            accounting.product_categories pc on p.category = pc.id join
+                            accounting.accounting_units au on pc.accounting_unit = au.id
                     """
                 )
 
