@@ -51,13 +51,13 @@ class WekaDirectoryStats(private val nativeFs: NativeFS) : Loggable, FastDirecto
         }
         return try {
             val (_, stdout, _) = executeCommandToText("/usr/bin/du") {
-                addArg("-s")
+                addArg("-sb")
                 addArg(file.path)
             }
             val regex = "^\\d+".toRegex()
             val match = regex.find(stdout) ?: return null
-            val sizeInKB = stdout.substring(match.range).toLong()
-            sizeInKB * 1000
+            val sizeInBytes = stdout.substring(match.range).toLong()
+            sizeInBytes
         } catch (ex: Throwable) {
             null
         }
