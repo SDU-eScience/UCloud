@@ -408,7 +408,10 @@ export function ConfirmationButtonPlainHTML(
         button.setAttribute("data-fullwidth", "false");
         button.setAttribute("data-size", "standard");
         button.style.removeProperty("background-color");
-        if (opts.disabled) button.disabled = opts.disabled;
+        if (opts.disabled) {
+            button.disabled = opts.disabled;
+            button.style.filter = "brightness(50%)";
+        }
     }
 
 

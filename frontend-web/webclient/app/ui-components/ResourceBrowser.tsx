@@ -715,13 +715,11 @@ export class ResourceBrowser<T> {
         addThemeListener(this.resourceName, () => this.rerender());
         const path = this.initialPath;
         if (path !== undefined) {
-            console.log("Registering project listener", this.resourceName);
             addProjectListener(this.resourceName, project => {
                 this.canConsumeResources = checkCanConsumeResources(
                     project,
                     this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}}
                 );
-                console.log(this.canConsumeResources);
                 this.open(path, true);
             })
         };
@@ -803,6 +801,12 @@ export class ResourceBrowser<T> {
         this.renderOperations();
         this.renderRows();
         this.clearFilters();
+
+        if (!this.canConsumeResources) {
+            this.renderCantConsumeResources();
+            return;
+        }
+
         if (this.features.sortDirection) {
             this.renderSortOrder();
         }
@@ -882,6 +886,8 @@ export class ResourceBrowser<T> {
         }
 
         this.renameField.style.display = "none";
+
+        if (!this.canConsumeResources) return;
 
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
@@ -3393,9 +3399,9 @@ export function checkCanConsumeResources(projectId: string | null, callbacks: nu
 
     const {api} = callbacks;
     if (!api) return false;
-    
+
     if (api.isCoreResource) return true;
-    
+
     const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
     if (!project) return true;
     // Don't consider yet-to-be-fetched projects as non-consumer
