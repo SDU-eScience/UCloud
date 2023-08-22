@@ -187,8 +187,8 @@ data class FindGroupRequest(
 )
 
 @Serializable
-data class FindGroupResponse(
-    val title: String,
+data class RetrieveGroupResponse(
+    val group: ApplicationGroup,
     val applications: List<ApplicationSummary>
 )
 
@@ -235,7 +235,8 @@ typealias ListGroupsRequest = Unit
 
 @Serializable
 data class RetrieveGroupRequest(
-    val id: Int
+    val id: Int? = null,
+    val name: String? = null
 )
 
 @Serializable
@@ -967,7 +968,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val findGroup = call("findGroup", FindGroupRequest.serializer(), FindGroupResponse.serializer(), CommonErrorMessage.serializer())  {
+    /*val findGroup = call("findGroup", FindGroupRequest.serializer(), FindGroupResponse.serializer(), CommonErrorMessage.serializer())  {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -976,7 +977,7 @@ ${ApiConventions.nonConformingApiWarning}
         http {
             path {
                 using(baseContext)
-                +"group"
+                +"group/fromApp"
             }
 
             params {
@@ -987,7 +988,7 @@ ${ApiConventions.nonConformingApiWarning}
         documentation {
             summary = "Find group and all flavors of the application group"
         }
-    }
+    }*/
 
     val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreSectionsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
@@ -1097,7 +1098,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val retrieveGroup = call("listGroups", RetrieveGroupRequest.serializer(), ApplicationGroup.serializer(), CommonErrorMessage.serializer()) {
+    val retrieveGroup = call("retrieveGroup", RetrieveGroupRequest.serializer(), RetrieveGroupResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -1108,6 +1109,10 @@ ${ApiConventions.nonConformingApiWarning}
             path {
                 using(baseContext)
                 +"group"
+            }
+            params {
+                +boundTo(RetrieveGroupRequest::id)
+                +boundTo(RetrieveGroupRequest::name)
             }
         }
     }

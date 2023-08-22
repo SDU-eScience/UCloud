@@ -65,9 +65,9 @@ class AppStoreController(
             ok(appStore.listAll(actorAndProject, request.normalize()))
         }
 
-        implement(AppStore.findGroup) {
+        /*implement(AppStore.findGroup) {
             ok(appStore.findGroup(actorAndProject, request.appName))
-        }
+        }*/
 
         implement(AppStore.store) {
             ok(appStore.browseSections(actorAndProject, request.page))
@@ -94,7 +94,7 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveGroup) {
-            ok(appStore.retrieveGroup(actorAndProject, request.id))
+            ok(appStore.retrieveGroup(actorAndProject, request.id, request.name))
         }
 
         implement(AppStore.create) {

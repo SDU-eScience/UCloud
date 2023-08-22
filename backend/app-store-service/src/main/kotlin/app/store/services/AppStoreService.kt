@@ -563,37 +563,14 @@ class AppStoreService(
         }
     }
 
-    suspend fun findGroup(
+    /*suspend fun findGroup(
         actorAndProject: ActorAndProject,
         applicationName: String
     ): FindGroupResponse {
         return db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("appName", applicationName)
-                },
-                """
-                select a.name, a.version, a.authors, a.title, a.description, a.website, a.is_public, a.flavor_name, g.title as group
-                from app_store.applications a
-                join app_store.application_groups g on group_id = g.id
-                where a.group_id = (
-                    select group_id
-                    from app_store.applications
-                    where name = :appName
-                )
-            """
-            ).rows.map { row ->
-                val groupTitle = row.getString("group")!!
-                val application = row.toApplicationSummary()
 
-                groupTitle to application
-            }.let { result ->
-                val apps = result.map { it.second }
-
-                FindGroupResponse(result.first().first, apps)
-            }
         }
-    }
+    }*/
 
     suspend fun browseSections(
         actorAndProject: ActorAndProject,
@@ -929,23 +906,66 @@ class AppStoreService(
         }
     }
 
-    suspend fun retrieveGroup(actorAndProject: ActorAndProject, id: Int): ApplicationGroup {
+    suspend fun retrieveGroup(actorAndProject: ActorAndProject, id: Int? = null, applicationName: String? = null): RetrieveGroupResponse {
         return db.withSession { session ->
-            session.sendPreparedStatement(
+            val group = if (id != null) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                    },
+                    """
+                    select *
+                    from app_store.application_groups g
+                    where g.id = :id
+                """
+                ).rows.first().let {
+                    ApplicationGroup(
+                        it.getInt("id")!!,
+                        it.getString("title")!!,
+                        it.getAs<ByteArray>("logo"),
+                        it.getString("description")
+                    )
+                }
+            } else if (applicationName != null) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("appName", applicationName)
+                    },
+                    """
+                        select *
+                        from app_store.application_groups
+                        where
+                            id in (select group_id from app_store.applications where name = :appName)
+                    """
+                ).rows.first().let {
+                    ApplicationGroup(
+                        it.getInt("id")!!,
+                        it.getString("title")!!,
+                        it.getAs<ByteArray>("logo"),
+                        it.getString("description")
+                    )
+                }
+            } else {
+                null
+            }
+
+            if (group == null) {
+                throw RPCException("Group not found", HttpStatusCode.NotFound)
+            }
+
+            val apps = session.sendPreparedStatement(
                 {
-                    setParameter("id", id)
+                    setParameter("id", group.id)
                 },
                 """
-                    select * from app_store.application_groups where id = :id
+                    select * from app_store.applications
+                    where group_id = :id
                 """
-            ).rows.first().let {
-                ApplicationGroup(
-                    it.getInt("id")!!,
-                    it.getString("title")!!,
-                    it.getAs<ByteArray>("logo"),
-                    it.getString("description")
-                )
+            ).rows.map {
+                it.toApplicationSummary()
             }
+
+            RetrieveGroupResponse(group, apps)
         }
     }
 
