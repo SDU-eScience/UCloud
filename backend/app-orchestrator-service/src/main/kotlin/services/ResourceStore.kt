@@ -542,7 +542,7 @@ class ResourceStore<T>(
         sortDirection: SortDirection? = null,
     ): BrowseResult {
         @Suppress("NAME_SHADOWING")
-        val sortDirection = sortDirection ?: SortDirection.ascending
+        val sortDirection = sortDirection ?: if (sortedBy == null) SortDirection.descending else SortDirection.ascending
 
         if (sortedBy == "createdBy") {
             return browseWithSort(
@@ -908,7 +908,7 @@ class ResourceStore<T>(
         updates: List<ResourceDocumentUpdate>,
         consumer: (ResourceStoreBucket<T>.(state: T, updateIdx: Int, arrIdx: Int) -> Boolean)? = null,
     ) {
-        if (idCard !is IdCard.Provider) {
+        if (idCard !is IdCard.Provider && idCard !is IdCard.System) {
             throw RPCException("End-users are not allowed to add updates to a resource!", HttpStatusCode.Forbidden)
         }
 
@@ -1485,7 +1485,7 @@ class ResourceStoreBucket<T>(
                         permissionRequired == Permission.EDIT ||
                         permissionRequired == Permission.ADMIN
 
-                if (requiresOwnerPrivileges) {
+                if (requiresOwnerPrivileges || idCard == IdCard.System) {
                     if (reverseOrder) {
                         var idx = startIndex
                         while (idx >= 0 && idx % 4 != 0 && !validatedConsumer.shouldTerminate()) {
@@ -2198,7 +2198,7 @@ object ResourceIdAllocator {
         initMutex.withLock {
             if (idAllocator.get() >= 0L) return
             queries.withSession { session ->
-                idAllocator.set(min(5_000_000L, queries.loadMaximumId(session)))
+                idAllocator.set(max(5_000_000L, queries.loadMaximumId(session)))
             }
         }
     }

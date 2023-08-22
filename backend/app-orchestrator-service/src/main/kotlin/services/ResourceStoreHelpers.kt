@@ -173,6 +173,8 @@ suspend fun PaymentService.chargeOrCheckCredits(
         }
     }
 
+    if (paymentRequests.isEmpty()) return ResourceChargeCreditsResponse(emptyList(), emptyList())
+
     val chargeResult =
         if (checkOnly) creditCheckForPayments(paymentRequests)
         else charge(paymentRequests)
