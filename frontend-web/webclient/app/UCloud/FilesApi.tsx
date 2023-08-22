@@ -705,7 +705,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 icon: "refresh",
                 text: "Manage synchronization (BETA)",
-                enabled: (files, extra) => (console.log(files.length === 0, extra.syncthingConfig), files.length === 0 && !!extra.syncthingConfig),
+                enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig,
                 onClick: (selected, extra) =>
                     extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`)
             },
@@ -921,7 +921,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
 
     cb.setSynchronization(files, !allSynchronized);
-    
+
     snackbarStore.addSuccess(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`, false);
 }
 

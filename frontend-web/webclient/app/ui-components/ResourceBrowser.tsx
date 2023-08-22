@@ -1347,6 +1347,7 @@ export class ResourceBrowser<T> {
                 element.style.padding = "0";
 
                 element.append(button);
+                element.setAttribute("data-is-confirm", "true");
                 return;
             }
 
@@ -1444,13 +1445,14 @@ export class ResourceBrowser<T> {
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
 
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
                 const isConfirm = isOperation(child) && child.confirm;
                 this.contextMenuHandlers.push(() => {
-                    if (isDisabled) { }
-                    else if (isConfirm) {
+                    if (isDisabled) {
+                        // No action
+                    } else if (isConfirm) {
                         // This case is handled inside the button.
                     } else {
                         child.onClick(selected, callbacks, page);
@@ -2184,7 +2186,7 @@ export class ResourceBrowser<T> {
         const relativeContextMenuSelect = (delta: number) => {
             const ul = this.contextMenu.querySelector("ul");
             if (!ul) return;
-            const listItems = ul.querySelectorAll("li");
+            const listItems = ul.querySelectorAll(":scope > li");
 
             let selectedIndex = -1;
             for (let i = 0; i < listItems.length; i++) {
@@ -2201,6 +2203,13 @@ export class ResourceBrowser<T> {
                 // Large jumps should not cause wrap around, instead move to either the top or the bottom.
                 if (selectedIndex < 0) selectedIndex = 0;
                 else selectedIndex = listItems.length - 1;
+            }
+
+            // Note(Jonas): Skip disabled and confirm-button entries. Ensure that both directions are valid.
+            const order = delta > 0 ? 1 : -1;
+            while (listItems.item(selectedIndex)?.getAttribute("disabled") === "true"
+                || listItems.item(selectedIndex)?.getAttribute("data-is-confirm") === "true") {
+                selectedIndex += order;
             }
 
             // Wrap around the selection, moving up from the top should go to the bottom and vice-versa.
