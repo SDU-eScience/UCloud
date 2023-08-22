@@ -53,7 +53,7 @@ object FeatureAccounting : JobFeature, Loggable {
     override val log = logger()
     private val jobChargedCache = JobChargedCache()
     const val LAST_PERFORMED_AT_ANNOTATION = "ucloud.dk/lastAccountingTs"
-    const val TIME_BETWEEN_ACCOUNTING = 1000L * 60 * 15
+    const val TIME_BETWEEN_ACCOUNTING = 1000L * 60 * 5
 
     override suspend fun JobManagement.onJobComplete(
         rootJob: Container,
