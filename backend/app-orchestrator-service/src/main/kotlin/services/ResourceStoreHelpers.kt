@@ -147,6 +147,8 @@ suspend fun PaymentService.chargeOrCheckCredits(
                         HttpStatusCode.InternalServerError
                     )
 
+                if (resolvedProduct.freeToUse) continue
+
                 paymentRequests.add(
                     Payment(
                         reqItem.chargeId,
