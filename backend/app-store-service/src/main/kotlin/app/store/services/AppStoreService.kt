@@ -466,6 +466,7 @@ class AppStoreService(
                 },
                 """
                     SELECT * FROM applications AS A
+                    JOIN app_store.application_groups ag on A.group_id = ag.id
                     WHERE A.name = :name AND (
                         (
                             A.is_public = TRUE
@@ -803,19 +804,157 @@ class AppStoreService(
         )
     }
 
-    suspend fun setGroup(actorAndProject: ActorAndProject, applicationName: String, groupId: Int): SetGroupResponse {
+    // TODO(Brian)
+    /*suspend fun findAll(
+        actorAndProject: ActorAndProject,
+        names: List<String>?,
+        versions: List<String>?,
+        fileExtensions
+    ): PageV2<Application> {
+        val result = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("names", names)
+                    setParameter("versions", versions)
+                },
+                """
+                    SELECT *
+                    FROM applications
+                    WHERE
+                        (:names is null or name in (select unnest(:names:::text[]))) and
+                        (:versions is null or version in (select unnest(:versions::text[])))
+                """
+            )
+            .rows
+            .map { it.toApplicationWithInvocation() }
+        }
+
+        return PageV2(50, result, null)
+    }*/
+
+    suspend fun createGroup(actorAndProject: ActorAndProject, title: String) {
         db.withSession { session ->
-            // TODO(Brian)
-            /*session.sendPreparedStatement(
+            val existing = session.sendPreparedStatement(
+                {
+                    setParameter("title", title.lowercase())
+                },
+                """
+                    select from app_store.application_groups where lower(title) = :title  
+                """
+            ).rows.size
+
+            if (existing > 0) {
+                throw RPCException("Group with name $title already exists", HttpStatusCode.BadRequest)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("title", title)
+                },
+                """
+                    insert into app_store.application_groups (title) values (:title)
+                """
+            )
+        }
+    }
+
+    suspend fun deleteGroup(actorAndProject: ActorAndProject, id: Int) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                   update app_store.applications set group_id = null where group_id = :id 
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                   delete from app_store.application_groups where id = :id 
+                """
+            )
+        }
+    }
+
+    suspend fun updateGroup(actorAndProject: ActorAndProject, id: Int, title: String, logo: ByteArray? = null, description: String? = null) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                    setParameter("title", title)
+                    setParameter("logo", logo)
+                    setParameter("description", description)
+                },
+                """
+                   update app_store.application_groups set title = :title, logo = :logo, description = :description where id = :id 
+                """
+            )
+        }
+    }
+
+    suspend fun setGroup(actorAndProject: ActorAndProject, applicationName: String, groupId: Int) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
                 {
                     setParameter("appName", applicationName)
                     setParameter("groupId", groupId)
                 },
                 """
-                        update app_store.applications set group 
-                    """
-            )*/
+                    update app_store.applications
+                    set group_id = :groupId
+                    where name = :appName
+                """
+            )
         }
+    }
+
+    suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                """
+                    select * from application_groups
+                """
+            ).rows.mapNotNull { row ->
+                ApplicationGroup(
+                    row.getInt("id")!!,
+                    row.getString("title")!!,
+                    row.getAs<ByteArray>("logo"),
+                    row.getString("description")
+                )
+            }
+        }
+    }
+
+    suspend fun retrieveGroup(actorAndProject: ActorAndProject, id: Int): ApplicationGroup {
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                    select * from app_store.application_groups where id = :id
+                """
+            ).rows.first().let {
+                ApplicationGroup(
+                    it.getInt("id")!!,
+                    it.getString("title")!!,
+                    it.getAs<ByteArray>("logo"),
+                    it.getString("description")
+                )
+            }
+        }
+    }
+
+    suspend fun saveLandingPage(content: String) {
+
+    }
+
+    suspend fun saveOverviewPage(content: String) {
+
     }
 
     suspend fun create(actorAndProject: ActorAndProject, application: Application, content: String) {
@@ -1263,6 +1402,17 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
 }
 
 internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
+    val group = try {
+        ApplicationGroup(
+            this.getInt("id")!!,
+            this.getString("title")!!,
+            this.getAs<ByteArray>("logo"),
+            this.getString("description")
+        )
+    } catch (e: Exception) {
+        null
+    }
+
     return ApplicationMetadata(
         this.getString("name")!!,
         this.getString("version")!!,
@@ -1271,7 +1421,8 @@ internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
         this.getString("description")!!,
         this.getString("website"),
         this.getBoolean("is_public")!!,
-        this.getString("flavor_name")
+        this.getString("flavor_name"),
+        group
     )
 }
 

@@ -223,14 +223,20 @@ typealias DeleteGroupResponse = Unit
 @Serializable
 data class UpdateGroupRequest(
     val id: Int,
-    val logo: ByteArray?,
-    val description: String?
+    val title: String,
+    val logo: ByteArray? = null,
+    val description: String? = null
 )
 
 typealias UpdateGroupResponse = Unit
 
 
 typealias ListGroupsRequest = Unit
+
+@Serializable
+data class RetrieveGroupRequest(
+    val id: Int
+)
 
 @Serializable
 data class AppStoreSectionsRequest(
@@ -246,7 +252,7 @@ data class AppStoreSectionsResponse(
 data class ApplicationGroup (
     val id: Int,
     val title: String,
-    val logo: String? = null,
+    val logo: ByteArray? = null,
     val description: String? = null,
     val application: ApplicationSummaryWithFavorite? = null
 )
@@ -1087,6 +1093,21 @@ ${ApiConventions.nonConformingApiWarning}
             path {
                 using(baseContext)
                 +"groups"
+            }
+        }
+    }
+
+    val retrieveGroup = call("listGroups", RetrieveGroupRequest.serializer(), ApplicationGroup.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"group"
             }
         }
     }
