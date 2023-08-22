@@ -1,5 +1,4 @@
 import * as UCloud from "@/UCloud";
-import Fuse from "fuse.js";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {Tag} from "@/Applications/Card";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -11,7 +10,7 @@ import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Checkbox, DataList, Flex, Icon, Label, Text, VerticalButtonGroup} from "@/ui-components";
+import {Button, Checkbox, DataList, Flex, Icon, Label, Text, TextArea, VerticalButtonGroup} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
@@ -21,12 +20,12 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, doNothing, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {ApplicationGroup, clearLogo, listGroups, setGroup, uploadLogo} from "@/Applications/api";
+import {ApplicationGroup, clearLogo, listGroups, setGroup, updateGroup, uploadLogo} from "@/Applications/api";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
-import {ButtonClass} from "@/ui-components/Button";
+import {ButtonClass, StandardButtonSize} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 interface AppVersion {
@@ -113,7 +112,7 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
         <div
             className={GroupSelectorTriggerClass}
             onClick={() => dialogStore.addDialog(
-                <FilterThingamagic options={props.options} setSelectedGroup={setSelectedGroup} />
+                <GroupSelectorModal options={props.options} setSelectedGroup={setSelectedGroup} />
             , doNothing, true)}
         >
             <Text>{selectedGroup ? selectedGroup.title : "Select group..."}</Text>
@@ -122,43 +121,132 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
     );
 }
 
-function FilterThingamagic(props: {options: ApplicationGroup[], setSelectedGroup: (appGroup: ApplicationGroup) => void}): JSX.Element {
+function GroupSelectorModal(props: {options: ApplicationGroup[], setSelectedGroup: (appGroup: ApplicationGroup) => void}): JSX.Element {
     const [filter, setTitleFilter] = React.useState("");
+    const [editing, setEditing] = React.useState<ApplicationGroup|undefined>(undefined);
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const groupTitleField = React.useRef<HTMLInputElement>(null);
+    const groupDescriptionField = React.useRef<HTMLInputElement>(null);
+
     const results = React.useMemo(() =>
         props.options.filter(it => it.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
         , [props.options, filter]);
+
     return (
-        <div className={GroupSelectorClass}>
-            <Input
-                placeholder="Enter group.."
-                defaultValue={filter}
-                type="text"
-                autoFocus
-                onChange={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")}
-            />
-            <div key={results.length}>
-                {results.map((appGroup) => (
-                    <Flex key={appGroup.id} justifyContent="space-between">
-                        <Box onClick={() => {
-                            props.setSelectedGroup(appGroup);
-                            dialogStore.success();
-                        }}>
-                            {appGroup.title}
-                        </Box>
-                        <Button color="red" height="20px" width="20px">
-                            <Icon size={14} name="trash" />
+        editing ? (
+            <form
+                onSubmit={async e => {
+                    e.preventDefault()
+
+                    const titleField = groupTitleField.current;
+                    if (titleField === null) return;
+
+                    const newTitle = titleField.value;
+                    if (newTitle === "") return;
+
+                    const descriptionField = groupDescriptionField.current;
+                    if (descriptionField === null) return;
+
+                    const newDescription = descriptionField.value;
+                    if (newDescription === "") return;
+
+                    invokeCommand(updateGroup({id: editing.id, title: newTitle, description: newDescription}))
+                    setEditing(undefined)
+                }}
+            >
+                <Flex>
+                    <Button mr={5} onClick={() => setEditing(undefined)}>
+                        Cancel
+                    </Button>
+                    <Button type="submit">
+                        Save changes
+                    </Button>
+                </Flex>
+
+                <Flex justifyContent="space-between" mt={20} mb={10}>
+                    <Text pt="10px" pr="20px">Title</Text>
+                    <Input type="text" inputRef={groupTitleField} defaultValue={editing.title} />
+                </Flex>
+
+                <Flex justifyContent="space-between" mt={20} mb={10}>
+                    <Text pt="10px">Logo</Text>
+                    <Flex justifyContent="right">
+                        <label className={ButtonClass}>
+                            Upload
+                            <HiddenInputField
+                                type="file"
+                                onChange={async e => {
+                                    const target = e.target;
+                                    if (target.files) {
+                                        const file = target.files[0];
+                                        target.value = "";
+                                        if (file.size > 1024 * 512) {
+                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                        } else {
+                                            /*if (await uploadLogo({name, file, type: "APPLICATION"})) {
+                                                setLogoCacheBust("" + Date.now());
+                                            }*/
+                                        }
+                                        dialogStore.success();
+                                    }
+                                }}
+                            />
+                        </label>
+
+                        <Button
+                            type="button"
+                            color="red"
+                            //disabled={commandLoading}
+                            onClick={async () => {
+                                /*await invokeCommand(clearLogo({type: "APPLICATION", name}));
+                                setLogoCacheBust("" + Date.now());*/
+                            }}
+                        >
+                            <Icon name="trash" />
                         </Button>
                     </Flex>
-                ))}
-                {results.length === 0 ? <Box>No results</Box> : null}
-                {filter.length > 0 ?
-                    <div style={{textAlign: "center", marginTop: "20px"}}>
-                        <Button>Create group</Button>
-                    </div>
-                : null}
-            </div>
-        </div>
+                </Flex>
 
+                <Text pt="10px">Description</Text>
+                <TextArea inputRef={groupDescriptionField} defaultValue={editing.description} rows={4} />
+            </form>
+        ) : (
+            <div className={GroupSelectorClass}>
+                <Input
+                    placeholder="Enter group.."
+                    defaultValue={filter}
+                    type="text"
+                    autoFocus
+                    onChange={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")}
+                />
+                <div key={results.length}>
+                    {results.map((appGroup) => (
+                        <Flex key={appGroup.id} justifyContent="space-between">
+                            <Box pl="10px" onClick={() => {
+                                props.setSelectedGroup(appGroup);
+                                dialogStore.success();
+                            }}>
+                                {appGroup.title}
+                            </Box>
+                            <Flex justifyContent="right" pt="2px">
+                                <Button onClick={() => setEditing(appGroup)} height="24px" width="20px" mr="2px">
+                                    <Icon size={14} name="edit" ml="4px" />
+                                </Button>
+                                <Button color="red" height="24px" width="20px">
+                                    <Icon size={14} name="trash" ml="4px" />
+                                </Button>
+                            </Flex>
+                        </Flex>
+                    ))}
+                    {results.length === 0 ? <Box>No results</Box> : null}
+                    {filter.length > 0 ?
+                        <div style={{textAlign: "center", marginTop: "20px"}}>
+                            <Button>Create group</Button>
+                        </div>
+                    : null}
+                </div>
+            </div>
+        )
     )
 
 }
@@ -241,7 +329,7 @@ export const App: React.FunctionComponent = () => {
         if (!allGroups) return;
 
         if (apps.data.items[0]) {
-            setSelectedGroup(apps.data.items[0].metadata.group?.title ?? undefined);
+            setSelectedGroup(apps.data.items[0].metadata.group?.id ?? undefined);
         }
     }, [allGroups, apps]);
 
