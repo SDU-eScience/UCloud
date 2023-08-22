@@ -28,7 +28,6 @@ import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
 import {ResourceProperties} from "@/Resource/Properties";
 import {CheckboxFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
@@ -149,7 +148,7 @@ export interface ExtraFileCallbacks {
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
-    setSynchronization?: (file: UFile, shouldAdd: boolean) => void;
+    setSynchronization?: (file: UFile[], shouldAdd: boolean) => void;
 }
 
 export function isSensitivitySupported(resource: UFile): boolean {
@@ -703,27 +702,34 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     });
                 },
             },
-            /*
+            {
+                icon: "refresh",
+                text: "Manage synchronization (BETA)",
+                enabled: (files, extra) => (console.log(files.length === 0, extra.syncthingConfig), files.length === 0 && !!extra.syncthingConfig),
+                onClick: (selected, extra) =>
+                    extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`)
+            },
             {
                 // Item row synchronization
                 text: synchronizationOpText,
                 icon: "refresh",
                 enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
-                onClick: (selected, cb) => synchronizationOpOnClick(selected, cb)
+                onClick: (selected, cb) => {
+                    synchronizationOpOnClick(selected, cb)
+                }
             },
             {
                 // Folder synchronization
                 text: synchronizationOpText,
                 icon: "refresh",
                 primary: true,
-                canAppearInLocation: location => location === "SIDEBAR",
+                tag: "syncthing",
                 enabled: (selected, cb) => synchronizationOpEnabled(true, selected, cb),
                 onClick: (selected, cb) => {
                     if (!cb.directory) return;
                     synchronizationOpOnClick([cb.directory], cb);
                 }
             },
-             */
             {
                 text: "Open terminal",
                 primary: true,
@@ -913,9 +919,10 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
     if (!cb.setSynchronization) return;
 
-    for (const file of files) {
-        cb.setSynchronization(file, !allSynchronized);
-    }
+
+    cb.setSynchronization(files, !allSynchronized);
+    
+    snackbarStore.addSuccess(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`, false);
 }
 
 async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {

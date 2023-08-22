@@ -795,7 +795,8 @@ const EmptyFolders: React.FunctionComponent<{
                         <p><b>Open Syncthing</b></p>
                         <p>
                             A pop-up will appear, saying that UCloud wants to connect.
-                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears.
+                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears. <br />
+                            <b>Note: it can take a few minutes before the pop-up appears.</b>
                         </p>
                     </Box>
                     <Box pl={40}>
@@ -1045,6 +1046,7 @@ const TwoPanelLayout = injectStyle("two-panel-layout", k => `
         display: flex;
         flex-flow: row wrap;
 
+        margin-top: 16px;
         margin-bottom: 16px;
         gap: 16px;
     }

@@ -403,7 +403,7 @@ export const FilesBrowse: React.FunctionComponent<{
                                 itemsPerPage: 25,
                                 next: drives.next,
                                 filterMemberFiles: "all"
-                            } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
+                            } as any)).then(page => setDrives(page)).catch(console.log)}
                             page={drives}
                             pageRenderer={items => (
                                 <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>

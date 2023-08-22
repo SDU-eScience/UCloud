@@ -30,7 +30,7 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -38,7 +38,7 @@ import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI} from "@/Authentication/DataHook";
-import {accounting, PageV2} from "@/UCloud";
+import {accounting, compute, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
 import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
@@ -53,6 +53,9 @@ import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import {ButtonClass} from "@/ui-components/Button";
+import * as Sync from "@/Syncthing/api";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
 
 // Cached network data
 // =====================================================================================================================
@@ -104,6 +107,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
+    const didUnmount = useDidUnmount();
+
 
     const features = {
         ...FEATURES
@@ -118,6 +123,10 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         let searching = "";
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
+                // Syncthing data
+                // =========================================================================================================
+                let syncthingConfig: Sync.SyncthingConfig | undefined = undefined;
+                let syncthingProduct: compute.ComputeProductSupportResolved | null = null;
 
                 // Metadata utilities
                 // =========================================================================================================
@@ -552,10 +561,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-
-                    return groupOperations(
-                        FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected))
-                    );
+                    return groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
                 });
 
                 browser.on("fetchOperationsCallback", () => {
@@ -571,16 +577,45 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     const callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks = {
                         supportByProvider,
                         allowMoveCopyOverride: false,
-                        collection: collection!,
-                        directory: folder!,
+                        collection: collection,
+                        directory: folder,
                         dispatch: dispatch,
                         embedded: opts?.embedded ?? false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
-                        setSynchronization(file: UFile, shouldAdd: boolean): void {
-                            console.log("setSynchronization is a TODO!");
-                            // TODO
+                        syncthingConfig,
+                        setSynchronization(files: UFile[], shouldAdd: boolean): void {
+                            if (!syncthingConfig) return;
+                            if (!collection?.specification.product.provider) return;
+                            const newConfig = deepCopy(syncthingConfig);
+
+                            const folders = newConfig?.folders ?? []
+
+                            for (const file of files) {
+                                if (shouldAdd) {
+                                    const newFolders = [...folders];
+                                    newConfig.folders = newFolders;
+
+                                    if (newFolders.every(it => it.ucloudPath !== file.id)) {
+                                        newFolders.push({id: randomUUID(), ucloudPath: file.id});
+                                    }
+                                } else {
+                                    newConfig.folders = folders.filter(it => it.ucloudPath !== file.id);
+                                }
+                            }
+
+                            callAPI(Sync.api.updateConfiguration({
+                                provider: collection?.specification.product.provider,
+                                productId: "syncthing",
+                                config: newConfig
+                            })).then(() => {
+                                syncthingConfig = newConfig
+                                browser.renderOperations();
+                            }).catch(e => {
+                                if (didUnmount.current) return;
+                                defaultErrorHandler(e);
+                            });
                         },
                         startCreation(): void {
                             showCreateDirectory();
@@ -669,6 +704,27 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     const [icon, setIcon] = browser.defaultIconRenderer();
                     row.title.append(icon);
 
+                    if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
+                        const iconWrapper = document.createElement("div");
+                        iconWrapper.style.position = "relative";
+                        iconWrapper.style.left = "13px";
+                        iconWrapper.style.top = "-2px";
+                        iconWrapper.style.backgroundColor = "var(--blue)";
+                        iconWrapper.style.height = "10px";
+                        iconWrapper.style.width = "10px";
+                        iconWrapper.style.padding = "4px";
+                        iconWrapper.style.borderRadius = "8px";
+                        icon.append(iconWrapper);
+                        const [syncThingIcon, setSyncthingIcon] = browser.defaultIconRenderer();
+                        syncThingIcon.style.height = "8px";
+                        syncThingIcon.style.width = "8px";
+                        syncThingIcon.style.marginLeft = "-3px";
+                        syncThingIcon.style.marginTop = "-3px";
+                        syncThingIcon.style.display = "block";
+                        iconWrapper.appendChild(syncThingIcon);
+                        browser.icons.renderIcon({name: "check", color: "white", color2: "white", width: 24, height: 24}).then(setSyncthingIcon);
+                    }
+
                     const title = browser.defaultTitleRenderer(fileName(file.id), containerWidth)
                     row.title.append(title);
                     row.title.title = title;
@@ -699,7 +755,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         row.star.style.cursor = "pointer";
                     }
 
-                    findFavoriteStatus(file).then(async (isFavorite) => {
+                    findFavoriteStatus(file).then(async isFavorite => {
                         const icon = await browser.icons.renderIcon({
                             name: (isFavorite ? "starFilled" : "starEmpty"),
                             color: (isFavorite ? "blue" : "midGray"),
@@ -1022,8 +1078,26 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                             id: collectionId,
                             includeOthers: true,
                             includeSupport: true
-                        })))
-                        .then(() => {
+                        }))).then(() => {
+                            if (!opts?.embedded) {
+                                const collection = collectionCache.retrieveFromCacheOnly(collectionId);
+                                if (!collection?.specification.product.provider) return;
+
+                                Sync.fetchProducts(collection.specification.product.provider).then(products => {
+                                    if (products.length > 0) {
+                                        syncthingProduct = products[0];
+                                        if (didUnmount.current) return;
+                                        Sync.fetchConfig(syncthingProduct?.product.category.provider)
+                                            .then(config => {
+                                                syncthingConfig = config
+                                                browser.renderRows();
+                                                browser.renderOperations();
+                                            })
+                                            .catch(doNothing);
+                                    }
+                                });
+                            }
+
                             browser.renderBreadcrumbs();
                             browser.renderOperations();
                             browser.locationBar.dispatchEvent(new Event("input"));
