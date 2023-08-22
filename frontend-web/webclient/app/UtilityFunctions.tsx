@@ -321,8 +321,8 @@ interface CopyToClipboard {
  * Copies a string to the users clipboard.
  * @param param contains the value to be copied and the message to show the user on success.
  */
-export function copyToClipboard({value, message}: CopyToClipboard): void {
-    navigator.clipboard.writeText(value ?? "");
+export async function copyToClipboard({value, message}: CopyToClipboard): Promise<void> {
+    await navigator.clipboard.writeText(value ?? "");
     if (message) snackbarStore.addSuccess(message, false);
 }
 

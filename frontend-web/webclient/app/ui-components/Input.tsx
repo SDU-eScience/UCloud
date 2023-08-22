@@ -96,6 +96,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["name"] = props.name;
     inputProps["placeholder"] = props.placeholder;
     inputProps["defaultValue"] = props.defaultValue;
+    inputProps["value"] = props.value;
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;
