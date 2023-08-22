@@ -34,7 +34,7 @@ data class ResourceBrowseRequest<Flags : ResourceIncludeFlags>(
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
     override val sortBy: String? = null,
-    override val sortDirection: SortDirection? = SortDirection.ascending,
+    override val sortDirection: SortDirection? = null,
 ) : WithBrowseRequest<Flags>
 
 @Serializable

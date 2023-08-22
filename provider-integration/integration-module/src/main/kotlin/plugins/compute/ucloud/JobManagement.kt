@@ -376,7 +376,7 @@ class JobManagement(
                                                 event.jobId,
                                                 JobState.SUCCESS,
                                                 "Job has terminated",
-                                                allowRestart = false,
+                                                allowRestart = true,
                                                 expectedDifferentState = true,
                                             )
 

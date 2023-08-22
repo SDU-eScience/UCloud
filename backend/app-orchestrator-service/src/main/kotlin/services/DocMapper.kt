@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
+import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.json.JsonElement
@@ -86,14 +87,18 @@ class DocMapper<A, B>(
                 )
             },
             resolvedProduct,
-            providers.retrieveSupport(Jobs, resolvedProduct.category.provider)
-                .find { productCache.referenceToProductId(it.product) == doc.product }
-                ?.let { support ->
-                    ResolvedSupport(
-                        resolvedProduct,
-                        support
-                    )
-                }
+            try {
+                providers.retrieveSupport(Jobs, resolvedProduct.category.provider)
+                    .find { productCache.referenceToProductId(it.product) == doc.product }
+                    ?.let { support ->
+                        ResolvedSupport(
+                            resolvedProduct,
+                            support
+                        )
+                    }
+            } catch (ex: Throwable) {
+                null
+            }
         ).converter()
     }
 

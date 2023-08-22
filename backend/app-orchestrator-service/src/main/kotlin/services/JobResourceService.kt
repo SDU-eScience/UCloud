@@ -1290,7 +1290,7 @@ class JobResourceService {
                 data.specification.application.let { (name, version) ->
                     appCache.resolveApplication(name, version)
                 },
-                resolvedSupport as ResolvedSupport<Product.Compute, ComputeSupport>,
+                resolvedSupport as ResolvedSupport<Product.Compute, ComputeSupport>?,
                 resolvedProduct as Product.Compute,
                 data.allowRestart,
             ),
