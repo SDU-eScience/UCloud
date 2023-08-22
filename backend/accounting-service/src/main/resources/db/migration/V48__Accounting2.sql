@@ -252,6 +252,7 @@ begin
             or categoryname  = 'uc-general'
             or categoryname  = 'uc-t4'
             or categoryname  = 'syncthing'
+            or categoryname = 'cpu'
             )
         ) then
             return 'CREDITS_PER_MINUTE'::accounting.product_price_unit;
