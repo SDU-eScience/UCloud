@@ -11,27 +11,28 @@ export interface XtermHook {
     fitAddon: FitAddon;
 }
 
-export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
+export function useXTerm(props: {autofit?: boolean} = {}): XtermHook {
     const didMount = useRef(false);
 
-    const [term] = useState(() => new Terminal({
-        theme: getTheme(),
-        fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace",
-        rendererType: "canvas",
-        fontSize: 16
-    }));
 
-    const [fitAddon] = useState(() => new FitAddon());
+    const fitAddon = React.useMemo(() => new FitAddon(), []);
+    const term = React.useMemo(() => {
+        const term = new Terminal({
+            theme: getTheme(),
+            fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace",
+            fontSize: 16,
+        });
+        term.loadAddon(fitAddon);
+        return term;
+    }, []);
     const elem = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (elem.current) {
             if (!didMount.current) {
-                term.loadAddon(fitAddon);
                 term.open(elem.current);
                 didMount.current = true;
             }
-            fitAddon.fit();
         } else if (elem.current === null) {
             didMount.current = false;
         }
@@ -66,7 +67,7 @@ export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
 
     if (isLightThemeStored() !== storedTheme) {
         setStoredTheme(isLightThemeStored());
-        term.setOption("theme", getTheme());
+        term.options.theme = getTheme();
     }
 
     return {
@@ -85,7 +86,7 @@ function getTheme(): ITheme {
     if (!isLightThemeStored()) {
         return {
             background: "#282a36",
-            selection: "#44475a",
+            selectionForeground: "#44475a",
             foreground: "#f8f8f2",
             cyan: "#8be9fd",
             green: "#50fa7b",
@@ -107,7 +108,7 @@ function getTheme(): ITheme {
     } else {
         return {
             background: "#ffffff",
-            selection: "#d6d6d6",
+            selectionForeground: "#d6d6d6",
             foreground: "#4d4d4c",
             red: "#c82829",
             yellow: "#eab700",
