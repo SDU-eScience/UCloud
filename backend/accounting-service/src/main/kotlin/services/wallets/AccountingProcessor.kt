@@ -1432,19 +1432,30 @@ class AccountingProcessor(
         when(request) {
             is AccountingRequest.Charge.OldCharge -> {
                 val category = productcategories.retrieveProductCategory(request.productCategory)
-                    ?: return return AccountingResponse.Charge(false)
-                val price = products.retrieveProduct(request.product)?.first?.price ?: 1
+                    ?: return AccountingResponse.Charge(false)
+                val product = products.retrieveProduct(request.product)?.first ?: return AccountingResponse.Charge(false)
+                val v1 = product.toV1()
+                val newUnits = when (v1){
+                    is Product.Compute -> {
+                        request.units / (v1.cpu ?: 1)
+                    }
+                    else -> request.units
+                }
+                val price = product.price
+                val requestWithNewUnit = request.copy(units = newUnits)
+                println("period: ${requestWithNewUnit.period}, units: ${requestWithNewUnit.units}")
+                println("price: $price")
                 return when (translateToChargeType(category)) {
                     ChargeType.ABSOLUTE -> {
                         deltaCharge(
-                            request.toDelta(price)
+                            requestWithNewUnit.toDelta(price)
 
                         )
                     }
 
                     ChargeType.DIFFERENTIAL_QUOTA -> {
                         totalCharge(
-                            request.toTotal(price)
+                            requestWithNewUnit.toTotal(price)
                         )
                     }
                 }
@@ -1480,6 +1491,7 @@ class AccountingProcessor(
         )
     }
     private suspend fun deltaCharge(request: AccountingRequest.Charge.DeltaCharge): AccountingResponse {
+        println("Charging Delta: Usage: ${request.usage}, Product: ${request.productCategory}")
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
             ?: return return AccountingResponse.Charge(false)
         val wallet = wallets.find {
@@ -1499,6 +1511,7 @@ class AccountingProcessor(
     }
 
     private suspend fun totalCharge(request: AccountingRequest.Charge.TotalCharge): AccountingResponse {
+        println("Charging Total: Usage: ${request.usage}, Product: ${request.productCategory}")
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
             ?: return return AccountingResponse.Charge(false)
         val wallet = wallets.find {
@@ -1601,6 +1614,7 @@ class AccountingProcessor(
         walletAllocations: List<WalletAllocationV2>,
         chargeDescription: ChargeDescription
     ):AccountingResponse {
+        println("Applying: $delta")
         if (delta == 0L) return AccountingResponse.Charge(true)
         var activeQuota = 0L
         for (allocation in walletAllocations) {
@@ -1664,6 +1678,7 @@ class AccountingProcessor(
         walletAllocations: List<WalletAllocationV2>,
         description: ChargeDescription
     ): AccountingResponse {
+        println("appltying: $totalUsage")
         var activeQuota = 0L
         val activeAllocations = walletAllocations.mapNotNull {
             if (it.isActive()) {
