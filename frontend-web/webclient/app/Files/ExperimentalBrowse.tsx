@@ -730,6 +730,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     row.title.title = title;
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
 
+                    // Repeated in ExperimentalJobs
                     if (opts?.selection && opts.selection.onSelectRestriction(file) === true) {
                         const button = document.createElement("button");
                         button.innerText = "Use";

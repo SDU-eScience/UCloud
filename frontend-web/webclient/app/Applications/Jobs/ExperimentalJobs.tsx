@@ -16,6 +16,7 @@ import {useNavigate} from "react-router";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
+import {ButtonClass} from "@/ui-components/Button";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -39,7 +40,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
-    
+
     if (!opts?.embedded) {
         useTitle("Jobs");
     }
@@ -63,7 +64,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                const flags = browser.opts?.embedded ? {itemsPerPage: 10} : {
+                const flags = {
                     ...defaultRetrieveFlags,
                     ...(opts?.additionalFilters ?? {})
                 };
@@ -143,7 +144,6 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     row.title.append(browser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
                     row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
 
-
                     let didSetLogo = false;
                     logoDataUrls.retrieve(job.specification.application.name, async () => {
                         // Note(Jonas): Some possible improvements
@@ -175,6 +175,20 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         color2: statusIconColor
                     }).then(setStatus);
                     row.stat3.append(status);
+
+                    // Repeated in ExperimentalBrowse (Files)
+                    if (opts?.selection && opts.selection.onSelectRestriction(job) === true) {
+                        const button = document.createElement("button");
+                        button.innerText = "Use";
+                        button.className = ButtonClass;
+                        button.style.height = "32px";
+                        button.style.width = "64px";
+                        button.onclick = e => {
+                            e.stopImmediatePropagation();
+                            opts.selection?.onSelect(job);
+                        }
+                        row.stat3.replaceChildren(button);
+                    }
                 });
 
                 browser.setEmptyIcon("play");

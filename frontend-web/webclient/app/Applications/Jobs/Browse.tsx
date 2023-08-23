@@ -6,7 +6,8 @@ import Create from "@/Applications/Jobs/Create";
 import {useNavigate} from "react-router";
 import {BrowseType} from "@/Resource/BrowseType";
 
-export const JobBrowse: React.FunctionComponent<BaseResourceBrowseProps<Job> & {additionalFilters?: Record<string, string>}> = props => {
+// Unused
+const JobBrowse: React.FunctionComponent<BaseResourceBrowseProps<Job> & {additionalFilters?: Record<string, string>}> = props => {
     const navigate = useNavigate();
     const viewPropertiesInline = React.useCallback(() => props.browseType === BrowseType.Embedded, [props.browseType]);
     return <ResourceBrowse api={JobApi} viewPropertiesInline={viewPropertiesInline} additionalFilters={props.additionalFilters} {...props} browseType={props.browseType ?? BrowseType.MainContent}
