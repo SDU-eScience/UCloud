@@ -940,8 +940,7 @@ const RunningContent: React.FunctionComponent<{
     const project = useProject().fetch();
     const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
     const workspaceTitle = Client.hasActiveProject ? project.specification.title : "My workspace";
-    const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
-        const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
+    const extendJob = useCallback(async (duration: number) => {
         if (!commandLoading && expiresAt) {
             setExpiresAt(expiresAt + (3600 * 1000 * duration));
             try {
@@ -1075,11 +1074,11 @@ const RunningContent: React.FunctionComponent<{
                         {!expiresAt || !supportsExtension ? null : <>
                             Extend allocation (hours):
                             <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                <Button data-duration={"1"} onClick={extendJob}>+1</Button>
-                                <Button data-duration={"6"} onClick={extendJob}>+6</Button>
-                                <Button data-duration={"12"} onClick={extendJob}>+12</Button>
-                                <Button data-duration={"24"} onClick={extendJob}>+24</Button>
-                                <Button data-duration={"48"} onClick={extendJob}>+48</Button>
+                                <Button onClick={() => extendJob(1)}>+1</Button>
+                                <Button onClick={() => extendJob(6)}>+6</Button>
+                                <Button onClick={() => extendJob(12)}>+12</Button>
+                                <Button onClick={() => extendJob(24)}>+24</Button>
+                                <Button onClick={() => extendJob(48)}>+48</Button>
                             </AltButtonGroup>
                         </>}
                         {!supportsSuspend ? null :
