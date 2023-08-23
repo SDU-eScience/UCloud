@@ -465,7 +465,7 @@ class AppStoreService(
                     setParameter("user", actorAndProject.actor.username)
                 },
                 """
-                    SELECT * FROM applications AS A
+                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.logo as group_logo FROM applications AS A
                     JOIN app_store.application_groups ag on A.group_id = ag.id
                     WHERE A.name = :name AND (
                         (
@@ -1424,10 +1424,10 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
 internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
     val group = try {
         ApplicationGroup(
-            this.getInt("id")!!,
-            this.getString("title")!!,
-            this.getAs<ByteArray>("logo"),
-            this.getString("description")
+            this.getInt("group_id")!!,
+            this.getString("group_title")!!,
+            this.getAs("group_logo"),
+            this.getString("group_description")
         )
     } catch (e: Exception) {
         null

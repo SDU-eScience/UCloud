@@ -15,13 +15,73 @@ export interface ApplicationGroup {
     application?: ApplicationSummaryWithFavorite
 }
 
-export interface SetGroupRequest{
-    groupName: string,
+export interface CreateGroupRequest {
+    title: string;
+}
+
+export interface CreateGroupResponse {}
+
+export interface RetrieveGroupRequest {
+    id?: string;
+    name?: string;
+}
+
+export interface RetrieveGroupResponse {
+    group: ApplicationGroup;
+    applications: ApplicationSummaryWithFavorite[];
+}
+
+
+export interface SetGroupRequest {
+    groupId: number,
     applicationName: string
 }
+
 export interface SetGroupResponse{}
 
 export interface ListGroupsRequest {}
+
+export interface UpdateGroupRequest {
+    id: number,
+    title: string,
+    description?: string,
+    logo?: Blob
+}
+
+export interface UpdateGroupResponse {}
+
+export interface DeleteGroupRequest {
+    id: number,
+}
+
+export interface DeleteGroupResponse {}
+
+export function retrieveGroup(
+    request: RetrieveGroupRequest 
+): APICallParameters<RetrieveGroupRequest, RetrieveGroupResponse> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/hpc/apps" + "/group", {id: request.id, name: request.name}),
+        parameters: request,
+        reloadId: Math.random(),
+    }
+}
+
+
+
+export function createGroup(
+    request: CreateGroupRequest 
+): APICallParameters<CreateGroupRequest, CreateGroupResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: buildQueryString("/api/hpc/apps" + "/group", {}),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request
+    }
+}
 
 export function setGroup(
     request: SetGroupRequest 
@@ -29,7 +89,7 @@ export function setGroup(
     return {
         context: "",
         method: "POST",
-        path: buildQueryString("/api/hpc/apps" + "/group", {}),
+        path: buildQueryString("/api/hpc/apps" + "/group/set", {}),
         parameters: request,
         reloadId: Math.random(),
         payload: request
@@ -45,6 +105,32 @@ export function listGroups(
         path: buildQueryString("/api/hpc/apps" + "/groups", {}),
         parameters: request,
         reloadId: Math.random(),
+    }
+}
+
+export function updateGroup(
+    request: UpdateGroupRequest
+): APICallParameters<UpdateGroupRequest, UpdateGroupResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: buildQueryString("/api/hpc/apps" + "/group/update", {}),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request
+    }
+}
+
+export function deleteGroup(
+    request: DeleteGroupRequest
+): APICallParameters<DeleteGroupRequest, DeleteGroupResponse> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: buildQueryString("/api/hpc/apps" + "/group", {}),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request
     }
 }
 

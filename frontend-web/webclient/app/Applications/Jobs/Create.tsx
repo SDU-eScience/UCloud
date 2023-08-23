@@ -41,31 +41,11 @@ import {Resource} from "@/UCloud/ResourceApi";
 import {Spacer} from "@/ui-components/Spacer";
 import {UtilityBar} from "@/Playground/Playground";
 import {injectStyleSimple} from "@/Unstyled";
+import {RetrieveGroupResponse, retrieveGroup} from "../api";
 
 interface InsufficientFunds {
     why?: string;
     errorCode?: string;
-}
-
-interface FindGroupRequest {
-    name: string;
-}
-
-interface FindGroupResponse {
-    title: string;
-    applications: UCloud.compute.ApplicationSummaryWithFavorite[];
-}
-
-function findGroup(
-    request: FindGroupRequest
-): APICallParameters<FindGroupRequest, FindGroupResponse> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/group", {appName: request.name}),
-        parameters: request,
-        reloadId: Math.random(),
-    }
 }
 
 const EstimatesContainerClass = injectStyleSimple("estimates-container", `
@@ -92,7 +72,7 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [appGroup, fetchAppGroup] = useCloudAPI<FindGroupResponse | null>(
+    const [appGroup, fetchAppGroup] = useCloudAPI<RetrieveGroupResponse | null>(
         {noop: true},
         null
     );
@@ -140,7 +120,7 @@ export const Create: React.FunctionComponent = () => {
     }, [appName, appVersion]);
 
     useEffect(() => {
-        fetchAppGroup(findGroup({name: appName}));
+        fetchAppGroup(retrieveGroup({name: appName}));
     }, [appName]);
 
     const application = applicationResp.data;
@@ -342,7 +322,7 @@ export const Create: React.FunctionComponent = () => {
                         left={
                             <AppHeader
                                 slim
-                                title={appGroup?.data?.title ?? application.metadata.title}
+                                title={appGroup?.data?.group.title ?? application.metadata.title}
                                 application={application}
                                 flavors={appGroup?.data?.applications ?? []}
                                 allVersions={previousResp.data?.items ?? []}

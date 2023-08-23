@@ -74,7 +74,7 @@ class AppStoreController(
         }
 
         implement(AppStore.setGroup) {
-            ok(appStore.setGroup(actorAndProject, request.applicationName, request.group))
+            ok(appStore.setGroup(actorAndProject, request.applicationName, request.groupId))
         }
 
         implement(AppStore.createGroup) {

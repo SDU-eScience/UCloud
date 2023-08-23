@@ -200,7 +200,7 @@ enum class AppStorePageType {
 
 @Serializable
 data class SetGroupRequest(
-    val group: Int,
+    val groupId: Int,
     val applicationName: String
 )
 

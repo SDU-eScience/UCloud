@@ -29,6 +29,8 @@ const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteL
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
+const StudioGroup = React.lazy(() => import("@/Applications/Studio/Group"));
+const StudioGroups = React.lazy(() => import("@/Applications/Studio/Groups"));
 const Tool = React.lazy(() => import("@/Applications/Studio/Tool"));
 const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
@@ -162,10 +164,13 @@ const Core = (): JSX.Element => (
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
                         <Route path={AppRoutes.apps.studio()} element={React.createElement(requireAuth(Studio))} />
+                        <Route path={AppRoutes.apps.studioGroups()} element={React.createElement(requireAuth(StudioGroups))} />
                         <Route path={AppRoutes.apps.studioTool(":name")}
                             element={React.createElement(requireAuth(Tool))} />
                         <Route path={AppRoutes.apps.studioApp(":name")}
                             element={React.createElement(requireAuth(App))} />
+                        <Route path={AppRoutes.apps.studioGroup(":id")}
+                            element={React.createElement(requireAuth(StudioGroup))} />
 
                         {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
                         {!inDevEnvironment() ? null : <Route path={"/playground/demo"} element={<Demo />} />}

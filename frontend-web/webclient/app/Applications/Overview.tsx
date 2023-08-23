@@ -117,31 +117,31 @@ const LandingDivider = injectStyle("landing-divider", k => `
 `);
 
   const LargeSearchBoxClass = injectStyle("large-search-box", k => `
-        ${k} {
-            width: 400px;
-            margin: 30px auto;
-            position: relative;
-        }
+    ${k} {
+        width: 400px;
+        margin: 30px auto;
+        position: relative;
+    }
 
-        ${k} input {
-            width: 100%;
-            border: 1px solid var(--midGray);
-            background: var(--white);
-            border-radius: 99px;
-            padding-left: 1.2em;
-            padding-right: 2.5rem;
-        }
+    ${k} input {
+        width: 100%;
+        border: 1px solid var(--midGray);
+        background: var(--white);
+        border-radius: 99px;
+        padding-left: 1.2em;
+        padding-right: 2.5rem;
+    }
 
-        ${k} button {
-            background: none;
-            border: 0;
-            padding: 0 10px 1px 10px;
-            cursor: pointer;
-            position: absolute;
-            right: 0;
-            height: 2.5rem;
-        }
-    `);
+    ${k} button {
+        background: none;
+        border: 0;
+        padding: 2px 10px 1px 10px;
+        cursor: pointer;
+        position: absolute;
+        right: 0;
+        height: 2.5rem;
+    }
+`);
 
 
 function LargeSearchBox(): JSX.Element {
