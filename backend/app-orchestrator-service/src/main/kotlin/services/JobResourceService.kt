@@ -269,7 +269,7 @@ class JobResourceService {
                 val initialState = InternalJobState(job, jobParameters = exportedParameters)
 
                 val provider = job.product.provider
-                documents.createViaProvider(card, job.product, initialState) { doc ->
+                documents.createViaProvider(card, job.product, initialState, addOwnerToAcl = true) { doc ->
                     val mapped = docMapper.map(null, doc)
                     providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
                         .singleIdOrNull()
@@ -1263,11 +1263,13 @@ class JobResourceService {
         }
     )
 
-    private val docMapper = DocMapper<InternalJobState, Job>(idCards, productCache, providers) {
+    private val docMapper = DocMapper<InternalJobState, Job>(idCards, productCache, providers, Jobs) {
+        val jobFlags = flags as? JobIncludeFlags?
+
         Job(
             id,
             owner,
-            updates.map { update ->
+            updates?.map { update ->
                 val decoded = update.extra?.let {
                     defaultMapper.decodeFromJsonElement<JobUpdate>(it)
                 } ?: JobUpdate()
@@ -1276,22 +1278,42 @@ class JobResourceService {
                     it.timestamp = update.timestamp
                     it.status = update.status
                 }
-            },
-            data.specification.copy(product = resolvedProduct.toReference()),
+            } ?: emptyList(),
+            data.specification.copy(
+                product = productReference,
+                parameters = if (jobFlags != null && jobFlags.includeParameters != true) {
+                    null
+                } else {
+                    data.specification.parameters
+                },
+                resources = if (jobFlags != null && jobFlags.includeParameters != true) {
+                    null
+                } else {
+                    data.specification.resources
+                }
+            ),
             JobStatus(
                 data.state,
-                data.jobParameters,
+                if (jobFlags != null && jobFlags.includeParameters != true) {
+                    null
+                } else {
+                    data.jobParameters
+                },
                 data.startedAt,
                 if (data.startedAt != null && data.specification.timeAllocation != null) {
                     (data.startedAt ?: 0L) + (data.specification.timeAllocation?.toMillis() ?: 0L)
                 } else {
                     null
                 },
-                data.specification.application.let { (name, version) ->
-                    appCache.resolveApplication(name, version)
+                if (jobFlags != null && jobFlags.includeApplication != true) {
+                    null
+                } else {
+                    data.specification.application.let { (name, version) ->
+                        appCache.resolveApplication(name, version)
+                    }
                 },
                 resolvedSupport as ResolvedSupport<Product.Compute, ComputeSupport>?,
-                resolvedProduct as Product.Compute,
+                resolvedProduct as Product.Compute?,
                 data.allowRestart,
             ),
             createdAt,
