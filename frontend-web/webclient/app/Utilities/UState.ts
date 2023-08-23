@@ -62,7 +62,7 @@ class QueuedAsyncDispatcher {
     private queue: (() => Promise<unknown>)[] = [];
 
     constructor(maxQueueSize: number = 5, rejectOnQueueFull: boolean = false) {
-        if (maxQueueSize <= 0) throw `maxQueueSize must be at least one but was ${maxQueueSize}`;
+        if (maxQueueSize <= 0) throw Error(`maxQueueSize must be at least one but was ${maxQueueSize}`);
         this.maxQueueSize = maxQueueSize;
         this.rejectOnQueueFull = rejectOnQueueFull;
     }

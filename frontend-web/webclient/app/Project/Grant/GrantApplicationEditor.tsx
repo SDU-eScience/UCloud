@@ -1119,7 +1119,8 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             <ClickableDropdown
                 fullWidth
                 colorOnHover={false}
-                trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="18px" ml=".7em" color={"darkGray"} /></Flex>}
+                chevron
+                trigger={<Heading.h2>Select grant giver</Heading.h2>}
             >
                 <div className={Wrapper}>
                     <Table>

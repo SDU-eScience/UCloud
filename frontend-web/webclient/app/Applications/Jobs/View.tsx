@@ -804,9 +804,12 @@ function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} 
     return <div
         style={{
             ...unbox(props),
-            gridTemplateColumns: `repeat(auto-fit, minmax(${props.minButtonWidth}, max-content))`
+            display: "flex",
+            gap: "8px"
         }}
-    />
+    >
+        {props.children}
+    </div>
 }
 
 const AltButtonGroupClass = injectStyleSimple("alt-button-group", `

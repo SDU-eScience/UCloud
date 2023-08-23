@@ -47,6 +47,14 @@ export function extractDataTags(props: Record<string, string>): Record<string, s
     return result;
 }
 
+export function unboxDataTags(props: Record<string, string>): Record<string, string> {
+    const result = {};
+    Object.entries(props).filter(([key]) => key.startsWith("data-")).forEach(it => {
+        result[it[0]] = it[1];
+    });
+    return result;
+}
+
 export function unbox(props: BoxProps | SpaceProps): CSSProperties {
     let result: CSSProperties = {};
 

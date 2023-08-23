@@ -4,7 +4,7 @@ import {
     BorderRadiusProps, VerticalAlignProps, FontSizeProps, SpaceProps
 } from "styled-system";
 import {Cursor} from "./Types";
-import {extractEventHandlers, injectStyleSimple, unbox, WithEventHandlers} from "@/Unstyled";
+import {extractEventHandlers, injectStyleSimple, unbox, unboxDataTags, WithEventHandlers} from "@/Unstyled";
 import * as React from "react";
 import {CSSProperties} from "react";
 
@@ -50,6 +50,7 @@ const Box: React.FunctionComponent<BoxProps & {
     return <div
         className={BoxClass + " " + (props.className ?? "")}
         style={{...unbox(props), ...(props.style ?? {})}}
+        {...unboxDataTags(props as Record<string, string>)}
         title={props.title}
         ref={props.divRef}
         children={props.children}
