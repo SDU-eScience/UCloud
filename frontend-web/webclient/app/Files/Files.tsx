@@ -35,7 +35,8 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {UtilityBar} from "@/Playground/Playground";
 import {classConcat, injectStyle} from "@/Unstyled";
 
-export const FilesBrowse: React.FunctionComponent<{
+// Unused.
+const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
     additionalFilters?: UFileIncludeFlags;
     onSelectRestriction?: (res: UFile) => boolean | string;
@@ -193,7 +194,7 @@ export const FilesBrowse: React.FunctionComponent<{
 
     const onSelectRestriction = useCallback((file: UFile): string | boolean => {
         if (props.onSelectRestriction) {
-            return props.onSelectRestriction(file);
+            return props.onSelectRestriction(file) === true;
         }
         const provider = activeProviderId;
         const resourceProvider = file.specification.product.provider;

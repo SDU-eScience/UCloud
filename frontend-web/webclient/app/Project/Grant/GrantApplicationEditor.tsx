@@ -1197,8 +1197,8 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             }
 
             main={<>
-                {target !== RequestTarget.VIEW_APPLICATION ? (
-                    <Flex mx="auto" my="8px">
+                <Flex mx="auto" my="8px">
+                    {target !== RequestTarget.VIEW_APPLICATION ? (<>
                         <Button ml="auto" mr={target === RequestTarget.NEW_PROJECT ? "auto" : undefined} disabled={grantFinalized || submitLoading} onClick={submitRequest}>
                             Submit Application
                         </Button>
@@ -1207,34 +1207,37 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                 Apply for new project instead
                             </Button>
                         )}
-                    </Flex>
-                ) : null}
-                {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
-                    isLocked ? (
-                        (isRecipient || isApprover ?
-                            <Button disabled={loading} onClick={() => setIsLocked(false)}>
-                                Edit this request
-                            </Button> :
-                            <Tooltip trigger={<Button fullWidth disabled>
-                                Edit this request
-                            </Button>}
-                            >
-                                {infoTextFromContext(recipient)}
-                            </Tooltip>
+                    </>) : null}
+
+                    {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
+                        isLocked ? (
+                            (isRecipient || isApprover ?
+                                <Button mx="auto" disabled={loading} onClick={() => setIsLocked(false)}>
+                                    Edit this request
+                                </Button> :
+                                <Tooltip trigger={<Button mx="auto" disabled>
+                                    Edit this request
+                                </Button>}
+                                >
+                                    {infoTextFromContext(recipient)}
+                                </Tooltip>
+                            )
+                        ) : (
+                            <>
+                                <Button
+                                    ml="auto"
+                                    mr="8px"
+                                    color={"green"}
+                                    disabled={loading}
+                                    onClick={() => editApplication()}
+                                >
+                                    Save Changes
+                                </Button>
+                                <Button mr="auto" color={"red"} onClick={discardChanges}>Discard changes</Button>
+                            </>
                         )
-                    ) : (
-                        <>
-                            <Button
-                                color={"green"}
-                                disabled={loading}
-                                onClick={() => editApplication()}
-                            >
-                                Save Changes
-                            </Button>
-                            <Button my="4px" color={"red"} onClick={discardChanges}>Discard changes</Button>
-                        </>
-                    )
-                )}
+                    )}
+                </Flex>
                 {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
                     <Button
                         mt="4px"

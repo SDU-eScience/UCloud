@@ -35,7 +35,7 @@ export interface ResourceBrowserOpts<T> {
     omitFilters?: boolean;
     selection?: {
         onSelect(res: T): void;
-        onSelectRestriction(res: T): boolean;
+        onSelectRestriction(res: T): boolean | string;
     }
 }
 
@@ -2468,6 +2468,7 @@ export class ResourceBrowser<T> {
         };
 
         const doTabComplete = (allowFetch: boolean = true) => {
+            debugger;
             const path = readValue();
             if (path === null) return;
 
@@ -2508,6 +2509,7 @@ export class ResourceBrowser<T> {
 
             setValue(this.locationBar.value);
         } else {
+            debugger;
             switch (ev.code) {
                 case "Tab": {
                     ev.preventDefault();

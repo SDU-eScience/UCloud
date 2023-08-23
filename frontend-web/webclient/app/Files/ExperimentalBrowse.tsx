@@ -730,7 +730,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     row.title.title = title;
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
 
-                    if (opts?.selection && opts.selection.onSelectRestriction(file)) {
+                    if (opts?.selection && opts.selection.onSelectRestriction(file) === true) {
                         const button = document.createElement("button");
                         button.innerText = "Use";
                         button.className = ButtonClass
@@ -963,15 +963,15 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         if (!allowFetch) return [];
 
                         if (parentPath === "/") {
-                            return collectionCacheForCompletion.retrieve("", () => {
-                                return callAPI(
+                            return collectionCacheForCompletion.retrieve("", () =>
+                                callAPI(
                                     FileCollectionsApi.browse({
                                         itemsPerPage: 250,
                                         filterMemberFiles: "DONT_FILTER_COLLECTIONS",
                                         filterProvider: opts?.providerFilter,
                                     })
-                                ).then(res => res.items);
-                            }).then(doNothing);
+                                ).then(res => res.items)
+                            ).then(doNothing);
                         } else {
                             return prefetch(parentPath).then(doNothing);
                         }
@@ -1290,8 +1290,24 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         const b = browserRef.current;
         if (!b) return;
 
-        if (opts?.initialPath) {
-            b.open(selectorPathRef.current);
+        if (opts?.initialPath !== undefined) {
+            if (selectorPathRef.current === "") {
+                callAPI(
+                    FileCollectionsApi.browse({
+                        itemsPerPage: 10,
+                        filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                        filterProvider: opts?.providerFilter,
+                    })
+                ).then(res => {
+                    const [first] = res.items;
+                    if (first) {
+                        selectorPathRef.current = first.id;
+                        b.open(selectorPathRef.current);
+                    }
+                })
+            } else {
+                b.open(selectorPathRef.current);
+            }
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
             if (path) {

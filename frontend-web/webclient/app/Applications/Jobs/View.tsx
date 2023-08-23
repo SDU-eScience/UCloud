@@ -1,5 +1,5 @@
 import * as React from "react";
-import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -37,8 +37,6 @@ import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {costOfDuration, ProductCompute, usageExplainer} from "@/Accounting";
-import {FilesBrowse} from "@/Files/Files";
-import {BrowseType} from "@/Resource/BrowseType";
 import {prettyFilePath} from "@/Files/FilePath";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {SillyParser} from "@/Utilities/SillyParser";
@@ -1356,8 +1354,12 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
     </div>;
 };
 
-function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | null {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
+    if (!pathRef.current) {
+        console.warn("No output folder found. Showing nothing.");
+        return null;
+    }
     return <div style={{width: "100%", marginTop: "18px"}}>
         <ExperimentalBrowse
             opts={{initialPath: pathRef.current, embedded: true}}

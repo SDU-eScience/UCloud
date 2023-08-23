@@ -17,13 +17,12 @@ import {default as JobsApi, Job} from "@/UCloud/JobsApi";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
-import {JobBrowse} from "../Browse";
 import {ButtonClass} from "@/ui-components/Button";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import ExperimentalJobs from "../ExperimentalJobs";
+import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -186,14 +185,14 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-                            <FilesBrowse
-                                browseType={BrowseType.Embedded}
-                                onSelect={res => {
-                                    fetchAndImportParameters(res);
-                                    dialogStore.success();
-                                }}
-                                pathRef={{current: ""}}
-                                onSelectRestriction={res => res.status.type === "FILE" && res.id.endsWith(".json")}
+                            <ExperimentalBrowse 
+                                opts={{embedded: true, initialPath: "", selection: {
+                                    onSelect: res => {
+                                        fetchAndImportParameters(res);
+                                        dialogStore.success();
+                                    },
+                                    onSelectRestriction: res => res.status.type === "FILE" && res.id.endsWith(".json")
+                                }}}
                             />,
                             () => undefined,
                             true,

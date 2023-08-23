@@ -402,7 +402,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 canAppearInLocation: (loc) => loc === "TOPBAR",
                 enabled: (selected, cb) => {
                     return selected.length === 0 && cb.onSelect !== undefined && cb.directory != null &&
-                        (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory));
+                        (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory) === true);
                 },
                 onClick: (selected, cb) => {
                     cb.onSelect?.(cb.directory ?? {

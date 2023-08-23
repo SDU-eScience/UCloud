@@ -7,10 +7,8 @@ import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
-import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
@@ -53,26 +51,12 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const onActivate = useCallback(() => {
         const pathRef = {current: ""};
         const provider = getProviderField();
-        // TODO(Jonas): Give provider
         dialogStore.addDialog(
-                /* <ExperimentalBrowse opts={{embedded: true, onSelect: () => console.log("sure enough"), providerFilter: provider}} /> */
-                <FilesBrowse
-                    browseType={BrowseType.Embedded}
-                    pathRef={pathRef}
-                    onSelectRestriction={file => {
-                        const fileProvider = file.specification.product.provider;
-                        const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
-                        const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
-                        if (provider && provider !== fileProvider) {
-                            if (isCorrectlyDir) {
-                                return providerMismatchError("Folders", fileProvider);
-                            } else if (isCorrectlyFile) {
-                                return providerMismatchError("Files", fileProvider)
-                            }
-                        }
-                        return isCorrectlyDir || isCorrectlyFile;
-                    }}
-                    onSelect={async res => {
+            <ExperimentalBrowse opts={{
+                embedded: true,
+                initialPath: "",
+                selection: {
+                    onSelect: async res => {
                         const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                         if (props.errors[props.parameter.name]) {
                             delete props.errors[props.parameter.name];
@@ -84,9 +68,22 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                         if (anyFolderDuplicates()) {
                             props.setWarning?.("Duplicate folders selected. This is not always supported.");
                         }
-                    }}
-                />
-            ,
+                    },
+                    onSelectRestriction: file => {
+                        const fileProvider = file.specification.product.provider;
+                        const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+                        const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+                        if (provider && provider !== fileProvider) {
+                            if (isCorrectlyDir) {
+                                return providerMismatchError("Folders", fileProvider);
+                            } else if (isCorrectlyFile) {
+                                return providerMismatchError("Files", fileProvider)
+                            }
+                        }
+                        return isCorrectlyDir || isCorrectlyFile;
+                    }
+                }, providerFilter: provider
+            }} />,
             doNothing,
             true,
             FilesApi.fileSelectorModalStyle
