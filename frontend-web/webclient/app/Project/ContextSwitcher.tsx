@@ -113,7 +113,7 @@ export function ContextSwitcher(): JSX.Element {
                 <div style={{maxHeight: "385px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
-                        <Input placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
+                        <Input autoFocus placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
                         <Relative right="34px" top="6px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px"}}>
                         {projectId !== undefined ? (
