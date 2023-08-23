@@ -73,7 +73,7 @@ suspend fun <Internal, Result> ResourceStore<Internal>.browseWithStrategy(
 
         val page = ArrayList<Result>(result.count)
         for (idx in 0 until min(pagination.itemsPerPage, result.count)) {
-            page.add(mapper.map(card, pool[idx]))
+            page.add(mapper.map(card, pool[idx], request.flags))
         }
 
         check(result.next == null || result.next != request.next) // no loops are allowed

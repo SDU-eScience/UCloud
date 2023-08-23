@@ -284,6 +284,7 @@ class ResourceStore<T>(
         product: ProductReference,
         data: T,
         output: ResourceDocument<T>? = null,
+        addOwnerToAcl: Boolean = false,
         proxyBlock: suspend (doc: ResourceDocument<T>) -> String?,
     ): Long {
         val doc = output ?: ResourceDocument<T>()
@@ -301,6 +302,18 @@ class ResourceStore<T>(
         if (providerId != null) {
             updateProviderId(idCard, allocatedId, providerId)
             doc.providerId = providerId
+        }
+
+        if (addOwnerToAcl && idCard is IdCard.User) {
+            updateAcl(
+                IdCard.System,
+                allocatedId,
+                emptyList(),
+                listOf(
+                    NumericAclEntry(idCard.uid, permission = Permission.READ),
+                    NumericAclEntry(idCard.uid, permission = Permission.EDIT),
+                )
+            )
         }
 
         return allocatedId
@@ -2783,6 +2796,24 @@ class ResourceStoreDatabaseQueriesImpl<T>(
 
                 session.sendPreparedStatement(
                     {
+                        val ids = setParameterList<Long>("ids")
+                        for (i in 0 until len) {
+                            val arrIdx = indices[i]
+                            ids.add(id[arrIdx])
+                        }
+                    },
+                    """
+                        with all_ids as (
+                            select unnest(:ids::int8[]) id
+                        )
+                        delete from provider.resource_acl_entry
+                        using all_ids d
+                        where resource_id = d.id
+                    """
+                )
+
+                session.sendPreparedStatement(
+                    {
                         val ids = ArrayList<Long>()
                         val entity = ArrayList<Int>()
                         val entityIsUser = ArrayList<Boolean>()
@@ -2818,18 +2849,11 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                                     unnest(:entity::int[]) entity,
                                     unnest(:is_user::bool[]) is_user,
                                     unnest(:perm::text[]) perm
-                            ),
-                            deleted_entries as (
-                                delete from provider.resource_acl_entry
-                                using data d
-                                where resource_id = d.id
-                                returning resource_id
                             )
                         insert into provider.resource_acl_entry(group_id, username, permission, resource_id)
                         select distinct g.id, u.id, d.perm, d.id
                         from
-                            data d join
-                            deleted_entries de on d.id = de.resource_id
+                            data d
                             left join auth.principals u on d.is_user and d.entity = u.uid
                             left join project.groups g on not d.is_user and d.entity = g.gid
                                            
