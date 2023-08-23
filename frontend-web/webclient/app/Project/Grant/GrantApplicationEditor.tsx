@@ -41,7 +41,7 @@ import {
     RetrieveDescriptionResponse,
 } from "@/Project/Grant/index";
 import {useNavigate, useParams} from "react-router";
-import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
+import {dateToString, getEndOfDay, getStartOfDay} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType} from "@/UserSettings/Avataaar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
@@ -57,7 +57,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {ButtonGroup, Divider, Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
-import {format} from "date-fns";
+import {format, isValid} from "date-fns";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {
     AllocationRequest,
@@ -257,7 +257,7 @@ const GenericRequestCard: React.FunctionComponent<{
     allocationRequest?: AllocationRequest;
 }> = ({wb, grantFinalized, isLocked, wallets, isApprover, allocationRequest, projectId, ...props}) => {
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [endDate, setEndDate] = useState<Date>(getEndOfDay(new Date()));
 
     const canEdit = isApprover || props.isRecipient;
 
@@ -270,9 +270,20 @@ const GenericRequestCard: React.FunctionComponent<{
     React.useEffect(() => {
         if (endDate == null) return;
         if (endDate < startDate) {
-            setEndDate(null);
+            snackbarStore.addFailure("End date cannot be before start date.", false);
+            setEndDate(getEndOfDay(startDate));
         }
     }, [startDate, endDate]);
+
+    if (!isValid(startDate)) {
+        setStartDate(getStartOfDay(new Date()));
+        return null;
+    }
+
+    if (!isValid(endDate)) {
+        setEndDate(getEndOfDay(new Date()));
+        return null;
+    }
 
     if (wb.metadata.freeToUse) {
         // Note(Jonas): freeToUse should be sorted out at this point. See `AsProductType`-component.
@@ -341,12 +352,12 @@ const GenericRequestCard: React.FunctionComponent<{
                                         selectsEnd
                                         startDate={startDate}
                                         endDate={endDate}
-                                        isClearable={endDate != null}
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
-                                        placeholderText={isLocked ? undefined : "End date..."}
-                                        value={endDate ? format(endDate, "dd/MM/yy") : undefined}
+                                        placeholderText={"End date..."}
+                                        required={isApprover}
+                                        value={format(endDate, "dd/MM/yy")}
                                         disabled={grantFinalized || isLocked || !canEdit}
-                                        onChange={date => setEndDate(date as (Date | null))}
+                                        onChange={date => setEndDate(date as Date)}
                                         className={productCategoryEndDate(wb.metadata.category, projectId)}
                                     />
                                 </Flex>
@@ -1201,7 +1212,7 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                 {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
                     isLocked ? (
                         (isRecipient || isApprover ?
-                            <Button fullWidth disabled={loading} onClick={() => setIsLocked(false)}>
+                            <Button disabled={loading} onClick={() => setIsLocked(false)}>
                                 Edit this request
                             </Button> :
                             <Tooltip trigger={<Button fullWidth disabled>
@@ -1215,13 +1226,12 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                         <>
                             <Button
                                 color={"green"}
-                                fullWidth
                                 disabled={loading}
                                 onClick={() => editApplication()}
                             >
                                 Save Changes
                             </Button>
-                            <Button my="4px" fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
+                            <Button my="4px" color={"red"} onClick={discardChanges}>Discard changes</Button>
                         </>
                     )
                 )}
@@ -2156,12 +2166,12 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
 
             const first = document.getElementsByClassName(
                 productCategoryStartDate(wb.metadata.category, grantGiver)
-            )?.[0] as HTMLInputElement;
+            )?.[0]?.querySelector(":scope input") as HTMLInputElement;
             const start = parseDateFromInput(first);
 
             const second = document.getElementsByClassName(
                 productCategoryEndDate(wb.metadata.category, grantGiver)
-            )?.[0] as HTMLInputElement;
+            )?.[0]?.querySelector(":scope input") as HTMLInputElement;
             const end = parseDateFromInput(second);
 
             const allocation = document.querySelector<HTMLInputElement>(
@@ -2188,7 +2198,7 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
                 sourceAllocation,
                 period: {
                     start,
-                    end: end ?? null
+                    end
                 }
             } as AllocationRequest;
         }).filter(it => it != null)
