@@ -51,7 +51,7 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
                     Contact the relevant PI or admin of the project to get a new link.
                 </div> : <div className={AcceptProjectLinkContainer}>
                     <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
-                    <Flex mt="15px">
+                    <Flex mt="15px" width="300px" mx="auto">
                         <Button
                             color="green"
                             mr="10px"
