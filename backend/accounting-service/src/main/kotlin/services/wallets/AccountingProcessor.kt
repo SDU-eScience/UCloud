@@ -680,7 +680,8 @@ class AccountingProcessor(
                         au.name_plural, 
                         au.floating_point, 
                         au.display_frequency_suffix,
-                        pc.accounting_frequency
+                        pc.accounting_frequency,
+                        pc.free_to_use
                     from
                         accounting.wallets w join
                         accounting.wallet_owner wo
@@ -710,6 +711,7 @@ class AccountingProcessor(
                             row.getBoolean(10)!!
                         )
                         val frequency = row.getString(11)!!
+                        val freeToUse = row.getBoolean(12)!!
                         val emptySlots = id - wallets.size
                         require(emptySlots >= 0) { "Duplicate wallet detected (or bad logic): $id ${wallets.size} $emptySlots" }
                         repeat(emptySlots) { wallets.add(null) }
@@ -725,7 +727,8 @@ class AccountingProcessor(
                                     productType,
                                     accountingUnit,
                                     AccountingFrequency.fromValue(frequency),
-                                    emptyList()
+                                    emptyList(),
+                                    freeToUse = freeToUse
                                 ),
                                 allocationPolicy,
                             )
@@ -1429,13 +1432,15 @@ class AccountingProcessor(
         if (request.dryRun) {
             return check(request)
         }
+
         when(request) {
             is AccountingRequest.Charge.OldCharge -> {
                 val category = productcategories.retrieveProductCategory(request.productCategory)
                     ?: return AccountingResponse.Charge(false)
+                //Note(HENRIK) This will also be caught in delta and total charge, but lets just skip the translate work
+                if (category.freeToUse) {return AccountingResponse.Charge(true)}
                 val product = products.retrieveProduct(request.product)?.first ?: return AccountingResponse.Charge(false)
-                val v1 = product.toV1()
-                val newUnits = when (v1){
+                val newUnits = when (val v1 = product.toV1()){
                     is Product.Compute -> {
                         request.units / (v1.cpu ?: 1)
                     }
@@ -1494,6 +1499,7 @@ class AccountingProcessor(
         println("Charging Delta: Usage: ${request.usage}, Product: ${request.productCategory}")
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
             ?: return return AccountingResponse.Charge(false)
+        if (productCategory.freeToUse) { return AccountingResponse.Charge(true)}
         val wallet = wallets.find {
             it?.owner == request.owner &&
                 (it.paysFor?.provider == request.productCategory.provider &&
@@ -1514,6 +1520,7 @@ class AccountingProcessor(
         println("Charging Total: Usage: ${request.usage}, Product: ${request.productCategory}")
         val productCategory = productcategories.retrieveProductCategory(request.productCategory)
             ?: return return AccountingResponse.Charge(false)
+        if (productCategory.freeToUse) { return AccountingResponse.Charge(true)}
         val wallet = wallets.find {
             it?.owner == request.owner &&
                 (it.paysFor.provider == request.productCategory.provider &&
@@ -2620,7 +2627,7 @@ private class ProductCache(private val db: DBContext) {
 
     suspend fun findAllFreeProducts(): List<ProductV2> {
         val products = products.get()
-        return products.filter { it.first.freeToUse }.map { it.first }
+        return products.filter { it.first.category.freeToUse }.map { it.first }
     }
 
     suspend fun retrieveProduct(reference: ProductReferenceV2, allowCacheRefill: Boolean = true): Pair<ProductV2, Long>? {

@@ -30,7 +30,8 @@ class ProductService(
                 product.productType,
                 basicTranslationToAccountingUnit(product.unitOfPrice, product.productType),
                 translateToAccountingFrequency(product.unitOfPrice),
-                emptyList()
+                emptyList(),
+                product.freeToUse
             )
 
         return when (product) {
@@ -46,7 +47,6 @@ class ProductService(
                     cpuModel = product.cpuModel,
                     memoryModel = product.memoryModel,
                     gpuModel = product.gpuModel,
-                    freeToUse = product.freeToUse,
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
@@ -56,7 +56,6 @@ class ProductService(
                     price = product.pricePerUnit,
                     category = category,
                     description = product.description,
-                    freeToUse = product.freeToUse,
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
@@ -66,7 +65,6 @@ class ProductService(
                     price = product.pricePerUnit,
                     category = category,
                     description = product.description,
-                    freeToUse = product.freeToUse,
                     hiddenInGrantApplications = product.hiddenInGrantApplications,
                     tags = product.tags
                 )
@@ -77,7 +75,6 @@ class ProductService(
                     price = product.pricePerUnit,
                     category = category,
                     description = product.description,
-                    freeToUse = product.freeToUse,
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
@@ -87,7 +84,6 @@ class ProductService(
                     price = product.pricePerUnit,
                     category = category,
                     description = product.description,
-                    freeToUse = product.freeToUse,
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
@@ -133,6 +129,7 @@ class ProductService(
 
                         setParameter("frequency", req.category.accountingFrequency.name)
                         setParameter("product_type", req.productType.name)
+                        setParameter("free_to_use", req.category.freeToUse)
                         //TODO(HENRIK) There is no need for this in the future
                         setParameter("charge_type", translateToChargeType(req.category).name)
                     },
@@ -155,12 +152,13 @@ class ProductService(
                                 :product_type::accounting.product_type product_type, 
                                 ac.id accounting_unit,
                                 :frequency frequency,
-                                :charge_type::accounting.charge_type charge_t
+                                :charge_type::accounting.charge_type charge_t,
+                                :free_to_use::bool free
                             from acinsert ac
                         )
                         insert into accounting.product_categories
-                        (provider, category, product_type, accounting_unit, accounting_frequency, charge_type) 
-                            select provider, category, product_type, accounting_unit, frequency, charge_t
+                        (provider, category, product_type, accounting_unit, accounting_frequency, charge_type, free_to_use) 
+                            select provider, category, product_type, accounting_unit, frequency, charge_t, free
                             from inserts
                         on conflict (provider, category)  
                         do update set
@@ -183,7 +181,6 @@ class ProductService(
                     val licenseTags by parameterList<String?>()
                     val categories by parameterList<String>()
                     val providers by parameterList<String>()
-                    val freeToUse by parameterList<Boolean>()
                     val description by parameterList<String>()
 
                     for (req in request.items) {
@@ -191,7 +188,6 @@ class ProductService(
                         prices.add(req.price)
                         categories.add(req.category.name)
                         providers.add(req.category.provider)
-                        freeToUse.add(req.freeToUse)
                         licenseTags.add(if (req is ProductV2.License) defaultMapper.encodeToString(req.tags) else null)
                         description.add(req.description)
 
@@ -216,7 +212,6 @@ class ProductService(
                             unnest(:memory_in_gigs::int[]) memory_in_gigs,
                             unnest(:categories::text[]) category,
                             unnest(:providers::text[]) provider,
-                            unnest(:free_to_use::boolean[]) free_to_use,
                             unnest(:license_tags::jsonb[]) license_tags,
                             unnest(:description::text[]) description,
                             unnest(:cpu_model::text[]) cpu_model,
@@ -225,10 +220,10 @@ class ProductService(
                     )
                     insert into accounting.products
                         (name, price, cpu, gpu, memory_in_gigs, license_tags, category,
-                         free_to_use, version, description, cpu_model, gpu_model, memory_model) 
+                          version, description, cpu_model, gpu_model, memory_model) 
                     select
                         req.uname, req.price, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
-                        pc.id, req.free_to_use, 1, req.description, req.cpu_model, req.gpu_model, req.memory_model
+                        pc.id, 1, req.description, req.cpu_model, req.gpu_model, req.memory_model
                     from
                         requests req join
                         accounting.product_categories pc on
@@ -244,7 +239,6 @@ class ProductService(
                         gpu = excluded.gpu,
                         memory_in_gigs = excluded.memory_in_gigs,
                         license_tags = excluded.license_tags,
-                        free_to_use = excluded.free_to_use,
                         description = excluded.description,
                         cpu_model = excluded.cpu_model,
                         gpu_model = excluded.gpu_model,

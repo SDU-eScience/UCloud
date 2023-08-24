@@ -31,16 +31,6 @@ sealed class ProductV2 {
     @UCloudApiDoc("Classifier used to explain the type of Product")
     abstract val productType: ProductType
 
-    @UCloudApiDoc(
-        """
-        Indicates that a Wallet is not required to use this Product
-        
-        Under normal circumstances, a $TYPE_REF Wallet is always required. This is required even if a $TYPE_REF Product
-        has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-    """
-    )
-    abstract val freeToUse: Boolean
-
     @UCloudApiDoc("Price is for usage of a single product in the accountingFrequency period specified by the product category.")
     abstract val price: Long
 
@@ -72,7 +62,6 @@ sealed class ProductV2 {
         override val price: Long,
         override val category: ProductCategory,
         override val description: String = "",
-        override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
         override val productType: ProductType = ProductType.STORAGE
@@ -86,7 +75,6 @@ sealed class ProductV2 {
             price,
             ProductCategoryId(category.name, category.provider),
             description,
-            freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
             unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
@@ -108,7 +96,6 @@ sealed class ProductV2 {
         val cpuModel: String? = null,
         val memoryModel: String? = null,
         val gpuModel: String? = null,
-        override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
         override val productType: ProductType = ProductType.COMPUTE
@@ -129,7 +116,6 @@ sealed class ProductV2 {
             price,
             ProductCategoryId(category.name, category.provider),
             description,
-            freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
             unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications,
@@ -151,7 +137,6 @@ sealed class ProductV2 {
         override val price: Long,
         override val category: ProductCategory,
         override val description: String = "",
-        override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
         override val productType: ProductType = ProductType.INGRESS
@@ -165,7 +150,6 @@ sealed class ProductV2 {
             price,
             ProductCategoryId(category.name, category.provider),
             description,
-            freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
             unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
@@ -183,7 +167,6 @@ sealed class ProductV2 {
         override val category: ProductCategory,
         override val description: String = "",
         val tags: List<String> = emptyList(),
-        override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
         override val productType: ProductType = ProductType.LICENSE
@@ -198,7 +181,6 @@ sealed class ProductV2 {
             ProductCategoryId(category.name, category.provider),
             description,
             tags = tags,
-            freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
             unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
@@ -214,7 +196,6 @@ sealed class ProductV2 {
         override val price: Long,
         override val category: ProductCategory,
         override val description: String = "",
-        override val freeToUse: Boolean = false,
         override val hiddenInGrantApplications: Boolean = false,
     ) : ProductV2() {
         override val productType: ProductType = ProductType.NETWORK_IP
@@ -228,7 +209,6 @@ sealed class ProductV2 {
             price,
             ProductCategoryId(category.name, category.provider),
             description,
-            freeToUse = freeToUse,
             chargeType = translateToChargeType(category),
             unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
