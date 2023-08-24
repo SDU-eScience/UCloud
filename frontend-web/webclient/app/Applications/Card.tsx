@@ -443,20 +443,21 @@ export function FavoriteApp(props: {name: string, version: string, onFavorite(na
 }
 
 export function AppCard(props: AppCardProps): JSX.Element {
+    const [favorite, setFavorite] = React.useState(props.isFavorite) 
 
-    const favorite = React.useCallback((e: React.SyntheticEvent) => {
+    const onFavorite = React.useCallback((e: React.SyntheticEvent) => {
         stopPropagationAndPreventDefault(e);
         props.onFavorite?.(props.app.metadata.name, props.app.metadata.version);
+        setFavorite(f => !f);
     }, [props.app.metadata]);
-
 
     return React.useMemo(() => {
         let lineCount = lineCountFromType(props.type);
         const app = props.app;
         const {metadata} = app;
         const favoriteDiv =
-            <div className={FavIcon} onClick={favorite}>
-                <Icon color="var(--blue)" hoverColor="blue" size={FAV_ICON_SIZE} name={"starEmpty"} />
+            <div className={FavIcon} onClick={onFavorite}>
+                <Icon color="var(--blue)" hoverColor="blue" size={FAV_ICON_SIZE} name={favorite ? "starFilled" : "starEmpty"} />
             </div>
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
