@@ -244,7 +244,9 @@ class JobResourceService {
                     error("The application is not supported by this provider. Try selecting a different application.")
                 }
             }
+        }
 
+        for (job in request.items) {
             validation.verifyOrThrow(actorAndProject, job)
 
             // We invoke the listeners once all other steps have passed. Be aware that listeners are allowed to throw

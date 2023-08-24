@@ -49,8 +49,8 @@ suspend fun <Internal, Result> ResourceStore<Internal>.browseWithStrategy(
                     pool,
                     pagination.next,
                     request.flags,
-                    strategy.extractor as DocKeyExtractor<Internal, Any?>,
-                    strategy.comparator as Comparator<Any?>,
+                    strategy.extractor as DocKeyExtractor<Internal, Comparable<Any?>>,
+                    strategy.comparator as Comparator<Comparable<Any?>>,
                     request.sortDirection,
                     pagination.itemsPerPage,
                     filterFunction
