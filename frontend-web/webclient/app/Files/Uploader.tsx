@@ -24,11 +24,11 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
-import {FlexClass} from "@/ui-components/Flex";
 import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const maxChunkSize = 16 * 1000 * 1000;
@@ -387,7 +387,7 @@ const Uploader: React.FunctionComponent = () => {
             ariaHideApp={false}
             onRequestClose={closeModal}
         >
-            <div style={{maxHeight: "calc(80vh - 75px)"}} className={classConcat(DropZoneWrapper, FlexClass)} data-has-uploads={hasUploads} data-tag="uploadModal">
+            <div style={{maxHeight: "calc(80vh - 40px - 2px)", height: "calc(80vh - 40px - 2px)", overflowY: "hidden"}} className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <div className="title" style={{height: "55px"}}>
                     <Flex onClick={closeModal}>
                         <Box ml="auto" />
@@ -396,19 +396,17 @@ const Uploader: React.FunctionComponent = () => {
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
                     <Text color="white">{uploadingText}</Text>
                 </div>
-                <div className="uploads" style={{overflowY: "hidden"}}>
-                    <div style={{overflowY: "scroll", width: "100%", maxHeight: "calc(80vh - 55px - 150px)"}}>
-                        {uploads.map((upload, idx) => (
-                            <UploadRow
-                                key={`${"upload.row.rootEntry.name"}-${idx}`}
-                                upload={upload}
-                                callbacks={callbacks}
-                            />
-                        ))}
-                    </div>
+                <div className="uploads" style={{overflowY: "scroll", width: "100%", maxHeight: "calc(80vh - 200px)"}}>
+                    {uploads.map((upload, idx) => (
+                        <UploadRow
+                            key={`${"upload.row.rootEntry.name"}-${idx}`}
+                            upload={upload}
+                            callbacks={callbacks}
+                        />
+                    ))}
                 </div>
-                <Box minHeight={"150px"}>
-                    <label htmlFor={"fileUploadBrowse"}>
+                <Flex minHeight={"150px"} justifyContent="center" marginTop="auto">
+                    <label style={{width: "100%"}} htmlFor={"fileUploadBrowse"}>
                         <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
                             onDragOver={preventDefault} data-slim={hasUploads}>
                             <div data-has-uploads={hasUploads} className={UploadMoreClass}>
@@ -429,7 +427,7 @@ const Uploader: React.FunctionComponent = () => {
                             </div>
                         </div>
                     </label>
-                </Box>
+                </Flex>
 
                 {resumables.length === 0 ? null :
                     <div style={{
@@ -654,26 +652,16 @@ const UploaderArt: React.FunctionComponent = () => {
 
 // Styles
 
-const modalStyle = {
+const modalStyle = ({
     content: {
-        borderRadius: "16px",
-        bottom: "auto",
-        height: "auto",
+        ...largeModalStyle.content,
         minHeight: "460px",
-        maxHeight: "80vh",
-        left: "50%",
-        padding: "2rem",
-        right: "auto",
-        top: "50%",
-        transform: "translate(-50%,-50%)",
         backgroundColor: "#4D8BFC",
         minWidth: "250px",
         width: "600px",
         maxWidth: "600px",
-        background: "",
-        overflowY: "scroll" as const
     }
-};
+});
 
 const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
     ${k}[data-has-uploads="false"] {
