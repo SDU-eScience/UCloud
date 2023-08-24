@@ -114,8 +114,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         ...FEATURES
     };
 
-    if (opts?.embedded) features.locationBar = false;
-
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     useLayoutEffect(() => {
