@@ -61,7 +61,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
         projectId: String,
         aau: Boolean
     ): Long {
-        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
+        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01T00:00:00"))) {
             return 0
         }
         if (productType == ProductType.STORAGE) {
@@ -252,7 +252,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
         username: String,
         projectId: String
     ): Long {
-        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
+        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01T00:00:00"))) {
             return 0
         }
         if (productType == ProductType.STORAGE) {
@@ -325,7 +325,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
         productType: ProductType,
         aau: Boolean
     ): Long {
-        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
+        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01T00:00:00"))) {
             return 0
         }
         if (productType == ProductType.STORAGE) {
