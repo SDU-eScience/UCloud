@@ -720,6 +720,10 @@ export class ResourceBrowser<T> {
                     project,
                     this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}}
                 );
+                if (!this.canConsumeResources) {
+                    this.renderCantConsumeResources();
+                }
+
                 this.open(path, true);
             })
         };
@@ -773,27 +777,23 @@ export class ResourceBrowser<T> {
 
     private renderCantConsumeResources() {
         this.prepareEmptyContainer();
-        const wrapper = div(`
-            <div>
-                <h3 style="text-align: center;">This project cannot consume resources</h3>
-                <p>
-                    This property is set for certain projects which are only meant for allocating resources. If you wish
-                    to consume any of these resources for testing purposes, then please allocate resources to a small
-                    separate test project. This can be done from the "Resource Allocations" menu in the project
-                    management interface.
-                </p>
+        if (this.defaultEmptyGraphic) {
+            this.emptyPageElement.graphic.append(this.defaultEmptyGraphic.cloneNode(true));
+        }
+        this.emptyPageElement.reason.innerHTML = `
+        <p>
+            <h3 style="text-align: center;">This project cannot consume resources</h3>
+            This property is set for certain projects which are only meant for allocating resources. If you wish
+            to consume any of these resources for testing purposes, then please allocate resources to a small
+            separate test project. This can be done from the "Resource Allocations" menu in the project
+            management interface.
+        </p>
 
-                <p>
-                    <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
-                    old resources to a new project, then please contact support.
-                </p>
-            </div>
-        `);
-        wrapper.style.display = "flex";
-        wrapper.style.height = "400px";
-        wrapper.style.alignItems = "center";
-        wrapper.style.justifyContent = "center";
-        this.emptyPageElement.container.replaceChildren(wrapper);
+        <p>
+            <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
+            old resources to a new project, then please contact support.
+        </p>
+        `;
     }
 
     public rerender() {
@@ -802,10 +802,7 @@ export class ResourceBrowser<T> {
         this.renderRows();
         this.clearFilters();
 
-        if (!this.canConsumeResources) {
-            this.renderCantConsumeResources();
-            return;
-        }
+        if (!this.canConsumeResources) return;
 
         if (this.features.sortDirection) {
             this.renderSortOrder();
@@ -2468,7 +2465,6 @@ export class ResourceBrowser<T> {
         };
 
         const doTabComplete = (allowFetch: boolean = true) => {
-            debugger;
             const path = readValue();
             if (path === null) return;
 
@@ -2509,7 +2505,6 @@ export class ResourceBrowser<T> {
 
             setValue(this.locationBar.value);
         } else {
-            debugger;
             switch (ev.code) {
                 case "Tab": {
                     ev.preventDefault();

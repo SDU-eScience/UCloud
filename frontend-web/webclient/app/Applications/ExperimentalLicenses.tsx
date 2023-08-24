@@ -10,13 +10,11 @@ import LicenseApi, {License, LicenseSupport} from "@/UCloud/LicenseApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {Product, ProductLicense} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
-import {projectCache} from "@/Project/ContextSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
