@@ -53,7 +53,16 @@ data class ProductCategory(
     val productType: ProductType,       //e.g. STORAGE
     val accountingUnit: AccountingUnit,
     val accountingFrequency: AccountingFrequency,
-    val conversionTable: List<AccountingUnitConversion> = emptyList()
+    val conversionTable: List<AccountingUnitConversion> = emptyList(),
+    @UCloudApiDoc(
+"""
+        Indicates that a Wallet is not required to use this Product category
+        
+        Under normal circumstances, a $TYPE_REF Wallet is always required. This is required even if a $TYPE_REF Product
+        has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+    """
+)
+    val freeToUse: Boolean = false
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
 }
@@ -115,7 +124,7 @@ object ProductCategories : CallDescriptionContainer("product_categories") {
         httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
 
         documentation {
-            summary = "Retrieve a single product"
+            summary = "Retrieve a single product category"
         }
     }
 
@@ -125,7 +134,7 @@ object ProductCategories : CallDescriptionContainer("product_categories") {
             httpBrowse(baseContext, roles = Roles.PUBLIC)
 
             documentation {
-                summary = "Browse a set of products"
+                summary = "Browse a set of products categories"
                 description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
                     "of $TYPE_REF ProductCategory ."
             }
