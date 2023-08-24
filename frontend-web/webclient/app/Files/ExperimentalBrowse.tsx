@@ -872,6 +872,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         if (url) url.prepend(providerIconWrapper);
                         pIcon = providerIconWrapper;
                     }
+                    
+                    pIcon.replaceChildren();
 
                     if (pIcon && collection) {
                         const icon = providerIcon(collection.specification.product.provider, {
