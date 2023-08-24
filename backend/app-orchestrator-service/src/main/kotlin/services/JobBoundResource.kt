@@ -52,16 +52,37 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
 
                 for (resource in allResources) {
                     @Suppress("UNCHECKED_CAST")
-                    if (!isReady(resource) ||
-                        ((resource.status as Status).boundTo.isNotEmpty() && bindsExclusively())) {
-                        throw RPCException("Not all resources are ready", HttpStatusCode.BadRequest)
+                    if (!isReady(resource)) {
+                        val productName = resource.specification.product.id
+                        throw RPCException(
+                            "$productName with ID '${resource.id}' is not ready. " +
+                                "Try again later or with a different resource.",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+                    if (((resource.status as Status).boundTo.isNotEmpty() && bindsExclusively())) {
+                        val productName = resource.specification.product.id
+                        val jobIds = (resource.status as Status).boundTo.joinToString(", ")
+
+                        throw RPCException(
+                            "$productName with ID ${resource.id} is currently in use by a different job ($jobIds)",
+                            HttpStatusCode.BadRequest
+                        )
                     }
 
-                    if (resource.owner.project != actorAndProject.project ||
-                        resource.specification.product.provider != computeProvider
-                    ) {
+                    if (resource.owner.project != actorAndProject.project) {
+                        val productName = resource.specification.product.id
                         throw RPCException(
-                            "Not all resources can be used in this application",
+                            "You are not allowed to use $productName with ID ${resource.id} in a different project.",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    if (resource.specification.product.provider != computeProvider) {
+                        val productName = resource.specification.product.id
+                        throw RPCException(
+                            "You cannot use $productName with this machine. " +
+                                    "You can try the same request with a different machine.",
                             HttpStatusCode.BadRequest
                         )
                     }

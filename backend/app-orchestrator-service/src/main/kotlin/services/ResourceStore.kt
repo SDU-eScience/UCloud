@@ -699,7 +699,7 @@ class ResourceStore<T>(
         }
     }
 
-    suspend fun <K> browseWithSort(
+    suspend fun <K : Comparable<K>> browseWithSort(
         idCard: IdCard,
         outputBuffer: Array<ResourceDocument<T>>,
         next: String?,
@@ -800,7 +800,11 @@ class ResourceStore<T>(
                 else -> {
                     val aKey = keyExtractor.extract(a)
                     val bKey = keyExtractor.extract(b)
-                    val res = comparator.compare(aKey, bKey)
+                    val res = if (sortDirection == SortDirection.descending) {
+                        comparator.compare(aKey, bKey)
+                    } else {
+                        comparator.compare(bKey, aKey)
+                    }
                     if (res == 0) {
                         if (sortDirection == SortDirection.descending) {
                             b.id.compareTo(a.id)

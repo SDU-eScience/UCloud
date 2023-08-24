@@ -91,6 +91,8 @@ class DocMapper<A, B>(
             }
 
             val others = if (flags != null && !flags.includeOthers) {
+                null
+            } else {
                 val others = HashMap<AclEntity, HashSet<Permission>>()
                 for (entry in doc.acl) {
                     val entity = if (entry.isUser) {
@@ -104,8 +106,6 @@ class DocMapper<A, B>(
                 }
 
                 others.map { ResourceAclEntry(it.key, it.value.toList()) }
-            } else {
-                null
             }
 
             ResourcePermissions(myself, others)

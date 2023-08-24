@@ -112,8 +112,8 @@ class ProviderCommunications(
         validator: suspend (Support, Spec) -> Unit,
     ) {
         val productReferences = request.items.map { it.product }
-        requireAllocation(actorAndProject, productReferences, actionDescription)
-        requireSupport(api, productReferences, actionDescription) { support ->
+        requireAllocation(actorAndProject, productReferences, "looking for a valid allocation (attempting to $actionDescription)")
+        requireSupport(api, productReferences, "trying to $actionDescription") { support ->
             for (reqItem in request.items) {
                 if (reqItem.product != support.product) continue
                 validator(support, reqItem)
