@@ -103,6 +103,7 @@ export const AppGroup: React.FunctionComponent = () => {
                         </label>
 
                         <Button
+                            ml="5px"
                             type="button"
                             color="red"
                             //disabled={commandLoading}
@@ -118,6 +119,7 @@ export const AppGroup: React.FunctionComponent = () => {
                     </Flex>
 
                     <Label>Default application</Label>
+                    <Label>Tags</Label>
                 </Box>
             }
         />

@@ -1,4 +1,4 @@
-import {uploadDocument} from "@/Applications/api";
+import {updateLanding, updateOverview, uploadDocument} from "@/Applications/api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
@@ -49,7 +49,7 @@ export const Studio: React.FunctionComponent = () => {
             main={(<>
                 <Flex justifyContent="right">
                     <label className={ButtonClass} style={{marginRight: "5px"}}>
-                        Upload Application
+                        Upload application
                         <HiddenInputField
                             type="file"
                             onChange={async e => {
@@ -69,7 +69,7 @@ export const Studio: React.FunctionComponent = () => {
                     </label>
 
                     <label className={ButtonClass} style={{marginRight: "5px"}}>
-                        Upload Tool
+                        Upload tool
                         <HiddenInputField
                             type="file"
                             onChange={async e => {
@@ -88,6 +88,50 @@ export const Studio: React.FunctionComponent = () => {
                             }}
                         />
                     </label>
+
+                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                        Update landing page
+                        <HiddenInputField
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                    } else {
+                                        await updateLanding({document: file});
+                                        refresh();
+                                    }
+                                    dialogStore.success();
+                                }
+                            }}
+                        />
+                    </label>
+
+                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                        Update overview page
+                        <HiddenInputField
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                    } else {
+                                        await updateOverview({document: file});
+                                        refresh();
+                                    }
+                                    dialogStore.success();
+                                }
+                            }}
+                        />
+                    </label>
+
+
 
                     <Button onClick={() => navigate(`/applications/studio/groups`)}>Manage groups</Button>
                 </Flex>

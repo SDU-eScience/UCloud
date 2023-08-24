@@ -12,7 +12,10 @@ export interface ApplicationGroup {
     title: string,
     logo?: string,
     description?: string,
-    application?: ApplicationSummaryWithFavorite
+    defaultApplication?: {
+        name: string,
+        version: string
+    }
 }
 
 export interface CreateGroupRequest {
@@ -192,6 +195,78 @@ export function clearLogo(props: ClearLogoProps): APICallParameters<ClearLogoPro
         parameters: props,
         payload: props
     };
+}
+
+
+
+export interface UpdateLandingProps {
+    document: File;
+}
+
+export async function updateLanding(props: UpdateLandingProps): Promise<boolean> {
+    const token = await Client.receiveAccessTokenOrRefreshIt();
+
+    return new Promise(resolve => {
+        const request = new XMLHttpRequest();
+        request.open("PUT", Client.computeURL("/api", `/hpc/apps/updateLanding`));
+        request.setRequestHeader("Authorization", `Bearer ${token}`);
+        request.responseType = "text";
+        request.onreadystatechange = () => {
+            if (request.status !== 0) {
+                if (!inSuccessRange(request.status)) {
+                    let message = "Upload failed";
+                    try {
+                        message = JSON.parse(request.responseText).why;
+                    } catch (e) {
+                        console.log(e);
+                        console.log(request.responseText);
+                        // Do nothing
+                    }
+                    snackbarStore.addFailure(message, false);
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            }
+        };
+
+        request.send(props.document);
+    });
+}
+
+export interface UpdateOverviewProps {
+    document: File;
+}
+
+export async function updateOverview(props: UpdateOverviewProps): Promise<boolean> {
+    const token = await Client.receiveAccessTokenOrRefreshIt();
+
+    return new Promise(resolve => {
+        const request = new XMLHttpRequest();
+        request.open("PUT", Client.computeURL("/api", `/hpc/apps/updateOverview`));
+        request.setRequestHeader("Authorization", `Bearer ${token}`);
+        request.responseType = "text";
+        request.onreadystatechange = () => {
+            if (request.status !== 0) {
+                if (!inSuccessRange(request.status)) {
+                    let message = "Upload failed";
+                    try {
+                        message = JSON.parse(request.responseText).why;
+                    } catch (e) {
+                        console.log(e);
+                        console.log(request.responseText);
+                        // Do nothing
+                    }
+                    snackbarStore.addFailure(message, false);
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            }
+        };
+
+        request.send(props.document);
+    });
 }
 
 export interface UploadDocumentProps {

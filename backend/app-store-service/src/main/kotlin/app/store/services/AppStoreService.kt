@@ -715,45 +715,34 @@ class AppStoreService(
                     """
                         with cte as (
                             select
-                                distinct on (g.id) g.id,
-                                a.name,
-                                a.version,
-                                a.authors,
-                                a.title,
-                                a.description as app_description,
-                                a.website,
-                                a.is_public,
-                                exists(select * from app_store.favorited_by where the_user = :user and application_name = a.name) favorite,
+                                g.id,
                                 s.title as section,
                                 g.title as title,
                                 g.logo,
                                 g.description,
-                                f.order_index
+                                g.default_name,
+                                g.default_version,
+                                s.order_index as s_index,
+                                f.order_index as f_index
                             from app_store.sections s
-                                join app_store.section_featured_items f on f.section_id = s.id
-                                join app_store.application_groups g on g.id = f.group_id
-                                join app_store.applications a on g.id = a.group_id
+                                     join app_store.section_featured_items f on f.section_id = s.id
+                                     join app_store.application_groups g on g.id = f.group_id
                             where page = :page
                         )
-                        select * from cte order by order_index
+                        select * from cte order by s_index, f_index;
                     """
                 ).rows.forEach { row ->
                     val sectionName = row.getString("section")!!
                     val groupId = row.getInt("id")!!
                     val groupTitle = row.getString("title")!!
                     val description = row.getString("description")
-                    val applicationMetadata = ApplicationMetadata(
-                        row.getString("name")!!,
-                        row.getString("version")!!,
-                        defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
-                        row.getString("title")!!,
-                        row.getString("app_description")!!,
-                        row.getString("website"),
-                        row.getBoolean("is_public")!!
-                    )
 
-                    val favorite = row.getBoolean("favorite")!!
-                    val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, emptyList())
+                    val defaultApplication = if (row.getString("default_name") != null) {
+                        NameAndVersion(
+                            row.getString("default_name")!!,
+                            row.getString("default_version")!!
+                        )
+                    } else { null }
 
                     val section = sections.find { it.name == sectionName }
 
@@ -767,47 +756,19 @@ class AppStoreService(
                                         groupTitle,
                                         null,
                                         description,
-                                        appWithFavorite
+                                        defaultApplication
                                     )
                                 )
                             )
                         )
                     } else {
-                        section.items.add(ApplicationGroup(groupId, groupTitle, null, description, appWithFavorite))
+                        section.items.add(ApplicationGroup(groupId, groupTitle, null, description, defaultApplication))
                     }
                 }
                 sections
             }
         )
     }
-
-    // TODO(Brian)
-    /*suspend fun findAll(
-        actorAndProject: ActorAndProject,
-        names: List<String>?,
-        versions: List<String>?,
-        fileExtensions
-    ): PageV2<Application> {
-        val result = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("names", names)
-                    setParameter("versions", versions)
-                },
-                """
-                    SELECT *
-                    FROM applications
-                    WHERE
-                        (:names is null or name in (select unnest(:names:::text[]))) and
-                        (:versions is null or version in (select unnest(:versions::text[])))
-                """
-            )
-            .rows
-            .map { it.toApplicationWithInvocation() }
-        }
-
-        return PageV2(50, result, null)
-    }*/
 
     suspend fun createGroup(actorAndProject: ActorAndProject, title: String) {
         db.withSession { session ->
@@ -1059,6 +1020,114 @@ class AppStoreService(
             application.metadata.description,
             application.metadata.title
         )
+    }
+
+
+    suspend fun updatePage(page: AppStorePageType, sections: List<PageSection>) {
+        db.withSession { session ->
+            // Validate
+            val featuredGroups = session.sendPreparedStatement(
+                {
+                    setParameter("titles", sections.flatMap { it.featured.map { it.lowercase() } })
+                },
+                """
+                    select id, title, description from application_groups where lower(title) in (select unnest(:titles::text[]))
+                """
+            ).rows.map {
+                ApplicationGroup(
+                    it.getInt("id")!!,
+                    it.getString("title")!!
+                )
+            }
+
+            val notFound = sections.flatMap {
+                it.featured.map { it.lowercase() }
+            } - featuredGroups.map { it.title.lowercase() }.toSet()
+            if (notFound.isNotEmpty()) {
+                throw RPCException("Featured application group not found: ${notFound.first()}", HttpStatusCode.NotFound)
+            }
+
+            if (page == AppStorePageType.FULL) {
+                sections.forEach { section ->
+                    if (section.tags.isEmpty()) {
+                        throw RPCException("Tag list cannot be empty for section ${section.title}", HttpStatusCode.BadRequest)
+                    }
+                }
+            }
+
+            // Update
+            session.sendPreparedStatement(
+                {
+                    setParameter("page", page.name)
+                },
+                """
+                    delete from app_store.section_featured_items
+                    where section_id = (
+                        select id from app_store.sections where page = :page
+                    )
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("page", page.name)
+                },
+                """
+                    delete from app_store.sections
+                    where page = :page
+                """
+            )
+
+            var sectionIndex = 0
+            sections.forEach { section ->
+                val sectionId = session.sendPreparedStatement(
+                    {
+                        setParameter("title", section.title)
+                        setParameter("order", sectionIndex)
+                        setParameter("page", page.name)
+                    },
+                    """
+                        insert into app_store.sections
+                        (title, order_index, page) values (
+                            :title, :order, :page
+                        )
+                        returning id
+                    """
+                ).rows.first().getInt("id")
+
+                val featuredGroupIds = section.featured.map { featuredSearchString ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("title", featuredSearchString.lowercase())
+                        },
+                        """
+                            select id, title, description
+                            from application_groups
+                            where lower(title) = :title
+                        """
+                    ).rows.first().getInt("id")!!
+                }
+
+                var groupIndex = 0
+                featuredGroupIds.forEach { featuredGroupId ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("section", sectionId)
+                            setParameter("group_id", featuredGroupId)
+                            setParameter("group_index", groupIndex)
+                        },
+                        """
+                            insert into app_store.section_featured_items
+                            (section_id, group_id, order_index) values (
+                                :section, :group_id, :group_index
+                            )
+                        """
+                    )
+                    groupIndex += 1
+                }
+                sectionIndex += 1
+            }
+        }
     }
 
     suspend fun delete(actorAndProject: ActorAndProject, appName: String, appVersion: String) {

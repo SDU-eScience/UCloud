@@ -76,11 +76,11 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
 `);
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const {metadata} = props.app.application;
+    const defaultApp = props.app.defaultApplication;
     return (
-        <Link className={AppCardBase} to={Pages.runApplication(metadata)}>
+        <Link className={AppCardBase} to={defaultApp ? Pages.runApplication(defaultApp) : Pages.runApplication({name: "", version: ""})}>
             <Box mr={16}>
-                <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
+                <AppToolLogo name={defaultApp?.name ?? ""} type={"APPLICATION"} size={"32px"} />
             </Box>
             <b>{props.app.title}</b>
             <EllipsedText>
@@ -476,14 +476,14 @@ export function AppCard(props: AppCardProps): JSX.Element {
 
     const favorite = React.useCallback((e: React.SyntheticEvent) => {
         stopPropagationAndPreventDefault(e);
-        props.onFavorite?.(props.app.application.metadata.name, props.app.application.metadata.version);
-    }, [props.app.application]);
+        //props.onFavorite?.(props.app.application.metadata.name, props.app.application.metadata.version);
+    }, [props.app.defaultApplication]);
 
 
     return React.useMemo(() => {
         let lineCount = lineCountFromType(props.type);
         const app = props.app;
-        const {application} = app;
+        const {defaultApplication} = app;
         const favoriteDiv =
             <div className={FavIcon} onClick={favorite}>
                 <Icon color="var(--blue)" hoverColor="blue" size={FAV_ICON_SIZE} name={"starEmpty"} />
@@ -498,9 +498,9 @@ export function AppCard(props: AppCardProps): JSX.Element {
             case ApplicationCardType.TALL:
                 const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
                 return <Flex flexDirection="column" className={ApplicationCardClass + " " + TallApplicationCard} data-xl={isExtraTall}>
-                    {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={"52px"} name={application.metadata.name} type="APPLICATION" />
+                        {//<AppToolLogo size={"52px"} name={defaultApplication?.name} type="APPLICATION" />
+                        }
                     </div>
                     {titleAndDescription}
                 </Flex>
@@ -508,9 +508,9 @@ export function AppCard(props: AppCardProps): JSX.Element {
             case ApplicationCardType.EXTRA_WIDE:
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
                 return <div className={ApplicationCardClass + " " + WideApplicationCard} data-xl={isExtraWide}>
-                    {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={application.metadata.name} type="APPLICATION" />
+                        {//<AppToolLogo size={isExtraWide ? "85px" : "65px"} name={defaultApplication?.name} type="APPLICATION" />
+                        }
                     </div>
                     {titleAndDescription}
                 </div>

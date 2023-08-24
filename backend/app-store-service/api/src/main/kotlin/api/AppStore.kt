@@ -180,16 +180,15 @@ typealias FindLatestByToolResponse = Page<Application>
 data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
 
-
-@Serializable
-data class FindGroupRequest(
-    val appName: String
-)
-
 @Serializable
 data class RetrieveGroupResponse(
     val group: ApplicationGroup,
     val applications: List<ApplicationSummary>
+)
+
+@Serializable
+data class UpdatePageRequest(
+    val page: AppStorePageType
 )
 
 @Serializable
@@ -229,8 +228,6 @@ data class UpdateGroupRequest(
 )
 
 typealias UpdateGroupResponse = Unit
-
-
 typealias ListGroupsRequest = Unit
 
 @Serializable
@@ -255,7 +252,7 @@ data class ApplicationGroup (
     val title: String,
     val logo: ByteArray? = null,
     val description: String? = null,
-    val application: ApplicationSummaryWithFavorite? = null
+    val defaultApplication: NameAndVersion? = null
 )
 
 @Serializable
@@ -266,14 +263,9 @@ data class AppStoreSection (
 
 @Serializable
 data class PageSection(
-    val featured: List<ApplicationGroup>,
     val title: String? = null,
+    val featured: List<String>,
     val tags: List<String> = emptyList()
-)
-
-@Serializable
-data class StorePage(
-    val sections: List<PageSection>
 )
 
 @UCloudApiExampleValue
@@ -968,28 +960,6 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    /*val findGroup = call("findGroup", FindGroupRequest.serializer(), FindGroupResponse.serializer(), CommonErrorMessage.serializer())  {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-                +"group/fromApp"
-            }
-
-            params {
-                +boundTo(FindGroupRequest::appName)
-            }
-        }
-
-        documentation {
-            summary = "Find group and all flavors of the application group"
-        }
-    }*/
-
     val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreSectionsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
@@ -1146,6 +1116,7 @@ ${ApiConventions.nonConformingApiWarning}
                 using(baseContext)
                 +"updateLanding"
             }
+
             body { bindEntireRequestFromBody() }
         }
 
@@ -1166,6 +1137,7 @@ ${ApiConventions.nonConformingApiWarning}
                 using(baseContext)
                 +"updateOverview"
             }
+
             body { bindEntireRequestFromBody() }
         }
 

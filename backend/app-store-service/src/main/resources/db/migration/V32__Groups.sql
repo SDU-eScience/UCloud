@@ -1,8 +1,11 @@
 create table if not exists app_store.application_groups (
     id serial primary key,
-    title text not null,
+    title text not null unique,
     logo bytea,
-    description text
+    description text,
+    default_name text,
+    default_version text,
+    foreign key (default_name, default_version) references app_store.applications(name, version)
 );
 
 alter table app_store.applications add column if not exists group_id int references app_store.application_groups(id);

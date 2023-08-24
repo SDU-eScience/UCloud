@@ -6,15 +6,15 @@ import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.store.api.AppStore
+import dk.sdu.cloud.app.store.api.AppStorePageType
 import dk.sdu.cloud.app.store.api.ApplicationDescription
-import dk.sdu.cloud.app.store.api.StorePage
+import dk.sdu.cloud.app.store.api.PageSection
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.mapItems
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -64,10 +64,6 @@ class AppStoreController(
         implement(AppStore.listAll) {
             ok(appStore.listAll(actorAndProject, request.normalize()))
         }
-
-        /*implement(AppStore.findGroup) {
-            ok(appStore.findGroup(actorAndProject, request.appName))
-        }*/
 
         implement(AppStore.store) {
             ok(appStore.browseSections(actorAndProject, request.page))
@@ -147,7 +143,7 @@ class AppStoreController(
 
             @Suppress("DEPRECATION")
             val yamlDocument = try {
-                yamlMapper.readValue<StorePage>(content)
+                yamlMapper.readValue<List<PageSection>>(content)
             } catch (ex: JsonMappingException) {
                 log.debug(ex.stackTraceToString())
                 error(
@@ -172,11 +168,45 @@ class AppStoreController(
                 return@implement
             }
 
-            println("$yamlDocument")
+            ok(appStore.updatePage(AppStorePageType.LANDING, yamlDocument))
         }
 
         implement(AppStore.updateOverview) {
+            val length = (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
+                ?: throw RPCException("Content-Length required", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
+            val channel = (ctx as HttpCall).call.request.receiveChannel()
+            val content = ByteArray(length.toInt())
+                .also { arr -> channel.readFully(arr) }
+                .let { String(it) }
 
+            @Suppress("DEPRECATION")
+            val yamlDocument = try {
+                yamlMapper.readValue<List<PageSection>>(content)
+            } catch (ex: JsonMappingException) {
+                log.debug(ex.stackTraceToString())
+                error(
+                    CommonErrorMessage(
+                        "Bad value for parameter ${ex.pathReference.replace(
+                            "dk.sdu.cloud.app.store.api.",
+                            ""
+                        )}. ${ex.message}"
+                    ),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            } catch (ex: MarkedYAMLException) {
+                log.debug(ex.stackTraceToString())
+                error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
+                return@implement
+            } catch (ex: ReaderException) {
+                error(
+                    CommonErrorMessage("Document contains illegal characters (unicode?)"),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            }
+
+            ok(appStore.updatePage(AppStorePageType.FULL, yamlDocument))
         }
 
         implement(AppStore.delete) {

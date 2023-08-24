@@ -53,6 +53,7 @@ const apps = {
     applications: () => "/applications",
     landing: () => "/applications/overview",
     overview: () => "/applications/overview/full",
+    group: () => "/applications/group",
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     byTag: (tag: string) => buildQueryString("applications", {tag, itemsPerPage: 25, page: 0}),
     studio: () => "/applications/studio",

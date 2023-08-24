@@ -3,6 +3,7 @@ import * as React from "react";
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const Applications = React.lazy(() => import("@/Applications/Browse"));
 const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
+const ApplicationsGroup = React.lazy(() => import("./Applications/Group"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
@@ -136,6 +137,8 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.landing()}
                             element={React.createElement(requireAuth(ApplicationsOverview))} />
+                        <Route path={AppRoutes.apps.group()}
+                            element={React.createElement(requireAuth(ApplicationsGroup))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 
                         {!inDevEnvironment() ? null :
