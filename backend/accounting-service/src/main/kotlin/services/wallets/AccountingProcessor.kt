@@ -1421,9 +1421,6 @@ class AccountingProcessor(
         return AccountingResponse.Deposit(created)
     }
 
-    private fun reportDelta() {
-
-    }
 
     // Charge
     // =================================================================================================================
@@ -1654,27 +1651,39 @@ class AccountingProcessor(
             amountCharged += localCharge
         }
         if (amountCharged != delta) {
+            val stillActiveAllocations = walletAllocations.filter { it.isActive() && !it.isLocked() }
             val difference = delta - amountCharged
-            val amountPerAllocation = difference / walletAllocations.size
-            var isFirst = true
-
-            for (allocation in walletAllocations) {
-                if (isFirst) {
-                    if (!chargeAllocation(allocation.id.toInt(), difference % walletAllocations.size)) {
-                        return AccountingResponse.Error(
-                            "Internal Error in charging remainder", 500
-                        )
-                    }
-                    isFirst = false
-                }
-                if (!chargeAllocation(allocation.id.toInt(), amountPerAllocation)) {
+            if (stillActiveAllocations.isEmpty()) {
+                //Have choosen the last allocation since it is most likely to change over time. Not like the first/oldest alloc
+                if (!chargeAllocation(walletAllocations.last().id.toInt(), difference)) {
                     return AccountingResponse.Error(
-                        "Internal Error in charging remaining", 500
+                        "Internal Error in charging all to first allocation", 500
                     )
                 }
-            }
-            if (delta > activeQuota) {
                 return AccountingResponse.Charge(false)
+            }
+            else {
+                val amountPerAllocation = difference / stillActiveAllocations.size
+                var isFirst = true
+
+                for (allocation in stillActiveAllocations) {
+                    if (isFirst) {
+                        if (!chargeAllocation(allocation.id.toInt(), difference % walletAllocations.size)) {
+                            return AccountingResponse.Error(
+                                "Internal Error in charging remainder", 500
+                            )
+                        }
+                        isFirst = false
+                    }
+                    if (!chargeAllocation(allocation.id.toInt(), amountPerAllocation)) {
+                        return AccountingResponse.Error(
+                            "Internal Error in charging remaining", 500
+                        )
+                    }
+                }
+                if (delta > activeQuota) {
+                    return AccountingResponse.Charge(false)
+                }
             }
         }
         return AccountingResponse.Charge(true)
