@@ -126,8 +126,7 @@ export function ExperimentalSSHKey(): JSX.Element {
                 });
 
                 browser.on("fetchOperationsCallback", () =>
-                    /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation, cancelCreation})
+                    ({dispatch, navigate, isCreating: false, startCreation, api: {isCoreResource: true}, cancelCreation})
                 );
 
                 browser.on("fetchOperations", () => {
