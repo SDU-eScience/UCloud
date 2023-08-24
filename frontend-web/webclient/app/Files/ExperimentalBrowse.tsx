@@ -1049,7 +1049,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        if (!isInitialMount.current) navigate("?path=" + encodeURIComponent(newPath));
+                        if (!isInitialMount.current) navigate("/files?path=" + encodeURIComponent(newPath));
                     }
 
 

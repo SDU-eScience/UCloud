@@ -33,6 +33,7 @@ export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string>;
     embedded?: boolean;
     omitFilters?: boolean;
+    disabledKeyhandlers?: boolean;
     selection?: {
         onSelect(res: T): void;
         onSelectRestriction(res: T): boolean | string;
@@ -370,6 +371,7 @@ export class ResourceBrowser<T> {
     public opts: {
         embedded: boolean;
         selector: boolean;
+        disabledKeyhandlers: boolean;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -379,6 +381,7 @@ export class ResourceBrowser<T> {
         this.opts = {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
+            disabledKeyhandlers: !!opts?.disabledKeyhandlers,
         }
     };
 
@@ -557,7 +560,7 @@ export class ResourceBrowser<T> {
         }
 
 
-        if (!this.opts.embedded) {
+        if (!this.opts.disabledKeyhandlers) {
             // Event handlers not related to rows
             this.renameField.addEventListener("keydown", ev => {
                 this.onRenameFieldKeydown(ev);
@@ -1726,6 +1729,7 @@ export class ResourceBrowser<T> {
         this.closeRenameField("cancel", false);
         this.renameFieldIndex = idx;
         this.renameValue = initialValue;
+        console.log(onSubmit.toString())
         this.renameOnSubmit = onSubmit;
         this.renameOnCancel = onCancel;
         this.renderRows();

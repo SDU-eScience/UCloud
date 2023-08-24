@@ -366,7 +366,10 @@ function DashboardRuns({runs}: {
         isLoading={runs.loading}
         error={runs.error?.why}
     >
-        <ExperimentalJobs opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />
+        <ExperimentalJobs opts={{
+            embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
+            additionalFilters: {"itemsPerPage": "10"}
+        }} />
     </HighlightedCard>;
 }
 
@@ -488,7 +491,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
         error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
-        <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true}} />
+        <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true}} />
     </HighlightedCard>;
 };
 

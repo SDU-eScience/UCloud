@@ -25,7 +25,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean; omitFilters?: boolean}}): JSX.Element {
+export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean; omitFilters?: boolean; disabledKeyhandlers?: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
     const dispatch = useDispatch();
