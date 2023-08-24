@@ -399,6 +399,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Use this folder",
                 primary: true,
+                icon: "check",
                 canAppearInLocation: (loc) => loc === "TOPBAR",
                 enabled: (selected, cb) => {
                     return selected.length === 0 && cb.onSelect !== undefined && cb.directory != null &&
