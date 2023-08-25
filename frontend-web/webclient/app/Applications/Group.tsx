@@ -8,6 +8,7 @@ import {AppToolLogo} from "./AppToolLogo";
 import {Flex, Grid, Link} from "@/ui-components";
 import {AppCard, ApplicationCardType} from "./Card";
 import * as Pages from "./Pages";
+import {LargeSearchBox} from "./Overview";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -26,11 +27,15 @@ const ApplicationsGroup: React.FunctionComponent = () => {
 
     return <MainContainer 
         header={
-            <Heading.h1>
-                <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="64px" />
-                {" "}
-                {appGroup.data.group.title}
-            </Heading.h1>
+            <Flex>
+                <Heading.h1>
+                    <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="64px" />
+                    {" "}
+                    {appGroup.data.group.title}
+                </Heading.h1>
+
+                <LargeSearchBox />
+            </Flex>
         }
         headerSize={120}
         main={
