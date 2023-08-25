@@ -53,6 +53,8 @@ import Relative from "./Relative";
 import Absolute from "./Absolute";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
+import {checkCanConsumeResources} from "./ResourceBrowser";
+import {api as FilesApi} from "@/UCloud/FilesApi";
 
 const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
     ${k} {
@@ -520,6 +522,8 @@ function SecondarySidebar({
         emptyPage,
     );
 
+    const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+
     const dispatch = useDispatch();
     React.useEffect(() => {
         if (favoriteApps.loading) return;
@@ -552,7 +556,7 @@ function SecondarySidebar({
             }
         </header>
 
-        {active !== "Files" ? null : (
+        {active !== "Files" || !canConsume ? null : (
             <>
                 <ul>
                     <li>
