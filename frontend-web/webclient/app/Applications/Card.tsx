@@ -499,8 +499,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
                 const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
                 return <Flex flexDirection="column" className={ApplicationCardClass + " " + TallApplicationCard} data-xl={isExtraTall}>
                     <div className="image">
-                        {//<AppToolLogo size={"52px"} name={defaultApplication?.name} type="APPLICATION" />
-                        }
+                        <AppToolLogo size={"52px"} name={app.id.toString()} type="GROUP" />
                     </div>
                     {titleAndDescription}
                 </Flex>
@@ -509,8 +508,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
                 return <div className={ApplicationCardClass + " " + WideApplicationCard} data-xl={isExtraWide}>
                     <div className="image">
-                        {//<AppToolLogo size={isExtraWide ? "85px" : "65px"} name={defaultApplication?.name} type="APPLICATION" />
-                        }
+                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={app.id.toString()} type="GROUP" />
                     </div>
                     {titleAndDescription}
                 </div>

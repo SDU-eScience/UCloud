@@ -1,8 +1,7 @@
 import MainContainer from "@/MainContainer/MainContainer";
-import {Box, Button, Flex, Icon, Input, Label, List, TextArea} from "@/ui-components";
-import {ItemRow} from "@/ui-components/Browse";
-import React, {useCallback, useEffect, useState} from "react";
-import {ApplicationGroup, RetrieveGroupResponse, createGroup, deleteGroup, listGroups, retrieveGroup, updateGroup} from "../api";
+import {Box, Button, Flex, Icon, Input, Label, TextArea} from "@/ui-components";
+import React, {useEffect, useState} from "react";
+import {RetrieveGroupResponse, clearLogo, retrieveGroup, updateGroup, uploadLogo} from "../api";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
@@ -11,6 +10,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {AppToolLogo} from "../AppToolLogo";
 
 
 export const AppGroup: React.FunctionComponent = () => {
@@ -19,6 +19,8 @@ export const AppGroup: React.FunctionComponent = () => {
         {noop: true},
         undefined
     );
+
+    const [, setLogoCacheBust] = useState("" + Date.now());
 
     const groupTitleField = React.useRef<HTMLInputElement>(null);
     const groupDescriptionField = React.useRef<HTMLInputElement>(null);
@@ -29,11 +31,13 @@ export const AppGroup: React.FunctionComponent = () => {
         setGroup(retrieveGroup({id: id}))
     }, [id]);
 
-
+    const refresh = () => {
+        setGroup(retrieveGroup({id: id}))
+    };
 
     const navigate = useNavigate();
 
-    //useRefreshFunction(refresh);
+    useRefreshFunction(refresh);
 
     return (
         <form onSubmit={async e => {
@@ -78,7 +82,7 @@ export const AppGroup: React.FunctionComponent = () => {
 
                     <Label>Logo</Label>
                     <Flex justifyContent="space-between">
-                        <Box>{group.data.group.logo}</Box>
+                        <Box><AppToolLogo name={id} type="GROUP" /></Box>
                         <Flex justifyContent="right">
                             <label className={ButtonClass}>
                             Upload
@@ -92,10 +96,11 @@ export const AppGroup: React.FunctionComponent = () => {
                                         if (file.size > 1024 * 512) {
                                             snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                         } else {
-                                            /*if (await uploadLogo({name, file, type: "APPLICATION"})) {
+                                            if (await uploadLogo({name: id, file, type: "GROUP"})) {
                                                 setLogoCacheBust("" + Date.now());
-                                            }*/
+                                            }
                                         }
+                                        refresh();
                                         dialogStore.success();
                                     }
                                 }}
@@ -106,10 +111,11 @@ export const AppGroup: React.FunctionComponent = () => {
                             ml="5px"
                             type="button"
                             color="red"
-                            //disabled={commandLoading}
+                            disabled={commandLoading}
                             onClick={async () => {
-                                /*await invokeCommand(clearLogo({type: "APPLICATION", name}));
-                                setLogoCacheBust("" + Date.now());*/
+                                await invokeCommand(clearLogo({type: "GROUP", name: id}));
+                                setLogoCacheBust("" + Date.now());
+                                refresh();
                             }}
                         >
                             <Icon name="trash" />

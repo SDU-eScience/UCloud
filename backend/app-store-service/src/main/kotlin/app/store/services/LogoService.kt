@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.app.store.api.ApplicationGroup
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -17,7 +19,8 @@ const val LOGO_MAX_SIZE = 1024 * 1024 * 5
 
 enum class LogoType {
     APPLICATION,
-    TOOL
+    TOOL,
+    GROUP
 }
 
 class LogoService(
@@ -75,6 +78,20 @@ class LogoService(
                     verifyToolUpdatePermission(actorAndProject, session, name)
                     toolDao.createLogo(session, actorAndProject, name, imageBytes)
                 }
+
+                LogoType.GROUP -> {
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("bytes", imageBytes)
+                            setParameter("group_id", name.toInt())
+                        },
+                        """
+                            UPDATE app_store.application_groups 
+                            SET logo = :bytes
+                            WHERE id = :group_id
+                        """
+                    )
+                }
             }
         }
     }
@@ -94,6 +111,18 @@ class LogoService(
                     )
                 }
                 LogoType.TOOL -> toolDao.clearLogo(session, actorAndProject, name)
+                LogoType.GROUP -> {
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("id", name.toInt())
+                        },
+                        """
+                            update app_store.application_groups
+                            set logo = null
+                            WHERE id = :id
+                        """
+                    )
+                }
             }
         }
     }
@@ -103,6 +132,7 @@ class LogoService(
             when (type) {
                 LogoType.APPLICATION -> fetchApplicationLogo(actorAndProject, name)
                 LogoType.TOOL -> toolDao.fetchLogo(session, name)
+                LogoType.GROUP -> fetchGroupLogo(actorAndProject, name.toInt())
             } ?: when (type) {
                 LogoType.APPLICATION -> {
                     val app = appStoreService.findByName(
@@ -165,6 +195,44 @@ class LogoService(
                 """
             )
         }.rows.singleOrNull()?.getAs<ByteArray>("data")
+    }
+
+    private suspend fun fetchGroupLogo(actorAndProject: ActorAndProject, id: Int): ByteArray?  {
+        val group = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                    SELECT id, title, logo, description, default_name, default_version
+                    FROM app_store.application_groups
+                    WHERE id = :id
+                """
+            ).rows.singleOrNull()?.let {
+                val default = if (it.getString("default_name") != null) {
+                    NameAndVersion(
+                        it.getString("default_name")!!,
+                        it.getString("default_version")!!,
+                    )
+                } else {
+                    null
+                }
+
+                ApplicationGroup(
+                    it.getInt("id")!!,
+                    it.getString("title")!!,
+                    it.getString("description"),
+                    default
+                ) to it.getAs<ByteArray>("logo")
+            }
+        } ?: throw RPCException("Group not found", HttpStatusCode.NotFound)
+
+        if (group.second != null) return group.second
+
+        if (group.first.defaultApplication == null)
+            throw RPCException("Logo not found", HttpStatusCode.NotFound)
+
+        return fetchLogo(actorAndProject, LogoType.APPLICATION, group.first.defaultApplication!!.name)
     }
 
     private suspend fun browseAll(request: NormalizedPaginationRequestV2): PageV2<Pair<String, ByteArray>> {
@@ -270,6 +338,8 @@ class LogoService(
             }
         }
     }
+
+
 
     companion object {
         const val DESIRED_LOGO_WIDTH = 300

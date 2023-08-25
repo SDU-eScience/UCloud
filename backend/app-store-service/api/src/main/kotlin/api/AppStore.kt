@@ -250,7 +250,6 @@ data class AppStoreSectionsResponse(
 data class ApplicationGroup (
     val id: Int,
     val title: String,
-    val logo: ByteArray? = null,
     val description: String? = null,
     val defaultApplication: NameAndVersion? = null
 )
@@ -1229,6 +1228,80 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "List all application tags"
+        }
+    }
+
+    val uploadGroupLogo = call("uploadGroupLogo", UploadApplicationLogoRequest.serializer(), UploadApplicationLogoResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"group/"
+                +"uploadLogo"
+            }
+
+            headers {
+                +boundTo("Upload-Name", UploadApplicationLogoRequest::name)
+            }
+        }
+
+        documentation {
+            summary = "Uploads a logo and associates it with a group"
+        }
+    }
+
+    val clearGroupLogo = call("clearGroupLogo", ClearLogoRequest.serializer(), ClearLogoResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +"group/"
+                +"clearLogo"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Removes a logo associated with a group"
+        }
+    }
+
+
+    val fetchGroupLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PUBLIC
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"group/"
+                +"logo"
+            }
+
+            params {
+                +boundTo(FetchLogoRequest::name)
+            }
+        }
+
+        documentation {
+            summary = "Retrieves a logo associated with a group"
         }
     }
 

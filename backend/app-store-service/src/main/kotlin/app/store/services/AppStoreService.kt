@@ -465,7 +465,7 @@ class AppStoreService(
                     setParameter("user", actorAndProject.actor.username)
                 },
                 """
-                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.logo as group_logo FROM applications AS A
+                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description FROM applications AS A
                     JOIN app_store.application_groups ag on A.group_id = ag.id
                     WHERE A.name = :name AND (
                         (
@@ -562,15 +562,6 @@ class AppStoreService(
             ).mapItems { it.withoutInvocation() }
         }
     }
-
-    /*suspend fun findGroup(
-        actorAndProject: ActorAndProject,
-        applicationName: String
-    ): FindGroupResponse {
-        return db.withSession { session ->
-
-        }
-    }*/
 
     suspend fun browseSections(
         actorAndProject: ActorAndProject,
@@ -754,7 +745,6 @@ class AppStoreService(
                                     ApplicationGroup(
                                         groupId,
                                         groupTitle,
-                                        null,
                                         description,
                                         defaultApplication
                                     )
@@ -762,7 +752,7 @@ class AppStoreService(
                             )
                         )
                     } else {
-                        section.items.add(ApplicationGroup(groupId, groupTitle, null, description, defaultApplication))
+                        section.items.add(ApplicationGroup(groupId, groupTitle, description, defaultApplication))
                     }
                 }
                 sections
@@ -854,14 +844,14 @@ class AppStoreService(
         return db.withSession { session ->
             session.sendPreparedStatement(
                 """
-                    select * from application_groups
+                    select id, title, description, default_name, default_version from application_groups
                 """
             ).rows.mapNotNull { row ->
                 ApplicationGroup(
                     row.getInt("id")!!,
                     row.getString("title")!!,
-                    row.getAs<ByteArray>("logo"),
-                    row.getString("description")
+                    row.getString("description"),
+                    row.defaultApplication()
                 )
             }
         }
@@ -875,16 +865,22 @@ class AppStoreService(
                         setParameter("id", id)
                     },
                     """
-                    select *
+                    select id, title, description
                     from app_store.application_groups g
                     where g.id = :id
                 """
-                ).rows.first().let {
+                ).rows.first().let {row ->
+                    val defaultName = row.getString("default_name")
+                    val defaultVersion = row.getString("default_version")
+                    val default = if (defaultName != null && defaultVersion != null) {
+                        NameAndVersion(defaultName, defaultVersion)
+                    } else { null }
+
                     ApplicationGroup(
-                        it.getInt("id")!!,
-                        it.getString("title")!!,
-                        it.getAs<ByteArray>("logo"),
-                        it.getString("description")
+                        row.getInt("id")!!,
+                        row.getString("title")!!,
+                        row.getString("description"),
+                        default
                     )
                 }
             } else if (applicationName != null) {
@@ -893,7 +889,7 @@ class AppStoreService(
                         setParameter("appName", applicationName)
                     },
                     """
-                        select *
+                        select id, title, description, default_name, default_version
                         from app_store.application_groups
                         where
                             id in (select group_id from app_store.applications where name = :appName)
@@ -902,8 +898,8 @@ class AppStoreService(
                     ApplicationGroup(
                         it.getInt("id")!!,
                         it.getString("title")!!,
-                        it.getAs<ByteArray>("logo"),
-                        it.getString("description")
+                        it.getString("description"),
+                        it.defaultApplication()
                     )
                 }
             } else {
@@ -928,14 +924,6 @@ class AppStoreService(
 
             RetrieveGroupResponse(group, apps)
         }
-    }
-
-    suspend fun saveLandingPage(content: String) {
-
-    }
-
-    suspend fun saveOverviewPage(content: String) {
-
     }
 
     suspend fun create(actorAndProject: ActorAndProject, application: Application, content: String) {
@@ -1495,8 +1483,8 @@ internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
         ApplicationGroup(
             this.getInt("group_id")!!,
             this.getString("group_title")!!,
-            this.getAs("group_logo"),
-            this.getString("group_description")
+            this.getString("group_description"),
+            this.defaultApplication()
         )
     } catch (e: Exception) {
         null
@@ -1517,6 +1505,17 @@ internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
 
 internal fun RowData.toApplicationSummary(): ApplicationSummary {
     return ApplicationSummary(toApplicationMetadata())
+}
+
+internal fun RowData.defaultApplication(): NameAndVersion? {
+    val defaultName = this.getString("default_name")
+    val defaultVersion = this.getString("default_version")
+
+    return if (defaultName != null && defaultVersion != null) {
+        NameAndVersion(defaultName, defaultVersion)
+    } else {
+        null
+    }
 }
 
 internal fun RowData.toApplicationWithInvocation(): Application {

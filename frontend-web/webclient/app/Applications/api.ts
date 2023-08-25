@@ -10,7 +10,6 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 export interface ApplicationGroup {
     id: number,
     title: string,
-    logo?: string,
     description?: string,
     defaultApplication?: {
         name: string,
@@ -137,20 +136,35 @@ export function deleteGroup(
     }
 }
 
-export type AppOrTool = "APPLICATION" | "TOOL";
+export type LogoType = "APPLICATION" | "TOOL" | "GROUP";
 
 export interface UploadLogoProps {
-    type: AppOrTool;
+    type: LogoType;
     file: File;
     name: string;
 }
+
+function getContext(type: LogoType): string {
+    switch(type) {
+        case "APPLICATION": {
+            return "apps";
+        }
+        case "TOOL": {
+            return "tools";
+        }
+        case "GROUP": {
+            return "apps/group";
+        }
+    }
+}
+
 
 export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
     const token = await Client.receiveAccessTokenOrRefreshIt();
 
     return new Promise((resolve) => {
         const request = new XMLHttpRequest();
-        const context = props.type === "APPLICATION" ? "apps" : "tools";
+        const context = getContext(props.type);
         request.open("POST", Client.computeURL("/api", `/hpc/${context}/uploadLogo`));
         request.setRequestHeader("Authorization", `Bearer ${token}`);
         request.responseType = "text";
@@ -182,12 +196,12 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
 }
 
 export interface ClearLogoProps {
-    type: AppOrTool;
+    type: LogoType;
     name: string;
 }
 
 export function clearLogo(props: ClearLogoProps): APICallParameters<ClearLogoProps> {
-    const context = props.type === "APPLICATION" ? "apps" : "tools";
+    const context = getContext(props.type);
     return {
         reloadId: Math.random(),
         method: "DELETE",
@@ -270,7 +284,7 @@ export async function updateOverview(props: UpdateOverviewProps): Promise<boolea
 }
 
 export interface UploadDocumentProps {
-    type: AppOrTool;
+    type: LogoType;
     document: File;
 }
 
