@@ -137,7 +137,7 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.landing()}
                             element={React.createElement(requireAuth(ApplicationsOverview))} />
-                        <Route path={AppRoutes.apps.group()}
+                        <Route path={AppRoutes.apps.group(":id")}
                             element={React.createElement(requireAuth(ApplicationsGroup))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 

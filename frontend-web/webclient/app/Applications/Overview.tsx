@@ -416,6 +416,14 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" |
     </Flex>
 }
 
+function groupCardLink(app: ApplicationGroup): string {
+    return app.defaultApplication ? 
+        Pages.run(app.defaultApplication.name, app.defaultApplication.version)
+    :
+        Pages.browseGroup(app.id.toString())
+
+}
+
 const SCROLL_SPEED = 156 * 4;
 
 const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
@@ -458,12 +466,14 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                         py="10px"
                     >
                         {filteredItems.map(app =>
-                            <Link key={app.id} to={Pages.run(app.defaultApplication?.name ?? "", app.defaultApplication?.version ?? "")}>
+                            <Link key={app.id} to={groupCardLink(app)}>
                                 <AppCard
                                     type={ApplicationCardType.WIDE}
-                                    app={app}
+                                    title={app.title}
+                                    description={app.description}
+                                    logo={app.id.toString()}
+                                    logoType="GROUP"
                                     isFavorite={false}
-                                    tags={[]}
                                 />
                             </Link>
                         )}
@@ -480,20 +490,24 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                         >
                             {filteredItems.map(app =>
                             <>
-                                <Link key={app.id} to={Pages.run(app.defaultApplication?.name ?? "", app.defaultApplication?.version ?? "")}>
+                                <Link key={app.id} to={groupCardLink(app)}>
                                     <AppCard
                                         type={ApplicationCardType.EXTRA_TALL}
-                                        app={app}
+                                        title={app.title}
+                                        description={app.description}
+                                        logo={app.id.toString()}
+                                        logoType="GROUP"
                                         isFavorite={false}
-                                        tags={[]}
                                     />
                                 </Link>
-                                <Link key={app.id} to={Pages.run(app.defaultApplication?.name ?? "", app.defaultApplication?.version ?? "")}>
+                                <Link key={app.id} to={groupCardLink(app)}>
                                     <AppCard
                                         type={ApplicationCardType.EXTRA_TALL}
-                                        app={app}
+                                        title={app.title}
+                                        description={app.description}
+                                        logo={app.id.toString()}
+                                        logoType="GROUP"
                                         isFavorite={false}
-                                        tags={[]}
                                     />
                                 </Link>
                             </>
@@ -508,12 +522,14 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             py="10px"
                         >
                             {filteredItems.map(app =>
-                                <Link key={app.id} to={Pages.run(app.defaultApplication?.name ?? "", app.defaultApplication?.version ?? "")}>
+                                <Link key={app.id} to={groupCardLink(app)}>
                                     <AppCard
                                         type={ApplicationCardType.EXTRA_TALL}
-                                        app={app}
+                                        title={app.title}
+                                        description={app.description}
+                                        logo={app.id.toString()}
+                                        logoType="GROUP"
                                         isFavorite={false}
-                                        tags={[]}
                                     />
                                 </Link>
                             )}
@@ -583,15 +599,14 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
                     py="10px"
                 >
                     {firstFour.map(app =>
-                        <Link
-                            key={app.defaultApplication?.name ?? "" + app.defaultApplication?.version ?? ""}
-                            to={Pages.run(app.defaultApplication?.name ?? "", app.defaultApplication?.version ?? "")}
-                        >
+                        <Link key={app.id} to={groupCardLink(app)}>
                             <AppCard
                                 type={ApplicationCardType.WIDE}
-                                app={app}
+                                title={app.title}
+                                description={app.description}
+                                logo={app.id.toString()}
+                                logoType="GROUP"
                                 isFavorite={false}
-                                tags={[]}
                             />
                         </Link>
                     )}
@@ -605,12 +620,14 @@ const TagGrid: React.FunctionComponent<TagGridProps> = ({
                     style={{gridAutoFlow: "column"}}
                 >
                     {remaining.map(app =>
-                        <Link key={app.id} to={Pages.run(app.defaultApplication?.name ?? "", app.defaultApplication?.version ?? "")}>
+                        <Link key={app.id} to={groupCardLink(app)}>
                             <AppCard
                                 type={ApplicationCardType.EXTRA_TALL}
-                                app={app}
+                                title={app.title}
+                                description={app.description}
+                                logo={app.id.toString()}
+                                logoType="GROUP"
                                 isFavorite={false}
-                                tags={[]}
                             />
                         </Link>
                     )}

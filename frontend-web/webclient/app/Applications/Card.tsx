@@ -1,6 +1,6 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Button, Flex, Icon, Relative} from "@/ui-components";
+import {Flex, Icon, Relative} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
@@ -9,15 +9,17 @@ import theme from "@/ui-components/theme";
 import * as Pages from "./Pages";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import {ApplicationGroup} from "./api";
+import {LogoType} from "./api";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
-    app: ApplicationGroup;
+    title: string;
+    description?: string;
+    logo: string;
+    logoType: LogoType;
     isFavorite?: boolean;
     linkToRun?: boolean;
     colorBySpecificTag?: string;
-    tags: string[];
 }
 
 const AppCardBase = injectStyle("app-card-base", k => `
@@ -75,8 +77,8 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
     }
 `);
 
-export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const defaultApp = props.app.defaultApplication;
+/*export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
+    const defaultApp = props.defaultApplication;
     return (
         <Link className={AppCardBase} to={defaultApp ? Pages.runApplication(defaultApp) : Pages.runApplication({name: "", version: ""})}>
             <Box mr={16}>
@@ -115,7 +117,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
         </Link>
     );
-};
+};*/
 
 export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
     <div style={{
@@ -473,25 +475,12 @@ export function FavoriteApp(props: {name: string, version: string, title: string
 }
 
 export function AppCard(props: AppCardProps): JSX.Element {
-
-    const favorite = React.useCallback((e: React.SyntheticEvent) => {
-        stopPropagationAndPreventDefault(e);
-        //props.onFavorite?.(props.app.application.metadata.name, props.app.application.metadata.version);
-    }, [props.app.defaultApplication]);
-
-
     return React.useMemo(() => {
         let lineCount = lineCountFromType(props.type);
-        const app = props.app;
-        const {defaultApplication} = app;
-        const favoriteDiv =
-            <div className={FavIcon} onClick={favorite}>
-                <Icon color="var(--blue)" hoverColor="blue" size={FAV_ICON_SIZE} name={"starEmpty"} />
-            </div>
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
-                <div><b>{app.title}</b></div>
-                <MultiLineTruncate lines={lineCount}>{app.description}</MultiLineTruncate>
+                <div><b>{props.title}</b></div>
+                <MultiLineTruncate lines={lineCount}>{props.description}</MultiLineTruncate>
             </div>;
         switch (props.type) {
             case ApplicationCardType.EXTRA_TALL:
@@ -499,7 +488,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
                 const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
                 return <Flex flexDirection="column" className={ApplicationCardClass + " " + TallApplicationCard} data-xl={isExtraTall}>
                     <div className="image">
-                        <AppToolLogo size={"52px"} name={app.id.toString()} type="GROUP" />
+                        <AppToolLogo size={"52px"} name={props.logo} type={props.logoType} />
                     </div>
                     {titleAndDescription}
                 </Flex>
@@ -508,10 +497,10 @@ export function AppCard(props: AppCardProps): JSX.Element {
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
                 return <div className={ApplicationCardClass + " " + WideApplicationCard} data-xl={isExtraWide}>
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={app.id.toString()} type="GROUP" />
+                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={props.logo} type={props.logoType} />
                     </div>
                     {titleAndDescription}
                 </div>
         }
-    }, [props, favorite]);
+    }, [props]);
 }

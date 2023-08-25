@@ -8,6 +8,9 @@ export const view = (name: string, version: string): string =>
 export const run = (name: string, version: string): string =>
     buildQueryString("/jobs/create", {app: name, version});
 
+export const browseGroup = (id: string): string =>
+    `/applications/group/${encodeURIComponent(id)}`;
+
 export const runApplication = (application: NameAndVersion): string =>
     run(application.name, application.version);
 

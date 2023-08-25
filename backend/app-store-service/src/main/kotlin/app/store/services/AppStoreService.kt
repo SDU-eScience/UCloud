@@ -865,22 +865,16 @@ class AppStoreService(
                         setParameter("id", id)
                     },
                     """
-                    select id, title, description
+                    select id, title, description, default_name, default_version
                     from app_store.application_groups g
                     where g.id = :id
                 """
                 ).rows.first().let {row ->
-                    val defaultName = row.getString("default_name")
-                    val defaultVersion = row.getString("default_version")
-                    val default = if (defaultName != null && defaultVersion != null) {
-                        NameAndVersion(defaultName, defaultVersion)
-                    } else { null }
-
                     ApplicationGroup(
                         row.getInt("id")!!,
                         row.getString("title")!!,
                         row.getString("description"),
-                        default
+                        row.defaultApplication()
                     )
                 }
             } else if (applicationName != null) {
