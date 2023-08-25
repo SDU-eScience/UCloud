@@ -15,6 +15,7 @@ import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
 import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
+import dk.sdu.cloud.accounting.services.serviceJobs.AccountingChecks
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
@@ -113,6 +114,20 @@ class Server(
                 ),
                 script = {
                     projectsV2.cleanUpInviteLinks()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "jobs-vs-transactions-check",
+                    "Accounting: Is charges sane",
+                    WhenToStart.Daily(0, 0)
+                ),
+                script = {
+                    val accountingChecks = AccountingChecks(db, client)
+                    accountingChecks.checkJobsVsTransactions()
                 }
             )
         )
