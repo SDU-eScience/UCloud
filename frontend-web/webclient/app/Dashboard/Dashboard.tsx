@@ -124,15 +124,6 @@ function Dashboard(props: DashboardProps): JSX.Element {
             <DashboardNews news={news} />
 
             <div className={GridClass}>
-                <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
-                <DashboardRuns runs={recentRuns} />
-            </div>
-            <div style={{marginBottom: "24px"}}>
-                <NotificationDashboardCard />
-            </div>
-            <UsageAndResources charts={usage} products={products} />
-            <div className={GridClass}>
-                <Connect embedded />
                 <DashboardFavoriteFiles
                     favoriteFiles={favoriteFiles}
                     onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
@@ -141,6 +132,15 @@ function Dashboard(props: DashboardProps): JSX.Element {
                         itemsPerPage: 10
                     }))}
                 />
+                <DashboardRuns runs={recentRuns} />
+            </div>
+            <div style={{marginBottom: "24px"}}>
+                <NotificationDashboardCard />
+            </div>
+            <UsageAndResources charts={usage} products={products} />
+            <div className={GridClass}>
+                <Connect embedded />
+                <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
             </div>
         </div>
     </Box>);
