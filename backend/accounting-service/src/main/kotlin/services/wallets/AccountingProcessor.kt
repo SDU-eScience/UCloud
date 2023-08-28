@@ -1480,7 +1480,9 @@ class AccountingProcessor(
     }
 
     private suspend fun check(request: AccountingRequest.Charge): AccountingResponse {
-        val productCategory = request.productCategory
+        val productCategory = productcategories.retrieveProductCategory(request.productCategory)
+            ?: return AccountingResponse.Error("No matching product category", 400)
+        if (productCategory.freeToUse) { return AccountingResponse.Charge(true) }
         val wallet = wallets.find {
             it?.owner == request.owner &&
                 (it.paysFor?.provider == productCategory.provider &&

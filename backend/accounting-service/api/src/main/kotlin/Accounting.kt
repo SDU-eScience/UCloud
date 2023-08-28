@@ -117,7 +117,7 @@ object AccountingV2 : CallDescriptionContainer("accountingv2") {
     }
 
     val rootAllocate = call("rootAllocate", BulkRequest.serializer(RootAllocationRequestItem.serializer()), BulkResponse.serializer(RootAllocationResponse.serializer()), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "rootAllocate")
+        httpUpdate(baseContext, "rootAllocate", roles = Roles.ADMIN)
     }
 
     val updateAllocation = call("updateAllocation", BulkRequest.serializer(UpdateAllocationV2RequestItem.serializer()), UpdateAllocationV2Response.serializer(), CommonErrorMessage.serializer()) {

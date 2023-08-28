@@ -33,6 +33,7 @@ private val creditsPerMinuteNames = listOf(
     "uc-a10",
     "syncthing",
     "cpu",
+    "standard-cpu-dkk"
 )
 
 fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, productType: ProductType):AccountingUnit {
