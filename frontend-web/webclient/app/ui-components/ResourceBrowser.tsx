@@ -1423,14 +1423,16 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
                 if (!isOperation(child)) {
-                    counter = renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
+                    counter += renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
+                    shortcutNumber = counter + 1;
                     continue;
                 }
-
+                
+                
                 const text = child.enabled(selected, callbacks, page);
                 const isDisabled = typeof text === "string";
 
-                var item: HTMLElement = document.createElement("li");
+                var item = document.createElement("li");
 
                 if (isDisabled) {
                     item.style.backgroundColor = "var(--midGray)";
@@ -1729,7 +1731,6 @@ export class ResourceBrowser<T> {
         this.closeRenameField("cancel", false);
         this.renameFieldIndex = idx;
         this.renameValue = initialValue;
-        console.log(onSubmit.toString())
         this.renameOnSubmit = onSubmit;
         this.renameOnCancel = onCancel;
         this.renderRows();
