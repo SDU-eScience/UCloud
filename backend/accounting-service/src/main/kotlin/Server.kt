@@ -118,7 +118,7 @@ class Server(
             )
         )
 
-        scriptManager.register(
+        /*scriptManager.register(
             Script(
                 ScriptMetadata(
                     "jobs-vs-transactions-check",
@@ -130,7 +130,7 @@ class Server(
                     accountingChecks.checkJobsVsTransactions()
                 }
             )
-        )
+        )*/
 
         with(micro.server) {
             configureControllers(
