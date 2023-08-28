@@ -119,7 +119,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
     }
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
+        <Flex pt="24px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
             <DashboardNews news={news} />
 
