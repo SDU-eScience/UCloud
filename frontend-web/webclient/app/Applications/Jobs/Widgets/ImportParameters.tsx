@@ -212,7 +212,7 @@ export const ImportParameters: React.FunctionComponent<{
                                         dialogStore.success();
                                     }
                                 },
-                                additionalFilters: {filterApplication: application.metadata.name},
+                                additionalFilters: {filterApplication: application.metadata.name, includeParameters: "true"},
                             }} />,
                             () => undefined,
                             true,
