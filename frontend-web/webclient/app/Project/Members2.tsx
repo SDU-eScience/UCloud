@@ -21,7 +21,6 @@ import {
     Text,
     Tooltip, Truncate
 } from "@/ui-components";
-import {shorten} from "@/Utilities/TextUtilities";
 import {addStandardDialog, NamingField} from "@/UtilityComponents";
 import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
