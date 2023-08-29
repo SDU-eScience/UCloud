@@ -20,17 +20,17 @@ import AppRoutes from "@/Routes";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
-const DEFAULT_FETCH_ARGS = {
+export const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
     includeFavorite: true,
     sortBy: "favorite" as const,
     sortDirection: "descending" as const
 }
 
-export const projectCache = new AsyncCache<PageV2<Project>>();
+export const projectCache = new AsyncCache<PageV2<Project>>({globalTtl: 0});
 
 async function fetchProjects(next?: string): Promise<PageV2<Project>> {
-    const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...DEFAULT_FETCH_ARGS, next}));
+    const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS, next}));
     if (result.next) {
         const child = await fetchProjects(result.next);
         return {
@@ -87,6 +87,12 @@ export function ContextSwitcher(): JSX.Element {
         setProject(storedProject ?? undefined);
     }, []);
 
+    const reload = React.useCallback(() => {
+        projectCache.retrieveWithInvalidCache("", () => callAPI(ProjectAPI.browse(CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS)))[1].then(it => {
+            setProjectList(it);
+        })
+    }, []);
+
     const navigate = useNavigate();
 
     const [filter, setTitleFilter] = React.useState("");
@@ -106,7 +112,7 @@ export function ContextSwitcher(): JSX.Element {
                 }
                 colorOnHover={false}
                 useMousePositioning
-                onTriggerClick={() => projectCache.retrieveWithInvalidCache("", () => callAPI(ProjectAPI.browse(DEFAULT_FETCH_ARGS)))}
+                onTriggerClick={reload}
                 left="0px"
                 width="500px"
             >
