@@ -226,6 +226,9 @@ fun main(args: Array<String>) {
             // modes have access to all services.
             // =======================================================================================================
 
+            loadedConfig = config
+            providerId = loadedConfig.core.providerId
+
             // Feature traces
             // -------------------------------------------------------------------------------------------------------
             run {
@@ -637,6 +640,7 @@ fun main(args: Array<String>) {
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
             val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli, debugSystem)
+            serviceContext = pluginContext
             val controllerContext = ControllerContext(ownExecutable, config, pluginContext)
 
             if (config.pluginsOrNull != null) {
@@ -864,6 +868,9 @@ val debugSystem: DebugSystem
     get() = debugSystemAtomic.get() ?: disabledDebugSystem
 
 private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
+lateinit var loadedConfig: VerifiedConfig
+lateinit var serviceContext: SimplePluginContext
+var providerId: String = ""
 
 val dbConnection: DBContext by lazy {
     val config = dbConfig.get().takeIf { it != null }
