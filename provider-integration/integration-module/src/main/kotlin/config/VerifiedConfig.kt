@@ -29,6 +29,7 @@ data class VerifiedConfig(
     val rawPluginConfig: ConfigSchema.Plugins get() = rawPluginConfigOrNull!!
     val products: Products get() = productsOrNull!!
     val frontendProxy: FrontendProxy get() = frontendProxyOrNull!!
+    val products2: ConfigProductSchema get() = TODO()
 
     data class Core(
         val certificate: String,
