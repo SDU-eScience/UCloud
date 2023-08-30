@@ -144,23 +144,23 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     row.title.append(browser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
                     row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
 
-                    let didSetLogo = false;
                     logoDataUrls.retrieve(job.specification.application.name, async () => {
-                        // Note(Jonas): Some possible improvements
-                        browser.icons.renderSvg(
+                        const result = await appLogoCache.fetchLogo(job.specification.application.name);
+                        if (result !== null) {
+                            return result;
+                        }
+
+                        return await browser.icons.renderSvg(
                             job.specification.application.name,
-                            () => <AppLogo size={"32px"} hash={hashF(job.specification.application.name)} />,
+                            () => <AppLogo size="32px" hash={hashF(job.specification.application.name)} />,
                             32,
                             32
-                        ).then(it => {
-                            if (!didSetLogo) setIcon(it);
-                        }).catch(e => console.log("render SVG error", e));
-
-                        const result = await appLogoCache.fetchLogo(job.specification.application.name);
-                        return result == null ? "" : result;
+                        ).then(it => it).catch(e => {
+                            console.log("render SVG error", e);
+                            return "";
+                        });
                     }).then(result => {
                         if (result) {
-                            didSetLogo = true;
                             setIcon(result);
                         }
                     });
