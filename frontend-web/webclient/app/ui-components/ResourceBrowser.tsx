@@ -1938,8 +1938,10 @@ export class ResourceBrowser<T> {
                     s2.left = (e.clientX + 10) + "px";
                     s2.top = (e.clientY + 10) + "px";
 
-                    this.entryBelowCursor = this.entryBelowCursorTemporary;
-                    this.entryBelowCursorTemporary = null;
+                    if (this.entryBelowCursorTemporary) {
+                        this.entryBelowCursor = this.entryBelowCursorTemporary;
+                        this.entryBelowCursorTemporary = null;
+                    }
 
                     const content = this.entryDragIndicatorContent;
                     content.innerHTML = "";
