@@ -157,7 +157,7 @@ const colors: ThemeColor[] = [
 ];
 
 export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
-    return (<Flex zIndex={"99999"}>
+    return (<Flex zIndex={"1"}>
         <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
         <Box width="32px"><RefreshThing /></Box>
         <Box width="200px"><ContextSwitcher /></Box>
