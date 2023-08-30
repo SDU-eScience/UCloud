@@ -387,7 +387,7 @@ export const colorStyles = {
 export const radii = [0, 2, 6];
 export const radius = "5px";
 
-export const borderWidth = "2px";
+export const borderWidth = "1px";
 
 export const maxContainerWidth = "1280px";
 

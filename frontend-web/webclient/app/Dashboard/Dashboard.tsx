@@ -119,7 +119,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
     }
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex pt="24px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
+        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
             <DashboardNews news={news} />
 
@@ -203,7 +203,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         <HighlightedCard
             color="darkBlue"
             isLoading={props.favoriteFiles.loading}
-            icon="starFilled"
+            icon="heroStar"
             title="Favorites"
             error={props.favoriteFiles.error?.why}
         >
@@ -301,6 +301,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
 );
 
 const ResourceGridClass = injectStyleSimple("grid", `
+    margin-top: 25px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
     grid-auto-rows: minmax(450px, auto);
@@ -312,9 +313,7 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
     const products = React.useMemo(() => <DashboardResources products={props.products} />, [props.products]);
 
     return (
-        <HighlightedCard
-            color="yellow"
-        >
+        <HighlightedCard color="yellow">
             <div className={ResourceGridClass}>
                 {usage}
                 {products}
@@ -326,7 +325,7 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (<div>
         <div>
-            <Link to={AppRoutes.project.usage()}><Heading.h3>Resource usage</Heading.h3></Link>
+            <Link to={AppRoutes.project.usage()}><Heading.h3>Resource usage past 30 days</Heading.h3></Link>
         </div>
         <div>
             {props.charts.data.charts.length !== 0 ? null : (
@@ -336,7 +335,6 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
                     </Text>
                 </NoResultsCardBody>
             )}
-            {props.charts.data.charts.length === 0 ? null : <Heading.h3 color="darkGray">Past 30 days</Heading.h3>}
             <Table>
                 <tbody>
                     {props.charts.data.charts.map((it, idx) => (
@@ -362,7 +360,7 @@ function DashboardRuns({runs}: {
     return <HighlightedCard
         color="gray"
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
-        icon="results"
+        icon="heroBeaker"
         isLoading={runs.loading}
         error={runs.error?.why}
     >
@@ -435,25 +433,23 @@ function DashboardResources({products}: {
                 <>
                     {/* height is 100% - height of Heading 55px */}
                     <Flex flexDirection="column" height={"calc(100% - 55px)"}>
-                        <Box my="5px">
                             <Table>
                                 <tbody>
-                                    {wallets.slice(0, 7).map((n, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell>
-                                                <Flex alignItems="center" gap="8px">
-                                                    <ProviderLogo providerId={n.category.provider} size={32} />
-                                                    <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
-                                                </Flex>
-                                            </TableCell>
-                                            <TableCell textAlign={"right"}>
-                                                {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </tbody>
-                            </Table>
-                        </Box>
+                                {wallets.slice(0, 7).map((n, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell>
+                                            <Flex alignItems="center" gap="8px">
+                                                <ProviderLogo providerId={n.category.provider} size={32} />
+                                                <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
+                                            </Flex>
+                                        </TableCell>
+                                        <TableCell textAlign={"right"}>
+                                            {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </tbody>
+                        </Table>
                         <Box flexGrow={1} />
                         <Flex mx="auto">{applyLinkButton}</Flex>
                     </Flex>
@@ -488,7 +484,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         title={title}
         color="green"
         isLoading={outgoingApps.loading}
-        icon="mail"
+        icon="heroDocumentCheck"
         error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
         <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true}} />
@@ -496,15 +492,21 @@ const DashboardGrantApplications: React.FunctionComponent<{
 };
 
 function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Element | null {
+    const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
         <HighlightedCard
-            title={<Link to="/news/list/"><Heading.h3>News</Heading.h3></Link>}
+            title={
+                <Link to={newsItem ? AppRoutes.news.detailed(newsItem.id) : "/news/list/"}>
+                    <Heading.h3>{newsItem?.title ?? "News"}</Heading.h3>
+                </Link>
+            }
             color="orange"
             isLoading={news.loading}
-            icon={"favIcon"}
+            icon={"heroNewspaper"}
             error={news.error?.why}
+            overflow={"visible"}
         >
-            <WithGraphic>
+            <div className={NewsClass}>
                 <div>
                     {news.data.items.length !== 0 ? null : (
                         <NoResultsCardBody title={"No news"}>
@@ -513,26 +515,20 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                             </Text>
                         </NoResultsCardBody>
                     )}
-                    <Box>
-                        {news.data.items.slice(0, 1).map(post => (
-                            <Box key={post.id} mb={32}>
-                                <Link to={AppRoutes.news.detailed(post.id)}>
-                                    <Heading.h3>{post.title} </Heading.h3>
-                                </Link>
+                    {!newsItem ? null :
+                        <Box key={newsItem.id} mb={32}>
+                            <Spacer
+                                left={<Heading.h5>{newsItem.subtitle}</Heading.h5>}
+                                right={<Heading.h5>{dateToString(newsItem.showFrom)}</Heading.h5>}
+                            />
 
-                                <Spacer
-                                    left={<Heading.h5>{post.subtitle}</Heading.h5>}
-                                    right={<Heading.h5>{dateToString(post.showFrom)}</Heading.h5>}
-                                />
-
-                                <Box maxHeight={300} overflow={"auto"}>
-                                    <Markdown unwrapDisallowed>
-                                        {post.body}
-                                    </Markdown>
-                                </Box>
+                            <Box maxHeight={190} overflow={"auto"}>
+                                <Markdown unwrapDisallowed>
+                                    {newsItem.body}
+                                </Markdown>
                             </Box>
-                        ))}
-                    </Box>
+                        </Box>
+                    }
 
                     {news.data.items.length === 0 ? null : (
                         <Spacer
@@ -540,27 +536,36 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                             right={<Link to="/news/list/">View more</Link>}
                         />)}
                 </div>
-            </WithGraphic>
+                <img src={ucloudImage} />
+            </div>
         </HighlightedCard>
     );
 }
 
-const WithGraphicClass = injectStyle("with-graphic", k => `
+const NewsClass = injectStyle("with-graphic", k => `
     ${k} {
         display: flex;
+        height: 270px;
     }
 
     ${k} > div {
-        width: 50%;
+        width: 600px;
     }
 
     ${k} > img {
-         max-height: 250px;
          margin-left: auto;
          margin-right: auto;
+         height: 400px;
+         position: relative;
+         top: -120px;
+    }
+    
+    ${k} h5 {
+        margin: 0;
+        margin-bottom: 10px;
     }
 
-@media screen and (max-width: 900px) {
+@media screen and (max-width: 1000px) {
     ${k} > img {
         display: none;
         width: 0px;
@@ -572,12 +577,6 @@ const WithGraphicClass = injectStyle("with-graphic", k => `
 }
 `);
 
-function WithGraphic({children}: React.PropsWithChildren): JSX.Element {
-    return <div className={WithGraphicClass}>
-        {children}
-        <img src={ucloudImage} />
-    </div>
-}
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     onInit: () => dispatch(updatePageTitle("Dashboard")),

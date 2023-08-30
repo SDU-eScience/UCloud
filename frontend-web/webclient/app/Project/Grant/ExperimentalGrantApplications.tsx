@@ -31,7 +31,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
-    
+
     if (!opts?.embedded) {
         useTitle("Grant Applications");
     }
@@ -181,10 +181,10 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
         browserRef.current?.refresh();
     });
 
-    return <MainContainer
-        main={<>
-            <div ref={mountRef} />
-            {switcher}
-        </>}
-    />
+    const main = <>
+        <div ref={mountRef} />
+        {switcher}
+    </>;
+    if (opts?.embedded === true) return <div>{main}</div>;
+    return <MainContainer main={main}/>
 }

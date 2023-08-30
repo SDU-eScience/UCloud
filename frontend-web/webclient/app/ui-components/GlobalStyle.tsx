@@ -117,13 +117,14 @@ html {
     /* LIGHT */
     --gradientStart: #B6D8FB;
     --gradientEnd: #fff;    
-    --inputColor: #E9E9E9;
+    --inputColor: #fff;
 
     /* FONT-SIZES */
-    --secondaryText: 12px;
-    --buttonText: 14px;
-    --breadText: 16px;
+    --secondaryText: 10px;
+    --buttonText: 12px;
+    --breadText: 14px;
     --interactiveElementsSize: 20px;
+    font-size: 14px;
     /* FONT-SIZES end */
     
 
@@ -187,7 +188,7 @@ html.light {
     --tableRowHighlight: #dae4fd;
     --black: #000;
     --text: #1e252e;
-    --lightGray: #f5f7f9;
+    --lightGray: #fafbfc;
     --lightBlue: #E6F1FF;
     --midGray: #c9d3df;
     --paginationDisabled: var(--lightGray, #f00);

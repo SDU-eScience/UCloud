@@ -8,7 +8,7 @@ import {
     WidthProps
 } from "styled-system";
 import {ThemeColor} from "./theme";
-import {classConcat, extractEventHandlers, injectStyle, unbox, unboxDataTags} from "@/Unstyled";
+import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import * as React from "react";
 import {Cursor} from "./Types";
 
@@ -37,14 +37,26 @@ export const InputClass = injectStyle("input", k => `
         border-radius: 5px;
         padding: 7px 12px;
         height: 42px;
-        
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
+
         --inputBorder: var(--blue);
         --inputDisabledBorder: var(--lightGray);
+
+        border: 1px solid var(--midGray);
     }
     
+    ${k}:hover {
+        border-color: var(--gray);
+    }
+
     ${k}:focus {
         outline: 0;
-        border-color: var(--inputBorder);
+        border-color: var(--blue);
+        box-shadow: 0 0 3px -1px var(--blue);
+    }
+
+    ${k}::placeholder {
+        color: var(--gray);
     }
     
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
@@ -96,7 +108,6 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["name"] = props.name;
     inputProps["placeholder"] = props.placeholder;
     inputProps["defaultValue"] = props.defaultValue;
-    inputProps["value"] = props.value;
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;
@@ -112,11 +123,11 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["rows"] = props.rows;
 
     if (props.as !== "textarea") {
-        return <input {...inputProps} {...unboxDataTags(props as Record<string, string>)} />;
+        return <input {...inputProps} />;
     } else {
         style.height = "unset";
         style.resize = props.resize;
-        return <textarea {...inputProps} {...unboxDataTags(props as Record<string, string>)} />;
+        return <textarea {...inputProps} />;
     }
 }
 
@@ -138,12 +149,11 @@ const InputLabelClass = injectStyle("input-label", k => `
     ${k} {
         height: 42px;
         border-radius: 5px;
-        padding-top: 10px;
-        padding-right: 14px;
+        padding: 7px 12px;
         font-size: 14px;
         background-color: var(--inputColor);
+        border: 1px solid var(--midGray);
     }
-
     
     ${k}[data-left-label="true"] {
         border-top-left-radius: 5px;

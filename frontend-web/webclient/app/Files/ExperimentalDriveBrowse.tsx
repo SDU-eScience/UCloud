@@ -192,7 +192,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         key: "sortBy",
                         text: "Sort by",
                         type: "options",
-                        icon: "properties",
+                        icon: "heroAdjustmentsHorizontal",
                         clearable: false,
                         options: [{
                             color: "black", icon: "id", text: "Name", value: "title"
@@ -306,7 +306,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 // =========================================================================================================
                 browser.on("renderRow", (drive, row, dims) => {
                     if (drive.specification.product.provider) {
-                        const pIcon = providerIcon(drive.specification.product.provider)
+                        const pIcon = providerIcon(drive.specification.product.provider, {
+                            fontSize: "14px", width: "20px", height: "20px"
+                        });
                         pIcon.style.marginRight = "8px";
                         row.title.append(pIcon);
                     }
@@ -334,7 +336,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         }
 
                         case EmptyReasonTag.EMPTY: {
-                            e.reason.append("This folder is empty");
+                            e.reason.append("No drives found.");
                             break;
                         }
 

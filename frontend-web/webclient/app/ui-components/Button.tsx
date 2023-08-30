@@ -46,6 +46,11 @@ export const ButtonClass = injectStyle("button", k => `
         border-style: solid;
         display: flex;
         align-items: center;
+        padding: calc(.5em - 1px) 1.2em;
+    }
+
+    ${k}:hover {
+        filter: brightness(115%);
     }
     
     ${k}:disabled {
@@ -55,14 +60,9 @@ export const ButtonClass = injectStyle("button", k => `
     ${k}:focus {
         outline: none;
     }
-
-    ${k}[data-attached=true] {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;   
-    }
-    
+   
     ${k}[data-square=true] {
-        border-radius: 0 !important;
+        border-radius: 0;
     }
     
     ${k}[data-fullwidth=true] {
@@ -71,36 +71,41 @@ export const ButtonClass = injectStyle("button", k => `
     
     ${k}[data-size=large] {
         height: 55px;
-        padding: 15px 45px;
         border-radius: 15px;
-        font-size: 19px;
+        font-size: 16px;
     }
     
     ${k}, ${k}[data-size=standard] {
-        height: 45px;
-        padding: 12px 36px;
+        height: 42px;
         border-radius: 8px;
-        font-size: 15px;
+        font-size: 14px;
     }
     
     ${k}[data-size=small] {
         height: 35px;
-        padding: 8px 24px;
         border-radius: 8px;
-        font-size: 15px;
+        font-size: 14px;
     }
     
     ${k}[data-size=extra-small] {
         height: 25px;
-        padding: 6px 18px;
         border-radius: 14px;
-        font-size: 14px;
+        font-size: 12px;
+    }
+
+    ${k}[data-attached=true] {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    ${k} svg {
+        margin-right: 5px;
     }
 `);
 
 const standardButtonSizes: {height: number; name: string;}[] = [
     {height: 55, name: "large"},
-    {height: 45, name: "standard"},
+    {height: 42, name: "standard"},
     {height: 35, name: "small"},
     {height: 25, name: "extra-small"},
 ];
@@ -116,7 +121,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
             bestMatch = props.standardSize ?? StandardButtonSize.STANDARD;
         } else {
             let height = parseInt(extractSize(props.height));
-            if (isNaN(height)) height = 45;
+            if (isNaN(height)) height = 42;
 
             let diff = 1000000000000000000;
             for (let i = 0; i < standardButtonSizes.length; i++) {

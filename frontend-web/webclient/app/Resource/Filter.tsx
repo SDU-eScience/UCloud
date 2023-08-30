@@ -121,7 +121,7 @@ export const ResourceFilter: React.FunctionComponent<{
         }
         <MainContentGrid browseType={props.browseType}>
             <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-                icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
+                icon={"heroAdjustmentsHorizontal"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
             {props.pills.map((Pill, idx) =>
                 <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
             )}

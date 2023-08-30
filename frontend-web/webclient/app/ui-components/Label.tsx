@@ -1,12 +1,19 @@
 import * as React from "react";
 import { BoxProps } from "./Box";
-import {extractEventHandlers, injectStyleSimple, unbox} from "@/Unstyled";
+import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 
-export const LabelClass = injectStyleSimple("label", `
-    width: 100%;
-    font-weight: bold;
-    color: var(--black);
+export const LabelClass = injectStyle("label", k => `
+    ${k} {
+        width: 100%;
+        color: var(--black);
+        line-height: 2em;
+        padding-left: 2px;
+    }
+
+    ${k} input {
+        margin-left: -2px;
+    }
 `);
 
 const Label: React.FunctionComponent<BoxProps & { children?: React.ReactNode; style?: CSSProperties; htmlFor?: string; }> = props => {

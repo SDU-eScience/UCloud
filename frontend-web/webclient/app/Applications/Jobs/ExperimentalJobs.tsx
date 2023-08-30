@@ -112,7 +112,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         text: "Created by"
                     }],
                     type: "options",
-                    icon: "properties",
+                    icon: "heroAdjustmentsHorizontal",
                 },
                 {
                     key: "filterCreatedBy",
@@ -290,12 +290,12 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
         browserRef.current?.refresh();
     });
 
-    return <MainContainer
-        main={<>
-            <div ref={mountRef} />
-            {switcher}
-        </>}
-    />;
+    const main = <>
+        <div ref={mountRef} />
+        {switcher}
+    </>;
+    if (opts?.embedded === true) return <div>{main}</div>;
+    return <MainContainer main={main}/>;
 }
 
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {

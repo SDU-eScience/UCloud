@@ -29,10 +29,6 @@ export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu"},
 ]
 
-export function SharesLinks(): JSX.Element {
-    return <SidebarLinkColumn links={sharesLinksInfo} />
-}
-
 function daysLeftToTimestamp(timestamp: number): number {
     return Math.floor((timestamp - timestampUnixMs())/1000 / 3600 / 24);
 }

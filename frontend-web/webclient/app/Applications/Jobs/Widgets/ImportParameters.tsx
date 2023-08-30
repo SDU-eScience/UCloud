@@ -136,7 +136,7 @@ export const ImportParameters: React.FunctionComponent<{
     return <Box>
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
-            <Button color="gray" backgroundColor="white" mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
+            <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (
@@ -185,7 +185,7 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-                            <ExperimentalBrowse 
+                            <ExperimentalBrowse
                                 opts={{embedded: true, initialPath: "", selection: {
                                     onSelect: res => {
                                         fetchAndImportParameters(res);
@@ -206,7 +206,7 @@ export const ImportParameters: React.FunctionComponent<{
                         dialogStore.addDialog(
                             <ExperimentalJobs opts={{
                                 selection: {
-                                    onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here 
+                                    onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here
                                     onSelect: res => {
                                         readParsedJSON(res.status.jobParametersJson);
                                         dialogStore.success();

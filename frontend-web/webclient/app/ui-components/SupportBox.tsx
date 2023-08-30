@@ -77,7 +77,7 @@ export default function Support(): JSX.Element {
             onTriggerClick={fetchStatus}
             trigger={(
                 <Flex width="48px" justifyContent="center">
-                    <Icon name={"chat"} size="18px" color="headerIconColor" color2="headerBg" />
+                    <Icon name={"heroChatBubbleLeftEllipsis"} size="24px" color="fixedWhite" />
                 </Flex>
             )}
             width="650px"

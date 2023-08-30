@@ -12,6 +12,7 @@ const style = injectStyle("highlightedCard", k => `
         display: flex;
         align-items: center;
         gap: 8px;
+        margin: 25px 0;
     }
     
     ${k} {
@@ -44,6 +45,7 @@ export const HighlightedCard: React.FunctionComponent<{
     className?: string;
     highlightSize?: string;
     children?: React.ReactNode;
+    overflow?: string;
 }> = ({
     title,
     subtitle,
@@ -60,10 +62,11 @@ export const HighlightedCard: React.FunctionComponent<{
     maxWidth,
     onContextMenu,
     className,
+    overflow,
 }) => (
         <Card
             onClick={onClick}
-            overflow="hidden"
+            overflow={overflow ?? "hidden"}
             height={height}
             width={width}
             minWidth={minWidth}
@@ -73,13 +76,15 @@ export const HighlightedCard: React.FunctionComponent<{
             onContextMenu={onContextMenu}
             className={classConcat(style, className)}
         >
-            <div className="title-row">
-                {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
-                {icon !== undefined ? (
-                    <Icon name={icon} size="20" color={theme.colors.darkGray}/>
-                ) : null}
-                {subtitle ? <div className={"subtitle"}>{subtitle}</div> : null}
-            </div>
+            {title || icon || subtitle ?
+                <div className="title-row">
+                    {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
+                    {icon !== undefined ? (
+                        <Icon name={icon} size="20" color={theme.colors.darkGray}/>
+                    ) : null}
+                    {subtitle ? <div className={"subtitle"}>{subtitle}</div> : null}
+                </div> : null
+            }
 
             <Error error={error} />
             {!isLoading ? children : <Spinner />}

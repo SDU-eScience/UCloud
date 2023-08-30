@@ -370,7 +370,7 @@ export const Create: React.FunctionComponent = () => {
                         {mandatoryParameters.length === 0 ? null : (
                             <Card>
                                 <Heading.h4>Mandatory Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
+                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"} mt="-20px">
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             setErrors={setErrors}

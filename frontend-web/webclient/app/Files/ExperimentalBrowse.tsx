@@ -494,7 +494,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                             key: "sortBy",
                             text: "Sort by",
                             clearable: false,
-                            icon: "sortAscending",
+                            icon: "heroAdjustmentsHorizontal",
                             options: [{
                                 color: "black",
                                 text: "Name",
@@ -872,7 +872,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         if (url) url.prepend(providerIconWrapper);
                         pIcon = providerIconWrapper;
                     }
-                    
+
                     pIcon.replaceChildren();
 
                     if (pIcon && collection) {

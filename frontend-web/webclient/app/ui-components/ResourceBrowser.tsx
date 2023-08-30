@@ -90,11 +90,11 @@ const SORT_DIRECTIONS: FilterWithOptions = {
     type: "options",
     key: "sortDirection",
     text: "Sort order",
-    icon: "sortAscending",
+    icon: "heroArrowsUpDown",
     clearable: false,
     options: [
-        {color: "black", icon: "sortAscending", text: "Ascending", value: "ascending"},
-        {color: "black", icon: "sortDescending", text: "Descending", value: "descending"}
+        {color: "black", icon: "heroArrowUp", text: "Ascending", value: "ascending"},
+        {color: "black", icon: "heroArrowDown", text: "Descending", value: "descending"}
     ]
 };
 
@@ -323,7 +323,7 @@ export class ResourceBrowser<T> {
     private didPerformInitialOpen = false;
 
     // Filters
-    resourceName: string; // currently just used for 
+    resourceName: string; // currently just used for
     browseFilters: Record<string, string> = {};
 
     // Inline searching
@@ -465,6 +465,7 @@ export class ResourceBrowser<T> {
 
         if (this.opts.embedded) {
             this.emptyPageElement.container.style.marginTop = "80px";
+            this.header.style.display = "none";
         }
 
         const unmountInterval = window.setInterval(() => {
@@ -487,7 +488,7 @@ export class ResourceBrowser<T> {
             editIcon.src = placeholderImage;
             editIcon.width = 24;
             editIcon.height = 24;
-            this.icons.renderIcon({name: "edit", color: "iconColor", color2: "iconColor2", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => editIcon.src = url);
             editIcon.addEventListener("click", () => {
                 this.toggleLocationBar();
@@ -499,7 +500,7 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
-            this.icons.renderIcon({name: "search", color: "blue", color2: "blue", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -538,8 +539,6 @@ export class ResourceBrowser<T> {
             if (this.features.contextSwitcher) {
                 const div = document.createElement("div");
                 div.style.marginLeft = "20px";
-                div.style.marginRight = "20px";
-                div.style.marginTop = "4px";
                 div.className = "context-switcher";
                 const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
                 headerThing.appendChild(div);
@@ -552,7 +551,7 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
-            this.icons.renderIcon({name: "refresh", color: "blue", color2: "blue", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroArrowPath", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -1427,8 +1426,8 @@ export class ResourceBrowser<T> {
                     shortcutNumber = counter + 1;
                     continue;
                 }
-                
-                
+
+
                 const text = child.enabled(selected, callbacks, page);
                 const isDisabled = typeof text === "string";
 
@@ -2763,15 +2762,14 @@ export class ResourceBrowser<T> {
             }
 
             .file-browser header .header-first-row {
-                margin-top: 5px;
                 display: flex;
+                align-items: center;
             }
 
             .file-browser header .header-first-row img {
                 cursor: pointer;
                 flex-shrink: 0;
                 margin-left: 16px;
-                margin-top: 5px;
             }
 
             .file-browser header .header-first-row ul,
@@ -2781,12 +2779,13 @@ export class ResourceBrowser<T> {
 
             .file-browser header ul {
                 padding: 0;
-                margin: 0 0 8px;
+                margin: 0;
                 display: flex;
                 flex-direction: row;
                 gap: 8px;
                 height: 35px;
                 white-space: pre;
+                align-items: center;
             }
 
             .file-browser > div {
