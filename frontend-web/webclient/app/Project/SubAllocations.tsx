@@ -395,7 +395,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 iconColor2="white"
                 title={<Flex>
                     <Flex width="170px" ml="8px" mt="7px">
-                        <ClickableDropdown useMousePositioning width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
+                        <ClickableDropdown useMousePositioning width="250px" chevron trigger={<Flex><Icon my="auto" mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</Flex>}>
                             <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
                             <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>
                             <Flex onClick={() => toggleIsProject(recipient.id, false)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"user"} /> User</Flex>
@@ -425,7 +425,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                         return (
                             <ListRow
                                 key={row.id}
-                                icon={<Box pl="20px">
+                                icon={<Box pl="20px" mt="10px">
                                     <ClickableDropdown width="200px" useMousePositioning chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
                                         {remainingProductTypes.map(pt => {
                                             const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
@@ -451,7 +451,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                 </Box>}
                                 left={<Flex>
                                     <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], recipientId, suballocationId)}>
-                                        {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
+                                        {productAndProvider}<Icon name="chevronDownLight" mt="10px" size="1em" ml=".7em" color={"darkGray"} />
                                     </Flex>
                                     <Flex backgroundColor="var(--lightGray)" borderRadius="12px" ml="12px">
                                         <DatePicker
@@ -883,7 +883,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                     return (
                         <ListRow
                             key={row.id}
-                            icon={<Box pl="20px">
+                            icon={<Flex pl="20px" my="auto">
                                 <ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
                                     {remainingProductTypes.map(pt => {
                                         const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
@@ -903,8 +903,9 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                                 No allocations for product type available
                                             </Tooltip>
                                     })}
-                                </ClickableDropdown></Box>}
-                            left={<Flex>
+                                </ClickableDropdown>
+                            </Flex>}
+                            left={<Flex my="auto">
                                 <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], index)}>
                                     {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
                                 </Flex>
