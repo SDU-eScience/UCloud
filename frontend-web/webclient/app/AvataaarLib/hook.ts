@@ -8,7 +8,6 @@ class AvatarState extends UState<AvatarState> {
 
     updateCache(usernames: string[]): Promise<void> {
         const usernamesToUse = usernames.filter(it => !this.cache.hasOwnProperty(it));
-        console.log("cache", this.cache);
         if (usernamesToUse.length === 0) return Promise.resolve();
 
         return this.run(async () => {

@@ -575,7 +575,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         />}
         headerSize={72}
         main={
-            <Box className={TwoColumnLayout} height="calc(100vh - 92px)">
+            <Box className={TwoColumnLayout} height="calc(100vh - 120px)">
                 <div className="left">
                     <Flex className={SearchContainer} flexWrap="wrap">
                         {!isAdmin ? null : (
@@ -635,7 +635,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                             </Absolute>
                         </Relative>
                     </form>
-                    <List mt="16px">
+                    <List mt="16px" mb="32px">
                         {invites.items.map(i =>
                             <ItemRow
                                 item={i}
@@ -1331,15 +1331,10 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     }
 
     @media screen and (min-width: 1200px) {
-        ${k} {
-            overflow: hidden;
-        }
-
         ${k} > .left {
             border-right: 2px solid var(--gray, #f00);
             height: 100%;
             flex: 1;
-            overflow-y: hidden;
             margin-right: 16px;
             padding-right: 16px;
         }
