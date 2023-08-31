@@ -285,42 +285,45 @@ const UserMenu: React.FunctionComponent<{
 }> = ({avatar}) => {
     return <ClickableDropdown
         width="230px"
+        paddingControlledByContent
         left="var(--sidebarWidth)"
         bottom="0"
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
             <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
     >
-        {!CONF.STATUS_PAGE ? null : (
-            <>
-                <Box>
-                    <ExternalLink href={CONF.STATUS_PAGE}>
-                        <Flex>
-                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
-                            <TextSpan color="black">Site status</TextSpan>
-                        </Flex>
-                    </ExternalLink>
-                </Box>
-                <Divider />
-            </>
-        )}
-        <UserMenuLink icon="properties" text="Settings" to={AppRoutes.users.settings()} />
-        <UserMenuLink icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
-        <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-            <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
-            Logout
-        </Flex>
-        <UserMenuExternalLink href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
-        <UserMenuExternalLink href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
-        <Divider />
-        <Username />
-        <ProjectID />
-        <Divider />
-        <span>
-            <Flex cursor="auto">
-                <ThemeToggler />
+        <Box p="12px">
+            {!CONF.STATUS_PAGE ? null : (
+                <>
+                    <Box>
+                        <ExternalLink href={CONF.STATUS_PAGE}>
+                            <Flex>
+                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
+                                <TextSpan color="black">Site status</TextSpan>
+                            </Flex>
+                        </ExternalLink>
+                    </Box>
+                    <Divider />
+                </>
+            )}
+            <UserMenuLink icon="properties" text="Settings" to={AppRoutes.users.settings()} />
+            <UserMenuLink icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
+                <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
+                Logout
             </Flex>
-        </span>
+            <UserMenuExternalLink href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
+            <UserMenuExternalLink href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
+            <Divider />
+            <Username />
+            <ProjectID />
+            <Divider />
+            <span>
+                <Flex cursor="auto">
+                    <ThemeToggler />
+                </Flex>
+            </span>
+        </Box>
     </ClickableDropdown>;
 }
 
