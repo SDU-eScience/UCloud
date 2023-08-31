@@ -381,7 +381,7 @@ export const Notifications: React.FunctionComponent = () => {
             <div className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
-                    <Icon name="checkDouble" className="read-all" color="iconColor" color2="iconColor2"
+                    <Icon name="checkDouble" className="read-all" cursor="pointer" color="iconColor" color2="iconColor2"
                         onClick={markAllAsRead} />
                 </div>
 
