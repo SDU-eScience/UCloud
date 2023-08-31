@@ -488,7 +488,7 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
                 <TableCell width="200px">
                     {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.unit)}
                     {" "}
-                    {explainUsage(wallet.productType, wallet.chargeType, wallet.unit)}
+                    {explainUsage(wallet.productType, wallet.unit)}
                 </TableCell>
                 <TableCell width="45px">{a.id}</TableCell>
             </TableRow>
