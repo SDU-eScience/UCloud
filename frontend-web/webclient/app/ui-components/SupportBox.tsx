@@ -18,6 +18,7 @@ import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
 import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import Error from "./Error";
+import Input from "./Input";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
@@ -84,7 +85,7 @@ export default function Support(): JSX.Element {
             left="calc(var(--sidebarWidth))"
             bottom="-60px"
         >
-            <div>
+            <div style={{cursor: "default"}}>
                 <Box width="100%" pr={"16px"} color="text">
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
@@ -130,7 +131,7 @@ export default function Support(): JSX.Element {
 
                     <form onSubmit={onSubmit}>
                         <TextDiv mt="10px"> Subject </TextDiv>
-                        <TextArea width="100%" inputRef={titleArea} rows={1} />
+                        <Input width="100%" inputRef={titleArea} />
                         <TextDiv mt="10px">
                             {type === SupportType.BUG ? "Describe your problem below and we will investigate it." :
                                 "Describe your suggestion and we will look into it."
