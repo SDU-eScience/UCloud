@@ -446,6 +446,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     browser.showRenameField(
                         it => it.id === path,
                         () => {
+                            if (!browser.renameValue) return; // No change
                             const parentPath = resolvePath(getParentPath(path));
                             const page = browser.cachedData[parentPath] ?? [];
                             const actualFile = page.find(it => fileName(it.id) === fileName(path));
