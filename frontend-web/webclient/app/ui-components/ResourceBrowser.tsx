@@ -244,6 +244,7 @@ export interface ResourceBrowseFeatures {
     supportsMove?: boolean;
     supportsCopy?: boolean;
     locationBar?: boolean;
+    showHeaderInEmbedded?: boolean;
     showUseButtonOnRows?: boolean;
     showUseButtonOnDirectory?: boolean;
     showProjectSelector?: boolean;
@@ -465,7 +466,7 @@ export class ResourceBrowser<T> {
 
         if (this.opts.embedded) {
             this.emptyPageElement.container.style.marginTop = "80px";
-            this.header.style.display = "none";
+            if (this.features.showHeaderInEmbedded !== true) this.header.style.display = "none";
         }
 
         const unmountInterval = window.setInterval(() => {

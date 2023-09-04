@@ -88,6 +88,7 @@ const FEATURES: ResourceBrowseFeatures = {
     sortDirection: true,
     filters: true,
     contextSwitcher: true,
+    showHeaderInEmbedded: true,
 }
 
 function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string, initialPath?: string}}): JSX.Element {
