@@ -1,27 +1,43 @@
 package dk.sdu.cloud.accounting.services.serviceJobs
 
+import dk.sdu.cloud.accounting.api.AccountingFrequency
 import dk.sdu.cloud.accounting.api.ProductV2
-import dk.sdu.cloud.accounting.api.UsageReport
-import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.slack.api.Alert
+import dk.sdu.cloud.slack.api.SlackDescriptions
+import kotlin.math.abs
 
 class AccountingChecks(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
-    private val accountingProcessor: AccountingProcessor
 ) {
 
     suspend fun checkJobsVsTransactions() {
+        val maxdiff = 100L
         data class JobInfo(
-            val startedAt: Long,
-            val lastScan: Long,
-            val product: ProductV2
+            val millisecondsSpend: Long,
+            val product: ProductV2,
+            val projectTitle: String?,
+            val createdBy: String
         )
+
+        data class TransactionData(
+            val highest: Long,
+            val lowest: Long,
+            val walletId: Long,
+            val categoryName: String,
+            val categoryProvider: String,
+            val projectId: String?,
+            val username: String?
+        )
+
+
 
         val now = Time.now()
         val startOfYesterday = now - (24 * 60 * 60 * 1000L)
@@ -32,46 +48,140 @@ class AccountingChecks(
                     setParameter("now", now)
                 },
                 """
-                    select j.started_at, j.last_scan, accounting.product_to_json(p, pc, au, null)
-                    from app_orchestrator.jobs j join
-                        provider.resource r on j.resource = r.id join
-                        accounting.products p on r.product = p.id join
-                        accounting.product_categories pc on p.category = pc.id join
-                        accounting.accounting_units au on pc.accounting_unit = au.id
-                    where 
-                        (j.last_scan > :start::bigint and j.last_scan < :now::bigint)
-                        and
-                        (r.created_at < :now::bigint or r.created_at > :start:bigint )
+                    with all_updates as(
+                        select
+                            r.id,
+                            u.created_at,
+                            u.extra->>'state' as state,
+                            accounting.product_to_json(p, pc, au, null) as prod,
+                            proj.id as project_id,
+                            r.created_by
+                        from provider.resource r join
+                            app_orchestrator.jobs j on r.id = j.resource join
+                            provider.resource_update u on r.id = u.resource join
+                            accounting.products p on r.product = p.id join
+                            accounting.product_categories pc on p.category = pc.id join
+                            accounting.accounting_units au on pc.accounting_unit = au.id left join
+                            project.projects proj on r.project = proj.id
+                        where (
+                                (
+                                    floor(extract(epoch from u.created_at) * 1000) < :now::bigint and
+                                    floor(extract(epoch from u.created_at) * 1000) > :start::bigint
+                                    ) or
+                                j.current_state = 'RUNNING'
+                            ) and pc.free_to_use = false
+                        order by r.created_at desc , u.created_at desc
+                    ),
+                    started as (
+                        select *
+                        from all_updates
+                        where state in ('RUNNING')
+                    ),
+                    stopped as (
+                        select *
+                        from all_updates
+                        where state in ('SUCCESS', 'EXPIRED', 'FAILURE')
+                    )
+                    select
+                        coalesce(started.id, stopped.id) as resource_id,
+                        (
+                            floor(coalesce(extract(epoch from (stopped.created_at )) * 1000, :now::bigint))
+                            - floor(coalesce(extract(epoch from (started.created_at )) * 1000, :start::bigint))
+                        ) as milliseconds_spend,
+                        coalesce(started.prod, stopped.prod),
+                        coalesce(started.project_id, stopped.project_id) as project_id,
+                        coalesce(started.created_by, stopped.created_by) as username
+                    from started full join stopped on started.id = stopped.id;
                 """.trimIndent()
             ).rows.map {
                 JobInfo(
-                    it.getLong(0)!!,
                     it.getLong(1)!!,
-                    defaultMapper.decodeFromString(it.getString(2)!!)
+                    defaultMapper.decodeFromString(it.getString(2)!!),
+                    it.getString(3),
+                    it.getString(4)!!
                 )
             }
         }
 
-        val transactions = db.withSession { session ->
+        val computeTransactions = db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("start", startOfYesterday)
                     setParameter("now", now)
                 },
                 """
-                    select affected_allocation, created_at, new_tree_usage, new_local_usage, new_quota, action, transaction_id
-                    from accounting.transaction_history
-                    where created_at < :now and created_at > :start
+                    select
+                        max(new_local_usage),
+                        min(new_local_usage),
+                        pc.category,
+                        pc.provider,
+                        wall.id,
+                        wo.project_id,
+                        wo.username
+                    from accounting.transaction_history th join
+                        accounting.wallet_allocations wa on wa.id = th.affected_allocation join
+                        accounting.wallets wall on wa.associated_wallet = wall.id join
+                        accounting.product_categories pc on pc.id = wall.category join
+                        accounting.wallet_owner wo on wall.owned_by = wo.id
+                    where floor(extract(epoch from created_at) * 1000) < :now::bigint and
+                        floor(extract(epoch from created_at) * 1000) > :start:bigint and
+                        pc.product_type = 'COMPUTE'
+                    group by wall.id, pc.category, pc.provider, wo.project_id, wo.username
                 """.trimIndent()
             ).rows.map {
-                UsageReport.AllocationHistoryEntry(
-                    it.getString(0)!!,
+                TransactionData(
+                    it.getLong(0)!!,
                     it.getLong(1)!!,
-                    UsageReport.Balance(it.getLong(2)!!, it.getLong(3)!!, it.getLong(4)!!),
-                    UsageReport.HistoryAction.valueOf(it.getString(5)!!),
-                    it.getString(6)!!
+                    it.getLong(2)!!,
+                    it.getString(3)!!,
+                    it.getString(4)!!,
+                    it.getString(5),
+                    it.getString(6)
                 )
             }
         }
+
+        val highDiffs = mutableSetOf<String>()
+
+        val projectJobs = jobs.filter { it.projectTitle != null}.groupBy { it.projectTitle }
+        val userjobs = jobs.filter { it.projectTitle == null }.groupBy { it.createdBy }
+
+        fun calculate(info: JobInfo): Long {
+            return ((info.millisecondsSpend / 1000) / AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name)) * info.product.price
+        }
+
+
+        println(computeTransactions)
+        println()
+        println(projectJobs)
+        println()
+        println(userjobs)
+
+        computeTransactions.forEach {transaction ->
+            val totalUsage = if (transaction.projectId != null) {
+                projectJobs[transaction.projectId]?.sumOf { info ->
+                    calculate(info)
+                } ?: 0
+            } else {
+                userjobs[transaction.username]?.sumOf { info ->
+                    calculate(info)
+                } ?: 0
+            }
+            val todaysUsage = transaction.highest - transaction.lowest
+            if (abs(todaysUsage - totalUsage) > maxdiff ) {
+                highDiffs.add(transaction.projectId ?: transaction.username ?: "UNKNOWN USER")
+            }
+
+        }
+
+        /*SlackDescriptions.sendAlert.call(
+            Alert(
+                "Noticeable difference in charges and balances for COMPUTE jobs for $highDiffs"
+            ),
+            serviceClient
+        )*/
+
+        println("ALERTS: $highDiffs")
+
     }
 }
