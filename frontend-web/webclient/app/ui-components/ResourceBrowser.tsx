@@ -696,7 +696,7 @@ export class ResourceBrowser<T> {
 
             r.selected.addEventListener("click", e => {
                 e.stopPropagation();
-                this.select(myIndex, SelectionMode.TOGGLE_SINGLE);
+                this.select(parseInt(r.container.getAttribute("data-idx") ?? "-1"), SelectionMode.TOGGLE_SINGLE);
             });
 
             r.star.addEventListener("pointerdown", e => {
