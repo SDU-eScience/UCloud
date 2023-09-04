@@ -381,7 +381,7 @@ export function explainAllocation(type: ProductType, unit: ProductPriceUnit): st
     }
 }
 
-export function explainUsage(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+export function explainUsage(type: ProductType, unit: ProductPriceUnit): string {
     // NOTE(Dan): I think this is generally the case, but I am leaving a separate function just in case we need to
     // change it.
     return explainAllocation(type, unit);
@@ -563,7 +563,7 @@ function currencyFormatter(credits: number, precision = 2, forceInteger: boolean
     if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
 
     if (forceInteger) {
-        return ((credits / 1000000) | 0).toString();
+        return (Math.floor(credits / 1000000)).toString();
     }
 
     // Edge-case handling
@@ -615,20 +615,16 @@ function currencyFormatter(credits: number, precision = 2, forceInteger: boolean
 function addThousandSeparators(numberOrString: string | number): string {
     const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
     let result = "";
-    const chunksInTotal = Math.ceil(numberAsString.length / 3);
-    let offset = 0;
-    for (let i = 0; i < chunksInTotal; i++) {
-        if (i === 0) {
-            let firstChunkSize = numberAsString.length % 3;
-            if (firstChunkSize === 0) firstChunkSize = 3;
-            result += numberAsString.substring(0, firstChunkSize);
-            offset += firstChunkSize;
-        } else {
-            result += '.';
-            result += numberAsString.substring(offset, 3);
-            offset += 3;
+    let i = 0;
+    const len = numberAsString.length;
+    for (const char of numberAsString) {
+        result += char;
+        i += 1;
+        if ((i - len) % 3 === 0 && i !== len) {
+            result += ".";
         }
     }
+
     return result;
 }
 
@@ -679,7 +675,7 @@ export function usageExplainer(
     unitOfPrice: ProductPriceUnit
 ): string {
     const amount = normalizeBalanceForFrontend(usage, productType, unitOfPrice);
-    const suffix = explainUsage(productType, chargeType, unitOfPrice);
+    const suffix = explainUsage(productType, unitOfPrice);
     return `${amount} ${suffix}`;
 }
 

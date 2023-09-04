@@ -3,7 +3,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "@/ui-components";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Relative} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
@@ -485,10 +485,11 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                 {!SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
                         width="238px"
-                        top="36px"
+                        top="0"
+                        left="-248px"
                         right="5px"
                         colorOnHover={false}
-                        trigger={<Icon color="#000" color2="#000" mr={"1em"} name="suggestion" />}
+                        trigger={<Relative><Icon color="#000" color2="#000" mr={"1em"} name="suggestion" /></Relative>}
                     >
                         <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
                             Need help?
@@ -525,7 +526,7 @@ const IdpList: React.FunctionComponent = () => {
             const textResponse = await fetch("/auth/browseIdentityProviders").then(it => it.text());
             const parsed = JSON.parse(textResponse);
             if ("responses" in parsed) {
-                const providers = (parsed as { responses: IdentityProvider[] }).responses;
+                const providers = (parsed as {responses: IdentityProvider[]}).responses;
                 setIdps(providers);
             }
         })();
