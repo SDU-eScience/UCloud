@@ -964,7 +964,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    defaultTitleRenderer(title: string, dimensions: RenderDimensions): string {
+    static defaultTitleRenderer(title: string, dimensions: RenderDimensions): string {
         const approximateSizeForTitle = dimensions.width * (ResourceBrowser.rowTitleSizePercentage / 100);
         const approximateSizePerCharacter = 7.1;
         if (title.length * approximateSizePerCharacter > approximateSizeForTitle) {
@@ -974,7 +974,7 @@ export class ResourceBrowser<T> {
         return visualizeWhitespaces(title);
     }
 
-    defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
+    static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
         const icon = document.createElement("div");
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
         // image itself, which breaks the drag-and-drop functionality.
@@ -991,7 +991,7 @@ export class ResourceBrowser<T> {
         return [{title: capitalize(this.resourceName), absolutePath: ""}];
     }
 
-    resetTitleComponent(element: HTMLElement) {
+    static resetTitleComponent(element: HTMLElement) {
         element.style.display = "none";
     }
 
@@ -1323,25 +1323,29 @@ export class ResourceBrowser<T> {
                     {asSquare: inContextMenu, color: "red", hoverColor: "darkRed", disabled: !opEnabled}
                 );
 
+
                 if (inContextMenu) {
+                    element.style.height = "40px";
+                    button.style.height = "40px";
                     button.style.width = "100%";
-                    const ucloudIcons = button.querySelector("button > div.ucloud-native-icons");
-                    if (ucloudIcons) {
-                        ucloudIcons["style"].left = "9px";
-                        ucloudIcons["style"].top = "10px";
-                    }
-                    button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].left = "6px";
-                        it["style"].top = "10px";
+                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
+                        it["style"].marginLeft = "-6px";
+                        it["style"].marginTop = "-2px";
                     });
-                    button.querySelector("button > ul")!["style"].marginLeft = "-90px";
+                    button.style.fontSize = "16px";
+                    button.querySelectorAll("button > div.icons").forEach(it => {
+                        it["style"].marginLeft = "-10px";
+                    });
+                    button.querySelector("button > ul")!["style"].marginLeft = "-60px";
                 } else {
-                    const textChild = button.querySelector("button > ul")?.children.item(0);
-                    if (textChild) textChild["style"].paddingTop = "8px";
-                    button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].left = "10px";
-                        it["style"].top = "12px";
-                    });
+                    button.style.height = "46px";
+
+                    //const textChild = button.querySelector("button > ul")?.children.item(0);
+                    //if (textChild) textChild["style"].paddingTop = "8px";
+                    //button.querySelectorAll("button > div.icons").forEach(it => {
+                    //    it["style"].left = "10px";
+                    //    it["style"].top = "12px";
+                    //});
                 }
 
                 element.style.padding = "0";
@@ -2993,6 +2997,7 @@ export class ResourceBrowser<T> {
             }
             
             .file-browser .context-menu > ul > *:last-child,
+             .file-browser .context-menu > ul > li:last-child,
              .file-browser .context-menu > ul > li:last-child > button {
                 border-bottom-left-radius: 8px;
                 border-bottom-right-radius: 8px;
@@ -3295,7 +3300,7 @@ export function resourceCreationWithProductSelector<T>(
     const portal = createPortal(<Component />, productSelector);
 
     browser.on("startRenderPage", () => {
-        browser.resetTitleComponent(productSelector);
+        ResourceBrowser.resetTitleComponent(productSelector);
     });
 
     browser.on("renderRow", (entry, row, dims) => {

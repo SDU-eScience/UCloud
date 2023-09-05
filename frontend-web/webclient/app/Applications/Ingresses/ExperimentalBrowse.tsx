@@ -139,6 +139,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.resource.properties("public-links", resource.id));
+                        return;
                     }
 
                     callAPI(IngressApi.browse({
@@ -244,7 +245,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                         const icon = providerIcon(link.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
-                        row.title.append(browser.defaultTitleRenderer(link.specification.domain, dims));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, dims));
                     }
                 });
 

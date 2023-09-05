@@ -191,7 +191,7 @@ export function ExperimentalLicenses(): JSX.Element {
                     if (license.id !== DUMMY_ENTRY_ID) {
                         const {product} = license.specification;
                         const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
-                        row.title.append(browser.defaultTitleRenderer(title, dims));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
                     }
                 });
 

@@ -313,7 +313,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                         row.title.append(pIcon);
                     }
 
-                    const title = browser.defaultTitleRenderer(drive.specification.title, dims)
+                    const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims)
                     row.title.append(title);
                     row.title.title = title;
                     row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());

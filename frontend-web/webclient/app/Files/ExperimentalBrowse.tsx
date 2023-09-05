@@ -43,7 +43,7 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
 import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
+import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
@@ -701,7 +701,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                 browser.on("renderRow", (file, row, containerWidth) => {
                     row.container.setAttribute("data-file", file.id);
 
-                    const [icon, setIcon] = browser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
@@ -715,7 +715,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         iconWrapper.style.padding = "4px";
                         iconWrapper.style.borderRadius = "8px";
                         icon.append(iconWrapper);
-                        const [syncThingIcon, setSyncthingIcon] = browser.defaultIconRenderer();
+                        const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
                         syncThingIcon.style.height = "8px";
                         syncThingIcon.style.width = "8px";
                         syncThingIcon.style.marginLeft = "-3px";
@@ -725,9 +725,14 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         browser.icons.renderIcon({name: "check", color: "white", color2: "white", width: 24, height: 24}).then(setSyncthingIcon);
                     }
 
-                    const title = browser.defaultTitleRenderer(fileName(file.id), containerWidth)
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth)
                     row.title.append(title);
-                    row.title.title = title;
+                    row.title.title = title;                    // Disabled for now.
+                    if (isReadonly(file.permissions.myself) && Math.random() > 2) {
+                        row.title.appendChild(div(
+                            `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
+                        ));
+                    }
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
 
                     // Repeated in ExperimentalJobs
@@ -1331,5 +1336,12 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         </>}
     />;
 };
+
+function isReadonly(entries: Permission[]): boolean {
+    const isAdmin = entries.includes("ADMIN");
+    const isEdit = entries.includes("EDIT");
+    const isRead = entries.includes("READ");
+    return isRead && !isEdit;
+}
 
 export default ExperimentalBrowse;

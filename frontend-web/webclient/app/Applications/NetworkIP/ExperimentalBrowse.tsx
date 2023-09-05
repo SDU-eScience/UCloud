@@ -187,7 +187,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
 
                 browser.on("renderRow", (ip, row, dims) => {
                     if (ip.id !== DUMMY_ENTRY_ID) {
-                        row.title.append(browser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
                         const icon = providerIcon(ip.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);

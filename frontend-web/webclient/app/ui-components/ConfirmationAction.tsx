@@ -34,6 +34,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     }
     
     ${k}[data-square="true"] {
+        border-radius: 0;
         min-width: 200px;
         font-weight: 400;
     }
@@ -481,7 +482,6 @@ export function ConfirmationButtonPlainHTML(
     button.ontouchend = end;
     button.onclick = e => e.stopImmediatePropagation();
     button.type = "button";
-    if (opts.asSquare) button.style.borderRadius = "0";
 
     const divEl = document.createElement("div");
     divEl.className = "ucloud-native-icons";

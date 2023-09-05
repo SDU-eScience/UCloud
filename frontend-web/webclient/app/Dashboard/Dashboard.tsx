@@ -62,20 +62,8 @@ function Dashboard(props: DashboardProps): JSX.Element {
         withHidden: false,
     }), emptyPage);
 
-    const [recentRuns, fetchRuns] = useCloudAPI<PageV2<Job>>({noop: true}, emptyPage);
-
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
-
-    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<PageV2<GrantApplication>>(
-        {noop: true},
-        emptyPageV2
-    );
-
-    const [ingoingApps, fetchIngoingApps] = useCloudAPI<IngoingGrantApplicationsResponse>(
-        {noop: true},
-        emptyPageV2
-    );
 
     const [favoriteFiles, fetchFavoriteFiles] = useCloudAPI<PageV2<FileMetadataAttached>>(
         {noop: true},
@@ -97,25 +85,12 @@ function Dashboard(props: DashboardProps): JSX.Element {
             includeBalance: true,
             includeMaxBalance: true
         }));
-        fetchOutgoingApps(browseGrantApplications({
-            itemsPerPage: 10,
-            includeIngoingApplications: false,
-            includeOutgoingApplications: true,
-            filter: GrantApplicationFilter.ACTIVE
-        }));
-        fetchIngoingApps(browseGrantApplications({
-            itemsPerPage: 10,
-            includeIngoingApplications: true,
-            includeOutgoingApplications: false,
-            filter: GrantApplicationFilter.ACTIVE
-        }));
         fetchFavoriteFiles(metadataApi.browse({
             filterActive: true,
             filterTemplate: "Favorite",
             itemsPerPage: 10
         }));
         fetchUsage(retrieveUsage({}));
-        fetchRuns(JobsApi.browse({itemsPerPage: 10, sortBy: "MODIFIED_AT"}));
     }
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
@@ -132,7 +107,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
                         itemsPerPage: 10
                     }))}
                 />
-                <DashboardRuns runs={recentRuns} />
+                <DashboardRuns />
             </div>
             <div style={{marginBottom: "24px"}}>
                 <NotificationDashboardCard />
@@ -140,7 +115,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
             <UsageAndResources charts={usage} products={products} />
             <div className={GridClass}>
                 <Connect embedded />
-                <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
+                <DashboardGrantApplications />
             </div>
         </div>
     </Box>);
@@ -354,15 +329,11 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
     </div>);
 }
 
-function DashboardRuns({runs}: {
-    runs: APICallState<UCloud.PageV2<Job>>;
-}): JSX.Element {
+function DashboardRuns(): JSX.Element {
     return <HighlightedCard
         color="gray"
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="heroBeaker"
-        isLoading={runs.loading}
-        error={runs.error?.why}
     >
         <ExperimentalJobs opts={{
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
@@ -459,33 +430,16 @@ function DashboardResources({products}: {
     );
 }
 
-const DashboardGrantApplications: React.FunctionComponent<{
-    outgoingApps: APICallState<PageV2<GrantApplication>>,
-    ingoingApps: APICallState<PageV2<GrantApplication>>
-}> = ({outgoingApps, ingoingApps}) => {
-    const none = outgoingApps.data.items.length === 0 && ingoingApps.data.items.length === 0;
-    const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
-    const anyOutgoing = outgoingApps.data.items.length > 0;
-
-    const title = (none ? <Link to={`/project/grants/outgoing/`}><Heading.h3>Grant applications</Heading.h3></Link>
-        : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/`}>
-                <Heading.h3>Grant Applications</Heading.h3>
-            </Link>
-    );
-
-
+const DashboardGrantApplications: React.FunctionComponent = () => {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     if (!canApply) return null;
 
     return <HighlightedCard
-        title={title}
+        title={<Link to={AppRoutes.project.grantsOutgoing()}><Heading.h3>Grant Applications</Heading.h3></Link>}
         color="green"
-        isLoading={outgoingApps.loading}
         icon="heroDocumentCheck"
-        error={outgoingApps.error?.why ?? ingoingApps.error?.why}
     >
         <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true}} />
     </HighlightedCard>;

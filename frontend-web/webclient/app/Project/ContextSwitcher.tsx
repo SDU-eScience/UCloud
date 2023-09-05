@@ -113,7 +113,6 @@ export function ContextSwitcher(): JSX.Element {
                 colorOnHover={false}
                 useMousePositioning
                 onTriggerClick={reload}
-                left="0px"
                 width="500px"
             >
                 <div style={{maxHeight: "385px"}}>

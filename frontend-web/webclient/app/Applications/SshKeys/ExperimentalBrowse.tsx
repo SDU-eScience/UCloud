@@ -65,10 +65,10 @@ export function ExperimentalSSHKey(): JSX.Element {
                 });
 
                 browser.on("renderRow", (key, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(browser.defaultTitleRenderer(key.id, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims));
 
                     browser.icons.renderIcon({name: "key", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
                 });

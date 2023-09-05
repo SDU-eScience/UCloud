@@ -90,7 +90,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                 });
 
                 browser.on("renderRow", (key, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "fileSignatureSolid",
@@ -100,9 +100,9 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(browser.defaultTitleRenderer(key.createdBy, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims));
                     const [statusIconName, statusIconColor] = STATE_ICON_AND_COLOR[key.status.overallState];
-                    const [status, setStatus] = browser.defaultIconRenderer();
+                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                     browser.icons.renderIcon({
                         name: statusIconName,
                         color: statusIconColor,

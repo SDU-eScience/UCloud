@@ -138,10 +138,10 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                 }]);
 
                 browser.on("renderRow", (job, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
 
-                    row.title.append(browser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
                     row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
 
                     logoDataUrls.retrieve(job.specification.application.name, async () => {
@@ -165,7 +165,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         }
                     });
 
-                    const [status, setStatus] = browser.defaultIconRenderer();
+                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                     const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
                     browser.icons.renderIcon({
                         name: statusIconName,
