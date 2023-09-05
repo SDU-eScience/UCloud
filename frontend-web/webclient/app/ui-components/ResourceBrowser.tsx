@@ -1324,6 +1324,7 @@ export class ResourceBrowser<T> {
                 );
 
 
+                // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
                 if (inContextMenu) {
                     element.style.height = "40px";
                     button.style.height = "40px";
@@ -1338,14 +1339,28 @@ export class ResourceBrowser<T> {
                     });
                     button.querySelector("button > ul")!["style"].marginLeft = "-60px";
                 } else {
+                    element.style.height = "46px";
                     button.style.height = "46px";
 
-                    //const textChild = button.querySelector("button > ul")?.children.item(0);
-                    //if (textChild) textChild["style"].paddingTop = "8px";
-                    //button.querySelectorAll("button > div.icons").forEach(it => {
-                    //    it["style"].left = "10px";
-                    //    it["style"].top = "12px";
-                    //});
+                    const textChildren = button.querySelectorAll("button > ul > li");
+                    textChildren.item(0)["style"].marginTop = "8px";
+                    textChildren.item(2)["style"].marginTop = "-10px";
+
+                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
+                        it["style"].marginLeft = "-6px";
+                        it["style"].marginTop = "-2px";
+                    });
+                    button.querySelectorAll("button > div.icons").forEach(it => {
+                        it["style"].marginTop = "4px";
+                        it["style"].marginLeft = "-6px";
+                    });
+                    button.querySelectorAll("button > ul").forEach(it => {
+                        it["style"]["marginTop"] = "-8px";
+                    });
+
+                    button.querySelectorAll("button > ul > li").forEach(it => {
+                        it["style"]["right"] = "unset";
+                    });
                 }
 
                 element.style.padding = "0";
@@ -2264,7 +2279,7 @@ export class ResourceBrowser<T> {
                         if (newClipboard.length) {
                             const key = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "Ctrl + ";
                             snackbarStore.addInformation(
-                                `${newClipboard.length} copied to clipboard. Use ${key}V to insert.`,
+                                `${newClipboard.length} copied to clipboard.Use ${key}V to insert.`,
                                 false
                             );
                         }
