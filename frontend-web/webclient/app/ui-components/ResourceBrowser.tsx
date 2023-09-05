@@ -2422,7 +2422,10 @@ export class ResourceBrowser<T> {
                             if (selected[i] !== 0) {
                                 const entry = this.cachedData[this.currentPath][i];
                                 const path = this.dispatchMessage("pathToEntry", fn => fn(entry));
-                                this.open(path, false, entry);
+                                if (!this.dispatchMessage("beforeOpen", fn => fn(this.currentPath, path, entry))) {
+                                    this.open(path, false, entry);
+                                }
+
                                 break;
                             }
                         }

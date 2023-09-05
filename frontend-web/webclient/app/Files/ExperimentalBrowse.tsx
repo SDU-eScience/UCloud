@@ -1245,7 +1245,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
                 browser.on("beforeOpen", (oldPath, path, resource) => {
                     if (resource?.status.type === "FILE") {
-                        // Note(Jonas): Work to do in this. Too wide, reload missing.
                         const operations = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                         dispatch(setPopInChild({
                             el: <FilesApi.Properties inPopIn embedded resource={resource} reload={operations.reload} />,
