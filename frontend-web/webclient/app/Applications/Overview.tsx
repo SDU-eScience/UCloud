@@ -219,7 +219,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     const landing = (
         <Box mx="auto" maxWidth="1340px">
             <Flex width="100%">
-                <Box ml="auto">
+                <Box ml="auto" mt="30px">
                     <ContextSwitcher />
                 </Box>
             </Flex>
@@ -281,7 +281,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     const overview = (
         <Box mx="auto" maxWidth="1340px">
             <Flex width="100%">
-                <Box ml="auto">
+                <Box ml="auto" mt="30px">
                     <ContextSwitcher />
                 </Box>
             </Flex>
