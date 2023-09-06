@@ -364,7 +364,7 @@ export function Sidebar(): JSX.Element | null {
         .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
 
     return (
-        <div style={{display: "flex"}}>
+        <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
                 <Link data-component={"logo"} to="/">
                     <Icon name="logoEsc" mt="10px" size="34px" />
@@ -425,7 +425,7 @@ export function Sidebar(): JSX.Element | null {
                 clearHover={() => setHoveredPage("")}
                 clearClicked={() => setSelectedPage("")}
             />
-        </div>
+        </Flex>
     );
 };
 
@@ -569,14 +569,12 @@ function SecondarySidebar({
                 <h3 className={"no-link"}>Favorite apps</h3>
 
                 {appFavorites.map(it =>
-                    <Link mb="4px" key={it.metadata.name + it.metadata.version} to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}>
-                        <Flex alignItems={"center"}>
-                            <Flex p="2px" mr={"4px"} justifyContent={"center"} alignItems={"center"} backgroundColor="var(--fixedWhite)" width="16px" height="16px" borderRadius="4px">
-                                <AppToolLogo size="12px" name={it.metadata.name} type="APPLICATION" />
-                            </Flex>
-                            <Truncate color="#fff">{it.metadata.title}</Truncate>
-                        </Flex>
-                    </Link>
+                    <AppTitleAndLogo
+                        key={it.metadata.name + it.metadata.version}
+                        to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
+                        name={it.metadata.name}
+                        title={it.metadata.title}
+                    />
                 )}
 
                 {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
@@ -586,17 +584,14 @@ function SecondarySidebar({
         {active !== "Runs" ? null : (
             <Flex flexDirection={"column"}>
                 <h3 className={"no-link"}>Running jobs</h3>
-                {recentRuns.data.items.map(it => {
-                    const [icon, color] = jobStateToIconAndColor(it.status.state);
-                    return <Link key={it.id} to={AppRoutes.jobs.view(it.id)}>
-                        <Flex>
-                            <Icon name={icon} color={color} mr={"4px"} size={16} my="auto" />
-                            <Truncate key={it.id} color="fixedWhite">
-                                {it.specification.name ?? it.id} ({it.specification.application.name})
-                            </Truncate>
-                        </Flex>
-                    </Link>
-                })}
+                {recentRuns.data.items.map(it =>
+                    <AppTitleAndLogo
+                        key={it.id}
+                        to={AppRoutes.jobs.view(it.id)}
+                        name={it.specification.application.name}
+                        title={`${it.specification.name ?? it.id} (${it.specification.application.name})`}
+                    />
+                )}
                 {recentRuns.data.items.length !== 0 ? null : <div>No jobs running.</div>}
             </Flex>
         )}
@@ -604,7 +599,29 @@ function SecondarySidebar({
         {active !== "Resources" ? null : (<ResourceLinks />)}
 
         {active !== "Admin" ? null : (<AdminLinks />)}
-    </div>;
+    </div >;
+}
+
+function AppTitleAndLogo({name, title, to}): JSX.Element {
+    return <Link to={to}>
+        <Flex alignItems={"center"}>
+            <Flex
+                p="2px"
+                mr="4px"
+                justifyContent="center"
+                alignItems="center"
+                backgroundColor="var(--fixedWhite)"
+                width="16px"
+                height="16px"
+                borderRadius="4px"
+            >
+                <AppToolLogo size="12px" name={name} type="APPLICATION" />
+            </Flex>
+            <Truncate color="#fff">
+                {title}
+            </Truncate>
+        </Flex>
+    </Link>
 }
 
 function Username(): JSX.Element | null {

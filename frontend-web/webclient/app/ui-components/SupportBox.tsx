@@ -86,7 +86,7 @@ export default function Support(): JSX.Element {
             bottom="-60px"
         >
             <div style={{cursor: "default"}}>
-                <Box width="100%" pr={"16px"} color="text">
+                <Box width="100%" pb="6px" color="text">
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
                         right={<>
@@ -99,7 +99,7 @@ export default function Support(): JSX.Element {
                                 </ExternalLink>
                             )}
                             {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                                <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                                <ExternalLink hoverColor={"textHighlight"} href={CONF.SITE_DOCUMENTATION_URL}>
                                     <Icon name="docs" mr=".5em" />Documentation
                                 </ExternalLink>
                             )}
@@ -111,7 +111,7 @@ export default function Support(): JSX.Element {
                     </Box>)}
 
                     <Flex mt="8px">
-                        <Label>
+                        <Label cursor="pointer">
                             <Radio
                                 checked={type === SupportType.SUGGESTION}
                                 onChange={setSuggestion}
@@ -119,7 +119,7 @@ export default function Support(): JSX.Element {
                             <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
                             Suggestion
                         </Label>
-                        <Label>
+                        <Label cursor="pointer">
                             <Radio
                                 checked={type === SupportType.BUG}
                                 onChange={setBug}
