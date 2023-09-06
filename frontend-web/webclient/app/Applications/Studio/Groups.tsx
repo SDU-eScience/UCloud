@@ -7,6 +7,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
+import {AppToolLogo} from "../AppToolLogo";
 
 
 export const ApplicationGroups: React.FunctionComponent = () => {
@@ -42,7 +43,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
         header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Groups</Heading.h2>}
         main={
             <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
-                <form onSubmit={e => {
+                <form onSubmit={async e => {
                     e.preventDefault();
 
                     const filterField = filterRef.current;
@@ -51,7 +52,9 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                     const filterValue = filterField.value;
                     if (filterValue === "") return;
 
-                    invokeCommand(createGroup({title: filterValue}))
+                    await invokeCommand(createGroup({title: filterValue}))
+                    filterField.value = "";
+                    setTitleFilter("");
                     refresh();
                 }}>
                     <Flex>
@@ -72,9 +75,12 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                 <List width="100%">
                     {results.map(group => (
                         <Flex key={group.id} justifyContent="space-between" pt="5px" pb="5px">
-                            <Box>
-                                {group.title}
-                            </Box>
+                            <Flex justifyContent="left">
+                                <AppToolLogo name={group.id.toString()} type="GROUP" size="25px" />
+                                <Box ml="10px">
+                                    {group.title}
+                                </Box>
+                            </Flex>
                             <Flex justifyContent="right">
                                 <Button onClick={() => navigate(`/applications/studio/g/${group.id}`)} height="25px" mr="5px"><Icon name="edit" /></Button>
                                 <Button onClick={() => {

@@ -17,6 +17,7 @@ import {Tag} from "../Card";
 import {compute} from "@/UCloud";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {pageV2Of} from "@/DefaultObjects";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = useParams<{id: string}>().id!;
@@ -71,6 +72,7 @@ export const AppGroup: React.FunctionComponent = () => {
     useRefreshFunction(refresh);
 
     return (
+        !group.data ? <></> :
         <>
             <ReactModal  
                 style={largeModalStyle}
@@ -104,17 +106,18 @@ export const AppGroup: React.FunctionComponent = () => {
                 {!appList.data ? <>No apps found</> : (
                     <>
                         {appList.data.items.map(app => (
-                            <Flex justifyContent="space-between" style={{lineHeight: "45px"}}>
-                                {app.metadata.title}
-                                <Button
-                                    onClick={async () => {
-                                        if (!group.data) return;
-                                        await invokeCommand(setGroup({applicationName: app.metadata.name, groupId: group.data.group.id}));
-                                        setAddApplicationOpen(false);
-                                        refresh();
-                                    }}
-                                >Add to group</Button>
-                            </Flex> 
+                            group.data!.applications.map(app => app.metadata.name).includes(app.metadata.name) ? null : (
+                                <Flex justifyContent="space-between" style={{lineHeight: "45px"}}>
+                                    {app.metadata.title}
+                                    <Button
+                                        onClick={async () => {
+                                            await invokeCommand(setGroup({applicationName: app.metadata.name, groupId: group.data!.group.id}));
+                                            setAddApplicationOpen(false);
+                                            refresh();
+                                        }}
+                                    >Add to group</Button>
+                                </Flex> 
+                            )
                         ))}
                     </>
                 )}
