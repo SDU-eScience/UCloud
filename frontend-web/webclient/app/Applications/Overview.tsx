@@ -143,7 +143,6 @@ const LandingDivider = injectStyle("landing-divider", k => `
     }
 `);
 
-
 export const LargeSearchBox: React.FunctionComponent = () => {
     const navigate = useNavigate();
   

@@ -10,12 +10,8 @@ class ApplicationTagsService (
     private val db: DBContext,
     private val elasticDao: ElasticDao?
 ) {
-    suspend fun createTags(tags: List<String>, applicationName: String) {
+    suspend fun createTags(tags: List<String>, groupId: Int) {
         db.withSession { session ->
-            findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
-                HttpStatusCode.NotFound
-            )
-
             session.sendPreparedStatement(
                 {
                     setParameter("tags", tags)
@@ -29,44 +25,36 @@ class ApplicationTagsService (
 
             session.sendPreparedStatement(
                 {
-                    setParameter("application_name", applicationName)
+                    setParameter("group_id", groupId)
                     setParameter("tags", tags)
                 },
                 """
-                    insert into application_tags (application_name, tag_id)
-                        select :application_name, id
+                    insert into group_tags (group_id, tag_id)
+                        select :group_id, id
                         from tags where
                             lower(tag) in (select lower(unnest(:tags::text[])))
                         on conflict do nothing 
                 """
             )
         }
-
-        elasticDao?.addTagToElastic(applicationName, tags)
-
     }
 
-    suspend fun deleteTags(tags: List<String>, applicationName: String) {
+    suspend fun deleteTags(tags: List<String>, groupId: Int) {
         db.withSession { session ->
-            findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
-                HttpStatusCode.NotFound
-            )
-
             session.sendPreparedStatement(
                 {
-                    setParameter("app_name", applicationName)
+                    setParameter("group_id", groupId)
                     setParameter("tags", tags)
                 },
                 """
-                delete from application_tags
-                    where application_name = :app_name and
+                delete from group_tags 
+                where group_id = :group_id and
                     tag_id in (
                         select id from tags where lower(tag) in (select lower(unnest(:tags::text[])))
                     )
             """
             )
         }
-        elasticDao?.removeTagFromElastic(applicationName, tags)
     }
 
     suspend fun listTags(): List<String> {

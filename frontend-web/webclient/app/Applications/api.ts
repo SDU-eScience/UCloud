@@ -14,7 +14,8 @@ export interface ApplicationGroup {
     defaultApplication?: {
         name: string,
         version: string
-    }
+    },
+    tags: string[]
 }
 
 export interface CreateGroupRequest {
@@ -35,7 +36,7 @@ export interface RetrieveGroupResponse {
 
 
 export interface SetGroupRequest {
-    groupId: number,
+    groupId?: number,
     applicationName: string
 }
 
@@ -47,7 +48,9 @@ export interface UpdateGroupRequest {
     id: number,
     title: string,
     description?: string,
-    logo?: Blob
+    logo?: Blob,
+    defaultApplication?: {name: string, version: string},
+    tags: string[]
 }
 
 export interface UpdateGroupResponse {}

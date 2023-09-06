@@ -808,7 +808,14 @@ class AppStoreService(
         }
     }
 
-    suspend fun updateGroup(actorAndProject: ActorAndProject, id: Int, title: String, logo: ByteArray? = null, description: String? = null) {
+    suspend fun updateGroup(
+        actorAndProject: ActorAndProject,
+        id: Int,
+        title: String,
+        logo: ByteArray? = null,
+        description: String? = null,
+        defaultApplication: NameAndVersion? = null
+    ) {
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -816,15 +823,24 @@ class AppStoreService(
                     setParameter("title", title)
                     setParameter("logo", logo)
                     setParameter("description", description)
+                    setParameter("default_name", defaultApplication?.name)
+                    setParameter("default_version", defaultApplication?.version)
                 },
                 """
-                   update app_store.application_groups set title = :title, logo = :logo, description = :description where id = :id 
+                    update app_store.application_groups
+                    set
+                        title = :title,
+                        logo = :logo,
+                        description = :description,
+                        default_name = :default_name,
+                        default_version = :default_version 
+                    where id = :id 
                 """
             )
         }
     }
 
-    suspend fun setGroup(actorAndProject: ActorAndProject, applicationName: String, groupId: Int) {
+    suspend fun setGroup(actorAndProject: ActorAndProject, applicationName: String, groupId: Int?) {
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -865,7 +881,8 @@ class AppStoreService(
                         setParameter("id", id)
                     },
                     """
-                    select id, title, description, default_name, default_version
+                    select id, title, description, default_name, default_version,
+                        (select json_agg(tag) from tags t where t.id in (select gt.tag_id from group_tags gt where gt.group_id = g.id)) tags
                     from app_store.application_groups g
                     where g.id = :id
                 """
@@ -874,7 +891,8 @@ class AppStoreService(
                         row.getInt("id")!!,
                         row.getString("title")!!,
                         row.getString("description"),
-                        row.defaultApplication()
+                        row.defaultApplication(),
+                        defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
                     )
                 }
             } else if (applicationName != null) {
@@ -883,17 +901,19 @@ class AppStoreService(
                         setParameter("appName", applicationName)
                     },
                     """
-                        select id, title, description, default_name, default_version
-                        from app_store.application_groups
+                        select id, title, description, default_name, default_version,
+                            (select json_agg(tag) from tags t where t.id in (select gt.tag_id from group_tags gt where gt.group_id = g.id)) tags
+                        from app_store.application_groups g
                         where
                             id in (select group_id from app_store.applications where name = :appName)
                     """
-                ).rows.first().let {
+                ).rows.first().let { row ->
                     ApplicationGroup(
-                        it.getInt("id")!!,
-                        it.getString("title")!!,
-                        it.getString("description"),
-                        it.defaultApplication()
+                        row.getInt("id")!!,
+                        row.getString("title")!!,
+                        row.getString("description"),
+                        row.defaultApplication(),
+                        defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
                     )
                 }
             } else {
@@ -964,13 +984,14 @@ class AppStoreService(
                     setParameter("id_name", application.metadata.name)
                     setParameter("id_version", application.metadata.version)
                     setParameter("application", defaultMapper.encodeToString(application.invocation))
+                    setParameter("original_document", content)
                 },
                 """
-                insert into app_store.applications
-                    (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, tags, title, description, website) 
-                values 
-                    (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :tags, :title, :description, :website)
-            """
+                    insert into app_store.applications
+                        (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website) 
+                    values 
+                        (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website)
+                """
             )
 
             if (isProvider) {

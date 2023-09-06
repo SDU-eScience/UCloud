@@ -143,18 +143,11 @@ export const App: React.FunctionComponent = () => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [, setLogoCacheBust] = useState("" + Date.now());
     const [access, setAccess] = React.useState<ApplicationAccessRight>("LAUNCH");
-    const [allTags, fetchAllTags] = useCloudAPI<string[]>(
-        {noop: true},
-        []
-    );
-    const [selectedTag, setSelectedTag] = useState<string>("");
-
     const [allGroups, setGroups] = useCloudAPI<ApplicationGroup[]>(
         {noop: true},
         []
     );
     const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | undefined>(undefined);
-
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI<UCloud.compute.DetailedEntityWithPermission[]>(
         {noop: true},
@@ -175,7 +168,6 @@ export const App: React.FunctionComponent = () => {
     // Loading of permission entries
     useEffect(() => {
         fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
-        fetchAllTags(UCloud.compute.apps.listTags({}));
         setGroups(listGroups({}));
     }, [name]);
 
@@ -201,7 +193,6 @@ export const App: React.FunctionComponent = () => {
 
     const refresh = useCallback(() => {
         setAppParameters(UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}));
-        fetchAllTags(UCloud.compute.apps.listTags({}));
         setGroups(listGroups({}));
     }, [name]);
 
@@ -260,69 +251,6 @@ export const App: React.FunctionComponent = () => {
                 </Button>
 
                 <Flex flexDirection="column">
-                    <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
-                        <Heading.h2>Tags</Heading.h2>
-                        <Box mb={46} mt={26}>
-                            {tags.map(tag => (
-                                <Flex key={tag} mb={16}>
-                                    <Box flexGrow={1}>
-                                        <Tag key={tag} label={tag} />
-                                    </Box>
-                                    <Box>
-                                        <Button
-                                            color={"red"}
-                                            type={"button"}
-
-                                            disabled={commandLoading}
-                                            onClick={async () => {
-                                                await invokeCommand(UCloud.compute.apps.removeTag({
-                                                    applicationName: name,
-                                                    tags: [tag]
-                                                }));
-                                                refresh();
-                                            }}
-                                        >
-                                            <Icon size={16} name="trash" />
-                                        </Button>
-                                    </Box>
-                                </Flex>
-                            ))}
-                            <form
-                                onSubmit={async e => {
-                                    e.preventDefault();
-                                    if (commandLoading) return;
-
-                                    if (selectedTag === null) return;
-                                    if (selectedTag === "") return;
-
-                                    await invokeCommand(UCloud.compute.apps.createTag({
-                                        applicationName: name,
-                                        tags: [selectedTag]
-                                    }));
-
-                                    refresh();
-                                }}
-                            >
-                                <Flex>
-                                    <Box flexGrow={1}>
-                                        {allTags.data.length > 0 ?
-                                            <DataList
-                                                rightLabel
-                                                options={allTags.data.map(tag => ({value: tag, content: tag}))}
-                                                onSelect={item => setSelectedTag(item)}
-                                                onChange={item => setSelectedTag(item)}
-                                                placeholder={"Enter or choose a tag..."}
-                                            />
-                                            : <></>
-                                        }
-                                    </Box>
-                                    <Button disabled={commandLoading} type="submit" width={100} attached>
-                                        Add tag
-                                    </Button>
-                                </Flex>
-                            </form>
-                        </Box>
-                    </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <form
                             onSubmit={async e => {
@@ -331,10 +259,10 @@ export const App: React.FunctionComponent = () => {
 
                                 if (!selectedGroup) return;
 
-                                /*await invokeCommand(setGroup({
-                                    groupName: selectedGroup,
+                                await invokeCommand(setGroup({
+                                    groupId: selectedGroup.id,
                                     applicationName: name
-                                }));*/
+                                }));
 
                                 snackbarStore.addSuccess(`Added to group ${selectedGroup}`, false);
 

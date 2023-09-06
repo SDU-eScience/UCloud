@@ -144,82 +144,8 @@ class Importer(
             }
         }
 
-        val overview = defaultMapper.decodeFromString(
-            MapSerializer(String.serializer(), ListSerializer(String.serializer())),
-            Files.newInputStream(fs.getPath("/tags.json")).readBytes().decodeToString()
-        )
-
-        val appToTags = HashMap<String, HashSet<String>>()
-        for ((tag, apps) in overview) {
-            for (app in apps) {
-                appToTags.getOrPut(app) { HashSet() }.add(tag)
-            }
-        }
-
-        for ((app, tags) in appToTags) {
-            try {
-                tagService.createTags(tags.toList(), app)
-            } catch (ex: Throwable) {
-                log.info("Failed creating tags for $app $tags")
-                log.info(ex.toReadableStacktrace().toString())
-            }
-        }
-
-        val orderedTags = defaultMapper.decodeFromString(
-            JsonObject.serializer(),
-            Files.newInputStream(fs.getPath("/tags.json")).readBytes().decodeToString()
-        ).toList().map { it.first }
-
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                {},
-                """
-                    update app_store.applications
-                    set is_public = true
-                    where true
-                """
-            )
-            session.sendPreparedStatement(
-                {},
-                """
-                    delete from app_store.overview
-                    where reference_type = 'TAG'
-                """
-            )
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("tags", orderedTags)
-                    setParameter("order_id", orderedTags.indices.toList())
-                },
-                """
-                    with
-                        tags as (
-                            select unnest(:tags::text[]) tag, unnest(:order_id::int[]) id
-                        ),
-                        resolved_tags as (
-                            select rt.id as tag, t.id as order_id
-                            from
-                                tags t join
-                                app_store.tags rt on t.tag = rt.tag
-                        )
-                    insert into app_store.overview (reference_type, reference_id, order_id) 
-                    select 'TAG', rt.tag, rt.order_id
-                    from resolved_tags rt
-                """
-            )
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("last", orderedTags.lastIndex + 1)
-                },
-                """
-                    update app_store.overview
-                    set order_id = :last
-                    where reference_type = 'TOOL'
-                """
-            )
-        }
+        // TODO(Brian): Import landing page of app store
+        // TODO(Brian): Import overview page of app store
 
         fs.close()
         outputFile.delete()

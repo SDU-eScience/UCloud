@@ -76,7 +76,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 {group.title}
                             </Box>
                             <Flex justifyContent="right">
-                                <Button onClick={() => navigate(`/applications/studio/g/${group.id}`)}height="25px" mr="5px"><Icon name="edit" /></Button>
+                                <Button onClick={() => navigate(`/applications/studio/g/${group.id}`)} height="25px" mr="5px"><Icon name="edit" /></Button>
                                 <Button onClick={() => {
                                     invokeCommand(deleteGroup({id: group.id}));
                                     refresh();

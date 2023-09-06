@@ -78,12 +78,10 @@ class LogoCache {
                     localForage.setItem(itemKey, blob);
                     return URL.createObjectURL(blob);
                 } else {
-                    localForage.setItem(itemKey, false);
                     return null;
                 }
             } catch (e) {
                 console.warn(e);
-                localForage.setItem(itemKey, false);
                 return null;
             }
         } else {

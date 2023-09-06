@@ -135,7 +135,7 @@ data class AppSearchRequest(
 @Serializable
 data class CreateTagsRequest(
     val tags: List<String>,
-    val applicationName: String
+    val groupId: Int
 )
 
 typealias DeleteTagsRequest = CreateTagsRequest
@@ -199,7 +199,7 @@ enum class AppStorePageType {
 
 @Serializable
 data class SetGroupRequest(
-    val groupId: Int,
+    val groupId: Int? = null,
     val applicationName: String
 )
 
@@ -224,7 +224,8 @@ data class UpdateGroupRequest(
     val id: Int,
     val title: String,
     val logo: ByteArray? = null,
-    val description: String? = null
+    val description: String? = null,
+    val defaultApplication: NameAndVersion? = null
 )
 
 typealias UpdateGroupResponse = Unit
@@ -251,7 +252,8 @@ data class ApplicationGroup (
     val id: Int,
     val title: String,
     val description: String? = null,
-    val defaultApplication: NameAndVersion? = null
+    val defaultApplication: NameAndVersion? = null,
+    val tags: List<String> = emptyList()
 )
 
 @Serializable

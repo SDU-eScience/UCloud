@@ -2616,7 +2616,7 @@ export interface FetchLogoRequest {
 }
 export interface CreateTagsRequest {
     tags: string[],
-    applicationName: string,
+    groupId: number,
 }
 export interface TagSearchRequest {
     query: string,

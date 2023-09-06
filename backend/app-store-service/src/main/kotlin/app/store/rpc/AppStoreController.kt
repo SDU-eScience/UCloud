@@ -82,7 +82,14 @@ class AppStoreController(
         }
 
         implement(AppStore.updateGroup) {
-            ok(appStore.updateGroup(actorAndProject, request.id, request.title, request.logo, request.description))
+            ok(appStore.updateGroup(
+                actorAndProject,
+                request.id,
+                request.title,
+                request.logo,
+                request.description,
+                request.defaultApplication
+            ))
         }
 
         implement(AppStore.listGroups) {
