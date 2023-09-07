@@ -2,7 +2,7 @@ import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
 import SharesApi, {Share, ShareLink, shareLinksApi} from "@/UCloud/SharesApi";
-import { NavigateFunction, useLocation} from "react-router";
+import {NavigateFunction, useLocation} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
@@ -30,7 +30,7 @@ export const sharesLinksInfo: LinkInfo[] = [
 ]
 
 function daysLeftToTimestamp(timestamp: number): number {
-    return Math.floor((timestamp - timestampUnixMs())/1000 / 3600 / 24);
+    return Math.floor((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
 }
 
 function inviteLinkFromToken(token: string): string {
@@ -43,7 +43,7 @@ export const ShareModal: React.FunctionComponent<{
 }> = ({selected, cb}) => {
 
     const [inviteLinks, fetchLinks] = useCloudAPI<PageV2<ShareLink>>({noop: true}, emptyPageV2);
-    const [editingLink, setEditingLink] = useState<string|undefined>(undefined);
+    const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedPermission, setSelectedPermission] = useState<string>("READ");
     const usernameRef = useRef<HTMLInputElement>(null);
 
@@ -139,16 +139,16 @@ export const ShareModal: React.FunctionComponent<{
                             <Flex flexDirection={"column"}>
                                 <Tooltip
                                     trigger={(
-                                            <Input
-                                                readOnly
-                                                style={{"cursor": "pointer"}}
-                                                onClick={() => {
-                                                    copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
-                                                }}
-                                                mr={10}
-                                                value={inviteLinkFromToken(link.token)}
-                                                width="500px"
-                                            />
+                                        <Input
+                                            readOnly
+                                            style={{"cursor": "pointer"}}
+                                            onClick={() => {
+                                                copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
+                                            }}
+                                            mr={10}
+                                            value={inviteLinkFromToken(link.token)}
+                                            width="500px"
+                                        />
                                     )}
                                 >
                                     Click to copy link to clipboard
@@ -259,24 +259,26 @@ export const ShareBrowse: React.FunctionComponent<{
         }
     }, []);
 
-    return <ResourceBrowse
-        api={SharesApi}
-        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES
-        onSelect={props.onSelect}
-        browseType={browseType}
-        isSearch={props.isSearch}
-        onResourcesLoaded={onSharesLoaded}
-        additionalFilters={additionalFilters}
-        navigateToChildren={navigateToEntry}
-        headerSize={55}
-        emptyPage={
-            <Heading.h3 textAlign={"center"}>
-                No shares match your search/filter criteria.
-                <br />
-                <small>You can create a new share by clicking 'Share' on one of your directories.</small>
-            </Heading.h3>
-        }
-    />;
+    return <Box ml="12px" mt="12px">
+        <ResourceBrowse
+            api={SharesApi}
+            disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES
+            onSelect={props.onSelect}
+            browseType={BrowseType.Embedded}
+            isSearch={props.isSearch}
+            onResourcesLoaded={onSharesLoaded}
+            additionalFilters={additionalFilters}
+            navigateToChildren={navigateToEntry}
+            headerSize={55}
+            emptyPage={
+                <Heading.h3 textAlign={"center"}>
+                    No shares match your search/filter criteria.
+                    <br />
+                    <small>You can create a new share by clicking 'Share' on one of your directories.</small>
+                </Heading.h3>
+            }
+        />
+    </Box>;
 };
 
 const Router: React.FunctionComponent = () => {
