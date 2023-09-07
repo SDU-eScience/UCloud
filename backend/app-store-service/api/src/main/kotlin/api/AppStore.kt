@@ -259,7 +259,8 @@ data class ApplicationGroup (
 @Serializable
 data class AppStoreSection (
     val name: String,
-    val items: MutableList<ApplicationGroup>
+    val featured: List<ApplicationGroup>,
+    val items: List<ApplicationGroup>
 )
 
 @Serializable

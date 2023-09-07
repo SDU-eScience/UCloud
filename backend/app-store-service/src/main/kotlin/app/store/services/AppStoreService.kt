@@ -693,7 +693,8 @@ class AppStoreService(
 
         return AppStoreSectionsResponse(
             db.withSession { session ->
-                val sections = ArrayList<AppStoreSection>()
+                val items = mutableMapOf<String, ArrayList<ApplicationGroup>>()
+                val featured = mutableMapOf<String, ArrayList<ApplicationGroup>>()
 
                 session.sendPreparedStatement(
                     {
@@ -713,12 +714,54 @@ class AppStoreService(
                                 g.description,
                                 g.default_name,
                                 g.default_version,
-                                s.order_index as s_index,
-                                f.order_index as f_index
+                                s.order_index as s_index
                             from app_store.sections s
-                                     join app_store.section_featured_items f on f.section_id = s.id
-                                     join app_store.application_groups g on g.id = f.group_id
+                            join app_store.application_groups g on g.id in (
+                                select group_id from group_tags where tag_id in (
+                                    select tag_id from section_tags where section_id = s.id
+                                )
+                            )
                             where page = :page
+                        )
+                        select * from cte order by s_index;
+                    """
+                ).rows.forEach { row ->
+                    val sectionName = row.getString("section")!!
+                    val groupId = row.getInt("id")!!
+                    val groupTitle = row.getString("title")!!
+                    val description = row.getString("description")
+
+                    if (items[sectionName].isNullOrEmpty()) {
+                        items[sectionName] = ArrayList()
+                    }
+
+                    items[sectionName]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                }
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("user", actorAndProject.actor.username)
+                        setParameter("is_admin", Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role))
+                        setParameter("project", actorAndProject.project)
+                        setParameter("groups", groups)
+                        setParameter("page", pageType.name)
+                    },
+                    """
+                        with cte as (
+                            select
+                                g.id,
+                            s.title as section,
+                            g.title as title,
+                            g.logo,
+                            g.description,
+                            g.default_name,
+                            g.default_version,
+                            s.order_index as s_index,
+                            f.order_index as f_index
+                                from app_store.sections s
+                                join app_store.section_featured_items f on f.section_id = s.id
+                                join app_store.application_groups g on g.id = f.group_id
+                                where page = :page
                         )
                         select * from cte order by s_index, f_index;
                     """
@@ -728,34 +771,18 @@ class AppStoreService(
                     val groupTitle = row.getString("title")!!
                     val description = row.getString("description")
 
-                    val defaultApplication = if (row.getString("default_name") != null) {
-                        NameAndVersion(
-                            row.getString("default_name")!!,
-                            row.getString("default_version")!!
-                        )
-                    } else { null }
-
-                    val section = sections.find { it.name == sectionName }
-
-                    if (section == null) {
-                        sections.add(
-                            AppStoreSection(
-                                sectionName,
-                                mutableListOf(
-                                    ApplicationGroup(
-                                        groupId,
-                                        groupTitle,
-                                        description,
-                                        defaultApplication
-                                    )
-                                )
-                            )
-                        )
-                    } else {
-                        section.items.add(ApplicationGroup(groupId, groupTitle, description, defaultApplication))
+                    if (featured[sectionName].isNullOrEmpty()) {
+                        featured[sectionName] = ArrayList()
                     }
+
+                    featured[sectionName]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
                 }
-                sections
+
+                val sectionTitles = (featured.keys + items.keys).toSet()
+
+                sectionTitles.map { section ->
+                    AppStoreSection(section, featured[section] ?: emptyList(), items[section] ?: emptyList())
+                }
             }
         )
     }
@@ -1028,7 +1055,7 @@ class AppStoreService(
 
     suspend fun updatePage(page: AppStorePageType, sections: List<PageSection>) {
         db.withSession { session ->
-            // Validate
+            // Validation step
             val featuredGroups = session.sendPreparedStatement(
                 {
                     setParameter("titles", sections.flatMap { it.featured.map { it.lowercase() } })
@@ -1043,11 +1070,26 @@ class AppStoreService(
                 )
             }
 
-            val notFound = sections.flatMap {
+            // Check if the groups in the yaml file exists
+            val sectionsNotFound = sections.flatMap {
                 it.featured.map { it.lowercase() }
             } - featuredGroups.map { it.title.lowercase() }.toSet()
-            if (notFound.isNotEmpty()) {
-                throw RPCException("Featured application group not found: ${notFound.first()}", HttpStatusCode.NotFound)
+
+            if (sectionsNotFound.isNotEmpty()) {
+                throw RPCException("Featured application group not found: ${sectionsNotFound.first()}", HttpStatusCode.NotFound)
+            }
+
+            // Check if the tags defined in the yaml file exists
+            val allTags = session.sendPreparedStatement(
+                """
+                    select tag from app_store.tags     
+                """
+            ).rows.map { it.getString("tag") }
+
+            val tagsNotFound = sections.flatMap { it.tags }.filter { !allTags.contains(it) }
+
+            if (tagsNotFound.isNotEmpty()) {
+                throw RPCException("Tag not found: ${tagsNotFound.first()}", HttpStatusCode.NotFound)
             }
 
             if (page == AppStorePageType.FULL) {
@@ -1058,14 +1100,14 @@ class AppStoreService(
                 }
             }
 
-            // Update
+            // Update step
             session.sendPreparedStatement(
                 {
                     setParameter("page", page.name)
                 },
                 """
                     delete from app_store.section_featured_items
-                    where section_id = (
+                    where section_id in (
                         select id from app_store.sections where page = :page
                     )
                 """
@@ -1128,6 +1170,24 @@ class AppStoreService(
                     )
                     groupIndex += 1
                 }
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("section_id", sectionId)
+                        setParameter("tags", section.tags)
+                    },
+                    """
+                        with tmp as (
+                            select :section_id as section,
+                                (select id
+                                    from app_store.tags
+                                    where tag in (select unnest(:tags::text[]))
+                                ) as tag
+                        )
+                        insert into app_store.section_tags (section_id, tag_id)
+                        select section, tag from tmp
+                    """
+                )
                 sectionIndex += 1
             }
         }
