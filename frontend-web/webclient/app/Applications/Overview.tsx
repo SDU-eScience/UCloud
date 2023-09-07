@@ -50,18 +50,22 @@ const ScrollButtonClass = injectStyle("scroll-button", k => `
         user-select: none;
         font-weight: 800;
         font-size: 18px;
-        padding-left: 12px;
+        padding-left: 10px;
         padding-top: 1px;
     }
 
     ${k}[data-is-left="true"] {
-        padding-left: 10px;
+        padding-left: 8px;
     }
 `);
 
-function ScrollButton({disabled, text, onClick}: {disabled: boolean; text: string; onClick(): void}): JSX.Element {
-    return <div onClick={onClick} data-is-left={text === "⟨"} className={ScrollButtonClass} data-disabled={disabled}>
-        {text}
+function ScrollButton({disabled, left, onClick}: {disabled: boolean; left: boolean; onClick(): void}): JSX.Element {
+    return <div onClick={onClick} data-is-left={left} className={ScrollButtonClass} data-disabled={disabled}>
+        {left ? (
+            <Icon name="backward" size="14" />
+        ) : (
+            <Icon name="forward" size="14" />
+        )}
     </div>
 }
 
@@ -143,12 +147,13 @@ const LandingDivider = injectStyle("landing-divider", k => `
     }
 `);
 
-export const LargeSearchBox: React.FunctionComponent = () => {
+export const LargeSearchBox: React.FunctionComponent<{value?: string}> = props => {
     const navigate = useNavigate();
   
     return <div className={LargeSearchBoxClass}>
         <Flex justifyContent="space-evenly">
             <Input
+                defaultValue={props.value}
                 placeholder="Search for applications..."
                 onKeyUp={e => {
                     console.log(e);
@@ -404,7 +409,7 @@ function filterAppsByFavorite(
     }
 }
 
-function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" | "items" | "tagBanList">): JSX.Element {
+export function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" | "items" | "tagBanList">): JSX.Element {
     const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const filteredItems = React.useMemo(() =>
         filterAppsByFavorite(items, true, [], favoriteStatus),
@@ -438,23 +443,22 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
     );
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
-
     const hasScroll = scrollRef.current && scrollRef.current.scrollWidth > scrollRef.current.clientWidth;
 
     return (
         <>
             {!hasScroll ? null : <>
                 <Relative>
-                    <Absolute height={0} width={0} top="152px">
-                        <ScrollButton disabled={false} text={"⟨"} onClick={() => {
+                    <Absolute height={0} width={0} top="110px">
+                        <ScrollButton disabled={false} left onClick={() => {
                             if (scrollRef.current) scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
 
                         }} />
                     </Absolute>
                 </Relative>
                 <Relative>
-                    <Absolute height={0} width={0} right="0" top="152px">
-                        <ScrollButton disabled={false} text={"⟩"} onClick={() => {
+                    <Absolute height={0} width={0} right="0" top="110px">
+                        <ScrollButton disabled={false} left={false} onClick={() => {
                             if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED, behavior: "smooth"});
                         }} />
                     </Absolute>

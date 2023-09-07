@@ -38,7 +38,7 @@ const Grid: React.FunctionComponent<GridProps> = props => {
 
 export const GridCardGroup = ({
     minmax = 400,
-    gridGap = 10,
+    gridGap = 15,
     ...props
 }): JSX.Element => (
     <Grid
