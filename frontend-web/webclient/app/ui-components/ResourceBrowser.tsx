@@ -3009,7 +3009,8 @@ export class ResourceBrowser<T> {
                 background: var(--tableRowHighlight);
             }
 
-            .file-browser .context-menu > ul > *:first-child {
+            .file-browser .context-menu > ul > *:first-child,
+            .file-browser .context-menu > ul > li:first-child > button {
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
             }

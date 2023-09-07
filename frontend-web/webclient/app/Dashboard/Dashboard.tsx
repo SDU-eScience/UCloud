@@ -227,7 +227,13 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 }
 
 export async function navigateByFileType(file: FileMetadataAttached, invokeCommand: InvokeCommand, navigate: ReturnType<typeof useNavigate>): Promise<void> {
-    const result = await invokeCommand<UFile>(FilesApi.retrieve({id: file.path}))
+    const result = await invokeCommand<UFile>(FilesApi.retrieve({id: file.path}));
+    
+    if (!result) {
+        snackbarStore.addFailure("File was not found.", false);
+        return;
+    }
+
     if (result?.status.type === "FILE") {
         navigate(buildQueryString("/files", {path: getParentPath(file.path)}));
     } else {
@@ -404,8 +410,8 @@ function DashboardResources({products}: {
                 <>
                     {/* height is 100% - height of Heading 55px */}
                     <Flex flexDirection="column" height={"calc(100% - 55px)"}>
-                            <Table>
-                                <tbody>
+                        <Table>
+                            <tbody>
                                 {wallets.slice(0, 7).map((n, i) => (
                                     <TableRow key={i}>
                                         <TableCell>

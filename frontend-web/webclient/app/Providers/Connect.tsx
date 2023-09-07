@@ -124,7 +124,12 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
         // though we are breaking rules of hooks.
         // NOTE(Jonas): Woohooo, breaking the rules of hooks!
         useTitle("Connect to Providers");
-        return <MainContainer main={body} />;
+        return <MainContainer
+            header={
+                <Heading.h3 style={{marginLeft: "8px"}}>Provider connections</Heading.h3>
+            }
+            main={body}
+        />;
     }
 };
 

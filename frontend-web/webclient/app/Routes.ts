@@ -20,7 +20,8 @@ const admin = {
 
 const shares = {
     sharedByMe: () => "/shares/outgoing",
-    sharedWithMe: () => "/shares"
+    sharedWithMe: () => "/shares",
+    view: (shareId: string) => `/shares/properties/${shareId}`
 }
 
 const resources = {
