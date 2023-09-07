@@ -122,34 +122,31 @@ export const AppGroup: React.FunctionComponent = () => {
                     </>
                 )}
             </ReactModal>
-            <form onSubmit={async e => {
-                e.preventDefault()
-
-                if (!group.data) return;
-
-                const titleField = groupTitleField.current;
-                if (titleField === null) return;
-
-                const newTitle = titleField.value;
-                if (newTitle === "") {
-                    snackbarStore.addFailure("Title cannot be empty", false);
-                    return
-                };
-
-                const descriptionField = groupDescriptionField.current;
-                if (descriptionField === null) return;
-
-                const newDescription = descriptionField.value;
-
-                invokeCommand(updateGroup({id: group.data.group.id, title: newTitle, description: newDescription, defaultApplication, tags}))
-                navigate(`/applications/studio/groups`);
-            }}>
-                <MainContainer
+            <MainContainer
                 header={
                     <Flex justifyContent="space-between">
                         <Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Edit Group</Heading.h2>
                         <Flex justifyContent="right" mr="10px">
-                            <Button type="submit">Save changes</Button>
+                            <Button type="button" onClick={async () => {
+                                if (!group.data) return;
+
+                                const titleField = groupTitleField.current;
+                                if (titleField === null) return;
+
+                                const newTitle = titleField.value;
+                                if (newTitle === "") {
+                                    snackbarStore.addFailure("Title cannot be empty", false);
+                                    return
+                                };
+
+                                const descriptionField = groupDescriptionField.current;
+                                if (descriptionField === null) return;
+
+                                const newDescription = descriptionField.value;
+
+                                await invokeCommand(updateGroup({id: group.data.group.id, title: newTitle, description: newDescription, defaultApplication, tags}))
+                                navigate(`/applications/studio/groups`);
+                            }}>Save changes</Button>
                         </Flex>
                     </Flex>
                 }
@@ -212,86 +209,89 @@ export const AppGroup: React.FunctionComponent = () => {
 
                         <Box mt="30px">
                             <Heading.h4>Tags</Heading.h4>
-                            <Box mb={46} mt={26}>
-                                {tags.map(tag => (
-                                    <Flex key={tag} mb={16}>
+                            <form onSubmit={async e => {
+                                e.preventDefault();
+
+                                if (commandLoading) return;
+
+                                if (selectedTag === null) return;
+                                if (selectedTag === "") return;
+                                if (!group.data) return;
+
+                                await invokeCommand(UCloud.compute.apps.createTag({
+                                    groupId: group.data.group.id,
+                                    tags: [selectedTag]
+                                }));
+
+                                refresh();
+
+                            }}>
+                                <Box mb={46} mt={26}>
+                                    {tags.map(tag => (
+                                        <Flex key={tag} mb={16}>
+                                            <Box flexGrow={1}>
+                                                <Tag key={tag} label={tag} />
+                                            </Box>
+                                            <Box>
+                                                <Button
+                                                    color={"red"}
+                                                    type={"button"}
+
+                                                    disabled={commandLoading}
+                                                    onClick={async () => {
+                                                        if (!group.data) return;
+
+                                                        await invokeCommand(UCloud.compute.apps.removeTag({
+                                                            groupId: group.data.group.id,
+                                                            tags: [tag]
+                                                        }));
+                                                        refresh();
+                                                    }}
+                                                >
+                                                    <Icon size={16} name="trash" />
+                                                </Button>
+                                            </Box>
+                                        </Flex>
+                                    ))}
+                                    <Flex>
                                         <Box flexGrow={1}>
-                                            <Tag key={tag} label={tag} />
-                                        </Box>
-                                        <Box>
-                                            <Button
-                                                color={"red"}
-                                                type={"button"}
+                                            {allTags.data.length > 0 ?
+                                                <DataList
+                                                    rightLabel
+                                                    options={allTags.data.map(tag => ({value: tag, content: tag}))}
+                                                    onSelect={async item => {
+                                                        setSelectedTag(item);
 
-                                                disabled={commandLoading}
-                                                onClick={async () => {
-                                                    if (!group.data) return;
+                                                        if (commandLoading) return;
+                                                        if (selectedTag === null) return;
+                                                        if (selectedTag === "") return;
+                                                        if (!group.data) return;
 
-                                                    await invokeCommand(UCloud.compute.apps.removeTag({
-                                                        groupId: group.data.group.id,
-                                                        tags: [tag]
-                                                    }));
-                                                    refresh();
-                                                }}
-                                            >
-                                                <Icon size={16} name="trash" />
-                                            </Button>
+                                                        await invokeCommand(UCloud.compute.apps.createTag({
+                                                            groupId: group.data.group.id,
+                                                            tags: [selectedTag]
+                                                        }));
+
+                                                        refresh();
+                                                    }}
+                                                    onChange={item => setSelectedTag(item)}
+                                                    placeholder={"Enter or choose a tag..."}
+                                                />
+                                                : <></>
+                                            }
                                         </Box>
+                                        <Button
+                                            disabled={commandLoading}
+                                            type="submit"
+                                            width={100}
+                                            attached
+                                        >
+                                            Add tag
+                                        </Button>
                                     </Flex>
-                                ))}
-                                <Flex>
-                                    <Box flexGrow={1}>
-                                        {allTags.data.length > 0 ?
-                                            <DataList
-                                                rightLabel
-                                                options={allTags.data.map(tag => ({value: tag, content: tag}))}
-                                                onSelect={async item => {
-                                                    setSelectedTag(item);
-
-                                                    if (commandLoading) return;
-                                                    if (selectedTag === null) return;
-                                                    if (selectedTag === "") return;
-                                                    if (!group.data) return;
-
-                                                    await invokeCommand(UCloud.compute.apps.createTag({
-                                                        groupId: group.data.group.id,
-                                                        tags: [selectedTag]
-                                                    }));
-
-                                                    refresh();
-                                                }}
-                                                onChange={item => setSelectedTag(item)}
-                                                placeholder={"Enter or choose a tag..."}
-                                            />
-                                            : <></>
-                                        }
-                                    </Box>
-                                    <Button
-                                        disabled={commandLoading}
-                                        type="button"
-                                        width={100}
-                                        attached
-                                        onClick={async () => {
-                                            if (commandLoading) return;
-
-                                            if (selectedTag === null) return;
-                                            if (selectedTag === "") return;
-                                            if (!group.data) return;
-
-                                            await invokeCommand(UCloud.compute.apps.createTag({
-                                                groupId: group.data.group.id,
-                                                tags: [selectedTag]
-                                            }));
-
-                                            refresh();
-                                        }}
-                                    >
-                                        Add tag
-                                    </Button>
-                                </Flex>
-                            </Box>
+                                </Box>
+                            </form>
                         </Box>
-
 
                         <Box mt="20px">
                             <Flex justifyContent="space-between">
@@ -354,8 +354,8 @@ export const AppGroup: React.FunctionComponent = () => {
                     </Box>
                 }
             />
-        </form>
-    </>);
+        </>
+    );
 };
 
 export default AppGroup;

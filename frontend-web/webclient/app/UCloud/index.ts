@@ -2633,6 +2633,7 @@ export interface AppStoreSections {
 }
 export interface AppStoreSection {
     name: string,
+    featured: ApplicationGroup[],
     items: ApplicationGroup[],
 }
 export enum AppStoreSectionType {

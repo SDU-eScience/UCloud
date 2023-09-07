@@ -235,21 +235,15 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             {sections.data.sections[0] ?
                 <>
                     <ApplicationRow
-                        key={1}
-                        items={sections.data.sections[0].items.slice(0, 4)}
+                        items={sections.data.sections[0].featured.slice(0, 4)}
                         type={ApplicationCardType.WIDE}
-                        favoriteStatus={favoriteStatus}
-                        onFavorite={onFavorite}
                         refreshId={refreshId}
                         scrolling={false}
                     />
 
                     <ApplicationRow
-                        key={2}
-                        items={sections.data.sections[0].items.slice(4)}
+                        items={sections.data.sections[0].featured.slice(4)}
                         type={ApplicationCardType.TALL}
-                        favoriteStatus={favoriteStatus}
-                        onFavorite={onFavorite}
                         refreshId={refreshId}
                         scrolling={false}
                     />
@@ -263,15 +257,21 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             </Flex>
 
             {sections.data.sections[1] ?
-                <ApplicationRow
-                    key={sections.data.sections[1].name}
-                    items={sections.data.sections[1].items}
-                    type={ApplicationCardType.WIDE}
-                    favoriteStatus={favoriteStatus}
-                    onFavorite={onFavorite}
-                    refreshId={refreshId}
-                    scrolling={false}
-                />
+                <>
+                    <ApplicationRow
+                        items={sections.data.sections[1].featured.slice(0, 4)}
+                        type={ApplicationCardType.WIDE}
+                        refreshId={refreshId}
+                        scrolling={false}
+                    />
+
+                    <ApplicationRow
+                        items={sections.data.sections[1].featured.slice(4)}
+                        type={ApplicationCardType.TALL}
+                        refreshId={refreshId}
+                        scrolling={false}
+                    />
+                </>
             : <></>}
 
             <FloatingButton />
@@ -295,15 +295,27 @@ const ApplicationsOverview: React.FunctionComponent = () => {
             <LargeSearchBox />
 
             {sections.data.sections.map(section =>
-                <TagGrid
-                    key={section.name}
-                    tag={section.name}
-                    items={section.items}
-                    favoriteStatus={favoriteStatus}
-                    onFavorite={onFavorite}
-                    tagBanList={[]}
-                    refreshId={refreshId}
-                />
+                <Box key={section.name}>
+                    <Spacer
+                        mt="15px" px="10px" alignItems={"center"}
+                        left={<Heading.h2>{section.name}</Heading.h2>}
+                        right={<></>}
+                    />
+
+                    <ApplicationRow
+                        items={section.featured}
+                        type={ApplicationCardType.WIDE}
+                        refreshId={refreshId}
+                        scrolling={false}
+                    />
+
+                    <ApplicationRow
+                        items={section.items}
+                        type={ApplicationCardType.TALL}
+                        refreshId={refreshId}
+                        scrolling={true}
+                    />
+                </Box>
             )}
         </Box>
     );
@@ -334,12 +346,6 @@ const PolygonBackgroundClass = injectStyleSimple("polygon-background", `
     padding-bottom: 75px;
 `);
 
-const TagGridTopBoxClass = injectStyle("tag-grid-top-box", k => `
-    ${k} {
-        margin-top: 25px;
-    }
-`);
-
 const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
     ${k} {
         padding: 15px 10px 15px 10px;
@@ -361,8 +367,6 @@ interface TagGridProps {
 interface ApplicationRowProps {
     items: ApplicationGroup[];
     type: ApplicationCardType;
-    favoriteStatus: React.MutableRefObject<FavoriteStatus>;
-    onFavorite: (app: ApplicationSummaryWithFavorite) => void;
     refreshId: number;
     scrolling: boolean;
 }
@@ -426,7 +430,7 @@ function groupCardLink(app: ApplicationGroup): string {
 const SCROLL_SPEED = 156 * 4;
 
 const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
-    items, type, favoriteStatus, onFavorite, scrolling
+    items, type, scrolling
 }: ApplicationRowProps) => {
     const filteredItems = React.useMemo(() =>
         items,
@@ -488,28 +492,18 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             style={{gridAutoFlow: "column"}}
                         >
                             {filteredItems.map(app =>
-                            <>
-                                <Link key={app.id} to={groupCardLink(app)}>
-                                    <AppCard
-                                        type={ApplicationCardType.EXTRA_TALL}
-                                        title={app.title}
-                                        description={app.description}
-                                        logo={app.id.toString()}
-                                        logoType="GROUP"
-                                        isFavorite={false}
-                                    />
-                                </Link>
-                                <Link key={app.id} to={groupCardLink(app)}>
-                                    <AppCard
-                                        type={ApplicationCardType.EXTRA_TALL}
-                                        title={app.title}
-                                        description={app.description}
-                                        logo={app.id.toString()}
-                                        logoType="GROUP"
-                                        isFavorite={false}
-                                    />
-                                </Link>
-                            </>
+                                <>
+                                    <Link key={app.id} to={groupCardLink(app)}>
+                                        <AppCard
+                                            type={ApplicationCardType.EXTRA_TALL}
+                                            title={app.title}
+                                            description={app.description}
+                                            logo={app.id.toString()}
+                                            logoType="GROUP"
+                                            isFavorite={false}
+                                        />
+                                    </Link>
+                                </>
                             )}
                         </Grid>
                     </div>
@@ -538,102 +532,6 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
         </>
     )
 
-};
-
-const TagGrid: React.FunctionComponent<TagGridProps> = ({
-    tag, items, tagBanList = [], favoriteStatus, onFavorite
-}: TagGridProps) => {
-    const filteredItems = React.useMemo(() =>
-        items, []);
-        //filterAppsByFavorite(items, false, tagBanList, favoriteStatus),
-        //[items, favoriteStatus.current]);
-
-    const scrollRef = React.useRef<HTMLDivElement>(null);
-
-    if (filteredItems.length === 0) return null;
-
-    const firstFour = filteredItems.length > 4 ? filteredItems.slice(0, 4) : filteredItems.slice(0, 1);
-    const remaining = filteredItems.length > 4 ? filteredItems.slice(4) : filteredItems.slice(1);
-
-    const hasScroll = scrollRef.current && scrollRef.current.scrollWidth > scrollRef.current.clientWidth;
-
-    return (
-        <>
-            <div className={TagGridTopBoxClass}>
-                {!tag ? null :
-                    <Spacer
-                        mt="15px" px="10px" alignItems={"center"}
-                        left={<Heading.h2>{tag}</Heading.h2>}
-                        right={(
-                            <ShowAllTagItem tag={tag}>
-                                <Heading.h4>Show All</Heading.h4>
-                            </ShowAllTagItem>
-                        )}
-                    />
-                }
-            </div>
-            
-            {!hasScroll ? null : <>
-                <Relative>
-                    <Absolute height={0} width={0} top="152px">
-                        <ScrollButton disabled={false} text={"⟨"} onClick={() => {
-                            if (scrollRef.current) scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
-
-                        }} />
-                    </Absolute>
-                </Relative>
-                <Relative>
-                    <Absolute height={0} width={0} right="0" top="152px">
-                        <ScrollButton disabled={false} text={"⟩"} onClick={() => {
-                            if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED, behavior: "smooth"});
-                        }} />
-                    </Absolute>
-                </Relative>
-            </>}
-
-            <div ref={scrollRef} className={TagGridBottomBoxClass}>
-                <Flex
-                    justifyContent="space-evenly"
-                    gap="10px"
-                    py="10px"
-                >
-                    {firstFour.map(app =>
-                        <Link key={app.id} to={groupCardLink(app)}>
-                            <AppCard
-                                type={ApplicationCardType.WIDE}
-                                title={app.title}
-                                description={app.description}
-                                logo={app.id.toString()}
-                                logoType="GROUP"
-                                isFavorite={false}
-                            />
-                        </Link>
-                    )}
-                </Flex>
-            </div>
-            <div ref={scrollRef} className={TagGridBottomBoxClass}>
-                <Grid
-                    gridGap="25px"
-                    gridTemplateRows={"repeat(1, 1fr)"}
-                    gridTemplateColumns={"repeat(auto-fill, 166px)"}
-                    style={{gridAutoFlow: "column"}}
-                >
-                    {remaining.map(app =>
-                        <Link key={app.id} to={groupCardLink(app)}>
-                            <AppCard
-                                type={ApplicationCardType.EXTRA_TALL}
-                                title={app.title}
-                                description={app.description}
-                                logo={app.id.toString()}
-                                logoType="GROUP"
-                                isFavorite={false}
-                            />
-                        </Link>
-                    )}
-                </Grid>
-            </div>
-        </>
-    );
 };
 
 export default ApplicationsOverview;
