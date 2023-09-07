@@ -1585,18 +1585,20 @@ class AccountingProcessor(
         internalWalletAllocation.isDirty = true
         internalWalletAllocation.commit()
         val transactionId = transactionId()
+        val transaction = UsageReport.AllocationHistoryEntry(
+            internalWalletAllocation.id.toString(),
+            Time.now(),
+            UsageReport.Balance(
+                internalWalletAllocation.treeUsage ?: internalWalletAllocation.localUsage,
+                internalWalletAllocation.localUsage,
+                internalWalletAllocation.quota
+            ),
+            UsageReport.HistoryAction.CHARGE,
+            transactionId
+        )
+        println("TRANSACRTION IN CHARGE ALLOC: $transaction")
         dirtyTransactions.add(
-            UsageReport.AllocationHistoryEntry(
-                internalWalletAllocation.id.toString(),
-                Time.now(),
-                UsageReport.Balance(
-                    internalWalletAllocation.treeUsage ?: internalWalletAllocation.localUsage,
-                    internalWalletAllocation.localUsage,
-                    internalWalletAllocation.quota
-                ),
-                UsageReport.HistoryAction.CHARGE,
-                transactionId
-            )
+            transaction
         )
         //In case of overcharge, only propagate the part of delta that is need to hit quota. Parents should not pay for
         // overconsumption
@@ -1652,9 +1654,11 @@ class AccountingProcessor(
             }
             amountCharged += localCharge
         }
+        println("AmountCharged = $amountCharged. Delta = $delta")
         if (amountCharged != delta) {
             val stillActiveAllocations = walletAllocations.filter { it.isActive() && !it.isLocked() }
             val difference = delta - amountCharged
+            println("difference $difference")
             if (stillActiveAllocations.isEmpty()) {
                 //Have choosen the last allocation since it is most likely to change over time. Not like the first/oldest alloc
                 if (!chargeAllocation(walletAllocations.last().id.toInt(), difference)) {
@@ -1728,18 +1732,20 @@ class AccountingProcessor(
             }
             alloc.commit()
             val transactionId = transactionId()
+            val transaction = UsageReport.AllocationHistoryEntry(
+                allocation.id,
+                Time.now(),
+                UsageReport.Balance(
+                    allocation.treeUsage ?: allocation.localUsage,
+                    allocation.localUsage,
+                    allocation.quota
+                ),
+                UsageReport.HistoryAction.CHARGE,
+                transactionId
+            )
+            println("addingTrans non perioid: $transaction")
             dirtyTransactions.add(
-                UsageReport.AllocationHistoryEntry(
-                    allocation.id,
-                    Time.now(),
-                    UsageReport.Balance(
-                        allocation.treeUsage ?: allocation.localUsage,
-                        allocation.localUsage,
-                        allocation.quota
-                    ),
-                    UsageReport.HistoryAction.CHARGE,
-                    transactionId
-                )
+                transaction
             )
             updateParentTreeUsage(alloc, min(diff, alloc.quota))
         }
@@ -1765,18 +1771,20 @@ class AccountingProcessor(
                 }
                 val transactionId = transactionId()
                 val internalAllocation = allocations[allocation.toInt()]!!
+                val transaction = UsageReport.AllocationHistoryEntry(
+                    internalAllocation.id.toString(),
+                    Time.now(),
+                    UsageReport.Balance(
+                        internalAllocation.treeUsage ?: internalAllocation.localUsage,
+                        internalAllocation.localUsage,
+                        internalAllocation.quota
+                    ),
+                    UsageReport.HistoryAction.CHARGE,
+                    transactionId
+                )
+                println("AFTER CHAERGE TRANSAXCTRION: $transaction")
                 dirtyTransactions.add(
-                    UsageReport.AllocationHistoryEntry(
-                        internalAllocation.id.toString(),
-                        Time.now(),
-                        UsageReport.Balance(
-                            internalAllocation.treeUsage ?: internalAllocation.localUsage,
-                            internalAllocation.localUsage,
-                            internalAllocation.quota
-                        ),
-                        UsageReport.HistoryAction.CHARGE,
-                        transactionId
-                    )
+                    transaction
                 )
             }
             if (activeQuota < totalUsage) {

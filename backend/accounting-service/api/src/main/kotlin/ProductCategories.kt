@@ -33,9 +33,9 @@ enum class AccountingFrequency {
 
         public fun toMinutes(value: String): Long = when (value) {
             "ONCE" -> 1L
-            "PERIODIC_MINUTE" -> 1L
-            "PERIODIC_HOUR" -> 60L
-            "PERIODIC_DAY" -> 60 * 24L
+            "PERIODIC_MINUTE" -> 60L
+            "PERIODIC_HOUR" -> 60*60L
+            "PERIODIC_DAY" -> 60*60*24L
             else -> throw IllegalArgumentException()
         }
     }

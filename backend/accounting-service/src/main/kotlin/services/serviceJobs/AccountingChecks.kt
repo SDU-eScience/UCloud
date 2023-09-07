@@ -21,15 +21,15 @@ class AccountingChecks(
     suspend fun checkJobsVsTransactions() {
         val maxdiff = 100L
         data class JobInfo(
+            val resourceId: Long,
             val millisecondsSpend: Long,
             val product: ProductV2,
-            val projectTitle: String?,
+            val projectId: String?,
             val createdBy: String
         )
 
         data class TransactionData(
-            val highest: Long,
-            val lowest: Long,
+            val usage: Long,
             val walletId: Long,
             val categoryName: String,
             val categoryProvider: String,
@@ -41,6 +41,7 @@ class AccountingChecks(
 
         val now = Time.now()
         val startOfYesterday = now - (24 * 60 * 60 * 1000L)
+        println("$startOfYesterday vs now: $now")
         val jobs = db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -87,14 +88,15 @@ class AccountingChecks(
                         (
                             floor(coalesce(extract(epoch from (stopped.created_at )) * 1000, :now::bigint))
                             - floor(coalesce(extract(epoch from (started.created_at )) * 1000, :start::bigint))
-                        ) as milliseconds_spend,
+                        )::bigint as milliseconds_spend,
                         coalesce(started.prod, stopped.prod),
                         coalesce(started.project_id, stopped.project_id) as project_id,
                         coalesce(started.created_by, stopped.created_by) as username
-                    from started full join stopped on started.id = stopped.id;
+                    from started full join stopped on started.id = stopped.id
                 """.trimIndent()
             ).rows.map {
                 JobInfo(
+                    it.getLong(0)!!,
                     it.getLong(1)!!,
                     defaultMapper.decodeFromString(it.getString(2)!!),
                     it.getString(3),
@@ -103,6 +105,8 @@ class AccountingChecks(
             }
         }
 
+        println("GODT JOBB")
+
         val computeTransactions = db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -110,44 +114,59 @@ class AccountingChecks(
                     setParameter("now", now)
                 },
                 """
+                    with usage_per_alloc as (
+                        select
+                            max(new_local_usage)::bigint - min(new_local_usage)::bigint as usage,
+                            wall.id wallet_id,
+                            pc.category category,
+                            pc.provider provider,
+                            wo.project_id project_id,
+                            wo.username username
+                        from accounting.transaction_history th join
+                            accounting.wallet_allocations wa on wa.id = th.affected_allocation join
+                            accounting.wallets wall on wa.associated_wallet = wall.id join
+                            accounting.product_categories pc on pc.id = wall.category join
+                            accounting.wallet_owner wo on wall.owned_by = wo.id
+                        where floor(extract(epoch from created_at) * 1000) < :now::bigint and
+                            floor(extract(epoch from created_at) * 1000) > :start::bigint and
+                            pc.product_type = 'COMPUTE'
+                        group by wall.id, pc.category, pc.provider, wo.project_id, wo.username, th.affected_allocation
+                    )
                     select
-                        max(new_local_usage),
-                        min(new_local_usage),
-                        pc.category,
-                        pc.provider,
-                        wall.id,
-                        wo.project_id,
-                        wo.username
-                    from accounting.transaction_history th join
-                        accounting.wallet_allocations wa on wa.id = th.affected_allocation join
-                        accounting.wallets wall on wa.associated_wallet = wall.id join
-                        accounting.product_categories pc on pc.id = wall.category join
-                        accounting.wallet_owner wo on wall.owned_by = wo.id
-                    where floor(extract(epoch from created_at) * 1000) < :now::bigint and
-                        floor(extract(epoch from created_at) * 1000) > :start:bigint and
-                        pc.product_type = 'COMPUTE'
-                    group by wall.id, pc.category, pc.provider, wo.project_id, wo.username
+                        sum(usage)::bigint,
+                        wallet_id,
+                        category,
+                        provider,
+                        project_id,
+                        username
+                    from usage_per_alloc
+                    group by project_id, username, category, provider, wallet_id
                 """.trimIndent()
             ).rows.map {
                 TransactionData(
                     it.getLong(0)!!,
                     it.getLong(1)!!,
-                    it.getLong(2)!!,
+                    it.getString(2)!!,
                     it.getString(3)!!,
-                    it.getString(4)!!,
-                    it.getString(5),
-                    it.getString(6)
+                    it.getString(4),
+                    it.getString(5)
                 )
             }
         }
 
+        println("GOT TRNAS")
+
         val highDiffs = mutableSetOf<String>()
 
-        val projectJobs = jobs.filter { it.projectTitle != null}.groupBy { it.projectTitle }
-        val userjobs = jobs.filter { it.projectTitle == null }.groupBy { it.createdBy }
+        val projectJobs = jobs.filter { it.projectId != null}.groupBy { it.projectId }
+        val userjobs = jobs.filter { it.projectId == null }.groupBy { it.createdBy }
 
         fun calculate(info: JobInfo): Long {
-            return ((info.millisecondsSpend / 1000) / AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name)) * info.product.price
+            println(info.millisecondsSpend)
+            println(AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name))
+            println(info.product.price)
+            println("Calcuting $info, Got : ${(((info.millisecondsSpend / 1000.0) / AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name)) * info.product.price).toLong()}")
+            return (((info.millisecondsSpend / 1000.0) / AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name)) * info.product.price).toLong()
         }
 
 
@@ -167,7 +186,8 @@ class AccountingChecks(
                     calculate(info)
                 } ?: 0
             }
-            val todaysUsage = transaction.highest - transaction.lowest
+            val todaysUsage = transaction.usage
+            println("todaysUsage: $todaysUsage, total: $totalUsage, maxDiff: $maxdiff, abs: ${abs(todaysUsage - totalUsage)}")
             if (abs(todaysUsage - totalUsage) > maxdiff ) {
                 highDiffs.add(transaction.projectId ?: transaction.username ?: "UNKNOWN USER")
             }
