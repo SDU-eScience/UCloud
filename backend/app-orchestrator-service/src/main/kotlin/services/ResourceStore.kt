@@ -1225,6 +1225,10 @@ class ResourceStoreBucket<T>(
     private val queries: ResourceStoreDatabaseQueries<T>,
     val callbacks: ResourceStore.Callbacks<T>,
 ) {
+    init {
+        check(uid == 0 || pid == 0) { "uid = $uid and pid = $pid but at least one must be 0" }
+    }
+
     // Internal data
     // =================================================================================================================
     // Each individual bucket contains data for a single workspace (identified by `uid` and `pid`). A bucket only
@@ -2613,6 +2617,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                     this.createdBy[idx] = row.getInt(2)!!
                     this.product[idx] = row.getLong(3)!!.toInt()
                     this.providerId[idx] = row.getString(4)
+                    this.project[idx] = pid
                     val updatesText = row.getString(5)!!
                     val aclText = row.getString(6)!!
 
@@ -2737,8 +2742,6 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                             left join project.projects p on d.project = p.pid
                         on conflict (id) do update set
                             created_at = excluded.created_at,
-                            created_by = excluded.created_by,
-                            project = excluded.project,
                             product = excluded.product,
                             provider_generated_id = excluded.provider_generated_id
                     """
