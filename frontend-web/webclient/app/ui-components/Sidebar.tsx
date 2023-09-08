@@ -327,20 +327,6 @@ const UserMenu: React.FunctionComponent<{
     </ClickableDropdown>;
 }
 
-const SidebarAppCategories = [
-    "Applied Science",
-    "Bioinformatics",
-    "Data Analytics",
-    "Development",
-    "Digital Humanities",
-    "Engineering",
-    "Health Science",
-    "Natural Science",
-    "Social Science",
-    "Virtual Desktop",
-    "Virtual Machine"
-];
-
 export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();

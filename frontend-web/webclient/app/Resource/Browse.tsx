@@ -677,7 +677,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                         <Box mx="8px" />
                         <EnumFilterWidget
                             expanded={false}
-                            browseType={BrowseType.Card}
+                            browseType={BrowseType.Embedded}
                             propertyName="direction"
                             title="Sort Direction"
                             facedownChevron
@@ -803,7 +803,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                         extra={callbacks} operations={operations} />
                     {props.header}
                     <ResourceFilter
-                        pills={allPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
+                        pills={allPills} filterWidgets={api.filterWidgets} browseType={BrowseType.Embedded}
                         sortEntries={api.sortEntries} sortDirection={sortDirection}
                         onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
                         readOnlyProperties={props.additionalFilters} />
@@ -827,7 +827,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>(
                                 <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
                                     sortEntries={api.sortEntries} sortDirection={sortDirection}
                                     onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                                    browseType={props.browseType}
+                                    browseType={BrowseType.Embedded}
                                     readOnlyProperties={props.additionalFilters} />
                             </>
                         }

@@ -119,7 +119,7 @@ export const ResourceFilter: React.FunctionComponent<{
                 Filter
             </Heading.h4>
         }
-        <MainContentGrid browseType={props.browseType}>
+        <MainContentGrid browseType={BrowseType.Embedded}>
             <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
                 icon={"heroAdjustmentsHorizontal"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
             {props.pills.map((Pill, idx) =>
@@ -377,7 +377,7 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
     return <ExpandableDropdownFilterWidget
         expanded={props.expanded}
         contentWidth={"300px"}
-        browseType={props.browseType}
+        browseType={BrowseType.Embedded}
         dropdownContent={
             <>
                 <DateRangeEntry

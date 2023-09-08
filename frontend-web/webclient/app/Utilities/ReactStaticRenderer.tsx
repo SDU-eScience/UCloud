@@ -4,16 +4,20 @@ import {useLayoutEffect, useRef} from "react";
 
 export class ReactStaticRenderer {
     private fragment = document.createDocumentFragment();
+    private _promise: Promise<this>;
+    public get promise(): Promise<this> {
+        return this._promise;
+    }
 
     constructor(node: () => React.ReactElement) {
         const fragment = document.createDocumentFragment();
         const root = createRoot(fragment);
 
-        const promise = new Promise<void>((resolve, reject) => {
-            const Component: React.FunctionComponent<{ children: React.ReactNode }> = props => {
+        this._promise = new Promise<this>((resolve, reject) => {
+            const Component: React.FunctionComponent<{children: React.ReactNode}> = props => {
                 const div = useRef<HTMLDivElement | null>(null);
                 useLayoutEffect(() => {
-                    resolve();
+                    resolve(this);
                 }, []);
 
                 return <div ref={div}>{props.children}</div>;
@@ -22,7 +26,7 @@ export class ReactStaticRenderer {
             root.render(<Component>{node()}</Component>);
         });
 
-        promise.finally(() => {
+        this._promise.finally(() => {
             this.fragment.append(fragment.cloneNode(true));
             root.unmount();
         });
