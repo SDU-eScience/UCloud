@@ -1244,19 +1244,23 @@ class AccountingProcessor(
         // result, we don't have to search any ID before the root, and we only have to perform a single loop over the
         // allocations to get all results.
         for (i in (parent.id + 1) until allocations.size) {
-            val alloc = allocations[i]!!
-            val newNotAfter =
-                if (min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE) == Long.MAX_VALUE) {
-                    null
-                } else {
-                    min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE)
+            //NOTE(Henrik) It is possible to have nullable allocations in the list
+            //In that case continue to next id
+            val alloc = allocations[i]
+            if (alloc != null) {
+                val newNotAfter =
+                    if (min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE) == Long.MAX_VALUE) {
+                        null
+                    } else {
+                        min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE)
+                    }
+                if (alloc.parentAllocation in watchSet) {
+                    alloc.begin()
+                    alloc.notBefore = max(alloc.notBefore, parent.notBefore)
+                    alloc.notAfter = newNotAfter
+                    alloc.commit()
+                    watchSet.add(alloc.id)
                 }
-            if (alloc.parentAllocation in watchSet) {
-                alloc.begin()
-                alloc.notBefore = max(alloc.notBefore, parent.notBefore)
-                alloc.notAfter = newNotAfter
-                alloc.commit()
-                watchSet.add(alloc.id)
             }
         }
     }

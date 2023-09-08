@@ -13,10 +13,10 @@ bundle {
     }
     
     withPostgresMigration(deployment)
-    withAdHocJob(deployment, "report-center", { listOf("--data-collection" , "--center", "--startDate", "2023-02-01", "--endDate", "2023-05-01")}) {}
-    withAdHocJob(deployment, "report-center-aau", { listOf("--data-collection" , "--centerAAU", "--startDate", "2023-02-01", "--endDate", "2023-05-01")}) {}
-    withAdHocJob(deployment, "report-center-daily", { listOf("--data-collection", "--center-daily", "--startDate", "2022-05-01", "--endDate", "2022-08-01")}) {}
-    withAdHocJob(deployment, "report-center-daily-deic", { listOf("--data-collection", "--center-daily-deic", "--startDate", "2023-02-01", "--endDate", "2023-05-01")}) {}
+    withAdHocJob(deployment, "report-center", { listOf("--data-collection" , "--center", "--startDate", "2023-05-01", "--endDate", "2023-08-01")}) {}
+    withAdHocJob(deployment, "report-center-aau", { listOf("--data-collection" , "--centerAAU", "--startDate", "2023-05-01", "--endDate", "2023-08-01")}) {}
+    withAdHocJob(deployment, "report-center-daily", { listOf("--data-collection", "--center-daily", "--startDate", "2023-05-01", "--endDate", "2023-08-01")}) {}
+    withAdHocJob(deployment, "report-center-daily-deic", { listOf("--data-collection", "--center-daily-deic", "--startDate", "2023-05-01", "--endDate", "2023-08-01")}) {}
 
     withAdHocJob(deployment, "report-person", { listOf("--data-collection", "--person")}) {}
 

@@ -1167,10 +1167,10 @@ class JobResourceService {
                                 )
                             insert into app_orchestrator.jobs 
                                 (application_name, application_version, time_allocation_millis, name, output_folder, 
-                                current_state, started_at, resource, job_parameters, opened_file) 
+                                current_state, started_at, resource, job_parameters, opened_file, last_update) 
                             select 
                                 data.application_name, application_version, time_allocation, name, output_folder, 
-                                current_state, started_at, job_id, job_parameters, opened_file
+                                current_state, started_at, job_id, job_parameters, opened_file, now()
                             from data
                             on conflict (resource) do update set 
                                 application_name = excluded.application_name,
@@ -1181,7 +1181,8 @@ class JobResourceService {
                                 current_state = excluded.current_state,
                                 started_at = excluded.started_at,
                                 job_parameters = excluded.job_parameters,
-                                opened_file = excluded.opened_file
+                                opened_file = excluded.opened_file,
+                                last_update = excluded.last_update
                         """
                     )
 
