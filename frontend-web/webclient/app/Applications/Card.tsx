@@ -480,7 +480,14 @@ export function AppCard(props: AppCardProps): JSX.Element {
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
                 <div><b>{props.title}</b></div>
-                <MultiLineTruncate lines={lineCount}>{props.description}</MultiLineTruncate>
+                <MultiLineTruncate lines={lineCount}>
+                    <Markdown
+                        disallowedElements={['br', 'a', 'p', 'strong', 'b', 'i', 'img']}
+                        unwrapDisallowed
+                    >
+                        {props.description ?? ""}
+                    </Markdown>
+                </MultiLineTruncate>
             </div>;
         switch (props.type) {
             case ApplicationCardType.EXTRA_TALL:
