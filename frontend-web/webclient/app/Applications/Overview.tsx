@@ -57,6 +57,10 @@ const ScrollButtonClass = injectStyle("scroll-button", k => `
     ${k}[data-is-left="true"] {
         padding-left: 8px;
     }
+
+    ${k}:hover {
+        filter: brightness(115%);
+    }
 `);
 
 function ScrollButton({disabled, left, onClick}: {disabled: boolean; left: boolean; onClick(): void}): JSX.Element {
@@ -453,17 +457,15 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
     return (
         <>
             {!hasScroll ? null : <>
-                {scrollRef.current && scrollRef.current?.scrollLeft <= 0 ? <></> : (
-                    <Relative>
-                        <Absolute height={0} width={0} top="110px">
-                            <ScrollButton disabled={false} left onClick={() => {
-                                if (scrollRef.current) {
-                                    scrollRef.current.scrollBy({left: -SCROLL_SPEED});
-                                }
-                            }} />
-                        </Absolute>
-                    </Relative>
-                )}
+                <Relative>
+                    <Absolute height={0} width={0} top="110px">
+                        <ScrollButton disabled={false} left onClick={() => {
+                            if (scrollRef.current) {
+                                scrollRef.current.scrollBy({left: -SCROLL_SPEED});
+                            }
+                        }} />
+                    </Absolute>
+                </Relative>
                 <Relative>
                     <Absolute height={0} width={0} right="0" top="110px">
                         <ScrollButton disabled={false} left={false} onClick={() => {
