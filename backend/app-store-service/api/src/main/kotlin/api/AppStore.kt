@@ -1072,7 +1072,7 @@ ${ApiConventions.nonConformingApiWarning}
 
     val retrieveGroup = call("retrieveGroup", RetrieveGroupRequest.serializer(), RetrieveGroupResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = Roles.END_USER
             access = AccessRight.READ
         }
 

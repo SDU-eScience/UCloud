@@ -717,8 +717,25 @@ class AppStoreService(
                                 s.order_index as s_index
                             from app_store.sections s
                             join app_store.application_groups g on g.id in (
-                                select group_id from group_tags where tag_id in (
-                                    select tag_id from section_tags where section_id = s.id
+                                select gt.group_id from app_store.group_tags gt
+                                join app_store.applications a on a.group_id = g.id
+                                where tag_id in (
+                                    select tag_id from app_store.section_tags where section_id = s.id
+                                ) and (
+                                    :is_admin or (
+                                        a.is_public or (
+                                            cast(:project as text) is null and :user in (
+                                                select p.username from app_store.permissions p where p.application_name = a.name
+                                            )
+                                        ) or (
+                                            cast(:project as text) is not null and exists (
+                                                select p.project_group from app_store.permissions p where
+                                                    p.application_name = a.name and
+                                                    p.project = cast(:project as text) and
+                                                    p.project_group in (select unnest(:groups::text[]))
+                                             )
+                                        )
+                                    )
                                 )
                             )
                             where page = :page
@@ -758,10 +775,29 @@ class AppStoreService(
                             g.default_version,
                             s.order_index as s_index,
                             f.order_index as f_index
-                                from app_store.sections s
-                                join app_store.section_featured_items f on f.section_id = s.id
-                                join app_store.application_groups g on g.id = f.group_id
-                                where page = :page
+                            from app_store.sections s
+                            join app_store.section_featured_items f on f.section_id = s.id
+                            join app_store.application_groups g on g.id = f.group_id and (
+                                :is_admin or 0 < (
+                                    select count(a.name)
+                                    from app_store.applications a
+                                    where a.group_id = g.id and (
+                                        a.is_public or (
+                                            cast(:project as text) is null and :user in (
+                                                select p.username from app_store.permissions p where p.application_name = a.name
+                                            )
+                                        ) or (
+                                            cast(:project as text) is not null and exists (
+                                                select p.project_group from app_store.permissions p where
+                                                    p.application_name = a.name and
+                                                    p.project = cast(:project as text) and
+                                                    p.project_group in (select unnest(:groups::text[]))
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                            where page = :page
                         )
                         select * from cte order by s_index, f_index;
                     """
@@ -951,13 +987,37 @@ class AppStoreService(
                 throw RPCException("Group not found", HttpStatusCode.NotFound)
             }
 
+            val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
+                emptyList()
+            } else {
+                retrieveUserProjectGroups(actorAndProject, authenticatedClient)
+            }
+
             val apps = session.sendPreparedStatement(
                 {
                     setParameter("id", group.id)
+                    setParameter("user", actorAndProject.actor.safeUsername())
+                    setParameter("project", actorAndProject.project)
+                    setParameter("project_groups", projectGroups)
+                    setParameter("is_admin", Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role))
                 },
                 """
-                    select * from app_store.applications
-                    where group_id = :id
+                    select * from app_store.applications a
+                    where a.group_id = :id and (
+                        :is_admin or
+                        a.is_public or (
+                            cast(:project as text) is null and :user in (
+                                select p.username from app_store.permissions p where p.application_name = a.name
+                            )
+                        ) or (
+                            cast(:project as text) is not null and exists (
+                                select p.project_group from app_store.permissions p where
+                                    p.application_name = a.name and
+                                    p.project = cast(:project as text) and
+                                    p.project_group in (select unnest(:project_groups::text[]))
+                             )
+                        )
+                    )
                 """
             ).rows.map {
                 it.toApplicationSummary()
