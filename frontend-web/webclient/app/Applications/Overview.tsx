@@ -351,11 +351,11 @@ const PolygonBackgroundClass = injectStyleSimple("polygon-background", `
     padding-bottom: 75px;
 `);
 
-const TagGridBottomBoxClass = injectStyle("tag-grid-bottom-box", k => `
+const ApplicationRowContainerClass = injectStyle("tag-grid-bottom-box", k => `
     ${k} {
         padding: 15px 10px 15px 10px;
         margin: 0 -10px;
-        overflow-x: scroll;
+        overflow-x: auto;
     }
 `);
 
@@ -415,7 +415,7 @@ export function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, 
         filterAppsByFavorite(items, true, [], favoriteStatus),
         [items, favoriteStatus.current]);
 
-    return <Flex overflowX="scroll" width="100%">
+    return <Flex overflowX="auto" width="100%">
         <Flex mx="auto" mb="16px">
             {filteredItems.map(app =>
                 <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} title={app.metadata.title} onFavorite={() => onFavorite(app)} />
@@ -442,31 +442,39 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
         [items]
     );
 
+    const [hasScroll, setHasScroll] = useState<boolean>(false);
     const scrollRef = React.useRef<HTMLDivElement>(null);
-    const hasScroll = scrollRef.current && scrollRef.current.scrollWidth > scrollRef.current.clientWidth;
+
+    useEffect(() => {
+        if (!scrollRef.current) return;
+        setHasScroll(scrollRef.current.scrollWidth > scrollRef.current.clientWidth);
+    }, [items]);
 
     return (
         <>
             {!hasScroll ? null : <>
-                <Relative>
-                    <Absolute height={0} width={0} top="110px">
-                        <ScrollButton disabled={false} left onClick={() => {
-                            if (scrollRef.current) scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
-
-                        }} />
-                    </Absolute>
-                </Relative>
+                {scrollRef.current && scrollRef.current?.scrollLeft <= 0 ? <></> : (
+                    <Relative>
+                        <Absolute height={0} width={0} top="110px">
+                            <ScrollButton disabled={false} left onClick={() => {
+                                if (scrollRef.current) {
+                                    scrollRef.current.scrollBy({left: -SCROLL_SPEED});
+                                }
+                            }} />
+                        </Absolute>
+                    </Relative>
+                )}
                 <Relative>
                     <Absolute height={0} width={0} right="0" top="110px">
                         <ScrollButton disabled={false} left={false} onClick={() => {
-                            if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED, behavior: "smooth"});
+                            if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED});
                         }} />
                     </Absolute>
                 </Relative>
             </>}
 
             {type === ApplicationCardType.WIDE ?
-                <div ref={scrollRef} className={TagGridBottomBoxClass}>
+                <div ref={scrollRef} className={ApplicationRowContainerClass}>
                     <Flex
                         justifyContent={filteredItems.length < 3 ? "space-evenly" : "space-between"}
                         gap="10px"
@@ -488,7 +496,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                 </div>
             :
                 scrolling ?
-                    <div ref={scrollRef} className={TagGridBottomBoxClass}>
+                    <div ref={scrollRef} className={ApplicationRowContainerClass}>
                         <Grid
                             gridGap="25px"
                             gridTemplateRows={"repeat(1, 1fr)"}
@@ -512,7 +520,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                         </Grid>
                     </div>
                 :
-                    <div ref={scrollRef} className={TagGridBottomBoxClass}>
+                    <div ref={scrollRef} className={ApplicationRowContainerClass}>
                         <Flex
                             justifyContent="space-evenly"
                             gap="10px"
