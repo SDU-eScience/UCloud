@@ -644,7 +644,7 @@ export const NotificationDashboardCard: React.FunctionComponent = () => {
                 <Heading.h4>No notifications</Heading.h4>
                 As you use UCloud notifications will appear here.
 
-                <Link to="/applications/overview" mt={8}>
+                <Link to="/applications" mt={8}>
                     <Button fullWidth mt={8}>Explore UCloud</Button>
                 </Link>
             </Flex>

@@ -2632,6 +2632,7 @@ export interface AppStoreSections {
     sections: AppStoreSection[],
 }
 export interface AppStoreSection {
+    id: number,
     name: string,
     featured: ApplicationGroup[],
     items: ApplicationGroup[],

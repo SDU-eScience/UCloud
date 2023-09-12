@@ -3,6 +3,7 @@ import * as React from "react";
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const Applications = React.lazy(() => import("@/Applications/Browse"));
 const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
+const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
 const ApplicationsGroup = React.lazy(() => import("./Applications/Group"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
@@ -133,12 +134,10 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.syncthing.syncthing()}
                             element={React.createElement(requireAuth(SyncthingOverview))} />
 
-                        <Route path={AppRoutes.apps.applications()}
-                            element={React.createElement(requireAuth(Applications))} />
                         <Route path={AppRoutes.apps.overview()}
                             element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.landing()}
-                            element={React.createElement(requireAuth(ApplicationsOverview))} />
+                            element={React.createElement(requireAuth(ApplicationsLanding))} />
                         <Route path={AppRoutes.apps.group(":id")}
                             element={React.createElement(requireAuth(ApplicationsGroup))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />

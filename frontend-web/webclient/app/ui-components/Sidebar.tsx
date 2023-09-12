@@ -478,6 +478,11 @@ function SecondarySidebar({
         emptyPage,
     );
 
+    const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
+        compute.apps.appStoreSections({page: "FULL"}),
+        {sections: []}
+    );
+
     const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
 
     const dispatch = useDispatch();
@@ -552,6 +557,10 @@ function SecondarySidebar({
 
         {active !== "Applications" ? null :
             <Flex flexDirection={"column"}>
+                {appStoreSections.data.sections.map(section =>
+                    <Link key={section.id} to={`/applications/full#section${section.id}`}>{section.name}</Link>
+                )}
+
                 <h3 className={"no-link"}>Favorite apps</h3>
 
                 {appFavorites.map(it =>

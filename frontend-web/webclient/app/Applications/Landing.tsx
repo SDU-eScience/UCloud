@@ -1,9 +1,8 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Flex, Icon, Input, Link} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Link, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {Spacer} from "@/ui-components/Spacer";
 import {ApplicationCardType, FavoriteApp} from "./Card";
 import * as Pages from "./Pages";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -19,6 +18,9 @@ import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
+import {TextSpan} from "@/ui-components/Text";
+import ucloudImage from "@/Assets/Images/ucloud-2.png";
+import bgImage from "@/Assets/Images/background_polygons.png";
 import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
@@ -38,7 +40,54 @@ function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
-const LargeSearchBoxClass = injectStyle("large-search-box", k => `
+const FloatingButtonClass = injectStyle("floating-button", k => `
+    ${k} {
+        position: fixed;
+        bottom: 30px;
+        left: calc(50% - 50px);
+        width: 200px;
+    }
+
+    ${k} button {
+        width: 200px;
+        text-align: center;
+        box-shadow: ${theme.shadows.sm};
+    }
+`);
+
+function FloatingButton(): JSX.Element {
+    const navigate = useNavigate();
+
+    return <div className={FloatingButtonClass}>
+        <Button
+            onClick={() => navigate(AppRoutes.apps.overview())}
+            borderRadius="99px"
+        >
+            <TextSpan pr="15px">View all</TextSpan>
+            <Icon name="chevronDownLight" size="18px" />
+        </Button>
+    </div>;
+}
+
+const LandingDivider = injectStyle("landing-divider", k => `
+    ${k} {
+        margin-top: 50px;
+        margin-bottom: 50px;
+    }
+
+    ${k} h1 {
+        text-align: center;
+        margin-top: 50px;
+        color: #5c89f4;
+    }
+
+    ${k} img {
+        max-height: 250px;
+        transform: scaleX(-1);
+    }
+`);
+
+  const LargeSearchBoxClass = injectStyle("large-search-box", k => `
     ${k} {
         width: 400px;
         margin: 30px auto;
@@ -88,7 +137,7 @@ export const LargeSearchBox: React.FunctionComponent<{value?: string}> = props =
     </div>;
 }
 
-const ApplicationsOverview: React.FunctionComponent = () => {
+const ApplicationsLanding: React.FunctionComponent = () => {
     const [sections, fetchSections] = useCloudAPI<AppStoreSections>(
         {noop: true},
         {sections: []}
@@ -97,7 +146,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     const [refreshId, setRefreshId] = useState<number>(0);
 
     useEffect(() => {
-        fetchSections(UCloud.compute.apps.appStoreSections({page: "FULL"}));
+        fetchSections(UCloud.compute.apps.appStoreSections({page: "LANDING"}));
     }, [refreshId]);
 
     useResourceSearch(ApiLike);
@@ -137,47 +186,69 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
     return (
         <div className={AppOverviewMarginPaddingHack}>
-            <MainContainer main={
-                <Box mx="auto" maxWidth="1340px">
-                    <Flex width="100%">
-                        <Box ml="auto" mt="30px">
-                            <ContextSwitcher />
-                        </Box>
-                    </Flex>
-                    <Box mt="12px" />
-                    <FavoriteAppRow
-                        favoriteStatus={favoriteStatus}
-                        onFavorite={onFavorite}
-                        refreshId={refreshId}
-                    />
+            <div className={PolygonBackgroundClass}>
+                <MainContainer main={
+                    <Box mx="auto" maxWidth="1340px">
+                        <Flex width="100%">
+                            <Box ml="auto" mt="30px">
+                                <ContextSwitcher />
+                            </Box>
+                        </Flex>
+                        <Box mt="12px" />
+                        <FavoriteAppRow
+                            favoriteStatus={favoriteStatus}
+                            onFavorite={onFavorite}
+                            refreshId={refreshId}
+                        />
 
-                    <LargeSearchBox />
+                        <LargeSearchBox />
 
-                    {sections.data.sections.map(section =>
-                        <div key={section.name} id={"section"+section.id.toString()}>
-                            <Spacer
-                                mt="15px" px="10px" alignItems={"center"}
-                                left={<Heading.h2>{section.name}</Heading.h2>}
-                                right={<></>}
-                            />
+                        {sections.data.sections[0] ?
+                            <>
+                                <ApplicationRow
+                                    items={sections.data.sections[0].featured.slice(0, 4)}
+                                    type={ApplicationCardType.WIDE}
+                                    refreshId={refreshId}
+                                    scrolling={false}
+                                />
 
-                            <ApplicationRow
-                                items={section.featured}
-                                type={ApplicationCardType.WIDE}
-                                refreshId={refreshId}
-                                scrolling={false}
-                            />
+                                <ApplicationRow
+                                    items={sections.data.sections[0].featured.slice(4)}
+                                    type={ApplicationCardType.TALL}
+                                    refreshId={refreshId}
+                                    scrolling={false}
+                                />
+                            </>
+                        : <></>}
 
-                            <ApplicationRow
-                                items={section.items}
-                                type={ApplicationCardType.TALL}
-                                refreshId={refreshId}
-                                scrolling={true}
-                            />
-                        </div>
-                    )}
-                </Box>
-            } />
+
+                        <Flex className={LandingDivider} justifyContent="space-around">
+                            <Heading.h1>Featured<br />Applications</Heading.h1>
+                            <img src={ucloudImage} />
+                        </Flex>
+
+                        {sections.data.sections[1] ?
+                            <>
+                                <ApplicationRow
+                                    items={sections.data.sections[1].featured.slice(0, 4)}
+                                    type={ApplicationCardType.WIDE}
+                                    refreshId={refreshId}
+                                    scrolling={false}
+                                />
+
+                                <ApplicationRow
+                                    items={sections.data.sections[1].featured.slice(4)}
+                                    type={ApplicationCardType.TALL}
+                                    refreshId={refreshId}
+                                    scrolling={false}
+                                />
+                            </>
+                        : <></>}
+
+                        <FloatingButton />
+                    </Box>
+                } />
+            </div>
         </div>
     );
 };
@@ -186,6 +257,13 @@ const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
 /* HACK */
     margin-top: -12px;
 /* HACK */
+`);
+
+const PolygonBackgroundClass = injectStyleSimple("polygon-background", `
+    background-image: url(${bgImage}), linear-gradient(var(--appStoreBackground), var(--white));
+    background-position: 0% 35%;
+    background-repeat: repeat;
+    padding-bottom: 75px;
 `);
 
 interface TagGridProps {
@@ -245,4 +323,4 @@ export function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, 
     </Flex>
 }
 
-export default ApplicationsOverview;
+export default ApplicationsLanding;

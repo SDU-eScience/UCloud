@@ -12,7 +12,7 @@ const JobBrowse: React.FunctionComponent<BaseResourceBrowseProps<Job> & {additio
     const viewPropertiesInline = React.useCallback(() => props.browseType === BrowseType.Embedded, [props.browseType]);
     return <ResourceBrowse api={JobApi} viewPropertiesInline={viewPropertiesInline} additionalFilters={props.additionalFilters} {...props} browseType={props.browseType ?? BrowseType.MainContent}
         extraCallbacks={{
-            startCreation() {navigate("/applications/overview")}
+            startCreation() {navigate("/applications")}
         }}
     />;
 }

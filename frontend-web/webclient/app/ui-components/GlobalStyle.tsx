@@ -200,6 +200,7 @@ html.light {
     --appStoreFavBg: #e8f1fc;
     --activeSpreadsheet: #dcebf6;
     --modalShadow: rgba(255, 255, 255, 0.75);
+    --appStoreBackground: #b7d8fb;
 }
 
 html.dark {
@@ -225,6 +226,7 @@ html.dark {
     --sidebarSecondaryColor: #1D1D1D;
     --inputColor: #000;
     --headerOperationColor: #444;
+    --appStoreBackground: #37587b;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
