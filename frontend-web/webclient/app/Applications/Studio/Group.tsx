@@ -18,6 +18,7 @@ import {compute} from "@/UCloud";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {pageV2Of} from "@/DefaultObjects";
+import List, {ListRow} from "@/ui-components/List";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = useParams<{id: string}>().id!;
@@ -81,7 +82,7 @@ export const AppGroup: React.FunctionComponent = () => {
                 shouldCloseOnOverlayClick
                 onRequestClose={() => setAddApplicationOpen(false)}
             >
-                <Flex mb="20px">
+                <Flex mb="20px" justifyContent="center">
                     <form onSubmit={e => {
                         e.preventDefault();
 
@@ -97,29 +98,37 @@ export const AppGroup: React.FunctionComponent = () => {
                         setAppList(compute.apps.searchApps({query: searchValue}));
                     }}> 
                         <Flex>
-                            <Input placeholder="Search..." inputRef={appSearchField} type="text" />
+                            <Input placeholder="Search..." inputRef={appSearchField} width="300px" type="text" />
                             <Relative right="30px" top="8px" width="0px" height="0px"><button type="submit" style={{border: "none", background: "none"}}><Icon name="search" /></button></Relative>
                         </Flex>
                     </form>
                 </Flex>
 
                 {!appList.data ? <>No apps found</> : (
-                    <>
+                    <List width="100%">
                         {appList.data.items.map(app => (
                             group.data!.applications.map(app => app.metadata.name).includes(app.metadata.name) ? null : (
-                                <Flex justifyContent="space-between" style={{lineHeight: "45px"}}>
-                                    {app.metadata.title}
-                                    <Button
-                                        onClick={async () => {
-                                            await invokeCommand(setGroup({applicationName: app.metadata.name, groupId: group.data!.group.id}));
-                                            setAddApplicationOpen(false);
-                                            refresh();
-                                        }}
-                                    >Add to group</Button>
-                                </Flex> 
+                                <ListRow
+                                    left={
+                                        <Flex gap="10px">
+                                            <AppToolLogo name={app.metadata.name} type="APPLICATION" size="30px" />
+                                            {app.metadata.title}
+                                        </Flex>
+                                    }
+                                    right={
+                                        <Button
+                                            onClick={async () => {
+                                                await invokeCommand(setGroup({applicationName: app.metadata.name, groupId: group.data!.group.id}));
+                                                setAddApplicationOpen(false);
+                                                refresh();
+                                            }}
+                                            height="30px"
+                                        >Add to group</Button>
+                                    }
+                                />
                             )
                         ))}
-                    </>
+                    </List>
                 )}
             </ReactModal>
             <MainContainer
@@ -311,45 +320,52 @@ export const AppGroup: React.FunctionComponent = () => {
                                 </Flex>
                                 <Box mt="25px" mr="60px">Default</Box>
                             </Flex>
-                            {group.data.applications.map(app => (
-                                <Flex justifyContent="space-between" key={app.metadata.name + app.metadata.version} style={{lineHeight: "48px"}}>
-                                    <Flex justifyContent="left" gap="20px">
-                                        <Box><AppToolLogo name={app.metadata.name} type="APPLICATION" /></Box>
-                                        <Box>{app.metadata.title}</Box>
-                                    </Flex>
-                                    <Flex justifyContent="right">
-                                        <Box>
-                                            <Label>
-                                                <Checkbox
-                                                    checked={app.metadata.name === defaultApplication?.name}
-                                                    onChange={() => {
-                                                        stopPropagation;
+                            <List width="100%">
+                                {group.data.applications.map(app => (
+                                    <ListRow
+                                        navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
+                                        left={
+                                            <Flex justifyContent="left" gap="20px">
+                                                <Box><AppToolLogo name={app.metadata.name} type="APPLICATION" size="30px" /></Box>
+                                                <Box>{app.metadata.title}</Box>
+                                            </Flex>
+                                        } 
+                                        right={
+                                            <Flex justifyContent="right">
+                                                <Box>
+                                                    <Label>
+                                                        <Checkbox
+                                                            checked={app.metadata.name === defaultApplication?.name}
+                                                            onChange={() => {
+                                                                stopPropagation;
 
-                                                        if (app.metadata.name === defaultApplication?.name) {
-                                                            setDefaultApplication(undefined);
-                                                        } else {
-                                                            setDefaultApplication({name: app.metadata.name, version: app.metadata.version});
-                                                        }
-                                                    }}
-                                                />
-                                            </Label>
-                                        </Box>
-                                        <Box>
-                                            <Button
-                                                mt="2px"
-                                                color="red"
-                                                type="button"
-                                                onClick={async () => {
-                                                    await invokeCommand(setGroup({applicationName: app.metadata.name, groupId: undefined}))
-                                                    refresh();
-                                                }}
-                                            >
-                                                <Icon name="trash" />
-                                            </Button>
-                                        </Box>
-                                    </Flex>
-                                </Flex>
-                            ))}
+                                                                if (app.metadata.name === defaultApplication?.name) {
+                                                                    setDefaultApplication(undefined);
+                                                                } else {
+                                                                    setDefaultApplication({name: app.metadata.name, version: app.metadata.version});
+                                                                }
+                                                            }}
+                                                        />
+                                                    </Label>
+                                                </Box>
+                                                <Box>
+                                                    <Button
+                                                        mt="2px"
+                                                        color="red"
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            await invokeCommand(setGroup({applicationName: app.metadata.name, groupId: undefined}))
+                                                            refresh();
+                                                        }}
+                                                    >
+                                                        <Icon name="trash" />
+                                                    </Button>
+                                                </Box>
+                                            </Flex>
+                                        }
+                                    />
+                                ))}
+                            </List>
                         </Box>
                     </Box>
                 }
