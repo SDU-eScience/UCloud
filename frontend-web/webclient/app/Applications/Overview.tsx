@@ -17,7 +17,7 @@ import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
-import {useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
 import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
@@ -93,6 +93,17 @@ const ApplicationsOverview: React.FunctionComponent = () => {
         {noop: true},
         {sections: []}
     );
+
+    const location = useLocation();
+
+    useEffect(() => {
+        const hash = location.hash;
+        const el = hash && document.getElementById(hash.slice(1))
+        if (el) {
+            el.scrollIntoView({behavior: "smooth"});
+        }
+
+    })
 
     const [refreshId, setRefreshId] = useState<number>(0);
 
