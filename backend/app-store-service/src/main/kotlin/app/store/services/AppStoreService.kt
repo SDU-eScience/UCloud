@@ -812,7 +812,9 @@ class AppStoreService(
         return db.withSession { session ->
             session.sendPreparedStatement(
                 """
-                    select id, title, description, default_name, default_version from application_groups
+                    select id, title, description, default_name, default_version
+                    from application_groups
+                    order by title
                 """
             ).rows.mapNotNull { row ->
                 ApplicationGroup(
@@ -1062,6 +1064,17 @@ class AppStoreService(
                 """
             )
 
+            if (page == AppStorePageType.FULL) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("page", page.name)
+                    },
+                    """
+                        truncate app_store.section_tags
+                    """
+                )
+            }
+
             session.sendPreparedStatement(
                 {
                     setParameter("page", page.name)
@@ -1120,23 +1133,25 @@ class AppStoreService(
                     groupIndex += 1
                 }
 
-                session.sendPreparedStatement(
-                    {
-                        setParameter("section_id", sectionId)
-                        setParameter("tags", section.tags)
-                    },
-                    """
-                        with tmp as (
-                            select :section_id as section,
-                                (select id
-                                    from app_store.tags
-                                    where tag in (select unnest(:tags::text[]))
-                                ) as tag
-                        )
-                        insert into app_store.section_tags (section_id, tag_id)
-                        select section, tag from tmp
-                    """
-                )
+                if (page == AppStorePageType.FULL) {
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("section_id", sectionId)
+                            setParameter("tags", section.tags)
+                        },
+                        """
+                            with tmp as (
+                                select :section_id as section,
+                                    (select id
+                                        from app_store.tags
+                                        where tag in (select unnest(:tags::text[]))
+                                    ) as tag
+                            )
+                            insert into app_store.section_tags (section_id, tag_id)
+                            select section, tag from tmp
+                        """
+                    )
+                }
                 sectionIndex += 1
             }
         }
