@@ -567,124 +567,6 @@ class AppStoreService(
         actorAndProject: ActorAndProject,
         pageType: AppStorePageType
     ): AppStoreSectionsResponse {
-        /*
-        val groups = if (memberGroups.isEmpty()) {
-            listOf("")
-        } else {
-            memberGroups
-        }
-
-        val sections = ArrayList<AppStoreSection>()
-        ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("user", user.username)
-                    setParameter("is_admin", Roles.PRIVILEGED.contains(user.role))
-                    setParameter("project", project)
-                    setParameter("groups", groups)
-                },
-                """
-                    select reference_id,
-                        (select tag from tags where reference_type = 'TAG' and id = cast(reference_id as int) limit 1) tag_name,
-                        a.name, a.version, a.authors, a.title, a.description, a.website, a.is_public,
-                        reference_type,
-                        exists(select * from favorited_by where the_user = :user and application_name = a.name) favorite,
-                        (select json_agg(tag) from tags where id in (select tag_id from application_tags where application_name = a.name)) tags,
-                        columns,
-                        rows
-                    from
-                        overview,
-                        (select * from applications a1 where created_at in (
-                            select max(created_at)
-                            from applications a2 where a1.name = a2.name and (
-                                :is_admin or (
-                                    a2.is_public or (
-                                        cast(:project as text) is null and :user in (
-                                            select p.username from app_store.permissions p where p.application_name = a1.name
-                                        )
-                                    ) or (
-                                        cast(:project as text) is not null and exists (
-                                            select p.project_group from app_store.permissions p where
-                                                p.application_name = a1.name and
-                                                p.project = cast(:project as text) and
-                                                p.project_group in (select unnest(:groups::text[]))
-                                         )
-                                    )
-                                )
-                            )
-                        ) order by name) a
-                    join tools t on
-                        a.tool_name = t.name and a.tool_version = t.version
-                    where (reference_type = 'TOOL' and lower(tool_name) = lower(reference_id))
-                        or (
-                            reference_type = 'TAG' and
-                            lower(a.name) in (select lower(application_name)
-                                from application_tags
-                                where tag_id in (select id from tags where id = cast(reference_id as int))
-                            )
-                        )
-                    order by order_id, a.title
-                """
-            ).rows.forEach { row ->
-                val refId = row.getString("reference_id")!!
-                val tagName = row.getString("tag_name")
-                val type = AppStoreSectionType.valueOf(row.getString("reference_type")!!)
-                val applicationMetadata = ApplicationMetadata(
-                    row.getString("name")!!,
-                    row.getString("version")!!,
-                    defaultMapper.decodeFromString(row.getString("authors") ?: "[]"),
-                    row.getString("title")!!,
-                    row.getString("description")!!,
-                    row.getString("website"),
-                    row.getBoolean("is_public")!!
-                )
-                val favorite = row.getBoolean("favorite")!!
-                val columns = row.getInt("columns")!!
-                val rows = row.getInt("rows")!!
-                val tags = defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
-                val appWithFavorite = ApplicationSummaryWithFavorite(applicationMetadata, favorite, tags)
-
-                val section = sections.find { it.name == tagName || it.name == refId }
-                if (section != null) {
-                    when (section) {
-                        is AppStoreSection.Tag -> {
-                            section.applications.add(appWithFavorite)
-                        }
-                        is AppStoreSection.Tool -> {
-                            section.applications.add(appWithFavorite)
-                        }
-                    }
-                } else {
-                    val newSection = when (type) {
-                        AppStoreSectionType.TAG -> {
-                            AppStoreSection.Tag(
-                                tagName ?: "",
-                                arrayListOf(appWithFavorite),
-                                columns,
-                                rows
-                            )
-                        }
-                        AppStoreSectionType.TOOL -> {
-                            AppStoreSection.Tool(
-                                refId,
-                                arrayListOf(appWithFavorite),
-                                columns,
-                                rows
-                            )
-                        }
-                    }
-
-                    sections.add(newSection)
-                }
-            }
-        }
-
-        return sections
-         */
-
-
-
-
         val groups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
         } else {
@@ -693,8 +575,9 @@ class AppStoreService(
 
         return AppStoreSectionsResponse(
             db.withSession { session ->
-                val items = mutableMapOf<String, ArrayList<ApplicationGroup>>()
-                val featured = mutableMapOf<String, ArrayList<ApplicationGroup>>()
+                val sections = mutableMapOf<Int, String>()
+                val items = mutableMapOf<Int, ArrayList<ApplicationGroup>>()
+                val featured = mutableMapOf<Int, ArrayList<ApplicationGroup>>()
 
                 session.sendPreparedStatement(
                     {
@@ -708,7 +591,8 @@ class AppStoreService(
                         with cte as (
                             select
                                 g.id,
-                                s.title as section,
+                                s.id as section_id,
+                                s.title as section_title,
                                 g.title as title,
                                 g.logo,
                                 g.description,
@@ -743,16 +627,19 @@ class AppStoreService(
                         select * from cte order by s_index;
                     """
                 ).rows.forEach { row ->
-                    val sectionName = row.getString("section")!!
+                    val sectionId = row.getInt("section_id")!!
+                    val sectionTitle = row.getString("section_title")!!
                     val groupId = row.getInt("id")!!
                     val groupTitle = row.getString("title")!!
                     val description = row.getString("description")
 
-                    if (items[sectionName].isNullOrEmpty()) {
-                        items[sectionName] = ArrayList()
+                    sections[sectionId] = sectionTitle
+
+                    if (items[sectionId].isNullOrEmpty()) {
+                        items[sectionId] = ArrayList()
                     }
 
-                    items[sectionName]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                    items[sectionId]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
                 }
 
                 session.sendPreparedStatement(
@@ -767,14 +654,15 @@ class AppStoreService(
                         with cte as (
                             select
                                 g.id,
-                            s.title as section,
-                            g.title as title,
-                            g.logo,
-                            g.description,
-                            g.default_name,
-                            g.default_version,
-                            s.order_index as s_index,
-                            f.order_index as f_index
+                                s.id as section_id,
+                                s.title as section_title,
+                                g.title as title,
+                                g.logo,
+                                g.description,
+                                g.default_name,
+                                g.default_version,
+                                s.order_index as s_index,
+                                f.order_index as f_index
                             from app_store.sections s
                             join app_store.section_featured_items f on f.section_id = s.id
                             join app_store.application_groups g on g.id = f.group_id and (
@@ -802,22 +690,23 @@ class AppStoreService(
                         select * from cte order by s_index, f_index;
                     """
                 ).rows.forEach { row ->
-                    val sectionName = row.getString("section")!!
+                    val sectionId = row.getInt("section_id")!!
+                    val sectionTitle = row.getString("section_title")!!
                     val groupId = row.getInt("id")!!
                     val groupTitle = row.getString("title")!!
                     val description = row.getString("description")
 
-                    if (featured[sectionName].isNullOrEmpty()) {
-                        featured[sectionName] = ArrayList()
+                    sections[sectionId] = sectionTitle
+
+                    if (featured[sectionId].isNullOrEmpty()) {
+                        featured[sectionId] = ArrayList()
                     }
 
-                    featured[sectionName]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                    featured[sectionId]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
                 }
 
-                val sectionTitles = (featured.keys + items.keys).toSet()
-
-                sectionTitles.map { section ->
-                    AppStoreSection(section, featured[section] ?: emptyList(), items[section] ?: emptyList())
+                sections.map { section ->
+                    AppStoreSection(section.key, section.value, featured[section.key] ?: emptyList(), items[section.key] ?: emptyList())
                 }
             }
         )
