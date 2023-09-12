@@ -35,7 +35,8 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {UtilityBar} from "@/Playground/Playground";
 import {classConcat, injectStyle} from "@/Unstyled";
 
-export const FilesBrowse: React.FunctionComponent<{
+// Unused.
+const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
     additionalFilters?: UFileIncludeFlags;
     onSelectRestriction?: (res: UFile) => boolean | string;
@@ -193,7 +194,7 @@ export const FilesBrowse: React.FunctionComponent<{
 
     const onSelectRestriction = useCallback((file: UFile): string | boolean => {
         if (props.onSelectRestriction) {
-            return props.onSelectRestriction(file);
+            return props.onSelectRestriction(file) === true;
         }
         const provider = activeProviderId;
         const resourceProvider = file.specification.product.provider;
@@ -403,7 +404,7 @@ export const FilesBrowse: React.FunctionComponent<{
                                 itemsPerPage: 25,
                                 next: drives.next,
                                 filterMemberFiles: "all"
-                            } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
+                            } as any)).then(page => setDrives(page)).catch(console.log)}
                             page={drives}
                             pageRenderer={items => (
                                 <List maxHeight={"200px"} overflowX="hidden" overflowY={"scroll"} childPadding={"8px"} bordered={false}>

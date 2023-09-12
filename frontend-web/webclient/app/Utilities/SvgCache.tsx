@@ -5,7 +5,6 @@ import * as React from "react";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {AppToolLogo, appLogoCache} from "@/Applications/AppToolLogo";
 
 // NOTE(Dan): Now why are we doing all of this when we could just be using SVGs? Because they are slow. Not when we
 // show off one or two SVGs, but when we start displaying 5 SVGs per item and the user is loading in hundreds of items.

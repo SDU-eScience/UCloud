@@ -33,9 +33,10 @@ export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string>;
     embedded?: boolean;
     omitFilters?: boolean;
+    disabledKeyhandlers?: boolean;
     selection?: {
         onSelect(res: T): void;
-        onSelectRestriction(res: T): boolean;
+        onSelectRestriction(res: T): boolean | string;
     }
 }
 
@@ -89,11 +90,11 @@ const SORT_DIRECTIONS: FilterWithOptions = {
     type: "options",
     key: "sortDirection",
     text: "Sort order",
-    icon: "sortAscending",
+    icon: "heroArrowsUpDown",
     clearable: false,
     options: [
-        {color: "black", icon: "sortAscending", text: "Ascending", value: "ascending"},
-        {color: "black", icon: "sortDescending", text: "Descending", value: "descending"}
+        {color: "black", icon: "heroArrowUp", text: "Ascending", value: "ascending"},
+        {color: "black", icon: "heroArrowDown", text: "Descending", value: "descending"}
     ]
 };
 
@@ -243,6 +244,7 @@ export interface ResourceBrowseFeatures {
     supportsMove?: boolean;
     supportsCopy?: boolean;
     locationBar?: boolean;
+    showHeaderInEmbedded?: boolean;
     showUseButtonOnRows?: boolean;
     showUseButtonOnDirectory?: boolean;
     showProjectSelector?: boolean;
@@ -322,7 +324,7 @@ export class ResourceBrowser<T> {
     private didPerformInitialOpen = false;
 
     // Filters
-    resourceName: string; // currently just used for 
+    resourceName: string; // currently just used for
     browseFilters: Record<string, string> = {};
 
     // Inline searching
@@ -370,6 +372,7 @@ export class ResourceBrowser<T> {
     public opts: {
         embedded: boolean;
         selector: boolean;
+        disabledKeyhandlers: boolean;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -379,6 +382,7 @@ export class ResourceBrowser<T> {
         this.opts = {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
+            disabledKeyhandlers: !!opts?.disabledKeyhandlers,
         }
     };
 
@@ -462,6 +466,7 @@ export class ResourceBrowser<T> {
 
         if (this.opts.embedded) {
             this.emptyPageElement.container.style.marginTop = "80px";
+            if (this.features.showHeaderInEmbedded !== true) this.header.style.display = "none";
         }
 
         const unmountInterval = window.setInterval(() => {
@@ -484,7 +489,7 @@ export class ResourceBrowser<T> {
             editIcon.src = placeholderImage;
             editIcon.width = 24;
             editIcon.height = 24;
-            this.icons.renderIcon({name: "edit", color: "iconColor", color2: "iconColor2", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => editIcon.src = url);
             editIcon.addEventListener("click", () => {
                 this.toggleLocationBar();
@@ -496,7 +501,7 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
-            this.icons.renderIcon({name: "search", color: "blue", color2: "blue", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -535,8 +540,6 @@ export class ResourceBrowser<T> {
             if (this.features.contextSwitcher) {
                 const div = document.createElement("div");
                 div.style.marginLeft = "20px";
-                div.style.marginRight = "20px";
-                div.style.marginTop = "4px";
                 div.className = "context-switcher";
                 const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
                 headerThing.appendChild(div);
@@ -549,7 +552,7 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
-            this.icons.renderIcon({name: "refresh", color: "blue", color2: "blue", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroArrowPath", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -557,7 +560,7 @@ export class ResourceBrowser<T> {
         }
 
 
-        if (!this.opts.embedded) {
+        if (!this.opts.disabledKeyhandlers) {
             // Event handlers not related to rows
             this.renameField.addEventListener("keydown", ev => {
                 this.onRenameFieldKeydown(ev);
@@ -693,7 +696,7 @@ export class ResourceBrowser<T> {
 
             r.selected.addEventListener("click", e => {
                 e.stopPropagation();
-                this.select(myIndex, SelectionMode.TOGGLE_SINGLE);
+                this.select(parseInt(r.container.getAttribute("data-idx") ?? "-1"), SelectionMode.TOGGLE_SINGLE);
             });
 
             r.star.addEventListener("pointerdown", e => {
@@ -715,13 +718,15 @@ export class ResourceBrowser<T> {
         addThemeListener(this.resourceName, () => this.rerender());
         const path = this.initialPath;
         if (path !== undefined) {
-            console.log("Registering project listener", this.resourceName);
             addProjectListener(this.resourceName, project => {
                 this.canConsumeResources = checkCanConsumeResources(
                     project,
                     this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}}
                 );
-                console.log(this.canConsumeResources);
+                if (!this.canConsumeResources) {
+                    this.renderCantConsumeResources();
+                }
+
                 this.open(path, true);
             })
         };
@@ -775,27 +780,23 @@ export class ResourceBrowser<T> {
 
     private renderCantConsumeResources() {
         this.prepareEmptyContainer();
-        const wrapper = div(`
-            <div>
-                <h3 style="text-align: center;">This project cannot consume resources</h3>
-                <p>
-                    This property is set for certain projects which are only meant for allocating resources. If you wish
-                    to consume any of these resources for testing purposes, then please allocate resources to a small
-                    separate test project. This can be done from the "Resource Allocations" menu in the project
-                    management interface.
-                </p>
+        if (this.defaultEmptyGraphic) {
+            this.emptyPageElement.graphic.append(this.defaultEmptyGraphic.cloneNode(true));
+        }
+        this.emptyPageElement.reason.innerHTML = `
+        <p>
+            <h3 style="text-align: center;">This project cannot consume resources</h3>
+            This property is set for certain projects which are only meant for allocating resources. If you wish
+            to consume any of these resources for testing purposes, then please allocate resources to a small
+            separate test project. This can be done from the "Resource Allocations" menu in the project
+            management interface.
+        </p>
 
-                <p>
-                    <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
-                    old resources to a new project, then please contact support.
-                </p>
-            </div>
-        `);
-        wrapper.style.display = "flex";
-        wrapper.style.height = "400px";
-        wrapper.style.alignItems = "center";
-        wrapper.style.justifyContent = "center";
-        this.emptyPageElement.container.replaceChildren(wrapper);
+        <p>
+            <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
+            old resources to a new project, then please contact support.
+        </p>
+        `;
     }
 
     public rerender() {
@@ -803,6 +804,9 @@ export class ResourceBrowser<T> {
         this.renderOperations();
         this.renderRows();
         this.clearFilters();
+
+        if (!this.canConsumeResources) return;
+
         if (this.features.sortDirection) {
             this.renderSortOrder();
         }
@@ -883,6 +887,8 @@ export class ResourceBrowser<T> {
 
         this.renameField.style.display = "none";
 
+        if (!this.canConsumeResources) return;
+
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
         for (let i = 0; i < page.length; i++) {
@@ -958,7 +964,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    defaultTitleRenderer(title: string, dimensions: RenderDimensions): string {
+    static defaultTitleRenderer(title: string, dimensions: RenderDimensions): string {
         const approximateSizeForTitle = dimensions.width * (ResourceBrowser.rowTitleSizePercentage / 100);
         const approximateSizePerCharacter = 7.1;
         if (title.length * approximateSizePerCharacter > approximateSizeForTitle) {
@@ -968,7 +974,7 @@ export class ResourceBrowser<T> {
         return visualizeWhitespaces(title);
     }
 
-    defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
+    static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
         const icon = document.createElement("div");
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
         // image itself, which breaks the drag-and-drop functionality.
@@ -985,7 +991,7 @@ export class ResourceBrowser<T> {
         return [{title: capitalize(this.resourceName), absolutePath: ""}];
     }
 
-    resetTitleComponent(element: HTMLElement) {
+    static resetTitleComponent(element: HTMLElement) {
         element.style.display = "none";
     }
 
@@ -1317,30 +1323,50 @@ export class ResourceBrowser<T> {
                     {asSquare: inContextMenu, color: "red", hoverColor: "darkRed", disabled: !opEnabled}
                 );
 
+
+                // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
                 if (inContextMenu) {
+                    element.style.height = "40px";
+                    button.style.height = "40px";
                     button.style.width = "100%";
-                    const ucloudIcons = button.querySelector("button > div.ucloud-native-icons");
-                    if (ucloudIcons) {
-                        ucloudIcons["style"].left = "9px";
-                        ucloudIcons["style"].top = "10px";
-                    }
-                    button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].left = "6px";
-                        it["style"].top = "10px";
+                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
+                        it["style"].marginLeft = "-6px";
+                        it["style"].marginTop = "-2px";
                     });
-                    button.querySelector("button > ul")!["style"].marginLeft = "-90px";
-                } else {
-                    const textChild = button.querySelector("button > ul")?.children.item(0);
-                    if (textChild) textChild["style"].paddingTop = "8px";
+                    button.style.fontSize = "16px";
                     button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].left = "10px";
-                        it["style"].top = "12px";
+                        it["style"].marginLeft = "-10px";
+                    });
+                    button.querySelector("button > ul")!["style"].marginLeft = "-60px";
+                } else {
+                    element.style.height = "46px";
+                    button.style.height = "46px";
+
+                    const textChildren = button.querySelectorAll("button > ul > li");
+                    textChildren.item(0)["style"].marginTop = "8px";
+                    textChildren.item(2)["style"].marginTop = "-10px";
+
+                    button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
+                        it["style"].marginLeft = "-6px";
+                        it["style"].marginTop = "-2px";
+                    });
+                    button.querySelectorAll("button > div.icons").forEach(it => {
+                        it["style"].marginTop = "4px";
+                        it["style"].marginLeft = "-6px";
+                    });
+                    button.querySelectorAll("button > ul").forEach(it => {
+                        it["style"]["marginTop"] = "-8px";
+                    });
+
+                    button.querySelectorAll("button > ul > li").forEach(it => {
+                        it["style"]["right"] = "unset";
                     });
                 }
 
                 element.style.padding = "0";
 
                 element.append(button);
+                element.setAttribute("data-is-confirm", "true");
                 return;
             }
 
@@ -1416,14 +1442,16 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
                 if (!isOperation(child)) {
-                    counter = renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
+                    counter += renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
+                    shortcutNumber = counter + 1;
                     continue;
                 }
+
 
                 const text = child.enabled(selected, callbacks, page);
                 const isDisabled = typeof text === "string";
 
-                var item: HTMLElement = document.createElement("li");
+                var item = document.createElement("li");
 
                 if (isDisabled) {
                     item.style.backgroundColor = "var(--midGray)";
@@ -1438,13 +1466,14 @@ export class ResourceBrowser<T> {
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
 
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts ? `[${shortcutNumber}]` : undefined, true);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
                 const isConfirm = isOperation(child) && child.confirm;
                 this.contextMenuHandlers.push(() => {
-                    if (isDisabled) { }
-                    else if (isConfirm) {
+                    if (isDisabled) {
+                        // No action
+                    } else if (isConfirm) {
                         // This case is handled inside the button.
                     } else {
                         child.onClick(selected, callbacks, page);
@@ -1928,8 +1957,10 @@ export class ResourceBrowser<T> {
                     s2.left = (e.clientX + 10) + "px";
                     s2.top = (e.clientY + 10) + "px";
 
-                    this.entryBelowCursor = this.entryBelowCursorTemporary;
-                    this.entryBelowCursorTemporary = null;
+                    if (this.entryBelowCursorTemporary) {
+                        this.entryBelowCursor = this.entryBelowCursorTemporary;
+                        this.entryBelowCursorTemporary = null;
+                    }
 
                     const content = this.entryDragIndicatorContent;
                     content.innerHTML = "";
@@ -2178,7 +2209,7 @@ export class ResourceBrowser<T> {
         const relativeContextMenuSelect = (delta: number) => {
             const ul = this.contextMenu.querySelector("ul");
             if (!ul) return;
-            const listItems = ul.querySelectorAll("li");
+            const listItems = ul.querySelectorAll(":scope > li");
 
             let selectedIndex = -1;
             for (let i = 0; i < listItems.length; i++) {
@@ -2195,6 +2226,13 @@ export class ResourceBrowser<T> {
                 // Large jumps should not cause wrap around, instead move to either the top or the bottom.
                 if (selectedIndex < 0) selectedIndex = 0;
                 else selectedIndex = listItems.length - 1;
+            }
+
+            // Note(Jonas): Skip disabled and confirm-button entries. Ensure that both directions are valid.
+            const order = delta > 0 ? 1 : -1;
+            while (listItems.item(selectedIndex)?.getAttribute("disabled") === "true"
+                || listItems.item(selectedIndex)?.getAttribute("data-is-confirm") === "true") {
+                selectedIndex += order;
             }
 
             // Wrap around the selection, moving up from the top should go to the bottom and vice-versa.
@@ -2241,7 +2279,7 @@ export class ResourceBrowser<T> {
                         if (newClipboard.length) {
                             const key = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "Ctrl + ";
                             snackbarStore.addInformation(
-                                `${newClipboard.length} copied to clipboard. Use ${key}V to insert.`,
+                                `${newClipboard.length} copied to clipboard.Use ${key}V to insert.`,
                                 false
                             );
                         }
@@ -2384,7 +2422,10 @@ export class ResourceBrowser<T> {
                             if (selected[i] !== 0) {
                                 const entry = this.cachedData[this.currentPath][i];
                                 const path = this.dispatchMessage("pathToEntry", fn => fn(entry));
-                                this.open(path, false, entry);
+                                if (!this.dispatchMessage("beforeOpen", fn => fn(this.currentPath, path, entry))) {
+                                    this.open(path, false, entry);
+                                }
+
                                 break;
                             }
                         }
@@ -2746,15 +2787,14 @@ export class ResourceBrowser<T> {
             }
 
             .file-browser header .header-first-row {
-                margin-top: 5px;
                 display: flex;
+                align-items: center;
             }
 
             .file-browser header .header-first-row img {
                 cursor: pointer;
                 flex-shrink: 0;
                 margin-left: 16px;
-                margin-top: 5px;
             }
 
             .file-browser header .header-first-row ul,
@@ -2764,12 +2804,13 @@ export class ResourceBrowser<T> {
 
             .file-browser header ul {
                 padding: 0;
-                margin: 0 0 8px;
+                margin: 0;
                 display: flex;
                 flex-direction: row;
                 gap: 8px;
                 height: 35px;
                 white-space: pre;
+                align-items: center;
             }
 
             .file-browser > div {
@@ -2925,7 +2966,6 @@ export class ResourceBrowser<T> {
             .file-browser .operations {
                 display: flex;
                 flex-direction: row;
-                overflow-x: scroll;
                 gap: 16px;
             }
 
@@ -2969,12 +3009,14 @@ export class ResourceBrowser<T> {
                 background: var(--tableRowHighlight);
             }
 
-            .file-browser .context-menu > ul > *:first-child {
+            .file-browser .context-menu > ul > *:first-child,
+            .file-browser .context-menu > ul > li:first-child > button {
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
             }
             
             .file-browser .context-menu > ul > *:last-child,
+             .file-browser .context-menu > ul > li:last-child,
              .file-browser .context-menu > ul > li:last-child > button {
                 border-bottom-left-radius: 8px;
                 border-bottom-right-radius: 8px;
@@ -3277,7 +3319,7 @@ export function resourceCreationWithProductSelector<T>(
     const portal = createPortal(<Component />, productSelector);
 
     browser.on("startRenderPage", () => {
-        browser.resetTitleComponent(productSelector);
+        ResourceBrowser.resetTitleComponent(productSelector);
     });
 
     browser.on("renderRow", (entry, row, dims) => {
@@ -3393,9 +3435,9 @@ export function checkCanConsumeResources(projectId: string | null, callbacks: nu
 
     const {api} = callbacks;
     if (!api) return false;
-    
+
     if (api.isCoreResource) return true;
-    
+
     const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
     if (!project) return true;
     // Don't consider yet-to-be-fetched projects as non-consumer

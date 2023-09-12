@@ -298,15 +298,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         };
 
         const ourOps: Operation<Job, ResourceBrowseCallbacks<Job>>[] = [{
-            // Create new app run (Go to App Store),
-            enabled: () => true,
-            onClick: (_, cb) => cb.navigate(AppRoutes.apps.overview()),
-            icon: "appStore",
-            text: "Create new run",
-        }, {
             // Re-run app
             enabled: (selected) => selected.length === 1,
-            onClick: ([selected], cb) => cb.navigate(AppRoutes.jobs.create(selected.specification.application.name, selected.specification.application.version, selected.id)),
+            onClick: ([{specification, id}], cb) =>
+                cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
             text: "Run application again"
         }];

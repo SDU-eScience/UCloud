@@ -24,7 +24,6 @@ import {Operation} from "@/ui-components/Operation";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
 import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
@@ -38,6 +37,7 @@ import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
 // UI state management
 // ================================================================================
@@ -355,24 +355,30 @@ export const Overview: React.FunctionComponent = () => {
     const openFileSelector = useCallback(() => {
         const pathRef = {current: ""};
         dialogStore.addDialog(
-            <FilesBrowse
-                browseType={BrowseType.Embedded}
-                pathRef={pathRef}
-                onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
-                onSelect={async (res) => {
-                    if (res.specification.product.provider != provider) {
-                        snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
-                        return;
-                    }
+            <ExperimentalBrowse
+                opts={{
+                    embedded: true,
+                    initialPath: "",
+                    selection: {
+                        onSelectRestriction(file) {
+                            return file.status.type === "DIRECTORY" && file.specification.product.id !== "share";
+                        },
+                        async onSelect(res) {
+                            if (res.specification.product.provider != provider) {
+                                snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
+                                return;
+                            }
 
-                    const sensitivity = await findSensitivity(res);
-                    if (sensitivity == "SENSITIVE") {
-                        snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);
-                        return;
+                            const sensitivity = await findSensitivity(res);
+                            if (sensitivity == "SENSITIVE") {
+                                snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);
+                                return;
+                            }
+                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                            dispatch({type: "AddFolder", folderPath: target});
+                            dialogStore.success();
+                        },
                     }
-                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                    dispatch({type: "AddFolder", folderPath: target});
-                    dialogStore.success();
                 }}
             />,
             doNothing,
@@ -795,7 +801,8 @@ const EmptyFolders: React.FunctionComponent<{
                         <p><b>Open Syncthing</b></p>
                         <p>
                             A pop-up will appear, saying that UCloud wants to connect.
-                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears.
+                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears. <br />
+                            <b>Note: it can take a few minutes before the pop-up appears.</b>
                         </p>
                     </Box>
                     <Box pl={40}>
@@ -1045,6 +1052,7 @@ const TwoPanelLayout = injectStyle("two-panel-layout", k => `
         display: flex;
         flex-flow: row wrap;
 
+        margin-top: 16px;
         margin-bottom: 16px;
         gap: 16px;
     }

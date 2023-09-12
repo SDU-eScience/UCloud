@@ -25,13 +25,13 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean; omitFilters?: boolean}}): JSX.Element {
+export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean; omitFilters?: boolean; disabledKeyhandlers?: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
-    
+
     if (!opts?.embedded) {
         useTitle("Grant Applications");
     }
@@ -90,7 +90,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                 });
 
                 browser.on("renderRow", (key, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "fileSignatureSolid",
@@ -100,9 +100,9 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(browser.defaultTitleRenderer(key.createdBy, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims));
                     const [statusIconName, statusIconColor] = STATE_ICON_AND_COLOR[key.status.overallState];
-                    const [status, setStatus] = browser.defaultIconRenderer();
+                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                     browser.icons.renderIcon({
                         name: statusIconName,
                         color: statusIconColor,
@@ -181,10 +181,10 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
         browserRef.current?.refresh();
     });
 
-    return <MainContainer
-        main={<>
-            <div ref={mountRef} />
-            {switcher}
-        </>}
-    />
+    const main = <>
+        <div ref={mountRef} />
+        {switcher}
+    </>;
+    if (opts?.embedded === true) return <div>{main}</div>;
+    return <MainContainer main={main}/>
 }

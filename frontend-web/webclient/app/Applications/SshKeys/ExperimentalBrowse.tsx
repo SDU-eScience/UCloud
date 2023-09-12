@@ -34,20 +34,10 @@ export function ExperimentalSSHKey(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<SSHKey>(mount, "SSH Keys").init(browserRef, FEATURES, "", browser => {
-                // TODO(Jonas): Set filter to "RUNNING" initially for state.
-
-                const isCreatingPrefix = "creating-";
-                const {startCreation, cancelCreation} = {
-                    startCreation: () => void 0,
-                    cancelCreation: () => void 0,
-                };
-
+                // Ensure no refecthing on `beforeOpen`.
+                browser.on("beforeOpen", (oldPath, path, resource) => resource != null);
                 browser.on("open", (oldPath, newPath, resource) => {
-                    if (resource) {
-                        navigate(AppRoutes.resources.sshKeysCreate());
-                        return;
-                    }
-
+                    // For initial fetch.
                     callAPI(SshKeyApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters
@@ -75,12 +65,12 @@ export function ExperimentalSSHKey(): JSX.Element {
                 });
 
                 browser.on("renderRow", (key, row, dims) => {
-                    const [icon, setIcon] = browser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(browser.defaultTitleRenderer(key.id, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims));
 
-                    browser.icons.renderIcon({name: "networkWiredSolid", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
+                    browser.icons.renderIcon({name: "key", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
@@ -126,8 +116,7 @@ export function ExperimentalSSHKey(): JSX.Element {
                 });
 
                 browser.on("fetchOperationsCallback", () =>
-                    /* TODO(Jonas): Missing props */
-                    ({dispatch, navigate, isCreating: false, startCreation, cancelCreation})
+                    ({dispatch, navigate, isCreating: false, api: {isCoreResource: true}})
                 );
 
                 browser.on("fetchOperations", () => {
@@ -140,7 +129,6 @@ export function ExperimentalSSHKey(): JSX.Element {
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
-        // TODO(Jonas): Creation
     }, []);
 
     useRefreshFunction(() => {

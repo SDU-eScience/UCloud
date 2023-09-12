@@ -66,13 +66,6 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
 
     const toggleFavorite = React.useCallback(async (appName: string, appVersion: string) => {
         await invokeCommand(UCloud.compute.apps.toggleFavorite({appName, appVersion}));
-        fetchResults(
-            UCloud.compute.apps.searchApps({
-                query: new URLSearchParams(queryParams).get("q") ?? "",
-                itemsPerPage: 100,
-                page: 0
-            })
-        );
     }, [fetch]);
 
     return <Box mx="auto" maxWidth="1340px">

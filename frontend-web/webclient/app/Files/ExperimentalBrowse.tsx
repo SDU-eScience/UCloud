@@ -30,7 +30,7 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -38,12 +38,12 @@ import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI} from "@/Authentication/DataHook";
-import {accounting, PageV2} from "@/UCloud";
+import {accounting, compute, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
 import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
+import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
@@ -53,6 +53,9 @@ import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import {ButtonClass} from "@/ui-components/Button";
+import * as Sync from "@/Syncthing/api";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
 
 // Cached network data
 // =====================================================================================================================
@@ -85,6 +88,7 @@ const FEATURES: ResourceBrowseFeatures = {
     sortDirection: true,
     filters: true,
     contextSwitcher: true,
+    showHeaderInEmbedded: true,
 }
 
 function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string, initialPath?: string}}): JSX.Element {
@@ -104,12 +108,12 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
+    const didUnmount = useDidUnmount();
+
 
     const features = {
         ...FEATURES
     };
-
-    if (opts?.embedded) features.locationBar = false;
 
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
@@ -118,6 +122,10 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         let searching = "";
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
+                // Syncthing data
+                // =========================================================================================================
+                let syncthingConfig: Sync.SyncthingConfig | undefined = undefined;
+                let syncthingProduct: compute.ComputeProductSupportResolved | null = null;
 
                 // Metadata utilities
                 // =========================================================================================================
@@ -439,6 +447,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     browser.showRenameField(
                         it => it.id === path,
                         () => {
+                            if (!browser.renameValue) return; // No change
                             const parentPath = resolvePath(getParentPath(path));
                             const page = browser.cachedData[parentPath] ?? [];
                             const actualFile = page.find(it => fileName(it.id) === fileName(path));
@@ -487,7 +496,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                             key: "sortBy",
                             text: "Sort by",
                             clearable: false,
-                            icon: "sortAscending",
+                            icon: "heroAdjustmentsHorizontal",
                             options: [{
                                 color: "black",
                                 text: "Name",
@@ -552,10 +561,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-
-                    return groupOperations(
-                        FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected))
-                    );
+                    return groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
                 });
 
                 browser.on("fetchOperationsCallback", () => {
@@ -571,16 +577,45 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     const callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks = {
                         supportByProvider,
                         allowMoveCopyOverride: false,
-                        collection: collection!,
-                        directory: folder!,
+                        collection: collection,
+                        directory: folder,
                         dispatch: dispatch,
                         embedded: opts?.embedded ?? false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
-                        setSynchronization(file: UFile, shouldAdd: boolean): void {
-                            console.log("setSynchronization is a TODO!");
-                            // TODO
+                        syncthingConfig,
+                        setSynchronization(files: UFile[], shouldAdd: boolean): void {
+                            if (!syncthingConfig) return;
+                            if (!collection?.specification.product.provider) return;
+                            const newConfig = deepCopy(syncthingConfig);
+
+                            const folders = newConfig?.folders ?? []
+
+                            for (const file of files) {
+                                if (shouldAdd) {
+                                    const newFolders = [...folders];
+                                    newConfig.folders = newFolders;
+
+                                    if (newFolders.every(it => it.ucloudPath !== file.id)) {
+                                        newFolders.push({id: randomUUID(), ucloudPath: file.id});
+                                    }
+                                } else {
+                                    newConfig.folders = folders.filter(it => it.ucloudPath !== file.id);
+                                }
+                            }
+
+                            callAPI(Sync.api.updateConfiguration({
+                                provider: collection?.specification.product.provider,
+                                productId: "syncthing",
+                                config: newConfig
+                            })).then(() => {
+                                syncthingConfig = newConfig
+                                browser.renderOperations();
+                            }).catch(e => {
+                                if (didUnmount.current) return;
+                                defaultErrorHandler(e);
+                            });
                         },
                         startCreation(): void {
                             showCreateDirectory();
@@ -666,15 +701,42 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                 browser.on("renderRow", (file, row, containerWidth) => {
                     row.container.setAttribute("data-file", file.id);
 
-                    const [icon, setIcon] = browser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
 
-                    const title = browser.defaultTitleRenderer(fileName(file.id), containerWidth)
+                    if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
+                        const iconWrapper = document.createElement("div");
+                        iconWrapper.style.position = "relative";
+                        iconWrapper.style.left = "13px";
+                        iconWrapper.style.top = "-2px";
+                        iconWrapper.style.backgroundColor = "var(--blue)";
+                        iconWrapper.style.height = "10px";
+                        iconWrapper.style.width = "10px";
+                        iconWrapper.style.padding = "4px";
+                        iconWrapper.style.borderRadius = "8px";
+                        icon.append(iconWrapper);
+                        const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
+                        syncThingIcon.style.height = "8px";
+                        syncThingIcon.style.width = "8px";
+                        syncThingIcon.style.marginLeft = "-3px";
+                        syncThingIcon.style.marginTop = "-3px";
+                        syncThingIcon.style.display = "block";
+                        iconWrapper.appendChild(syncThingIcon);
+                        browser.icons.renderIcon({name: "check", color: "white", color2: "white", width: 24, height: 24}).then(setSyncthingIcon);
+                    }
+
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth)
                     row.title.append(title);
-                    row.title.title = title;
+                    row.title.title = title;                    // Disabled for now.
+                    if (isReadonly(file.permissions.myself) && Math.random() > 2) {
+                        row.title.appendChild(div(
+                            `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
+                        ));
+                    }
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
 
-                    if (opts?.selection && opts.selection.onSelectRestriction(file)) {
+                    // Repeated in ExperimentalJobs
+                    if (opts?.selection && opts.selection.onSelectRestriction(file) === true) {
                         const button = document.createElement("button");
                         button.innerText = "Use";
                         button.className = ButtonClass
@@ -699,7 +761,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         row.star.style.cursor = "pointer";
                     }
 
-                    findFavoriteStatus(file).then(async (isFavorite) => {
+                    findFavoriteStatus(file).then(async isFavorite => {
                         const icon = await browser.icons.renderIcon({
                             name: (isFavorite ? "starFilled" : "starEmpty"),
                             color: (isFavorite ? "blue" : "midGray"),
@@ -818,6 +880,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         pIcon = providerIconWrapper;
                     }
 
+                    pIcon.replaceChildren();
+
                     if (pIcon && collection) {
                         const icon = providerIcon(collection.specification.product.provider, {
                             fontSize: "22px", width: "30px", height: "30px"
@@ -907,15 +971,15 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         if (!allowFetch) return [];
 
                         if (parentPath === "/") {
-                            return collectionCacheForCompletion.retrieve("", () => {
-                                return callAPI(
+                            return collectionCacheForCompletion.retrieve("", () =>
+                                callAPI(
                                     FileCollectionsApi.browse({
                                         itemsPerPage: 250,
                                         filterMemberFiles: "DONT_FILTER_COLLECTIONS",
                                         filterProvider: opts?.providerFilter,
                                     })
-                                ).then(res => res.items);
-                            }).then(doNothing);
+                                ).then(res => res.items)
+                            ).then(doNothing);
                         } else {
                             return prefetch(parentPath).then(doNothing);
                         }
@@ -992,7 +1056,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        if (!isInitialMount.current) navigate("?path=" + encodeURIComponent(newPath));
+                        if (!isInitialMount.current) navigate("/files?path=" + encodeURIComponent(newPath));
                     }
 
 
@@ -1022,8 +1086,26 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                             id: collectionId,
                             includeOthers: true,
                             includeSupport: true
-                        })))
-                        .then(() => {
+                        }))).then(() => {
+                            if (!opts?.embedded) {
+                                const collection = collectionCache.retrieveFromCacheOnly(collectionId);
+                                if (!collection?.specification.product.provider) return;
+
+                                Sync.fetchProducts(collection.specification.product.provider).then(products => {
+                                    if (products.length > 0) {
+                                        syncthingProduct = products[0];
+                                        if (didUnmount.current) return;
+                                        Sync.fetchConfig(syncthingProduct?.product.category.provider)
+                                            .then(config => {
+                                                syncthingConfig = config
+                                                browser.renderRows();
+                                                browser.renderOperations();
+                                            })
+                                            .catch(doNothing);
+                                    }
+                                });
+                            }
+
                             browser.renderBreadcrumbs();
                             browser.renderOperations();
                             browser.locationBar.dispatchEvent(new Event("input"));
@@ -1163,7 +1245,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
 
                 browser.on("beforeOpen", (oldPath, path, resource) => {
                     if (resource?.status.type === "FILE") {
-                        // Note(Jonas): Work to do in this. Too wide, reload missing.
                         const operations = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                         dispatch(setPopInChild({
                             el: <FilesApi.Properties inPopIn embedded resource={resource} reload={operations.reload} />,
@@ -1216,8 +1297,24 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         const b = browserRef.current;
         if (!b) return;
 
-        if (opts?.initialPath) {
-            b.open(selectorPathRef.current);
+        if (opts?.initialPath !== undefined) {
+            if (selectorPathRef.current === "") {
+                callAPI(
+                    FileCollectionsApi.browse({
+                        itemsPerPage: 10,
+                        filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                        filterProvider: opts?.providerFilter,
+                    })
+                ).then(res => {
+                    const [first] = res.items;
+                    if (first) {
+                        selectorPathRef.current = first.id;
+                        b.open(selectorPathRef.current);
+                    }
+                })
+            } else {
+                b.open(selectorPathRef.current);
+            }
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
             if (path) {
@@ -1238,5 +1335,12 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         </>}
     />;
 };
+
+function isReadonly(entries: Permission[]): boolean {
+    const isAdmin = entries.includes("ADMIN");
+    const isEdit = entries.includes("EDIT");
+    const isRead = entries.includes("READ");
+    return isRead && !isEdit;
+}
 
 export default ExperimentalBrowse;

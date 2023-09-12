@@ -40,7 +40,6 @@ export function setStoredProject(value: string | null): void {
     } else {
         window.localStorage.setItem("project", value);
     }
-    console.log("emitting projects")
     emitProjects(value);
 }
 

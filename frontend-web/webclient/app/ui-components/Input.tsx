@@ -39,6 +39,7 @@ export const InputClass = injectStyle("input", k => `
         height: 42px;
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
 
+        /* Note(Jonas): Are these in use? */
         --inputBorder: var(--blue);
         --inputDisabledBorder: var(--lightGray);
 

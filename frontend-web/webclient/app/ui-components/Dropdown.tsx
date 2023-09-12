@@ -105,9 +105,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
 `);
 
-export const DropdownContent: React.FunctionComponent<DropdownContentProps & {
-    children?: React.ReactNode;
-}> = props => {
+export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<DropdownContentProps>> = props => {
     const style: CSSProperties = {};
     if (props.width) style.width = extractSize(props.width);
     if (props.minWidth) style.minWidth = extractSize(props.minWidth);

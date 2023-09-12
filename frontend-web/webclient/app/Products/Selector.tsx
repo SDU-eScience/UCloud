@@ -286,76 +286,76 @@ export const ProductSelector: React.FunctionComponent<{
 
                             <Table>
                                 <thead>
-                                    <TableRow>
-                                        <th style={{width: "32px"}} />
-                                        <th>Name</th>
-                                        {headers.map(it => <th key={it}>{it}</th>)}
-                                        <th>Price</th>
-                                    </TableRow>
+                                <TableRow>
+                                    <th style={{width: "32px"}} />
+                                    <th>Name</th>
+                                    {headers.map(it => <th key={it}>{it}</th>)}
+                                    <th>Price</th>
+                                </TableRow>
                                 </thead>
                                 <tbody>
-                                    {categorizedProducts.map((p, i) => {
-                                        if (typeof p === "string") {
-                                            if (!showHeadings) return null;
+                                {categorizedProducts.map((p, i) => {
+                                    if (typeof p === "string") {
+                                        if (!showHeadings) return null;
 
-                                            return <tr key={i} className="table-info">
-                                                {p === NEED_CONNECT ?
-                                                    <td colSpan={3 + headers.length}>
-                                                        <div>
-                                                            <Link to="/providers/connect">
-                                                                <Icon name="warning" color="orange" mr="8px" />
-                                                                Connection required! You must connect with the provider before you can consume resources from it.
-                                                            </Link>
-                                                        </div>
-                                                    </td> :
-                                                    <td colSpan={3 + headers.length}>
-                                                        <div>
-                                                            <div className="spacer" />
-                                                            {p}
-                                                            <div className="spacer" />
-                                                        </div>
-                                                    </td>
-                                                }
-                                            </tr>
-                                        } else {
-                                            const maintenance = (props.support ?? []).find(s =>
-                                                s.product.name === p.name &&
-                                                productCategoryEquals(s.product.category, p.category)
-                                            )?.support?.maintenance;
-
-                                            const isDisabled =
-                                                connectionState.canConnectToProvider(p.category.provider) ||
-                                                (maintenance?.availability === "NO_SERVICE" && !shouldAllowMaintenanceAccess());
-
-                                            const onClick = () => {
-                                                if (isDisabled) return;
-                                                props.onSelect(p);
-                                                onClose();
+                                        return <tr key={i} className="table-info">
+                                            {p === NEED_CONNECT ?
+                                                <td colSpan={3 + headers.length}>
+                                                    <div>
+                                                        <Link to="/providers/connect">
+                                                            <Icon name="warning" color="orange" mr="8px" />
+                                                            Connection required! You must connect with the provider before you can consume resources from it.
+                                                        </Link>
+                                                    </div>
+                                                </td> :
+                                                <td colSpan={3 + headers.length}>
+                                                    <div>
+                                                        <div className="spacer" />
+                                                        {p}
+                                                        <div className="spacer" />
+                                                    </div>
+                                                </td>
                                             }
+                                        </tr>
+                                    } else {
+                                        const maintenance = (props.support ?? []).find(s =>
+                                            s.product.name === p.name &&
+                                            productCategoryEquals(s.product.category, p.category)
+                                        )?.support?.maintenance;
 
-                                            return <TableRow key={i} onClick={onClick} className={isDisabled ? "disabled" : undefined}>
-                                                <TableCell>
-                                                    {maintenance ?
-                                                        <Tooltip
-                                                            trigger={
-                                                                <Icon
-                                                                    name="warning"
-                                                                    color={maintenanceIconColor(maintenance)}
-                                                                    size={24}
-                                                                />
-                                                            }
-                                                        >
-                                                            {explainMaintenance(maintenance)}
-                                                        </Tooltip> :
-                                                        <ProviderLogo providerId={p.category.provider} size={24} />
-                                                    }
-                                                </TableCell>
-                                                <TableCell><ProductName product={p} /></TableCell>
-                                                <ProductStats product={p} />
-                                                <TableCell>{priceExplainer(p)}</TableCell>
-                                            </TableRow>
+                                        const isDisabled =
+                                            connectionState.canConnectToProvider(p.category.provider) ||
+                                            (maintenance?.availability === "NO_SERVICE" && !shouldAllowMaintenanceAccess());
+
+                                        const onClick = () => {
+                                            if (isDisabled) return;
+                                            props.onSelect(p);
+                                            onClose();
                                         }
-                                    })}
+
+                                        return <TableRow key={i} onClick={onClick} className={isDisabled ? "disabled" : undefined}>
+                                            <TableCell>
+                                                {maintenance ?
+                                                    <Tooltip
+                                                        trigger={
+                                                            <Icon
+                                                                name="warning"
+                                                                color={maintenanceIconColor(maintenance)}
+                                                                size={24}
+                                                            />
+                                                        }
+                                                    >
+                                                        {explainMaintenance(maintenance)}
+                                                    </Tooltip> :
+                                                    <ProviderLogo providerId={p.category.provider} size={24} />
+                                                }
+                                            </TableCell>
+                                            <TableCell><ProductName product={p} /></TableCell>
+                                            <ProductStats product={p} />
+                                            <TableCell>{priceExplainer(p)}</TableCell>
+                                        </TableRow>
+                                    }
+                                })}
                                 </tbody>
                             </Table>
                         </>
@@ -372,26 +372,27 @@ const ProductName: React.FunctionComponent<{product: Product}> = ({product}) => 
 }
 
 const SelectorDialog = styled.div<BoxShadowProps>`
-    position: fixed;
-    cursor: default;
-    height: 500px;
-    overflow-y: auto;
-    border-radius: 5px;
-    ${boxShadow}
-    border: 1px solid var(--borderGray);
+  position: fixed;
+  cursor: default;
+  height: 500px;
+  overflow-y: auto;
+  border-radius: 5px;
+  ${boxShadow}
+  border: 1px solid var(--borderGray);
+  background: var(--white);
+  padding: 16px;
+  padding-top: 0;
+  z-index: 1000;
+
+  .input-wrapper {
+    padding-top: 16px;
+    padding-bottom: 16px;
+    position: sticky;
+    top: 0;
     background: var(--white);
-    padding: 16px;
-    padding-top: 0;
-    z-index: 1000;
+  }
 
-    .input-wrapper {
-        padding-top: 16px;
-        padding-bottom: 16px;
-        position: sticky;
-        top: 0;
-        background: var(--white);
-    }
-
+<<<<<<< HEAD
     thead > tr {
         position: sticky;
         top: 74px;
@@ -420,26 +421,56 @@ const SelectorDialog = styled.div<BoxShadowProps>`
         height: 1px;
         background: var(--black);
     }
+=======
+  thead > tr {
+    position: sticky;
+    top: 74px;
+    background: var(--white);
+  }
+>>>>>>> fcea32a253f04b1ad61d147bf834385a31fe2dc4
 
-    td[colspan] > div {
-        display: flex;
-        text-align: center;
-        font-weight: bold;
-        padding: 16px;
-        justify-content: center;
-        align-items: center;
-        gap: 8px;
-    }
+  th, td {
+    text-align: left;
+    overflow: hidden;
+    padding-left: 5px;
+  }
 
-    .table-info + .table-info > td > div {
-        margin-top: -16px;
-    }
+  table {
+    user-select: none;
+  }
 
-    tr.disabled {
-        background-color: var(--lightGray);
-        color: var(--borderGray);
-        cursor: not-allowed !important;
-    }
+  table > tbody > tr:hover {
+    cursor: pointer;
+    background-color: var(--lightBlue);
+  }
+
+  td[colspan] div.spacer {
+    content: " ";
+    display: block;
+    width: 45px;
+    height: 1px;
+    background: var(--black);
+  }
+
+  td[colspan] > div {
+    display: flex;
+    text-align: center;
+    font-weight: bold;
+    padding: 16px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .table-info + .table-info > td > div {
+    margin-top: -16px;
+  }
+
+  tr.disabled {
+    background-color: var(--lightGray);
+    color: var(--borderGray);
+    cursor: not-allowed !important;
+  }
 `;
 SelectorDialog.defaultProps = {
     boxShadow: "md"
@@ -480,11 +511,19 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
         background: var(--inputColor);
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
     }
+<<<<<<< HEAD
 
     ${k}:hover {
         border-color: var(--gray);
     }
 
+=======
+
+    ${k}:hover {
+        border-color: var(--gray);
+    }
+
+>>>>>>> fcea32a253f04b1ad61d147bf834385a31fe2dc4
     ${k} &[data-omit-border="true"] {
         border: unset;
     }

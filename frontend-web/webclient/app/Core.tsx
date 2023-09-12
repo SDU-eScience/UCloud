@@ -92,6 +92,7 @@ import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
 import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
 import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
 import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
+import {IngoingSharesBrowse} from "@/Files/Shares";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -119,14 +120,15 @@ const Core = (): JSX.Element => (
                         <Route path={`/files/properties/:id/`} element={React.createElement(requireAuth(FilesApi.Properties), {api: FilesApi})} />
                         {/* Hardcoded solution end */}
                         <Route path={"/files/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
-                        <Route path="/registration" element={<Registration />}  />
-                        <Route path="/verifyEmail" element={<VerifyEmail />}  />
-                        <Route path="/verifyResult" element={<VerifyResult />}  />
+                        <Route path="/registration" element={<Registration />} />
+                        <Route path="/verifyEmail" element={<VerifyEmail />} />
+                        <Route path="/verifyResult" element={<VerifyResult />} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
-                        <Route path={"/shares/outgoing"} element={React.createElement(requireAuth(SharesOutgoing))} />
+                        <Route path="/shares/outgoing" element={React.createElement(requireAuth(SharesOutgoing))} />
                         <Route path={"/shares/invite/:id"}
                             element={React.createElement(requireAuth(SharesAcceptLink))} />
-                        <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
+                        <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse), {isIngoing: true})} />
+                        /* <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} /> */
 
                         <Route path={AppRoutes.syncthing.syncthing()}
                             element={React.createElement(requireAuth(SyncthingOverview))} />

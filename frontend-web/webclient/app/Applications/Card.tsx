@@ -482,8 +482,8 @@ export function AppCard(props: AppCardProps): JSX.Element {
                 <div><b>{props.title}</b></div>
                 <MultiLineTruncate lines={lineCount}>
                     <Markdown
-                        disallowedElements={['br', 'a', 'p', 'strong', 'b', 'i', 'img']}
-                        unwrapDisallowed
+                        disallowedElements={['br', 'a', 'p', 'strong', 'b', 'i']}
+                        unwrapDisallowed={true}
                     >
                         {props.description ?? ""}
                     </Markdown>

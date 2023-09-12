@@ -345,34 +345,36 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
 ];
 
 const Layout = injectStyle("layout", k => `
-  display: grid;
-  grid-gap: 16px;
-  margin-bottom: 16px;
+    ${k} {
+        display: grid;
+        grid-gap: 16px;
+        margin-bottom: 16px;
 
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "doc-viewer"
-      "activity";
-  }
+        ${deviceBreakpoint({maxWidth: "1000px"})} {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+            "doc-viewer"
+            "activity";
+        }
 
-  ${deviceBreakpoint({minWidth: "1000px"})} {
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas: "doc-viewer activity"
-  }
+        ${deviceBreakpoint({minWidth: "1000px"})} {
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas: "doc-viewer activity"
+        }
+    }
 
-  ${k} > .doc-viewer {
-    grid-area: doc-viewer;
-  }
+    ${k} > .doc-viewer {
+        grid-area: doc-viewer;
+    }
 
-  ${k} > .activity {
-    grid-area: activity;
-  }
+    ${k} > .activity {
+        grid-area: activity;
+    }
 
-  ${k} .scroll-area {
-    max-height: 700px;
-    overflow-y: auto;
-  }
+    ${k} .scroll-area {
+        max-height: 700px;
+        overflow-y: auto;
+    }
 `);
 
 const FormWrapper = injectStyle("form-wrapper", k => `

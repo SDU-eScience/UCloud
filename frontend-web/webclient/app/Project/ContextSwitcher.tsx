@@ -20,17 +20,17 @@ import AppRoutes from "@/Routes";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
-const DEFAULT_FETCH_ARGS = {
+export const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
     includeFavorite: true,
     sortBy: "favorite" as const,
     sortDirection: "descending" as const
 }
 
-export const projectCache = new AsyncCache<PageV2<Project>>();
+export const projectCache = new AsyncCache<PageV2<Project>>({globalTtl: 0});
 
 async function fetchProjects(next?: string): Promise<PageV2<Project>> {
-    const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...DEFAULT_FETCH_ARGS, next}));
+    const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS, next}));
     if (result.next) {
         const child = await fetchProjects(result.next);
         return {
@@ -87,6 +87,12 @@ export function ContextSwitcher(): JSX.Element {
         setProject(storedProject ?? undefined);
     }, []);
 
+    const reload = React.useCallback(() => {
+        projectCache.retrieveWithInvalidCache("", () => callAPI(ProjectAPI.browse(CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS)))[1].then(it => {
+            setProjectList(it);
+        })
+    }, []);
+
     const navigate = useNavigate();
 
     const [filter, setTitleFilter] = React.useState("");
@@ -100,20 +106,19 @@ export function ContextSwitcher(): JSX.Element {
             <ClickableDropdown
                 trigger={
                     <Flex>
-                        <Truncate title={activeContext} fontSize={14} width="130px"><b>{activeContext}</b></Truncate>
-                        <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px" />
+                        <Truncate title={activeContext} fontSize={14} width="180px"><b>{activeContext}</b></Truncate>
+                        <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
                     </Flex>
                 }
                 colorOnHover={false}
                 useMousePositioning
-                onTriggerClick={() => projectCache.retrieveWithInvalidCache("", () => callAPI(ProjectAPI.browse(DEFAULT_FETCH_ARGS)))}
-                left="0px"
+                onTriggerClick={reload}
                 width="500px"
             >
                 <div style={{maxHeight: "385px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
-                        <Input placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
+                        <Input autoFocus placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
                         <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
                         {projectId !== undefined ? (

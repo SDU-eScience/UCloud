@@ -53,21 +53,8 @@ import Relative from "./Relative";
 import Absolute from "./Absolute";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
-
-const SidebarElementContainerClass = injectStyle("sidebar-element", k => `
-    ${k} {
-        display: flex;
-        margin-left: 22px;
-        justify-content: left;
-        flex-flow: row;
-        align-items: center;
-        padding-bottom: 10px;
-    }
-
-    ${k} > ${TextClass} {
-        white-space: nowrap;
-    }
-`);
+import {checkCanConsumeResources} from "./ResourceBrowser";
+import {api as FilesApi} from "@/UCloud/FilesApi";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -81,6 +68,8 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         overflow-y: scroll;
         overflow-x: hidden;
         height: 100vh;
+        
+        font-size: 14px;
     }
     
     ${k}, ${k} a, ${k} a:hover {
@@ -89,7 +78,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     
     ${k}[data-open="true"] {
         transform: translate(0, 0);
-        padding: 12px 16px 16px 16px;
+        padding: 13px 16px 16px 16px;
         width: var(--secondarySidebarWidth);
     }
 
@@ -111,6 +100,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} header {
         display: flex;
         align-items: center;
+        margin-bottom: 15px;
     }
     
     ${k} header h1 {
@@ -124,38 +114,26 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         cursor: pointer;
     }
     
-    ${k} h2 {
+    ${k} h2, h3 {
         margin: 0;
-        font-size: 16px;
         font-weight: bold;
     }
     
-    ${k} ul {
-        padding-left: 0;
-    }
-    
-    ${k} > ul > li {
+    ${k} h3 {
         font-size: 16px;
-        font-weight: bold;
-        list-style: none;
     }
     
-    ${k} > ul span,
-    ${k} > ul a {
+    ${k} a, ${k} h3.no-link  {
         border-radius: 10px;
-        padding: 5px 10px;
+        padding: 5px;
         display: block;
         margin-left: -5px;
     }
     
-    ${k} > ul span:hover,
-    ${k} > ul a:hover {
+    ${k} a:hover {
         background-color: rgba(255, 255, 255, 0.35);
     }
-    
-    ${k} > ul > li > ul > li {
-        font-size: 14px;
-    }
+
 `);
 
 
@@ -171,7 +149,6 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", `
     min-width: var(--sidebarWidth);
     
     background-color: var(--sidebarColor);
-    gap: 18px;
     z-index: 1000;
     padding-bottom: 12px;
 `);
@@ -208,22 +185,12 @@ interface TextLabelProps {
     title?: string;
 }
 
-export const SidebarTextLabel = ({
-    icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
-    iconSize = "18", space = "22px", textSize = 3
-}: TextLabelProps): JSX.Element => (
-    <div className={SidebarElementContainerClass} title={title} style={{height}}>
-        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
-        <Text fontSize={textSize}>{children}</Text>
-    </div>
-);
-
 interface SidebarElement {
     icon: IconName;
 }
 
 function SidebarElement({icon}: SidebarElement): JSX.Element {
-    return <Icon name={icon} hoverColor="fixedWhite" color="fixedWhite" color2="fixedWhite" size={"20"} />
+    return <Icon name={icon} hoverColor="fixedWhite" color="fixedWhite" color2="fixedWhite" size={"24"} />
 }
 
 interface MenuElement {
@@ -246,22 +213,22 @@ export const sideBarMenuElements: [
 ] = [
         {
             items: [
-                {icon: "sidebarFiles", label: "Files", to: AppRoutes.login.login()},
-                {icon: "sidebarProjects", label: "Projects", to: AppRoutes.login.login()},
-                {icon: "apps", label: "Apps", to: AppRoutes.login.login()}
+                {icon: "heroFolder", label: "Files", to: AppRoutes.login.login()},
+                {icon: "heroUserGroup", label: "Workspace", to: AppRoutes.login.login()},
+                {icon: "heroBuildingStorefront", label: "Applications", to: AppRoutes.login.login()}
             ], predicate: () => !Client.isLoggedIn
         },
         {
             items: [
-                {icon: "sidebarFiles", label: "Files", to: "/drives/"},
-                {icon: "sidebarProjects", label: "Projects"},
-                {icon: "dashboard", label: "Resources"},
-                {icon: "sidebarAppStore", label: "Apps", to: AppRoutes.apps.landing()},
-                {icon: "sidebarRuns", label: "Runs", to: "/jobs/"}
+                {icon: "heroFolder", label: "Files", to: "/drives/"},
+                {icon: "heroUserGroup", label: "Workspace"},
+                {icon: "heroSquaresPlus", label: "Resources"},
+                {icon: "heroBuildingStorefront", label: "Applications", to: AppRoutes.apps.landing()},
+                {icon: "heroBeaker", label: "Runs", to: "/jobs/"}
             ], predicate: () => Client.isLoggedIn
         },
         {items: [], predicate: () => Client.isLoggedIn},
-        {items: [{icon: "admin", label: "Admin"}], predicate: () => Client.userIsAdmin}
+        {items: [{icon: "heroBolt", label: "Admin"}], predicate: () => Client.userIsAdmin}
     ];
 
 interface SidebarStateProps {
@@ -318,58 +285,47 @@ const UserMenu: React.FunctionComponent<{
 }> = ({avatar}) => {
     return <ClickableDropdown
         width="230px"
+        paddingControlledByContent
         left="var(--sidebarWidth)"
         bottom="0"
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
             <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
     >
-        {!CONF.STATUS_PAGE ? null : (
-            <>
-                <Box>
-                    <ExternalLink href={CONF.STATUS_PAGE}>
-                        <Flex>
-                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
-                            <TextSpan color="black">Site status</TextSpan>
-                        </Flex>
-                    </ExternalLink>
-                </Box>
-                <Divider />
-            </>
-        )}
-        <UserMenuLink icon="properties" text="Settings" to={AppRoutes.users.settings()} />
-        <UserMenuLink icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
-        <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
-            <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
-            Logout
-        </Flex>
-        <UserMenuExternalLink href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
-        <UserMenuExternalLink href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
-        <Divider />
-        <Username />
-        <ProjectID />
-        <Divider />
-        <span>
-            <Flex cursor="auto">
-                <ThemeToggler />
+        <Box p="12px">
+            {!CONF.STATUS_PAGE ? null : (
+                <>
+                    <Box>
+                        <ExternalLink href={CONF.STATUS_PAGE}>
+                            <Flex>
+                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
+                                <TextSpan color="black">Site status</TextSpan>
+                            </Flex>
+                        </ExternalLink>
+                    </Box>
+                    <Divider />
+                </>
+            )}
+            <UserMenuLink icon="properties" text="Settings" to={AppRoutes.users.settings()} />
+            <UserMenuLink icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
+                <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
+                Logout
             </Flex>
-        </span>
+            <UserMenuExternalLink href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
+            <UserMenuExternalLink href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
+            <Divider />
+            <Username />
+            <ProjectID />
+            <Divider />
+            <span>
+                <Flex cursor="auto">
+                    <ThemeToggler />
+                </Flex>
+            </span>
+        </Box>
     </ClickableDropdown>;
 }
-
-const SidebarAppCategories = [
-    "Applied Science",
-    "Bioinformatics",
-    "Data Analytics",
-    "Development",
-    "Digital Humanities",
-    "Engineering",
-    "Health Science",
-    "Natural Science",
-    "Social Science",
-    "Virtual Desktop",
-    "Virtual Machine"
-];
 
 export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
@@ -394,7 +350,7 @@ export function Sidebar(): JSX.Element | null {
         .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
 
     return (
-        <div style={{display: "flex"}}>
+        <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
                 <Link data-component={"logo"} to="/">
                     <Icon name="logoEsc" mt="10px" size="34px" />
@@ -440,9 +396,11 @@ export function Sidebar(): JSX.Element | null {
                     <Downtimes />
                 </>
 
-                <Notification />
-                <Support />
-                <UserMenu avatar={avatar} />
+                <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
+                    <Notification />
+                    <Support />
+                    <UserMenu avatar={avatar} />
+                </Flex>
             </div>
 
             <SecondarySidebar
@@ -453,7 +411,7 @@ export function Sidebar(): JSX.Element | null {
                 clearHover={() => setHoveredPage("")}
                 clearClicked={() => setSelectedPage("")}
             />
-        </div>
+        </Flex>
     );
 };
 
@@ -520,6 +478,8 @@ function SecondarySidebar({
         emptyPage,
     );
 
+    const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+
     const dispatch = useDispatch();
     React.useEffect(() => {
         if (favoriteApps.loading) return;
@@ -552,92 +512,102 @@ function SecondarySidebar({
             }
         </header>
 
-        {active !== "Files" ? null : (
-            <>
-                <ul>
-                    <li>
-                        <Link to={"/drives/"}>Drives</Link>
-                        {drives.data.items.map(it =>
-                            <Link key={it.id} to={`/files?path=${it.id}`}>
-                                <Flex>
-                                    <Box mt="1px" mr="4px"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Box>
-                                    <Truncate fontSize="14px" title={it.specification.title} maxWidth={"150px"} color="var(--fixedWhite)">
-                                        {it.specification.title}
-                                    </Truncate>
-                                </Flex>
-                            </Link>
-                        )}
-                    </li>
+        {active !== "Files" || !canConsume ? null : (
+            <Flex flexDirection={"column"} gap={"16px"}>
+                <div>
+                    <h3><Link to={"/drives/"}>Drives</Link></h3>
+                    {drives.data.items.map(it =>
+                        <Link key={it.id} to={`/files?path=${it.id}`}>
+                            <Flex>
+                                <Box mt="1px" mr="4px"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Box>
+                                <Truncate fontSize="14px" title={it.specification.title} maxWidth={"150px"} color="var(--fixedWhite)">
+                                    {it.specification.title}
+                                </Truncate>
+                            </Flex>
+                        </Link>
+                    )}
+                </div>
 
-                    <li>
-                        <div>Favorite files</div>
-                        {favoriteFiles.data.items.length === 0 ? <TextSpan fontSize={"var(--secondaryText)"}>No favorite files</TextSpan> : null}
-                        {favoriteFiles.data.items.map(it =>
-                            <span key={it.path}>
-                                <Flex
-                                    cursor="pointer"
-                                    onClick={() => navigateByFileType(it, invokeCommand, navigate)}
-                                >
-                                    <Flex mx="auto" my="auto">
-                                        <Icon name="starFilled" size={12} mr="4px" color="#fff" color2="#fff" />
-                                    </Flex>
-                                    <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
-                                </Flex>
-                            </span>
-                        )}
-                    </li>
+                <div>
+                    <h3 className={"no-link"}>Favorite files</h3>
+                    {favoriteFiles.data.items.length === 0 ? <div>No favorite files</div> : null}
+                    {favoriteFiles.data.items.map(it =>
+                        <a href={"#"} key={it.path} onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
+                            <Flex alignItems={"center"}>
+                                <Icon name="heroStar" size={16} mr="4px" color="#fff" color2="#fff" />
+                                <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
+                            </Flex>
+                        </a>
+                    )}
+                </div>
 
-                    {Client.hasActiveProject ?
-                        null : sharesLinksInfo.map(it => <Link key={it.text} to={it.to}>{it.text}</Link>)
-                    }
-                </ul>
-            </>
+                {Client.hasActiveProject ? null : <div>
+                    <h3 className={"no-link"}>Shared files</h3>
+                    {sharesLinksInfo.map(it => <Link key={it.text} to={it.to}>{it.text}</Link>)}
+                </div>}
+            </Flex>
         )}
 
-        {active !== "Projects" ? null : (<ProjectLinks />)}
+        {active !== "Workspace" ? null : (<ProjectLinks />)}
 
-        {active !== "Apps" ? null :
-            <Flex flexDirection="column" mr="4px">
-                WORK TODO
-                {SidebarAppCategories.map(it =>
-                    <Link key={it} ml="8px" to={AppRoutes.apps.byTag(it)}>{it}</Link>
-                )}
-                <TextSpan mb="8px" bold color="fixedWhite">Favorite apps</TextSpan>
+        {active !== "Applications" ? null :
+            <Flex flexDirection={"column"}>
+                <h3 className={"no-link"}>Favorite apps</h3>
+
                 {appFavorites.map(it =>
-                    <Link mb="4px" key={it.metadata.name + it.metadata.version} to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}>
-                        <Flex>
-                            <Box mr="4px" pl="4px" backgroundColor="var(--fixedWhite)" width="24px" height="24px" borderRadius="6px">
-                                <AppToolLogo size="16px" name={it.metadata.name} type="APPLICATION" />
-                            </Box>
-                            <Truncate color="var(--text)">{it.metadata.title}</Truncate>
-                        </Flex>
-                    </Link>
+                    <AppTitleAndLogo
+                        key={it.metadata.name + it.metadata.version}
+                        to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
+                        name={it.metadata.name}
+                        title={it.metadata.title}
+                    />
                 )}
+
                 {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
             </Flex>
         }
 
         {active !== "Runs" ? null : (
-            <Flex flexDirection="column" mr="4px">
-                <TextSpan bold color="fixedWhite">Running jobs</TextSpan>
-                {recentRuns.data.items.map(it => {
-                    const [icon, color] = jobStateToIconAndColor(it.status.state);
-                    return <Link key={it.id} to={AppRoutes.jobs.view(it.id)}>
-                        <Flex>
-                            <Icon name={icon} color={color} mr={"6px"} size={16} my="auto" />
-                            <Truncate key={it.id}
-                                color="white">{it.specification.name ?? it.id} ({it.specification.application.name})</Truncate>
-                        </Flex>
-                    </Link>
-                })}
-                {recentRuns.data.items.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No jobs running.</Text>}
+            <Flex flexDirection={"column"}>
+                <h3 className={"no-link"}>Running jobs</h3>
+                {recentRuns.data.items.map(it =>
+                    <AppTitleAndLogo
+                        key={it.id}
+                        to={AppRoutes.jobs.view(it.id)}
+                        name={it.specification.application.name}
+                        title={`${it.specification.name ?? it.id} (${it.specification.application.name})`}
+                    />
+                )}
+                {recentRuns.data.items.length !== 0 ? null : <div>No jobs running.</div>}
             </Flex>
         )}
 
         {active !== "Resources" ? null : (<ResourceLinks />)}
 
         {active !== "Admin" ? null : (<AdminLinks />)}
-    </div>;
+    </div >;
+}
+
+function AppTitleAndLogo({name, title, to}): JSX.Element {
+    return <Link to={to}>
+        <Flex alignItems={"center"}>
+            <Flex
+                p="2px"
+                mr="4px"
+                justifyContent="center"
+                alignItems="center"
+                backgroundColor="var(--fixedWhite)"
+                width="16px"
+                height="16px"
+                borderRadius="4px"
+            >
+                <AppToolLogo size="12px" name={name} type="APPLICATION" />
+            </Flex>
+            <Truncate color="#fff">
+                {title}
+            </Truncate>
+        </Flex>
+    </Link>
 }
 
 function Username(): JSX.Element | null {

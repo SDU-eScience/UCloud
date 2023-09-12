@@ -12,10 +12,10 @@ export enum ResourceOptions {
 }
 
 export const sidebarLinks: LinkInfo[] = [
-    {icon: "networkWiredSolid", text: ResourceOptions.PUBLIC_IP, to: AppRoutes.resources.publicIps()},
-    {icon: "globeEuropeSolid", text: ResourceOptions.PUBLIC_LINKS, to: AppRoutes.resources.publicLinks()},
-    {icon: "license", text: ResourceOptions.LICENSES, to: AppRoutes.resources.licenses()},
-    {icon: "key", text: ResourceOptions.SSH_KEYS, to: AppRoutes.resources.sshKeys()}
+    {icon: "heroGlobeEuropeAfrica", text: ResourceOptions.PUBLIC_IP, to: AppRoutes.resources.publicIps()},
+    {icon: "heroLink", text: ResourceOptions.PUBLIC_LINKS, to: AppRoutes.resources.publicLinks()},
+    {icon: "heroDocumentCheck", text: ResourceOptions.LICENSES, to: AppRoutes.resources.licenses()},
+    {icon: "heroKey", text: ResourceOptions.SSH_KEYS, to: AppRoutes.resources.sshKeys()}
 ];
 
 export function ResourceLinks() {

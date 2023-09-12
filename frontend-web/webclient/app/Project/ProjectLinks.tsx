@@ -16,37 +16,37 @@ export function ProjectLinks(): JSX.Element {
         result.push({
             to: AppRoutes.project.members(),
             text: "Members",
-            icon: "projects",
-            disabled: isPersonalWorkspace,
+            icon: "heroUsers",
+            removed: isPersonalWorkspace,
         })
         result.push({
             to: AppRoutes.project.usage(),
             text: "Resource Usage",
-            icon: "projects"
+            icon: "heroChartPie"
         });
         result.push({
             to: AppRoutes.project.allocations(),
             text: "Resource Allocations",
-            icon: "projects",
+            icon: "heroBanknotes",
         });
         result.push({
             to: AppRoutes.project.grantsOutgoing(),
             text: "Grant Applications",
-            icon: "projects",
+            icon: "heroDocumentText",
         });
         if (adminOrPi) {
             result.push({
                 to: AppRoutes.project.settings(""),
                 text: "Settings",
-                icon: "projects",
-                disabled: isPersonalWorkspace
+                icon: "heroWrenchScrewdriver",
+                removed: isPersonalWorkspace
             });
         }
         result.push({
             to: AppRoutes.project.subprojects(),
             text: "Subprojects",
-            icon: "projects",
-            disabled: isPersonalWorkspace
+            icon: "heroUserGroup",
+            removed: isPersonalWorkspace
         });
         return result;
     }, [activeProjectId, project]);

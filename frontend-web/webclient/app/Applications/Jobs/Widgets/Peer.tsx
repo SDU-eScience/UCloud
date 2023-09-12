@@ -11,9 +11,8 @@ import Label from "@/ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {JobBrowse} from "@/Applications/Jobs/Browse";
-import {BrowseType} from "@/Resource/BrowseType";
 import {checkProviderMismatch} from "../Create";
+import ExperimentalJobs from "../ExperimentalJobs";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -37,6 +36,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
             <Label>
                 Job
             </Label>
+
             <JobSelector
                 parameter={props.parameter}
                 suggestedApplication={props.parameter.suggestedApplication}
@@ -107,7 +107,11 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         }
     }, [props.suggestedApplication, allowAutoConfigure]);
 
-    const filters = useMemo(() => ({filterState: "RUNNING"}), []);
+    const filters = useMemo(() => {
+        const fi = ({filterState: "RUNNING"})
+        if (props.suggestedApplication) fi["filterApplication"] = props.suggestedApplication;
+        return fi;
+    }, [props.suggestedApplication]);
 
     return (<Flex>
         <Input
@@ -126,27 +130,32 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <JobBrowse
-                additionalFilters={filters}
-                onSelectRestriction={job => {
-                    const errorMessage = checkProviderMismatch(job, "Jobs");
-                    if (errorMessage) return errorMessage;
-                    return true;
-                }}
-                onSelect={job => {
-                    const el = document.getElementById(widgetId(props.parameter) + "job");
-                    if (el) {
-                        (el as HTMLInputElement).value = job.id;
+            <ExperimentalJobs
+                opts={{
+                    additionalFilters: filters,
+                    embedded: true,
+                    selection: {
+                        onSelectRestriction(job) {
+                            const errorMessage = checkProviderMismatch(job, "Jobs");
+                            if (errorMessage) return errorMessage;
+                            return true;
+                        },
+                        onSelect(job) {
+                            const el = document.getElementById(widgetId(props.parameter) + "job");
+                            if (el) {
+                                (el as HTMLInputElement).value = job.id;
+                            }
+                            WidgetSetProvider({name: props.parameter.name + "job"}, job.specification.product.provider);
+                            if (props.errors[props.parameter.name]) {
+                                delete props.errors[props.parameter.name];
+                                props.setErrors({...props.errors});
+                            }
+                            setAllowAutoConfigure(false);
+                            doClose();
+
+                        }
                     }
-                    WidgetSetProvider({name: props.parameter.name + "job"}, job.specification.product.provider);
-                    if (props.errors[props.parameter.name]) {
-                        delete props.errors[props.parameter.name];
-                        props.setErrors({...props.errors});
-                    }
-                    setAllowAutoConfigure(false);
-                    doClose();
                 }}
-                browseType={BrowseType.Embedded}
             />
         </ReactModal>
     </Flex>);

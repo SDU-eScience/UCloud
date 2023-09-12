@@ -18,6 +18,7 @@ import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
 import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import Error from "./Error";
+import Input from "./Input";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
@@ -77,15 +78,15 @@ export default function Support(): JSX.Element {
             onTriggerClick={fetchStatus}
             trigger={(
                 <Flex width="48px" justifyContent="center">
-                    <Icon name={"chat"} size="18px" color="headerIconColor" color2="headerBg" />
+                    <Icon name={"heroChatBubbleLeftEllipsis"} size="24px" color="fixedWhite" />
                 </Flex>
             )}
             width="650px"
             left="calc(var(--sidebarWidth))"
             bottom="-60px"
         >
-            <div>
-                <Box width="100%" pr={"16px"} color="text">
+            <div style={{cursor: "default"}}>
+                <Box width="100%" pb="6px" color="text">
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
                         right={<>
@@ -98,7 +99,7 @@ export default function Support(): JSX.Element {
                                 </ExternalLink>
                             )}
                             {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                                <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                                <ExternalLink hoverColor={"textHighlight"} href={CONF.SITE_DOCUMENTATION_URL}>
                                     <Icon name="docs" mr=".5em" />Documentation
                                 </ExternalLink>
                             )}
@@ -110,7 +111,7 @@ export default function Support(): JSX.Element {
                     </Box>)}
 
                     <Flex mt="8px">
-                        <Label>
+                        <Label cursor="pointer">
                             <Radio
                                 checked={type === SupportType.SUGGESTION}
                                 onChange={setSuggestion}
@@ -118,7 +119,7 @@ export default function Support(): JSX.Element {
                             <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
                             Suggestion
                         </Label>
-                        <Label>
+                        <Label cursor="pointer">
                             <Radio
                                 checked={type === SupportType.BUG}
                                 onChange={setBug}
@@ -130,7 +131,7 @@ export default function Support(): JSX.Element {
 
                     <form onSubmit={onSubmit}>
                         <TextDiv mt="10px"> Subject </TextDiv>
-                        <TextArea width="100%" inputRef={titleArea} rows={1} />
+                        <Input width="100%" inputRef={titleArea} />
                         <TextDiv mt="10px">
                             {type === SupportType.BUG ? "Describe your problem below and we will investigate it." :
                                 "Describe your suggestion and we will look into it."

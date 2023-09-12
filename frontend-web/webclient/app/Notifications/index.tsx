@@ -350,10 +350,9 @@ export const Notifications: React.FunctionComponent = () => {
                 <Flex justifyContent="center" width="48px">
                     <Icon
                         cursor="pointer"
-                        size={"18px"}
-                        name="notification"
-                        color="headerIconColor"
-                        color2="headerIconColor2"
+                        size={"24px"}
+                        name="heroBell"
+                        color="fixedWhite"
                     />
                 </Flex>
                 {unreadLength > 0 ? (
@@ -382,7 +381,7 @@ export const Notifications: React.FunctionComponent = () => {
             <div className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
-                    <Icon name="checkDouble" className="read-all" color="iconColor" color2="iconColor2"
+                    <Icon name="checkDouble" className="read-all" cursor="pointer" color="iconColor" color2="iconColor2"
                         onClick={markAllAsRead} />
                 </div>
 
@@ -625,7 +624,7 @@ export const NotificationDashboardCard: React.FunctionComponent = () => {
 
     return <HighlightedCard
         color="darkGreen"
-        icon="notification"
+        icon="heroBell"
         title="Recent notifications"
         subtitle={
             <Icon name="checkDouble" color="iconColor" color2="iconColor2" title="Mark all as read" cursor="pointer"

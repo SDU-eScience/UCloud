@@ -13,13 +13,14 @@ export type FlexCProps =
         style?: CSSProperties;
     };
 
-export const FlexClass = injectStyleSimple("flex", ``);
+export const FlexClass = injectStyleSimple("flex", `
+    display: flex;
+`);
 
 const Flex: React.FunctionComponent<React.PropsWithChildren<FlexCProps>> = props => {
     return <div
         className={classConcat(FlexClass, props.className)}
         style={{
-            display: "flex",
             flexDirection: props.flexDirection,
             flexWrap: props.flexWrap,
             gap: props.gap,

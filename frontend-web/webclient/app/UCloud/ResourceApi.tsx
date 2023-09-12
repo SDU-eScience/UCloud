@@ -222,7 +222,7 @@ export abstract class ResourceApi<Res extends Resource,
                 text: "Use",
                 primary: true,
                 icon: "check",
-                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) ?? true),
+                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) === true ?? true),
                 canAppearInLocation: loc => loc === "IN_ROW",
                 onClick: (selected, cb) => {
                     cb.onSelect!(selected[0]);

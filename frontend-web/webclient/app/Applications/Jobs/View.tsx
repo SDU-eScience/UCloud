@@ -1,5 +1,5 @@
 import * as React from "react";
-import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -37,8 +37,6 @@ import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {costOfDuration, ProductCompute, usageExplainer} from "@/Accounting";
-import {FilesBrowse} from "@/Files/Files";
-import {BrowseType} from "@/Resource/BrowseType";
 import {prettyFilePath} from "@/Files/FilePath";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {SillyParser} from "@/Utilities/SillyParser";
@@ -804,9 +802,12 @@ function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} 
     return <div
         style={{
             ...unbox(props),
-            gridTemplateColumns: `repeat(auto-fit, minmax(${props.minButtonWidth}, max-content))`
+            display: "flex",
+            gap: "8px"
         }}
-    />
+    >
+        {props.children}
+    </div>
 }
 
 const AltButtonGroupClass = injectStyleSimple("alt-button-group", `
@@ -937,8 +938,7 @@ const RunningContent: React.FunctionComponent<{
     const project = useProject().fetch();
     const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
     const workspaceTitle = Client.hasActiveProject ? project.specification.title : "My workspace";
-    const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
-        const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
+    const extendJob = useCallback(async (duration: number) => {
         if (!commandLoading && expiresAt) {
             setExpiresAt(expiresAt + (3600 * 1000 * duration));
             try {
@@ -1072,11 +1072,11 @@ const RunningContent: React.FunctionComponent<{
                         {!expiresAt || !supportsExtension ? null : <>
                             Extend allocation (hours):
                             <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                <Button data-duration={"1"} onClick={extendJob}>+1</Button>
-                                <Button data-duration={"6"} onClick={extendJob}>+6</Button>
-                                <Button data-duration={"12"} onClick={extendJob}>+12</Button>
-                                <Button data-duration={"24"} onClick={extendJob}>+24</Button>
-                                <Button data-duration={"48"} onClick={extendJob}>+48</Button>
+                                <Button onClick={() => extendJob(1)}>+1</Button>
+                                <Button onClick={() => extendJob(6)}>+6</Button>
+                                <Button onClick={() => extendJob(12)}>+12</Button>
+                                <Button onClick={() => extendJob(24)}>+24</Button>
+                                <Button onClick={() => extendJob(48)}>+48</Button>
                             </AltButtonGroup>
                         </>}
                         {!supportsSuspend ? null :
@@ -1354,8 +1354,12 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
     </div>;
 };
 
-function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | null {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
+    if (!pathRef.current) {
+        console.warn("No output folder found. Showing nothing.");
+        return null;
+    }
     return <div style={{width: "100%", marginTop: "18px"}}>
         <ExperimentalBrowse
             opts={{initialPath: pathRef.current, embedded: true}}

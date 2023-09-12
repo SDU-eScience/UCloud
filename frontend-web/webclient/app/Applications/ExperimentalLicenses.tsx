@@ -10,13 +10,11 @@ import LicenseApi, {License, LicenseSupport} from "@/UCloud/LicenseApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {Product, ProductLicense} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
-import {projectCache} from "@/Project/ContextSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -193,7 +191,7 @@ export function ExperimentalLicenses(): JSX.Element {
                     if (license.id !== DUMMY_ENTRY_ID) {
                         const {product} = license.specification;
                         const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
-                        row.title.append(browser.defaultTitleRenderer(title, dims));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
                     }
                 });
 

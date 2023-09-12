@@ -342,7 +342,7 @@ const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
 }
 
 function AvailableBalance(props: {allocation: WalletAllocation, wallet: Wallet}): JSX.Element {
-    let maxBalance = props.allocation.maxUsableBalance ?? props.allocation.balance
+    let maxBalance = props.allocation.maxUsableBalance ?? props.allocation.balance;
     if ((maxBalance - props.allocation.initialBalance) == (props.allocation.balance - props.allocation.initialBalance)) {
         return <div>
             {usageExplainer(maxBalance, props.wallet.productType, props.wallet.chargeType, props.wallet.unit)} available

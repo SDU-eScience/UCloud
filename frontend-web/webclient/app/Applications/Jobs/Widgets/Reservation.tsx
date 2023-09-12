@@ -124,9 +124,9 @@ export const ReservationParameter: React.FunctionComponent<{
 
         {!application.invocation.allowMultiNode ? null : (
             <>
-                <Flex mb={"1em"}>
+                <Flex pt={"20px"}>
                     <Label>
-                        <Heading.h4>Number of nodes</Heading.h4>
+                        Number of nodes
                         <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost} defaultValue={"1"} />
                     </Label>
                 </Flex>
@@ -145,15 +145,6 @@ export const ReservationParameter: React.FunctionComponent<{
 export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "timeAllocation" | "replicas" | "product">;
 
 export const JobCreateInput = injectStyle("job-or-hours-input", k => `
-    ${k} {
-    }
-
-    ${k}.name-kind {
-    }
-
-    ${k}.hours-kind {
-    }
-
     ${k}::placeholder {
         color: var(--gray);
     }

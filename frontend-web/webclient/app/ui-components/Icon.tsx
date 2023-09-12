@@ -17,6 +17,12 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
         }
     }
 
+    const heroProps = {};
+    if (name.startsWith("hero")) {
+        // heroProps["fill"] = "none";
+        // heroProps["style"] = { ...props.style, "fill": "none" };
+    }
+
     return (
         <Component
             data-component={`icon-${name}`}
@@ -24,6 +30,7 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
             height={squared ? size : undefined }
             color2={color2 ? theme.colors[color2] : undefined}
             {...props}
+            {...heroProps}
         />
     );
 };

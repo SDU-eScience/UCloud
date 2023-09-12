@@ -34,6 +34,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     }
     
     ${k}[data-square="true"] {
+        border-radius: 0;
         min-width: 200px;
         font-weight: 400;
     }
@@ -408,7 +409,10 @@ export function ConfirmationButtonPlainHTML(
         button.setAttribute("data-fullwidth", "false");
         button.setAttribute("data-size", "standard");
         button.style.removeProperty("background-color");
-        if (opts.disabled) button.disabled = opts.disabled;
+        if (opts.disabled) {
+            button.disabled = opts.disabled;
+            button.style.filter = "brightness(50%)";
+        }
     }
 
 
@@ -478,7 +482,6 @@ export function ConfirmationButtonPlainHTML(
     button.ontouchend = end;
     button.onclick = e => e.stopImmediatePropagation();
     button.type = "button";
-    if (opts.asSquare) button.style.borderRadius = "0";
 
     const divEl = document.createElement("div");
     divEl.className = "ucloud-native-icons";

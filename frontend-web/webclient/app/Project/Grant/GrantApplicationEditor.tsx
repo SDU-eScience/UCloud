@@ -41,7 +41,7 @@ import {
     RetrieveDescriptionResponse,
 } from "@/Project/Grant/index";
 import {useNavigate, useParams} from "react-router";
-import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
+import {dateToString, getEndOfDay, getStartOfDay} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType} from "@/UserSettings/Avataaar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
@@ -57,7 +57,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {ButtonGroup, Divider, Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
-import {format} from "date-fns";
+import {format, isValid} from "date-fns";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {
     AllocationRequest,
@@ -257,7 +257,7 @@ const GenericRequestCard: React.FunctionComponent<{
     allocationRequest?: AllocationRequest;
 }> = ({wb, grantFinalized, isLocked, wallets, isApprover, allocationRequest, projectId, ...props}) => {
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [endDate, setEndDate] = useState<Date>(getEndOfDay(new Date()));
 
     const canEdit = isApprover || props.isRecipient;
 
@@ -270,9 +270,20 @@ const GenericRequestCard: React.FunctionComponent<{
     React.useEffect(() => {
         if (endDate == null) return;
         if (endDate < startDate) {
-            setEndDate(null);
+            snackbarStore.addFailure("End date cannot be before start date.", false);
+            setEndDate(getEndOfDay(startDate));
         }
     }, [startDate, endDate]);
+
+    if (!isValid(startDate)) {
+        setStartDate(getStartOfDay(new Date()));
+        return null;
+    }
+
+    if (!isValid(endDate)) {
+        setEndDate(getEndOfDay(new Date()));
+        return null;
+    }
 
     if (wb.metadata.freeToUse) {
         // Note(Jonas): freeToUse should be sorted out at this point. See `AsProductType`-component.
@@ -341,12 +352,12 @@ const GenericRequestCard: React.FunctionComponent<{
                                         selectsEnd
                                         startDate={startDate}
                                         endDate={endDate}
-                                        isClearable={endDate != null}
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
-                                        placeholderText={isLocked ? undefined : "End date..."}
-                                        value={endDate ? format(endDate, "dd/MM/yy") : undefined}
+                                        placeholderText={"End date..."}
+                                        required={isApprover}
+                                        value={format(endDate, "dd/MM/yy")}
                                         disabled={grantFinalized || isLocked || !canEdit}
-                                        onChange={date => setEndDate(date as (Date | null))}
+                                        onChange={date => setEndDate(date as Date)}
                                         className={productCategoryEndDate(wb.metadata.category, projectId)}
                                     />
                                 </Flex>
@@ -477,7 +488,7 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
                 <TableCell width="200px">
                     {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.unit)}
                     {" "}
-                    {explainUsage(wallet.productType, wallet.chargeType, wallet.unit)}
+                    {explainUsage(wallet.productType, wallet.unit)}
                 </TableCell>
                 <TableCell width="45px">{a.id}</TableCell>
             </TableRow>
@@ -1119,7 +1130,8 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             <ClickableDropdown
                 fullWidth
                 colorOnHover={false}
-                trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="18px" ml=".7em" color={"darkGray"} /></Flex>}
+                chevron
+                trigger={<Heading.h2>Select grant giver</Heading.h2>}
             >
                 <div className={Wrapper}>
                     <Table>
@@ -1185,8 +1197,8 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
             }
 
             main={<>
-                {target !== RequestTarget.VIEW_APPLICATION ? (
-                    <Flex mx="auto" my="8px">
+                <Flex mx="auto" my="8px">
+                    {target !== RequestTarget.VIEW_APPLICATION ? (<>
                         <Button ml="auto" mr={target === RequestTarget.NEW_PROJECT ? "auto" : undefined} disabled={grantFinalized || submitLoading} onClick={submitRequest}>
                             Submit Application
                         </Button>
@@ -1195,35 +1207,37 @@ export function GrantApplicationEditor(props: {target: RequestTarget}) {
                                 Apply for new project instead
                             </Button>
                         )}
-                    </Flex>
-                ) : null}
-                {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
-                    isLocked ? (
-                        (isRecipient || isApprover ?
-                            <Button fullWidth disabled={loading} onClick={() => setIsLocked(false)}>
-                                Edit this request
-                            </Button> :
-                            <Tooltip trigger={<Button fullWidth disabled>
-                                Edit this request
-                            </Button>}
-                            >
-                                {infoTextFromContext(recipient)}
-                            </Tooltip>
+                    </>) : null}
+
+                    {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
+                        isLocked ? (
+                            (isRecipient || isApprover ?
+                                <Button mx="auto" disabled={loading} onClick={() => setIsLocked(false)}>
+                                    Edit this request
+                                </Button> :
+                                <Tooltip trigger={<Button mx="auto" disabled>
+                                    Edit this request
+                                </Button>}
+                                >
+                                    {infoTextFromContext(recipient)}
+                                </Tooltip>
+                            )
+                        ) : (
+                            <>
+                                <Button
+                                    ml="auto"
+                                    mr="8px"
+                                    color={"green"}
+                                    disabled={loading}
+                                    onClick={() => editApplication()}
+                                >
+                                    Save Changes
+                                </Button>
+                                <Button mr="auto" color={"red"} onClick={discardChanges}>Discard changes</Button>
+                            </>
                         )
-                    ) : (
-                        <>
-                            <Button
-                                color={"green"}
-                                fullWidth
-                                disabled={loading}
-                                onClick={() => editApplication()}
-                            >
-                                Save Changes
-                            </Button>
-                            <Button my="4px" fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
-                        </>
-                    )
-                )}
+                    )}
+                </Flex>
                 {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
                     <Button
                         mt="4px"
@@ -2155,12 +2169,12 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
 
             const first = document.getElementsByClassName(
                 productCategoryStartDate(wb.metadata.category, grantGiver)
-            )?.[0] as HTMLInputElement;
+            )?.[0]?.querySelector(":scope input") as HTMLInputElement;
             const start = parseDateFromInput(first);
 
             const second = document.getElementsByClassName(
                 productCategoryEndDate(wb.metadata.category, grantGiver)
-            )?.[0] as HTMLInputElement;
+            )?.[0]?.querySelector(":scope input") as HTMLInputElement;
             const end = parseDateFromInput(second);
 
             const allocation = document.querySelector<HTMLInputElement>(
@@ -2187,7 +2201,7 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
                 sourceAllocation,
                 period: {
                     start,
-                    end: end ?? null
+                    end
                 }
             } as AllocationRequest;
         }).filter(it => it != null)

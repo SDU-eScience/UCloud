@@ -15,11 +15,11 @@ export interface BaseLinkProps extends BoxProps {
 
 export const BaseLinkClass = injectStyle("base-link", k => `
     ${k} {
+        --hoverColor: var(--textHighlight);
+        --textColor: var(--text);
         cursor: pointer;
         text-decoration: none;
         color: var(--text);
-        
-        --hoverColor: var(--textHighlight);
     }
     
     ${k}:hover {
@@ -29,7 +29,11 @@ export const BaseLinkClass = injectStyle("base-link", k => `
 
 const BaseLink: React.FunctionComponent<BaseLinkProps> = props => {
     const style: CSSProperties = unbox(props);
+    delete style.color; // Overrides color in hover if present.
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
+    if (props.color && typeof props.color === "string") {
+        style["--textColor"] = `var(--${props.color})`;
+    }
 
     return <a
         className={BaseLinkClass}

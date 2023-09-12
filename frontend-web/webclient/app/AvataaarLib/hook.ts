@@ -16,6 +16,11 @@ class AvatarState extends UState<AvatarState> {
             const newCache = response !== null ? {...this.cache, ...response.avatars} : this.cache;
             if (response !== null) {
                 this.cache = newCache;
+                for (const username of usernamesToUse) {
+                    if (this.cache[username] == null) {
+                        this.cache[username] = defaultAvatar;
+                    }
+                }
             }
         });
     }

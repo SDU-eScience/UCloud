@@ -276,8 +276,7 @@ export function defaultErrorHandler(
  * @param onFailure Method called if fullscreen can't be done.
  */
 export function requestFullScreen(el: Element, onFailure: () => void): void {
-    // @ts-expect-error - Handles the fullscreen request for Safari.
-    if (el.webkitRequestFullScreen) el.webkitRequestFullScreen();
+    if (el["webkitRequestFullScreen"]) el["webkitRequestFullScreen"]();
     else if (el.requestFullscreen) el.requestFullscreen();
     else onFailure();
 }
@@ -321,8 +320,8 @@ interface CopyToClipboard {
  * Copies a string to the users clipboard.
  * @param param contains the value to be copied and the message to show the user on success.
  */
-export function copyToClipboard({value, message}: CopyToClipboard): void {
-    navigator.clipboard.writeText(value ?? "");
+export async function copyToClipboard({value, message}: CopyToClipboard): Promise<void> {
+    await navigator.clipboard.writeText(value ?? "");
     if (message) snackbarStore.addSuccess(message, false);
 }
 
@@ -358,6 +357,27 @@ export function delay(ms: number): Promise<void> {
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
 export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
     || window.location.hostname === "127.0.0.1";
+
+// Note(Jonas): This code adds an event listener on localhost and the dev site. With my current setup, I get logged out on
+// retrieving a new JWT, so this solution will allow my to more quickly fetch the token values from `dev`, and copy them to my
+// localhost run on my machine.
+if (onDevSite()) {
+    document.body.addEventListener("keydown", async e => {
+        if (e.altKey) {
+            if (e.code === "KeyK") {
+                await navigator.clipboard.writeText(`localStorage.accessToken="${localStorage.accessToken}";localStorage.csrfToken="${localStorage.csrfToken}";`);
+                snackbarStore.addFailure("Copied CSRF and access token to clipboard", false);
+            } else if (e.code === "KeyL") {
+
+                // Not allowed on Firefox!
+                // const [accessToken, csrfToken] = (await navigator.clipboard.readText()).split("\n");
+                // localStorage.setItem("accessToken", accessToken);
+                // localStorage.setItem("csrfToken", csrfToken);
+                // window.location.reload();
+            } 
+        } 
+    });
+}
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();

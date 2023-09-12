@@ -157,16 +157,16 @@ const colors: ThemeColor[] = [
 ];
 
 export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
-    return (<Flex>
+    return (<Flex zIndex={"1"}>
         <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
         <Box width="32px"><RefreshThing /></Box>
-        <Box width="150px"><ContextSwitcher /></Box>
+        <Box width="200px"><ContextSwitcher /></Box>
     </Flex>);
 }
 
 function SearchThing({enabled}): JSX.Element | null {
     if (!enabled) return null;
-    return <Icon size={20} color="var(--blue)" name="search" />
+    return <Icon size={20} color="var(--blue)" name="heroMagnifyingGlass" />
 }
 
 function RefreshThing(): JSX.Element | null {
@@ -174,7 +174,7 @@ function RefreshThing(): JSX.Element | null {
     const spin = useSelector((it: ReduxObject) => it.loading);
     const loading = useSelector((it: ReduxObject) => it.status.loading);
     if (!refresh) return null;
-    return <Icon cursor="pointer" size={20} onClick={refresh} spin={spin || loading} hoverColor="blue" color="var(--blue)" name="refresh" />
+    return <Icon cursor="pointer" size={20} onClick={refresh} spin={spin || loading} hoverColor="blue" color="var(--blue)" name="heroArrowPath" />
 }
 
 export default Playground;

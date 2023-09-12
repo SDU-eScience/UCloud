@@ -1,9 +1,9 @@
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {isLightThemeStored} from "@/UtilityFunctions";
 import * as React from "react";
 
 export function TermAndShellWrapper(props: React.PropsWithChildren<{addPadding: boolean}>) {
-    return <div className={TermAndShellWrapperClass + isLightThemeStored() ? "light" : "dark"} data-add-padding={props.addPadding}>
+    return <div className={classConcat(TermAndShellWrapperClass, isLightThemeStored() ? "light" : "dark")} data-add-padding={props.addPadding}>
         {props.children}
     </div>
 }

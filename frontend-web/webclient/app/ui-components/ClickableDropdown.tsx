@@ -5,6 +5,7 @@ import * as Text from "@/ui-components/Text";
 import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
 import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {FlexClass} from "./Flex";
 
 export interface ClickableDropdownProps<T> {
     trigger: React.ReactNode;
@@ -196,13 +197,14 @@ const ClickableDropdown: ClickableDropdownType =
             <Dropdown data-tag="dropdown" divRef={dropdownRef} fullWidth={props.fullWidth}>
                 <Text.TextSpan
                     cursor="pointer"
+                    className={FlexClass}
                     onClick={e => {
                         e.preventDefault();
                         e.stopPropagation();
                         toggle(e);
                     }}
                 >
-                    {props.trigger}{props.chevron ? <Icon name="chevronDownLight" size="1em" ml=".7em" color={"darkGray"} /> : null}
+                    {props.trigger}{props.chevron ? <Icon name="chevronDownLight" my="auto" size="1em" ml=".7em" color={"darkGray"} /> : null}
                 </Text.TextSpan>
                 {emptyChildren || !open ? null : (
                     props.useMousePositioning ?
