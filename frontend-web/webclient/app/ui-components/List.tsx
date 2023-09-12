@@ -83,7 +83,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}
         onClick={doSelect}
-        style={{fontSize: props.fontSize ?? "20px"}}
+        style={{fontSize: props.fontSize ?? "14px"}}
         onContextMenu={props.onContextMenu}
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
@@ -127,7 +127,6 @@ const ListRowClass = injectStyle("list-item", k => `
     ${k} {
         padding: 5px 0;
         width: 100%;
-        height: 56px;
         align-items: center;
         display: flex;
     }

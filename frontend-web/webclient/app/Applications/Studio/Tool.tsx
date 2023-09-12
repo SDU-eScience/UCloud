@@ -50,49 +50,54 @@ export const Tool: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={(
-                <Heading.h2 style={{margin: 0}}>
-                    <AppToolLogo type={"TOOL"} name={name} size={"64px"} />
-                    {" "}
-                    {toolTitle}
-                </Heading.h2>
+                <Flex justifyContent="space-between">
+                    <Heading.h2 style={{margin: 0}}>
+                        <AppToolLogo type={"TOOL"} name={name} size={"64px"} />
+                        {" "}
+                        {toolTitle}
+                    </Heading.h2>
+
+                    <Flex>
+                        <label className={ButtonClass}>
+                            Upload Logo
+                            <HiddenInputField
+                                type="file"
+                                onChange={async e => {
+                                    const target = e.target;
+                                    if (target.files) {
+                                        const file = target.files[0];
+                                        target.value = "";
+                                        if (file.size > 1024 * 1024 * 5) {
+                                            snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
+                                        } else {
+                                            if (await uploadLogo({name, file, type: "TOOL"})) {
+                                                setLogoCacheBust("" + Date.now());
+                                            }
+                                        }
+                                        dialogStore.success();
+                                    }
+                                }}
+                            />
+                        </label>
+
+                        <Button
+                            mx="10px"
+                            type="button"
+                            color="red"
+                            disabled={commandLoading}
+                            onClick={async () => {
+                                await invokeCommand(clearLogo({type: "TOOL", name}));
+                                setLogoCacheBust("" + Date.now());
+                            }}
+                        >
+                            Remove Logo
+                        </Button>
+                    </Flex>
+                </Flex>
             )}
             headerSize={86}
             main={(
                 <>
-                    <label className={ButtonClass}>
-                        Upload Logo
-                        <HiddenInputField
-                            type="file"
-                            onChange={async e => {
-                                const target = e.target;
-                                if (target.files) {
-                                    const file = target.files[0];
-                                    target.value = "";
-                                    if (file.size > 1024 * 1024 * 5) {
-                                        snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
-                                    } else {
-                                        if (await uploadLogo({name, file, type: "TOOL"})) {
-                                            setLogoCacheBust("" + Date.now());
-                                        }
-                                    }
-                                    dialogStore.success();
-                                }
-                            }}
-                        />
-                    </label>
-
-                    <Button
-                        type="button"
-                        color="red"
-                        disabled={commandLoading}
-                        onClick={async () => {
-                            await invokeCommand(clearLogo({type: "TOOL", name}));
-                            setLogoCacheBust("" + Date.now());
-                        }}
-                    >
-                        Remove Logo
-                    </Button>
-
                     The following applications are currently using this tool, click on any to configure them further:
 
                     <Pagination.List

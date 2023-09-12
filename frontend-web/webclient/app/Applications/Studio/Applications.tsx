@@ -209,47 +209,51 @@ export const App: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={(
-                <Heading.h1>
-                    <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} />
-                    {" "}
-                    {appTitle}
-                </Heading.h1>
+                <Flex justifyContent="space-between">
+                    <Heading.h2 style={{margin: 0}}>
+                        <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} />
+                        {" "}
+                        {appTitle}
+                    </Heading.h2>
+                    <Flex>
+                        <label className={ButtonClass}>
+                            Upload Logo
+                            <HiddenInputField
+                                type="file"
+                                onChange={async e => {
+                                    const target = e.target;
+                                    if (target.files) {
+                                        const file = target.files[0];
+                                        target.value = "";
+                                        if (file.size > 1024 * 512) {
+                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                        } else {
+                                            if (await uploadLogo({name, file, type: "APPLICATION"})) {
+                                                setLogoCacheBust("" + Date.now());
+                                            }
+                                        }
+                                        dialogStore.success();
+                                    }
+                                }}
+                            />
+                        </label>
+
+                        <Button
+                            mx="10px"
+                            type="button"
+                            color="red"
+                            disabled={commandLoading}
+                            onClick={async () => {
+                                await invokeCommand(clearLogo({type: "APPLICATION", name}));
+                                setLogoCacheBust("" + Date.now());
+                            }}
+                        >
+                            Remove Logo
+                        </Button>
+                    </Flex>
+                </Flex>
             )}
             main={(<>
-                <label className={ButtonClass}>
-                    Upload Logo
-                    <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 512) {
-                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                } else {
-                                    if (await uploadLogo({name, file, type: "APPLICATION"})) {
-                                        setLogoCacheBust("" + Date.now());
-                                    }
-                                }
-                                dialogStore.success();
-                            }
-                        }}
-                    />
-                </label>
-
-                <Button
-                    type="button"
-                    color="red"
-                    disabled={commandLoading}
-                    onClick={async () => {
-                        await invokeCommand(clearLogo({type: "APPLICATION", name}));
-                        setLogoCacheBust("" + Date.now());
-                    }}
-                >
-                    Remove Logo
-                </Button>
-
                 <Flex flexDirection="column">
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <form

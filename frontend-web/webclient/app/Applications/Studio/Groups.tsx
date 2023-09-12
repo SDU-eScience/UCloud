@@ -1,5 +1,5 @@
 import MainContainer from "@/MainContainer/MainContainer";
-import {Box, Button, Flex, Icon, Input, List} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Link, List} from "@/ui-components";
 import {ItemRow} from "@/ui-components/Browse";
 import React, {useCallback, useEffect} from "react";
 import {ApplicationGroup, createGroup, deleteGroup, listGroups} from "../api";
@@ -8,6 +8,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
 import {AppToolLogo} from "../AppToolLogo";
+import {ListRow} from "@/ui-components/List";
 
 
 export const ApplicationGroups: React.FunctionComponent = () => {
@@ -74,21 +75,22 @@ export const ApplicationGroups: React.FunctionComponent = () => {
 
                 <List width="100%">
                     {results.map(group => (
-                        <Flex key={group.id} justifyContent="space-between" pt="5px" pb="5px">
-                            <Flex justifyContent="left">
-                                <AppToolLogo name={group.id.toString()} type="GROUP" size="25px" />
-                                <Box ml="10px">
-                                    {group.title}
-                                </Box>
-                            </Flex>
-                            <Flex justifyContent="right">
-                                <Button onClick={() => navigate(`/applications/studio/g/${group.id}`)} height="25px" mr="5px"><Icon name="edit" /></Button>
+                        <ListRow
+                            navigate={() => navigate(`/applications/studio/g/${group.id}`)} 
+                            left={
+                                <Flex justifyContent="left">
+                                        <AppToolLogo name={group.id.toString()} type="GROUP" size="25px" />
+                                        <Box ml="10px">
+                                            {group.title}
+                                        </Box>
+                                </Flex>
+                            } right={
                                 <Button onClick={() => {
                                     invokeCommand(deleteGroup({id: group.id}));
                                     refresh();
                                 }} height="25px" color="red"><Icon name="trash" /></Button>
-                            </Flex>
-                        </Flex>
+                            }
+                        />
                     ))}
                 </List>
             </Box>
