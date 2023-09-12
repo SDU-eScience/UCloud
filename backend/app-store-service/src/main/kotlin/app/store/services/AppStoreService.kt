@@ -1532,12 +1532,16 @@ internal fun RowData.toApplicationSummary(): ApplicationSummary {
 }
 
 internal fun RowData.defaultApplication(): NameAndVersion? {
-    val defaultName = this.getString("default_name")
-    val defaultVersion = this.getString("default_version")
+    return try {
+        val defaultName = this.getString("default_name")
+        val defaultVersion = this.getString("default_version")
 
-    return if (defaultName != null && defaultVersion != null) {
-        NameAndVersion(defaultName, defaultVersion)
-    } else {
+        if (defaultName != null && defaultVersion != null) {
+            NameAndVersion(defaultName, defaultVersion)
+        } else {
+            null
+        }
+    } catch (e: Exception) {
         null
     }
 }
