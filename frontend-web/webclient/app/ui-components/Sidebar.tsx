@@ -556,23 +556,27 @@ function SecondarySidebar({
         {active !== "Workspace" ? null : (<ProjectLinks />)}
 
         {active !== "Applications" ? null :
-            <Flex flexDirection={"column"}>
-                {appStoreSections.data.sections.map(section =>
-                    <Link key={section.id} to={`/applications/full#section${section.id}`}>{section.name}</Link>
-                )}
+            <Flex flexDirection={"column"} gap="16px">
+                <div>
+                    {appStoreSections.data.sections.map(section =>
+                        <Link key={section.id} to={`/applications/full#section${section.id}`}>{section.name}</Link>
+                    )}
+                </div>
 
-                <h3 className={"no-link"}>Favorite apps</h3>
+                <div>
+                    <h3 className={"no-link"}>Favorite apps</h3>
 
-                {appFavorites.map(it =>
-                    <AppTitleAndLogo
-                        key={it.metadata.name + it.metadata.version}
-                        to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
-                        name={it.metadata.name}
-                        title={it.metadata.title}
-                    />
-                )}
+                    {appFavorites.map(it =>
+                        <AppTitleAndLogo
+                            key={it.metadata.name + it.metadata.version}
+                            to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
+                            name={it.metadata.name}
+                            title={it.metadata.title}
+                        />
+                    )}
 
-                {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
+                    {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
+                </div>
             </Flex>
         }
 
