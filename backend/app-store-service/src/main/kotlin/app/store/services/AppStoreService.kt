@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.store.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.CreateGroupResponse
 import dk.sdu.cloud.app.store.api.Project
 import dk.sdu.cloud.app.store.api.ProjectGroup
 import dk.sdu.cloud.app.store.services.acl.*
@@ -712,8 +713,8 @@ class AppStoreService(
         )
     }
 
-    suspend fun createGroup(actorAndProject: ActorAndProject, title: String) {
-        db.withSession { session ->
+    suspend fun createGroup(actorAndProject: ActorAndProject, title: String): CreateGroupResponse {
+        return db.withSession { session ->
             val existing = session.sendPreparedStatement(
                 {
                     setParameter("title", title.lowercase())
@@ -727,14 +728,18 @@ class AppStoreService(
                 throw RPCException("Group with name $title already exists", HttpStatusCode.BadRequest)
             }
 
-            session.sendPreparedStatement(
+            val id = session.sendPreparedStatement(
                 {
                     setParameter("title", title)
                 },
                 """
                     insert into app_store.application_groups (title) values (:title)
+                    returning id
                 """
-            )
+            ).rows.first().getInt("id")
+                ?: throw RPCException("Failed to create group", HttpStatusCode.BadRequest)
+
+            CreateGroupResponse(id)
         }
     }
 

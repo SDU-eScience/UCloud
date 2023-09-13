@@ -210,7 +210,10 @@ data class CreateGroupRequest(
     val title: String
 )
 
-typealias CreateGroupResponse = Unit
+@Serializable
+data class CreateGroupResponse(
+    val id: Int
+)
 
 @Serializable
 data class DeleteGroupRequest(
