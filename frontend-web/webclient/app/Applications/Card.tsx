@@ -77,48 +77,6 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
     }
 `);
 
-/*export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const defaultApp = props.defaultApplication;
-    return (
-        <Link className={AppCardBase} to={defaultApp ? Pages.runApplication(defaultApp) : Pages.runApplication({name: "", version: ""})}>
-            <Box mr={16}>
-                <AppToolLogo name={defaultApp?.name ?? ""} type={"APPLICATION"} size={"32px"} />
-            </Box>
-            <b>{props.app.title}</b>
-            <EllipsedText>
-                <Markdown
-                    disallowedElements={[
-                        "break",
-                        "paragraph",
-                        "emphasis",
-                        "strong",
-                        "thematicBreak",
-                        "blockquote",
-                        "delete",
-                        "link",
-                        "image",
-                        "linkReference",
-                        "imageReference",
-                        "table",
-                        "tableRow",
-                        "tableCell",
-                        "list",
-                        "listItem",
-                        "definition",
-                        "heading",
-                        "inlineCode",
-                        "code",
-                        "html"]}
-                    unwrapDisallowed
-                >
-                    {props.app.description ?? ""}
-                </Markdown>
-            </EllipsedText>
-            <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
-        </Link>
-    );
-};*/
-
 export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
     <div style={{
         marginRight: "3px",
