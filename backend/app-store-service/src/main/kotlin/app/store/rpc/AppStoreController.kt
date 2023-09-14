@@ -140,6 +140,10 @@ class AppStoreController(
             ok(Unit)
         }
 
+        implement(AppStore.updateFlavor) {
+            ok(appStore.updateFlavor(actorAndProject, request))
+        }
+
         implement(AppStore.updateLanding) {
             val length = (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
                 ?: throw RPCException("Content-Length required", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
@@ -231,6 +235,7 @@ class AppStoreController(
             }
         }
     }
+
 
     companion object : Loggable {
         override val log = logger()

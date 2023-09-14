@@ -1163,15 +1163,6 @@ class AppStoreService(
     }
 
     suspend fun delete(actorAndProject: ActorAndProject, appName: String, appVersion: String) {
-        val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
-            emptyList()
-        } else {
-            retrieveUserProjectGroups(
-                actorAndProject,
-                authenticatedClient
-            )
-        }
-
         db.withSession { session ->
             // Prevent deletion of last version of application
             val isLast =
@@ -1410,6 +1401,21 @@ class AppStoreService(
         )
     }
 
+    suspend fun updateFlavor(actorAndProject: ActorAndProject, request: UpdateFlavorRequest) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appName", request.applicationName)
+                    setParameter("flavor", request.flavorName)
+                },
+                """
+                update app_store.applications
+                set flavor_name = :flavor
+                where name = :appName
+            """
+            )
+        }
+    }
 
     suspend fun preparePageForUser(
         ctx: DBContext,

@@ -109,6 +109,12 @@ data class ACLEntryRequest(
 )
 
 @Serializable
+data class UpdateFlavorRequest(
+    val applicationName: String,
+    val flavorName: String
+)
+
+@Serializable
 data class SetPublicRequest(
     val appName: String,
     val appVersion: String,
@@ -1090,6 +1096,26 @@ ${ApiConventions.nonConformingApiWarning}
                 +boundTo(RetrieveGroupRequest::id)
                 +boundTo(RetrieveGroupRequest::name)
             }
+        }
+    }
+
+    val updateFlavor = call("updateFlavor", UpdateFlavorRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"updateFlavor"
+            }
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Updates the flavor name for a set of applications"
         }
     }
 

@@ -42,6 +42,13 @@ export interface SetGroupRequest {
 
 export interface SetGroupResponse{}
 
+export interface UpdateFlavorRequest {
+    applicationName: string,
+    flavorName: string
+}
+
+export interface UpdateFlavorResponse{}
+
 export interface ListGroupsRequest {}
 
 export interface UpdateGroupRequest {
@@ -73,8 +80,6 @@ export function retrieveGroup(
     }
 }
 
-
-
 export function createGroup(
     request: CreateGroupRequest 
 ): APICallParameters<CreateGroupRequest, CreateGroupResponse> {
@@ -87,6 +92,21 @@ export function createGroup(
         payload: request
     }
 }
+
+export function updateFlavor(
+    request: UpdateFlavorRequest 
+): APICallParameters<UpdateFlavorRequest, UpdateFlavorResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: buildQueryString("/api/hpc/apps" + "/updateFlavor", {}),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request
+    }
+}
+
+
 
 export function setGroup(
     request: SetGroupRequest 

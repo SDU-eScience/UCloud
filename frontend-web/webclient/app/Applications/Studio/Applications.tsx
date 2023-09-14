@@ -20,7 +20,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, doNothing, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {ApplicationGroup, clearLogo, listGroups, setGroup, updateGroup, uploadLogo} from "@/Applications/api";
+import {ApplicationGroup, clearLogo, listGroups, setGroup, updateFlavor, updateGroup, uploadLogo} from "@/Applications/api";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -200,8 +200,9 @@ export const App: React.FunctionComponent = () => {
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
-    const tags = apps.data.items[0]?.tags ?? [];
+    const flavorName = apps.data.items.length > 0 ? apps.data.items[0].metadata.flavorName ?? appTitle : undefined;
     const userEntityField = React.useRef<HTMLInputElement>(null);
+    const flavorField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
 
@@ -281,6 +282,28 @@ export const App: React.FunctionComponent = () => {
                                     options={allGroups.data}
                                     onSelect={item => setSelectedGroup(item)}
                                 />
+                            </Flex>
+
+                            <Heading.h2>Flavor (name)</Heading.h2>
+                            <Flex>
+                                <Input rightLabel inputRef={flavorField} defaultValue={flavorName} />
+                                <Button
+                                    attached
+                                    onClick={async () => {
+                                        if (commandLoading) return;
+
+                                        const flavorFieldCurrent = flavorField.current;
+                                        if (flavorFieldCurrent === null) return;
+
+                                        const flavorFieldValue = flavorFieldCurrent.value;
+                                        if (flavorFieldValue === "") return;
+
+                                        await invokeCommand(updateFlavor({applicationName: name, flavorName: flavorFieldValue}));
+                                        refresh();
+                                    }}
+                                >
+                                    Save
+                                </Button>
                             </Flex>
                         </form>
                     </Box>
