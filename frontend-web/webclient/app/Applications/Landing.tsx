@@ -266,10 +266,7 @@ const PolygonBackgroundClass = injectStyleSimple("polygon-background", `
     padding-bottom: 75px;
 `);
 
-interface TagGridProps {
-    tag?: string;
-    items: ApplicationGroup[];
-    tagBanList?: string[];
+interface FavoriteAppRowProps {
     favoriteStatus: React.MutableRefObject<FavoriteStatus>;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
     refreshId: number;
@@ -308,7 +305,7 @@ function filterAppsByFavorite(
     }
 }
 
-export function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" | "items" | "tagBanList">): JSX.Element {
+export function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
     const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const filteredItems = React.useMemo(() =>
         filterAppsByFavorite(items, true, [], favoriteStatus),

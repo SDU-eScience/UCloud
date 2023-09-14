@@ -5,10 +5,11 @@ import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
-import {Flex, Grid, Link} from "@/ui-components";
+import {Absolute, Box, Flex, Grid, Link} from "@/ui-components";
 import {AppCard, ApplicationCardType} from "./Card";
 import * as Pages from "./Pages";
 import {LargeSearchBox} from "./Overview";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -27,20 +28,27 @@ const ApplicationsGroup: React.FunctionComponent = () => {
 
     return <MainContainer 
         header={
-            <Flex>
-                <Heading.h1>
-                    <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="64px" />
-                    {" "}
-                    {appGroup.data.group.title}
-                </Heading.h1>
-
-                <LargeSearchBox />
-            </Flex>
+            <>
+                <Flex justifyContent="space-between">
+                    <Heading.h2>
+                        <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="45px" />
+                        {" "}
+                        {appGroup.data.group.title}
+                    </Heading.h2>
+                    <Box ml="auto" mt="30px">
+                        <ContextSwitcher />
+                    </Box>
+                </Flex>
+                <Absolute top="0px" left="calc(50% - 200px)">
+                    <LargeSearchBox />
+                </Absolute>
+            </>
         }
         headerSize={120}
         main={
             <>
                 <Grid
+                    mt="30px"
                     gridGap="25px"
                     gridTemplateColumns={"repeat(auto-fill, 312px)"}
                 >
