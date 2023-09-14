@@ -1,7 +1,7 @@
 import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
-import SharesApi, {Share, ShareLink, ShareState, shareLinksApi} from "@/UCloud/SharesApi";
+import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareLink, ShareState, shareLinksApi} from "@/UCloud/SharesApi";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -13,7 +13,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {LinkInfo} from "@/ui-components/SidebarLink";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
 import {BulkResponse, PageV2} from "@/UCloud";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {copyToClipboard, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
@@ -22,7 +22,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
-import {classConcat, injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
@@ -34,8 +34,6 @@ import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {BoxClass} from "@/ui-components/Box";
-import {RadioTilesContainerClass, tileAsHTML} from "@/ui-components/RadioTiles";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -301,13 +299,11 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
 };
 
-const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: boolean; filterOutgoing: boolean;} = {
+const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
-    filterIngoing: true,
-    filterOutgoing: true,
 };
 
-export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
+export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Share> | null>(null);
     const navigate = useNavigate();
@@ -315,9 +311,7 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
 
     const avatars = useAvatars();
 
-    useTitle(isIngoing ? "Shared with me" : "Shared by me");
-    defaultRetrieveFlags.filterIngoing = isIngoing;
-    defaultRetrieveFlags.filterOutgoing = !isIngoing;
+    useTitle("Shared with me");
 
     const features: ResourceBrowseFeatures = FEATURES;
 
@@ -326,25 +320,30 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Share>(mount, isIngoing ? "Shared with me" : "Shared by me").init(browserRef, features, "", browser => {
+            new ResourceBrowser<Share>(mount, "Shared with me").init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
                 const flags = defaultRetrieveFlags;
 
                 browser.on("open", (oldPath, newPath, resource) => {
-                    if (resource) {
-                        navigate(AppRoutes.shares.view(resource.id));
+                    const share = resource as Share | undefined;
+                    if (share) {
+                        navigate(AppRoutes.shares.view(share.id));
                         return;
                     }
 
-                    callAPI(SharesApi.browse({
-                        ...flags,
-                        ...browser.browseFilters,
-                    })).then(result => {
+                    callAPI(
+                        SharesApi.browse({
+                            itemsPerPage: 250,
+                            ...browser.browseFilters,
+                        })
+                    ).then(result => {
                         browser.registerPage(result, newPath, true);
+
                         browser.renderRows();
                     });
+
                 });
 
                 browser.on("wantToFetchNextPage", async (path) => {
@@ -378,6 +377,7 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
+                    console.log(share.specification.sharedWith);
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     // TODO(Jonas): For some reason, the arrow is not rendered.
@@ -421,45 +421,36 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                     row.stat1.appendChild(pIcon);
                     const isEdit = share.specification.permissions.some(it => it === "EDIT");
 
-                    const radioTilesContainer = document.createElement("div");
-                    radioTilesContainer.className = classConcat(BoxClass, RadioTilesContainerClass);
-                    radioTilesContainer.style.marginTop = radioTilesContainer.style.marginBottom = "auto";
-                    radioTilesContainer.style.height = "48px";
-                    radioTilesContainer.onclick = stopPropagation;
-                    if (sharedByMe || !isEdit) {
-                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-
-                        browser.icons.renderIcon({color: "black", color2: "black", height: 48, width: 48, name: "search"}).
-                            then(setIcon);
-
-                        row.stat1.append(tileAsHTML({
-                            disabled: share.owner.createdBy !== Client.username,
-                            label: "Read",
-                            onChange: () => updatePermissions(share, false),
-                            fontSize: "0.5em",
-                            name: "READ",
-                            checked: !isEdit && sharedByMe,
-                            height: 40,
-                            icon: icon as any,
-                        }));
-                    }
-
-                    if (sharedByMe || isEdit) {
-                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-
-                        browser.icons.renderIcon({color: "black", color2: "black", height: 48, width: 48, name: "edit"}).
-                            then(setIcon);
-                        row.stat1.append(tileAsHTML({
-                            disabled: share.owner.createdBy !== Client.username,
-                            label: "Edit",
-                            onChange: () => updatePermissions(share, false),
-                            fontSize: "0.5em",
-                            name: "EDIT",
-                            checked: isEdit && sharedByMe,
-                            height: 40,
-                            icon: icon as any,
-                        }));
-                    }
+                    // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
+                    // the re-render doesn't happen multiple times, when re-rendering. The radioTilesContainerWrapper can be dead,
+                    // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
+                    // causing multiple avatars to be shown.
+                    const radioTilesContainerWrapper = document.createElement("div");
+                    row.stat1.append(radioTilesContainerWrapper);
+                    new ReactStaticRenderer(() =>
+                        <RadioTilesContainer height={48} onClick={stopPropagation}>
+                            {!isEdit ? <RadioTile
+                                disabled={share.owner.createdBy !== Client.username}
+                                label={"Read"}
+                                onChange={noopCall}
+                                icon={"search"}
+                                name={"READ"}
+                                checked={!isEdit && sharedByMe}
+                                height={40}
+                                fontSize={"0.5em"}
+                            /> : null}
+                            {isEdit ? <RadioTile
+                                disabled
+                                label={"Edit"}
+                                onChange={noopCall}
+                                icon={"edit"}
+                                name={"EDIT"}
+                                checked={isEdit && sharedByMe}
+                                height={40}
+                                fontSize={"0.5em"}
+                            /> : null}
+                        </RadioTilesContainer>
+                    ).promise.then(it => radioTilesContainerWrapper.append(it.clone()));
 
                     // Row stat2
                     row.stat2.innerText = dateToString(share.createdAt ?? timestampUnixMs());
@@ -478,16 +469,11 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                     row.stat3.append(avatarWrapper);
 
                     new ReactStaticRenderer(() =>
-                        sharedByMe ? <Tooltip
+                        <Tooltip
                             trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="circle" {...avatar} />}
                         >
-                            Shared with {share.permissions.others?.map(it => it.entity.type === "user" ? it.entity.username : it.entity.group)}
-                        </Tooltip> : (
-                            <Tooltip
-                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="circle" {...avatar} />}
-                            >
-                                Shared by {share.owner.createdBy}
-                            </Tooltip>)
+                            Shared by {share.owner.createdBy}
+                        </Tooltip>
                     ).promise.then(it => {
                         avatarWrapper.appendChild(it.clone());
                     });
@@ -601,6 +587,7 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
     return <MainContainer main={main} />;
 }
 
+
 const Router: React.FunctionComponent = () => {
     return <ResourceRouter api={SharesApi} Browser={ShareBrowse} />;
 };
@@ -611,7 +598,7 @@ const SelectBoxClass = injectStyleSimple("select-box", `
     padding: 10px;
 `);
 
-const StateIconAndColor: Record<ShareState, {name: IconName, color: ThemeColor}> = {
+export const StateIconAndColor: Record<ShareState, {name: IconName, color: ThemeColor}> = {
     "APPROVED": {color: "green", name: "check"},
     "PENDING": {color: "blue", name: "questionSolid"},
     "REJECTED": {color: "red", name: "close"},

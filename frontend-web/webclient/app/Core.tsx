@@ -74,7 +74,7 @@ import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
-import {SharesOutgoing} from "@/Files/SharesOutgoing";
+import {OutgoingSharesBrowse} from "@/Files/SharesOutgoing";
 import {TerminalContainer} from "@/Terminal/Container";
 import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
@@ -121,15 +121,13 @@ const Core = (): JSX.Element => (
                         <Route path="/verifyEmail" element={<VerifyEmail />} />
                         <Route path="/verifyResult" element={<VerifyResult />} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
-                        <Route path="/shares/outgoing" element={React.createElement(requireAuth(SharesOutgoing))} />
+                        <Route path="/shares/outgoing" element={React.createElement(requireAuth(OutgoingSharesBrowse))} />
                         <Route path={"/shares/invite/:id"}
                             element={React.createElement(requireAuth(SharesAcceptLink))} />
-                        <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse), {isIngoing: true})} />
-                        /* <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} /> */
-
+                        <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse))} />
+                        <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
                         <Route path={AppRoutes.syncthing.syncthing()}
                             element={React.createElement(requireAuth(SyncthingOverview))} />
-
                         <Route path={AppRoutes.apps.applications()}
                             element={React.createElement(requireAuth(Applications))} />
                         <Route path={AppRoutes.apps.overview()}

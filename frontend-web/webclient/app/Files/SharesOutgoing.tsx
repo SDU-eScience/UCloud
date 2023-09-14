@@ -22,9 +22,9 @@ import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useNavigate} from "react-router";
+import {useLocation, useNavigate, useParams} from "react-router";
 import {useDispatch} from "react-redux";
 import Icon from "../ui-components/Icon";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -32,6 +32,13 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {api as FilesApi} from "@/UCloud/FilesApi";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {fileName} from "@/Utilities/FileUtilities";
+import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
+import {Avatar} from "@/AvataaarLib";
+import {StateIconAndColor} from "./Shares";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import AppRoutes from "@/Routes";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -57,7 +64,8 @@ function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     };
 }
 
-export const SharesOutgoing: React.FunctionComponent = () => {
+// Unused(Jonas): Should probably remove, but wait until next component is finished.
+const SharesOutgoing: React.FunctionComponent = () => {
     useTitle("Shares (Outgoing)");
     // HACK(Jonas): DISABLE UNTIL ALL SHARES CAN BE SEARCHED
     // useResourceSearch(SharesApi);
@@ -82,6 +90,7 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     }), [dispatch, commandLoading, invokeCommand]);
 
     const generateFetch = useCallback((next?: string) => {
+        callAPI(SharesApi.browseOutgoing({next, itemsPerPage: 50})).then(it => console.log("items", it.items));
         return SharesApi.browseOutgoing({next, itemsPerPage: 50});
     }, []);
 
@@ -278,3 +287,329 @@ const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void; chil
         {props.children}
     </SelectableText>
 };
+
+const FEATURES: ResourceBrowseFeatures = {
+    renderSpinnerWhenLoading: true,
+    filters: true,
+    sortDirection: true,
+    breadcrumbsSeparatedBySlashes: false,
+};
+
+const defaultRetrieveFlags: {itemsPerPage: number} = {
+    itemsPerPage: 250,
+};
+
+
+// BIG-TODO(Jonas): Navigating back and forth doesn't trigger anything, so you can only navigate TO shares.
+export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview> | null>(null);
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const params = useLocation();
+
+    const avatars = useAvatars();
+
+    useTitle("Shared by me");
+
+    const features: ResourceBrowseFeatures = FEATURES;
+
+    const dateRanges = dateRangeFilters("Created after");
+    var isInitial = true;
+
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, "Shared by me").init(browserRef, features, "", browser => {
+                // Removed stored filters that shouldn't persist.
+                dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
+
+                function isViewingShareGroupPreview(s: OutgoingShareGroup | OutgoingShareGroupPreview): s is OutgoingShareGroupPreview {
+                    return !("sourceFilePath" in s);
+                }
+
+                browser.on("open", (oldPath, newPath, resource) => {
+                    console.log("opening", oldPath, newPath);
+                    if (resource && isViewingShareGroupPreview(resource)) {
+                        // navigate to share
+                        navigate(AppRoutes.shares.view(resource.shareId));
+                        return;
+                    }
+
+                    if (resource) { // NOT share group preview
+                        navigate(`/shares/outgoing?path=${resource.sourceFilePath}`);
+                    }
+
+                    if (oldPath !== newPath) browser.rerender();
+
+                    callAPI(
+                        SharesApi.browseOutgoing({
+                            ...defaultRetrieveFlags,
+                            ...browser.browseFilters
+                        })
+                    ).then(result => {
+                        browser.registerPage(result, newPath, true);
+                        const page = result as Page<OutgoingShareGroup>;
+                        for (const it of page.items) {
+                            browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, true)
+                        }
+                        const searchPath = new URLSearchParams(params.search).get("path") as string;
+                        if (isInitial && searchPath) {
+                            browser.open(searchPath, true);
+                        }
+                        isInitial = false;
+                        browser.renderRows();
+                    });
+                });
+
+                browser.on("wantToFetchNextPage", async (path) => {
+                    const result = await callAPI(
+                        SharesApi.browseOutgoing({
+                            next: browser.cachedNext[path] ?? undefined,
+                            ...defaultRetrieveFlags,
+                            ...browser.browseFilters
+                        })
+                    );
+
+                    const page = result as Page<OutgoingShareGroup>;
+                    for (const it of page.items) {
+                        browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, false);
+                    }
+
+                    browser.registerPage(result, path, false);
+                });
+
+                browser.on("fetchFilters", () => [{
+                    key: "filterCreatedBy",
+                    type: "input",
+                    icon: "user",
+                    text: "Created by"
+                }, dateRangeFilters("Date created")]);
+
+                let currentAvatars = new Set<string>();
+                let fetchedAvatars = new Set<string>();
+                browser.on("endRenderPage", () => {
+                    if (currentAvatars.size > 0) {
+                        avatars.updateCache([...currentAvatars]).then(() => browser.rerender());
+                        currentAvatars.forEach(it => fetchedAvatars.add(it));
+                        currentAvatars.clear();
+                    }
+                });
+
+                browser.on("renderRow", (share, row, dims) => {
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    row.title.append(icon);
+                    // TODO(Jonas): For some reason, the arrow is not rendered.
+                    browser.icons.renderIcon({
+                        name: "ftSharesFolder",
+                        color: "FtFolderColor",
+                        color2: "FtFolderColor2",
+                        height: 32,
+                        width: 32
+                    }).then(setIcon);
+
+                    const title = isViewingShareGroupPreview(share) ?
+                        share.sharedWith :
+                        fileName(share.sourceFilePath);
+
+                    // Row title
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
+
+                    // Row stat1
+                    if (isViewingShareGroupPreview(share)) {
+                        const {state} = share;
+                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
+                        stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
+                        row.stat1.appendChild(stateIcon);
+                        browser.icons.renderIcon({
+                            ...StateIconAndColor[state],
+                            color2: "black",
+                            height: 32,
+                            width: 32,
+                        }).then(setStateIcon);
+                    }
+
+                    if (isViewingShareGroupPreview(share)) {
+                        const isEdit = share.permissions.some(it => it === "EDIT");
+                        // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
+                        // the re-render doesn't happen multiple times, when re-rendering. The radioTilesContainerWrapper can be dead,
+                        // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
+                        // causing multiple avatars to be shown.
+                        const radioTilesContainerWrapper = document.createElement("div");
+                        radioTilesContainerWrapper.onclick = stopPropagation;
+                        row.stat1.append(radioTilesContainerWrapper);
+                        new ReactStaticRenderer(() =>
+                            <RadioTilesContainer height={48} onClick={stopPropagation}>
+                                <RadioTile
+                                    disabled={share.state === "PENDING"}
+                                    label={"Read"}
+                                    onChange={() => updatePermissions(share.shareId, true)}
+                                    icon={"search"}
+                                    name={"READ"}
+                                    checked={!isEdit}
+                                    height={40}
+                                    fontSize={"0.5em"}
+                                />
+                                <RadioTile
+                                    disabled={share.state === "PENDING"}
+                                    label={"Edit"}
+                                    onChange={() => updatePermissions(share.shareId, true)}
+                                    icon={"edit"}
+                                    name={"EDIT"}
+                                    checked={isEdit}
+                                    height={40}
+                                    fontSize={"0.5em"}
+                                />
+                            </RadioTilesContainer>
+                        ).promise.then(it => radioTilesContainerWrapper.append(it.clone()))
+                    }
+                    ;
+
+                    // Row stat2
+                    if (isViewingShareGroupPreview(share)) {
+                        row.stat2.innerText = share.state.toString();
+                    } else {
+                        row.stat2.innerText = "Find something to render here.";
+                    }
+
+                    // Row stat3
+                    if (isViewingShareGroupPreview(share)) {
+                        if (!fetchedAvatars.has(share.sharedWith)) {
+                            currentAvatars.add(share.sharedWith);
+                        }
+                    } else {
+                        for (const preview of share.sharePreview) {
+                            if (!fetchedAvatars.has(preview.sharedWith)) {
+                                currentAvatars.add(preview.sharedWith);
+                            }
+                        }
+                    }
+
+                    // Note(Jonas): To any future reader (as opposed to past reader?) the avatarWrapper is to ensure that
+                    // the re-render doesn't happen multiple times, when re-rendering. The avatarWrapper can be dead,
+                    // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
+                    // causing multiple avatars to be shown.
+                    const avatarWrapper = document.createElement("div");
+                    row.stat3.append(avatarWrapper);
+
+                    if (isViewingShareGroupPreview(share)) {
+                        const sharedWithAvatar = avatars.avatar(share.sharedWith);
+                        new ReactStaticRenderer(() =>
+                            <Tooltip
+                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="circle" {...sharedWithAvatar} />}
+                            >
+                                Shared with {share.sharedWith}
+                            </Tooltip>
+                        ).promise.then(it => {
+                            avatarWrapper.appendChild(it.clone());
+                        });
+                    } else {
+                        const sharedWithAvatars = share.sharePreview.map(it => avatars.avatar(it.sharedWith));
+                        new ReactStaticRenderer(() =>
+                            <Tooltip
+                                trigger={<>
+                                    {sharedWithAvatars.map(
+                                        (avatar, index) => <Avatar key={share.sharePreview[index].sharedWith} style={{height: "40px", width: "40px"}} avatarStyle="circle" {...avatar} />
+                                    )}
+                                </>}
+                            >
+                                Shared with {share.sharePreview.map(it => it.sharedWith)}
+                            </Tooltip>
+                        ).promise.then(it => {
+                            avatarWrapper.appendChild(it.clone());
+                        });
+                    }
+                });
+
+                browser.setEmptyIcon("share");
+
+                browser.on("unhandledShortcut", () => void 0);
+
+                browser.on("renderEmptyPage", reason => {
+                    const e = browser.emptyPageElement;
+                    switch (reason.tag) {
+                        case EmptyReasonTag.LOADING: {
+                            e.reason.append("We are fetching your shares...");
+                            break;
+                        }
+
+                        case EmptyReasonTag.EMPTY: {
+                            if (Object.values({...browser.browseFilters, ...(opts?.additionalFilters ?? {})}).length !== 0)
+                                e.reason.append("No shares found with active filters.")
+                            else e.reason.append("This workspace has no shares.");
+                            break;
+                        }
+
+                        case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
+                            e.reason.append("We could not find any data related to your shares.");
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+
+                        case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                            e.reason.append("We are currently unable to show your shares. Try again later.");
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+                    }
+                });
+
+                browser.on("nameOfEntry", s => {
+                    if (isViewingShareGroupPreview(s)) {
+                        return s.shareId;
+                    } else {
+                        return s.sourceFilePath;
+                    }
+                });
+                browser.on("pathToEntry", s => {
+                    if (isViewingShareGroupPreview(s)) {
+                        return s.shareId;
+                    } else {
+                        return s.sourceFilePath;
+                    }
+                });
+
+                browser.on("fetchOperationsCallback", () => {
+                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): I assume that we need to do something different here.
+                    const callbacks: ResourceBrowseCallbacks<Share> = {
+                        api: SharesApi,
+                        navigate: to => navigate(to),
+                        commandLoading: false,
+                        invokeCommand: call => callAPI(call),
+                        embedded: false,
+                        isCreating: false,
+                        dispatch: dispatch,
+                        supportByProvider: support,
+                        reload: () => browser.refresh(),
+                        isWorkspaceAdmin: true, // This is shares, after all.
+                        viewProperties: s => {
+                            navigate(AppRoutes.shares.view(s.id))
+                        }
+                    };
+                    return callbacks;
+                });
+                browser.on("fetchOperations", () => {
+                    return []; // TODO(Jonas);
+                });
+                browser.on("generateBreadcrumbs", () => [{title: "Shares", absolutePath: ""}]);
+
+                async function updatePermissions(shareId: string, isEditing: boolean) {
+                    await callAPI(SharesApi.updatePermissions(bulkRequestOf(
+                        {
+                            id: shareId,
+                            permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
+                        }
+                    )));
+                    // TODO(Jonas): Reload
+                };
+            });
+        }
+    }, []);
+
+    useRefreshFunction(() => {
+        browserRef.current?.refresh();
+    });
+
+    const main = <div ref={mountRef} />;
+    return <MainContainer main={main} />;
+}
