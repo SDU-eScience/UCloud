@@ -1671,7 +1671,6 @@ class AccountingProcessor(
             else {
                 val amountPerAllocation = difference / stillActiveAllocations.size
                 var isFirst = true
-
                 for (allocation in stillActiveAllocations) {
                     if (isFirst) {
                         if (!chargeAllocation(allocation.id.toInt(), difference % walletAllocations.size)) {
@@ -1681,10 +1680,12 @@ class AccountingProcessor(
                         }
                         isFirst = false
                     }
-                    if (!chargeAllocation(allocation.id.toInt(), amountPerAllocation)) {
-                        return AccountingResponse.Error(
-                            "Internal Error in charging remaining", 500
-                        )
+                    if (amountPerAllocation != 0L) {
+                        if (!chargeAllocation(allocation.id.toInt(), amountPerAllocation)) {
+                            return AccountingResponse.Error(
+                                "Internal Error in charging remaining", 500
+                            )
+                        }
                     }
                 }
                 if (delta > activeQuota) {
