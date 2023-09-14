@@ -156,7 +156,7 @@ class Importer(
 
         val appGroups = defaultMapper.decodeFromString(
             ListSerializer(AppGroupData.serializer()),
-            Files.newInputStream(fs.getPath("/application_groups.json")).readBytes().decodeToString()
+            Files.newInputStream(fs.getPath("/application-groups.json")).readBytes().decodeToString()
         )
 
         val systemActor = ActorAndProject(Actor.System, null)
@@ -179,7 +179,7 @@ class Importer(
         }
 
         try {
-            val landingInput = Files.newInputStream(fs.getPath("/app_store_landing.json")).readBytes().decodeToString()
+            val landingInput = Files.newInputStream(fs.getPath("/app-store-landing.yml")).readBytes().decodeToString()
             val landingYaml = yamlMapper.readValue<List<PageSection>>(landingInput)
             appStore.updatePage(AppStorePageType.LANDING, landingYaml)
         } catch (ex: Throwable) {
@@ -195,7 +195,7 @@ class Importer(
         }
 
         try {
-            val overviewInput = Files.newInputStream(fs.getPath("/app_store_overview.json")).readBytes().decodeToString()
+            val overviewInput = Files.newInputStream(fs.getPath("/app-store-overview.yml")).readBytes().decodeToString()
             val overviewYaml = yamlMapper.readValue<List<PageSection>>(overviewInput)
             appStore.updatePage(AppStorePageType.FULL, overviewYaml)
         } catch (ex: Throwable) {
