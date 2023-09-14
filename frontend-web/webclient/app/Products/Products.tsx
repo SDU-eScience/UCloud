@@ -71,7 +71,7 @@ const DetailedView = styled(Table)`
 
 export const MachineView: React.FunctionComponent<{area: ProductArea, provider: string; color?: string}> = ({area, provider, color = "var(--blue, #f00)"}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
-        UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}),
+        {...UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
         emptyPage
     );
 
@@ -104,9 +104,9 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
                     <ListV2
                         page={machines.data}
                         loading={machines.loading}
-                        onLoadMore={() => refetch(UCloud.accounting.products.browse({
+                        onLoadMore={() => refetch({...UCloud.accounting.products.browse({
                             filterArea: area, filterProvider: provider, filterUsable: true, next: machines.data.next
-                        }))}
+                        }), unauthenticated: !Client.isLoggedIn})}
                         pageRenderer={items => (
                             <MachineTypesWrapper>
                                 <Table>
