@@ -480,19 +480,11 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
         background: var(--inputColor);
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
     }
-<<<<<<< HEAD
 
     ${k}:hover {
         border-color: var(--gray);
     }
 
-=======
-
-    ${k}:hover {
-        border-color: var(--gray);
-    }
-
->>>>>>> fcea32a253f04b1ad61d147bf834385a31fe2dc4
     ${k} &[data-omit-border="true"] {
         border: unset;
     }
