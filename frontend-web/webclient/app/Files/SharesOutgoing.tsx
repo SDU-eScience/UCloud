@@ -22,7 +22,7 @@ import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, noopCall, useCloudCommand} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useLocation, useNavigate, useParams} from "react-router";
 import {useDispatch} from "react-redux";
@@ -32,7 +32,7 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
@@ -436,34 +436,55 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
                         // causing multiple avatars to be shown.
                         const radioTilesContainerWrapper = document.createElement("div");
-                        radioTilesContainerWrapper.onclick = stopPropagation;
                         row.stat1.append(radioTilesContainerWrapper);
                         new ReactStaticRenderer(() =>
                             <RadioTilesContainer height={48} onClick={stopPropagation}>
                                 <RadioTile
-                                    disabled={share.state === "PENDING"}
+                                    disabled={share.state === "REJECTED"}
                                     label={"Read"}
-                                    onChange={() => updatePermissions(share.shareId, true)}
+                                    onChange={noopCall}
                                     icon={"search"}
-                                    name={"READ"}
+                                    name={share.shareId}
                                     checked={!isEdit}
                                     height={40}
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
-                                    disabled={share.state === "PENDING"}
+                                    disabled={share.state === "REJECTED"}
                                     label={"Edit"}
-                                    onChange={() => updatePermissions(share.shareId, true)}
+                                    onChange={noopCall}
                                     icon={"edit"}
-                                    name={"EDIT"}
+                                    name={share.shareId}
                                     checked={isEdit}
                                     height={40}
                                     fontSize={"0.5em"}
                                 />
                             </RadioTilesContainer>
-                        ).promise.then(it => radioTilesContainerWrapper.append(it.clone()))
+                        ).promise.then(it => {
+                            radioTilesContainerWrapper.append(it.clone());
+                            if (share.state !== "REJECTED") {
+                                const tiles = radioTilesContainerWrapper.querySelectorAll(":scope input[type='radio']");
+                                const readTile = tiles.item(0);
+                                const writeTile = tiles.item(1);
+                                if (readTile && writeTile) {
+                                    readTile["onchange"] = () => {
+                                        if (share.permissions.includes("EDIT")) {
+                                            updatePermissions(share.shareId, false);
+                                            share.permissions = ["READ"];
+                                            browser.renderRows();
+                                        }
+                                    }
+                                    writeTile["onchange"] = () => {
+                                        if (!share.permissions.includes("EDIT")) {
+                                            updatePermissions(share.shareId, true);
+                                            share.permissions = ["READ", "EDIT"];
+                                            browser.renderRows();
+                                        }
+                                    }
+                                }
+                            }
+                        });
                     }
-                    ;
 
                     // Row stat2
                     if (isViewingShareGroupPreview(share)) {
@@ -594,6 +615,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 browser.on("generateBreadcrumbs", () => [{title: "Shares", absolutePath: ""}]);
 
                 async function updatePermissions(shareId: string, isEditing: boolean) {
+                    console.log(shareId);
                     await callAPI(SharesApi.updatePermissions(bulkRequestOf(
                         {
                             id: shareId,
