@@ -128,9 +128,9 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
                                                 // Note(Jonas): Why in the world would this ever happen?
                                                 if (machine === null) return null;
                                             }
-                                            const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE"].includes(machine.unitOfPrice);
+                                            const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE", "UNITS_PER_MINUTE"].includes(machine.unitOfPrice);
                                             const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
-                                            return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
+                                            return <TableRow key={machine.name + machine.unitOfPrice} onClick={() => setActiveMachine(machine)}>
                                                 <TableCell>{machine.name}</TableCell>
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
