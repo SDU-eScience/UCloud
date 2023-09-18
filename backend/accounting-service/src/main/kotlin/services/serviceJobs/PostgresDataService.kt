@@ -1,23 +1,12 @@
-package dk.sdu.cloud.extract.data.services
+package dk.sdu.cloud.accounting.services.serviceJobs
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.extract.data.api.*
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.Serializable
 import java.time.LocalDateTime
-
-@Serializable
-data class UCloudUser(
-    val username: String,
-    @Contextual
-    val createdAt: LocalDateTime
-)
-
 
 class PostgresDataService(val db: AsyncDBSessionFactory) {
 
@@ -329,15 +318,12 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
         }
     }
 
-    fun calculateProductUsage(
+    fun calculateProductUsageForCenter(
         startDate: LocalDateTime,
         endDate: LocalDateTime,
         productType: ProductType,
         aau: Boolean
     ): Long {
-        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
-            return 0
-        }
         if (productType == ProductType.STORAGE) {
             val storageInGB = runBlocking {
                 db.withSession { session ->

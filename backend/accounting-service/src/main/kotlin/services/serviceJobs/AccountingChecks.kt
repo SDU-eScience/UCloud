@@ -192,13 +192,13 @@ class AccountingChecks(
 
         }
 
-        if (highDiffs.isNotEmpty()) {
+      //  if (highDiffs.isNotEmpty()) {
             SlackDescriptions.sendAlert.call(
                 Alert(
                     "Noticeable difference in charges and balances for COMPUTE jobs for $highDiffs"
                 ),
                 serviceClient
             )
-        }
+        //}
     }
 }
