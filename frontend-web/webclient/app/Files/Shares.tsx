@@ -329,7 +329,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                 browser.on("open", (oldPath, newPath, resource) => {
                     const share = resource as Share | undefined;
                     if (share) {
-                        navigate(AppRoutes.shares.view(share.id));
+                        navigate(AppRoutes.resource.properties("shares", share.id));
                         return;
                     }
 
@@ -528,7 +528,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                         reload: () => browser.refresh(),
                         isWorkspaceAdmin: true, // This is shares, after all.
                         viewProperties: s => {
-                            navigate(AppRoutes.shares.view(s.id))
+                            navigate(AppRoutes.resource.properties("shares", s.id));
                         }
                     };
                     return callbacks;

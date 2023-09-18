@@ -27,7 +27,7 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useLocation, useNavigate, useParams} from "react-router";
 import {useDispatch} from "react-redux";
 import Icon from "../ui-components/Icon";
-import {buildQueryString} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
@@ -306,7 +306,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
     const browserRef = React.useRef<ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const params = useLocation();
+    const location = useLocation();
 
     const avatars = useAvatars();
 
@@ -332,7 +332,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     console.log("opening", oldPath, newPath);
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share
-                        navigate(AppRoutes.shares.view(resource.shareId));
+                        navigate(AppRoutes.resource.properties("shares", resource.shareId));
                         return;
                     }
 
@@ -353,7 +353,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         for (const it of page.items) {
                             browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, true)
                         }
-                        const searchPath = new URLSearchParams(params.search).get("path") as string;
+                        const searchPath = new URLSearchParams(location.search).get("path") as string;
                         if (isInitial && searchPath) {
                             browser.open(searchPath, true);
                         }
@@ -604,7 +604,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         reload: () => browser.refresh(),
                         isWorkspaceAdmin: true, // This is shares, after all.
                         viewProperties: s => {
-                            navigate(AppRoutes.shares.view(s.id))
+                            navigate(AppRoutes.resource.properties("shares", s.id));
                         }
                     };
                     return callbacks;
@@ -631,6 +631,13 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
     useRefreshFunction(() => {
         browserRef.current?.refresh();
     });
+
+    React.useLayoutEffect(() => {
+        const b = browserRef.current;
+        if (!b) return;
+        const path = getQueryParamOrElse(location.search, "path", "");
+        b.open(path);
+    }, [location.search]);
 
     const main = <div ref={mountRef} />;
     return <MainContainer main={main} />;

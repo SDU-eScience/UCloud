@@ -56,6 +56,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 // Cached network data
 // =====================================================================================================================
@@ -890,6 +891,31 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         pIcon.replaceChildren(icon);
                     }
 
+                    if (browser.opts.embedded) {
+                        collectionCacheForCompletion.retrieve("", () =>
+                            callAPI(
+                                FileCollectionsApi.browse({
+                                    itemsPerPage: 250,
+                                    filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                                    filterProvider: opts?.providerFilter,
+                                })
+                            ).then(res => res.items)
+                        ).then(doNothing);
+                        if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
+                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
+                            driveIcon.className = "drive-icon-dropdown";
+                            driveIcon.style.cursor = "pointer";
+                            const url = browser.header.querySelector("div.header-first-row");
+                            url?.prepend(driveIcon);
+                            browser.icons.renderIcon({name: "chevronDownLight", color: "black", color2: "black", height: 32, width: 32}).then(setDriveIcon);
+                            driveIcon.onclick = e => {
+                                e.stopImmediatePropagation();
+                                const rect = driveIcon.getBoundingClientRect();
+                                temporaryDriveDropdownFunction(browser, rect.x, rect.y + rect.height);
+                            }
+                        }
+                    }
+
                     return result;
                 });
 
@@ -1344,3 +1370,33 @@ function isReadonly(entries: Permission[]): boolean {
 }
 
 export default ExperimentalBrowse;
+
+function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
+    const collections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
+    const activeDrive = browser.currentPath.split("/").filter(it => it)[0] ?? "";
+    const filteredCollections = collections.filter(it => it.id !== activeDrive);
+
+    const elements: HTMLElement[] = filteredCollections.map((collection, index) => {
+        const wrapper = document.createElement("li");
+        const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
+        wrapper.append(pIcon);
+        const span = document.createElement("span");
+        wrapper.append(span);
+        span.innerText = `${collection.specification.title} (${collection.id})`;
+        span.className = TruncateClass;
+        const shortcutElem = document.createElement("kbd");
+        shortcutElem.append(`[${index + 1}]`);
+        wrapper.append(shortcutElem);
+        return wrapper;
+    });
+
+    const handlers: (() => void)[] = filteredCollections.map(collection => {
+        return () => {
+            browser.open(`/${collection.id}`);
+            browser.closeContextMenu();
+        }
+    });
+
+    browser.prepareContextMenu(posX, posY, filteredCollections.length);
+    browser.setToContextMenuEntries(elements, handlers);
+}

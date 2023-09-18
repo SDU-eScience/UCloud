@@ -1119,7 +1119,7 @@ export class ResourceBrowser<T> {
         this.renderOperationsIn(false);
     }
 
-    public renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
+    private renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
         const renderOpIconAndText = (
             op: {text: string; icon: IconName; color: ThemeColor},
             element: HTMLElement,
@@ -1156,35 +1156,8 @@ export class ResourceBrowser<T> {
             posY: number
         ) => {
             var counter = 1;
+            this.prepareContextMenu(posX, posY, options.length);
             const menu = this.contextMenu;
-            let actualPosX = posX;
-            let actualPosY = posY;
-            menu.innerHTML = "";
-
-            const itemSize = 40;
-            let opCount = options.length;
-            const listHeight = opCount * itemSize;
-            const listWidth = 400;
-
-            const windowWidth = window.innerWidth;
-            const windowHeight = window.innerHeight;
-
-            if (posX + listWidth >= windowWidth - 32) {
-                actualPosX -= listWidth;
-            }
-
-            if (posY + listHeight >= windowHeight - 32) {
-                actualPosY -= listHeight;
-            }
-
-            menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
-            window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
-            menu.style.display = "block";
-            menu.style.opacity = "1";
-
-            menu.style.top = actualPosY + "px";
-            menu.style.left = actualPosX + "px";
-
             const menuList = document.createElement("ul");
             menu.append(menuList);
             let shortcutNumber = counter;
@@ -1256,6 +1229,36 @@ export class ResourceBrowser<T> {
                 values: [CLEAR_FILTER_VALUE, ""]
             });
             renderFilterInContextMenu(filters, x, y);
+        }
+    }
+
+    public setToContextMenuEntries(elements: HTMLElement[], handlers: (() => void)[]): void {
+        const menu = this.contextMenu;
+        const menuList = document.createElement("ul");
+        menu.append(menuList);
+        let shortcutNumber = 1;
+        for (const [index, element] of elements.entries()) {
+            const myIndex = shortcutNumber - 1;
+            this.contextMenuHandlers.push(() => {
+                const handler = handlers[myIndex];
+                handler?.();
+            });
+
+            shortcutNumber++;
+
+            element.addEventListener("mouseover", () => {
+                this.findActiveContextMenuItem(true);
+                this.selectContextMenuItem(myIndex);
+            });
+
+            element.addEventListener("click", ev => {
+                ev.stopPropagation();
+                const handler = handlers[myIndex];
+                handler?.();
+                this.selectContextMenuItem(myIndex);
+            });
+
+            menuList.append(element);
         }
     }
 
@@ -1398,11 +1401,6 @@ export class ResourceBrowser<T> {
         ): number => {
             const menu = this.contextMenu;
             if (allowCreation) {
-                let actualPosX = posX;
-                let actualPosY = posY;
-                menu.innerHTML = "";
-
-                const itemSize = 40;
                 let opCount = 0;
                 for (const op of operations) {
                     if (!isOperation(op)) {
@@ -1411,28 +1409,7 @@ export class ResourceBrowser<T> {
                         opCount++;
                     }
                 }
-
-                const listHeight = opCount * itemSize;
-                const listWidth = 400;
-
-                const rootWidth = window.innerWidth;
-                const rootHeight = window.innerHeight;
-
-                if (posX + listWidth >= rootWidth - 32) {
-                    actualPosX -= listWidth;
-                }
-
-                if (posY + listHeight >= rootHeight - 32) {
-                    actualPosY -= listHeight;
-                }
-
-                menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
-                window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
-                menu.style.display = "block";
-                menu.style.opacity = "1";
-
-                menu.style.top = actualPosY + "px";
-                menu.style.left = actualPosX + "px";
+                this.prepareContextMenu(posX, posY, opCount);
             }
 
             const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
@@ -2706,6 +2683,35 @@ export class ResourceBrowser<T> {
             result = invoker(l);
         }
         return result;
+    }
+
+    public prepareContextMenu(posX: number, posY: number, entryCount: number) {
+        let actualPosX = posX;
+        let actualPosY = posY;
+        const menu = this.contextMenu;
+        menu.innerHTML = "";
+        const itemSize = 40;
+        const listHeight = entryCount * itemSize;
+        const listWidth = 400;
+
+        const rootWidth = window.innerWidth;
+        const rootHeight = window.innerHeight;
+
+        if (posX + listWidth >= rootWidth - 32) {
+            actualPosX -= listWidth;
+        }
+
+        if (posY + listHeight >= rootHeight - 32) {
+            actualPosY -= listHeight;
+        }
+
+        menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
+        window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
+        menu.style.display = "block";
+        menu.style.opacity = "1";
+
+        menu.style.top = actualPosY + "px";
+        menu.style.left = actualPosX + "px";
     }
 
     static rowTitleSizePercentage = 56;
