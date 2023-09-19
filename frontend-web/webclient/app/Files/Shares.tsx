@@ -299,8 +299,9 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
 };
 
-const defaultRetrieveFlags: {itemsPerPage: number} = {
+const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: true} = {
     itemsPerPage: 250,
+    filterIngoing: true,
 };
 
 export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
@@ -335,12 +336,11 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
 
                     callAPI(
                         SharesApi.browse({
-                            itemsPerPage: 250,
+                            ...defaultRetrieveFlags,
                             ...browser.browseFilters,
                         })
                     ).then(result => {
                         browser.registerPage(result, newPath, true);
-
                         browser.renderRows();
                     });
 
@@ -356,7 +356,6 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                     );
                     browser.registerPage(result, path, false);
                 });
-
 
                 // GET https://dev.cloud.sdu.dk/api/shares/browse?itemsPerPage=100&includeUpdates=true&includeOthers=true&filterCreatedAfter=1693951200000&filterCreatedBy=a&sortDirection=ascending&filterIngoing=true&filterRejected=true
                 browser.on("fetchFilters", () => [{
@@ -377,7 +376,6 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
-                    console.log(share.specification.sharedWith);
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     // TODO(Jonas): For some reason, the arrow is not rendered.
@@ -402,8 +400,6 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                     );
 
                     // Row stat1
-
-
                     const {state} = share.status;
                     const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                     stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
