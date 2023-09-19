@@ -1,10 +1,10 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.config.toReference
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
@@ -21,7 +22,9 @@ import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
 import dk.sdu.cloud.file.orchestrator.api.MemberFilesFilter
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.normalize
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.providerId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
@@ -32,6 +35,7 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.toReadableStacktrace
+import dk.sdu.cloud.utils.toV2
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -139,6 +143,10 @@ data class DriveAndSystem(
     val system: FsSystem,
     val inMaintenanceMode: Boolean,
     val driveRoot: InternalFile?,
+    val estimatedSizeInBytes: Long = 0L,
+    val owner: String? = null,
+    val ownerIsUser: Boolean? = null,
+    val product: ProductReferenceV2? = null,
 )
 
 private object DriveAndSystemStore {
@@ -155,7 +163,8 @@ private object DriveAndSystemStore {
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
-                        select collection_id, local_reference, project, type, system, in_maintenance_mode
+                        select collection_id, local_reference, project, type, system, in_maintenance_mode,
+                            size_in_bytes, drive_owner, drive_owner_is_user, product_name, product_category
                         from ucloud_storage_drives
                     """
                 ).useAndInvoke(
@@ -166,6 +175,11 @@ private object DriveAndSystemStore {
                         val type = UCloudDrive.Type.valueOf(row.getString(3)!!)
                         val system = row.getString(4)!!
                         val maintenanceMode = row.getBoolean(5)!!
+                        val sizeInBytes = row.getLong(6)!!
+                        val driveOwner = row.getString(7)
+                        val driveOwnerIsUser = row.getBoolean(8)
+                        val productName = row.getString(9)
+                        val productCategory = row.getString(10)
                         val resolvedSystem = allSystems.find { it.name == system }
                             ?: error("Unknown system: $system")
 
@@ -191,7 +205,14 @@ private object DriveAndSystemStore {
                             }
                         }
 
-                        entries.add(DriveAndSystem(drive, resolvedSystem, maintenanceMode, null))
+                        val productRef = if (productName != null && productCategory != null) {
+                            ProductReferenceV2(productName, productCategory, providerId)
+                        } else {
+                            null
+                        }
+
+                        entries.add(DriveAndSystem(drive, resolvedSystem, maintenanceMode, null, sizeInBytes,
+                            driveOwner, driveOwnerIsUser, productRef))
                     }
                 )
             }
@@ -386,10 +407,78 @@ private object DriveAndSystemStore {
             }
         }
     }
+
+    suspend fun updateSize(systemId: Long, sizeInBytes: Long) {
+        dbConnection.withSession { session ->
+            mutex.withLock {
+                for (idx in entries.indices) {
+                    val entry = entries[idx]
+                    if (entry.drive.ucloudId == systemId) {
+                        entries[idx] = entry.copy(estimatedSizeInBytes = sizeInBytes)
+                    }
+                }
+
+                session.prepareStatement(
+                    """
+                        update ucloud_storage_drives
+                        set size_in_bytes = :size_in_bytes
+                        where
+                            collection_id = :system_id
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindLong("system_id", systemId)
+                        bindLong("size_in_bytes", sizeInBytes)
+                    }
+                )
+            }
+        }
+    }
+
+    suspend fun updateMetadata(systemId: Long, owner: ResourceOwner, product: ProductReferenceV2) {
+        dbConnection.withSession { session ->
+            val ref = owner.project ?: owner.createdBy
+            val refIsUser = owner.project == null
+
+            mutex.withLock {
+                for (idx in entries.indices) {
+                    val entry = entries[idx]
+                    if (entry.drive.ucloudId == systemId) {
+                        entries[idx] = entry.copy(
+                            owner = ref,
+                            ownerIsUser = refIsUser,
+                            product = product
+                        )
+                    }
+                }
+
+                session.prepareStatement(
+                    """
+                        update ucloud_storage_drives
+                        set
+                            drive_owner = :drive_owner, 
+                            drive_owner_is_user = :drive_owner_is_user,
+                            product_name = :product_name,
+                            product_category = :product_category
+                        where
+                            collection_id = :system_id
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindLong("system_id", systemId)
+                        bindString("drive_owner", ref)
+                        bindBoolean("drive_owner_is_user", refIsUser)
+                        bindString("product_name", product.id)
+                        bindString("product_category", product.category)
+                    }
+                )
+            }
+        }
+    }
 }
 
 class DriveLocator(
-    private val products: List<Product.Storage>,
+    private val products: List<ProductV2.Storage>,
     private val config: ConfigSchema.Plugins.Files.UCloud,
     private val serviceClient: AuthenticatedClient,
 ) {
@@ -724,6 +813,66 @@ class DriveLocator(
         )
 
         setMaintenanceMode(driveId, null, false)
+    }
+
+    suspend fun updateDriveSize(driveId: Long, newSizeInBytes: Long) {
+        DriveAndSystemStore.updateSize(driveId, newSizeInBytes)
+    }
+
+    data class UCloudMetadata(val workspace: WalletOwner, val product: ProductReferenceV2)
+
+    suspend fun fetchMetadataForDrive(driveId: Long): UCloudMetadata? {
+        return fetchMetadataForDriveAndReturnIfUpdated(driveId)?.first
+    }
+
+    suspend fun fetchMetadataForDriveAndReturnIfUpdated(driveId: Long): Pair<UCloudMetadata, Boolean>? {
+        val result = DriveAndSystemStore.retrieve(driveId) ?: return null
+        val owner = result.owner
+        val ownerIsUser = result.ownerIsUser
+        val productRef = result.product
+        if (owner != null && ownerIsUser != null && productRef != null) {
+            val workspace =
+                if (ownerIsUser) WalletOwner.User(owner)
+                else WalletOwner.Project(owner)
+            return UCloudMetadata(workspace, productRef) to false
+        }
+
+        val drive = FileCollectionsControl.retrieve.call(
+            ResourceRetrieveRequest(FileCollectionIncludeFlags(), driveId.toString()),
+            serviceClient
+        ).orNull() ?: return null
+
+        val resolvedOwner = drive.owner
+        DriveAndSystemStore.updateMetadata(driveId, resolvedOwner, drive.specification.product.toV2())
+
+        val workspace = if (resolvedOwner.project != null) {
+            WalletOwner.Project(resolvedOwner.project!!)
+        } else {
+            WalletOwner.User(resolvedOwner.createdBy)
+        }
+
+        return UCloudMetadata(workspace, drive.specification.product.toV2()) to true
+    }
+
+    suspend fun listDrivesByWorkspace(workspace: WalletOwner): List<DriveAndSystem> {
+        var next: String? = null
+        val result = ArrayList<DriveAndSystem>()
+        while (true) {
+            val page = enumerateDrives(next = next)
+            for (item in page.items) {
+                val (metadata, updated) = fetchMetadataForDriveAndReturnIfUpdated(item.drive.ucloudId) ?: continue
+                if (metadata.workspace != workspace) continue
+                val updatedDrive = if (updated) {
+                    resolveDrive(item.drive.ucloudId) ?: item
+                } else {
+                    item
+                }
+
+                result.add(updatedDrive)
+            }
+            next = page.next ?: break
+        }
+        return result
     }
 
     suspend fun listGroupedDrives(

@@ -5,7 +5,7 @@ import kotlin.test.*
 class ConfigParserTest {
     @Test
     fun `scaling test`() {
-        val parsed = parse(
+        val parsed = parseProductConfiguration(
             // language=yaml
             """
               compute:
@@ -54,7 +54,7 @@ class ConfigParserTest {
 
     @Test
     fun `no scaling test`() {
-        val parsed = parse(
+        val parsed = parseProductConfiguration(
             // language=yaml
             """
               compute:
@@ -103,7 +103,7 @@ class ConfigParserTest {
 
     @Test
     fun `no template`() {
-        val parsed = parse(
+        val parsed = parseProductConfiguration(
             // language=yaml
             """
                 compute:
@@ -137,7 +137,7 @@ class ConfigParserTest {
 
     @Test
     fun `storage product`() {
-        val parsed = parse(
+        val parsed = parseProductConfiguration(
             // language=yaml
             """
                 storage:

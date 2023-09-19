@@ -58,7 +58,7 @@ class PosixFilesPlugin : FilePlugin {
     override val pluginTitle: String = "Posix"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
     private lateinit var pathConverter: PathConverter
     private lateinit var taskSystem: PosixTaskSystem
 

@@ -492,7 +492,7 @@ class FileController(
                 listOf(plugin)
             } else {
                 retrievePlugins().filter { plugin ->
-                    plugin.productAllocationResolved.any { it.category == request.category }
+                    plugin.productAllocationResolved.any { it.category.name == request.category.name }
                 }
             }
 

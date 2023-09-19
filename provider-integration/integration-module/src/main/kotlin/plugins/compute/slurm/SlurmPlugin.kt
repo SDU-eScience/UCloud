@@ -60,7 +60,7 @@ class SlurmPlugin : ComputePlugin {
     override val pluginTitle: String = "Slurm"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
     lateinit var pluginConfig: SlurmConfig
         private set
     private lateinit var jobCache: JobCache
@@ -712,6 +712,7 @@ class SlurmPlugin : ComputePlugin {
         // 3. Send the batch to UCloud
         if (!emitAccountingInfo) return
 
+        /*
         val activeJobs = SlurmDatabase.browse(SlurmBrowseFlags(filterIsActive = true))
         val charges = ArrayList<ResourceChargeCredits>()
         val accountingCharges = ArrayList<SlurmCommandLine.SlurmAccountingRow>()
@@ -790,6 +791,8 @@ class SlurmPlugin : ComputePlugin {
         lastAccountingCharge = Time.now()
 
         debugSystem.normal("Charged $chargedJobs slurm jobs")
+
+         */
     }
 
     private val uidToUsernameCache = SimpleCache<Int, String>(

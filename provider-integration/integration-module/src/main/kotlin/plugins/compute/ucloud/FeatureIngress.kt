@@ -1,5 +1,7 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.accounting.api.ErrorCode
+import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
@@ -8,26 +10,63 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.providerId
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.toReadableStacktrace
+import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.reportConcurrentUse
+import dk.sdu.cloud.utils.walletOwnerFromOwnerString
+import java.util.concurrent.atomic.AtomicBoolean
 
 class FeatureIngress(
     private val domainPrefix: String,
     private val domainSuffix: String,
     private val db: DBContext,
     private val k8: K8Dependencies,
+    private val category: String,
 ) : JobFeature {
+    private suspend fun accountNow(
+        owner: String,
+        ctx: DBContext = db,
+    ): Boolean {
+        ensureOwnerColumnIsFilled(ctx)
+        val amountUsed = ctx.withSession { session ->
+            var count = 0L
+            session.prepareStatement("select count(*)::int8 from ucloud_compute_ingresses where owner = :owner")
+                .useAndInvoke(
+                    prepare = { bindString("owner", owner) },
+                    readRow = { row -> count = row.getLong(0)!! },
+                )
+            count
+        }
+
+        return reportConcurrentUse(
+            walletOwnerFromOwnerString(owner),
+            ProductCategoryIdV2(category, providerId),
+            amountUsed
+        )
+    }
+
     suspend fun create(ingresses: BulkRequest<Ingress>) {
-        IngressControl.chargeCredits.call(
-            bulkRequestOf(ingresses.items.map { ResourceChargeCredits(it.id, it.id, 1) }),
-            k8.serviceClient
-        ).orThrow()
+        val owner = ingresses.items.map { it.owner.project ?: it.owner.createdBy }.toSet().singleOrNull()
+            ?: error("Multiple owners in a single create?")
 
         db.withSession { session ->
+            if (!accountNow(owner, session)) {
+                throw RPCException(
+                    "Unable to allocate a public link. Please make sure you have sufficient funds!",
+                    HttpStatusCode.PaymentRequired,
+                    ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                )
+            }
+
             for (ingress in ingresses.items) {
                 val isValid = ingress.specification.domain.startsWith(domainPrefix) &&
                     ingress.specification.domain.endsWith(domainSuffix)
@@ -78,11 +117,12 @@ class FeatureIngress(
                 try {
                     session.prepareStatement(
                         //language=postgresql
-                        "insert into ucloud_compute_ingresses (id, domain) values (:id, :domain)"
+                        "insert into ucloud_compute_ingresses (id, domain, owner) values (:id, :domain, :owner)"
                     ).useAndInvokeAndDiscard(
                         prepare = {
                             bindString("id", ingress.id)
                             bindString("domain", ingress.specification.domain)
+                            bindString("owner", owner)
                         }
                     )
                 } catch (ex: Throwable) {
@@ -105,6 +145,9 @@ class FeatureIngress(
     }
 
     suspend fun delete(ingresses: BulkRequest<Ingress>) {
+        val owner = ingresses.items.map { it.owner.project ?: it.owner.createdBy }.toSet().singleOrNull()
+            ?: error("Multiple owners in a single delete?")
+
         db.withSession { session ->
             ingresses.items.forEach { ingress ->
                 session.prepareStatement(
@@ -125,6 +168,8 @@ class FeatureIngress(
                     }
                 )
             }
+
+            accountNow(owner, session)
         }
     }
 
@@ -217,9 +262,111 @@ class FeatureIngress(
         return "${domainPrefix}$jobId-$jobRank$domainSuffix"
     }
 
+    private var nextScan = 0L
+    override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {
+        val now = Time.now()
+        if (now > nextScan) {
+            ensureOwnerColumnIsFilled()
+
+            val owners = ArrayList<String>()
+            db.withSession { session ->
+                try {
+                    session.prepareStatement(
+                        """
+                            select distinct owner
+                            from ucloud_compute_ingresses
+                        """
+                    ).useAndInvoke(readRow = { row -> owners.add(row.getString(0)!!) })
+
+                    val containers = runtime.list()
+                    val resolvedJobs = containers.mapNotNull { jobCache.findJob(it.jobId) }
+
+                    owners.forEachGraal { owner ->
+                        if (!accountNow(owner, session)) {
+                            val ingressesToTerminateBecauseOf = ArrayList<String>()
+                            session.prepareStatement(
+                                """
+                                    select id
+                                    from ucloud_compute_ingresses
+                                    where owner = :owner
+                                """
+                            ).useAndInvoke(
+                                prepare = { bindString("owner", owner) },
+                                readRow = { row -> ingressesToTerminateBecauseOf.add(row.getString(0)!!) },
+                            )
+
+                            val jobsToTerminate = resolvedJobs
+                                .asSequence()
+                                .filter { (it.owner.project ?: it.owner.createdBy) == owner }
+                                .filter { j -> j.ingressPoints.any { it.id in ingressesToTerminateBecauseOf } }
+                                .toList()
+
+                            jobsToTerminate.forEachGraal { job ->
+                                k8.addStatus(job.id, "Terminating job because of insufficient funds (public link)")
+                                containers.filter { it.jobId == job.id }.forEach { it.cancel() }
+                            }
+                        }
+                    }
+                } catch (ex: Throwable) {
+                    log.warn("Caught exception while accounting public links: ${ex.toReadableStacktrace()}")
+                }
+            }
+
+            nextScan = now + (1000L * 60 * 60)
+        }
+    }
+
+    private val didCheckIfOwnerFillIsRequired = AtomicBoolean(false)
+    private suspend fun ensureOwnerColumnIsFilled(ctx: DBContext = db) {
+        if (!didCheckIfOwnerFillIsRequired.compareAndSet(false, true)) return
+
+        val idsWithMissingOwner = ArrayList<String>()
+        ctx.withSession { session ->
+            session.prepareStatement(
+                //language=postgresql
+                """
+                    select id
+                    from ucloud_compute_ingresses
+                    where owner is null
+                """
+            ).useAndInvoke(
+                readRow = { row -> idsWithMissingOwner.add(row.getString(0)!!) }
+            )
+        }
+
+        if (idsWithMissingOwner.isNotEmpty()) {
+            val owners = HashMap<String, String>()
+            idsWithMissingOwner.forEachGraal { id ->
+                val owner = IngressControl.retrieve
+                    .call(ResourceRetrieveRequest(IngressIncludeFlags(), id), k8.serviceClient).orThrow().owner
+                owners[id] = owner.project ?: owner.createdBy
+            }
+
+            ctx.withSession { session ->
+                session.prepareStatement(
+                    //language=postgresql
+                    """
+                        with data as (
+                            select unnest(:ids) as id, unnest(:owners) as owner
+                        )
+                        update ucloud_compute_ingresses i
+                        set owner = d.owner
+                        from data d
+                        where i.id = d.id
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindList("ids", owners.keys.toList())
+                        bindList("owners", owners.values.toList())
+                    }
+                )
+            }
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
-        private val regex = Regex("([-_a-z0-9]){5,255}")
+        private val regex = Regex("[a-z]([-_a-z0-9]){4,255}")
         private val uuidRegex = Regex("\\b[0-9a-f]{8}\\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\\b[0-9a-f]{12}\\b")
 
         // This is, to put it mildly, a silly attempt at avoiding malicious URLs.

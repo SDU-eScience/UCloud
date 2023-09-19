@@ -6,7 +6,10 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.config.ComputeResourceType
+import dk.sdu.cloud.config.IndividualProduct
 import dk.sdu.cloud.config.ProductCost
+import dk.sdu.cloud.config.StorageUnit
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.provider.api.ResourceOwner
@@ -57,7 +60,7 @@ API function structure for reporting of usage.
 fun isReportDeltaUsePossible(product: ProductReferenceV2): Boolean = true
 fun isReportBalancePossible(category: ProductCategoryIdV2): Boolean = true
 fun isReportConcurrentUsePossible(category: ProductCategoryIdV2): Boolean {
-    val resolvedCategory = loadedConfig.products2.findCategory(category.name) ?: return false
+    val resolvedCategory = loadedConfig.products.findCategory(category.name) ?: return false
     val cost = resolvedCategory.cost
     return cost !is ProductCost.Money || cost.interval == null
 }
@@ -150,7 +153,10 @@ private suspend fun trackResourceTimeUsageAndConvertForReportingWorkspace(
             intervalInMilliseconds
         }
 
-        val (whole, remaining) = desiredInterval.convertFromMillis(timeElapsed)
+        val newTracked = (workspaceTrackedTime[key] ?: 0) + timeElapsed
+        workspaceTrackedTime[key] = newTracked
+
+        val (whole, remaining) = desiredInterval.convertFromMillis(newTracked)
         workspaceTrackedTime[key] = remaining
         workspaceLastCall[key] = now
 
@@ -174,7 +180,11 @@ private suspend fun trackResourceTimeUsageAndConvertForReporting(
             intervalInMilliseconds
         }
 
-        val (whole, remaining) = desiredInterval.convertFromMillis(timeElapsed)
+        val newTracked = (resourceTrackedTime[id] ?: 0) + timeElapsed
+        resourceTrackedTime[id] = newTracked
+
+        val (whole, remaining) = desiredInterval.convertFromMillis(newTracked)
+        println("Tracking for ${resource.id}: $whole, $remaining $timeElapsed $newTracked")
         resourceTrackedTime[id] = remaining
         resourceLastCall[id] = now
 
@@ -193,7 +203,18 @@ private suspend fun trackResourceTimeUsageAndConvertForReporting(
  * @return `true` if the job is allowed to continue, otherwise `false`
  */
 suspend fun reportDeltaUseCompute(job: Job, intervalInMilliseconds: Long? = null): Boolean {
-    return reportDeltaUse(job, intervalInMilliseconds, job.specification.replicas.toLong())
+    val (category, product) = loadedConfig.products.findCategoryAndProduct(job.specification.product.toV2())
+        ?: return false
+
+    var resourceCount = job.specification.replicas.toLong()
+    val cost = category.cost
+    if (cost is ProductCost.WithUnit && cost.unit != null) {
+        val cpuResource = ComputeResourceType.valueOf(cost.unit!!)
+        val cpuSpec = product.spec as IndividualProduct.ProductSpec.Compute
+        resourceCount *= cpuSpec.getResource(cpuResource)
+    }
+
+    return reportDeltaUse(job, intervalInMilliseconds, resourceCount)
 }
 
 suspend fun reportDeltaUse(
@@ -203,7 +224,7 @@ suspend fun reportDeltaUse(
     description: ChargeDescription = ChargeDescription("Incremental usage of resource ${resource.id}", emptyList())
 ): Boolean {
     checkServerMode()
-    val categoryAndProduct = loadedConfig.products2.findCategoryAndProduct(resource.specification.product.toV2())
+    val categoryAndProduct = loadedConfig.products.findCategoryAndProduct(resource.specification.product.toV2())
         ?: return false
 
     val (category, product) = categoryAndProduct
@@ -238,9 +259,9 @@ suspend fun reportDeltaUse(
                 amountUsed
             }
         }
-
-        is ProductCost.ResourceQuota -> amountUsed
     }
+
+    if (balanceUsed == 0L) return true
 
     return AccountingV2.reportDelta.call(
         bulkRequestOf(
@@ -253,6 +274,20 @@ suspend fun reportDeltaUse(
         ),
         serviceContext.rpcClient
     ).orThrow().responses.single()
+}
+
+suspend fun reportConcurrentUseStorage(
+    workspace: WalletOwner,
+    category: ProductCategoryIdV2,
+    bytesUsed: Long,
+    intervalInMilliseconds: Long? = null,
+    description: ChargeDescription = ChargeDescription("Periodic usage of resource", emptyList())
+): Boolean {
+    val productCategory = loadedConfig.products.findCategory(category.name) ?: return false
+    val cost = productCategory.cost
+    val unit = StorageUnit.valueOf((cost as? ProductCost.WithUnit)?.unit ?: "GB")
+    val wholeUnitsUsed = unit.convertToThisUnitFromBytes(bytesUsed)
+    return reportConcurrentUse(workspace, category, wholeUnitsUsed, intervalInMilliseconds, description)
 }
 
 suspend fun reportConcurrentUse(
@@ -268,13 +303,12 @@ suspend fun reportConcurrentUse(
     // paths, if this is a periodic charge then we want to determine the period size and multiply it by the amount
     // used. In the end, this will trigger a delta charge. On the other hand, if this is not a periodic charge, then
     // we simply set the balance in UCloud since this now just corresponds to our current usage.
-    val resolvedCategory = loadedConfig.products2.findCategory(category.name) ?: return false
+    val resolvedCategory = loadedConfig.products.findCategory(category.name) ?: return false
     val cost = resolvedCategory.cost
     val interval: ProductCost.AccountingInterval? = when (cost) {
         ProductCost.Free -> null
         is ProductCost.Money -> cost.interval
         is ProductCost.Resource -> cost.accountingInterval
-        is ProductCost.ResourceQuota -> null
     }
 
     if (interval == null) return reportBalance(workspace, category, amountUsed)
@@ -284,7 +318,7 @@ suspend fun reportConcurrentUse(
         is ProductCost.Money -> {
             error("The reportTotalUse endpoint cannot be used with periodic money charges. " +
                     "Plugin should have rejected this code earlier or used a different method if " +
-                    "this is being tracked by an external system.")
+                    "this is being tracked by an external system (we do not know the price of the products).")
         }
 
         is ProductCost.Resource -> {
@@ -295,7 +329,6 @@ suspend fun reportConcurrentUse(
         }
 
         ProductCost.Free -> error("Should not happen (removed by previous branch?)")
-        is ProductCost.ResourceQuota -> error("Should not happen (removed by previous branch?)")
     }
 
     return AccountingV2.reportDelta.call(
@@ -314,7 +347,7 @@ suspend fun reportConcurrentUse(
 suspend fun reportBalance(
     workspace: WalletOwner,
     category: ProductCategoryIdV2,
-    newBalance: Long,
+    newUsage: Long,
     description: ChargeDescription = ChargeDescription("Synchronization of usage", emptyList())
 ): Boolean {
     checkServerMode()
@@ -323,7 +356,7 @@ suspend fun reportBalance(
             DeltaReportItem(
                 workspace,
                 category,
-                newBalance,
+                newUsage,
                 description,
             ),
         ),
@@ -348,7 +381,7 @@ private fun ProductReference.toCategory(): ProductCategoryIdV2 {
 }
 
 @Suppress("DEPRECATION")
-private fun ProductReference.toV2(): ProductReferenceV2 {
+fun ProductReference.toV2(): ProductReferenceV2 {
     return ProductReferenceV2(id, category, provider)
 }
 
@@ -448,5 +481,13 @@ private suspend fun synchronizeAccountingState(lastSync: Long) {
             }
         }
     }
-
 }
+
+fun walletOwnerFromOwnerString(owner: String): WalletOwner =
+    if (owner.matches(PROJECT_REGEX)) WalletOwner.Project(owner)
+    else WalletOwner.User(owner)
+
+fun ResourceOwner.toSimpleString() = project ?: createdBy
+
+val PROJECT_REGEX =
+    Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")

@@ -614,7 +614,7 @@ class AccountingProcessor(
             is AccountingRequest.RootDeposit -> rootDeposit(request)
             is AccountingRequest.Deposit -> deposit(request)
             is AccountingRequest.Update -> update(request)
-            is AccountingRequest.Charge -> charge(request)
+            is AccountingRequest.Charge -> charge(request).also { println("$request -> $it") }
             is AccountingRequest.RetrieveAllocationsInternal -> retrieveAllocationsInternal(request)
             is AccountingRequest.RetrieveWalletsInternal -> retrieveWalletsInternal(request)
             is AccountingRequest.BrowseSubAllocations -> browseSubAllocations(request)
@@ -1487,7 +1487,7 @@ class AccountingProcessor(
             it?.owner == request.owner &&
                 (it.paysFor?.provider == productCategory.provider &&
                     it.paysFor.name == productCategory.name)
-        }?.toApiWallet() ?: return AccountingResponse.Error("No matching wallet in check", 400)
+        }?.toApiWallet() ?: return AccountingResponse.Charge(false)
 
         val activeAllocations = wallet.allocations.filter { it.isActive() }
         return AccountingResponse.Charge(
@@ -1701,7 +1701,7 @@ class AccountingProcessor(
         walletAllocations: List<WalletAllocationV2>,
         description: ChargeDescription
     ): AccountingResponse {
-        println("appltying: $totalUsage")
+        println("applying: $totalUsage")
         var activeQuota = 0L
         val activeAllocations = walletAllocations.mapNotNull {
             if (it.isActive()) {

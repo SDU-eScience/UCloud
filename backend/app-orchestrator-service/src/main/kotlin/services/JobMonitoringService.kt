@@ -69,6 +69,7 @@ class JobMonitoringService(
 
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock?) {
         var nextScan = 0L
+        var nextVerify = 0L
 
         while (isActive) {
             val now = Time.now()
@@ -127,13 +128,17 @@ class JobMonitoringService(
                         scope.launch {
                             jobsByProvider.forEach { (provider, jobs) ->
                                 val comm = providers.prepareCommunication(provider)
-                                val resp = comm.api.verify.call(
-                                    bulkRequestOf(jobs),
-                                    comm.client
-                                )
+                                if (now >= nextVerify) {
+                                    val resp = comm.api.verify.call(
+                                        bulkRequestOf(jobs),
+                                        comm.client
+                                    )
 
-                                if (!resp.statusCode.isSuccess()) {
-                                    log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                                    if (!resp.statusCode.isSuccess()) {
+                                        log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
+                                    }
+
+                                    nextVerify = now + (1000L * 60 * 15)
                                 }
 
                                 val requiresRestart = jobs.filter {

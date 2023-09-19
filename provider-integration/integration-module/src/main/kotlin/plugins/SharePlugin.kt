@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -40,7 +41,7 @@ data class ConfiguredShare(
 abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share, ConfigSchema.Plugins.Shares> {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
 
     // NOTE(Dan): This could change in the future if we want it to.
     override fun supportsServiceUserMode(): Boolean = true
