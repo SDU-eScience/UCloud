@@ -16,7 +16,9 @@ import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.AccountingChecks
+import dk.sdu.cloud.accounting.services.serviceJobs.DeicReporting
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
+import dk.sdu.cloud.accounting.services.serviceJobs.PostgresDataService
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
@@ -128,6 +130,21 @@ class Server(
                 script = {
                     val accountingChecks = AccountingChecks(db, client)
                     accountingChecks.checkJobsVsTransactions()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "centerDaily",
+                    "Deic report: Center Daily",
+                    WhenToStart.Never
+                ),
+                script = {
+                    val postgresDataService = PostgresDataService(db)
+                    val deicReporting = DeicReporting(db, client, postgresDataService)
+                    deicReporting.reportCenters()
                 }
             )
         )

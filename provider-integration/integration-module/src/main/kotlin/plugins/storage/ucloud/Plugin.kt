@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.storage.ucloud
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -62,7 +63,7 @@ class UCloudFilePlugin : FilePlugin {
     override val pluginTitle: String = "UCloud"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
 
     private lateinit var pluginConfig: ConfigSchema.Plugins.Files.UCloud
 
@@ -76,7 +77,7 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var uploads: ChunkedUploadService
     lateinit var downloads: DownloadService
     lateinit var pathConverter: PathConverter
-    lateinit var usageScan: UsageScan
+    lateinit var usageScan: UsageScan2
     lateinit var driveLocator: DriveLocator
     var computePlugin: UCloudComputePlugin? = null
 
@@ -95,7 +96,7 @@ class UCloudFilePlugin : FilePlugin {
         computePlugin = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
 
         driveLocator = DriveLocator(
-            productAllocationResolved.filterIsInstance<Product.Storage>(),
+            productAllocationResolved.filterIsInstance<ProductV2.Storage>(),
             pluginConfig,
             rpcClient
         )
@@ -107,15 +108,20 @@ class UCloudFilePlugin : FilePlugin {
         downloads = DownloadService(pathConverter, fs)
         limitChecker = LimitChecker(dbConnection, rpcClient, pathConverter)
         memberFiles = MemberFiles(fs, pathConverter)
-        tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
+        usageScan = UsageScan2(pluginName, pathConverter, directoryStats)
+        tasks = TaskSystem(pluginConfig, dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem, usageScan)
         uploads = ChunkedUploadService(pathConverter, fs)
-        usageScan = UsageScan(pluginName, pathConverter, directoryStats, rpcClient, dbConnection)
+
+        val stagingFolderPath = pluginConfig.trash.stagingFolder?.takeIf { pluginConfig.trash.useStagingFolder }
+        val stagingFolder = stagingFolderPath?.let { InternalFile(it) }?.takeIf {
+            runCatching { fs.stat(it).fileType }.getOrNull() == FileType.DIRECTORY
+        }
 
         with(tasks) {
             install(CopyTask())
             install(CreateFolderTask())
             install(DeleteTask())
-            install(EmptyTrashTask())
+            install(EmptyTrashTask(fs, stagingFolder))
             install(MoveTask())
             install(TrashTask(memberFiles, trash))
 
@@ -324,15 +330,7 @@ class UCloudFilePlugin : FilePlugin {
     ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = queries.streamingSearch(req)
 
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
-        while (coroutineContext.isActive) {
-            try {
-                usageScan.startScanIfNeeded()
-            } catch (ex: Throwable) {
-                debugSystem.logThrowable("Caught exception during monitoring loop", ex)
-            }
-
-            delay(60_000)
-        }
+        usageScan.init()
     }
 
     private fun PluginContext.registerCli() {
@@ -667,7 +665,7 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
     override val pluginTitle: String = "UCloud"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
     private lateinit var filePlugin: UCloudFilePlugin
 
     override fun supportsRealUserMode(): Boolean = false

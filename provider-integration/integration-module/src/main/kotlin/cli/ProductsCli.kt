@@ -1,15 +1,13 @@
 package dk.sdu.cloud.cli
 
-import dk.sdu.cloud.accounting.api.ChargeType
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductPriceUnit
-import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.config.explainPricing
 import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
@@ -55,104 +53,11 @@ fun ProductsCli(controllerContext: ControllerContext) {
                                     line(p.description)
                                     line()
 
-                                    run {
-                                        // NOTE(Dan): Cost explanation is somewhat complicated
-
-                                        if (p.freeToUse) {
-                                            line("This product will be free and usable by everybody.")
-                                        } else if (p.chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
-                                            inline("This product will be allocated on a ")
-                                            bold { inline("QUOTA") }
-                                            line(" basis.")
-                                        } else {
-                                            val isUnitsPer = p.unitOfPrice.name.startsWith("UNITS_PER_")
-                                            val isCreditsPer = p.unitOfPrice.name.startsWith("CREDITS_PER_")
-                                            val isOneTimePayment = !isUnitsPer && !isCreditsPer
-                                            val isPaidByCredits =
-                                                isCreditsPer || p.unitOfPrice == ProductPriceUnit.CREDITS_PER_UNIT
-
-                                            val priceMultiplier = when (p) {
-                                                is Product.Compute -> p.cpu ?: 1
-                                                else -> 1
-                                            }
-
-                                            val unit: String? = when (p) {
-                                                is Product.Compute -> null // Use custom message
-                                                is Product.Storage -> "GB"
-                                                is Product.Ingress -> "link"
-                                                is Product.License -> "license"
-                                                is Product.NetworkIP -> "IP"
-                                            }
-
-                                            if (isPaidByCredits) {
-                                                val priceString = run {
-                                                    val price = p.pricePerUnit * priceMultiplier
-                                                    val fullString = price.toString().padStart(6, '0')
-                                                    val before = fullString.substring(0, fullString.length - 6)
-                                                        .takeIf { b -> b.isNotEmpty() } ?: "0"
-                                                    var after = fullString.substring(fullString.length - 6)
-                                                    while (true) {
-                                                        if (!after.endsWith("0")) break
-                                                        after = after.removeSuffix("0")
-                                                    }
-                                                    if (after.isEmpty()) after = "0"
-
-                                                    "$before.$after DKK"
-                                                }
-
-                                                inline("This product is paid for in ")
-                                                bold { inline("DKK. ") }
-
-                                                if (isOneTimePayment) {
-                                                    inline("Each requires a ")
-                                                    bold { inline("one-time payment ") }
-                                                    inline("of ")
-                                                    bold { inline(priceString) }
-                                                    line(".")
-                                                } else {
-                                                    inline("The price for using this product for one ")
-                                                    inline(
-                                                        when (p.unitOfPrice) {
-                                                            ProductPriceUnit.CREDITS_PER_DAY -> "day "
-                                                            ProductPriceUnit.CREDITS_PER_HOUR -> "hour "
-                                                            ProductPriceUnit.CREDITS_PER_MINUTE -> "minute "
-                                                            else -> error("bad state")
-                                                        }
-                                                    )
-
-                                                    inline("is ")
-                                                    bold { inline(priceString) }
-                                                    if (unit != null) inline(" per $unit")
-                                                    line(".")
-                                                }
-                                            } else {
-                                                if (isOneTimePayment) {
-                                                    inline("Users will be granted a number of ")
-                                                    bold { inline((unit ?: "CPU") + "s") }
-                                                    line(" to use.")
-                                                } else {
-                                                    inline("Users will be charged for every ")
-                                                    bold {
-                                                        inline(unit ?: "core ")
-                                                        inline(
-                                                            when (p.unitOfPrice) {
-                                                                ProductPriceUnit.UNITS_PER_DAY -> "day "
-                                                                ProductPriceUnit.UNITS_PER_HOUR -> "hour "
-                                                                ProductPriceUnit.UNITS_PER_MINUTE -> "minute "
-                                                                else -> error("bad state")
-                                                            }
-                                                        )
-                                                    }
-                                                    line("of use.")
-                                                }
-                                            }
-                                        }
-                                    }
-
+                                    line(p.explainPricing())
                                     line()
 
                                     when (p) {
-                                        is Product.Compute -> {
+                                        is ProductV2.Compute -> {
                                             bold { inline("vCPU: ") }
                                             line((p.cpu ?: 1).toString())
 
@@ -163,10 +68,10 @@ fun ProductsCli(controllerContext: ControllerContext) {
                                             bold { inline("GPU: ") }
                                             line((p.gpu ?: 0).toString())
                                         }
-                                        is Product.Ingress -> {}
-                                        is Product.License -> {}
-                                        is Product.NetworkIP -> {}
-                                        is Product.Storage -> {}
+                                        is ProductV2.Ingress -> {}
+                                        is ProductV2.License -> {}
+                                        is ProductV2.NetworkIP -> {}
+                                        is ProductV2.Storage -> {}
                                     }
                                 }
 
@@ -236,7 +141,7 @@ fun ProductsCli(controllerContext: ControllerContext) {
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
             try {
-                Products.create.call(
+                ProductsV2.create.call(
                     BulkRequest(config.products.productsUnknownToUCloud.toList()),
                     rpcClient
                 ).orThrow()
@@ -244,7 +149,7 @@ fun ProductsCli(controllerContext: ControllerContext) {
                 var failures = ""
                 for (p in config.products.productsUnknownToUCloud) {
                     try {
-                        Products.create.call(
+                        ProductsV2.create.call(
                             BulkRequest(listOf(p)),
                             rpcClient
                         ).orThrow()
@@ -261,7 +166,7 @@ fun ProductsCli(controllerContext: ControllerContext) {
 }
 
 @Serializable
-private data class ProductPreview(val unknown: List<Product>)
+private data class ProductPreview(val unknown: List<ProductV2>)
 
 private object ProductsIpc : IpcContainer("products") {
     val preview = updateHandler("preview", Unit.serializer(), ProductPreview.serializer())

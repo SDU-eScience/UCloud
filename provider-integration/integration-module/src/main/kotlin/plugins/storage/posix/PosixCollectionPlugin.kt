@@ -13,7 +13,6 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.DebugContextType
-import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.normal
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.IpcContainer
@@ -37,7 +36,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.serializer
 import java.util.Date
 import kotlin.math.floor
 
@@ -49,7 +47,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override val pluginTitle: String = "Posix"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
     private lateinit var pluginConfig: ConfigSchema.Plugins.FileCollections.Posix
     private var initializedProjects = HashMap<ResourceOwnerWithId, List<PathConverter.Collection>>()
     private lateinit var partnerPlugin: PosixFilesPlugin
@@ -58,9 +56,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     private val mutex = Mutex()
     private lateinit var ctx: PluginContext
 
-    @Suppress("DEPRECATION")
     private val accountingExtension: String?
-        get() = pluginConfig.extensions.accounting ?: pluginConfig.accounting
+        get() = pluginConfig.extensions.reportStorageUsage ?: pluginConfig.extensions.accounting
 
     private data class CollectionChargeCredits(
         val lastCharged: Date,
@@ -108,8 +105,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         run {
             val product = productAllocation.firstOrNull() ?: return@run
 
-            @Suppress("DEPRECATION")
-            val extension = pluginConfig.extensions.driveLocator ?: pluginConfig.extensions.additionalCollections
+            val extension = pluginConfig.extensions.driveLocator
             if (extension != null) {
                 retrieveCollections.invoke(ctx, extension, owner).forEach {
                     collections.add(

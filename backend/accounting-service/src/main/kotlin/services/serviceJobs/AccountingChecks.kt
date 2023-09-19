@@ -19,7 +19,6 @@ class AccountingChecks(
 ) {
 
     suspend fun checkJobsVsTransactions() {
-        val maxdiff = 100L
         data class JobInfo(
             val resourceId: Long,
             val millisecondsSpend: Long,
@@ -34,14 +33,14 @@ class AccountingChecks(
             val categoryName: String,
             val categoryProvider: String,
             val projectId: String?,
-            val username: String?
+            val username: String?,
+            val isFloatingPoint: Boolean
         )
 
 
 
         val now = Time.now()
         val startOfYesterday = now - (24 * 60 * 60 * 1000L)
-        println("$startOfYesterday vs now: $now")
         val jobs = db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -105,8 +104,6 @@ class AccountingChecks(
             }
         }
 
-        println("GODT JOBB")
-
         val computeTransactions = db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -121,16 +118,18 @@ class AccountingChecks(
                             pc.category category,
                             pc.provider provider,
                             wo.project_id project_id,
-                            wo.username username
+                            wo.username username,
+                            au.floating_point
                         from accounting.transaction_history th join
                             accounting.wallet_allocations wa on wa.id = th.affected_allocation join
                             accounting.wallets wall on wa.associated_wallet = wall.id join
                             accounting.product_categories pc on pc.id = wall.category join
-                            accounting.wallet_owner wo on wall.owned_by = wo.id
+                            accounting.wallet_owner wo on wall.owned_by = wo.id join 
+                            accounting.accounting_units au on pc.accounting_unit = au.id
                         where floor(extract(epoch from created_at) * 1000) < :now::bigint and
                             floor(extract(epoch from created_at) * 1000) > :start::bigint and
                             pc.product_type = 'COMPUTE'
-                        group by wall.id, pc.category, pc.provider, wo.project_id, wo.username, th.affected_allocation
+                        group by wall.id, pc.category, pc.provider, wo.project_id, wo.username, th.affected_allocation, au.floating_point
                     )
                     select
                         sum(usage)::bigint,
@@ -138,9 +137,10 @@ class AccountingChecks(
                         category,
                         provider,
                         project_id,
-                        username
+                        username,
+                        floating_point
                     from usage_per_alloc
-                    group by project_id, username, category, provider, wallet_id
+                    group by project_id, username, category, provider, wallet_id, floating_point
                 """.trimIndent()
             ).rows.map {
                 TransactionData(
@@ -149,12 +149,11 @@ class AccountingChecks(
                     it.getString(2)!!,
                     it.getString(3)!!,
                     it.getString(4),
-                    it.getString(5)
+                    it.getString(5),
+                    it.getBoolean(6)!!
                 )
             }
         }
-
-        println("GOT TRNAS")
 
         val highDiffs = mutableSetOf<String>()
 
@@ -162,19 +161,9 @@ class AccountingChecks(
         val userjobs = jobs.filter { it.projectId == null }.groupBy { it.createdBy }
 
         fun calculate(info: JobInfo): Long {
-            println(info.millisecondsSpend)
-            println(AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name))
-            println(info.product.price)
-            println("Calcuting $info, Got : ${(((info.millisecondsSpend / 1000.0) / AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name)) * info.product.price).toLong()}")
+            //TODO(HENRIK) NEED better way of calculating cost. This will work for now, but not when we start having other formats than minutes in backend DB
             return (((info.millisecondsSpend / 1000.0) / AccountingFrequency.toMinutes(info.product.category.accountingFrequency.name)) * info.product.price).toLong()
         }
-
-
-        println(computeTransactions)
-        println()
-        println(projectJobs)
-        println()
-        println(userjobs)
 
         computeTransactions.forEach {transaction ->
             val totalUsage = if (transaction.projectId != null) {
@@ -187,21 +176,29 @@ class AccountingChecks(
                 } ?: 0
             }
             val todaysUsage = transaction.usage
-            println("todaysUsage: $todaysUsage, total: $totalUsage, maxDiff: $maxdiff, abs: ${abs(todaysUsage - totalUsage)}")
-            if (abs(todaysUsage - totalUsage) > maxdiff ) {
-                highDiffs.add(transaction.projectId ?: transaction.username ?: "UNKNOWN USER")
+
+            val diff = abs(todaysUsage - totalUsage)
+            val allowedDelta = 100L
+            val maxdiff = if (transaction.isFloatingPoint) allowedDelta * 1_000_000L else allowedDelta
+
+            println("Category${transaction.categoryName} todaysUsage: $todaysUsage, total: $totalUsage, maxDiff: $maxdiff, abs: $diff")
+
+            if (diff > maxdiff ) {
+                highDiffs.add(
+                    "Problem with charging for ${transaction.projectId ?: transaction.username ?: "UNKNOWN USER"}. " +
+                        "Todays Usage: $todaysUsage, expected usage: $totalUsage maxDelta: $maxdiff\n "
+                )
             }
 
         }
 
-        /*SlackDescriptions.sendAlert.call(
-            Alert(
-                "Noticeable difference in charges and balances for COMPUTE jobs for $highDiffs"
-            ),
-            serviceClient
-        )*/
-
-        println("ALERTS: $highDiffs")
-
+      //  if (highDiffs.isNotEmpty()) {
+            SlackDescriptions.sendAlert.call(
+                Alert(
+                    "Noticeable difference in charges and balances for COMPUTE jobs for $highDiffs"
+                ),
+                serviceClient
+            )
+        //}
     }
 }

@@ -56,6 +56,7 @@ class JobMonitoringService {
 
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock?) {
         var nextScan = 0L
+        var nextVerify = 0L
 
         while (isActive) {
             var currentAction = "Nothing"
@@ -87,16 +88,20 @@ class JobMonitoringService {
                                 currentAction = "Launching verify job"
                                 backgroundScope.launch {
                                     jobsByProvider.forEach { (provider, localJobs) ->
-                                        try {
-                                            providers.call(
-                                                provider,
-                                                ActorAndProject.System,
-                                                { JobsProvider(it).verify },
-                                                bulkRequestOf(localJobs),
-                                                isUserRequest = false
-                                            )
-                                        } catch (ex: Throwable) {
-                                            log.info("Failed to verify block in $provider. Jobs: ${localJobs.map { it.id }}")
+                                        if (now >= nextVerify) {
+                                            try {
+                                                providers.call(
+                                                    provider,
+                                                    ActorAndProject.System,
+                                                    { JobsProvider(it).verify },
+                                                    bulkRequestOf(localJobs),
+                                                    isUserRequest = false
+                                                )
+                                            } catch (ex: Throwable) {
+                                                log.info("Failed to verify block in $provider. Jobs: ${localJobs.map { it.id }}")
+                                            }
+
+                                            nextVerify = now + (1000L * 60 * 15)
                                         }
 
                                         val requiresRestart = localJobs.filter {

@@ -26,6 +26,8 @@ dependencies {
         ucloud("service-lib-lib")
     }
 
+    implementation("org.cliffc.high_scale_lib:cliff-utils:2023.4.0-dev.25")
+
     run {
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")

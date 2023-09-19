@@ -105,11 +105,11 @@ object AccountingV2 : CallDescriptionContainer("accountingv2") {
     }
 
     val reportDelta = call("reportDelta", BulkRequest.serializer(DeltaReportItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "reportDelta", roles = Roles.PRIVILEGED)
+        httpUpdate(baseContext, "reportDelta", roles = Roles.PROVIDER)
     }
 
     val reportTotalUsage = call("reportTotalUsage", BulkRequest.serializer(TotalUsageReportItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "reportTotalUsage")
+        httpUpdate(baseContext, "reportTotalUsage", roles = Roles.PROVIDER)
     }
 
     val subAllocate = call("subAllocate", BulkRequest.serializer(SubAllocationRequestItem.serializer()), BulkResponse.serializer(SubAllocationResponse.serializer()), CommonErrorMessage.serializer()) {

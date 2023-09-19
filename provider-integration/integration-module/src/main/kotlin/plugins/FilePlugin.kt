@@ -4,6 +4,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -72,7 +73,7 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
 abstract class EmptyFilePlugin : FilePlugin {
     override var pluginName = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
 
     override suspend fun RequestContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile = throw RPCException("Not supported", HttpStatusCode.BadRequest)
