@@ -412,17 +412,33 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    const avatarWrapper = document.createElement("div");
 
-                    row.title.append(icon);
-                    // TODO(Jonas): For some reason, the arrow is not rendered.
-                    browser.icons.renderIcon({
-                        name: "ftSharesFolder",
-                        color: "FtFolderColor",
-                        color2: "FtFolderColor2",
-                        height: 32,
-                        width: 32
-                    }).then(setIcon);
+                    if (isViewingShareGroupPreview(share)) {
+                        const sharedWithAvatar = avatars.avatar(share.sharedWith);
+                        row.title.append(avatarWrapper);
+                        new ReactStaticRenderer(() =>
+                            <Tooltip
+                                trigger={<Avatar style={{height: "32px", width: "32px", marginRight: "12px"}} avatarStyle="Circle" {...sharedWithAvatar} />}
+                            >
+                                Shared with {share.sharedWith}
+                            </Tooltip>
+                        ).promise.then(it => {
+                            avatarWrapper.appendChild(it.clone());
+                        });
+                    } else {
+                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+
+                        row.title.append(icon);
+                        // TODO(Jonas): For some reason, the arrow is not rendered.
+                        browser.icons.renderIcon({
+                            name: "ftSharesFolder",
+                            color: "FtFolderColor",
+                            color2: "FtFolderColor2",
+                            height: 32,
+                            width: 32
+                        }).then(setIcon);
+                    }
 
                     // Row title
                     if (isViewingShareGroupPreview(share)) {
@@ -572,22 +588,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     // Note(Jonas): To any future reader (as opposed to past reader?) the avatarWrapper is to ensure that
                     // the re-render doesn't happen multiple times, when re-rendering. The avatarWrapper can be dead,
                     // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
-                    // causing multiple avatars to be shown.
-                    const avatarWrapper = document.createElement("div");
-                    row.stat3.append(avatarWrapper);
-
-                    if (isViewingShareGroupPreview(share)) {
-                        const sharedWithAvatar = avatars.avatar(share.sharedWith);
-                        new ReactStaticRenderer(() =>
-                            <Tooltip
-                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...sharedWithAvatar} />}
-                            >
-                                Shared with {share.sharedWith}
-                            </Tooltip>
-                        ).promise.then(it => {
-                            avatarWrapper.appendChild(it.clone());
-                        });
-                    } else {
+                    // causing multiple avatars to be shown.            
+                    if (!isViewingShareGroupPreview(share)) {
+                        row.stat3.append(avatarWrapper);
                         const sharedWithAvatars = share.sharePreview.map(it => avatars.avatar(it.sharedWith));
                         new ReactStaticRenderer(() =>
                             <Tooltip
@@ -716,12 +719,10 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
 
                 async function updatePermissions(share: OutgoingShareGroupPreview, isEditing: boolean) {
                     try {
-                        await callAPI(SharesApi.updatePermissions(bulkRequestOf(
-                            {
-                                id: share.shareId,
-                                permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
-                            }
-                        )));
+                        await callAPI(SharesApi.updatePermissions(bulkRequestOf({
+                            id: share.shareId,
+                            permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
+                        })));
                     } catch (e) {
                         displayErrorMessageOrDefault(e, "Failed to update permissions.");
                         share.permissions = isEditing ? ["READ"] : ["READ", "EDIT"];
