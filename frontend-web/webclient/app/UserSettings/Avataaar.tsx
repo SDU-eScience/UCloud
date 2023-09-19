@@ -41,7 +41,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
                         <Box ml="auto" />
                         <Avatar
                             style={{height: "150px"}}
-                            avatarStyle="circle"
+                            avatarStyle="Circle"
                             {...avatar}
                         />
                         <Box mr="auto" />

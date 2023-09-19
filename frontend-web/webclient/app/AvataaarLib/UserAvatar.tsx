@@ -9,7 +9,7 @@ interface UserAvatar {
     width?: string;
     height?: string;
     mx?: string;
-    avatarStyle?: string;
+    avatarStyle?: "Circle" | "Transparent";
 }
 
 export const UserAvatar = ({avatar, avatarStyle = "Circle", width = "60px", height = "48px", mx = "8px"}: UserAvatar): JSX.Element => (

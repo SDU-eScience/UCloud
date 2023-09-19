@@ -209,22 +209,14 @@ export const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
     SidebarMenuElements,
-    SidebarMenuElements,
 ] = [
-        {
-            items: [
-                {icon: "heroFolder", label: "Files", to: AppRoutes.login.login()},
-                {icon: "heroUserGroup", label: "Workspace", to: AppRoutes.login.login()},
-                {icon: "heroBuildingStorefront", label: "Applications", to: AppRoutes.login.login()}
-            ], predicate: () => !Client.isLoggedIn
-        },
         {
             items: [
                 {icon: "heroFolder", label: "Files", to: "/drives/"},
                 {icon: "heroUserGroup", label: "Workspace"},
                 {icon: "heroSquaresPlus", label: "Resources"},
-                {icon: "heroBuildingStorefront", label: "Applications", to: AppRoutes.apps.overview()},
-                {icon: "heroBeaker", label: "Runs", to: "/jobs/"}
+                {icon: "heroShoppingBag", label: "Applications", to: AppRoutes.apps.overview()},
+                {icon: "heroServer", label: "Runs", to: "/jobs/"}
             ], predicate: () => Client.isLoggedIn
         },
         {items: [], predicate: () => Client.isLoggedIn},
@@ -290,7 +282,7 @@ const UserMenu: React.FunctionComponent<{
         bottom="0"
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
-            <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
+            <UserAvatar height="42px" width="42px" avatar={avatar} /> : null}
     >
         <Box p="12px">
             {!CONF.STATUS_PAGE ? null : (

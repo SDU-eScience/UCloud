@@ -4,6 +4,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {Client} from "./Authentication/HttpClientInstance";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -365,6 +366,7 @@ if (onDevSite()) {
     document.body.addEventListener("keydown", async e => {
         if (e.altKey) {
             if (e.code === "KeyK") {
+                await Client.receiveAccessTokenOrRefreshIt();
                 await navigator.clipboard.writeText(`localStorage.accessToken="${localStorage.accessToken}";localStorage.csrfToken="${localStorage.csrfToken}";`);
                 snackbarStore.addFailure("Copied CSRF and access token to clipboard", false);
             } else if (e.code === "KeyL") {
@@ -528,12 +530,6 @@ export function isAbsoluteUrl(url: string): boolean {
     return url.indexOf("http://") === 0 || url.indexOf("https://") === 0 ||
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
 }
-
-export function capitalize(text: string): string {
-    if (text.length === 0) return text;
-    return text[0].toUpperCase() + text.substring(1);
-}
-
 
 // TODO(jonas): Might have to be done, more than once (Currently happens on page load).
 export function removeExpiredFileUploads(): void {

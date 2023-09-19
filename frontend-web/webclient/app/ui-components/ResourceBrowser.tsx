@@ -2,7 +2,7 @@ import {Operation} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalize, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -988,7 +988,7 @@ export class ResourceBrowser<T> {
     }
 
     defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
-        return [{title: capitalize(this.resourceName), absolutePath: ""}];
+        return [{title: capitalized(this.resourceName), absolutePath: ""}];
     }
 
     static resetTitleComponent(element: HTMLElement) {
@@ -3083,9 +3083,8 @@ export class ResourceBrowser<T> {
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
 
-        const span = document.createElement("span");
-        span.innerText = filter.text;
-        wrapper.appendChild(span);
+        const node = document.createTextNode(filter.text);
+        wrapper.appendChild(node);
 
         const check = document.createElement("input");
         check.style.marginLeft = "5px";

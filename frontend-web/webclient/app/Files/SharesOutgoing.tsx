@@ -1,11 +1,11 @@
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share} from "@/UCloud/SharesApi";
+import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState} from "@/UCloud/SharesApi";
 import {useCallback, useMemo, useRef, useState} from "react";
 import {ItemRow, StandardBrowse} from "@/ui-components/Browse";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
-import {PrettyFilePath} from "@/Files/FilePath";
+import {PrettyFilePath, prettyFilePath} from "@/Files/FilePath";
 import {
     Button,
     Flex,
@@ -14,17 +14,16 @@ import {
     List,
     RadioTile,
     RadioTilesContainer,
-    SelectableText,
     Tooltip
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, displayErrorMessageOrDefault, doNothing, errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {callAPI, noopCall, useCloudCommand} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useLocation, useNavigate, useParams} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
 import Icon from "../ui-components/Icon";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -33,12 +32,14 @@ import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
-import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {StateIconAndColor} from "./Shares";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import AppRoutes from "@/Routes";
+import {Operation} from "@/ui-components/Operation";
+import {ButtonClass} from "@/ui-components/Button";
+import {arrayToPage} from "@/Types";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -279,15 +280,6 @@ const ShareGroup: React.FunctionComponent<{
     }
 };
 
-const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void; children: React.ReactNode}> = props => {
-    return <SelectableText
-        selected={props.selected}
-        onClick={props.onClick}
-    >
-        {props.children}
-    </SelectableText>
-};
-
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
@@ -299,8 +291,9 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
 };
 
+const shareValidationCache: Record<string, ShareValidateState> = {};
 
-// BIG-TODO(Jonas): Navigating back and forth doesn't trigger anything, so you can only navigate TO shares.
+
 export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview> | null>(null);
@@ -329,7 +322,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 }
 
                 browser.on("open", (oldPath, newPath, resource) => {
-                    console.log("opening", oldPath, newPath);
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share
                         navigate(AppRoutes.resource.properties("shares", resource.shareId));
@@ -350,15 +342,37 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     ).then(result => {
                         browser.registerPage(result, newPath, true);
                         const page = result as Page<OutgoingShareGroup>;
+
+                        const rerenderCheck = {doRerender: false};
+                        const promises: Promise<unknown>[] = [];
                         for (const it of page.items) {
                             browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, true)
+                            if (shareValidationCache[it.sourceFilePath] == null) {
+                                shareValidationCache[it.sourceFilePath] === ShareValidateState.NOT_VALIDATED;
+                                promises.push(callAPI(FilesApi.retrieve({id: it.sourceFilePath})).then(() => {
+                                    shareValidationCache[it.sourceFilePath] = ShareValidateState.VALIDATED
+                                }).catch(error => {
+                                    if ([400, 404].includes(error.request.status)) {
+                                        shareValidationCache[it.sourceFilePath] = ShareValidateState.DELETED;
+                                        rerenderCheck.doRerender = true;
+                                    }
+                                }));
+                            }
                         }
+
                         const searchPath = new URLSearchParams(location.search).get("path") as string;
                         if (isInitial && searchPath) {
                             browser.open(searchPath, true);
                         }
+
                         isInitial = false;
                         browser.renderRows();
+
+                        Promise.allSettled(promises).finally(() => {
+                            if (rerenderCheck.doRerender) {
+                                browser.renderRows();
+                            }
+                        });
                     });
                 });
 
@@ -374,6 +388,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     const page = result as Page<OutgoingShareGroup>;
                     for (const it of page.items) {
                         browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, false);
+                        // TODO(Jonas): Missing subpages for actual shares
                     }
 
                     browser.registerPage(result, path, false);
@@ -398,6 +413,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
 
                 browser.on("renderRow", (share, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+
                     row.title.append(icon);
                     // TODO(Jonas): For some reason, the arrow is not rendered.
                     browser.icons.renderIcon({
@@ -408,27 +424,18 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         width: 32
                     }).then(setIcon);
 
-                    const title = isViewingShareGroupPreview(share) ?
-                        share.sharedWith :
-                        fileName(share.sourceFilePath);
-
                     // Row title
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
-
-                    // Row stat1
                     if (isViewingShareGroupPreview(share)) {
-                        const {state} = share;
-                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
-                        stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
-                        row.stat1.appendChild(stateIcon);
-                        browser.icons.renderIcon({
-                            ...StateIconAndColor[state],
-                            color2: "black",
-                            height: 32,
-                            width: 32,
-                        }).then(setStateIcon);
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, dims));
+                    } else {
+                        const node = document.createTextNode(share.sourceFilePath);
+                        row.title.append(node);
+                        prettyFilePath(share.sourceFilePath).then(title => {
+                            node.textContent = ResourceBrowser.defaultTitleRenderer(title, dims);
+                        });
                     }
 
+                    // Row stat1
                     if (isViewingShareGroupPreview(share)) {
                         const isEdit = share.permissions.some(it => it === "EDIT");
                         // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
@@ -467,16 +474,17 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                 const readTile = tiles.item(0);
                                 const writeTile = tiles.item(1);
                                 if (readTile && writeTile) {
+                                    readTile["onclick"] = writeTile["onclick"] = e => e.stopPropagation();
                                     readTile["onchange"] = () => {
                                         if (share.permissions.includes("EDIT")) {
-                                            updatePermissions(share.shareId, false);
+                                            updatePermissions(share, false);
                                             share.permissions = ["READ"];
                                             browser.renderRows();
                                         }
                                     }
                                     writeTile["onchange"] = () => {
                                         if (!share.permissions.includes("EDIT")) {
-                                            updatePermissions(share.shareId, true);
+                                            updatePermissions(share, true);
                                             share.permissions = ["READ", "EDIT"];
                                             browser.renderRows();
                                         }
@@ -487,10 +495,65 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     }
 
                     // Row stat2
-                    if (isViewingShareGroupPreview(share)) {
-                        row.stat2.innerText = share.state.toString();
+                    if (!isViewingShareGroupPreview(share) && shareValidationCache[share.sourceFilePath] === ShareValidateState.DELETED) {
+                        const button = document.createElement("button");
+                        button.innerText = "Use";
+                        button.className = ButtonClass;
+                        button.style.height = "32px";
+                        button.style.width = "64px";
+                        button.onclick = e => {
+                            e.stopImmediatePropagation();
+                            const oldPage = browser.cachedData[""];
+                            browser.registerPage(
+                                arrayToPage(oldPage.filter((it: OutgoingShareGroup) => it.sourceFilePath !== share.sourceFilePath)),
+                                "",
+                                true
+                            );
+                            browser.renderRows();
+                            try {
+                                callAPI(SharesApi.remove(bulkRequestOf(...share.sharePreview.map(sg => ({id: sg.shareId})))));
+                            } catch (e) {
+                                displayErrorMessageOrDefault(e, "Failed to remove invalid share");
+                                browser.registerPage(arrayToPage(oldPage), "", true);
+                                browser.renderRows();
+                            }
+                        }
+                        row.stat3.replaceChildren(button);
                     } else {
-                        row.stat2.innerText = "Find something to render here.";
+                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
+                        stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
+                        row.stat2.appendChild(stateIcon);
+                        const text = document.createTextNode("");
+                        let state: ShareState;
+
+                        if (isViewingShareGroupPreview(share)) {
+                            state = share.state;
+                            text.textContent = capitalized(share.state.toString());
+                        } else {
+                            const pending = share.sharePreview.filter(it => it.state === "PENDING");
+                            const rejected = share.sharePreview.filter(it => it.state === "REJECTED");
+                            const anyPending = pending.length > 0;
+                            const anyRejected = pending.length > 0;
+
+                            if (anyPending) {
+                                text.textContent = `${pending.length} pending`;
+                                state = "PENDING";
+                            } else if (anyRejected) {
+                                text.textContent = `${rejected.length} pending`;
+                                state = "REJECTED";
+                            } else { // All must be approved in none are rejected or pending. 
+                                text.textContent = `All accepted`;
+                                state = "APPROVED";
+                            }
+                        }
+
+                        row.stat2.append(text);
+                        browser.icons.renderIcon({
+                            ...StateIconAndColor[state],
+                            color2: "black",
+                            height: 32,
+                            width: 32,
+                        }).then(setStateIcon);
                     }
 
                     // Row stat3
@@ -517,7 +580,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         const sharedWithAvatar = avatars.avatar(share.sharedWith);
                         new ReactStaticRenderer(() =>
                             <Tooltip
-                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="circle" {...sharedWithAvatar} />}
+                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...sharedWithAvatar} />}
                             >
                                 Shared with {share.sharedWith}
                             </Tooltip>
@@ -528,11 +591,13 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         const sharedWithAvatars = share.sharePreview.map(it => avatars.avatar(it.sharedWith));
                         new ReactStaticRenderer(() =>
                             <Tooltip
-                                trigger={<>
-                                    {sharedWithAvatars.map(
-                                        (avatar, index) => <Avatar key={share.sharePreview[index].sharedWith} style={{height: "40px", width: "40px"}} avatarStyle="circle" {...avatar} />
+                                trigger={<Flex marginRight="26px">
+                                    {sharedWithAvatars.slice(0, 5).map(
+                                        (avatar, index) => <div key={share.sharePreview[index].sharedWith} style={{marginRight: "-26px"}}>
+                                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
+                                        </div>
                                     )}
-                                </>}
+                                </Flex>}
                             >
                                 Shared with {share.sharePreview.map(it => it.sharedWith)}
                             </Tooltip>
@@ -610,19 +675,58 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     return callbacks;
                 });
                 browser.on("fetchOperations", () => {
-                    return []; // TODO(Jonas);
-                });
-                browser.on("generateBreadcrumbs", () => [{title: "Shares", absolutePath: ""}]);
+                    const entries = browser.findSelectedEntries();
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<Share>;
 
-                async function updatePermissions(shareId: string, isEditing: boolean) {
-                    console.log(shareId);
-                    await callAPI(SharesApi.updatePermissions(bulkRequestOf(
-                        {
-                            id: shareId,
-                            permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
+                    const operations: Operation<OutgoingShareGroup | OutgoingShareGroupPreview, ResourceBrowseCallbacks<Share>>[] = [{
+                        text: "Delete",
+                        confirm: true,
+                        icon: "trash",
+                        enabled(selected) {
+                            return (selected.length !== 0) && isViewingShareGroupPreview(selected[0]);
+                        },
+                        async onClick(selected, extra, all) {
+                            if (isViewingShareGroupPreview(selected[0])) {
+                                const previews = selected as OutgoingShareGroupPreview[];
+                                await extra.invokeCommand(extra.api.remove(bulkRequestOf(...previews.map(it => ({id: it.shareId})))));
+                                extra.reload();
+                            }
                         }
-                    )));
-                    // TODO(Jonas): Reload
+                    },
+                    {
+                        text: "Delete share",
+                        confirm: true,
+                        icon: "trash",
+                        enabled(selected) {
+                            return (selected.length !== 0) && !isViewingShareGroupPreview(selected[0]);
+                        },
+                        async onClick(selected, extra) {
+                            if (!isViewingShareGroupPreview(selected[0])) {
+                                const previews = selected as OutgoingShareGroup[];
+                                const ids = previews.flatMap(s => s.sharePreview.map(sg => ({id: sg.shareId})));
+                                await extra.invokeCommand(extra.api.remove(bulkRequestOf(...ids)));
+                                extra.reload();
+                            }
+                        },
+                    }];
+                    return operations.filter(it => it.enabled(entries, callbacks, entries));
+                });
+
+                browser.on("generateBreadcrumbs", () => [{title: "Shared by me", absolutePath: ""}]);
+
+                async function updatePermissions(share: OutgoingShareGroupPreview, isEditing: boolean) {
+                    try {
+                        await callAPI(SharesApi.updatePermissions(bulkRequestOf(
+                            {
+                                id: share.shareId,
+                                permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
+                            }
+                        )));
+                    } catch (e) {
+                        displayErrorMessageOrDefault(e, "Failed to update permissions.");
+                        share.permissions = isEditing ? ["READ"] : ["READ", "EDIT"];
+                        browser.renderRows();
+                    }
                 };
             });
         }

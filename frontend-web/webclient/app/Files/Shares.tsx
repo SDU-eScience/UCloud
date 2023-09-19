@@ -470,7 +470,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
 
                     new ReactStaticRenderer(() =>
                         <Tooltip
-                            trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="circle" {...avatar} />}
+                            trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />}
                         >
                             Shared by {share.owner.createdBy}
                         </Tooltip>
@@ -538,7 +538,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
                     return SharesApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
                 });
-                browser.on("generateBreadcrumbs", () => [{title: "Shares", absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => [{title: "Shared with me", absolutePath: ""}]);
                 browser.on("search", query => {
                     browser.searchQuery = query;
                     browser.currentPath = "/search";
