@@ -16,9 +16,7 @@ import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.AccountingChecks
-import dk.sdu.cloud.accounting.services.serviceJobs.DeicReporting
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
-import dk.sdu.cloud.accounting.services.serviceJobs.PostgresDataService
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
@@ -134,6 +132,7 @@ class Server(
             )
         )
 
+        /*
         scriptManager.register(
             Script(
                 ScriptMetadata(
@@ -148,6 +147,7 @@ class Server(
                 }
             )
         )
+         */
 
         with(micro.server) {
             configureControllers(

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services.serviceJobs
 
+/*
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.service.db.async.DBContext
@@ -56,3 +57,5 @@ class DeicReporting(
     }
 
 }
+
+ */

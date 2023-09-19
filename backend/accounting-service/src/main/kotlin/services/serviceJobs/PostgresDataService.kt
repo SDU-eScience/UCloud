@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services.serviceJobs
 
+/*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.Project
@@ -846,3 +847,5 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
         }
     }
 }
+
+ */
