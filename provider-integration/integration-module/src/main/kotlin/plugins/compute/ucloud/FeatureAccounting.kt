@@ -23,7 +23,6 @@ object FeatureAccounting : JobFeature, Loggable {
         if (job.status.state.isFinal()) return
         if (job.status.state == JobState.IN_QUEUE) return
 
-        println("Accounting job: ${job.id} ${job.status.state}")
         if (!reportDeltaUseCompute(job)) {
             val children = batch.filter { it.jobId == jobId }
             k8.addStatus(jobId, "Terminating job because of insufficient funds")

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.WalletAllocationV2
 import dk.sdu.cloud.accounting.util.Providers
@@ -18,8 +19,8 @@ import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.ProjectWithTitle
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.provider.api.translateToChargeType
-import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -33,7 +34,6 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -45,24 +45,6 @@ import kotlin.random.Random
 
 const val doDebug = false
 const val allocationIdCutoff = 5900
-data class WalletSummary(
-    val walletId: Long,
-    val ownerUsername: String?,
-    val ownerProject: String?,
-    val category: ProductCategory,
-
-    val allocId: Long,
-    val allocLocalUsage: Long,
-    val allocQuota: Long,
-    val allocPath: List<Long>,
-
-    val ancestorId: Long?,
-    val ancestorUsage: Long?,
-    val ancestorQuota: Long?,
-
-    val notBefore: Long,
-    val notAfter: Long?,
-)
 
 private data class InternalWallet(
     val id: Int,
@@ -271,7 +253,7 @@ sealed class AccountingRequest {
         override var id: Long = -1
     ) : AccountingRequest()
 
-    data class RetrieveRelevantWalletsProviderNotifications(
+    data class RetrieveProviderAllocations(
         override val actor: Actor,
 
         val providerId: String,
@@ -279,8 +261,7 @@ sealed class AccountingRequest {
         val filterOwnerIsProject: Boolean? = null,
         val filterCategory: String? = null,
 
-        val itemsPerPage: Int?,
-        val next: String?,
+        val pagination: NormalizedPaginationRequestV2,
 
         override var id: Long = -1
     ) : AccountingRequest()
@@ -341,7 +322,7 @@ sealed class AccountingResponse {
     ) : AccountingResponse()
 
     data class RetrieveRelevantWalletsProviderNotifications(
-        val wallets: List<WalletSummary>,
+        val page: PageV2<ProviderWalletSummaryV2>,
         override var id: Long = -1
     ) : AccountingResponse()
 
@@ -397,8 +378,8 @@ suspend fun AccountingProcessor.browseSubAllocations(
     return sendRequest(request).orThrow()
 }
 
-suspend fun AccountingProcessor.retrieveRelevantWalletsNotifications(
-    request: AccountingRequest.RetrieveRelevantWalletsProviderNotifications
+suspend fun AccountingProcessor.retrieveProviderAllocations(
+    request: AccountingRequest.RetrieveProviderAllocations
 ): AccountingResponse.RetrieveRelevantWalletsProviderNotifications {
     return sendRequest(request).orThrow()
 }
@@ -618,7 +599,7 @@ class AccountingProcessor(
             is AccountingRequest.RetrieveAllocationsInternal -> retrieveAllocationsInternal(request)
             is AccountingRequest.RetrieveWalletsInternal -> retrieveWalletsInternal(request)
             is AccountingRequest.BrowseSubAllocations -> browseSubAllocations(request)
-            is AccountingRequest.RetrieveRelevantWalletsProviderNotifications -> retrieveRelevantWalletsNotifications(
+            is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(
                 request
             )
 
@@ -1921,92 +1902,72 @@ class AccountingProcessor(
     val UUID_REGEX =
         Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
-    private suspend fun retrieveRelevantWalletsNotifications(request: AccountingRequest.RetrieveRelevantWalletsProviderNotifications): AccountingResponse {
-        // NOTE(Henrik): We fetch all the relevant data.
-        //
-        // First we retrieve the relevant wallets, filters them by request filters and creates pagination of
-        // the wallets
-        // The second part retrieves all relevant allocations along with their ancestors.
-        //
-        // This summary is then used to build the summary required by the provider.
+    private fun retrieveProviderAllocations(
+        request: AccountingRequest.RetrieveProviderAllocations
+    ): AccountingResponse {
+        // Format for pagination tokens: $walletId/$allocationId.
+        // When specified we will find anything in wallets with id >= walletId.
+        // When $walletId matches then the allocations are also required to be > allocationId.
+        val nextTokens = request.pagination.next?.split("/")
 
+        val minimumWalletId = nextTokens?.getOrNull(0)?.toIntOrNull() ?: 0
+        val minimumAllocationId = nextTokens?.getOrNull(1)?.toIntOrNull() ?: 0
+        val now = Time.now()
 
-        var providerWallets = wallets.filter { it?.paysFor?.provider == request.providerId }.mapNotNull { it }
+        val relevantWallets = wallets
+            .asSequence()
+            .filterNotNull()
+            .filter { it.paysFor.provider == request.providerId }
+            .filter { it.id >= minimumWalletId }
+            .filter { request.filterCategory == null || request.filterCategory == it.paysFor.name }
+            .filter { request.filterOwnerId == null || request.filterOwnerId == it.owner }
+            .filter { request.filterOwnerIsProject != true || it.owner.matches(PROJECT_REGEX) }
+            .filter { request.filterOwnerIsProject != false || !it.owner.matches(PROJECT_REGEX) }
+            .sortedBy { it.id }
+            .associateBy { it.id }
 
-        if (request.filterCategory != null) {
-            val filtered = providerWallets.filter { it.paysFor.name == request.filterCategory }
-            providerWallets = filtered
-        }
-        if (request.filterOwnerId != null) {
-            val filtered = providerWallets.filter { it.owner == request.filterOwnerId }
-            providerWallets = filtered
-        }
-        if (request.filterOwnerIsProject != null) {
-            val filtered = providerWallets.filter { it.owner.matches(UUID_REGEX) == true }
-            providerWallets = filtered
-        }
+        val relevantWalletIds = relevantWallets.keys
 
-        if (request.next != null) {
-            val startIndex = providerWallets.indexOfFirst { it.id == request.next.toInt() }
-            val limited = providerWallets.subList(startIndex, providerWallets.size - 1)
-            providerWallets = limited
-        }
-
-        val walletsNeededForPage = providerWallets.chunked(request.itemsPerPage ?: 50).firstOrNull()
-            ?: return AccountingResponse.RetrieveRelevantWalletsProviderNotifications(
-                emptyList()
-            )
-
-        val allocs = walletsNeededForPage.map { wallet ->
-            val allocsForWallet = allocations.filter { it?.associatedWallet == wallet.id }.mapNotNull { it }
-            Pair(wallet, allocsForWallet)
-        }
-
-        val summaries = ArrayList<WalletSummary>()
-
-        allocs.forEach { wal ->
-            val wallet = wal.first
-            val isProject = wallet.owner.matches(UUID_REGEX)
-            val associatedAllocations = wal.second
-            associatedAllocations.forEach { alloc ->
-                val allocationPath = getAllocationsPath(alloc.id).map { it.toLong() }
-                val parent = alloc.parentAllocation
-                summaries.add(
-                    WalletSummary(
-                        wallet.id.toLong(),
-                        if (isProject) null else wallet.owner,
-                        if (isProject) wallet.owner else null,
-                        wallet.paysFor,
-
-                        alloc.id.toLong(),
-                        alloc.localUsage,
-                        alloc.quota,
-                        allocationPath,
-                        parent?.toLong(),
-                        if (parent != null) {
-                            allocations[parent]?.localUsage
-                        } else {
-                            null
-                        },
-                        if (parent != null) {
-                            allocations[parent]?.quota
-                        } else {
-                            null
-                        },
-                        alloc.notBefore,
-                        alloc.notAfter
-                    )
+        val relevantAllocations = allocations
+            .asSequence()
+            .filterNotNull()
+            .filter { it.associatedWallet in relevantWalletIds }
+            .filter { it.associatedWallet != minimumWalletId || it.id > minimumAllocationId }
+            .filter { now in it.notBefore..(it.notAfter ?: Long.MAX_VALUE) }
+            .sortedWith(Comparator.comparingInt<InternalWalletAllocation?> { it.associatedWallet }.thenComparingInt { it.id })
+            .take(request.pagination.itemsPerPage)
+            .map {
+                val apiWallet = relevantWallets.getValue(it.associatedWallet).toApiWallet()
+                ProviderWalletSummaryV2(
+                    it.id.toString(),
+                    apiWallet.owner,
+                    apiWallet.paysFor,
+                    it.notBefore,
+                    it.notAfter,
+                    it.quota
                 )
             }
+            .toList()
+
+        val lastAllocation = relevantAllocations.lastOrNull()
+        val newNextToken = if (lastAllocation != null && relevantAllocations.size < request.pagination.itemsPerPage) {
+            val allocId = lastAllocation.id.toInt()
+            val walletId = allocations.find { it?.id == allocId }?.associatedWallet!!
+            "$walletId/$allocId"
+        } else {
+            null
         }
 
         return AccountingResponse.RetrieveRelevantWalletsProviderNotifications(
-            summaries
+            PageV2(
+                request.pagination.itemsPerPage,
+                relevantAllocations,
+                newNextToken
+            )
         )
     }
 
-
-    //Is Autherized in AccountingService
+    // Is authorized in AccountingService
     private suspend fun browseSubAllocations(
         request: AccountingRequest.BrowseSubAllocations
     ): AccountingResponse {
@@ -2038,7 +1999,7 @@ class AccountingProcessor(
                     productCategory = wall.paysFor,
                     workspaceId = projectInfo.first.projectId,
                     workspaceTitle = projectInfo.first.title,
-                    workspaceIsProject = wall.owner.matches(UUID_REGEX),
+                    workspaceIsProject = wall.owner.matches(PROJECT_REGEX),
                     projectPI = projectInfo.second,
                     usage = allocation.localUsage,
                     quota = allocation.quota,
@@ -2481,7 +2442,7 @@ private class ProjectCache(private val db: DBContext) {
         }
     }
 
-    val UUID_REGEX =
+    val PROJECT_REGEX =
         Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
     suspend fun retrieveProjectInfoFromId(

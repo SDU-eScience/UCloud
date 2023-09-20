@@ -4,7 +4,6 @@ import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.Files
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.plugins.InternalFile
@@ -34,7 +33,6 @@ class EmptyTrashTask(
     private val stagingFolder: InternalFile?
 ) : TaskHandler {
     init {
-        println("Staging folder is: $stagingFolder")
         if (stagingFolder != null) {
             ProcessingScope.launch {
                 val taskName = "empty-trash-staging"
@@ -96,13 +94,11 @@ class EmptyTrashTask(
                         nativeFs.delete(internalFile)
                         nativeFs.createDirectories(internalFile)
                     } else {
-                        println("Deleting via staging folder")
                         val filesToDelete = nativeFs.listFiles(internalFile)
                         filesToDelete.forEach {
                             try {
                                 val src = internalFile.child(it)
                                 val dst = stagingFolder.child(UUID.randomUUID().toString())
-                                println("$src -> $dst")
                                 java.nio.file.Files.move(
                                     Path(src.path),
                                     Path(dst.path),
@@ -113,8 +109,7 @@ class EmptyTrashTask(
                         }
                     }
 
-                    println("Requesting scan of ${driveInfo.drive.ucloudId}")
-                    usageScan2.requestScan(driveInfo.drive.ucloudId)
+                    usageScan.requestScan(driveInfo.drive.ucloudId)
                 } catch (ex: FSException) {
                     if (log.isDebugEnabled) {
                         log.debug("Caught an exception while deleting files during emptying of trash: ${ex.stackTraceToString()}")

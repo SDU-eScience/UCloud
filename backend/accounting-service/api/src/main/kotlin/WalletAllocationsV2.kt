@@ -155,7 +155,6 @@ data class WalletsRetrieveProviderSummaryRequest(
 
     val filterOwnerId: String? = null,
     val filterOwnerIsProject: Boolean? = null,
-
     val filterCategory: String? = null,
 ) : WithPaginationRequestV2
 
@@ -171,6 +170,8 @@ data class ProviderWalletSummaryV2(
 
     @UCloudApiDoc("The earliest timestamp at which the reported balance is no longer fully usable")
     val notAfter: Long?,
+
+    val quota: Long,
 )
 
 @UCloudApiInternal(InternalLevel.BETA)
@@ -245,15 +246,20 @@ object WalletAllocationsV2 : CallDescriptionContainer("accounting.walletallocati
         }
     }
 
-    val retrieveProviderSummary = call("retrieveProviderSummary", WalletsRetrieveProviderSummaryRequest.serializer(), PageV2.serializer(ProviderWalletSummary.serializer()), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, "providerSummary", roles = Roles.PROVIDER)
+    val retrieveProviderAllocations = call(
+        "retrieveProviderAllocations",
+        WalletsRetrieveProviderSummaryRequest.serializer(),
+        PageV2.serializer(ProviderWalletSummaryV2.serializer()),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpUpdate(baseContext, "retrieveProviderAllocations", roles = Roles.PROVIDER)
 
-        documentation {
-            summary = "Retrieves a provider summary of relevant wallets"
-            description = """
-                This endpoint is only usable by providers. The endpoint will return a stable sorted summary of all
-                allocations that a provider currently has.
-            """.trimIndent()
+            documentation {
+                summary = "Retrieves allocations relevant for a specific provider"
+                description = """
+                    This endpoint is only usable by providers. The endpoint will return a stable results. 
+                """.trimIndent()
+            }
         }
-    }
+    )
 }

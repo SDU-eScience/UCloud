@@ -100,7 +100,6 @@ data class Category(
                         p.spec.cpuModel,
                         p.spec.memoryModel,
                         p.spec.gpuModel,
-                        freeToUse = c == ProductCost.Free,
                         hiddenInGrantApplications = false,
                     )
                 }
@@ -109,7 +108,6 @@ data class Category(
                     ProductV2.License(
                         p.name, p.price, category, p.description,
                         p.spec.tags,
-                        freeToUse = c == ProductCost.Free,
                         hiddenInGrantApplications = false,
                     )
                 }
@@ -117,21 +115,18 @@ data class Category(
                 is IndividualProduct.ProductSpec.PublicIp -> {
                     ProductV2.NetworkIP(
                         p.name, p.price, category, p.description,
-                        freeToUse = c == ProductCost.Free,
                         hiddenInGrantApplications = false,
                     )
                 }
                 is IndividualProduct.ProductSpec.PublicLink -> {
                     ProductV2.Ingress(
                         p.name, p.price, category, p.description,
-                        freeToUse = c == ProductCost.Free,
                         hiddenInGrantApplications = false,
                     )
                 }
                 is IndividualProduct.ProductSpec.Storage -> {
                     ProductV2.Storage(
                         p.name, p.price, category, p.description,
-                        freeToUse = c == ProductCost.Free,
                         hiddenInGrantApplications = false,
                     )
                 }
@@ -701,7 +696,7 @@ private fun parseComputeProducts(
 // Utilities
 // =====================================================================================================================
 fun ProductV2.explainPricing(): String {
-    if (freeToUse || price == 0L) return "Free"
+    if (price == 0L) return "Free"
 
     if (price == 1L && category.accountingFrequency == AccountingFrequency.ONCE) {
         return "Quota based (${category.accountingUnit.name})"

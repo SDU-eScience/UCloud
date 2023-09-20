@@ -23,6 +23,13 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
      */
     suspend fun RequestContext.initInUserMode(owner: ResourceOwner): Unit {}
 
+    suspend fun PluginContext.notifyAllocationCompleteInServerMode(notification: AllocationNotification) {
+        when (notification) {
+            is AllocationNotification.Combined -> onAllocationCompleteInServerModeTotal(notification)
+            is AllocationNotification.Single -> onAllocationCompleteInServerModeSingle(notification)
+        }
+    }
+
     /**
      * Invoked by the notification controller _after_ the allocation plugin has run. This method is run in the server
      * context. If multiple plugins cover the same category then _all_ plugins will be invoked.
@@ -31,13 +38,13 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
      *
      * This method is only invoked for the initial allocation not for re-synchronization.
      */
-    suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotificationTotal) {}
+    suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotification.Combined) {}
 
     /**
      * Same as `onAllocationCompleteInServerModeTotal` but where each allocation notification refers to an individual
      * allocation. That is, allocation notifications does not contain the summed balance across allocations.
      */
-    suspend fun PluginContext.onAllocationCompleteInServerModeSingle(notification: AllocationNotificationSingle) {}
+    suspend fun PluginContext.onAllocationCompleteInServerModeSingle(notification: AllocationNotification.Single) {}
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts

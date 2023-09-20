@@ -37,7 +37,7 @@ abstract class EmptyFileCollectionPlugin : FileCollectionPlugin {
         return BulkResponse(knownProducts.map { FSSupport(it) })
     }
 
-    override suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotificationTotal) {}
+    override suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotification.Combined) {}
     override suspend fun RequestContext.verify(request: BulkRequest<FileCollection>) {}
 
     override suspend fun RequestContext.create(resource: FileCollection): FindByStringId? = throw RPCException("Not supported", HttpStatusCode.BadRequest)
