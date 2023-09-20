@@ -338,18 +338,22 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                 browser.select(idx, SelectionMode.SINGLE);
                             }
 
-                            if (!browser.renameValue) return;
+                            const sharedWith = browser.renameValue;
+                            if (!sharedWith) return;
                             const filePath = new URLSearchParams(location.search).get("path") as string;
                             if (!filePath) return;
-
                             const page = browser.cachedData["/"] as OutgoingShareGroup[];
                             const shareGroup = page.find(it => it.sourceFilePath === filePath);
                             if (!shareGroup) return;
 
-                            callAPI(SharesApi.create(bulkRequestOf({sharedWith: browser.renameValue, sourceFilePath: filePath, permissions: ["READ"], product: shareGroup.storageProduct, conflictPolicy: "RENAME"})))
-                                .catch(err => {
+                            callAPI(SharesApi.create(bulkRequestOf({sharedWith, sourceFilePath: filePath, permissions: ["READ"], product: shareGroup.storageProduct, conflictPolicy: "RENAME"})))
+                                .then(it => {
+                                    const id = it.responses[0]!.id;
+                                    const page = browser.cachedData[filePath];
+                                    page.push({permissions: ["READ"], shareId: id, sharedWith, state: "PENDING"})
+                                    browser.rerender();
+                                }).catch(err => {
                                     snackbarStore.addFailure(extractErrorMessage(err), false);
-                                    browser.refresh();
                                 });
                         },
                         () => {
@@ -795,7 +799,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         },
                     }, {
                         icon: "share",
-                        text: "Share",
+                        text: "Invite",
                         enabled(selected) {return selected.length === 1 && !isViewingShareGroupPreview(selected[0])},
                         onClick(selected, cb) {
                             const [share] = selected;
@@ -810,7 +814,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         }
                     }, {
                         icon: "share",
-                        text: "Share",
+                        text: "Invite",
                         enabled(selected) {
                             const hasPath = window.location.search !== "";
                             return selected.length === 0 && hasPath;
