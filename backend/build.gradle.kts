@@ -14,8 +14,8 @@ buildscript {
     }
 
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0-RC")
-        classpath("org.jetbrains.kotlin:kotlin-serialization:1.9.0-RC")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10")
+        classpath("org.jetbrains.kotlin:kotlin-serialization:1.9.10")
     }
 }
 
