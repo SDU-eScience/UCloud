@@ -601,10 +601,10 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         button.style.width = "128px";
                         button.onclick = e => {
                             e.stopImmediatePropagation();
-                            const oldPage = browser.cachedData[""];
+                            const oldPage = browser.cachedData["/"];
                             browser.registerPage(
                                 arrayToPage(oldPage.filter((it: OutgoingShareGroup) => it.sourceFilePath !== share.sourceFilePath)),
-                                "",
+                                "/",
                                 true
                             );
                             browser.renderRows();
@@ -612,7 +612,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                 callAPI(SharesApi.remove(bulkRequestOf(...share.sharePreview.map(sg => ({id: sg.shareId})))));
                             } catch (e) {
                                 displayErrorMessageOrDefault(e, "Failed to remove invalid share");
-                                browser.registerPage(arrayToPage(oldPage), "", true);
+                                browser.registerPage(arrayToPage(oldPage), "/", true);
                                 browser.renderRows();
                             }
                         }
