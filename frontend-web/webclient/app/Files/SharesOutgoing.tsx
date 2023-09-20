@@ -34,12 +34,13 @@ import {api as FilesApi} from "@/UCloud/FilesApi";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
-import {StateIconAndColor} from "./Shares";
+import {ShareModal, StateIconAndColor} from "./Shares";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import AppRoutes from "@/Routes";
 import {Operation} from "@/ui-components/Operation";
 import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -711,6 +712,21 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                 extra.reload();
                             }
                         },
+                    }, {
+                        icon: "share",
+                        text: "Share",
+                        enabled(selected) {return selected.length === 1 && !isViewingShareGroupPreview(selected[0])},
+                        onClick(selected, cb) {
+                            const [share] = selected;
+                            if (!isViewingShareGroupPreview(share))
+                            dialogStore.addDialog(
+                                <ShareModal
+                                    selected={{path: share.sourceFilePath, product: share.storageProduct}}
+                                    cb={cb}
+                                />,
+                                doNothing, true
+                            );
+                        }
                     }];
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
                 });

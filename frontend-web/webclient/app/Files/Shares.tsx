@@ -12,8 +12,8 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {LinkInfo} from "@/ui-components/SidebarLink";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
-import {BulkResponse, PageV2} from "@/UCloud";
-import {callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
+import {BulkResponse, PageV2, accounting} from "@/UCloud";
+import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {copyToClipboard, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
@@ -49,8 +49,8 @@ function inviteLinkFromToken(token: string): string {
 }
 
 export const ShareModal: React.FunctionComponent<{
-    selected: UFile,
-    cb: ResourceBrowseCallbacks<UFile>
+    selected: {path: string; product: accounting.ProductReference},
+    cb: {invokeCommand: InvokeCommand, navigate: NavigateFunction}
 }> = ({selected, cb}) => {
 
     const [inviteLinks, fetchLinks] = useCloudAPI<PageV2<ShareLink>>({noop: true}, emptyPageV2);
@@ -74,7 +74,7 @@ export const ShareModal: React.FunctionComponent<{
 
     useEffect(() => {
         fetchLinks(
-            shareLinksApi.browse({itemsPerPage: 10, path: selected.id}),
+            shareLinksApi.browse({itemsPerPage: 10, path: selected.path}),
         );
     }, []);
 
@@ -90,9 +90,9 @@ export const ShareModal: React.FunctionComponent<{
                     SharesApi.create(
                         bulkRequestOf({
                             sharedWith: usernameRef.current?.value ?? "",
-                            sourceFilePath: selected.id,
+                            sourceFilePath: selected.path,
                             permissions: ["READ" as const],
-                            product: selected.specification.product
+                            product: selected.product
                         })
                     )
                 ).then(it => {
@@ -116,11 +116,11 @@ export const ShareModal: React.FunctionComponent<{
                 <Button
                     onClick={async () => {
                         await callAPIWithErrorHandler(
-                            shareLinksApi.create({path: selected.id})
+                            shareLinksApi.create({path: selected.path})
                         );
 
                         fetchLinks(
-                            shareLinksApi.browse({itemsPerPage: 10, path: selected.id}),
+                            shareLinksApi.browse({itemsPerPage: 10, path: selected.path}),
                         );
                     }}
                 >Create link</Button>
@@ -132,11 +132,11 @@ export const ShareModal: React.FunctionComponent<{
                     <Button
                         onClick={async () => {
                             await callAPIWithErrorHandler(
-                                shareLinksApi.create({path: selected.id})
+                                shareLinksApi.create({path: selected.path})
                             );
 
                             fetchLinks(
-                                shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
+                                shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
                             );
                         }}
                     >Create link</Button>
@@ -177,11 +177,11 @@ export const ShareModal: React.FunctionComponent<{
                                     height={40}
                                     onAction={async () => {
                                         await callAPIWithErrorHandler(
-                                            shareLinksApi.delete({token: link.token, path: selected.id})
+                                            shareLinksApi.delete({token: link.token, path: selected.path})
                                         );
 
                                         fetchLinks(
-                                            shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
+                                            shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
                                         );
                                     }}
                                 />
@@ -213,11 +213,11 @@ export const ShareModal: React.FunctionComponent<{
                             const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
 
                             await callAPIWithErrorHandler(
-                                shareLinksApi.update({token: editingLink, path: selected.id, permissions: newPermissions})
+                                shareLinksApi.update({token: editingLink, path: selected.path, permissions: newPermissions})
                             );
 
                             fetchLinks(
-                                shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
+                                shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
                             );
                         }}
                     />

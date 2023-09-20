@@ -644,7 +644,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: async (selected, cb) => {
                     dialogStore.addDialog(
                         <ShareModal
-                            selected={selected[0]}
+                            selected={{path: selected[0].id, product: selected[0].specification.product}}
                             cb={cb}
                         />,
                         doNothing, true
