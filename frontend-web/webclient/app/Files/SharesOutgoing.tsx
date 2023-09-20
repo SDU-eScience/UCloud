@@ -17,7 +17,7 @@ import {
     Tooltip
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {capitalized, displayErrorMessageOrDefault, doNothing, errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, displayErrorMessageOrDefault, doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
@@ -31,7 +31,7 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, SelectionMode, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {ShareModal, StateIconAndColor} from "./Shares";
@@ -41,6 +41,7 @@ import {Operation} from "@/ui-components/Operation";
 import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -317,9 +318,59 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
             new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, "Shared by me").init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
+                let shouldRemoveFakeDirectory = true;
+                const dummyId = "temporary-share-id-that-will-be-unique";
+                function showShareInput() {
+                    browser.removeEntryFromCurrentPage(it => it.id === dummyId);
+                    shouldRemoveFakeDirectory = false;
+                    insertFakeEntry(dummyId);
+                    const idx = browser.findVirtualRowIndex((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+                    if (idx !== null) browser.ensureRowIsVisible(idx, true);
+
+                    browser.showRenameField(
+                        (it: OutgoingShareGroupPreview) => it.shareId === dummyId,
+                        () => {
+                            browser.removeEntryFromCurrentPage((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+
+                            const idx = browser.findVirtualRowIndex((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+                            if (idx !== null) {
+                                browser.ensureRowIsVisible(idx, true, true);
+                                browser.select(idx, SelectionMode.SINGLE);
+                            }
+
+                            if (!browser.renameValue) return;
+                            const filePath = new URLSearchParams(location.search).get("path") as string;
+                            if (!filePath) return;
+
+                            const page = browser.cachedData["/"] as OutgoingShareGroup[];
+                            const shareGroup = page.find(it => it.sourceFilePath === filePath);
+                            if (!shareGroup) return;
+
+                            callAPI(SharesApi.create(bulkRequestOf({sharedWith: browser.renameValue, sourceFilePath: filePath, permissions: ["READ"], product: shareGroup.storageProduct, conflictPolicy: "RENAME"})))
+                                .catch(err => {
+                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    browser.refresh();
+                                });
+                        },
+                        () => {
+                            if (shouldRemoveFakeDirectory) browser.removeEntryFromCurrentPage((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
+                        },
+                        ""
+                    );
+
+                    shouldRemoveFakeDirectory = true;
+                };
+
+                function insertFakeEntry(dummyId: string): void {
+                    browser.insertEntryIntoCurrentPage({permissions: ["READ"], shareId: dummyId, sharedWith: "", state: "PENDING"} as OutgoingShareGroupPreview);
+                }
 
                 function isViewingShareGroupPreview(s: OutgoingShareGroup | OutgoingShareGroupPreview): s is OutgoingShareGroupPreview {
                     return !("sourceFilePath" in s);
+                }
+
+                function isDeleted(share: OutgoingShareGroup | OutgoingShareGroupPreview) {
+                    return !isViewingShareGroupPreview(share) && shareValidationCache[share.sourceFilePath] === ShareValidateState.DELETED;
                 }
 
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -341,7 +392,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                             ...browser.browseFilters
                         })
                     ).then(result => {
-                        browser.registerPage(result, newPath, true);
+                        browser.registerPage(result, "/", true);
                         const page = result as Page<OutgoingShareGroup>;
 
                         const rerenderCheck = {doRerender: false};
@@ -386,13 +437,34 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         })
                     );
 
+                    browser.registerPage(result, "/", false);
                     const page = result as Page<OutgoingShareGroup>;
+
+                    const rerenderCheck = {doRerender: false};
+                    const promises: Promise<unknown>[] = [];
                     for (const it of page.items) {
                         browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, false);
-                        // TODO(Jonas): Missing subpages for actual shares
+                        if (shareValidationCache[it.sourceFilePath] == null) {
+                            shareValidationCache[it.sourceFilePath] === ShareValidateState.NOT_VALIDATED;
+                            promises.push(callAPI(FilesApi.retrieve({id: it.sourceFilePath})).then(() => {
+                                shareValidationCache[it.sourceFilePath] = ShareValidateState.VALIDATED
+                            }).catch(error => {
+                                if ([400, 404].includes(error.request.status)) {
+                                    shareValidationCache[it.sourceFilePath] = ShareValidateState.DELETED;
+                                    rerenderCheck.doRerender = true;
+                                }
+                            }));
+                        }
                     }
 
-                    browser.registerPage(result, path, false);
+                    const searchPath = new URLSearchParams(location.search).get("path") as string;
+                    browser.renderRows();
+
+                    Promise.allSettled(promises).finally(() => {
+                        if (rerenderCheck.doRerender) {
+                            browser.renderRows();
+                        }
+                    });
                 });
 
                 browser.on("fetchFilters", () => [{
@@ -441,6 +513,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         }).then(setIcon);
                     }
 
+                    const isShareDeleted = isDeleted(share);
+
                     // Row title
                     if (isViewingShareGroupPreview(share)) {
                         row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, dims));
@@ -453,7 +527,12 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     }
 
                     // Row stat1
-                    if (isViewingShareGroupPreview(share)) {
+                    if (isShareDeleted) {
+                        const deletedTextNode = document.createElement("span");
+                        deletedTextNode.innerText = "File deleted";
+                        deletedTextNode.style.marginLeft = "8px";
+                        row.stat1.append(deletedTextNode);
+                    } else if (isViewingShareGroupPreview(share)) {
                         const isEdit = share.permissions.some(it => it === "EDIT");
                         // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
                         // the re-render doesn't happen multiple times, when re-rendering. The radioTilesContainerWrapper can be dead,
@@ -512,12 +591,14 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     }
 
                     // Row stat2
-                    if (!isViewingShareGroupPreview(share) && shareValidationCache[share.sourceFilePath] === ShareValidateState.DELETED) {
+                    if (!isViewingShareGroupPreview(share) && isShareDeleted) {
                         const button = document.createElement("button");
-                        button.innerText = "Use";
+                        button.innerText = "Remove share";
                         button.className = ButtonClass;
+                        button.style.color = "var(--white)";
+                        button.style.backgroundColor = "var(--red)";
                         button.style.height = "32px";
-                        button.style.width = "64px";
+                        button.style.width = "128px";
                         button.onclick = e => {
                             e.stopImmediatePropagation();
                             const oldPage = browser.cachedData[""];
@@ -535,7 +616,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                 browser.renderRows();
                             }
                         }
-                        row.stat3.replaceChildren(button);
+                        row.stat2.replaceChildren(button);
                     } else {
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
@@ -719,13 +800,23 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         onClick(selected, cb) {
                             const [share] = selected;
                             if (!isViewingShareGroupPreview(share))
-                            dialogStore.addDialog(
-                                <ShareModal
-                                    selected={{path: share.sourceFilePath, product: share.storageProduct}}
-                                    cb={cb}
-                                />,
-                                doNothing, true
-                            );
+                                dialogStore.addDialog(
+                                    <ShareModal
+                                        selected={{path: share.sourceFilePath, product: share.storageProduct}}
+                                        cb={cb}
+                                    />,
+                                    doNothing, true
+                                );
+                        }
+                    }, {
+                        icon: "share",
+                        text: "Share",
+                        enabled(selected) {
+                            const hasPath = window.location.search !== "";
+                            return selected.length === 0 && hasPath;
+                        },
+                        onClick() {
+                            showShareInput();
                         }
                     }];
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
@@ -746,6 +837,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     }
                 };
             });
+
+            browserRef.current!.renameField.style.marginLeft = "18px";
         }
     }, []);
 
