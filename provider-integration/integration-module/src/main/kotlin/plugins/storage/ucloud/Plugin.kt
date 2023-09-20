@@ -1,7 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.calls.BulkRequest
@@ -52,12 +51,9 @@ import dk.sdu.cloud.utils.sendTerminalTable
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
-import kotlin.coroutines.coroutineContext
 
 class UCloudFilePlugin : FilePlugin {
     override val pluginTitle: String = "UCloud"
@@ -77,7 +73,7 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var uploads: ChunkedUploadService
     lateinit var downloads: DownloadService
     lateinit var pathConverter: PathConverter
-    lateinit var usageScan: UsageScan2
+    lateinit var usageScan: UsageScan
     lateinit var driveLocator: DriveLocator
     var computePlugin: UCloudComputePlugin? = null
 
@@ -108,7 +104,7 @@ class UCloudFilePlugin : FilePlugin {
         downloads = DownloadService(pathConverter, fs)
         limitChecker = LimitChecker(dbConnection, rpcClient, pathConverter)
         memberFiles = MemberFiles(fs, pathConverter)
-        usageScan = UsageScan2(pluginName, pathConverter, directoryStats)
+        usageScan = UsageScan(pluginName, pathConverter, directoryStats)
         tasks = TaskSystem(pluginConfig, dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem, usageScan)
         uploads = ChunkedUploadService(pathConverter, fs)
 

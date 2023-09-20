@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -17,7 +16,6 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.serialization.decodeFromString
 
 class AccountingService(
     val db: DBContext,
@@ -1209,75 +1207,19 @@ class AccountingService(
         }
     }
 
-    suspend fun retrieveProviderSummary(
+    suspend fun retrieveProviderAllocations(
         actorAndProject: ActorAndProject,
         request: WalletsRetrieveProviderSummaryRequest,
-        ctx: DBContext = db,
-    ): PageV2<ProviderWalletSummary> {
-        // This function will retrieve all relevant wallets for a provider and fetches the allocations of each wallet.
-        // The keys used for sorting are stable and essentially map to the provider ID, which we can efficiently query.
+    ): PageV2<ProviderWalletSummaryV2> {
         val providerId = actorAndProject.actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
-        val itemsPerPage = request.normalize().itemsPerPage
-
-        val summaries = processor.retrieveRelevantWalletsNotifications(
-            AccountingRequest.RetrieveRelevantWalletsProviderNotifications(
-                actorAndProject.actor,
-                providerId,
-                request.filterOwnerId,
-                request.filterOwnerIsProject,
-                request.filterCategory,
-                itemsPerPage = request.itemsPerPage,
-                next = request.next
-            )
-        ).wallets
-
-        // NOTE(Dan): Next, we build a quick map to map an allocation ID to its current balance. This is used in
-        // the next step to determine max usable balance by allocation.
-        val usageByAllocation = HashMap<Long, Long>()
-        val quotaByAllocation = HashMap<Long, Long>()
-        for (summary in summaries) {
-            usageByAllocation[summary.allocId] = summary.allocLocalUsage
-            quotaByAllocation[summary.allocId] = summary.allocQuota
-            if (summary.ancestorId != null && summary.ancestorUsage != null && summary.ancestorQuota != null) {
-                usageByAllocation[summary.ancestorId] = summary.ancestorUsage
-                quotaByAllocation[summary.ancestorId] = summary.ancestorQuota
-            }
-        }
-
-        // NOTE(Dan): To build a max usable by allocation, we start by filtering rows, such that we only have one
-        // per allocation. Recall that the query selected multiple of these per allocation to fetch all ancestors.
-        val summaryPerAllocation = summaries.asSequence().distinctBy { it.allocId }
-
-        // NOTE(Dan): Obtaining the maximum usable by allocation is as simple as finding the smallest balance in an
-        // allocation path. It doesn't matter which element it is, we can never use more than the smallest number.
-        val unorderedSummary = summaryPerAllocation.map { alloc ->
-            val maxUsable = alloc.allocPath.mapNotNull { usageByAllocation[it] }.min()
-            val maxPromised = alloc.allocPath.mapNotNull { quotaByAllocation[it] }.min()
-            ProviderWalletSummary(
-                alloc.walletId.toString(),
-                when {
-                    alloc.ownerProject != null -> WalletOwner.Project(alloc.ownerProject)
-                    alloc.ownerUsername != null -> WalletOwner.User(alloc.ownerUsername)
-                    else -> error("Corrupt database data for wallet: ${alloc.walletId}")
-                },
-                ProductCategoryId(alloc.category.name, providerId),
-                alloc.category.productType,
-                translateToChargeType(alloc.category),
-                translateToProductPriceUnit(alloc.category.productType, alloc.category.name),
-                maxUsable,
-                maxPromised,
-                alloc.notBefore,
-                alloc.notAfter,
-                alloc.allocId.toString(),
-            )
-        }
-
-        val summaryItems = unorderedSummary.sortedBy { it.id.toLongOrNull() }.toList()
-        var next = summaryItems.lastOrNull()?.id
-        if (request.next == next) next = null
-
-        // NOTE(Henrik) Returns more than itemPerPage items, but is limited to itemPerPage Wallets
-        return PageV2(itemsPerPage, summaryItems, next)
+        return processor.retrieveProviderAllocations(AccountingRequest.RetrieveProviderAllocations(
+            actorAndProject.actor,
+            providerId,
+            request.filterOwnerId,
+            request.filterOwnerIsProject,
+            request.filterCategory,
+            request.normalize(),
+        )).page
     }
 
     companion object : Loggable {

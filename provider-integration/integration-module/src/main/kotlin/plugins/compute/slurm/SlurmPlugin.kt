@@ -45,6 +45,7 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -615,16 +616,12 @@ class SlurmPlugin : ComputePlugin {
         //    - Invokes sacct to determine which jobs are in the system
         //    - Importantly, this job will efficiently determine which jobs are _not_ currently known by UCloud and
         //      register them into UCloud.
-        //    - It is important that we run this step frequently to ensure that jobs submitted outside of UCloud are
+        //    - It is important that we run this step frequently to ensure that jobs submitted outside UCloud are
         //      discovered quickly. This allows the end-user to track the job via the UCloud interface.
         //
         // 2. Send accounting information to UCloud
-        //    - Combines the output of phase 1 with locally stored information to create charge requests
-        //    - Register these charges with the accounting system of UCloud
 
         var registeredJobs = 0
-        var chargedJobs = 0
-
 
         // Retrieve and process Slurm accounting
         // ------------------------------------------------------------------------------------------------------------
@@ -705,94 +702,26 @@ class SlurmPlugin : ComputePlugin {
 
         // Send accounting information to UCloud
         // ------------------------------------------------------------------------------------------------------------
-        // In this section we will be performing the following steps:
-        //
-        // 1. Combine the two lists from the first phase to create batches of charge requests
-        // 2. For each batch, optionally process this through an extension which can modify the list
-        // 3. Send the batch to UCloud
         if (!emitAccountingInfo) return
 
-        /*
-        val activeJobs = SlurmDatabase.browse(SlurmBrowseFlags(filterIsActive = true))
-        val charges = ArrayList<ResourceChargeCredits>()
-        val accountingCharges = ArrayList<SlurmCommandLine.SlurmAccountingRow>()
-        for (job in activeJobs) {
-            val ucloudJob = jobCache.findJob(job.ucloudId) ?: continue
-            val row = accountingRows.find { it.jobId.toString() == job.slurmId } ?: continue
-            val timeSinceLastUpdate = row.timeElappsedMs - job.elapsed
-            if (timeSinceLastUpdate <= 0) continue
-
-            val product = ucloudJob.status.resolvedProduct!!
-            val periods = when (product.unitOfPrice) {
-                ProductPriceUnit.CREDITS_PER_UNIT,
-                ProductPriceUnit.PER_UNIT,
-                ProductPriceUnit.CREDITS_PER_MINUTE,
-                ProductPriceUnit.UNITS_PER_MINUTE -> {
-                    timeSinceLastUpdate / (1000L * 60)
+        val ext = pluginConfig.extensions.reportComputeUsage ?: return
+        val responses = reportComputeUsageExtension.invoke(this, ext, Unit)
+        for (resp in responses) {
+            when (resp) {
+                is ReportComputeUsageResponse.Slurm -> {
+                    val workspace = accountMapper.lookupBySlurm(resp.account, resp.partition).firstOrNull()
+                    if (workspace != null) {
+                        val owner = walletOwnerFromOwnerString(workspace.owner.toSimpleString())
+                        reportBalance(owner, ProductCategoryIdV2(workspace.productCategory, providerId), resp.usage)
+                    }
                 }
 
-                ProductPriceUnit.CREDITS_PER_HOUR,
-                ProductPriceUnit.UNITS_PER_HOUR -> {
-                    timeSinceLastUpdate / (1000L * 60 * 60)
-                }
-
-                ProductPriceUnit.CREDITS_PER_DAY,
-                ProductPriceUnit.UNITS_PER_DAY -> {
-                    timeSinceLastUpdate / (1000L * 60 * 60 * 24)
-                }
-            }
-
-            val units = ((product.cpu ?: 1) * ucloudJob.specification.replicas).toLong()
-
-            charges.add(
-                ResourceChargeCredits(
-                    job.ucloudId,
-                    job.ucloudId + "_" + job.elapsed / 1000,
-                    units,
-                    max(1, periods),
-                )
-            )
-            accountingCharges.add(row)
-        }
-
-        chargedJobs = charges.size
-
-        val batchSize = 100
-        for ((index, batch) in charges.chunked(batchSize).withIndex()) {
-            val offset = batchSize * index
-            val success = JobsControl.chargeCredits.call(
-                BulkRequest(batch),
-                rpcClient
-            ) is IngoingCallResponse.Ok<*, *>
-
-            if (!success) continue
-
-            dbConnection.withSession { session ->
-                SlurmDatabase.updateElapsedByUCloudId(
-                    batch.map { it.id },
-                    List(batch.size) { idx ->
-                        accountingCharges[offset + idx].timeElappsedMs
-                    },
-                    session
-                )
-
-                val inactiveJobs = ArrayList<String>()
-                for (idx in batch.indices) {
-                    val row = accountingCharges[offset + idx]
-                    if (row.state.isFinal) inactiveJobs.add(row.jobId.toString())
-                }
-
-                if (inactiveJobs.isNotEmpty()) {
-                    SlurmDatabase.markAsInactive(inactiveJobs, session)
+                is ReportComputeUsageResponse.UCloud -> {
+                    val owner = walletOwnerFromOwnerString(resp.workspace)
+                    reportBalance(owner, ProductCategoryIdV2(resp.category, providerId), resp.usage)
                 }
             }
         }
-
-        lastAccountingCharge = Time.now()
-
-        debugSystem.normal("Charged $chargedJobs slurm jobs")
-
-         */
     }
 
     private val uidToUsernameCache = SimpleCache<Int, String>(
@@ -926,5 +855,26 @@ class SlurmPlugin : ComputePlugin {
 
         const val ALLOCATED_PORT_FILE = "allocated-port.txt"
         private const val sshId = "id_ucloud_im"
+
+        val reportComputeUsageExtension = extension(Unit.serializer(), ListSerializer(ReportComputeUsageResponse.serializer()))
     }
+}
+
+@Serializable
+sealed class ReportComputeUsageResponse {
+    @Serializable
+    @SerialName("Slurm")
+    data class Slurm(
+        val account: String,
+        val partition: String,
+        val usage: Long,
+    ) : ReportComputeUsageResponse()
+
+    @Serializable
+    @SerialName("UCloud")
+    data class UCloud(
+        val workspace: String,
+        val category: String,
+        val usage: Long,
+    ) : ReportComputeUsageResponse()
 }

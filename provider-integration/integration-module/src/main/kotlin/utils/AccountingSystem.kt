@@ -184,7 +184,6 @@ private suspend fun trackResourceTimeUsageAndConvertForReporting(
         resourceTrackedTime[id] = newTracked
 
         val (whole, remaining) = desiredInterval.convertFromMillis(newTracked)
-        println("Tracking for ${resource.id}: $whole, $remaining $timeElapsed $newTracked")
         resourceTrackedTime[id] = remaining
         resourceLastCall[id] = now
 
@@ -383,6 +382,11 @@ private fun ProductReference.toCategory(): ProductCategoryIdV2 {
 @Suppress("DEPRECATION")
 fun ProductReference.toV2(): ProductReferenceV2 {
     return ProductReferenceV2(id, category, provider)
+}
+
+@Suppress("DEPRECATION")
+fun ProductCategory.toV2Id(): ProductCategoryIdV2 {
+    return ProductCategoryIdV2(name, provider)
 }
 
 // Persistent storage

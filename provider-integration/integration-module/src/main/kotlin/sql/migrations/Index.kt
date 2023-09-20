@@ -37,4 +37,5 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V4__UCloudStorage())
     migrationHandler.addScript(V3__UCloudCompute())
     migrationHandler.addScript(V2__GenericLicenses())
+    migrationHandler.addScript(V2__Events())
 }

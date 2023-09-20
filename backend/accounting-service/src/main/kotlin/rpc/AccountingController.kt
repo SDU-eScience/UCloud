@@ -248,12 +248,8 @@ class AccountingController(
             ok(accounting.register(actorAndProject, request))
         }
 
-        implementOrDispatch(Wallets.retrieveProviderSummary) {
-            ok(accounting.retrieveProviderSummary(actorAndProject, request))
-        }
-
-        implementOrDispatch(WalletAllocationsV2.retrieveProviderSummary) {
-            ok(accounting.retrieveProviderSummary(actorAndProject, request))
+        implementOrDispatch(WalletAllocationsV2.retrieveProviderAllocations) {
+            ok(accounting.retrieveProviderAllocations(actorAndProject, request))
         }
 
         implement(Visualization.retrieveUsage) {
