@@ -189,6 +189,7 @@ NetworkIPs.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.NetworkIP(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "example-id", 
                 name = "example-id", 
@@ -206,6 +207,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "example-ip", 
+            maxUsableBalance = null, 
         ), 
         support = NetworkIPSupport(
             firewall = NetworkIPSupport.Firewall(
@@ -362,6 +364,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retriev
 #             {
 #                 "product": {
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "example-ip",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -372,6 +375,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retriev
 #                     "priority": 0,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "PER_UNIT",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,

@@ -31,6 +31,7 @@ Jobs.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.Compute(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "compute-example", 
                 name = "compute-example", 
@@ -54,6 +55,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "compute-example", 
+            maxUsableBalance = null, 
         ), 
         support = ComputeSupport(
             docker = ComputeSupport.Docker(
@@ -192,6 +194,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #             {
 #                 "product": {
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "compute-example",
 #                     "pricePerUnit": 1000000,
 #                     "category": {
@@ -208,6 +211,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "CREDITS_PER_MINUTE",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,

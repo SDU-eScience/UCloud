@@ -21,6 +21,7 @@ data class ProductsBrowseRequest(
     val filterVersion: Int?,
     val showAllVersions: Boolean?,
     val includeBalance: Boolean?,
+    val includeMaxBalance: Boolean?,
 )
 ```
 Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
@@ -171,6 +172,17 @@ paginate through the results.
 <details>
 <summary>
 <code>includeBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeMaxBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

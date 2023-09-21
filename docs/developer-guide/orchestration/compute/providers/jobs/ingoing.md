@@ -205,10 +205,6 @@ fit.
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#jobsproviderunsuspendrequestitem'><code>JobsProviderUnsuspendRequestItem</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#jobsproviderutilizationrequest'><code>JobsProviderUtilizationRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -833,6 +829,7 @@ JobsProvider.create.call(
                         variableNames = listOf("value"), 
                     )), 
                     licenseServers = emptyList(), 
+                    modules = null, 
                     outputFileGlobs = listOf("*"), 
                     parameters = listOf(ApplicationParameter.Bool(
                         defaultValue = null, 
@@ -897,6 +894,7 @@ JobsProvider.create.call(
                 ), 
             ), 
             resolvedProduct = Product.Compute(
+                allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
                 category = ProductCategoryId(
                     id = "example-compute", 
                     name = "example-compute", 
@@ -920,9 +918,11 @@ JobsProvider.create.call(
                 version = 1, 
                 balance = null, 
                 id = "example-compute-1", 
+                maxUsableBalance = null, 
             ), 
             resolvedSupport = ResolvedSupport(
                 product = Product.Compute(
+                    allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
                     category = ProductCategoryId(
                         id = "example-compute", 
                         name = "example-compute", 
@@ -946,6 +946,7 @@ JobsProvider.create.call(
                     version = 1, 
                     balance = null, 
                     id = "example-compute-1", 
+                    maxUsableBalance = null, 
                 ), 
                 support = ComputeSupport(
                     docker = ComputeSupport.Docker(
@@ -1275,12 +1276,14 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "fileExtensions": [
                         ],
                         "licenseServers": [
-                        ]
+                        ],
+                        "modules": null
                     }
                 },
                 "resolvedSupport": {
                     "product": {
                         "balance": null,
+                        "maxUsableBalance": null,
                         "name": "example-compute-1",
                         "pricePerUnit": 1000000,
                         "category": {
@@ -1297,6 +1300,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "gpuModel": null,
                         "version": 1,
                         "freeToUse": false,
+                        "allowAllocationRequestsFrom": "ALL",
                         "unitOfPrice": "CREDITS_PER_MINUTE",
                         "chargeType": "ABSOLUTE",
                         "hiddenInGrantApplications": false,
@@ -1341,6 +1345,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 },
                 "resolvedProduct": {
                     "balance": null,
+                    "maxUsableBalance": null,
                     "name": "example-compute-1",
                     "pricePerUnit": 1000000,
                     "category": {
@@ -1357,6 +1362,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "gpuModel": null,
                     "version": 1,
                     "freeToUse": false,
+                    "allowAllocationRequestsFrom": "ALL",
                     "unitOfPrice": "CREDITS_PER_MINUTE",
                     "chargeType": "ABSOLUTE",
                     "hiddenInGrantApplications": false,
@@ -2149,7 +2155,7 @@ _Unsuspends a job_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobsproviderunsuspendrequestitem'>JobsProviderUnsuspendRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobsprovidersuspendrequestitem'>JobsProviderSuspendRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 __Implementation requirements:__ 
  - [`virtualMachine.suspension = true`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine.md)
@@ -2431,42 +2437,6 @@ Valid values range from 0 (inclusive) until [`specification.replicas`](#) (exclu
 
 ```kotlin
 data class JobsProviderSuspendRequestItem(
-    val job: Job,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `JobsProviderUnsuspendRequestItem`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class JobsProviderUnsuspendRequestItem(
     val job: Job,
 )
 ```

@@ -196,295 +196,323 @@ sealed class GeneratedType {
 
 @OptIn(ExperimentalStdlibApi::class)
 fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>, why: String = ""): GeneratedTypeReference {
-    when (type) {
-        is GenericArrayType -> {
-            return GeneratedTypeReference.Array(traverseType(type.genericComponentType, visitedTypes, why + "/array"))
-        }
-
-        is ParameterizedType -> {
-            when {
-                type.rawType == List::class.java || type.rawType == Set::class.java || type.rawType == ArrayList::class.java -> {
-                    return GeneratedTypeReference.Array(traverseType(type.actualTypeArguments.first(), visitedTypes, why + "/list"))
-                }
-
-                type.rawType == Map::class.java -> {
-                    return GeneratedTypeReference.Dictionary(traverseType(type.actualTypeArguments[1], visitedTypes))
-                }
-
-                else -> {
-                    val rawType = type.rawType
-                    if (rawType !is Class<*>) {
-                        TODO("Not yet implemented: $type is not a class")
-                    }
-
-                    val initialType = traverseType(type.rawType, visitedTypes)
-                    if (initialType !is GeneratedTypeReference.Structure) error("Expected raw type to be a struct")
-                    val qualifiedName = (type.rawType as Class<*>).canonicalName
-
-                    val actualTypeArgs = type.actualTypeArguments.map {
-                        traverseType(it, visitedTypes)
-                    }
-
-                    return GeneratedTypeReference.Structure(qualifiedName, actualTypeArgs)
-                }
-            }
-        }
-
-        is TypeVariable<*> -> {
-            return GeneratedTypeReference.Structure(type.name)
-        }
-
-        is WildcardType -> {
-            // This is probably a huge oversimplification
-            return traverseType(type.upperBounds.firstOrNull() ?: Unit::class.java, visitedTypes)
-        }
-
-        JsonElement::class.java -> {
-            return GeneratedTypeReference.Any(nullable = true)
-        }
-
-        JsonObject::class.java -> {
-            return GeneratedTypeReference.Dictionary(GeneratedTypeReference.Any(nullable = true))
-        }
-
-        java.lang.Byte::class.java, Byte::class.java -> {
-            return GeneratedTypeReference.Int8()
-        }
-
-        java.lang.Short::class.java, Short::class.java -> {
-            return GeneratedTypeReference.Int16()
-        }
-
-        Integer::class.java, Int::class.java -> {
-            return GeneratedTypeReference.Int32()
-        }
-
-        java.lang.Long::class.java, Long::class.java, BigInteger::class.java -> {
-            return GeneratedTypeReference.Int64()
-        }
-
-        java.lang.Float::class.java, Float::class.java -> {
-            return GeneratedTypeReference.Float32()
-        }
-
-        java.lang.Double::class.java, Double::class.java, BigDecimal::class.java -> {
-            return GeneratedTypeReference.Float64()
-        }
-
-        String::class.java -> {
-            return GeneratedTypeReference.Text()
-        }
-
-        java.lang.Boolean::class.java, Boolean::class.java -> {
-            return GeneratedTypeReference.Bool()
-        }
-
-        java.lang.Void::class.java -> {
-            return GeneratedTypeReference.Void()
-        }
-
-        is Class<*> -> {
-            val qualifiedName = type.canonicalName
-            val existing = visitedTypes[qualifiedName]
-            if (existing != null) return GeneratedTypeReference.Structure(qualifiedName)
-            val doc = type.documentation()
-            val owner = type.findAnnotation<UCloudApiOwnedBy>()?.owner
-
-            if (type.isArray) {
-                val componentType = traverseType(type.componentType, visitedTypes)
-                return GeneratedTypeReference.Array(componentType)
-            }
-
-            if (type.isEnum) {
-                visitedTypes[qualifiedName] = GeneratedType.Enum(
-                    qualifiedName,
-                    doc,
-                    type.enumConstants.map {
-                        val name = (it as Enum<*>).name
-                        val field = type.getField(name)
-                        GeneratedType.EnumOption(name, field.documentation(type.packageName, doc.maturity))
-                    },
-                    owner != null,
-                    owner
+    if (type.toString().startsWith("dk.sdu.cloud.messages.")) return GeneratedTypeReference.Void()
+    try {
+        when (type) {
+            is GenericArrayType -> {
+                return GeneratedTypeReference.Array(
+                    traverseType(
+                        type.genericComponentType,
+                        visitedTypes,
+                        why + "/array"
+                    )
                 )
-
-                return GeneratedTypeReference.Structure(qualifiedName)
             }
 
-            if (type == Unit::class.java) {
+            is ParameterizedType -> {
+                when {
+                    type.rawType == List::class.java || type.rawType == Set::class.java || type.rawType == ArrayList::class.java -> {
+                        return GeneratedTypeReference.Array(
+                            traverseType(
+                                type.actualTypeArguments.first(),
+                                visitedTypes,
+                                why + "/list"
+                            )
+                        )
+                    }
+
+                    type.rawType == Map::class.java -> {
+                        return GeneratedTypeReference.Dictionary(
+                            traverseType(
+                                type.actualTypeArguments[1],
+                                visitedTypes
+                            )
+                        )
+                    }
+
+                    else -> {
+                        val rawType = type.rawType
+                        if (rawType !is Class<*>) {
+                            TODO("Not yet implemented: $type is not a class")
+                        }
+
+                        val initialType = traverseType(type.rawType, visitedTypes)
+                        if (initialType !is GeneratedTypeReference.Structure) error("Expected raw type to be a struct")
+                        val qualifiedName = (type.rawType as Class<*>).canonicalName
+
+                        val actualTypeArgs = type.actualTypeArguments.map {
+                            traverseType(it, visitedTypes)
+                        }
+
+                        return GeneratedTypeReference.Structure(qualifiedName, actualTypeArgs)
+                    }
+                }
+            }
+
+            is TypeVariable<*> -> {
+                return GeneratedTypeReference.Structure(type.name)
+            }
+
+            is WildcardType -> {
+                // This is probably a huge oversimplification
+                return traverseType(type.upperBounds.firstOrNull() ?: Unit::class.java, visitedTypes)
+            }
+
+            JsonElement::class.java -> {
+                return GeneratedTypeReference.Any(nullable = true)
+            }
+
+            JsonObject::class.java -> {
+                return GeneratedTypeReference.Dictionary(GeneratedTypeReference.Any(nullable = true))
+            }
+
+            java.lang.Byte::class.java, Byte::class.java -> {
+                return GeneratedTypeReference.Int8()
+            }
+
+            java.lang.Short::class.java, Short::class.java -> {
+                return GeneratedTypeReference.Int16()
+            }
+
+            Integer::class.java, Int::class.java -> {
+                return GeneratedTypeReference.Int32()
+            }
+
+            java.lang.Long::class.java, Long::class.java, BigInteger::class.java -> {
+                return GeneratedTypeReference.Int64()
+            }
+
+            java.lang.Float::class.java, Float::class.java -> {
+                return GeneratedTypeReference.Float32()
+            }
+
+            java.lang.Double::class.java, Double::class.java, BigDecimal::class.java -> {
+                return GeneratedTypeReference.Float64()
+            }
+
+            String::class.java -> {
+                return GeneratedTypeReference.Text()
+            }
+
+            java.lang.Boolean::class.java, Boolean::class.java -> {
+                return GeneratedTypeReference.Bool()
+            }
+
+            java.lang.Void::class.java -> {
                 return GeneratedTypeReference.Void()
             }
 
-            if (type == Any::class.java) {
-                return GeneratedTypeReference.Any()
-            }
+            is Class<*> -> {
+                val qualifiedName = type.canonicalName
+                val existing = visitedTypes[qualifiedName]
+                if (existing != null) return GeneratedTypeReference.Structure(qualifiedName)
+                val doc = type.documentation()
+                val owner = type.findAnnotation<UCloudApiOwnedBy>()?.owner
 
-            // Immediately put something in the visitedTypes to avoid infinite recursion. We update this value later,
-            // so it doesn't have to be correct.
-            visitedTypes[qualifiedName] = GeneratedType.Struct(
-                qualifiedName, doc, emptyList(), emptyList(),
-                owner != null, owner
-            )
+                if (qualifiedName.startsWith("dk.sdu.cloud.messages.")) return GeneratedTypeReference.Void()
 
-            val properties = ArrayList<GeneratedType.Property>()
-            val generics = ArrayList<String>()
-
-            if (type.isKotlinClass()) {
-                val kotlinType = type.kotlin
-
-                kotlinType.typeParameters.forEach { typeParam ->
-                    generics.add(typeParam.name)
+                if (type.isArray) {
+                    val componentType = traverseType(type.componentType, visitedTypes)
+                    return GeneratedTypeReference.Array(componentType)
                 }
 
-                kotlinType.primaryConstructor?.parameters?.forEach { prop ->
-                    if (prop.name == null) return@forEach
-
-                    val classProp = kotlinType.memberProperties.find { it.name == prop.name }
-                    val classPropAnnotations = classProp?.annotations ?: emptyList()
-                    val javaFieldAnnotations = (classProp?.javaField?.annotations?.toList() ?: emptyList())
-                    val getterAnnotations = classProp?.getter?.annotations ?: emptyList()
-                    val parentProp = kotlinType.superclasses
-                        .mapNotNull { it.memberProperties.find { it.name == prop.name } }
-                        .firstOrNull()
-
-                    val parentPropAnnotations = parentProp?.annotations ?: emptyList()
-                    val parentJavaAnnotations = parentProp?.javaField?.annotations?.toList() ?: emptyList()
-                    val parentGetterAnnotations = parentProp?.getter?.annotations ?: emptyList()
-                    val annotations: Set<Annotation> =
-                        (prop.annotations + javaFieldAnnotations + getterAnnotations + classPropAnnotations +
-                            parentPropAnnotations + parentJavaAnnotations + parentGetterAnnotations).toSet()
-                    if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
-
-                    val propType = traverseType(prop.type.javaType, visitedTypes)
-
-                    val (synopsis, description, importance) =
-                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split(propType.packageNameOrNull())
-
-                    var propName = prop.name!!
-                    val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
-                    if (jsonPropAnnotation != null) {
-                        propName = jsonPropAnnotation.value
-                    }
-
-                    val serialNameAnnotation = annotations.filterIsInstance<SerialName>().firstOrNull()
-                    if (serialNameAnnotation != null) {
-                        propName = serialNameAnnotation.value
-                    }
-
-                    val deprecated = annotations.any { it is Deprecated }
-                    val nullable = prop.type.isMarkedNullable || prop.isOptional
-
-                    val maturity = run {
-                        val internalMaturity = annotations.filterIsInstance<UCloudApiInternal>().firstOrNull()
-                        val experimentalMaturity = annotations.filterIsInstance<UCloudApiExperimental>().firstOrNull()
-                        val stableMaturity = annotations.filterIsInstance<UCloudApiStable>().firstOrNull()
-
-                        when {
-                            stableMaturity != null -> UCloudApiMaturity.Stable
-                            experimentalMaturity != null -> UCloudApiMaturity.Experimental(experimentalMaturity.level)
-                            internalMaturity != null -> UCloudApiMaturity.Internal(internalMaturity.level)
-                            else -> doc.maturity
-                        }
-                    }
-
-                    properties.add(GeneratedType.Property(
-                        propName,
-                        Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance),
-                        propType.also {
-                            it.nullable = nullable
-                            it.originalIsNullable = prop.type.isMarkedNullable
-                            it.originalHasDefault = prop.isOptional
-                            it.fromConstructor = true
-                        }
-                    ))
-                }
-
-                // Almost the identical code for the properties which are not part of the primary constructor.
-                // The code is unfortunately not easily refactored due to slightly different types.
-                kotlinType.memberProperties.forEach { prop ->
-                    if (properties.any { it.name == prop.name }) return@forEach
-
-                    val javaFieldAnnotations = prop.javaField?.annotations?.toList() ?: emptyList()
-                    val getterAnnotations = prop.getter.annotations
-                    val annotations: Set<Annotation> =
-                        (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
-                    if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
-
-                    val propType = traverseType(prop.returnType.javaType, visitedTypes)
-
-                    val (synopsis, description, importance) =
-                        annotations.filterIsInstance<UCloudApiDoc>().firstOrNull().split(propType.packageNameOrNull())
-
-                    var propName = prop.name
-                    val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
-                    if (jsonPropAnnotation != null) {
-                        propName = jsonPropAnnotation.value
-                    }
-
-                    val serialNameAnnotation = annotations.filterIsInstance<SerialName>().firstOrNull()
-                    if (serialNameAnnotation != null) {
-                        propName = serialNameAnnotation.value
-                    }
-
-                    val deprecated = annotations.any { it is Deprecated }
-                    val nullable = prop.returnType.isMarkedNullable
-                    val maturity = run {
-                        val internalMaturity = annotations.filterIsInstance<UCloudApiInternal>().firstOrNull()
-                        val experimentalMaturity = annotations.filterIsInstance<UCloudApiExperimental>().firstOrNull()
-                        val stableMaturity = annotations.filterIsInstance<UCloudApiStable>().firstOrNull()
-
-                        when {
-                            stableMaturity != null -> UCloudApiMaturity.Stable
-                            experimentalMaturity != null -> UCloudApiMaturity.Experimental(experimentalMaturity.level)
-                            internalMaturity != null -> UCloudApiMaturity.Internal(internalMaturity.level)
-                            else -> UCloudApiMaturity.Internal(UCloudApiMaturity.Internal.Level.BETA)
-                        }
-                    }
-
-                    properties.add(GeneratedType.Property(
-                        propName,
-                        Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance),
-                        propType.also { it.nullable = nullable }
-                    ))
-                }
-
-                val serialName = kotlinType.findAnnotation<SerialName>()
-                if (serialName != null) {
-                    properties.add(
-                        GeneratedType.Property(
-                            "type",
-                            Documentation(false, UCloudApiMaturity.Stable, "The type discriminator", null),
-                            GeneratedTypeReference.ConstantString(serialName.value)
-                        )
-                    )
-                }
-
-                if (kotlinType.isSealed) {
-                    val options = kotlinType.sealedSubclasses.map {
-                        traverseType(it.java, visitedTypes)
-                    }
-
-                    visitedTypes[qualifiedName] = GeneratedType.TaggedUnion(
-                        qualifiedName, doc, properties,
-                        generics, options, owner != null, owner
+                if (type.isEnum) {
+                    visitedTypes[qualifiedName] = GeneratedType.Enum(
+                        qualifiedName,
+                        doc,
+                        type.enumConstants.map {
+                            val name = (it as Enum<*>).name
+                            val field = type.getField(name)
+                            GeneratedType.EnumOption(name, field.documentation(type.packageName, doc.maturity))
+                        },
+                        owner != null,
+                        owner
                     )
 
                     return GeneratedTypeReference.Structure(qualifiedName)
                 }
 
+                if (type == Unit::class.java) {
+                    return GeneratedTypeReference.Void()
+                }
+
+                if (type == Any::class.java) {
+                    return GeneratedTypeReference.Any()
+                }
+
+                // Immediately put something in the visitedTypes to avoid infinite recursion. We update this value later,
+                // so it doesn't have to be correct.
                 visitedTypes[qualifiedName] = GeneratedType.Struct(
-                    qualifiedName, doc, properties, generics,
+                    qualifiedName, doc, emptyList(), emptyList(),
                     owner != null, owner
                 )
-                return GeneratedTypeReference.Structure(qualifiedName)
-            } else {
-                TODO("Non-primitive and non-kotlin class $type ${type::class} $why")
+
+                val properties = ArrayList<GeneratedType.Property>()
+                val generics = ArrayList<String>()
+
+                if (type.isKotlinClass()) {
+                    val kotlinType = type.kotlin
+
+                    kotlinType.typeParameters.forEach { typeParam ->
+                        generics.add(typeParam.name)
+                    }
+
+                    kotlinType.primaryConstructor?.parameters?.forEach { prop ->
+                        if (prop.name == null) return@forEach
+
+                        val classProp = kotlinType.memberProperties.find { it.name == prop.name }
+                        val classPropAnnotations = classProp?.annotations ?: emptyList()
+                        val javaFieldAnnotations = (classProp?.javaField?.annotations?.toList() ?: emptyList())
+                        val getterAnnotations = classProp?.getter?.annotations ?: emptyList()
+                        val parentProp = kotlinType.superclasses
+                            .mapNotNull { it.memberProperties.find { it.name == prop.name } }
+                            .firstOrNull()
+
+                        val parentPropAnnotations = parentProp?.annotations ?: emptyList()
+                        val parentJavaAnnotations = parentProp?.javaField?.annotations?.toList() ?: emptyList()
+                        val parentGetterAnnotations = parentProp?.getter?.annotations ?: emptyList()
+                        val annotations: Set<Annotation> =
+                            (prop.annotations + javaFieldAnnotations + getterAnnotations + classPropAnnotations +
+                                    parentPropAnnotations + parentJavaAnnotations + parentGetterAnnotations).toSet()
+                        if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
+
+                        val propType = traverseType(prop.type.javaType, visitedTypes)
+
+                        val (synopsis, description, importance) =
+                            annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()
+                                .split(propType.packageNameOrNull())
+
+                        var propName = prop.name!!
+                        val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
+                        if (jsonPropAnnotation != null) {
+                            propName = jsonPropAnnotation.value
+                        }
+
+                        val serialNameAnnotation = annotations.filterIsInstance<SerialName>().firstOrNull()
+                        if (serialNameAnnotation != null) {
+                            propName = serialNameAnnotation.value
+                        }
+
+                        val deprecated = annotations.any { it is Deprecated }
+                        val nullable = prop.type.isMarkedNullable || prop.isOptional
+
+                        val maturity = run {
+                            val internalMaturity = annotations.filterIsInstance<UCloudApiInternal>().firstOrNull()
+                            val experimentalMaturity =
+                                annotations.filterIsInstance<UCloudApiExperimental>().firstOrNull()
+                            val stableMaturity = annotations.filterIsInstance<UCloudApiStable>().firstOrNull()
+
+                            when {
+                                stableMaturity != null -> UCloudApiMaturity.Stable
+                                experimentalMaturity != null -> UCloudApiMaturity.Experimental(experimentalMaturity.level)
+                                internalMaturity != null -> UCloudApiMaturity.Internal(internalMaturity.level)
+                                else -> doc.maturity
+                            }
+                        }
+
+                        properties.add(GeneratedType.Property(
+                            propName,
+                            Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance),
+                            propType.also {
+                                it.nullable = nullable
+                                it.originalIsNullable = prop.type.isMarkedNullable
+                                it.originalHasDefault = prop.isOptional
+                                it.fromConstructor = true
+                            }
+                        ))
+                    }
+
+                    // Almost the identical code for the properties which are not part of the primary constructor.
+                    // The code is unfortunately not easily refactored due to slightly different types.
+                    kotlinType.memberProperties.forEach { prop ->
+                        if (properties.any { it.name == prop.name }) return@forEach
+
+                        val javaFieldAnnotations = prop.javaField?.annotations?.toList() ?: emptyList()
+                        val getterAnnotations = prop.getter.annotations
+                        val annotations: Set<Annotation> =
+                            (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
+                        if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
+
+                        val propType = traverseType(prop.returnType.javaType, visitedTypes)
+
+                        val (synopsis, description, importance) =
+                            annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()
+                                .split(propType.packageNameOrNull())
+
+                        var propName = prop.name
+                        val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
+                        if (jsonPropAnnotation != null) {
+                            propName = jsonPropAnnotation.value
+                        }
+
+                        val serialNameAnnotation = annotations.filterIsInstance<SerialName>().firstOrNull()
+                        if (serialNameAnnotation != null) {
+                            propName = serialNameAnnotation.value
+                        }
+
+                        val deprecated = annotations.any { it is Deprecated }
+                        val nullable = prop.returnType.isMarkedNullable
+                        val maturity = run {
+                            val internalMaturity = annotations.filterIsInstance<UCloudApiInternal>().firstOrNull()
+                            val experimentalMaturity =
+                                annotations.filterIsInstance<UCloudApiExperimental>().firstOrNull()
+                            val stableMaturity = annotations.filterIsInstance<UCloudApiStable>().firstOrNull()
+
+                            when {
+                                stableMaturity != null -> UCloudApiMaturity.Stable
+                                experimentalMaturity != null -> UCloudApiMaturity.Experimental(experimentalMaturity.level)
+                                internalMaturity != null -> UCloudApiMaturity.Internal(internalMaturity.level)
+                                else -> UCloudApiMaturity.Internal(UCloudApiMaturity.Internal.Level.BETA)
+                            }
+                        }
+
+                        properties.add(GeneratedType.Property(
+                            propName,
+                            Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance),
+                            propType.also { it.nullable = nullable }
+                        ))
+                    }
+
+                    val serialName = kotlinType.findAnnotation<SerialName>()
+                    if (serialName != null) {
+                        properties.add(
+                            GeneratedType.Property(
+                                "type",
+                                Documentation(false, UCloudApiMaturity.Stable, "The type discriminator", null),
+                                GeneratedTypeReference.ConstantString(serialName.value)
+                            )
+                        )
+                    }
+
+                    if (kotlinType.isSealed) {
+                        val options = kotlinType.sealedSubclasses.map {
+                            traverseType(it.java, visitedTypes)
+                        }
+
+                        visitedTypes[qualifiedName] = GeneratedType.TaggedUnion(
+                            qualifiedName, doc, properties,
+                            generics, options, owner != null, owner
+                        )
+
+                        return GeneratedTypeReference.Structure(qualifiedName)
+                    }
+
+                    visitedTypes[qualifiedName] = GeneratedType.Struct(
+                        qualifiedName, doc, properties, generics,
+                        owner != null, owner
+                    )
+                    return GeneratedTypeReference.Structure(qualifiedName)
+                } else {
+                    TODO("Non-primitive and non-kotlin class $type ${type::class} $why")
+                }
+            }
+
+            else -> {
+                error("Unknown thing: $type")
             }
         }
-
-        else -> {
-            error("Unknown thing: $type")
-        }
+    } catch (ex: Throwable) {
+        throw RuntimeException("Exception while generating $type", ex)
     }
 }
 

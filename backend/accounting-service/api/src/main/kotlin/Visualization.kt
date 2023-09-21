@@ -31,6 +31,7 @@ interface VisualizationFlags {
     val filterWorkspace: String?
     val filterWorkspaceProject: Boolean?
 }
+
 @Serializable
 @UCloudApiInternal(InternalLevel.STABLE)
 data class VisualizationRetrieveUsageRequest(
@@ -116,7 +117,12 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
         """.trimIndent()
     }
 
-    val retrieveUsage = call("retrieveUsage", VisualizationRetrieveUsageRequest.serializer(), VisualizationRetrieveUsageResponse.serializer(), CommonErrorMessage.serializer()) {
+    val retrieveUsage = call(
+        "retrieveUsage",
+        VisualizationRetrieveUsageRequest.serializer(),
+        VisualizationRetrieveUsageResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(baseContext, "usage")
 
         documentation {
@@ -124,7 +130,12 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
         }
     }
 
-    val retrieveBreakdown = call("retrieveBreakdown", VisualizationRetrieveBreakdownRequest.serializer(), VisualizationRetrieveBreakdownResponse.serializer(), CommonErrorMessage.serializer()) {
+    val retrieveBreakdown = call(
+        "retrieveBreakdown",
+        VisualizationRetrieveBreakdownRequest.serializer(),
+        VisualizationRetrieveBreakdownResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(baseContext, "breakdown")
 
         documentation {

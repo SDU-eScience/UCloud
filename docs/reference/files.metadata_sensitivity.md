@@ -41,41 +41,53 @@ FileMetadataTemplate(
     namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
     requireApproval = true, 
     schema = JsonObject(mapOf("type" to JsonLiteral(
+        coerceToInlineType = null, 
         content = "object", 
         isString = true, 
     )),"title" to JsonLiteral(
+        coerceToInlineType = null, 
         content = "UCloud File Sensitivity", 
         isString = true, 
     )),"required" to listOf(JsonLiteral(
+        coerceToInlineType = null, 
         content = "sensitivity", 
         isString = true, 
     ))),"properties" to JsonObject(mapOf("sensitivity" to JsonObject(mapOf("enum" to listOf(JsonLiteral(
+        coerceToInlineType = null, 
         content = "SENSITIVE", 
         isString = true, 
     ), JsonLiteral(
+        coerceToInlineType = null, 
         content = "CONFIDENTIAL", 
         isString = true, 
     ), JsonLiteral(
+        coerceToInlineType = null, 
         content = "PRIVATE", 
         isString = true, 
     ))),"type" to JsonLiteral(
+        coerceToInlineType = null, 
         content = "string", 
         isString = true, 
     )),"title" to JsonLiteral(
+        coerceToInlineType = null, 
         content = "File Sensitivity", 
         isString = true, 
     )),"enumNames" to listOf(JsonLiteral(
+        coerceToInlineType = null, 
         content = "Sensitive", 
         isString = true, 
     ), JsonLiteral(
+        coerceToInlineType = null, 
         content = "Confidential", 
         isString = true, 
     ), JsonLiteral(
+        coerceToInlineType = null, 
         content = "Private", 
         isString = true, 
     ))),))),))),"dependencies" to JsonObject(mapOf())),)), 
     title = "Sensitivity", 
     uiSchema = JsonObject(mapOf("ui:order" to listOf(JsonLiteral(
+        coerceToInlineType = null, 
         content = "sensitivity", 
         isString = true, 
     ))),)), 
@@ -91,6 +103,7 @@ FileMetadata.create.call(
         metadata = FileMetadataDocument.Spec(
             changeLog = "New sensitivity", 
             document = JsonObject(mapOf("sensitivity" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "SENSITIVE", 
                 isString = true, 
             )),)), 
@@ -188,6 +201,7 @@ UFile(
                 specification = FileMetadataDocument.Spec(
                     changeLog = "New sensitivity", 
                     document = JsonObject(mapOf("sensitivity" to JsonLiteral(
+                        coerceToInlineType = null, 
                         content = "SENSITIVE", 
                         isString = true, 
                     )),)), 
@@ -210,41 +224,53 @@ UFile(
                 namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS, 
                 requireApproval = true, 
                 schema = JsonObject(mapOf("type" to JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "object", 
                     isString = true, 
                 )),"title" to JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "UCloud File Sensitivity", 
                     isString = true, 
                 )),"required" to listOf(JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "sensitivity", 
                     isString = true, 
                 ))),"properties" to JsonObject(mapOf("sensitivity" to JsonObject(mapOf("enum" to listOf(JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "SENSITIVE", 
                     isString = true, 
                 ), JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "CONFIDENTIAL", 
                     isString = true, 
                 ), JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "PRIVATE", 
                     isString = true, 
                 ))),"type" to JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "string", 
                     isString = true, 
                 )),"title" to JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "File Sensitivity", 
                     isString = true, 
                 )),"enumNames" to listOf(JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "Sensitive", 
                     isString = true, 
                 ), JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "Confidential", 
                     isString = true, 
                 ), JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "Private", 
                     isString = true, 
                 ))),))),))),"dependencies" to JsonObject(mapOf())),)), 
                 title = "Sensitivity", 
                 uiSchema = JsonObject(mapOf("ui:order" to listOf(JsonLiteral(
+                    coerceToInlineType = null, 
                     content = "sensitivity", 
                     isString = true, 
                 ))),)), 

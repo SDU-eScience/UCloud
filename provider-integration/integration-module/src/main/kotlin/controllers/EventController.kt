@@ -411,7 +411,7 @@ class EventController(
 
         var next: String? = null
         while (true) {
-            val page = WalletAllocationsV2.retrieveProviderAllocations.call(
+            val page = AccountingV2.browseProviderAllocations.call(
                 WalletsRetrieveProviderSummaryRequest(
                     filterOwnerId = when (owner) {
                         is WalletOwner.User -> owner.username

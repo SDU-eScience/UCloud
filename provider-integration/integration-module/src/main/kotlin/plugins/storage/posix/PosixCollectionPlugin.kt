@@ -153,7 +153,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                         var next: String? = null
                         var shouldBreak = false
                         whileGraal({ currentCoroutineContext().isActive && !shouldBreak }) {
-                            val summary = WalletAllocationsV2.retrieveProviderAllocations.call(
+                            val summary = AccountingV2.browseProviderAllocations.call(
                                 WalletsRetrieveProviderSummaryRequest(
                                     filterCategory = category,
                                     itemsPerPage = 250,

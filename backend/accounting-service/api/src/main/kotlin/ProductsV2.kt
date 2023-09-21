@@ -79,6 +79,7 @@ sealed class ProductV2 {
             unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
         )
+
         override fun toString() = super.toString()
     }
 
@@ -126,6 +127,7 @@ sealed class ProductV2 {
             gpuModel = gpuModel,
             memoryModel = memoryModel
         )
+
         override fun toString() = super.toString()
     }
 
@@ -185,6 +187,7 @@ sealed class ProductV2 {
             unitOfPrice = translateToProductPriceUnit(category.productType, category.name),
             hiddenInGrantApplications = hiddenInGrantApplications
         )
+
         override fun toString() = super.toString()
     }
 
@@ -222,19 +225,8 @@ sealed class ProductV2 {
     }
 }
 
-@Serializable
-@UCloudApiOwnedBy(ProductsV2::class)
-@UCloudApiDoc("Contains a unique reference to a ProductV2")
-data class ProductReferenceV2(
-    @UCloudApiDoc("The `Product` ID")
-    val id: String,
-    @UCloudApiDoc("The ID of the `Product`'s category")
-    val category: String,
-    @UCloudApiDoc("The provider of the `Product`")
-    val provider: String,
-) : DocVisualizable {
-    override fun visualize(): DocVisualization = DocVisualization.Inline("$id / $category / $provider")
-}
+@Suppress("DEPRECATION")
+typealias ProductReferenceV2 = ProductReference
 
 interface ProductFlagsV2 {
     val filterName: String?
@@ -281,7 +273,12 @@ object ProductsV2 : CallDescriptionContainer("productsv2") {
     private const val browseByTypeUseCase = "browse-by-type"
     private const val retrieveUseCase = "retrieve"
 
-    val create = call("create", BulkRequest.serializer(ProductV2.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val create = call(
+        "create",
+        BulkRequest.serializer(ProductV2.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpCreate(baseContext, roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER))
 
         documentation {
@@ -305,7 +302,12 @@ object ProductsV2 : CallDescriptionContainer("productsv2") {
         }
     }
 
-    val retrieve = call("retrieve", ProductsV2RetrieveRequest.serializer(), ProductV2.serializer(), CommonErrorMessage.serializer()) {
+    val retrieve = call(
+        "retrieve",
+        ProductsV2RetrieveRequest.serializer(),
+        ProductV2.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
 
         documentation {
@@ -322,7 +324,7 @@ object ProductsV2 : CallDescriptionContainer("productsv2") {
             documentation {
                 summary = "Browse a set of products"
                 description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
-                    "of $TYPE_REF ProductV2 ."
+                        "of $TYPE_REF ProductV2 ."
                 useCaseReference(browseUseCase, "Browse in the full product catalog")
                 useCaseReference(browseByTypeUseCase, "Browse for a specific type of product (e.g. compute)")
             }

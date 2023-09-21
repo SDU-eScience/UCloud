@@ -149,11 +149,12 @@ NotificationDescriptions.create.call(
             id = null, 
             message = "Something has happened", 
             meta = JsonObject(mapOf("myParameter" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "42", 
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1676450985196, 
+            ts = 1695293239212, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -192,7 +193,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1676450985196,
+        "ts": 1695293239212,
         "read": false
     }
 }'
@@ -244,11 +245,12 @@ Notification(
     id = 56123, 
     message = "Something has happened", 
     meta = JsonObject(mapOf("myParameter" to JsonLiteral(
+        coerceToInlineType = null, 
         content = "42", 
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1676450985199, 
+    ts = 1695293239216, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */
@@ -339,11 +341,12 @@ Page(
         id = 56123, 
         message = "Something has happened", 
         meta = JsonObject(mapOf("myParameter" to JsonLiteral(
+            coerceToInlineType = null, 
             content = "42", 
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1676450985201, 
+        ts = 1695293239217, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -390,7 +393,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1676450985201,
+#             "ts": 1695293239217,
 #             "read": false
 #         }
 #     ]

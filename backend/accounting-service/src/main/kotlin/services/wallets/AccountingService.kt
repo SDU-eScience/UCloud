@@ -207,43 +207,6 @@ class AccountingService(
         }
     }
 
-    suspend fun register(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<RegisterWalletRequestItem>
-    ) {
-        val providerId = actorAndProject.actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
-
-        db.withSession { session ->
-            val duplicateTransactions = session.sendPreparedStatement(
-                {
-                    setParameter("transaction_ids", request.items.map { providerId + it.uniqueAllocationId })
-                },
-                """
-                    select transaction_id
-                    from accounting.transactions
-                    where transaction_id = some(:transaction_ids::text[])
-                """
-            ).rows.map { it.getString(0)!! }.toSet()
-
-            val requestsToFulfill =
-                request.items.filter { (providerId + it.uniqueAllocationId) !in duplicateTransactions }
-
-            rootAllocate(
-                ActorAndProject(Actor.System, null),
-                BulkRequest(requestsToFulfill.map { reqItem ->
-                    RootAllocationRequestItem(
-                        reqItem.owner,
-                        ProductCategoryIdV2(reqItem.categoryId, providerId),
-                        reqItem.balance,
-                        Time.now(),
-                        Long.MAX_VALUE
-                        //TODO(HENRIK) NEED TO BE REQUESTED TIMES
-                    )
-                })
-            )
-        }
-    }
-
     suspend fun updateAllocation(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdateAllocationV2RequestItem>,
@@ -262,7 +225,7 @@ class AccountingService(
 
     suspend fun browseWallets(
         actorAndProject: ActorAndProject,
-        request: WalletBrowseRequest
+        request: WalletBrowseRequest,
     ): PageV2<Wallet> {
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
@@ -384,30 +347,15 @@ class AccountingService(
         request: SubAllocationQuery,
         query: String? = null,
     ): PageV2<SubAllocationV2> {
-        val owner = if (actorAndProject.project == null) actorAndProject.actor.safeUsername() else actorAndProject.project!!
+        val owner =
+            if (actorAndProject.project == null) actorAndProject.actor.safeUsername()
+            else actorAndProject.project!!
 
-        val hits = processor.browseSubAllocations(AccountingRequest.BrowseSubAllocations(actorAndProject.actor, owner, request.filterType, query))
+        val hits = processor.browseSubAllocations(
+            AccountingRequest.BrowseSubAllocations(actorAndProject.actor, owner, request.filterType, query)
+        )
 
-        if (hits.allocations.isEmpty()) { return PageV2(request.itemsPerPage ?: 50, emptyList(), null) }
-
-        val numberOfItems = request.itemsPerPage ?: 50
-
-        return if (request.next == null) {
-            PageV2(
-                numberOfItems,
-                hits.allocations.chunked(numberOfItems)[0],
-                if (numberOfItems > hits.allocations.size) null else 1.toString()
-            )
-        } else {
-            val next = request.next!!.toInt()
-            val results = hits.allocations.chunked(numberOfItems)[next]
-
-            PageV2(
-                numberOfItems,
-                results,
-                if (results.size < numberOfItems) null else (next + 1).toString()
-            )
-        }
+        return PageV2.of(hits.allocations)
     }
 
     suspend fun retrieveUsageV2(

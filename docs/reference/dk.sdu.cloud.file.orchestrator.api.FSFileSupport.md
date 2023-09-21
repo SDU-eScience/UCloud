@@ -15,6 +15,7 @@ data class FSFileSupport(
     val isReadOnly: Boolean?,
     val searchSupported: Boolean?,
     val streamingSearchSupported: Boolean?,
+    val sharesSupported: Boolean?,
 )
 ```
 
@@ -72,6 +73,17 @@ to false in a later release. Providers should explicitly declare support for thi
 <details>
 <summary>
 <code>streamingSearchSupported</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Declares support for the streamingSearch endpoint
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>sharesSupported</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

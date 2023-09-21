@@ -116,6 +116,10 @@ implement(Descriptions.call) {
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#browseinvitelinks'><code>browseInviteLinks</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#browseinvites'><code>browseInvites</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -128,11 +132,19 @@ implement(Descriptions.call) {
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#retrieveinvitelinkproject'><code>retrieveInviteLinkProject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#retrieveproviderproject'><code>retrieveProviderProject</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#acceptinvite'><code>acceptInvite</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#acceptinvitelink'><code>acceptInviteLink</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -160,6 +172,10 @@ implement(Descriptions.call) {
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#createinvitelink'><code>createInviteLink</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#deletegroup'><code>deleteGroup</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -169,6 +185,10 @@ implement(Descriptions.call) {
 </tr>
 <tr>
 <td><a href='#deleteinvite'><code>deleteInvite</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#deleteinvitelink'><code>deleteInviteLink</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -197,6 +217,10 @@ implement(Descriptions.call) {
 </tr>
 <tr>
 <td><a href='#unarchive'><code>unarchive</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updateinvitelink'><code>updateInviteLink</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -267,6 +291,10 @@ implement(Descriptions.call) {
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#projectinvitelink'><code>ProjectInviteLink</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#projectinvitetype'><code>ProjectInviteType</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -277,6 +305,14 @@ implement(Descriptions.call) {
 <tr>
 <td><a href='#projectssortby'><code>ProjectsSortBy</code></a></td>
 <td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectsacceptinvitelinkrequest'><code>ProjectsAcceptInviteLinkRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectsbrowseinvitelinksrequest'><code>ProjectsBrowseInviteLinksRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
 </tr>
 <tr>
 <td><a href='#projectsbrowseinvitesrequest'><code>ProjectsBrowseInvitesRequest</code></a></td>
@@ -292,6 +328,10 @@ implement(Descriptions.call) {
 </tr>
 <tr>
 <td><a href='#projectscreateinviterequestitem'><code>ProjectsCreateInviteRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectsdeleteinvitelinkrequest'><code>ProjectsDeleteInviteLinkRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -311,7 +351,15 @@ implement(Descriptions.call) {
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#projectsretrieveinvitelinkinforequest'><code>ProjectsRetrieveInviteLinkInfoRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#projectsretrieverequest'><code>ProjectsRetrieveRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectsupdateinvitelinkrequest'><code>ProjectsUpdateInviteLinkRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -320,6 +368,14 @@ implement(Descriptions.call) {
 </tr>
 <tr>
 <td><a href='#setprojectverificationstatusrequest'><code>SetProjectVerificationStatusRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectsacceptinvitelinkresponse'><code>ProjectsAcceptInviteLinkResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#projectsretrieveinvitelinkinforesponse'><code>ProjectsRetrieveInviteLinkInfoResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -340,6 +396,19 @@ implement(Descriptions.call) {
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#projectsbrowserequest'>ProjectsBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#project'>Project</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `browseInviteLinks`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#projectsbrowseinvitelinksrequest'>ProjectsBrowseInviteLinksRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectinvitelink'>ProjectInviteLink</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -382,6 +451,19 @@ implement(Descriptions.call) {
 
 
 
+### `retrieveInviteLinkProject`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#projectsretrieveinvitelinkinforequest'>ProjectsRetrieveInviteLinkInfoRequest</a></code>|<code><a href='#projectsretrieveinvitelinkinforesponse'>ProjectsRetrieveInviteLinkInfoResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `retrieveProviderProject`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -405,6 +487,19 @@ implement(Descriptions.call) {
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#findbyprojectid'>FindByProjectId</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `acceptInviteLink`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#projectsacceptinvitelinkrequest'>ProjectsAcceptInviteLinkRequest</a></code>|<code><a href='#projectsacceptinvitelinkresponse'>ProjectsAcceptInviteLinkResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -486,6 +581,19 @@ implement(Descriptions.call) {
 
 
 
+### `createInviteLink`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#projectinvitelink'>ProjectInviteLink</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `deleteGroup`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -522,6 +630,19 @@ implement(Descriptions.call) {
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#projectsdeleteinviterequestitem'>ProjectsDeleteInviteRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `deleteInviteLink`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#projectsdeleteinvitelinkrequest'>ProjectsDeleteInviteLinkRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -613,6 +734,19 @@ implement(Descriptions.call) {
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateInviteLink`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#projectsupdateinvitelinkrequest'>ProjectsUpdateInviteLinkRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -1292,6 +1426,78 @@ data class ProjectInvite(
 
 ---
 
+### `ProjectInviteLink`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProjectInviteLink(
+    val token: String,
+    val expires: Long,
+    val groupAssignment: List<String>?,
+    val roleAssignment: ProjectRole?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>token</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>expires</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>groupAssignment</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>roleAssignment</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.project.api.ProjectRole.md'>ProjectRole</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ProjectInviteType`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1444,6 +1650,144 @@ enum class ProjectsSortBy {
 <details>
 <summary>
 <code>parent</code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProjectsAcceptInviteLinkRequest`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProjectsAcceptInviteLinkRequest(
+    val token: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>token</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProjectsBrowseInviteLinksRequest`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_The base type for requesting paginated content._
+
+```kotlin
+data class ProjectsBrowseInviteLinksRequest(
+    val itemsPerPage: Int?,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency?,
+    val itemsToSkip: Long?,
+)
+```
+Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+semantics of the call:
+
+| Consistency | Description |
+|-------------|-------------|
+| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+
+The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+must contain all the items, in the correct order and without duplicates.
+
+If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+consistent.
+
+The results might become inconsistent if the client either takes too long, or a service instance goes down while
+fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+
+---
+
+__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+paginate through the results.
+
+---
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
 </summary>
 
 
@@ -1856,6 +2200,42 @@ data class ProjectsCreateInviteRequestItem(
 
 ---
 
+### `ProjectsDeleteInviteLinkRequest`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProjectsDeleteInviteLinkRequest(
+    val token: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>token</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ProjectsDeleteInviteRequestItem`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2036,6 +2416,42 @@ data class ProjectsRetrieveGroupRequest(
 
 ---
 
+### `ProjectsRetrieveInviteLinkInfoRequest`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProjectsRetrieveInviteLinkInfoRequest(
+    val token: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>token</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ProjectsRetrieveRequest`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2144,6 +2560,66 @@ data class ProjectsRetrieveRequest(
 
 ---
 
+### `ProjectsUpdateInviteLinkRequest`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProjectsUpdateInviteLinkRequest(
+    val token: String,
+    val role: ProjectRole,
+    val groups: List<String>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>token</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.project.api.ProjectRole.md'>ProjectRole</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>groups</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `RenameProjectRequest`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2212,6 +2688,102 @@ data class SetProjectVerificationStatusRequest(
 <details>
 <summary>
 <code>projectId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProjectsAcceptInviteLinkResponse`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProjectsAcceptInviteLinkResponse(
+    val project: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>project</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProjectsRetrieveInviteLinkInfoResponse`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProjectsRetrieveInviteLinkInfoResponse(
+    val token: String,
+    val project: Project,
+    val isMember: Boolean,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>token</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>project</code>: <code><code><a href='#project'>Project</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>isMember</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
 </summary>
 
 

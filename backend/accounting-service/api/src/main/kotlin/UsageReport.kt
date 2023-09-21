@@ -1,8 +1,8 @@
 package dk.sdu.cloud.accounting.api
 
 data class UsageReport(
-        val sections: List<Section>
-    ) {
+    val sections: List<Section>
+) {
     enum class HistoryAction {
         CHARGE,
         DEPOSIT,

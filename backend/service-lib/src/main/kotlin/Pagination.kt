@@ -141,6 +141,12 @@ check if the end of results has been reached is by checking i `next == null`."""
 ) : DocVisualizable {
     override fun visualize(): DocVisualization =
         DocVisualization.Card("PageV2", emptyList(), items.map { visualizeValue(it) })
+
+    companion object {
+        fun <T> of(collection: Collection<T>): PageV2<T> {
+            return PageV2(collection.size, collection.toList(), null)
+        }
+    }
 }
 
 fun <T> singlePageOf(vararg items: T): PageV2<T> {

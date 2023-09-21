@@ -4,7 +4,7 @@
 
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _A license Product_
 
@@ -18,12 +18,14 @@ data class License(
     val tags: List<String>?,
     val version: Int?,
     val freeToUse: Boolean?,
+    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
     val unitOfPrice: ProductPriceUnit?,
     val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
     val balance: Long?,
     val id: String,
+    val maxUsableBalance: Long?,
     val type: String /* "license" */,
 )
 ```
@@ -130,6 +132,23 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 
 <details>
 <summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
+
+<details>
+<summary>
 <code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
@@ -194,6 +213,18 @@ system's UI.
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
 
 
 

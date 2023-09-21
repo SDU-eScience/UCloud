@@ -138,6 +138,7 @@ JobsProvider.create.call(
                         variableNames = listOf("value"), 
                     )), 
                     licenseServers = emptyList(), 
+                    modules = null, 
                     outputFileGlobs = listOf("*"), 
                     parameters = listOf(ApplicationParameter.Bool(
                         defaultValue = null, 
@@ -202,6 +203,7 @@ JobsProvider.create.call(
                 ), 
             ), 
             resolvedProduct = Product.Compute(
+                allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
                 category = ProductCategoryId(
                     id = "example-compute", 
                     name = "example-compute", 
@@ -225,9 +227,11 @@ JobsProvider.create.call(
                 version = 1, 
                 balance = null, 
                 id = "example-compute-1", 
+                maxUsableBalance = null, 
             ), 
             resolvedSupport = ResolvedSupport(
                 product = Product.Compute(
+                    allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
                     category = ProductCategoryId(
                         id = "example-compute", 
                         name = "example-compute", 
@@ -251,6 +255,7 @@ JobsProvider.create.call(
                     version = 1, 
                     balance = null, 
                     id = "example-compute-1", 
+                    maxUsableBalance = null, 
                 ), 
                 support = ComputeSupport(
                     docker = ComputeSupport.Docker(
@@ -580,12 +585,14 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "fileExtensions": [
                         ],
                         "licenseServers": [
-                        ]
+                        ],
+                        "modules": null
                     }
                 },
                 "resolvedSupport": {
                     "product": {
                         "balance": null,
+                        "maxUsableBalance": null,
                         "name": "example-compute-1",
                         "pricePerUnit": 1000000,
                         "category": {
@@ -602,6 +609,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "gpuModel": null,
                         "version": 1,
                         "freeToUse": false,
+                        "allowAllocationRequestsFrom": "ALL",
                         "unitOfPrice": "CREDITS_PER_MINUTE",
                         "chargeType": "ABSOLUTE",
                         "hiddenInGrantApplications": false,
@@ -646,6 +654,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 },
                 "resolvedProduct": {
                     "balance": null,
+                    "maxUsableBalance": null,
                     "name": "example-compute-1",
                     "pricePerUnit": 1000000,
                     "category": {
@@ -662,6 +671,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "gpuModel": null,
                     "version": 1,
                     "freeToUse": false,
+                    "allowAllocationRequestsFrom": "ALL",
                     "unitOfPrice": "CREDITS_PER_MINUTE",
                     "chargeType": "ABSOLUTE",
                     "hiddenInGrantApplications": false,

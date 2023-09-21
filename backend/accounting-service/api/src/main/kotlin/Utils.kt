@@ -25,7 +25,7 @@ fun getTime(atStartOfDay: Boolean): Long {
 
 private val creditsPerMinuteNames = listOf("uc-general","uc-t4","u1-fat","u2-gpu","u1-standard","u1-gpu","uc-a10","syncthing", "standard-cpu-dkk")
 
-fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, productType: ProductType):AccountingUnit {
+fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, productType: ProductType): AccountingUnit {
     return when (productType) {
         ProductType.STORAGE -> AccountingUnit(
             "Gigabyte",
@@ -33,6 +33,7 @@ fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, product
             floatingPoint = false,
             displayFrequencySuffix = false
         )
+
         ProductType.COMPUTE -> {
             if (productPriceUnit.name == "PER_UNIT") {
                 AccountingUnit(
@@ -41,40 +42,40 @@ fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, product
                     false,
                     false
                 )
-            }
-            else if (productPriceUnit.name.contains("UNITS_PER")) {
+            } else if (productPriceUnit.name.contains("UNITS_PER")) {
                 AccountingUnit(
                     "Core hour",
                     "Core hours",
                     floatingPoint = false,
                     displayFrequencySuffix = true
                 )
-            }
-            else if (productPriceUnit.name.contains("CREDITS_PER")) {
+            } else if (productPriceUnit.name.contains("CREDITS_PER")) {
                 AccountingUnit(
                     "DKK",
                     "DKK",
                     floatingPoint = true,
                     displayFrequencySuffix = false
                 )
-            }
-            else {
+            } else {
                 println("WRIONG: $productPriceUnit $productType")
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Missing type to translate")
             }
         }
+
         ProductType.INGRESS -> AccountingUnit(
             "Link",
             "Links",
             floatingPoint = false,
             displayFrequencySuffix = false
         )
+
         ProductType.LICENSE -> AccountingUnit(
             "License",
             "Licenses",
             floatingPoint = false,
             displayFrequencySuffix = false
         )
+
         ProductType.NETWORK_IP -> AccountingUnit(
             "IP",
             "IPs",
@@ -83,6 +84,7 @@ fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, product
         )
     }
 }
+
 fun translateToAccountingFrequency(productPriceUnit: ProductPriceUnit): AccountingFrequency {
     return when (productPriceUnit) {
         ProductPriceUnit.CREDITS_PER_UNIT -> AccountingFrequency.ONCE
@@ -95,26 +97,30 @@ fun translateToAccountingFrequency(productPriceUnit: ProductPriceUnit): Accounti
         ProductPriceUnit.UNITS_PER_DAY -> AccountingFrequency.PERIODIC_DAY
     }
 }
+
 fun translateToChargeType(productCategory: ProductCategory): ChargeType {
-    return when(productCategory.accountingFrequency) {
+    return when (productCategory.accountingFrequency) {
         AccountingFrequency.PERIODIC_MINUTE,
         AccountingFrequency.PERIODIC_HOUR,
         AccountingFrequency.PERIODIC_DAY -> {
             ChargeType.ABSOLUTE
         }
+
         AccountingFrequency.ONCE -> {
             ChargeType.DIFFERENTIAL_QUOTA
         }
     }
 }
-fun translateToProductPriceUnit(productType: ProductType, productCategoryName: String):ProductPriceUnit {
-    return when(productType) {
+
+fun translateToProductPriceUnit(productType: ProductType, productCategoryName: String): ProductPriceUnit {
+    return when (productType) {
         ProductType.STORAGE,
         ProductType.INGRESS,
         ProductType.LICENSE,
-        ProductType.NETWORK_IP-> {
+        ProductType.NETWORK_IP -> {
             ProductPriceUnit.PER_UNIT
         }
+
         ProductType.COMPUTE -> {
             if (creditsPerMinuteNames.contains(productCategoryName)) {
                 ProductPriceUnit.CREDITS_PER_MINUTE
@@ -176,7 +182,6 @@ fun checkDeicReferenceFormat(referenceId: String?) {
         }
     }
 }
-
 
 
 fun AuthenticatedClient.withProxyInfo(username: String?, signedIntent: String?): AuthenticatedClient {

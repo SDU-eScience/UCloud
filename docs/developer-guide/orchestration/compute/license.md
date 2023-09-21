@@ -164,6 +164,7 @@ Licenses.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.License(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "example-license", 
                 name = "example-license", 
@@ -182,6 +183,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "example-license", 
+            maxUsableBalance = null, 
         ), 
         support = LicenseSupport(
             maintenance = null, 
@@ -289,6 +291,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/licenses/retrieveP
 #             {
 #                 "product": {
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "example-license",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -301,6 +304,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/licenses/retrieveP
 #                     ],
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "PER_UNIT",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,

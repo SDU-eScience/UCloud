@@ -2295,6 +2295,8 @@ data class GrantsBrowseAffiliationsRequest(
     val next: String?,
     val consistency: PaginationRequestV2Consistency?,
     val itemsToSkip: Long?,
+    val recipientId: String?,
+    val recipientType: String?,
 )
 ```
 Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
@@ -2368,6 +2370,28 @@ paginate through the results.
 <details>
 <summary>
 <code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>recipientId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>recipientType</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
