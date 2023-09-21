@@ -42,6 +42,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {fileName} from "@/Utilities/FileUtilities";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -380,7 +381,10 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share
-                        navigate(AppRoutes.resource.properties("shares", resource.shareId));
+                        const p = getQueryParamOrElse(window.location.search, "path", "");
+                        if (p) {
+                            navigate(buildQueryString(`/files`, {path: p}));
+                        }
                         return;
                     }
 
@@ -388,7 +392,10 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         navigate(`/shares/outgoing?path=${resource.sourceFilePath}`);
                     }
 
-                    if (oldPath !== newPath) browser.rerender();
+                    if (oldPath !== newPath) {
+                        if (newPath === "/shares/outgoing") navigate(`/shares/outgoing`);
+                        browser.rerender();
+                    }
 
                     callAPI(
                         SharesApi.browseOutgoing({
@@ -822,11 +829,25 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         onClick() {
                             showShareInput();
                         }
+                    }, {
+                        icon: "properties",
+                        text: "Properties",
+                        enabled(selected) {
+                            return selected.length === 1 && isViewingShareGroupPreview(selected[0])
+                        },
+                        onClick([selection]: [OutgoingShareGroupPreview]) {
+                            navigate(AppRoutes.resource.properties("shares", selection.shareId));
+                        }
                     }];
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
                 });
 
-                browser.on("generateBreadcrumbs", () => [{title: "Shared by me", absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => {
+                    const breadcrumbs = [{title: "Shared by me", absolutePath: "/shares/outgoing"}];
+                    const search = getQueryParamOrElse(window.location.search, "path", "");
+                    if (search !== "") breadcrumbs.push({title: "/ " + fileName(search), absolutePath: ""});
+                    return breadcrumbs;
+                });
 
                 async function updatePermissions(share: OutgoingShareGroupPreview, isEditing: boolean) {
                     try {

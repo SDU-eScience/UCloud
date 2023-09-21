@@ -1,7 +1,7 @@
 import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {ResourceRouter} from "@/Resource/Router";
-import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareLink, ShareState, shareLinksApi} from "@/UCloud/SharesApi";
+import SharesApi, {Share, ShareLink, ShareState, shareLinksApi} from "@/UCloud/SharesApi";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -14,7 +14,6 @@ import {LinkInfo} from "@/ui-components/SidebarLink";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
-import {UFile} from "@/UCloud/FilesApi";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {copyToClipboard, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
@@ -91,7 +90,7 @@ export const ShareModal: React.FunctionComponent<{
                         bulkRequestOf({
                             sharedWith: usernameRef.current?.value ?? "",
                             sourceFilePath: selected.path,
-                            permissions: ["READ" as const],
+                            permissions: ["READ"],
                             product: selected.product
                         })
                     )
@@ -325,12 +324,9 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                const flags = defaultRetrieveFlags;
-
                 browser.on("open", (oldPath, newPath, resource) => {
-                    const share = resource as Share | undefined;
-                    if (share) {
-                        navigate(AppRoutes.resource.properties("shares", share.id));
+                    if (resource) {
+                        navigate(buildQueryString("/files", {path: resource.specification.sourceFilePath}));
                         return;
                     }
 
