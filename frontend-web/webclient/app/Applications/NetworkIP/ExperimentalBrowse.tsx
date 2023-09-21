@@ -11,7 +11,7 @@ import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -20,12 +20,13 @@ const defaultRetrieveFlags = {
     itemsPerPage: 100,
 }
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    rowTitles: true,
 };
 
 const DUMMY_ENTRY_ID = "dummy";
@@ -49,7 +50,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs").init(browserRef, FEATURES, "", browser => {
-                // TODO(Jonas): Set filter to "RUNNING" initially for state.
+                browser.setRowTitles(["IP address", "", "", ""]);
 
                 var startCreation = function () { };
 

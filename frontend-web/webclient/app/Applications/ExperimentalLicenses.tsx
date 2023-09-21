@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -22,12 +22,13 @@ const defaultRetrieveFlags = {
 
 const DUMMY_ENTRY_ID = "dummy";
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    rowTitles: true,
 };
 
 const supportByProvider = new AsyncCache<SupportByProvider<ProductLicense, LicenseSupport>>({
@@ -50,6 +51,8 @@ export function ExperimentalLicenses(): JSX.Element {
         if (mount && !browserRef.current) {
             new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
                 var startCreation = function () { };
+
+                browser.setRowTitles(["License id", "", "", ""]);
 
                 supportByProvider.retrieve("", () =>
                     callAPI(LicenseApi.retrieveProducts())

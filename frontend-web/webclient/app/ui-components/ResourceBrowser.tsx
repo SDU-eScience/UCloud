@@ -255,6 +255,7 @@ export interface ResourceBrowseFeatures {
     filters?: boolean;
     sortDirection?: boolean;
     contextSwitcher?: boolean;
+    rowTitles?: boolean;
 }
 
 export class ResourceBrowser<T> {
@@ -365,6 +366,7 @@ export class ResourceBrowser<T> {
         filters: false,
         sortDirection: false,
         contextSwitcher: false,
+        rowTitles: false,
     };
 
     private listeners: Record<string, any[]> = {};
@@ -373,6 +375,7 @@ export class ResourceBrowser<T> {
         embedded: boolean;
         selector: boolean;
         disabledKeyhandlers: boolean;
+        rowTitles: [string, string, string, string]
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -383,6 +386,7 @@ export class ResourceBrowser<T> {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
             disabledKeyhandlers: !!opts?.disabledKeyhandlers,
+            rowTitles: ["", "", "", ""]
         }
     };
 
@@ -426,6 +430,13 @@ export class ResourceBrowser<T> {
                 </div>
             </header>
             
+            <div class="row rows-title">
+                <div class="favorite" style="width: 20px;"></div>
+                <div class="title"></div>
+                <div class="stat1"></div>
+                <div class="stat2"></div>
+                <div class="stat3"></div>
+            </div>
             <div style="overflow-y: auto; position: relative;">
                 <div class="scrolling">
                     <input class="rename-field">
@@ -544,6 +555,19 @@ export class ResourceBrowser<T> {
                 const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
                 headerThing.appendChild(div);
             }
+        }
+
+        if (this.features.rowTitles) {
+            const titleRow = this.root.querySelector(".row.rows-title")!;
+            titleRow["style"].display = "flex";
+            titleRow["style"].height = titleRow["style"].maxHeight = "22px";
+            titleRow.querySelector(".title")!["innerText"] = this.opts.rowTitles[0];
+            titleRow.querySelector(".stat1")!["innerText"] = this.opts.rowTitles[1];
+            titleRow.querySelector(".stat2")!["innerText"] = this.opts.rowTitles[2];
+            titleRow.querySelector(".stat3")!["innerText"] = this.opts.rowTitles[3];
+        } else {
+            const titleRow = this.root.querySelector(".row.rows-title")!;
+            this.root.removeChild(titleRow);
         }
 
         {
@@ -2884,6 +2908,12 @@ export class ResourceBrowser<T> {
                 transition: filter 0.3s;
             }
             
+            .file-browser .rows-title {
+                max-height: 0px;
+                color: var(--textColor);
+                display: hidden;
+            }
+            
             body[data-cursor=grabbing] .file-browser .row:hover {
                 filter: hue-rotate(10deg) saturate(500%);
             }
@@ -3273,6 +3303,16 @@ export class ResourceBrowser<T> {
             fragment.append(image(icon, {height: 60, width: 60}));
             this.defaultEmptyGraphic = fragment;
         });
+    }
+
+    public setRowTitles(titles: [string, string, string, string]) {
+        this.opts.rowTitles = titles;
+        const titleRow = this.root.querySelector(".row.rows-title");
+        if (!titleRow) return;
+        titleRow.querySelector(".title")!["innerText"] = this.opts.rowTitles[0];
+        titleRow.querySelector(".stat1")!["innerText"] = this.opts.rowTitles[1];
+        titleRow.querySelector(".stat2")!["innerText"] = this.opts.rowTitles[2];
+        titleRow.querySelector(".stat3")!["innerText"] = this.opts.rowTitles[3];
     }
 }
 

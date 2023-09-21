@@ -288,6 +288,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    rowTitles: true
 };
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
@@ -379,6 +380,11 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 }
 
                 browser.on("open", (oldPath, newPath, resource) => {
+                    if (newPath !== "/") {
+                        browser.setRowTitles(["Shared with", "Share rights", "State", ""]);
+                    } else {
+                        browser.setRowTitles(["Filename", "", "Share's state", "Shared with"])
+                    }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share
                         const p = getQueryParamOrElse(window.location.search, "path", "");
@@ -393,7 +399,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     }
 
                     if (oldPath !== newPath) {
-                        if (newPath === "/shares/outgoing") navigate(`/shares/outgoing`);
+                        if (newPath === "/shares/outgoing") {
+                            navigate(`/shares/outgoing`);
+                        }
                         browser.rerender();
                     }
 

@@ -28,6 +28,7 @@ const FEATURES: ResourceBrowseFeatures = {
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    rowTitles: true,
 };
 
 const INGRESS_PREFIX = "app-";
@@ -53,6 +54,8 @@ export function ExperimentalPublicLinks(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Ingress>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
+                browser.setRowTitles(["Domain", "", "", ""]);
+
                 let startCreation: () => void = doNothing;
                 const ingressBeingCreated = "collectionBeingCreated$$___$$";
                 const isCreatingPrefix = "creating-";

@@ -90,8 +90,10 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
+    rowTitles: true,
 }
 
+const rowTitles: [string, string, string, string] = ["Filename", "Sensitivity", "Modified at", "Size"];
 function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string, initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -123,6 +125,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         let searching = "";
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
+                browser.setRowTitles(rowTitles);
+
                 // Syncthing data
                 // =========================================================================================================
                 let syncthingConfig: Sync.SyncthingConfig | undefined = undefined;

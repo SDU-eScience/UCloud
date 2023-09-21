@@ -30,10 +30,12 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
     contextSwitcher: true,
     search: true,
+    rowTitles: true,
 };
 
 const logoDataUrls = new AsyncCache<string>();
 
+const rowTitles: [string, string, string, string] = ["Job name", "", "Last update", "State"];
 function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
@@ -63,7 +65,9 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
             new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
-
+                
+                browser.setRowTitles(rowTitles);
+                
                 const flags = {
                     ...defaultRetrieveFlags,
                     ...(opts?.additionalFilters ?? {})

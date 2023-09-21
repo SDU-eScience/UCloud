@@ -296,6 +296,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    rowTitles: true,
 };
 
 const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: true} = {
@@ -323,6 +324,8 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
             new ResourceBrowser<Share>(mount, "Shared with me").init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
+
+                browser.setRowTitles(["Filename", "State and rights", "Last updated", "Shared by"]);
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
@@ -406,11 +409,6 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                         height: 32,
                         width: 32,
                     }).then(setStateIcon);
-                    const pIcon = providerIcon(share.specification.product.provider, {
-                        fontSize: "28px", width: "40px", height: "40px", marginRight: "8px",
-                    });
-                    pIcon.style.marginTop = pIcon.style.marginBottom = "auto"
-                    row.stat1.appendChild(pIcon);
                     const isEdit = share.specification.permissions.some(it => it === "EDIT");
 
                     // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that

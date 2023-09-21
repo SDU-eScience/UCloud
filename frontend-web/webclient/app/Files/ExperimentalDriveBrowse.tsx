@@ -51,6 +51,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     sortDirection: true,
     contextSwitcher: true,
+    rowTitles: true,
 };
 
 const ExperimentalBrowse: React.FunctionComponent = () => {
@@ -67,6 +68,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive").init(browserRef, FEATURES, "/", browser => {
+                browser.setRowTitles(["Drive name", "", "", ""])
 
 
                 // Load products and initialize dependencies

@@ -20,6 +20,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: false,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    rowTitles: true,
 };
 
 export function ExperimentalSSHKey(): JSX.Element {
@@ -34,6 +35,8 @@ export function ExperimentalSSHKey(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<SSHKey>(mount, "SSH Keys").init(browserRef, FEATURES, "", browser => {
+                browser.setRowTitles(["Title", "", "", ""]);
+
                 // Ensure no refecthing on `beforeOpen`.
                 browser.on("beforeOpen", (oldPath, path, resource) => resource != null);
                 browser.on("open", (oldPath, newPath, resource) => {
