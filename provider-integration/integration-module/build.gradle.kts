@@ -18,16 +18,15 @@ repositories {
 
 dependencies {
     run {
-        val version = "2023.4.0-dev.39"
-
+        val version = "2023.3.7-accounting2"
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
         ucloud("app-orchestrator-service-api")
         ucloud("service-lib-lib")
-
-        implementation("org.cliffc.high_scale_lib:cliff-utils:$version")
     }
+
+    implementation("org.cliffc.high_scale_lib:cliff-utils:2023.4.0-dev.25")
 
     run {
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
@@ -67,7 +66,7 @@ tasks.test {
 }
 
 kotlin {
-    jvmToolchain(20)
+    jvmToolchain(17)
     compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
 }
 
