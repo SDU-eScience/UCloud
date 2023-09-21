@@ -39,7 +39,8 @@ data class UsageReport(
         val timestamp: Long,
         val balance: Balance,
         val relatedAction: HistoryAction,
-        val transactionId: String
+        val transactionId: String,
+        val change: Change
     )
 
     data class AllocationAndBalance(
@@ -51,6 +52,16 @@ data class UsageReport(
         val treeUsage: Long,
         val localUsage: Long,
         val quota: Long
+    )
+
+    // Contains infomation about which changes are made due to the transaction.
+    // If a Charge the local and tree will change. Positive number indicates higher usage, negative number should
+    // therefore only happen at differential cases such as storage.
+    // If a deposit or an update only quota will have a change. Positive number indicates a higher quota than before.
+    data class Change(
+        val localChange: Long,
+        val treeChange: Long,
+        val quotaChange: Long
     )
 
     data class ChargePeriod(

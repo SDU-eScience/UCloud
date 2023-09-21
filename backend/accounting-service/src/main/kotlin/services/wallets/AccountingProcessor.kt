@@ -1225,19 +1225,23 @@ class AccountingProcessor(
         // result, we don't have to search any ID before the root, and we only have to perform a single loop over the
         // allocations to get all results.
         for (i in (parent.id + 1) until allocations.size) {
-            val alloc = allocations[i]!!
-            val newNotAfter =
-                if (min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE) == Long.MAX_VALUE) {
-                    null
-                } else {
-                    min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE)
+            //NOTE(Henrik) It is possible to have nullable allocations in the list
+            //In that case continue to next id
+            val alloc = allocations[i]
+            if (alloc != null) {
+                val newNotAfter =
+                    if (min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE) == Long.MAX_VALUE) {
+                        null
+                    } else {
+                        min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE)
+                    }
+                if (alloc.parentAllocation in watchSet) {
+                    alloc.begin()
+                    alloc.notBefore = max(alloc.notBefore, parent.notBefore)
+                    alloc.notAfter = newNotAfter
+                    alloc.commit()
+                    watchSet.add(alloc.id)
                 }
-            if (alloc.parentAllocation in watchSet) {
-                alloc.begin()
-                alloc.notBefore = max(alloc.notBefore, parent.notBefore)
-                alloc.notAfter = newNotAfter
-                alloc.commit()
-                watchSet.add(alloc.id)
             }
         }
     }
@@ -1316,7 +1320,12 @@ class AccountingProcessor(
                     request.amount
                 ),
                 UsageReport.HistoryAction.DEPOSIT,
-                transactionId
+                transactionId,
+                UsageReport.Change(
+                    0,
+                    0,
+                    request.amount
+                )
             )
         )
 
@@ -1395,7 +1404,12 @@ class AccountingProcessor(
                     request.amount,
                 ),
                 UsageReport.HistoryAction.DEPOSIT,
-                transactionId
+                transactionId,
+                UsageReport.Change(
+                    0,
+                    0,
+                    request.amount
+                )
             )
         )
 
@@ -1541,7 +1555,12 @@ class AccountingProcessor(
                     //TODO(Henrik) Should be more flexible
                     //Currently only charges hitting this code
                     UsageReport.HistoryAction.CHARGE,
-                    transactionId
+                    transactionId,
+                    UsageReport.Change(
+                        0,
+                        delta,
+                        0
+                    )
                 )
             )
             return if (parent.parentAllocation == null) {
@@ -1558,11 +1577,13 @@ class AccountingProcessor(
         internalWalletAllocation.begin()
         val willOvercharge = (internalWalletAllocation.localUsage + delta > internalWalletAllocation.quota)
             && (internalWalletAllocation.localUsage < internalWalletAllocation.quota)
+        val preChargeTree = internalWalletAllocation.treeUsage ?: 0L
         internalWalletAllocation.localUsage += delta
         internalWalletAllocation.treeUsage = min(
             (internalWalletAllocation.treeUsage ?: internalWalletAllocation.localUsage) + delta,
             internalWalletAllocation.quota
         )
+        val postChargeTree = internalWalletAllocation.treeUsage ?: 0
         internalWalletAllocation.isDirty = true
         internalWalletAllocation.commit()
         val transactionId = transactionId()
@@ -1575,7 +1596,12 @@ class AccountingProcessor(
                 internalWalletAllocation.quota
             ),
             UsageReport.HistoryAction.CHARGE,
-            transactionId
+            transactionId,
+            UsageReport.Change(
+                delta,
+                postChargeTree - preChargeTree,
+                0
+            )
         )
         println("TRANSACRTION IN CHARGE ALLOC: $transaction")
         dirtyTransactions.add(
@@ -1701,6 +1727,8 @@ class AccountingProcessor(
             val quota = alloc.quota
             var diff = -oldValue
             alloc.localUsage = 0L
+            var localChange = 0L
+            var treeChange = 0L
             if (activeAllocations.contains(allocation.id)) {
                 val weight = allocation.quota.toDouble() / activeQuota.toDouble()
                 val toCharge = round(totalUsage.toDouble() * weight).toLong()
@@ -1709,7 +1737,9 @@ class AccountingProcessor(
                     diff = diff + quota
                 }
                 alloc.localUsage = toCharge
-                alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + min(diff, alloc.quota)
+                localChange = toCharge
+                treeChange =  min(diff, alloc.quota)
+                alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + treeChange
                 totalCharged += toCharge
             }
             alloc.commit()
@@ -1723,7 +1753,12 @@ class AccountingProcessor(
                     allocation.quota
                 ),
                 UsageReport.HistoryAction.CHARGE,
-                transactionId
+                transactionId,
+                UsageReport.Change(
+                    localChange,
+                    treeChange,
+                    0
+                )
             )
             println("addingTrans non perioid: $transaction")
             dirtyTransactions.add(
@@ -1751,23 +1786,6 @@ class AccountingProcessor(
                         "Internal Error in charging remaining of non-periodic", 500
                     )
                 }
-                val transactionId = transactionId()
-                val internalAllocation = allocations[allocation.toInt()]!!
-                val transaction = UsageReport.AllocationHistoryEntry(
-                    internalAllocation.id.toString(),
-                    Time.now(),
-                    UsageReport.Balance(
-                        internalAllocation.treeUsage ?: internalAllocation.localUsage,
-                        internalAllocation.localUsage,
-                        internalAllocation.quota
-                    ),
-                    UsageReport.HistoryAction.CHARGE,
-                    transactionId
-                )
-                println("AFTER CHAERGE TRANSAXCTRION: $transaction")
-                dirtyTransactions.add(
-                    transaction
-                )
             }
             if (activeQuota < totalUsage) {
                 return AccountingResponse.Charge(false)
@@ -1824,7 +1842,9 @@ class AccountingProcessor(
         }
 
         allocation.begin()
+        var quotaChange = 0L
         if (amountRequested!= null) {
+            quotaChange = amountRequested - allocation.quota
             allocation.quota = request.amount
         }
         if (notBefore != null) {
@@ -1844,7 +1864,12 @@ class AccountingProcessor(
                     allocation.quota
                 ),
                 UsageReport.HistoryAction.UPDATE,
-                transactionId
+                transactionId,
+                UsageReport.Change(
+                    0,
+                    0,
+                    quotaChange
+                )
             )
         )
 
@@ -2188,11 +2213,14 @@ class AccountingProcessor(
                                 into("timestamps") {it.timestamp}
                                 into("transaction_ids") { it.transactionId }
                                 into("actions") {it.relatedAction.toString()}
+                                into("local_change") {it.change.localChange}
+                                into("tree_change") {it.change.treeChange}
+                                into("quota_change") {it.change.quotaChange}
                             }
                         },
                         """
                             insert into accounting.transaction_history
-                                (transaction_id, created_at, affected_allocation, new_tree_usage, new_local_usage, new_quota, action) 
+                                (transaction_id, created_at, affected_allocation, new_tree_usage, new_local_usage, new_quota, action, local_change, tree_change, quota_change) 
                             select
                                 unnest(:transaction_ids::text[]),
                                 now(),
@@ -2200,7 +2228,10 @@ class AccountingProcessor(
                                 unnest(:new_treeusages::bigint[]),
                                 unnest(:new_usages::bigint[]),
                                 unnest(:new_quotas::bigint[]),
-                                unnest(:actions::text[])
+                                unnest(:actions::text[]),
+                                unnest(:local_change::bigint[]),
+                                unnest(:tree_change::bigint[]),
+                                unnest(:quota_change::bigint[])
                         """
                     )
                 }

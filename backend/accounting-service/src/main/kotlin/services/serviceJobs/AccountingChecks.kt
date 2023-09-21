@@ -72,15 +72,22 @@ class AccountingChecks(
                             ) and pc.free_to_use = false
                         order by r.created_at desc , u.created_at desc
                     ),
+                    has_started as (
+                        select distinct resource
+                        from provider.resource_update
+                        where resource in (select id from all_updates)
+                            and extra->>'state' = 'RUNNING'
+                    ),
                     started as (
                         select *
                         from all_updates
-                        where state in ('RUNNING')
+                        where state in ('RUNNING') and id in (select resource from has_started)
                     ),
                     stopped as (
                         select *
                         from all_updates
                         where state in ('SUCCESS', 'EXPIRED', 'FAILURE')
+                        and id in (select resource from has_started)
                     )
                     select
                         coalesce(started.id, stopped.id) as resource_id,
@@ -88,11 +95,12 @@ class AccountingChecks(
                             floor(coalesce(extract(epoch from (stopped.created_at )) * 1000, :now::bigint))
                             - floor(coalesce(extract(epoch from (started.created_at )) * 1000, :start::bigint))
                         )::bigint as milliseconds_spend,
+                    
                         coalesce(started.prod, stopped.prod),
                         coalesce(started.project_id, stopped.project_id) as project_id,
                         coalesce(started.created_by, stopped.created_by) as username
                     from started full join stopped on started.id = stopped.id
-                """.trimIndent()
+                """.trimIndent(), debug = true
             ).rows.map {
                 JobInfo(
                     it.getLong(0)!!,
@@ -119,29 +127,63 @@ class AccountingChecks(
                             pc.provider provider,
                             wo.project_id project_id,
                             wo.username username,
-                            au.floating_point
+                            au.floating_point,
+                            th.affected_allocation
                         from accounting.transaction_history th join
                             accounting.wallet_allocations wa on wa.id = th.affected_allocation join
                             accounting.wallets wall on wa.associated_wallet = wall.id join
                             accounting.product_categories pc on pc.id = wall.category join
-                            accounting.wallet_owner wo on wall.owned_by = wo.id join 
+                            accounting.wallet_owner wo on wall.owned_by = wo.id join
                             accounting.accounting_units au on pc.accounting_unit = au.id
                         where floor(extract(epoch from created_at) * 1000) < :now::bigint and
                             floor(extract(epoch from created_at) * 1000) > :start::bigint and
                             pc.product_type = 'COMPUTE'
                         group by wall.id, pc.category, pc.provider, wo.project_id, wo.username, th.affected_allocation, au.floating_point
+                    ),
+                    charges as (
+                        select
+                            created_at,
+                            th.local_change,
+                            th.affected_allocation
+                        from accounting.transaction_history th join
+                            accounting.wallet_allocations wa on wa.id = th.affected_allocation join
+                            accounting.wallets wall on wa.associated_wallet = wall.id join
+                            accounting.product_categories pc on pc.id = wall.category join
+                            accounting.wallet_owner wo on wall.owned_by = wo.id join
+                            accounting.accounting_units au on pc.accounting_unit = au.id
+                        where floor(extract(epoch from created_at) * 1000) < :now::bigint and
+                            floor(extract(epoch from created_at) * 1000) > :start::bigint and
+                            pc.product_type = 'COMPUTE' and action = 'CHARGE'
+                    ),
+                    earliest as (
+                        select
+                            *,
+                            row_number() over (partition by affected_allocation order by created_at asc) as row_number
+                        from charges
+                    ), sums as (
+                        select
+                            sum(usage)::bigint usage,
+                            wallet_id,
+                            category,
+                            provider,
+                            project_id,
+                            username,
+                            floating_point,
+                            affected_allocation
+                        from usage_per_alloc
+                        group by project_id, username, category, provider, wallet_id, floating_point, affected_allocation
                     )
                     select
-                        sum(usage)::bigint,
+                        (usage + earliest.local_change)::bigint,
                         wallet_id,
                         category,
                         provider,
                         project_id,
                         username,
                         floating_point
-                    from usage_per_alloc
-                    group by project_id, username, category, provider, wallet_id, floating_point
-                """.trimIndent()
+                    from sums join earliest on sums.affected_allocation = earliest.affected_allocation
+                    group by project_id, username, category, provider, wallet_id, floating_point, usage, local_change;
+                """.trimIndent(), debug = true
             ).rows.map {
                 TransactionData(
                     it.getLong(0)!!,
@@ -192,13 +234,14 @@ class AccountingChecks(
 
         }
 
-      //  if (highDiffs.isNotEmpty()) {
+        if (highDiffs.isNotEmpty()) {
             SlackDescriptions.sendAlert.call(
                 Alert(
-                    "Noticeable difference in charges and balances for COMPUTE jobs for $highDiffs"
+                    "Noticeable difference in charges and balances for COMPUTE jobs for \n $highDiffs"
                 ),
                 serviceClient
             )
-        //}
+        }
     }
 }
+
