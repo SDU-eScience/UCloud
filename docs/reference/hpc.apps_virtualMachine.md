@@ -44,6 +44,7 @@ ApplicationWithFavoriteAndTags(
         fileExtensions = emptyList(), 
         invocation = emptyList(), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = false, 
@@ -184,7 +185,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [

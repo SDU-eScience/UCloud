@@ -52,7 +52,7 @@ Resources.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -128,7 +128,7 @@ PageV2(
 #   save the client a round-trip by retrieving all relevant data in a single call.
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?filterState=RUNNING&includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?filterState=RUNNING&includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false" 
 
 # {
 #     "itemsPerPage": 50,

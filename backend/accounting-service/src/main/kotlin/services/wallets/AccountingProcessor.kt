@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.WalletAllocationV2
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -121,6 +122,7 @@ private data class InternalWalletAllocation(
         }
     }
 
+    @Suppress("unused")
     fun rollback() {
         check(inProgress)
 
@@ -162,7 +164,7 @@ sealed class AccountingRequest {
         val isProject: Boolean
     ) : AccountingRequest()
 
-    sealed class Charge() : AccountingRequest() {
+    sealed class Charge : AccountingRequest() {
         abstract val owner: String
         abstract val productCategory: ProductCategoryIdV2
         override var id: Long = -1
@@ -390,7 +392,7 @@ class AccountingProcessor(
     private val providers: Providers<SimpleProviderCommunication>,
     private val distributedLocks: DistributedLockFactory,
     private val disableMasterElection: Boolean = false,
-    private val distributedState: DistributedStateFactory,
+    distributedState: DistributedStateFactory,
     private val addressToSelf: String,
 ) {
     // Active processor
@@ -430,7 +432,7 @@ class AccountingProcessor(
 
     private val projects = ProjectCache(db)
     private val products = ProductCache(db)
-    private val productcategories = ProductCategoryCache(db)
+    private val productCategories = ProductCategoryCache(db)
 
     private val turnstile = Mutex()
     private var isActiveProcessor = false
@@ -449,7 +451,7 @@ class AccountingProcessor(
     // The accounting processors is fairly simple to use. It must first be started by call start(). After this you can
     // process requests by invoking `sendRequest()` which will return an appropriate response.
 
-    @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
+    @OptIn(DelicateCoroutinesApi::class)
     fun start(): Job {
         return GlobalScope.launch {
             val lock = distributedLocks.create("accounting_processor", duration = 60_000)
@@ -486,14 +488,15 @@ class AccountingProcessor(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun becomeMasterAndListen(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
         if (!didAcquire) return
 
-        //resetting state, so we do not attempt to load into already existing in-mem DB resulting i conflicts
+        // Resetting state, so we do not attempt to load into already existing in-mem DB resulting in conflicts
         resetState()
 
-        log.info("This service has become the master responsible for handling Accounting proccessor events!")
+        log.info("This service has become the master responsible for handling Accounting processor events!")
         activeProcessor.set(ActiveProcessor(addressToSelf))
         isActiveProcessor = true
 
@@ -506,7 +509,7 @@ class AccountingProcessor(
         while (currentCoroutineContext().isActive && isAlive) {
             try {
                 turnstile.withLock {
-                    select<Unit> {
+                    select {
                         requests.onReceive { request ->
                             // NOTE(Dan): We attempt a synchronization here in case we receive so many requests that the
                             // timeout is never triggered.
@@ -577,7 +580,7 @@ class AccountingProcessor(
         }
     }
 
-    suspend fun resetState() {
+    fun resetState() {
         dirtyTransactions.clear()
         wallets.clear()
         allocations.clear()
@@ -752,7 +755,7 @@ class AccountingProcessor(
                         val id = row.getLong(0)!!.toInt()
                         val allocationPath = row.getString(1)!!
                         val walletOwner = row.getLong(2)!!.toInt()
-                        var startDate = row.getDouble(3)!!.toLong()
+                        val startDate = row.getDouble(3)!!.toLong()
                         var endDate = row.getDouble(4)?.toLong()
                         var quota = row.getLong(5)!!
                         var treeUsage = quota - row.getLong(6)!!
@@ -964,8 +967,9 @@ class AccountingProcessor(
 
 
                         //TODO(HENRIK) CHECK FIND STATEMENT
-                        val sourceAllocation = allocations.find { (it.quota - it.localUsage) >= balance } ?: allocations.firstOrNull()
-                        ?: throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
+                        val sourceAllocation =
+                            allocations.find { (it.quota - it.localUsage) >= balance } ?: allocations.firstOrNull()
+                            ?: throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 
                         deposit(
                             AccountingRequest.Deposit(
@@ -1079,12 +1083,12 @@ class AccountingProcessor(
     }
 
     private suspend fun createWallet(owner: String, category: ProductCategoryIdV2): InternalWallet? {
-        val category = productcategories.retrieveProductCategory(category) ?: return null
+        val resolvedCategory = productCategories.retrieveProductCategory(category) ?: return null
         val selectorPolicy = AllocationSelectorPolicy.EXPIRE_FIRST
         val wallet = InternalWallet(
             walletsIdGenerator++,
             owner,
-            category,
+            resolvedCategory,
             selectorPolicy,
             isDirty = true
         )
@@ -1369,7 +1373,8 @@ class AccountingProcessor(
             }
         }
         val notBefore = max(parent.notBefore, request.notBefore)
-        val notAfter = min(parent.notAfter ?: (Time.now() + (365 * 24 * 60 * 60 * 1000L)), request.notAfter ?: Long.MAX_VALUE)
+        val notAfter =
+            min(parent.notAfter ?: (Time.now() + (365 * 24 * 60 * 60 * 1000L)), request.notAfter ?: Long.MAX_VALUE)
         run {
             val error = checkOverlapAncestors(parent, notBefore, notAfter)
             if (error != null) return error
@@ -1420,22 +1425,26 @@ class AccountingProcessor(
     // Charge
     // =================================================================================================================
 
+    @Suppress("DEPRECATION")
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
-        if (request.dryRun) {
-            return check(request)
-        }
+        if (authorizeProvider(request.actor, request.productCategory)) return AccountingResponse.Error("Forbidden", 403)
+        if (request.dryRun) return check(request)
 
-        when(request) {
+        when (request) {
             is AccountingRequest.Charge.OldCharge -> {
-                val category = productcategories.retrieveProductCategory(request.productCategory)
+                val category = productCategories.retrieveProductCategory(request.productCategory)
                     ?: return AccountingResponse.Charge(false)
                 //Note(HENRIK) This will also be caught in delta and total charge, but lets just skip the translate work
-                if (category.freeToUse) {return AccountingResponse.Charge(true)}
-                val product = products.retrieveProduct(request.product)?.first ?: return AccountingResponse.Charge(false)
-                val newUnits = when (val v1 = product.toV1()){
+                if (category.freeToUse) {
+                    return AccountingResponse.Charge(true)
+                }
+                val product =
+                    products.retrieveProduct(request.product)?.first ?: return AccountingResponse.Charge(false)
+                val newUnits = when (val v1 = product.toV1()) {
                     is Product.Compute -> {
                         request.units / (v1.cpu ?: 1)
                     }
+
                     else -> request.units
                 }
                 val price = product.price
@@ -1457,17 +1466,19 @@ class AccountingProcessor(
                     }
                 }
             }
+
             is AccountingRequest.Charge.DeltaCharge -> {
                 return deltaCharge(
                     request
                 )
             }
+
             is AccountingRequest.Charge.TotalCharge -> {
                 return totalCharge(
                     request
                 )
             }
-            //Leaving redundant else in case we add more chargetypes
+            // Leaving redundant else in case we add more charge types
             else -> {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Unknown charge request type")
             }
@@ -1475,13 +1486,15 @@ class AccountingProcessor(
     }
 
     private suspend fun check(request: AccountingRequest.Charge): AccountingResponse {
-        val productCategory = productcategories.retrieveProductCategory(request.productCategory)
+        val productCategory = productCategories.retrieveProductCategory(request.productCategory)
             ?: return AccountingResponse.Error("No matching product category", 400)
-        if (productCategory.freeToUse) { return AccountingResponse.Charge(true) }
+        if (productCategory.freeToUse) {
+            return AccountingResponse.Charge(true)
+        }
         val wallet = wallets.find {
             it?.owner == request.owner &&
-                (it.paysFor?.provider == productCategory.provider &&
-                    it.paysFor.name == productCategory.name)
+                    (it.paysFor.provider == productCategory.provider &&
+                            it.paysFor.name == productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
 
         val activeAllocations = wallet.allocations.filter { it.isActive() }
@@ -1489,15 +1502,18 @@ class AccountingProcessor(
             activeAllocations.sumOf { it.localUsage } < activeAllocations.sumOf { it.quota }
         )
     }
+
     private suspend fun deltaCharge(request: AccountingRequest.Charge.DeltaCharge): AccountingResponse {
         println("Charging Delta: Usage: ${request.usage}, Product: ${request.productCategory}")
-        val productCategory = productcategories.retrieveProductCategory(request.productCategory)
-            ?: return return AccountingResponse.Charge(false)
-        if (productCategory.freeToUse) { return AccountingResponse.Charge(true)}
+        val productCategory = productCategories.retrieveProductCategory(request.productCategory)
+            ?: return AccountingResponse.Charge(false)
+        if (productCategory.freeToUse) {
+            return AccountingResponse.Charge(true)
+        }
         val wallet = wallets.find {
             it?.owner == request.owner &&
-                (it.paysFor?.provider == request.productCategory.provider &&
-                    it.paysFor.name == request.productCategory.name)
+                    (it.paysFor.provider == request.productCategory.provider &&
+                            it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
         return if (productCategory.isPeriodic()) {
             applyPeriodCharge(request.usage, wallet.allocations, request.description)
@@ -1512,13 +1528,15 @@ class AccountingProcessor(
 
     private suspend fun totalCharge(request: AccountingRequest.Charge.TotalCharge): AccountingResponse {
         println("Charging Total: Usage: ${request.usage}, Product: ${request.productCategory}")
-        val productCategory = productcategories.retrieveProductCategory(request.productCategory)
-            ?: return return AccountingResponse.Charge(false)
-        if (productCategory.freeToUse) { return AccountingResponse.Charge(true)}
+        val productCategory = productCategories.retrieveProductCategory(request.productCategory)
+            ?: return AccountingResponse.Charge(false)
+        if (productCategory.freeToUse) {
+            return AccountingResponse.Charge(true)
+        }
         val wallet = wallets.find {
             it?.owner == request.owner &&
-                (it.paysFor.provider == request.productCategory.provider &&
-                    it.paysFor.name == request.productCategory.name)
+                    (it.paysFor.provider == request.productCategory.provider &&
+                            it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
         return if (productCategory.isPeriodic()) {
             var currentUsage = 0L
@@ -1534,8 +1552,9 @@ class AccountingProcessor(
     //TODO(HENRIK) Might be to expensive to update with every charge and that it would be fine to update tree usage by
     // doing a full scan of tree every 5 min using O(n*log(n)) but this update should take log(n) (n=total number of allocations in path)
     private fun updateParentTreeUsage(allocation: InternalWalletAllocation, delta: Long): Boolean {
-        if (allocation.parentAllocation == null) { return true}
-        else {
+        if (allocation.parentAllocation == null) {
+            return true
+        } else {
             val parent = allocations[allocation.parentAllocation] ?: return false
             parent.begin()
             parent.treeUsage = min((parent.treeUsage ?: parent.localUsage) + delta, parent.quota)
@@ -1566,17 +1585,16 @@ class AccountingProcessor(
             return if (parent.parentAllocation == null) {
                 true
             } else {
-                val ret = updateParentTreeUsage(parent, delta)
-                return ret
+                return updateParentTreeUsage(parent, delta)
             }
         }
     }
 
-    private fun chargeAllocation(allocationId: Int, delta: Long):Boolean {
+    private fun chargeAllocation(allocationId: Int, delta: Long): Boolean {
         val internalWalletAllocation = allocations[allocationId] ?: return false
         internalWalletAllocation.begin()
         val willOvercharge = (internalWalletAllocation.localUsage + delta > internalWalletAllocation.quota)
-            && (internalWalletAllocation.localUsage < internalWalletAllocation.quota)
+                && (internalWalletAllocation.localUsage < internalWalletAllocation.quota)
         val preChargeTree = internalWalletAllocation.treeUsage ?: 0L
         internalWalletAllocation.localUsage += delta
         internalWalletAllocation.treeUsage = min(
@@ -1603,7 +1621,7 @@ class AccountingProcessor(
                 0
             )
         )
-        println("TRANSACRTION IN CHARGE ALLOC: $transaction")
+        println("TRANSACTION IN CHARGE ALLOC: $transaction")
         dirtyTransactions.add(
             transaction
         )
@@ -1628,7 +1646,7 @@ class AccountingProcessor(
         delta: Long,
         walletAllocations: List<WalletAllocationV2>,
         chargeDescription: ChargeDescription
-    ):AccountingResponse {
+    ): AccountingResponse {
         println("Applying: $delta")
         if (delta == 0L) return AccountingResponse.Charge(true)
         var activeQuota = 0L
@@ -1643,7 +1661,7 @@ class AccountingProcessor(
             if (allocation.isLocked()) continue
 
             //If we have no quota then just charge all to first allocation, and skip rest
-            if(activeQuota == 0L) {
+            if (activeQuota == 0L) {
                 if (!chargeAllocation(allocation.id.toInt(), delta)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
@@ -1667,15 +1685,15 @@ class AccountingProcessor(
             val difference = delta - amountCharged
             println("difference $difference")
             if (stillActiveAllocations.isEmpty()) {
-                //Have choosen the last allocation since it is most likely to change over time. Not like the first/oldest alloc
+                // Have chosen the last allocation since it is most likely to change over time. Not like the
+                // first/oldest alloc
                 if (!chargeAllocation(walletAllocations.last().id.toInt(), difference)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
                     )
                 }
                 return AccountingResponse.Charge(false)
-            }
-            else {
+            } else {
                 val amountPerAllocation = difference / stillActiveAllocations.size
                 var isFirst = true
                 for (allocation in stillActiveAllocations) {
@@ -1734,11 +1752,11 @@ class AccountingProcessor(
                 val toCharge = round(totalUsage.toDouble() * weight).toLong()
                 diff = toCharge - oldValue
                 if (diff < 0 && abs(diff) > quota) {
-                    diff = diff + quota
+                    diff += quota
                 }
                 alloc.localUsage = toCharge
                 localChange = toCharge
-                treeChange =  min(diff, alloc.quota)
+                treeChange = min(diff, alloc.quota)
                 alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + treeChange
                 totalCharged += toCharge
             }
@@ -1760,7 +1778,7 @@ class AccountingProcessor(
                     0
                 )
             )
-            println("addingTrans non perioid: $transaction")
+            println("addingTrans non periodic: $transaction")
             dirtyTransactions.add(
                 transaction
             )
@@ -1798,15 +1816,20 @@ class AccountingProcessor(
     // =================================================================================================================
     private suspend fun update(request: AccountingRequest.Update): AccountingResponse {
         val amountRequested = request.amount
-        if (amountRequested != null && amountRequested < 0) return AccountingResponse.Error("Cannot update to a negative balance", 400)
+        if (amountRequested != null && amountRequested < 0) return AccountingResponse.Error(
+            "Cannot update to a negative balance",
+            400
+        )
         val allocation = allocations.getOrNull(request.allocationId)
             ?: return AccountingResponse.Error("Invalid allocation id supplied", 400)
 
-        if (amountRequested != null && (allocation.localUsage > amountRequested || ((allocation.treeUsage ?: allocation.localUsage) > amountRequested ))) {
+        if (amountRequested != null && (allocation.localUsage > amountRequested || ((allocation.treeUsage
+                ?: allocation.localUsage) > amountRequested))
+        ) {
             return AccountingResponse.Error("Cannot set value to lower than current usage", 400)
         }
 
-        val wallet = wallets[allocation.associatedWallet]
+        wallets[allocation.associatedWallet]
             ?: return AccountingResponse.Error("Invalid allocation id supplied", 400)
 
         if (request.actor != Actor.System) {
@@ -1843,7 +1866,7 @@ class AccountingProcessor(
 
         allocation.begin()
         var quotaChange = 0L
-        if (amountRequested!= null) {
+        if (amountRequested != null) {
             quotaChange = amountRequested - allocation.quota
             allocation.quota = request.amount
         }
@@ -1896,8 +1919,8 @@ class AccountingProcessor(
         )
     }
 
-    private fun retrieveWalletsInternal(request: AccountingRequest.RetrieveWalletsInternal): AccountingResponse {
-        if (request.actor != Actor.System) return AccountingResponse.Error("Forbidden", 403)
+    private suspend fun retrieveWalletsInternal(request: AccountingRequest.RetrieveWalletsInternal): AccountingResponse {
+        if (!authorizeAccess(request.actor, request.owner)) return AccountingResponse.Error("Forbidden", 403)
 
         val wallets = wallets.filter { it?.owner == request.owner }
         return AccountingResponse.RetrieveWalletsInternal(
@@ -1909,18 +1932,7 @@ class AccountingProcessor(
         )
     }
 
-    private suspend fun getAllocationsPath(allocationId: Int): ArrayList<Int> {
-        val current = allocations[allocationId] ?: return arrayListOf()
-        return if (current.parentAllocation == null) {
-            arrayListOf(current.id)
-        } else {
-            val path = getAllocationsPath(current.parentAllocation)
-            path.add(current.id)
-            path
-        }
-    }
-
-    val UUID_REGEX =
+    private val PROJECT_REGEX =
         Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
     private fun retrieveProviderAllocations(
@@ -1955,7 +1967,8 @@ class AccountingProcessor(
             .filter { it.associatedWallet in relevantWalletIds }
             .filter { it.associatedWallet != minimumWalletId || it.id > minimumAllocationId }
             .filter { now in it.notBefore..(it.notAfter ?: Long.MAX_VALUE) }
-            .sortedWith(Comparator.comparingInt<InternalWalletAllocation?> { it.associatedWallet }.thenComparingInt { it.id })
+            .sortedWith(Comparator.comparingInt<InternalWalletAllocation?> { it.associatedWallet }
+                .thenComparingInt { it.id })
             .take(request.pagination.itemsPerPage)
             .map {
                 val apiWallet = relevantWallets.getValue(it.associatedWallet).toApiWallet()
@@ -1988,10 +2001,11 @@ class AccountingProcessor(
         )
     }
 
-    // Is authorized in AccountingService
     private suspend fun browseSubAllocations(
         request: AccountingRequest.BrowseSubAllocations
     ): AccountingResponse {
+        if (!authorizeAccess(request.actor, request.owner)) return AccountingResponse.Error("Forbidden", 403)
+
         val currentProjectWalletsIds = wallets.mapNotNull { if (it?.owner == request.owner) it.id else null }.toSet()
         val currentProjectAllocations = mutableListOf<Int>()
         val subAllocations = mutableListOf<InternalWalletAllocation>()
@@ -2001,7 +2015,7 @@ class AccountingProcessor(
             }
         }
 
-        //Double loop needed due to ids not in order for first allocations on production.
+        // Double loop needed due to ids not in order for first allocations on production.
         allocations.forEach {
             if (it != null && currentProjectAllocations.contains(it.parentAllocation)) {
                 subAllocations.add(it)
@@ -2042,6 +2056,29 @@ class AccountingProcessor(
         return AccountingResponse.BrowseSubAllocations(filteredList)
     }
 
+    // Authorization
+    // =================================================================================================================
+    private suspend fun authorizeAccess(actor: Actor, owner: String): Boolean {
+        if (actor != Actor.System) {
+            val isProject = owner.matches(PROJECT_REGEX)
+            val username = actor.safeUsername()
+            if (isProject) {
+                val role = projects.retrieveProjectRole(username, owner)
+                if (role == null) return false
+            } else {
+                if (username != owner) return false
+            }
+        }
+        return true
+    }
+
+    private fun authorizeProvider(actor: Actor, category: ProductCategoryIdV2): Boolean {
+        val username = actor.safeUsername()
+        if (username.startsWith("_")) return true
+        if (!username.startsWith(AuthProviders.PROVIDER_PREFIX)) return false
+        return username.removePrefix(AuthProviders.PROVIDER_PREFIX) == category.provider
+    }
+
     // Database synchronization
     // =================================================================================================================
     // We attempt to synchronize the dirty changes with the database at least once every 30 seconds. This is not a super
@@ -2053,9 +2090,11 @@ class AccountingProcessor(
 
         if (lastSync != -1L && requestsHandled > 0) {
             val timeDiff = now - lastSync
-            log.info("Handled $requestsHandled in ${timeDiff}ms. " +
-                    "Average speed was ${requestTimeSum / requestsHandled} nanoseconds. " +
-                    "Slowest request was: $slowestRequestName at $slowestRequest nanoseconds.")
+            log.info(
+                "Handled $requestsHandled in ${timeDiff}ms. " +
+                        "Average speed was ${requestTimeSum / requestsHandled} nanoseconds. " +
+                        "Slowest request was: $slowestRequestName at $slowestRequest nanoseconds."
+            )
 
             slowestRequestName = ""
             slowestRequest = 0
@@ -2064,7 +2103,7 @@ class AccountingProcessor(
             lastSync = now
         }
 
-        log.info("Synching")
+        log.info("Synchronizing accounting data")
         debug.useContext(DebugContextType.BACKGROUND_TASK, "Synchronizing accounting data") {
             debug.detail("Filling products")
             products.fillCache()
@@ -2206,16 +2245,16 @@ class AccountingProcessor(
                         {
                             chunk.split {
 
-                                into("affected_allocations") {it.allocationId}
-                                into("new_usages") {it.balance.localUsage}
-                                into("new_treeusages") {it.balance.treeUsage}
-                                into("new_quotas") { it.balance.quota}
-                                into("timestamps") {it.timestamp}
+                                into("affected_allocations") { it.allocationId }
+                                into("new_usages") { it.balance.localUsage }
+                                into("new_treeusages") { it.balance.treeUsage }
+                                into("new_quotas") { it.balance.quota }
+                                into("timestamps") { it.timestamp }
                                 into("transaction_ids") { it.transactionId }
-                                into("actions") {it.relatedAction.toString()}
-                                into("local_change") {it.change.localChange}
-                                into("tree_change") {it.change.treeChange}
-                                into("quota_change") {it.change.quotaChange}
+                                into("actions") { it.relatedAction.toString() }
+                                into("local_change") { it.change.localChange }
+                                into("tree_change") { it.change.treeChange }
+                                into("quota_change") { it.change.quotaChange }
                             }
                         },
                         """
@@ -2236,7 +2275,8 @@ class AccountingProcessor(
                     )
                 }
 
-                dirtyTransactions.asSequence().filter { it.relatedAction == UsageReport.HistoryAction.DEPOSIT }.chunkedSequence(500)
+                dirtyTransactions.asSequence().filter { it.relatedAction == UsageReport.HistoryAction.DEPOSIT }
+                    .chunkedSequence(500)
                     .forEach { chunk ->
                         session.sendPreparedStatement(
                             {
@@ -2309,14 +2349,14 @@ class AccountingProcessor(
                 }
             }
 
-            //Clear dirty checks
+            // Clear dirty checks
             wallets.asSequence().filterNotNull().filter { it.isDirty }.forEach { it.isDirty = false }
 
             allocations.asSequence().filterNotNull().filter { it.isDirty }.forEach { it.isDirty = false }
 
             dirtyTransactions.clear()
             nextSynchronization = Time.now() + 30_000
-            log.info("Synching of DB is done!")
+            log.info("Synchronization of accounting data: Done!")
         }
     }
 
@@ -2476,7 +2516,7 @@ private class ProjectCache(private val db: DBContext) {
         id: String,
         allowCacheRefill: Boolean = true
     ): Pair<ProjectWithTitle, String> {
-        if (!id.matches(UUID_REGEX)) return Pair(ProjectWithTitle(id, id), id)
+        if (!id.matches(PROJECT_REGEX)) return Pair(ProjectWithTitle(id, id), id)
 
         val project = projects.get().find { it.first.projectId == id }
         if (project == null && allowCacheRefill) {
@@ -2551,7 +2591,8 @@ private class ProductCategoryCache(private val db: DBContext) {
                     if (rows.isEmpty()) break
 
                     rows.forEach { row ->
-                        val productCategory = defaultMapper.decodeFromString(ProductCategory.serializer(), row.getString(0)!!)
+                        val productCategory =
+                            defaultMapper.decodeFromString(ProductCategory.serializer(), row.getString(0)!!)
                         val id = row.getLong(1)!!
                         val reference = ProductCategoryIdV2(productCategory.name, productCategory.provider)
                         productCategoryCollector[reference] = Pair(productCategory, id)
@@ -2571,11 +2612,14 @@ private class ProductCategoryCache(private val db: DBContext) {
         }
     }
 
-    suspend fun retrieveProductCategory(category: ProductCategoryIdV2, allowCacheRefill: Boolean = true): ProductCategory? {
+    suspend fun retrieveProductCategory(
+        category: ProductCategoryIdV2,
+        allowCacheRefill: Boolean = true
+    ): ProductCategory? {
         val productCategories = productCategories.get()
         val productCategory = productCategories.find {
             it.first.name == category.name &&
-                it.first.provider == category.provider
+                    it.first.provider == category.provider
         }
 
         if (productCategory == null && allowCacheRefill) {
@@ -2620,7 +2664,8 @@ private class ProductCache(private val db: DBContext) {
                     rows.forEach { row ->
                         val product = defaultMapper.decodeFromString(ProductV2.serializer(), row.getString(0)!!)
                         val id = row.getLong(1)!!
-                        val reference = ProductReferenceV2(product.name, product.category.name, product.category.provider)
+                        val reference =
+                            ProductReferenceV2(product.name, product.category.name, product.category.provider)
                         productCollector[reference] = Pair(product, id)
                     }
                 }
@@ -2637,12 +2682,15 @@ private class ProductCache(private val db: DBContext) {
         }
     }
 
-    suspend fun findAllFreeProducts(): List<ProductV2> {
+    fun findAllFreeProducts(): List<ProductV2> {
         val products = products.get()
         return products.filter { it.first.category.freeToUse }.map { it.first }
     }
 
-    suspend fun retrieveProduct(reference: ProductReferenceV2, allowCacheRefill: Boolean = true): Pair<ProductV2, Long>? {
+    suspend fun retrieveProduct(
+        reference: ProductReferenceV2,
+        allowCacheRefill: Boolean = true
+    ): Pair<ProductV2, Long>? {
         val products = products.get()
         val product = products.find {
             it.first.name == reference.id &&

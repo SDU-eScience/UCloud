@@ -12,6 +12,7 @@ data class GetUserInfoResponse(
     val email: String?,
     val firstNames: String?,
     val lastName: String?,
+    val organization: String?,
 )
 ```
 
@@ -45,6 +46,17 @@ data class GetUserInfoResponse(
 <details>
 <summary>
 <code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>organization</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

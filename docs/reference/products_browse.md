@@ -26,6 +26,7 @@ Products.browse.call(
         filterProvider = null, 
         filterVersion = null, 
         includeBalance = null, 
+        includeMaxBalance = null, 
         itemsPerPage = 50, 
         itemsToSkip = null, 
         next = null, 
@@ -37,6 +38,7 @@ Products.browse.call(
 /*
 PageV2(
     items = listOf(Product.Compute(
+        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
         category = ProductCategoryId(
             id = "example-compute", 
             name = "example-compute", 
@@ -60,7 +62,9 @@ PageV2(
         version = 1, 
         balance = null, 
         id = "example-compute", 
+        maxUsableBalance = null, 
     ), Product.Storage(
+        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
         category = ProductCategoryId(
             id = "example-storage", 
             name = "example-storage", 
@@ -78,6 +82,7 @@ PageV2(
         version = 1, 
         balance = null, 
         id = "example-storage", 
+        maxUsableBalance = null, 
     )), 
     itemsPerPage = 50, 
     next = null, 
@@ -108,6 +113,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #         {
 #             "type": "compute",
 #             "balance": null,
+#             "maxUsableBalance": null,
 #             "name": "example-compute",
 #             "pricePerUnit": 1000000,
 #             "category": {
@@ -124,6 +130,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
+#             "allowAllocationRequestsFrom": "ALL",
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
 #             "chargeType": "ABSOLUTE",
 #             "hiddenInGrantApplications": false,
@@ -132,6 +139,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #         {
 #             "type": "storage",
 #             "balance": null,
+#             "maxUsableBalance": null,
 #             "name": "example-storage",
 #             "pricePerUnit": 1,
 #             "category": {
@@ -142,6 +150,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "priority": 0,
 #             "version": 1,
 #             "freeToUse": false,
+#             "allowAllocationRequestsFrom": "ALL",
 #             "unitOfPrice": "PER_UNIT",
 #             "chargeType": "DIFFERENTIAL_QUOTA",
 #             "hiddenInGrantApplications": false,

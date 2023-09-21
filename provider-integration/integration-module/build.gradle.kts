@@ -18,15 +18,16 @@ repositories {
 
 dependencies {
     run {
-        val version = "2023.3.7-accounting2"
+        val version = "2023.4.0-dev40"
+
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
         ucloud("app-orchestrator-service-api")
         ucloud("service-lib-lib")
-    }
 
-    implementation("org.cliffc.high_scale_lib:cliff-utils:2023.4.0-dev.25")
+        implementation("org.cliffc.high_scale_lib:cliff-utils:$version")
+    }
 
     run {
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
@@ -66,7 +67,7 @@ tasks.test {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(20)
     compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
 }
 
@@ -94,8 +95,6 @@ graalvmNative {
             buildArgs.add("-R:MinHeapSize=128m")
             buildArgs.add("-R:MaxNewSize=64m")
             buildArgs.add("--trace-class-initialization=org.slf4j.LoggerFactory")
-
-            buildArgs.add("-J-Xmx4G")
         }
     }
 }

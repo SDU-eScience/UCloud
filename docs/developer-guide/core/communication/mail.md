@@ -52,6 +52,10 @@ Email templates are pre-defined and are not controllable by clients.
 <td>Changes an end-user's e-mail preferences</td>
 </tr>
 <tr>
+<td><a href='#senddirect'><code>sendDirect</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#sendsupport'><code>sendSupport</code></a></td>
 <td>Forwards a support ticket into Jira</td>
 </tr>
@@ -88,10 +92,6 @@ Email templates are pre-defined and are not controllable by clients.
 </tr>
 <tr>
 <td><a href='#mail'><code>Mail</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#mail.grantappautoapprovetoadminsmail'><code>Mail.GrantAppAutoApproveToAdminsMail</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -171,7 +171,15 @@ Email templates are pre-defined and are not controllable by clients.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#mail.verifyemailaddress'><code>Mail.VerifyEmailAddress</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#retrieveemailsettingsrequest'><code>RetrieveEmailSettingsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#senddirectmandatoryemailrequest'><code>SendDirectMandatoryEmailRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -388,7 +396,6 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
-        grantAutoApprove = true, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -409,7 +416,6 @@ MailDescriptions.toggleEmailSettings.call(
             grantApplicationRejected = true, 
             grantApplicationUpdated = true, 
             grantApplicationWithdrawn = true, 
-            grantAutoApprove = true, 
             lowFunds = true, 
             newCommentOnApplication = true, 
             newGrantApplication = true, 
@@ -443,7 +449,6 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
-        grantAutoApprove = true, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -477,7 +482,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 # {
 #     "settings": {
 #         "newGrantApplication": true,
-#         "grantAutoApprove": true,
 #         "grantApplicationUpdated": true,
 #         "grantApplicationApproved": true,
 #         "grantApplicationRejected": true,
@@ -500,7 +504,6 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "username": null,
             "settings": {
                 "newGrantApplication": true,
-                "grantAutoApprove": true,
                 "grantApplicationUpdated": true,
                 "grantApplicationApproved": true,
                 "grantApplicationRejected": true,
@@ -528,7 +531,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 # {
 #     "settings": {
 #         "newGrantApplication": true,
-#         "grantAutoApprove": true,
 #         "grantApplicationUpdated": true,
 #         "grantApplicationApproved": true,
 #         "grantApplicationRejected": true,
@@ -574,6 +576,19 @@ _Changes an end-user's e-mail preferences_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#retrieveemailsettingsrequest'>RetrieveEmailSettingsRequest</a></code>|<code><a href='#retrieveemailsettingsresponse'>RetrieveEmailSettingsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `sendDirect`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#senddirectmandatoryemailrequest'>SendDirectMandatoryEmailRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -632,7 +647,6 @@ _Retrieves an end-user's e-mail preferences_
 ```kotlin
 data class EmailSettings(
     val newGrantApplication: Boolean?,
-    val grantAutoApprove: Boolean?,
     val grantApplicationUpdated: Boolean?,
     val grantApplicationApproved: Boolean?,
     val grantApplicationRejected: Boolean?,
@@ -657,17 +671,6 @@ data class EmailSettings(
 <details>
 <summary>
 <code>newGrantApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>grantAutoApprove</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -885,7 +888,6 @@ data class EmailSettingsItem(
 sealed class Mail {
     abstract val subject: String
 
-    class GrantAppAutoApproveToAdminsMail : Mail()
     class GrantApplicationApproveMail : Mail()
     class GrantApplicationApproveMailToAdmins : Mail()
     class GrantApplicationRejectedMail : Mail()
@@ -905,6 +907,7 @@ sealed class Mail {
     class UserRemovedMailToUser : Mail()
     class UserRoleChangeMail : Mail()
     class VerificationReminderMail : Mail()
+    class VerifyEmailAddress : Mail()
 }
 ```
 
@@ -918,79 +921,6 @@ sealed class Mail {
 <code>subject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `Mail.GrantAppAutoApproveToAdminsMail`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class GrantAppAutoApproveToAdminsMail(
-    val sender: String,
-    val projectTitle: String,
-    val subject: String?,
-    val type: String /* "autoApproveGrant" */,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>sender</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>projectTitle</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>subject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "autoApproveGrant" */</code></code> The type discriminator
-</summary>
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -2428,6 +2358,91 @@ data class VerificationReminderMail(
 
 ---
 
+### `Mail.VerifyEmailAddress`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class VerifyEmailAddress(
+    val verifyType: String,
+    val token: String,
+    val subject: String?,
+    val username: String?,
+    val type: String /* "verifyEmailAddress" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>verifyType</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>token</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>subject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "verifyEmailAddress" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `RetrieveEmailSettingsRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2448,6 +2463,54 @@ data class RetrieveEmailSettingsRequest(
 <details>
 <summary>
 <code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `SendDirectMandatoryEmailRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class SendDirectMandatoryEmailRequest(
+    val recipientEmail: String,
+    val mail: Mail,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>recipientEmail</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>mail</code>: <code><code><a href='#mail'>Mail</a></code></code>
 </summary>
 
 

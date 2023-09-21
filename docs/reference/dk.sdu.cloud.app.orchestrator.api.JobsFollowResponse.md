@@ -9,8 +9,8 @@
 
 ```kotlin
 data class JobsFollowResponse(
-    val updates: List<JobUpdate>,
-    val log: List<JobsLog>,
+    val updates: List<JobUpdate>?,
+    val log: List<JobsLog>?,
     val newStatus: JobStatus?,
 )
 ```
@@ -22,7 +22,7 @@ data class JobsFollowResponse(
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobupdate'>JobUpdate</a>&gt;</code></code>
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobupdate'>JobUpdate</a>&gt;?</code></code>
 </summary>
 
 
@@ -33,7 +33,7 @@ data class JobsFollowResponse(
 
 <details>
 <summary>
-<code>log</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobslog'>JobsLog</a>&gt;</code></code>
+<code>log</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobslog'>JobsLog</a>&gt;?</code></code>
 </summary>
 
 

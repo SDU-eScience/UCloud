@@ -30,6 +30,7 @@ Files.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("ucloud" to listOf(ResolvedSupport(
         product = Product.Storage(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "u1-cephfs", 
                 name = "u1-cephfs", 
@@ -47,6 +48,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "u1-cephfs", 
+            maxUsableBalance = null, 
         ), 
         support = FSSupport(
             collection = FSCollectionSupport(
@@ -59,6 +61,7 @@ SupportByProvider(
                 aclModifiable = false, 
                 isReadOnly = false, 
                 searchSupported = true, 
+                sharesSupported = true, 
                 streamingSearchSupported = false, 
                 trashSupported = true, 
             ), 
@@ -107,6 +110,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 #             {
 #                 "product": {
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "u1-cephfs",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -117,6 +121,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 #                     "priority": 0,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "PER_UNIT",
 #                     "chargeType": "DIFFERENTIAL_QUOTA",
 #                     "hiddenInGrantApplications": false,
@@ -149,7 +154,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 #                         "trashSupported": true,
 #                         "isReadOnly": false,
 #                         "searchSupported": true,
-#                         "streamingSearchSupported": false
+#                         "streamingSearchSupported": false,
+#                         "sharesSupported": true
 #                     },
 #                     "maintenance": null
 #                 }

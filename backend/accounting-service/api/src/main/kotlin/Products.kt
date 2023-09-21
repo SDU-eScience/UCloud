@@ -180,7 +180,7 @@ sealed class Product : DocVisualizable {
 
     @UCloudApiDoc(
         "The category of payment model. Used in combination with unitOfPrice to create a complete payment " +
-            "model."
+                "model."
     )
     abstract val chargeType: ChargeType
 
@@ -432,9 +432,11 @@ sealed class Product : DocVisualizable {
                     chargeType == ChargeType.DIFFERENTIAL_QUOTA -> {
                         add(DocStatLine.of("Payment model" to DocVisualization.Inline("Differential (Quota)")))
                     }
+
                     unitOfPrice == ProductPriceUnit.PER_UNIT -> {
                         add(DocStatLine.of("Payment model" to DocVisualization.Inline("One-time payment (units)")))
                     }
+
                     unitOfPrice == ProductPriceUnit.CREDITS_PER_UNIT -> {
                         val explanation = if (pricePerUnit == null) {
                             "(DKK)"
@@ -450,26 +452,28 @@ sealed class Product : DocVisualizable {
                             )
                         )
                     }
+
                     unitOfPrice == ProductPriceUnit.UNITS_PER_MINUTE ||
-                        unitOfPrice == ProductPriceUnit.UNITS_PER_HOUR ||
-                        unitOfPrice == ProductPriceUnit.UNITS_PER_DAY -> {
+                            unitOfPrice == ProductPriceUnit.UNITS_PER_HOUR ||
+                            unitOfPrice == ProductPriceUnit.UNITS_PER_DAY -> {
                         add(
                             DocStatLine.of(
                                 "Payment model" to DocVisualization.Inline(
                                     "Periodic (per " +
-                                        "${unitOfPrice.name.substringAfterLast('_').lowercase()})"
+                                            "${unitOfPrice.name.substringAfterLast('_').lowercase()})"
                                 )
                             )
                         )
                     }
+
                     unitOfPrice == ProductPriceUnit.CREDITS_PER_MINUTE ||
-                        unitOfPrice == ProductPriceUnit.CREDITS_PER_HOUR ||
-                        unitOfPrice == ProductPriceUnit.CREDITS_PER_DAY -> {
+                            unitOfPrice == ProductPriceUnit.CREDITS_PER_HOUR ||
+                            unitOfPrice == ProductPriceUnit.CREDITS_PER_DAY -> {
                         val explanation = if (pricePerUnit == null) {
                             "(DKK)"
                         } else {
                             "(${pricePerUnit / 1_000_000.0}DKK/" +
-                                unitOfPrice.name.substringAfterLast('_').lowercase() + ")"
+                                    unitOfPrice.name.substringAfterLast('_').lowercase() + ")"
                         }
                         add(
                             DocStatLine.of(
@@ -780,7 +784,12 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         )
     }
 
-    val create = call("create", BulkRequest.serializer(Product.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val create = call(
+        "create",
+        BulkRequest.serializer(Product.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpCreate(baseContext, roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER))
 
         documentation {
@@ -805,14 +814,15 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         }
     }
 
-    val retrieve = call("retrieve", ProductsRetrieveRequest.serializer(), Product.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
+    val retrieve =
+        call("retrieve", ProductsRetrieveRequest.serializer(), Product.serializer(), CommonErrorMessage.serializer()) {
+            httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
 
-        documentation {
-            summary = "Retrieve a single product"
-            useCaseReference(retrieveUseCase, "Retrieving a single product by ID")
+            documentation {
+                summary = "Retrieve a single product"
+                useCaseReference(retrieveUseCase, "Retrieving a single product by ID")
+            }
         }
-    }
 
     val browse = call(
         "browse",
@@ -822,7 +832,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
             documentation {
                 summary = "Browse a set of products"
                 description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
-                    "of $TYPE_REF Product ."
+                        "of $TYPE_REF Product ."
                 useCaseReference(browseUseCase, "Browse in the full product catalog")
                 useCaseReference(browseByTypeUseCase, "Browse for a specific type of product (e.g. compute)")
             }

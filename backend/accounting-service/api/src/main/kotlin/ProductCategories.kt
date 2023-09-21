@@ -34,8 +34,8 @@ enum class AccountingFrequency {
         public fun toMinutes(value: String): Long = when (value) {
             "ONCE" -> 1L
             "PERIODIC_MINUTE" -> 60L
-            "PERIODIC_HOUR" -> 60*60L
-            "PERIODIC_DAY" -> 60*60*24L
+            "PERIODIC_HOUR" -> 60 * 60L
+            "PERIODIC_DAY" -> 60 * 60 * 24L
             else -> throw IllegalArgumentException()
         }
     }
@@ -63,13 +63,13 @@ data class ProductCategory(
     val accountingFrequency: AccountingFrequency,
     val conversionTable: List<AccountingUnitConversion> = emptyList(),
     @UCloudApiDoc(
-"""
+        """
         Indicates that a Wallet is not required to use this Product category
         
         Under normal circumstances, a $TYPE_REF Wallet is always required. This is required even if a $TYPE_REF Product
         has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
     """
-)
+    )
     val freeToUse: Boolean = false
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
@@ -128,7 +128,12 @@ data class ProductCategoryRetrieveRequest(
 object ProductCategories : CallDescriptionContainer("product_categories") {
     const val baseContext = "/api/product_categories"
 
-    val retrieve = call("retrieve", ProductCategoryRetrieveRequest.serializer(), ProductCategory.serializer(), CommonErrorMessage.serializer()) {
+    val retrieve = call(
+        "retrieve",
+        ProductCategoryRetrieveRequest.serializer(),
+        ProductCategory.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
 
         documentation {
@@ -144,7 +149,7 @@ object ProductCategories : CallDescriptionContainer("product_categories") {
             documentation {
                 summary = "Browse a set of products categories"
                 description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
-                    "of $TYPE_REF ProductCategory ."
+                        "of $TYPE_REF ProductCategory ."
             }
         },
         ProductCategoriesBrowseRequest.serializer(),

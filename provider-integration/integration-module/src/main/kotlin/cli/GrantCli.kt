@@ -161,7 +161,7 @@ private suspend fun retrieveSimpleGrants(rpcClient: AuthenticatedClient): List<S
 
     val walletSummaryByOwner = HashMap<WalletOwner, ArrayList<ProviderWalletSummaryV2>>()
     for (notification in batch.responses) {
-        val combinedProviderSummary = WalletAllocationsV2.retrieveProviderAllocations.call(
+        val combinedProviderSummary = AccountingV2.browseProviderAllocations.call(
             WalletsRetrieveProviderSummaryRequest(
                 filterOwnerId = when (val owner = notification.owner) {
                     is WalletOwner.User -> owner.username

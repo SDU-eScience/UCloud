@@ -55,7 +55,7 @@ Files.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -116,7 +116,7 @@ PageV2(
 # ------------------------------------------------------------------------------------------------------
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&includeTimestamps=true&filterHiddenFiles=false" 
 
 # {
 #     "itemsPerPage": 50,

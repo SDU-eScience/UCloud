@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
@@ -41,6 +42,7 @@ class AccountingController(
             }
         }
     }
+
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implementOrDispatch(Accounting.findRelevantProviders) {
             val responses = request.items.map {
@@ -72,11 +74,11 @@ class AccountingController(
             ok(accounting.charge(actorAndProject, request, dryRun = false))
         }
 
-        implementOrDispatch(AccountingV2.reportTotalUsage){
+        implementOrDispatch(AccountingV2.reportTotalUsage) {
             ok(accounting.chargeTotal(actorAndProject, request, false))
         }
 
-        implementOrDispatch(AccountingV2.reportDelta){
+        implementOrDispatch(AccountingV2.reportDelta) {
             ok(accounting.chargeDelta(actorAndProject, request, false))
         }
 
@@ -98,7 +100,7 @@ class AccountingController(
             ok(Unit)
         }
 
-        implementOrDispatch(AccountingV2.subAllocate){
+        implementOrDispatch(AccountingV2.subAllocate) {
             val response = accounting.subAllocate(actorAndProject, request)
             ok(BulkResponse(response))
         }
@@ -120,7 +122,7 @@ class AccountingController(
             ok(accounting.updateAllocation(actorAndProject, BulkRequest(newTypeRequests)))
         }
 
-        implementOrDispatch(AccountingV2.updateAllocation){
+        implementOrDispatch(AccountingV2.updateAllocation) {
             ok(accounting.updateAllocation(actorAndProject, request))
         }
 
@@ -131,7 +133,8 @@ class AccountingController(
                     ProductCategoryIdV2(it.categoryId.name, it.categoryId.provider),
                     it.amount,
                     it.startDate ?: Time.now(),
-                    it.endDate ?: 4102444800000, //Long.MaxValue is to large for Postgres so we give the timestamp to 1/1/2100
+                    it.endDate
+                        ?: 4102444800000, //Long.MaxValue is to large for Postgres so we give the timestamp to 1/1/2100
                     deicAllocationId = null,
                     forcedSync = it.forcedSync
                 )
@@ -140,7 +143,7 @@ class AccountingController(
             ok(Unit)
         }
 
-        implementOrDispatch(AccountingV2.rootAllocate){
+        implementOrDispatch(AccountingV2.rootAllocate) {
             val response = accounting.rootAllocate(actorAndProject, request)
             ok(BulkResponse(response))
         }
@@ -149,8 +152,13 @@ class AccountingController(
             ok(accounting.browseWallets(actorAndProject, request))
         }
 
-        implement(WalletsV2.browse) {
-            ok(accounting.browseWallets(actorAndProject, request))
+        implement(AccountingV2.browseWallets) {
+            val owner = WalletOwner.fromActorAndProject(actorAndProject)
+            val items = accounting.retrieveWalletsInternal(actorAndProject, owner).filter {
+                request.filterType == null || request.filterType == it.paysFor.productType
+            }
+
+            ok(PageV2.of(items))
         }
 
         implementOrDispatch(Wallets.retrieveWalletsInternal) {
@@ -164,8 +172,15 @@ class AccountingController(
             ok(WalletsInternalRetrieveResponse(response))
         }
 
-        implementOrDispatch(WalletsV2.retrieveWalletsInternal) {
-            ok(WalletsInternalV2RetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), request.owner)))
+        implementOrDispatch(AccountingV2.browseWalletsInternal) {
+            ok(
+                WalletsInternalV2RetrieveResponse(
+                    accounting.retrieveWalletsInternal(
+                        ActorAndProject(Actor.System, null),
+                        request.owner
+                    )
+                )
+            )
         }
 
         implementOrDispatch(Wallets.retrieveAllocationsInternal) {
@@ -184,7 +199,7 @@ class AccountingController(
             )
         }
 
-        implementOrDispatch(WalletAllocationsV2.retrieveAllocationsInternal) {
+        implementOrDispatch(AccountingV2.browseAllocationsInternal) {
             ok(
                 WalletAllocationsV2InternalRetrieveResponse(
                     accounting.retrieveAllocationsInternal(
@@ -212,7 +227,7 @@ class AccountingController(
             ok(oldResponseType)
         }
 
-        implement(WalletAllocationsV2.searchSubAllocations) {
+        implement(AccountingV2.searchSubAllocations) {
             ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
         }
 
@@ -228,7 +243,7 @@ class AccountingController(
             ok(oldResponseType)
         }
 
-        implement(WalletAllocationsV2.browseSubAllocations) {
+        implement(AccountingV2.browseSubAllocations) {
             ok(accounting.browseSubAllocations(actorAndProject, request))
         }
 
@@ -236,19 +251,11 @@ class AccountingController(
             ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
-        implement(WalletAllocationsV2.retrieveRecipient) {
+        implement(AccountingV2.retrieveAllocationRecipient) {
             ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
-        implement(Wallets.register) {
-            ok(accounting.register(actorAndProject, request))
-        }
-
-        implement(WalletAllocationsV2.register) {
-            ok(accounting.register(actorAndProject, request))
-        }
-
-        implementOrDispatch(WalletAllocationsV2.retrieveProviderAllocations) {
+        implementOrDispatch(AccountingV2.browseProviderAllocations) {
             ok(accounting.retrieveProviderAllocations(actorAndProject, request))
         }
 

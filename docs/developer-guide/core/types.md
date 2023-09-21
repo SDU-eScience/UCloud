@@ -26,6 +26,10 @@
 <td>A generic error message</td>
 </tr>
 <tr>
+<td><a href='#findbyintid'><code>FindByIntId</code></a></td>
+<td>A request message to find a resource by a numeric unique identifier.</td>
+</tr>
+<tr>
 <td><a href='#findbylongid'><code>FindByLongId</code></a></td>
 <td>A request message to find a resource by a numeric unique identifier.</td>
 </tr>
@@ -110,6 +114,43 @@ such a case UCloud will _not_ include a more detailed error message.
 <details>
 <summary>
 <code>errorCode</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Machine readable description of why the error occurred. This value is stable and can be relied upon.
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FindByIntId`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_A request message to find a resource by a numeric unique identifier._
+
+```kotlin
+data class FindByIntId(
+    val id: Int,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 

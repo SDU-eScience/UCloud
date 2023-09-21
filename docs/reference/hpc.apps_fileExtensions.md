@@ -51,6 +51,7 @@ ApplicationWithFavoriteAndTags(
             word = "web-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -204,7 +205,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #             ".c"
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [

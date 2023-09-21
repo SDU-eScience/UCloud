@@ -1,9 +1,6 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.accounting.api.Accounting
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.Visualization
-import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.projects.GrantDescription
 import dk.sdu.cloud.accounting.api.projects.GrantSettings
 import dk.sdu.cloud.accounting.api.projects.GrantsEnabled
@@ -134,8 +131,7 @@ fun generateCode() {
                         "accounting",
                         "Accounting",
                         listOf(
-                            Chapter.Feature("wallets", "Wallets", Wallets),
-                            Chapter.Feature("allocations", "Accounting Operations", Accounting),
+                            Chapter.Feature("allocations", "Accounting", AccountingV2),
                             Chapter.Feature("visualization", "Visualization of Usage", Visualization)
                         )
                     ),

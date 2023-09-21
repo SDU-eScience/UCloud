@@ -14,10 +14,11 @@ _User authentication is done using one of several different backends._
 ## Authenticating with UCloud
 
 UCloud provides various backends for authentication. These are all implemented in the authentication service. As of
-06/01/23 the following backends are supported:
+27/06/23 the following backends are supported:
 
 - Authentication with username/password
 - Authentication via WAYF
+- Optional backend for OpenID (disabled in current production env)
 
 Below we will be covering the technical details of each backend.
 
@@ -273,11 +274,19 @@ secret and does not allow a user to create new JWTs.
 </tr></thread>
 <tbody>
 <tr>
+<td><a href='#browseidentityproviders'><code>browseIdentityProviders</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#listusersessions'><code>listUserSessions</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#passwordlogin'><code>passwordLogin</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#startlogin'><code>startLogin</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -344,6 +353,10 @@ secret and does not allow a user to create new JWTs.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#identityprovider'><code>IdentityProvider</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#onetimeaccesstoken'><code>OneTimeAccessToken</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -379,6 +392,19 @@ secret and does not allow a user to create new JWTs.
 
 ## Remote Procedure Calls
 
+### `browseIdentityProviders`
+
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#identityprovider'>IdentityProvider</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `listUserSessions`
 
 [![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -402,6 +428,19 @@ secret and does not allow a user to create new JWTs.
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `startLogin`
+
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -629,6 +668,66 @@ data class ClaimOneTimeToken(
 <details>
 <summary>
 <code>jti</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `IdentityProvider`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class IdentityProvider(
+    val id: Int,
+    val title: String,
+    val logoUrl: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>logoUrl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

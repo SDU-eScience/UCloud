@@ -160,7 +160,7 @@ class AccountingChecks(
                             *,
                             row_number() over (partition by affected_allocation order by created_at asc) as row_number
                         from charges
-                    ), whats as (
+                    ), sums as (
                         select
                             sum(usage)::bigint usage,
                             wallet_id,
@@ -181,7 +181,7 @@ class AccountingChecks(
                         project_id,
                         username,
                         floating_point
-                    from whats join earliest on whats.affected_allocation = earliest.affected_allocation
+                    from sums join earliest on sums.affected_allocation = earliest.affected_allocation
                     group by project_id, username, category, provider, wallet_id, floating_point, usage, local_change;
                 """.trimIndent(), debug = true
             ).rows.map {

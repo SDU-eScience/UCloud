@@ -1,4 +1,5 @@
 @file:Suppress("DEPRECATION")
+
 package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.*
@@ -7,6 +8,27 @@ import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlin.random.Random
+
+@Serializable
+@UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
+data class RegisterWalletRequestItem(
+    val owner: WalletOwner,
+    val uniqueAllocationId: String,
+    val categoryId: String,
+    val balance: Long,
+    val providerGeneratedId: String? = null,
+)
+
+@Serializable
+data class WalletBrowseRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+    val filterEmptyAllocations: Boolean? = null,
+    val includeMaxUsableBalance: Boolean? = null,
+    val filterType: ProductType? = null
+) : WithPaginationRequestV2
 
 @Serializable
 @UCloudApiDoc(
@@ -84,6 +106,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("GB days", 1.0)
                     }
                 }
+
                 ProductType.COMPUTE -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("Core minutes", 1.0)
@@ -96,6 +119,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("Core days", 1.0)
                     }
                 }
+
                 ProductType.INGRESS -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("Ingresses", 1.0)
@@ -108,6 +132,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("Ingress days", 1.0)
                     }
                 }
+
                 ProductType.LICENSE -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("Licenses", 1.0)
@@ -120,6 +145,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("License days", 1.0)
                     }
                 }
+
                 ProductType.NETWORK_IP -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("IP addresses", 1.0)
@@ -152,10 +178,12 @@ enum class AllocationSelectorPolicy {
     EXPIRE_FIRST,
     // ORDERED (Planned not yet implemented)
 }
+
 @Serializable
 data class WalletsInternalRetrieveResponse(
     val wallets: List<Wallet>
 )
+
 @Serializable
 @UCloudApiDoc(
     """
@@ -188,7 +216,7 @@ data class WalletAllocation(
     val startDate: Long,
     @UCloudApiDoc(
         "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
-            "expire automatically"
+                "expire automatically"
     )
     val endDate: Long?,
     @UCloudApiDoc(
@@ -208,6 +236,7 @@ data class PushWalletChangeRequestItem(
     val allocationId: String,
     val amount: Long,
 )
+
 //TODO(HENRIK)DELETE
 /*
 @Serializable
@@ -242,10 +271,11 @@ data class WalletsInternalRetrieveResponse(
 )
  */
 @Serializable
-data class WalletAllocationsInternalRetrieveRequest (
+data class WalletAllocationsInternalRetrieveRequest(
     val owner: WalletOwner,
     val categoryId: ProductCategoryId
 )
+
 @Serializable
 data class WalletAllocationsInternalRetrieveResponse(
     val allocations: List<WalletAllocation>
@@ -354,7 +384,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     @UCloudApiExperimental(ExperimentalLevel.BETA)
-    val push = call("push", BulkRequest.serializer(PushWalletChangeRequestItem.serializer()), PushWalletChangeResponse.serializer(), CommonErrorMessage.serializer()) {
+    val push = call(
+        "push",
+        BulkRequest.serializer(PushWalletChangeRequestItem.serializer()),
+        PushWalletChangeResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "push", roles = Roles.PROVIDER)
 
         documentation {
@@ -363,8 +398,8 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val resetState = call("resetState", ResetState.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve("resetState")
+    val resetState = call("resetState", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "resetState")
 
         auth {
             roles = Roles.SERVICE
@@ -373,7 +408,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     @UCloudApiExperimental(ExperimentalLevel.BETA)
-    val register = call("register", BulkRequest.serializer(RegisterWalletRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val register = call(
+        "register",
+        BulkRequest.serializer(RegisterWalletRequestItem.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "register", roles = Roles.PROVIDER)
 
         documentation {
@@ -382,7 +422,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val browse = call("browse", WalletBrowseRequest.serializer(), PageV2.serializer(Wallet.serializer()), CommonErrorMessage.serializer()) {
+    val browse = call(
+        "browse",
+        WalletBrowseRequest.serializer(),
+        PageV2.serializer(Wallet.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpBrowse(baseContext)
 
         documentation {
@@ -435,7 +480,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val searchSubAllocations = call("searchSubAllocations", WalletsSearchSubAllocationsRequest.serializer(), PageV2.serializer(SubAllocation.serializer()), CommonErrorMessage.serializer()) {
+    val searchSubAllocations = call(
+        "searchSubAllocations",
+        WalletsSearchSubAllocationsRequest.serializer(),
+        PageV2.serializer(SubAllocation.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpSearch(baseContext, "subAllocation")
         documentation {
             summary = "Searches the catalog of sub-allocations"
@@ -446,7 +496,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val browseSubAllocations = call("browseSubAllocations", WalletsBrowseSubAllocationsRequest.serializer(), PageV2.serializer(SubAllocation.serializer()), CommonErrorMessage.serializer()) {
+    val browseSubAllocations = call(
+        "browseSubAllocations",
+        WalletsBrowseSubAllocationsRequest.serializer(),
+        PageV2.serializer(SubAllocation.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpBrowse(baseContext, "subAllocation")
 
         documentation {
@@ -458,7 +513,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val retrieveRecipient = call("retrieveRecipient", WalletsRetrieveRecipientRequest.serializer(), WalletsRetrieveRecipientResponse.serializer(), CommonErrorMessage.serializer()) {
+    val retrieveRecipient = call(
+        "retrieveRecipient",
+        WalletsRetrieveRecipientRequest.serializer(),
+        WalletsRetrieveRecipientResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(baseContext, "recipient")
 
         documentation {
@@ -885,7 +945,7 @@ object Accounting : CallDescriptionContainer("accounting") {
 
                 comment(
                     "The new charge reports that we are only using 50 GB, that is data was removed since last " +
-                        "period."
+                            "period."
                 )
 
                 success(
@@ -945,7 +1005,7 @@ object Accounting : CallDescriptionContainer("accounting") {
 
                 comment(
                     "As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has " +
-                        "500."
+                            "500."
                 )
 
                 comment("We now perform our charge of a single core hour.")
@@ -1595,7 +1655,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         )
     }
 
-    val charge = call("charge", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
+    val charge = call(
+        "charge",
+        BulkRequest.serializer(ChargeWalletRequestItem.serializer()),
+        BulkResponse.serializer(Boolean.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "charge", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -1657,7 +1722,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val deposit = call("deposit", BulkRequest.serializer(DepositToWalletRequestItem.serializer()), DepositToWalletResponse.serializer(), CommonErrorMessage.serializer()) {
+    val deposit = call(
+        "deposit",
+        BulkRequest.serializer(DepositToWalletRequestItem.serializer()),
+        DepositToWalletResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "deposit")
 
         documentation {
@@ -1671,7 +1741,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val updateAllocation = call("updateAllocation", BulkRequest.serializer(UpdateAllocationRequestItem.serializer()), UpdateAllocationResponse.serializer(), CommonErrorMessage.serializer()) {
+    val updateAllocation = call(
+        "updateAllocation",
+        BulkRequest.serializer(UpdateAllocationRequestItem.serializer()),
+        UpdateAllocationResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "allocation")
 
         documentation {
@@ -1689,7 +1764,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val check = call("check", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
+    val check = call(
+        "check",
+        BulkRequest.serializer(ChargeWalletRequestItem.serializer()),
+        BulkResponse.serializer(Boolean.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "check", roles = Roles.SERVICE)
 
         documentation {
@@ -1701,11 +1781,21 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val rootDeposit = call("rootDeposit", BulkRequest.serializer(RootDepositRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val rootDeposit = call(
+        "rootDeposit",
+        BulkRequest.serializer(RootDepositRequestItem.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
     }
 
-    val findRelevantProviders = call("findRelevantProviders", BulkRequest.serializer(FindRelevantProvidersRequestItem.serializer()), BulkResponse.serializer(FindRelevantProvidersResponse.serializer()), CommonErrorMessage.serializer()) {
+    val findRelevantProviders = call(
+        "findRelevantProviders",
+        BulkRequest.serializer(FindRelevantProvidersRequestItem.serializer()),
+        BulkResponse.serializer(FindRelevantProvidersResponse.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "findRelevantProviders", Roles.PRIVILEGED)
     }
 }

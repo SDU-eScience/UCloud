@@ -1,6 +1,8 @@
 package dk.sdu.cloud.accounting.api
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.safeUsername
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -20,5 +22,10 @@ sealed class WalletOwner : DocVisualizable {
     @UCloudApiInternal(InternalLevel.BETA)
     data class Project(val projectId: String) : WalletOwner() {
         override fun visualize(): DocVisualization = DocVisualization.Inline("$projectId (Project)")
+    }
+
+    companion object {
+        fun fromActorAndProject(actorAndProject: ActorAndProject): WalletOwner =
+            actorAndProject.project?.let { Project(it) } ?: User(actorAndProject.actor.safeUsername())
     }
 }
