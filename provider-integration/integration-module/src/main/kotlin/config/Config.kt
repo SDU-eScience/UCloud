@@ -623,6 +623,10 @@ data class ConfigSchema(
                 data class Extensions(
                     val driveLocator: String? = null,
                     val reportStorageUsage: String? = null,
+
+                    @Deprecated("Replace with driveLocator")
+                    val additionalCollections: String? = null,
+
                     @Deprecated("Replace with reportStorageUsage")
                     val accounting: String? = null,
                 )

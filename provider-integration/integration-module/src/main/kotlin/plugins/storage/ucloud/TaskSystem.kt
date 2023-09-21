@@ -53,10 +53,10 @@ class TaskSystem(
     private val backgroundDispatcher: CoroutineDispatcher,
     private val client: AuthenticatedClient,
     private val debug: DebugSystem,
-    private val usageScan2: UsageScan2,
+    private val usageScan: UsageScan,
 ) {
     private val taskContext = TaskContext(pluginConfig, pathConverter, nativeFs, backgroundDispatcher, debug,
-        usageScan2)
+        usageScan)
     private val handlers = ArrayList<TaskHandler>()
 
     fun install(handler: TaskHandler) {
@@ -285,7 +285,7 @@ data class TaskContext(
     val nativeFs: NativeFS,
     val backgroundDispatcher: CoroutineDispatcher,
     val debug: DebugSystem?,
-    val usageScan2: UsageScan2,
+    val usageScan: UsageScan,
 )
 
 interface TaskHandler {

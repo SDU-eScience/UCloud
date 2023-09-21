@@ -23,10 +23,6 @@ data class WalletV2(
     )
 }
 
-
-
-
-
 @Serializable
 @UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
 data class RegisterWalletRequestItem(
@@ -93,18 +89,6 @@ object WalletsV2 : CallDescriptionContainer("accounting.walletsv2") {
             description = """
                 This endpoint will return a list of $TYPE_REF Wallet s which are related to the active workspace.
                 This is mainly for backend use. For frontend, use the browse call instead for a paginated response
-            """.trimIndent()
-        }
-    }
-
-    val retrieveProviderSummary = call("retrieveProviderSummary", WalletsRetrieveProviderSummaryRequest.serializer(), PageV2.serializer(ProviderWalletSummary.serializer()), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, "providerSummary", roles = Roles.PROVIDER)
-
-        documentation {
-            summary = "Retrieves a provider summary of relevant wallets"
-            description = """
-                This endpoint is only usable by providers. The endpoint will return a stable sorted summary of all
-                allocations that a provider currently has.
             """.trimIndent()
         }
     }

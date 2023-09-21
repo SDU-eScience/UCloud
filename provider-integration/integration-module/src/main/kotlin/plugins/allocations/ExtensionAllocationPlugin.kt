@@ -13,7 +13,7 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     }
 
     override suspend fun PluginContext.onResourceAllocationTotal(
-        notifications: List<AllocationNotificationTotal>
+        notifications: List<AllocationNotification.Combined>
     ) {
         for (notification in notifications) {
             onAllocationTotal.optionalInvoke(this, pluginConfig.extensions.onAllocationTotal, notification)
@@ -21,29 +21,29 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     }
 
     override suspend fun PluginContext.onResourceAllocationSingle(
-        notifications: List<AllocationNotificationSingle>
+        notifications: List<AllocationNotification.Single>
     ) {
         for (notification in notifications) {
             onAllocationSingle.optionalInvoke(this, pluginConfig.extensions.onAllocationSingle, notification)
         }
     }
 
-    override suspend fun PluginContext.onResourceSynchronizationTotal(notifications: List<AllocationNotificationTotal>) {
+    override suspend fun PluginContext.onResourceSynchronizationTotal(notifications: List<AllocationNotification.Combined>) {
         for (notification in notifications) {
             onSynchronizationTotal.optionalInvoke(this, pluginConfig.extensions.onSynchronizationTotal, notification)
         }
     }
 
-    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {
+    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotification.Single>) {
         for (notification in notifications) {
             onSynchronizationSingle.optionalInvoke(this, pluginConfig.extensions.onSynchronizationSingle, notification)
         }
     }
 
     private companion object Extensions {
-        val onAllocationTotal = extension(AllocationNotificationTotal.serializer(), Unit.serializer())
-        val onAllocationSingle = extension(AllocationNotificationSingle.serializer(), Unit.serializer())
-        val onSynchronizationTotal = extension(AllocationNotificationTotal.serializer(), Unit.serializer())
-        val onSynchronizationSingle = extension(AllocationNotificationSingle.serializer(), Unit.serializer())
+        val onAllocationTotal = extension(AllocationNotification.Combined.serializer(), Unit.serializer())
+        val onAllocationSingle = extension(AllocationNotification.Single.serializer(), Unit.serializer())
+        val onSynchronizationTotal = extension(AllocationNotification.Combined.serializer(), Unit.serializer())
+        val onSynchronizationSingle = extension(AllocationNotification.Single.serializer(), Unit.serializer())
     }
 }

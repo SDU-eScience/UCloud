@@ -406,7 +406,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2023.4.0-dev39",
                         "command": ["sleep", "inf"],
                         "hostname": "k8",
                         "volumes": [
@@ -770,7 +770,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2023.4.0-dev39",
                         "command": ["sleep", "inf"],
                         "hostname": "slurm",
                         "volumes": [

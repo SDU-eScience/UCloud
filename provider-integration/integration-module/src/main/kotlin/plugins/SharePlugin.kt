@@ -51,10 +51,6 @@ abstract class SharePlugin : ResourcePlugin<Product.Storage, ShareSupport, Share
         // Do nothing
     }
 
-    final override suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotificationTotal) {
-        // Do nothing
-    }
-
     final override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<ShareSupport> {
