@@ -17,7 +17,6 @@ import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
-import {GrantApplicationFilter, IngoingGrantApplicationsResponse, } from "@/Project/Grant";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
@@ -36,9 +35,7 @@ import {
     UsageChart,
     usageExplainer
 } from "@/Accounting";
-import {api as JobsApi, Job} from "@/UCloud/JobsApi";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 import {isAdminOrPI} from "@/Project/Api";

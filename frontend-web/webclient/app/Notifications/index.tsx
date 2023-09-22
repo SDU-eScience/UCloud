@@ -428,6 +428,10 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
         flex-direction: column;
     }
 
+    ${k} > .container-wrapper > .container > div {
+        margin-bottom: 8px;
+    }
+
     ${k} > .header {
         display: flex;
         align-items: center;
