@@ -252,9 +252,9 @@ const SidebarItemsClass = injectStyle("sidebar-items", k => `
     }
 `);
 
-function UserMenuLink(props: {icon: IconName; text: string; to: string;}): JSX.Element {
-    return <Link color="black" hoverColor="black" to={props.to}>
-        <Flex>
+function UserMenuLink(props: {icon: IconName; text: string; to: string; close(): void;}): JSX.Element {
+    return <Link color="black" onClick={props.close} hoverColor="black" height="28px" to={props.to}>
+        <Flex className={HoverClass}>
             <Icon name={props.icon} color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em"
                 size="1.3em" />
             <TextSpan color="var(--black)">{props.text}</TextSpan>
@@ -262,10 +262,10 @@ function UserMenuLink(props: {icon: IconName; text: string; to: string;}): JSX.E
     </Link>
 }
 
-function UserMenuExternalLink(props: {icon: IconName; href: string; text: string}): JSX.Element | null {
+function UserMenuExternalLink(props: {icon: IconName; href: string; text: string; close(): void;}): JSX.Element | null {
     if (!props.text) return null;
-    return <div>
-        <ExternalLink hoverColor="text" href={props.href}>
+    return <div className={HoverClass}>
+        <ExternalLink hoverColor="text" onClick={props.close} href={props.href}>
             <Icon name={props.icon} color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
             <TextSpan color="black">{props.text}</TextSpan>
         </ExternalLink>
@@ -275,20 +275,22 @@ function UserMenuExternalLink(props: {icon: IconName; href: string; text: string
 const UserMenu: React.FunctionComponent<{
     avatar: AvatarType;
 }> = ({avatar}) => {
+    const close = React.useRef(() => undefined);
     return <ClickableDropdown
         width="230px"
         paddingControlledByContent
         left="var(--sidebarWidth)"
         bottom="0"
+        closeFnRef={close}
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
             <UserAvatar height="42px" width="42px" avatar={avatar} /> : null}
     >
-        <Box p="12px">
+        <Box py="12px">
             {!CONF.STATUS_PAGE ? null : (
                 <>
-                    <Box>
-                        <ExternalLink href={CONF.STATUS_PAGE}>
+                    <Box className={HoverClass} >
+                        <ExternalLink onClick={close.current} href={CONF.STATUS_PAGE}>
                             <Flex>
                                 <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
                                 <TextSpan color="black">Site status</TextSpan>
@@ -298,17 +300,17 @@ const UserMenu: React.FunctionComponent<{
                     <Divider />
                 </>
             )}
-            <UserMenuLink icon="properties" text="Settings" to={AppRoutes.users.settings()} />
-            <UserMenuLink icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
-            <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
+            <UserMenuLink close={close.current} icon="properties" text="Settings" to={AppRoutes.users.settings()} />
+            <UserMenuLink close={close.current} icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
                 <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
                 Logout
             </Flex>
-            <UserMenuExternalLink href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
-            <UserMenuExternalLink href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
+            <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
+            <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
             <Divider />
-            <Username />
-            <ProjectID />
+            <Username close={close.current} />
+            <ProjectID close={close.current} />
             <Divider />
             <span>
                 <Flex cursor="auto">
@@ -318,6 +320,16 @@ const UserMenu: React.FunctionComponent<{
         </Box>
     </ClickableDropdown>;
 }
+
+const HoverClass = injectStyle("hover-class", k => `
+    ${k} {
+        padding-left: 12px;
+    }
+
+    ${k}:hover {
+        background: var(--lightBlue);
+    }
+`);
 
 export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
@@ -602,13 +614,18 @@ function AppTitleAndLogo({name, title, to}): JSX.Element {
     </Link>
 }
 
-function Username(): JSX.Element | null {
+function Username({close}: {close(): void}): JSX.Element | null {
     if (!Client.isLoggedIn) return null;
     return <Tooltip
         trigger={(
             <EllipsedText
+                className={HoverClass}
                 cursor="pointer"
-                onClick={copyUserName}
+                onClick={() => {
+                    copyUserName();
+                    close();
+                }}
+                width={"100%"}
             >
                 <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
             </EllipsedText>
@@ -618,7 +635,7 @@ function Username(): JSX.Element | null {
     </Tooltip>
 }
 
-function ProjectID(): JSX.Element | null {
+function ProjectID({close}: {close(): void}): JSX.Element | null {
     const projectId = useProjectId();
 
     const project = useProject();
@@ -636,9 +653,13 @@ function ProjectID(): JSX.Element | null {
     return <Tooltip
         trigger={
             <EllipsedText
+                className={HoverClass}
                 cursor="pointer"
-                onClick={copyProjectPath}
-                width="140px"
+                onClick={() => {
+                    copyProjectPath();
+                    close();
+                }}
+                width={"100%"}
             >
                 <Icon key={projectId} name={"projects"} color2="white" color="black" mr="0.5em" my="0.2em"
                     size="1.3em" />{projectPath}

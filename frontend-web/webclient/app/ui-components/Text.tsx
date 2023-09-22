@@ -1,5 +1,5 @@
 import * as React from "react";
-import {classConcat, extractEventHandlers, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
+import {classConcat, classConcatMult, extractEventHandlers, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {BoxProps} from "@/ui-components/Box";
 import {FontWeightProps} from "styled-system";
@@ -83,7 +83,7 @@ const EllipsedTextClass = injectStyleSimple("ellipsed-text", `
 `);
 
 export const EllipsedText: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
-    return <div className={classConcat(TextClass, EllipsedTextClass)}
+    return <div className={classConcatMult(TextClass, EllipsedTextClass, props.className)}
         style={extractCss(props)} {...extractEventHandlers(props)}
         title={props.title} children={props.children} />;
 }
