@@ -34,6 +34,7 @@ export interface ResourceBrowserOpts<T> {
     embedded?: boolean;
     omitFilters?: boolean;
     disabledKeyhandlers?: boolean;
+    isModal?: boolean;
     selection?: {
         onSelect(res: T): void;
         onSelectRestriction(res: T): boolean | string;
@@ -369,6 +370,15 @@ export class ResourceBrowser<T> {
         rowTitles: false,
     };
 
+    // Modal handling:
+    // When multiple 
+    public static isAnyModalOpen = false;
+    private isModal: boolean;
+    private allowEventListenerAction(): boolean {
+        return !ResourceBrowser.isAnyModalOpen || this.isModal;
+    }
+
+
     private listeners: Record<string, any[]> = {};
 
     public opts: {
@@ -382,6 +392,8 @@ export class ResourceBrowser<T> {
     constructor(root: HTMLElement, resourceName: string, opts?: ResourceBrowserOpts<T>) {
         this.root = root;
         this.resourceName = resourceName;
+        this.isModal = !!opts?.isModal;
+        ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
@@ -483,6 +495,7 @@ export class ResourceBrowser<T> {
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
+                if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.resourceName);
                 removeProjectListener(this.resourceName);
                 window.clearInterval(unmountInterval);
@@ -583,11 +596,12 @@ export class ResourceBrowser<T> {
             });
         }
 
-
         if (!this.opts.disabledKeyhandlers) {
             // Event handlers not related to rows
             this.renameField.addEventListener("keydown", ev => {
-                this.onRenameFieldKeydown(ev);
+                if (this.allowEventListenerAction()) {
+                    this.onRenameFieldKeydown(ev);
+                }
             });
 
             this.renameField.addEventListener("beforeinput", ev => {
@@ -613,7 +627,9 @@ export class ResourceBrowser<T> {
             });
 
             this.locationBar.addEventListener("keydown", ev => {
-                this.onLocationBarKeyDown(ev);
+                if (this.allowEventListenerAction()) {
+                    this.onLocationBarKeyDown(ev);
+                }
             });
 
             this.locationBar.addEventListener("input", ev => {
@@ -626,7 +642,9 @@ export class ResourceBrowser<T> {
                     return;
                 }
 
-                this.onKeyPress(ev);
+                if (this.allowEventListenerAction()) {
+                    this.onKeyPress(ev);
+                }
             };
             document.addEventListener("keydown", keyDownListener);
         }
@@ -641,8 +659,10 @@ export class ResourceBrowser<T> {
                 this.closeContextMenu();
             }
 
-            if (this.renameFieldIndex !== -1 && ev.target !== this.renameField) {
-                this.closeRenameField("submit");
+            if (this.allowEventListenerAction()) {
+                if (this.renameFieldIndex !== -1 && ev.target !== this.renameField) {
+                    this.closeRenameField("submit");
+                }
             }
         };
         document.addEventListener("click", clickHandler);
@@ -1097,7 +1117,9 @@ export class ResourceBrowser<T> {
                     this.open(myPath);
                 });
                 listItem.addEventListener("mousemove", () => {
-                    this.entryBelowCursorTemporary = myPath;
+                    if (this.allowEventListenerAction()) {
+                        this.entryBelowCursorTemporary = myPath;
+                    }
                 });
 
                 fragment.append(listItem);
@@ -3106,7 +3128,7 @@ export class ResourceBrowser<T> {
     private addCheckboxToFilter(filter: FilterCheckbox) {
         const wrapper = document.createElement("label");
         wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "8px";
+        wrapper.style.marginRight = "24px";
 
         const icon = this.createFilterImg(filter.icon);
         icon.style.marginTop = "0";
@@ -3149,7 +3171,7 @@ export class ResourceBrowser<T> {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "8px";
+        wrapper.style.marginRight = "24px";
         wrapper.style.userSelect = "none";
 
         const valueFromStorage = getFilterStorageValue(this.resourceName, filter.type === "options" ? filter.key : filter.keys[0]);
@@ -3214,7 +3236,7 @@ export class ResourceBrowser<T> {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "8px";
+        wrapper.style.marginRight = "24px";
         wrapper.style.userSelect = "none";
 
         const icon = this.createFilterImg(filter.icon)

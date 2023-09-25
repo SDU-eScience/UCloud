@@ -532,7 +532,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <ExperimentalBrowse opts={{
-                            embedded: true, selection: {
+                            embedded: true, isModal: true, selection: {
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -580,7 +580,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(<>
                         <ExperimentalBrowse opts={{
-                            embedded: true, selection: {
+                            embedded: true, isModal: true, selection: {
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
