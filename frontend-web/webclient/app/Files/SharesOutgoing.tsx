@@ -332,13 +332,16 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     browser.showRenameField(
                         (it: OutgoingShareGroupPreview) => it.shareId === dummyId,
                         () => {
-                            browser.removeEntryFromCurrentPage((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
-
                             const idx = browser.findVirtualRowIndex((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
                             if (idx !== null) {
                                 browser.ensureRowIsVisible(idx, true, true);
                                 browser.select(idx, SelectionMode.SINGLE);
                             }
+
+                            const share = browser.findSelectedEntries().at(0) as OutgoingShareGroupPreview;
+                            if (!share) return;
+
+                            browser.removeEntryFromCurrentPage((it: OutgoingShareGroupPreview) => it.shareId === dummyId);
 
                             const sharedWith = browser.renameValue;
                             if (!sharedWith) return;
@@ -348,11 +351,11 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                             const shareGroup = page.find(it => it.sourceFilePath === filePath);
                             if (!shareGroup) return;
 
-                            callAPI(SharesApi.create(bulkRequestOf({sharedWith, sourceFilePath: filePath, permissions: ["READ"], product: shareGroup.storageProduct, conflictPolicy: "RENAME"})))
+                            callAPI(SharesApi.create(bulkRequestOf({sharedWith, sourceFilePath: filePath, permissions: share.permissions, product: shareGroup.storageProduct, conflictPolicy: "RENAME"})))
                                 .then(it => {
                                     const id = it.responses[0]!.id;
                                     const page = browser.cachedData[filePath];
-                                    page.push({permissions: ["READ"], shareId: id, sharedWith, state: "PENDING"})
+                                    page.push({permissions: share.permissions, shareId: id, sharedWith, state: "PENDING"})
                                     browser.rerender();
                                 }).catch(err => {
                                     snackbarStore.addFailure(extractErrorMessage(err), false);
@@ -383,7 +386,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     if (newPath !== "/") {
                         browser.setRowTitles(["Shared with", "Share rights", "State", ""]);
                     } else {
-                        browser.setRowTitles(["Filename", "", "Share's state", "Shared with"])
+                        browser.setRowTitles(["Filename", "", "Permissions", "Shared with"])
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share
@@ -858,6 +861,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 });
 
                 async function updatePermissions(share: OutgoingShareGroupPreview, isEditing: boolean) {
+                    if (share.shareId === dummyId) return;
                     try {
                         await callAPI(SharesApi.updatePermissions(bulkRequestOf({
                             id: share.shareId,
