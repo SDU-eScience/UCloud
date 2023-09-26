@@ -61,6 +61,7 @@ const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTestin
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyBrowse = React.lazy(() => import("@/Applications/SshKeys/Browse"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
+const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -195,6 +196,7 @@ const Core = (): JSX.Element => (
                         <Route path="/project/settings/:project/:page" element={React.createElement(requireAuth(ProjectSettings))} />
                         <Route path="/project/resources/:project" element={React.createElement(requireAuth(ProjectResources))} />
                         <Route path="/project/allocations/:project" element={React.createElement(requireAuth(ProjectAllocations))} />
+                        <Route path="/grants" element={React.createElement(requireAuth(GrantEditor))} />
                         <Route
                             path="/project/grants/existing"
                             element={React.createElement(requireAuth(GrantApplicationEditor), {key: RequestTarget.EXISTING_PROJECT, target: RequestTarget.EXISTING_PROJECT})}

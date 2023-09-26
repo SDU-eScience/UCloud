@@ -5,12 +5,13 @@ import {BoxProps} from "./Box";
 
 interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
     disabled?: boolean;
+    handleWrapperClick?: () => void;
 }
 
 function Checkbox(props: CheckboxProps): JSX.Element {
     const {disabled, size} = props;
     return (
-        <CheckBoxWrapper disabled={!!disabled}>
+        <CheckBoxWrapper disabled={!!disabled} onClick={props.handleWrapperClick}>
             <StyledInput type="checkbox" {...props} />
             <Icon name="boxChecked" size={size} data-name="checked" />
             <Icon name="boxEmpty" size={size} data-name="empty" />
