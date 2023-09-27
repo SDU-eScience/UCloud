@@ -794,6 +794,8 @@ sealed class ComposeService {
                           "${imHome.absolutePath}:/home",
                           "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
+                          "${environment.repoRoot}/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
+                          "$etcSlurm:/etc/slurm-llnl",
                           "${passwdDir.absolutePath}:/mnt/passwd"
                         ],
                         "volumes_from": ["slurmdbd:ro"]
@@ -870,7 +872,6 @@ sealed class ComposeService {
                           "${imHome}:/home",
                           "${imWork}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
-                          "$etcMunge:/etc/munge",
                           "$etcSlurm:/etc/slurm",
                           "$logSlurm:/var/log/slurm"
                         ],
@@ -1023,8 +1024,14 @@ sealed class ComposeService {
                     redirectTo: https://ucloud.localhost.direct
                     insecureMessageSigningForDevelopmentPurposesOnly: true
                     extensions:
-                      onConnectionComplete: /etc/ucloud/extensions/connection-complete
-                    
+                      onConnectionComplete: /etc/ucloud/extensions/ucloud-connection
+
+                  allocations:
+                    COMPUTE:
+                      type: Extension
+                      extensions:
+                        onAllocationTotal: /etc/ucloud/extensions/on-compute-allocation
+
                   jobs:
                     default:
                       type: Slurm
@@ -1038,257 +1045,26 @@ sealed class ComposeService {
                         type: Simple
                         domainPrefix: slurm-
                         domainSuffix: .localhost.direct
-                  
+
                   fileCollections:
                     default:
                       type: Posix
                       matches: "*"
+                      accounting: /etc/ucloud/extensions/storage-du-accounting
                       extensions:
-                        additionalCollections: /etc/ucloud/extensions/posix-drive-locator
-                      
+                        driveLocator: /etc/ucloud/extensions/drive-locator
+
                   files:
                     default:
                       type: Posix
                       matches: "*"
-                  
+
                   projects:
                     type: Simple
                     unixGroupNamespace: 42000
                     extensions:
                       all: /etc/ucloud/extensions/project-extension
-                      
-                """.trimIndent()
-            )
 
-            val imExtensions = imData.child("extensions").also { it.mkdirs() }
-
-            imExtensions.child("connection-complete").writeText(
-                """
-                    #!/usr/bin/env python3
-                    import json
-                    import sys
-                    import subprocess
-                    import os
-
-                    if os.getuid() != 0:
-                        res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
-                        if res.returncode != 0:
-                            print("ucloud-extension failed. Is sudo misconfigured?")
-                            exit(1)
-                        exit(0)
-
-                    request = json.loads(open(sys.argv[1]).read())
-                    username: str = request['username']
-
-                    local_username = username.replace('-', '').replace('#', '').replace('@', '')
-
-                    response = {}
-
-                    def lookup_user() -> int:
-                        id_result = subprocess.run(['/usr/bin/id', '-u', local_username], stdout=subprocess.PIPE)
-                        if id_result.returncode != 0:
-                            return None
-                        else:
-                            return int(id_result.stdout)
-
-                    uid = lookup_user()
-                    if uid != None:
-                        # User already exists. In that case we want to simply return the appropiate ID.
-                        response['uid'] = uid
-                        response['gid'] = uid # TODO(Dan): This is overly simplified
-                    else:
-                        # We need to create a user.
-                        useradd_result = subprocess.run(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username], stdout=subprocess.PIPE,
-                                                        stderr=subprocess.PIPE)
-                        if useradd_result.returncode != 0:
-                            print("Failed to create a user!")
-                            print(useradd_result.stdout)
-                            print(useradd_result.stderr)
-                            exit(1)
-                        
-                        uid = lookup_user()
-                        if uid == None:
-                            print("Failed to create a user! Could not look it up after calling useradd.")
-                            exit(1)
-
-                        response['uid'] = uid
-                        response['gid'] = uid
-
-                    print(json.dumps(response))
-                """.trimIndent()
-            )
-
-            imExtensions.child("posix-drive-locator").writeText(
-                """
-                    #!/usr/bin/env python3
-                    import sys
-                    import subprocess
-                    import json
-
-                    # =====================================================================================================================
-                    # Utilities
-                    # =====================================================================================================================
-
-                    def get_group_by_gid(gid):
-                        result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    def get_username_by_uid(uid):
-                        result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    # =====================================================================================================================
-                    # Loading request
-                    # =====================================================================================================================
-
-                    request = json.loads(open(sys.argv[1]).read())
-                    owner = request
-                    owner_type = owner['type']
-
-                    # =====================================================================================================================
-                    # Mapping
-                    # =====================================================================================================================
-
-                    if owner_type == 'user':
-                        username = get_username_by_uid(owner['uid'])
-                        response = {
-                            'title' : 'Home',
-                            'path' : f'/home/{username}'
-                        }
-                        print(json.dumps([response]))
-
-                    elif owner_type == 'project':
-                        group_name = get_group_by_gid(owner['gid'])
-                        response = {
-                            'title' : 'Work',
-                            'path' : f'/work/{group_name}'
-                        }
-                        print(json.dumps([response]))
-
-                    else:
-                        print(f'Unknown owner type {owner_type}')
-                        exit(1)
-     
-                """.trimIndent()
-            )
-
-            imExtensions.child("project-extension").writeText(
-                """
-                    #!/usr/bin/env python3
-                    import json
-                    import sys
-                    import subprocess
-                    import os
-                    import re
-
-                    # NOTE(Dan): This script requires root privileges. However, the integration module will launch it with the privileges
-                    # of the ucloud service user. As a result, we immediately attempt to elevate our own privileges via `sudo`.
-                    if os.getuid() != 0:
-                        res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
-                        if res.returncode != 0:
-                            print("project-extension failed. Is sudo misconfigured?")
-                            exit(1)
-                        exit(0)
-
-                    ########################################################################################################################
-
-                    request = json.loads(open(sys.argv[1]).read())
-                    request_type = request['type']
-
-                    ########################################################################################################################
-
-                    def generate_name(ucloud_title, allocated_gid):
-                        return re.sub(r'[^a-z0-9]', '_', ucloud_title.lower()) + '_' + str(allocated_gid)
-
-                    def create_group(gid, name):
-                        result = subprocess.run(['/usr/sbin/groupadd', '-g', str(gid), name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        success = result.returncode == 0
-                        if success:
-                            subprocess.run(['mkdir', '-p', f'/work/{name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                            subprocess.run(['chgrp', name, f'/work/{name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                            subprocess.run(['chmod', '770', f'/work/{name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        return success
-
-                    def rename_group(gid, name):
-                        result = subprocess.run(['/usr/sbin/groupmod', '-n', name, get_group_by_gid(gid)], stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def delete_group(gid):
-                        group_name = get_group_by_gid(gid)
-                        if group_name is None:
-                            return False
-                        result = subprocess.run(['/usr/sbin/groupdel', get_group_by_gid(gid)], stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def add_user_to_group(uid, gid):
-                        if get_group_by_gid(gid) is None:
-                            print("{} error: Non-existing group with id {}".format(request_type,gid))
-                            exit(1)
-
-                        if get_username_by_uid(uid) is None:
-                            print("{} error: Non-existing user with id {}".format(request_type,uid))
-                            exit(1)
-
-                        result = subprocess.run(['/usr/sbin/usermod', '-a', '-G', get_group_by_gid(gid), get_username_by_uid(uid)],
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def remove_user_from_group(uid, gid):
-                        result = subprocess.run(['/usr/bin/gpasswd', '-d', get_username_by_uid(uid), get_group_by_gid(gid)],
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def get_gid_by_group(group_name):
-                        result = subprocess.run(['/usr/bin/getent', 'group', group_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return int(result.stdout.decode('UTF-8').split(':')[2])
-
-                    def get_group_by_gid(gid):
-                        result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    def get_username_by_uid(uid):
-                        result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    ########################################################################################################################
-
-                    if request_type == 'project_renamed':
-                        gid = request['newProject']['localId']
-                        if request['oldProject'] is None:
-                            create_group(gid, generate_name(request['newTitle'], gid))
-                        else:
-                            rename_group(gid, generate_name(request['newTitle'], gid))
-
-                    elif request_type == 'members_added_to_project':
-                        gid = request['newProject']['localId']
-                        create_group(gid, generate_name(request['newProject']['project']['specification']['title'], gid))
-                        for member in request['newMembers']:
-                            uid = member['uid']
-                            if uid is None: continue
-                            add_user_to_group(uid, gid)
-
-                    elif request_type == 'members_removed_from_project':
-                        gid = request['newProject']['localId']
-                        create_group(gid, generate_name(request['newProject']['project']['specification']['title'], gid))
-                        for member in request['removedMembers']:
-                            uid = member['uid']
-                            if uid is None: continue
-                            remove_user_from_group(uid, gid)
-
-                    print('{}')
-                                        
                 """.trimIndent()
             )
 
@@ -1310,19 +1086,34 @@ sealed class ComposeService {
                 Thread.sleep(2_000)
             }
 
-            compose.stop(currentEnvironment, "slurmctld")
-            compose.start(currentEnvironment, "slurmctld")
-
+            // These are mounted into the container, but permissions are wrong
             compose.exec(
                 currentEnvironment,
                 "slurm",
                 listOf(
                     "sh",
                     "-c",
-                    "chmod 755 /etc/ucloud/extensions /etc/ucloud/extensions/*"
+                    "chmod 0755 -R /etc/ucloud/extensions",
                 ),
                 tty = false
-            )
+            ).streamOutput().executeToText()
+
+            // This is to avoid rebuilding the image when the Slurm configuration changes
+            compose.exec(
+                currentEnvironment,
+                "slurmctld",
+                listOf(
+                    "cp",
+                    "-v",
+                    "/opt/ucloud/docker/slurm/slurm.conf",
+                    "/etc/slurm"
+                ),
+                tty = false
+            ).streamOutput().executeToText()
+
+            // Restart slurmctld in case configuration file has changed
+            compose.stop(currentEnvironment, "slurmctld").streamOutput().executeToText()
+            compose.start(currentEnvironment, "slurmctld").streamOutput().executeToText()
 
             installMarker.writeText("done")
         }

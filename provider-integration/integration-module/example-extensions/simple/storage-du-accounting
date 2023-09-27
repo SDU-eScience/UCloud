@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+import json
+import sys
+from helper import *
+
+with open(sys.argv[1]) as fp:
+    request = json.load(fp)
+
+path = request['path']
+result = run_command(['du', '-sb', '--exclude=.ucloud-tasks', path])
+driveSize = result.stdout.split('\t')[0]
+
+response = {
+    'bytesUsed': int(driveSize)
+}
+
+print(json.dumps(response))
