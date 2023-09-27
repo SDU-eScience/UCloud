@@ -384,9 +384,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (newPath !== "/") {
-                        browser.setRowTitles(["Shared with", "Share rights", "State", ""]);
+                        browser.setRowTitles([{name: "Shared with"}, {name: "Share rights"}, {name: "State"}, {name: ""}]);
                     } else {
-                        browser.setRowTitles(["Filename", "", "Permissions", "Shared with"])
+                        browser.setRowTitles([{name: "Filename"}, {name: ""}, {name: "Permissions"}, {name: "Shared with"}])
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share

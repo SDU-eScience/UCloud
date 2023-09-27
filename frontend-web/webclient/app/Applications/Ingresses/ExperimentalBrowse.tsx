@@ -54,7 +54,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Ingress>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles(["Domain", "", "", ""]);
+                browser.setRowTitles([{name: "Domain"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 let startCreation: () => void = doNothing;
                 const ingressBeingCreated = "collectionBeingCreated$$___$$";
@@ -99,23 +99,21 @@ export function ExperimentalPublicLinks(): JSX.Element {
                                 provider: product.category.provider
                             };
 
-                            const ingressBeingCreated = {
+                            const ingressBeingCreated: Ingress = {
                                 ...dummyEntry,
                                 id: temporaryFakeId,
                                 specification: {
                                     domain: INGRESS_PREFIX + browser.renameValue + INGRESS_POSTFIX,
-                                    title: browser.renameValue,
                                     product: productReference
                                 },
-                            } as Ingress;
-
-
+                            };
 
                             browser.insertEntryIntoCurrentPage(ingressBeingCreated);
                             browser.renderRows();
                             browser.selectAndShow(it => it === ingressBeingCreated);
 
                             try {
+                                // TODO(Jonas)/FIXME(Jonas): Doesn't work. Bad Request
                                 const response = (await callAPI(IngressApi.create(bulkRequestOf({
                                     domain: browser.renameValue,
                                     product: productReference
@@ -214,7 +212,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 browser.on("endRenderPage", () => {
                     const inputField = browser.renameField;
                     const parent = inputField?.parentElement;
-                    if (!parent) return;
+                    if (!parent || parent.hidden) return;
                     const prefix = browser.root.querySelector(".PREFIX");
                     const postfix = browser.root.querySelector(".POSTFIX");
                     {

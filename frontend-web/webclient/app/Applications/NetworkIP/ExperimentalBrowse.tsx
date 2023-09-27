@@ -50,7 +50,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs").init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles(["IP address", "", "", ""]);
+                browser.setRowTitles([{name: "IP address"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 var startCreation = function () { };
 

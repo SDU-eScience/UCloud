@@ -52,7 +52,7 @@ export function ExperimentalLicenses(): JSX.Element {
             new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
                 var startCreation = function () { };
 
-                browser.setRowTitles(["License id", "", "", ""]);
+                browser.setRowTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 supportByProvider.retrieve("", () =>
                     callAPI(LicenseApi.retrieveProducts())

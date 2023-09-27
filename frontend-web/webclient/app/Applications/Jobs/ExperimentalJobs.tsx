@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, RowTitle} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -35,7 +35,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const logoDataUrls = new AsyncCache<string>();
 
-const rowTitles: [string, string, string, string] = ["Job name", "", "Last update", "State"];
+const rowTitles: [RowTitle, RowTitle, RowTitle, RowTitle] = [{name: "Job name"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: "State"}];
 function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
@@ -57,7 +57,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
         search: !opts?.embedded
     };
 
-    const dateRanges = dateRangeFilters("Created after");
+    const dateRanges = dateRangeFilters("Created");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -65,9 +65,9 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
             new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
-                
+
                 browser.setRowTitles(rowTitles);
-                
+
                 const flags = {
                     ...defaultRetrieveFlags,
                     ...(opts?.additionalFilters ?? {})
@@ -101,31 +101,11 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                 });
 
                 browser.on("fetchFilters", () => [{
-                    key: "sortBy",
-                    text: "Sort by",
-                    clearable: false,
-                    options: [{
-                        color: "text",
-                        icon: "calendar",
-                        text: "Date created",
-                        value: "createdAt"
-                    }, {
-                        value: "createdBy",
-                        color: "text",
-                        icon: "user",
-                        text: "Created by"
-                    }],
-                    type: "options",
-                    icon: "heroAdjustmentsHorizontal",
-                },
-                {
                     key: "filterCreatedBy",
                     text: "Created by",
                     type: "input",
                     icon: "user"
-                },
-                    dateRanges,
-                {
+                }, dateRanges, {
                     key: "filterState",
                     options: [
                         {text: "In queue", value: "IN_QUEUE", icon: "hashtag", color: "text"},
@@ -146,6 +126,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     row.title.append(icon);
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
+                    row.stat1.innerText = job.owner.createdBy;
                     row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
 
                     logoDataUrls.retrieve(job.specification.application.name, async () => {
@@ -299,7 +280,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
         {switcher}
     </>;
     if (opts?.embedded === true) return <div>{main}</div>;
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 }
 
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {

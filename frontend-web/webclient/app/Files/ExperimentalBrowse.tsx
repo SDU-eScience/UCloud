@@ -16,6 +16,7 @@ import {
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
+    RowTitleList,
     SelectionMode
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -93,7 +94,7 @@ const FEATURES: ResourceBrowseFeatures = {
     rowTitles: true,
 }
 
-const rowTitles: [string, string, string, string] = ["Filename", "Sensitivity", "Modified at", "Size"];
+const rowTitles: RowTitleList = [{name: "Name", filterName: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", filterName: "MODIFIED_AT"}, {name: "Size", filterName: "SIZE"}];
 function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string, initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -112,7 +113,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
     const didUnmount = useDidUnmount();
-
 
     const features = {
         ...FEATURES
@@ -494,35 +494,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     );
                 };
 
-                browser.on("fetchFilters", () => {
-                    const filters: Filter[] = [
-                        {
-                            type: "options",
-                            key: "sortBy",
-                            text: "Sort by",
-                            clearable: false,
-                            icon: "heroAdjustmentsHorizontal",
-                            options: [{
-                                color: "black",
-                                text: "Name",
-                                icon: "id",
-                                value: "PATH"
-                            }, {
-                                color: "black",
-                                icon: "edit",
-                                text: "Modified at",
-                                value: "MODIFIED_AT"
-                            }, {
-                                color: "black",
-                                icon: "fullscreen",
-                                text: "Size",
-                                value: "SIZE"
-                            }],
-                        },
-                    ];
-
-                    return filters;
-                });
+                browser.on("fetchFilters", () => []);
 
                 browser.on("fetchOperations", () => {
                     function groupOperations<T, R>(ops: Operation<T, R>[]): OperationOrGroup<T, R>[] {

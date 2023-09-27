@@ -87,17 +87,10 @@ interface MultiOption {
     values: [string, string];
 }
 
-const SORT_DIRECTIONS: FilterWithOptions = {
-    type: "options",
-    key: "sortDirection",
-    text: "Sort order",
-    icon: "heroArrowsUpDown",
-    clearable: false,
-    options: [
-        {color: "black", icon: "heroArrowUp", text: "Ascending", value: "ascending"},
-        {color: "black", icon: "heroArrowDown", text: "Descending", value: "descending"}
-    ]
-};
+const SORT_BY = "sortBy";
+const SORT_DIRECTION = "sortDirection";
+const ASC = "ascending";
+const DESC = "descending";
 
 export function dateRangeFilters(text: string): MultiOptionFilter {
     const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
@@ -259,6 +252,13 @@ export interface ResourceBrowseFeatures {
     rowTitles?: boolean;
 }
 
+export interface RowTitle {
+    name: string;
+    filterName?: string;
+}
+
+export type RowTitleList = [RowTitle, RowTitle, RowTitle, RowTitle];
+
 export class ResourceBrowser<T> {
     // DOM component references
     /* private */ root: HTMLElement;
@@ -385,7 +385,7 @@ export class ResourceBrowser<T> {
         embedded: boolean;
         selector: boolean;
         disabledKeyhandlers: boolean;
-        rowTitles: [string, string, string, string]
+        rowTitles: RowTitleList;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -398,7 +398,7 @@ export class ResourceBrowser<T> {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
             disabledKeyhandlers: !!opts?.disabledKeyhandlers,
-            rowTitles: ["", "", "", ""]
+            rowTitles: [{name: ""}, {name: ""}, {name: ""}, {name: ""}]
         }
     };
 
@@ -552,7 +552,7 @@ export class ResourceBrowser<T> {
             }
         }
 
-        if (this.features.filters || this.features.sortDirection) {
+        if (this.features.filters) {
             // Note(Jonas): Expand height of header if filters/sort-directions are available.
             this.header.setAttribute("data-has-filters", "");
         }
@@ -574,10 +574,7 @@ export class ResourceBrowser<T> {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
             titleRow["style"].height = titleRow["style"].maxHeight = "22px";
-            titleRow.querySelector(".title")!["innerText"] = this.opts.rowTitles[0];
-            titleRow.querySelector(".stat1")!["innerText"] = this.opts.rowTitles[1];
-            titleRow.querySelector(".stat2")!["innerText"] = this.opts.rowTitles[2];
-            titleRow.querySelector(".stat3")!["innerText"] = this.opts.rowTitles[3];
+            this.setRowTitles(this.opts.rowTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             this.root.removeChild(titleRow);
@@ -851,13 +848,11 @@ export class ResourceBrowser<T> {
 
         if (!this.canConsumeResources) return;
 
-        if (this.features.sortDirection) {
-            this.renderSortOrder();
-        }
         if (this.features.filters) {
             this.renderFilters();
             this.rerenderSessionFilterIcons();
         }
+        this.renderRowTitles();
     }
 
     private rerenderSessionFilterIcons() {
@@ -1130,10 +1125,6 @@ export class ResourceBrowser<T> {
         this.breadcrumbs.append(fragment);
     }
 
-    renderSortOrder() {
-        this.addOptionsToFilter(SORT_DIRECTIONS);
-    }
-
     renderFilters() {
         const filters = this.dispatchMessage("fetchFilters", k => k());
         for (const f of filters) {
@@ -1151,7 +1142,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    // This might be a stupid solution, but some filters should not exist beyond the lifetime of the component,
+    // TODO(Jonas): This might be a stupid solution, but some filters should not exist beyond the lifetime of the component,
     // referred to `session` here.
     renderSessionFilters() {
         const filters = this.dispatchMessage("fetchFilters", k => k());
@@ -3327,14 +3318,75 @@ export class ResourceBrowser<T> {
         });
     }
 
-    public setRowTitles(titles: [string, string, string, string]) {
+    public setRowTitles(titles: RowTitleList) {
         this.opts.rowTitles = titles;
+        this.renderRowTitles();
+    }
+
+    public renderRowTitles() {
+        const titles = this.opts.rowTitles;
+        for (const title of titles) {
+            if (title.filterName) {
+                const value = getFilterStorageValue(this.resourceName, SORT_BY);
+                if (value) this.browseFilters["sortBy"] = value;
+            }
+        }
+        if (this.features.sortDirection) {
+            const value = getFilterStorageValue(this.resourceName, SORT_DIRECTION);
+            if (value) this.browseFilters[SORT_DIRECTION] = value;
+        }
         const titleRow = this.root.querySelector(".row.rows-title");
         if (!titleRow) return;
-        titleRow.querySelector(".title")!["innerText"] = this.opts.rowTitles[0];
-        titleRow.querySelector(".stat1")!["innerText"] = this.opts.rowTitles[1];
-        titleRow.querySelector(".stat2")!["innerText"] = this.opts.rowTitles[2];
-        titleRow.querySelector(".stat3")!["innerText"] = this.opts.rowTitles[3];
+        this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
+        this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
+        this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
+        this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
+    }
+
+    private setTitleAndHandlers(el: HTMLElement, rowTitle: RowTitle, position: "left" | "right"): void {
+        el.innerHTML = "";
+        const wrapper = document.createElement("div");
+        el.append(wrapper);
+        const rowTitleName = document.createElement("span");
+        rowTitleName.innerText = rowTitle.name;
+        wrapper.append(rowTitleName);
+        const filter = rowTitle.filterName;
+        if (!filter) return;
+        wrapper.style.cursor = "pointer";
+        wrapper.onclick = e => {
+            e.stopPropagation();
+            if (this.browseFilters[SORT_BY] !== filter) {
+                setFilterStorageValue(this.resourceName, SORT_BY, filter);
+            } else if (this.features.sortDirection) {
+                if (this.browseFilters[SORT_DIRECTION] === ASC) {
+                    setFilterStorageValue(this.resourceName, SORT_DIRECTION, DESC);
+                } else {
+                    setFilterStorageValue(this.resourceName, SORT_DIRECTION, ASC);
+                }
+            }
+            this.open(this.currentPath, true);
+        }
+        if (this.browseFilters["sortBy"] === filter) {
+            wrapper.style.fontWeight = "bold";
+            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
+            this.icons.renderIcon({
+                name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
+                color: "black",
+                color2: "black",
+                height: 24,
+                width: 24,
+            }).then(setArrow);
+            arrow.style.height = arrow.style.width = "12px";
+            arrow.style.marginLeft = "8px";
+            if (position === "left") {
+                arrow.style.marginTop = "6px";
+                wrapper.prepend(arrow);
+            } else {
+                wrapper.appendChild(arrow);
+            }
+        } else {
+            wrapper.style.fontWeight = "unset";
+        }
     }
 }
 

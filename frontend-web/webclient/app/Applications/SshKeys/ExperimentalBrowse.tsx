@@ -35,7 +35,7 @@ export function ExperimentalSSHKey(): JSX.Element {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<SSHKey>(mount, "SSH Keys").init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles(["Title", "", "", ""]);
+                browser.setRowTitles([{name: "Title"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 // Ensure no refecthing on `beforeOpen`.
                 browser.on("beforeOpen", (oldPath, path, resource) => resource != null);

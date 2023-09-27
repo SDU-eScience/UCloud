@@ -68,7 +68,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive").init(browserRef, FEATURES, "/", browser => {
-                browser.setRowTitles(["Drive name", "", "", ""])
+                browser.setRowTitles([{name: "Drive name"}, {name: ""}, {name: ""}, {name: ""}])
 
 
                 // Load products and initialize dependencies

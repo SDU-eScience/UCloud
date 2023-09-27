@@ -325,7 +325,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setRowTitles(["Filename", "State and rights", "Last updated", "Shared by"]);
+                browser.setRowTitles([{name: "Filename"}, {name: "State and rights"}, {name: "Last updated"}, {name: "Shared by"}]);
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
@@ -555,16 +555,6 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                     browser.renderOperations();
                     browser.renderBreadcrumbs();
                 });
-
-                async function updatePermissions(share: Share, isEditing: boolean) {
-                    await callAPI(SharesApi.updatePermissions(bulkRequestOf(
-                        {
-                            id: share.id,
-                            permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
-                        }
-                    )));
-                    // TODO(Jonas): Reload
-                };
             });
         }
     }, []);
