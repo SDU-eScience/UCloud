@@ -5,7 +5,7 @@ import Box from "@/ui-components/Box";
 import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
 import {EllipsedText, TextClass} from "@/ui-components/Text";
-import theme from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Pages from "./Pages";
 import {compute} from "@/UCloud";
 import ApplicationWithFavoriteAndTags = compute.ApplicationWithFavoriteAndTags;
@@ -118,7 +118,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     );
 };
 
-export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
+export const Tag = ({label, bg = "black"}: {label: string; bg?: ThemeColor}): JSX.Element => (
     <div style={{
         marginRight: "3px",
         background: `var(--${bg})`,
