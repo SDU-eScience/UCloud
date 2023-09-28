@@ -59,6 +59,8 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
 
     const dateRanges = dateRangeFilters("Created");
 
+    const simpleView = !!(opts?.embedded && !opts.isModal);
+
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
@@ -66,7 +68,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setRowTitles(rowTitles);
+                if (!simpleView) browser.setRowTitles(rowTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -79,10 +81,9 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         return;
                     }
 
-
                     callAPI(JobsApi.browse({
+                        ...browser.browseFilters,
                         ...flags,
-                        ...browser.browseFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -93,8 +94,8 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     const result = await callAPI(
                         JobsApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
-                            ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...flags,
                         })
                     );
                     browser.registerPage(result, path, false);
@@ -126,7 +127,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     row.title.append(icon);
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
-                    row.stat1.innerText = job.owner.createdBy;
+                    if (!simpleView) row.stat1.innerText = job.owner.createdBy;
                     row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
 
                     logoDataUrls.retrieve(job.specification.application.name, async () => {
