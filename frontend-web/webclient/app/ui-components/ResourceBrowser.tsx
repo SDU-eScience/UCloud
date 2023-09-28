@@ -513,6 +513,9 @@ export class ResourceBrowser<T> {
             editIcon.src = placeholderImage;
             editIcon.width = 24;
             editIcon.height = 24;
+
+            // TODO(Jonas): This should be handlded in CSS.
+            editIcon.style.marginLeft = editIcon.style.marginRight = "14px";
             this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => editIcon.src = url);
             editIcon.addEventListener("click", () => {
@@ -525,6 +528,9 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
+
+            // TODO(Jonas): This should be handlded in CSS.
+            icon.style.marginLeft = "auto";
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
 
@@ -2840,7 +2846,6 @@ export class ResourceBrowser<T> {
                 margin-left: 16px;
             }
 
-            .file-browser header .header-first-row ul,
             .file-browser header .header-first-row .location-bar {
                 flex-grow: 1;
             }
