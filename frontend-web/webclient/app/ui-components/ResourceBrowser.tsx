@@ -309,7 +309,7 @@ export class ResourceBrowser<T> {
     private renameFieldIndex: number = -1;
     renameValue: string = "";
     renamePrefix: string = "";
-    renamePostfix: string = "";
+    renameSuffix: string = "";
     private renameOnSubmit: () => void = doNothing;
     private renameOnCancel: () => void = doNothing;
 

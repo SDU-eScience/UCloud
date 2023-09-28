@@ -31,9 +31,6 @@ const FEATURES: ResourceBrowseFeatures = {
     rowTitles: true,
 };
 
-const INGRESS_PREFIX = "app-";
-const INGRESS_POSTFIX = ".dev.cloud.sdu.dk";
-
 
 const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, IngressSupport>>({
     globalTtl: 60_000
@@ -64,7 +61,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     status: {createdAt: 0, boundTo: [], state: "PREPARING"},
                     specification: {domain: "", product: {category: "", id: "", provider: ""}},
                     id: ingressBeingCreated,
-                    owner: {createdBy: "", },
+                    owner: {createdBy: ""},
                     updates: [],
                     permissions: {myself: []},
                     domain: ""
@@ -78,14 +75,13 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     browser.renderOperations();
 
                     const creatableProducts: Product[] = [];
+                    const ingressSupport: IngressSupport[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
                             creatableProducts.push(product);
+                            ingressSupport.push(support);
                         }
                     }
-
-                    browser.renamePrefix = INGRESS_PREFIX;
-                    browser.renamePostfix = INGRESS_POSTFIX;
 
                     const resourceCreator = resourceCreationWithProductSelector(
                         browser,
@@ -99,11 +95,21 @@ export function ExperimentalPublicLinks(): JSX.Element {
                                 provider: product.category.provider
                             };
 
+                            const support = ingressSupport.find(it =>
+                                it.product.id === product.category.name &&
+                                it.product.provider === product.category.provider
+                            );
+
+                            if (!support) return;
+
+                            browser.renamePrefix = support.domainPrefix;
+                            browser.renameSuffix = support.domainSuffix;
+
                             const ingressBeingCreated: Ingress = {
                                 ...dummyEntry,
                                 id: temporaryFakeId,
                                 specification: {
-                                    domain: INGRESS_PREFIX + browser.renameValue + INGRESS_POSTFIX,
+                                    domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference
                                 },
                             };
@@ -113,9 +119,8 @@ export function ExperimentalPublicLinks(): JSX.Element {
                             browser.selectAndShow(it => it === ingressBeingCreated);
 
                             try {
-                                // TODO(Jonas)/FIXME(Jonas): Doesn't work. Bad Request
                                 const response = (await callAPI(IngressApi.create(bulkRequestOf({
-                                    domain: browser.renameValue,
+                                    domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference
                                 })))).responses[0] as unknown as FindByStringId;
 
@@ -228,7 +233,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                             }
                             if (!postfix) {
                                 const newPostfix = document.createElement("span");
-                                newPostfix.innerText = browser.renamePostfix;
+                                newPostfix.innerText = browser.renameSuffix;
                                 newPostfix.className = "POSTFIX";
                                 newPostfix.style.position = "absolute";
                                 newPostfix.style.top = inputField.style.top;
