@@ -12,8 +12,10 @@ interface UserAvatar {
     avatarStyle?: "Circle" | "Transparent";
 }
 
-export const UserAvatar = ({avatar, avatarStyle = "Circle", width = "60px", height = "48px", mx = "8px"}: UserAvatar): JSX.Element => (
-    <Flex overflow="hidden" mx={mx} width={width} alignItems="center" height={height}>
-        <Avatar avatarStyle={avatarStyle} {...avatar} />
-    </Flex>
-);
+export function UserAvatar({avatar, avatarStyle = "Circle", width = "60px", height = "48px", mx = "8px"}: UserAvatar): JSX.Element {
+    return (
+        <Flex overflow="hidden" mx={mx} width={width} alignItems="center" height={height}>
+            <Avatar avatarStyle={avatarStyle} {...avatar} />
+        </Flex>
+    );
+}

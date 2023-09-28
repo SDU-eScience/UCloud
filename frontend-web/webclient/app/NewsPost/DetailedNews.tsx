@@ -203,7 +203,7 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                             checked={preview}
                             onChange={() => setPreview(p => !p)}
                         />
-                        <Text fontSize="16px" ml="12px">As preview</Text>
+                        <Text fontSize="16px" ml="12px">Preview post</Text>
                     </Flex>
                     {preview ? <Markdown unwrapDisallowed>{body}</Markdown> :
                         <TextArea my="6px" resize="vertical" width={1} rows={12} value={body} onChange={e => setBody(e.target.value)} />}

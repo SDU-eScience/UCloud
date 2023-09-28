@@ -68,8 +68,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive").init(browserRef, FEATURES, "/", browser => {
-                browser.setRowTitles([{name: "Drive name"}, {name: ""}, {name: ""}, {name: ""}])
-
+                browser.setRowTitles([{name: "Drive name", filterName: "title"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: ""}])
 
                 // Load products and initialize dependencies
                 // =========================================================================================================
@@ -190,26 +189,10 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 };
 
                 browser.on("fetchFilters", () => {
-                    const filters: Filter[] = [{
-                        key: "sortBy",
-                        text: "Sort by",
-                        type: "options",
-                        icon: "heroAdjustmentsHorizontal",
-                        clearable: false,
-                        options: [{
-                            color: "black", icon: "id", text: "Name", value: "title"
-                        }, {
-                            color: "black", icon: "calendar", text: "Date created", value: "createdAt"
-                        }, {
-                            color: "black", icon: "user", text: "Created by", value: "createdBy"
-                        }]
-                    }]
-
                     if (Client.hasActiveProject) {
-                        filters.push({type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"})
+                        return [{type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"}];
                     }
-
-                    return filters;
+                    return [];
                 });
 
                 browser.on("fetchOperationsCallback", () => {
@@ -318,6 +301,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims)
                     row.title.append(title);
                     row.title.title = title;
+                    if (drive.owner.createdBy !== "_ucloud") {
+                        row.stat1.innerText = drive.owner.createdBy;
+                    }
                     row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                     if (drive.id.startsWith(isCreatingPrefix)) {
                         row.stat1.append(browser.createSpinner(30));
