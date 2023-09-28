@@ -431,6 +431,7 @@ export class ResourceBrowser<T> {
                     <input class="location-bar">
                     <img class="location-bar-edit">
                     <input class="${InputClass} search-field" hidden>
+                    <div style="flex-grow: 1;"></div>
                     <img class="search-icon">
                     <img class="refresh-icon">
                 </div>
@@ -530,7 +531,6 @@ export class ResourceBrowser<T> {
             icon.height = 24;
 
             // TODO(Jonas): This should be handlded in CSS.
-            icon.style.marginLeft = "auto";
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
 
@@ -2838,6 +2838,7 @@ export class ResourceBrowser<T> {
             .file-browser header .header-first-row {
                 display: flex;
                 align-items: center;
+                margin-bottom: 8px;
             }
 
             .file-browser header .header-first-row img {
@@ -2890,7 +2891,6 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 font-size: 120%;
                 height: 35px;
-                margin-bottom: 8px;
             }
             
             .file-browser header > div > ul[data-no-slashes="true"] li::before {
