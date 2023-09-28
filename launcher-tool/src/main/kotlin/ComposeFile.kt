@@ -872,6 +872,7 @@ sealed class ComposeService {
                           "${imHome}:/home",
                           "${imWork}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
+                          "$etcMunge:/etc/munge",
                           "$etcSlurm:/etc/slurm",
                           "$logSlurm:/var/log/slurm"
                         ],
@@ -992,20 +993,18 @@ sealed class ComposeService {
                           memoryInGigs: 1
                           gpu: 0
                           cost:
-                            currency: DKK
+                            currency: UNITS
                             frequency: MINUTE
-                            price: 0.001666
-                            
+
                         - name: cpu-2
                           description: An example CPU machine with 2 vCPU.
                           cpu: 2
                           memoryInGigs: 2
                           gpu: 0
                           cost:
-                            currency: DKK
+                            currency: UNITS
                             frequency: MINUTE
-                            price: 0.003332
-                            
+
                     storage: 
                       storage:
                         - name: storage

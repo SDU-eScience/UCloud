@@ -85,8 +85,8 @@ def remove_user_from_group(uid, gid):
     else:
         return True
 
-def slurm_account_set_quota(name, ch):
-    result = run_command(['sacctmgr', '-i', 'modify', 'account', 'set', f'GrpTRESMins=billing={60*ch}', 'where', f'Name={name}'])
+def slurm_account_set_quota(name, credits):
+    result = run_command(['sacctmgr', '-i', 'modify', 'account', 'set', f'GrpTRESMins=billing={credits}', 'where', f'Name={name}'])
     if result.returncode != 0:
         return False
     else:
