@@ -21,6 +21,7 @@ export interface ClickableDropdownProps<T> {
 
     fullWidth?: boolean;
     height?: number;
+    leftAligned?: boolean;
     width?: string | number;
     minWidth?: string;
     left?: string | number;
@@ -180,8 +181,8 @@ const ClickableDropdown: ClickableDropdownType =
             cursor="pointer"
             {...(props as any)}
             top={top}
-            left={left}
-            fixed={props.useMousePositioning}
+            left={props.leftAligned ? extractLeftAlignedPosition(dropdownRef.current, width) ?? left : left}
+            fixed={props.leftAligned || props.useMousePositioning}
             maxHeight={`${props.height}px`}
             width={width}
             hover={false}
@@ -193,6 +194,7 @@ const ClickableDropdown: ClickableDropdownType =
         >
             {children}
         </DropdownContent>;
+
         return (
             <Dropdown data-tag="dropdown" divRef={dropdownRef} fullWidth={props.fullWidth}>
                 <Text.TextSpan
@@ -217,5 +219,11 @@ const ClickableDropdown: ClickableDropdownType =
         );
 
     }
+
+function extractLeftAlignedPosition(el: HTMLDivElement | null, width: string | number | undefined): string | null {
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    return `calc(${rect.x + rect.width}px - ${width})`;
+}
 
 export default ClickableDropdown;

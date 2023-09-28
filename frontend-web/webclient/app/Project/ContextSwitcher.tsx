@@ -110,8 +110,8 @@ export function ContextSwitcher(): JSX.Element {
                         <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
                     </Flex>
                 }
+                leftAligned
                 colorOnHover={false}
-                useMousePositioning
                 onTriggerClick={reload}
                 width="500px"
             >
