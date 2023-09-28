@@ -343,6 +343,19 @@ export const Notifications: React.FunctionComponent = () => {
 
     const unreadLength = notificationStore.filter(e => !e.read).length;
 
+    const divRef = React.useRef<HTMLDivElement>(null);
+    const closeOnOutsideClick = React.useCallback(e => {
+        if (divRef.current && !divRef.current.contains(e.target)) {
+            setNotificationsVisible(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        document.addEventListener("mousedown", closeOnOutsideClick);
+        return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    }, []);
+
+
     return <>
         <NotificationPopups />
         <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
@@ -378,7 +391,7 @@ export const Notifications: React.FunctionComponent = () => {
         </Flex>
 
         {!notificationsVisible ? null :
-            <div className={ContentWrapper} onClick={UF.stopPropagation}>
+            <div ref={divRef} className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
                     <Icon name="checkDouble" className="read-all" cursor="pointer" color="iconColor" color2="iconColor2"
