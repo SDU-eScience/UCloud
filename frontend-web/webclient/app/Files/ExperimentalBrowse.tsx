@@ -713,17 +713,19 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
 
                     // Repeated in ExperimentalJobs
-                    if (opts?.selection && opts.selection.onSelectRestriction(file) === true) {
-                        const button = document.createElement("button");
-                        button.innerText = "Use";
-                        button.className = ButtonClass
-                        button.style.height = "32px";
-                        button.style.width = "64px";
-                        button.onclick = e => {
-                            e.stopImmediatePropagation();
-                            opts.selection?.onSelect(file);
+                    if (opts?.selection) {
+                        if (opts.selection.onSelectRestriction(file) === true) {
+                            const button = document.createElement("button");
+                            button.innerText = "Use";
+                            button.className = ButtonClass
+                            button.style.height = "32px";
+                            button.style.width = "64px";
+                            button.onclick = e => {
+                                e.stopImmediatePropagation();
+                                opts.selection?.onSelect(file);
+                            }
+                            row.stat3.replaceChildren(button);
                         }
-                        row.stat3.replaceChildren(button);
                     } else {
                         row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
                     }

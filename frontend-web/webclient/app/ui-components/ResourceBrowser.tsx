@@ -3345,7 +3345,8 @@ export class ResourceBrowser<T> {
         this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
         this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
         this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
-        this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
+        // If this is a selector, the third row will show the use button.
+        if (!this.opts.selector) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
     }
 
     private setTitleAndHandlers(el: HTMLElement, rowTitle: RowTitle, position: "left" | "right"): void {

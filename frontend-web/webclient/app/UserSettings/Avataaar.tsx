@@ -157,7 +157,6 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
         try {
             const r = await promises.makeCancelable(Client.get<AvatarType>(findAvatarQuery, undefined)).promise;
             setAvatar(r.response);
-            snackbarStore.addSuccess("Avatar updated", false);
         } catch (e) {
             if (!e.isCanceled)
                 snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"), false);

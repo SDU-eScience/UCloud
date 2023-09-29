@@ -2,7 +2,7 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
-import {Box, Button, Flex, Icon, Label} from "@/ui-components";
+import {Box, Button, Flex, Icon} from "@/ui-components";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
@@ -15,7 +15,6 @@ import {TextP} from "@/ui-components/Text";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {default as JobsApi, Job} from "@/UCloud/JobsApi";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
-import {BrowseType} from "@/Resource/BrowseType";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
@@ -125,16 +124,7 @@ export const ImportParameters: React.FunctionComponent<{
         }
     }, []);
 
-    const previousRunsValid: Job[] = [];
-    for (const run of previousRuns.data.items) {
-        if (previousRunsValid.length >= 10) break;
-        if (run.status.jobParametersJson != null && run.status.jobParametersJson["siteVersion"] != null) {
-            previousRunsValid.push(run);
-        }
-    }
-
     return <Box>
-        <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
             <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
         </Flex>
@@ -186,13 +176,15 @@ export const ImportParameters: React.FunctionComponent<{
                         onImportDialogClose();
                         dialogStore.addDialog(
                             <ExperimentalBrowse
-                                opts={{embedded: true, initialPath: "", selection: {
-                                    onSelect: res => {
-                                        fetchAndImportParameters(res);
-                                        dialogStore.success();
-                                    },
-                                    onSelectRestriction: res => res.status.type === "FILE" && res.id.endsWith(".json")
-                                }}}
+                                opts={{
+                                    embedded: true, initialPath: "", selection: {
+                                        onSelect: res => {
+                                            fetchAndImportParameters(res);
+                                            dialogStore.success();
+                                        },
+                                        onSelectRestriction: res => res.status.type === "FILE" && res.id.endsWith(".json")
+                                    }
+                                }}
                             />,
                             () => undefined,
                             true,

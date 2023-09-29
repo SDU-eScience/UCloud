@@ -52,9 +52,11 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         filters: !omitFilters,
+        showHeaderInEmbedded: !!opts?.selection,
         sortDirection: !omitFilters,
         dragToSelect: !opts?.embedded,
-        search: !opts?.embedded
+        search: !opts?.embedded,
+        rowTitles: !opts?.embedded,
     };
 
     const dateRanges = dateRangeFilters("Created");
@@ -151,19 +153,8 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         }
                     });
 
-                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
-                    const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
-                    browser.icons.renderIcon({
-                        name: statusIconName,
-                        width: 32,
-                        height: 32,
-                        color: statusIconColor,
-                        color2: statusIconColor
-                    }).then(setStatus);
-                    row.stat3.append(status);
-
-                    // Repeated in ExperimentalBrowse (Files)
                     if (opts?.selection && opts.selection.onSelectRestriction(job) === true) {
+                        // Repeated in ExperimentalBrowse (Files)
                         const button = document.createElement("button");
                         button.innerText = "Use";
                         button.className = ButtonClass;
@@ -174,7 +165,20 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                             opts.selection?.onSelect(job);
                         }
                         row.stat3.replaceChildren(button);
+                    } else {
+                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
+                        const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
+                        browser.icons.renderIcon({
+                            name: statusIconName,
+                            width: 32,
+                            height: 32,
+                            color: statusIconColor,
+                            color2: statusIconColor
+                        }).then(setStatus);
+                        row.stat3.append(status);
                     }
+
+
                 });
 
                 browser.setEmptyIcon("play");
