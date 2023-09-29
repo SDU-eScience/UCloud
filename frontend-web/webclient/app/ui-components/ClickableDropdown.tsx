@@ -21,7 +21,7 @@ export interface ClickableDropdownProps<T> {
 
     fullWidth?: boolean;
     height?: number;
-    leftAligned?: boolean;
+    rightAligned?: boolean;
     width?: string | number;
     minWidth?: string;
     left?: string | number;
@@ -181,8 +181,8 @@ const ClickableDropdown: ClickableDropdownType =
             cursor="pointer"
             {...(props as any)}
             top={top}
-            left={props.leftAligned ? extractLeftAlignedPosition(dropdownRef.current, width) ?? left : left}
-            fixed={props.leftAligned || props.useMousePositioning}
+            left={props.rightAligned ? extractLeftAlignedPosition(dropdownRef.current, width) ?? left : left}
+            fixed={props.rightAligned || props.useMousePositioning}
             maxHeight={`${props.height}px`}
             width={width}
             hover={false}

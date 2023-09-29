@@ -110,18 +110,19 @@ export function ContextSwitcher(): JSX.Element {
                         <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
                     </Flex>
                 }
-                leftAligned
+                rightAligned
+                paddingControlledByContent
                 colorOnHover={false}
                 onTriggerClick={reload}
                 width="500px"
             >
-                <div style={{maxHeight: "385px"}}>
+                <div style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
                         <Input autoFocus placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
                         <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
-                        {projectId !== undefined ? (
+                        {projectId !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
                             <div key={"My Workspace"} style={{width: "100%"}} data-active={projectId === undefined} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(), refresh, "")
                             }}>
