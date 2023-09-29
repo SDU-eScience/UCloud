@@ -153,18 +153,20 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         }
                     });
 
-                    if (opts?.selection && opts.selection.onSelectRestriction(job) === true) {
-                        // Repeated in ExperimentalBrowse (Files)
-                        const button = document.createElement("button");
-                        button.innerText = "Use";
-                        button.className = ButtonClass;
-                        button.style.height = "32px";
-                        button.style.width = "64px";
-                        button.onclick = e => {
-                            e.stopImmediatePropagation();
-                            opts.selection?.onSelect(job);
+                    if (opts?.selection) {
+                        if (opts.selection.onSelectRestriction(job) === true) {
+                            // Repeated in ExperimentalBrowse (Files)
+                            const button = document.createElement("button");
+                            button.innerText = "Use";
+                            button.className = ButtonClass;
+                            button.style.height = "32px";
+                            button.style.width = "64px";
+                            button.onclick = e => {
+                                e.stopImmediatePropagation();
+                                opts.selection?.onSelect(job);
+                            }
+                            row.stat3.replaceChildren(button);
                         }
-                        row.stat3.replaceChildren(button);
                     } else {
                         const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                         const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
