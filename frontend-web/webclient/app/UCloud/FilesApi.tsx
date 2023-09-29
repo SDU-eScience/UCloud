@@ -705,7 +705,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
             {
                 icon: "refresh",
-                text: "Manage synchronization (BETA)",
+                text: "Manage synchronization",
                 enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig,
                 onClick: (selected, extra) =>
                     extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`)
@@ -717,18 +717,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
                     synchronizationOpOnClick(selected, cb)
-                }
-            },
-            {
-                // Folder synchronization
-                text: synchronizationOpText,
-                icon: "refresh",
-                primary: true,
-                tag: "syncthing",
-                enabled: (selected, cb) => synchronizationOpEnabled(true, selected, cb),
-                onClick: (selected, cb) => {
-                    if (!cb.directory) return;
-                    synchronizationOpOnClick([cb.directory], cb);
                 }
             },
             {
@@ -833,7 +821,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
-    if (devices.length === 0) return "Sync setup (BETA)";
+    if (devices.length === 0) return "Sync setup";
 
     const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;

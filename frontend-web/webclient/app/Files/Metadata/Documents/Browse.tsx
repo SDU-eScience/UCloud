@@ -70,7 +70,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             close={() => setCreatingForTemplate(null)} />;
     }
 
-    const filteredOperations = inPopIn ? [] : operations; 
+    const filteredOperations = inPopIn ? [] : operations;
 
     return <div>
         <StandardList
@@ -88,7 +88,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             <MetadataNamespacesBrowse browseType={BrowseType.Embedded} onTemplateSelect={selectTemplate} />
         </ReactModal>
     </div>;
-};  
+};
 
 interface MetadataRow {
     key: string;
@@ -138,25 +138,12 @@ interface Callbacks {
     setLookingForTemplate: (looking: boolean) => void;
 }
 
-const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callbacks>[] = [
-    {
-        text: `Add ${entityName.toLowerCase()}`,
-        primary: true,
-        icon: "docs",
-        enabled: (selected, cb) => {
-            return selected.length === 0 && cb.inspecting == null &&
-                cb.file.permissions.myself.some(it => it === "EDIT" || it === "ADMIN");
-        },
-        onClick: (_, cb) => {
-            cb.setLookingForTemplate(true);
-        }
-    },
-    {
-        text: "Properties",
-        icon: "properties",
-        enabled: (selected) => selected.length === 1,
-        onClick: (selected, cb) => {
-            cb.setInspecting(selected[0].key);
-        }
+const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callbacks>[] = [{
+    text: "Properties",
+    icon: "properties",
+    enabled: (selected) => selected.length === 1,
+    onClick: (selected, cb) => {
+        cb.setInspecting(selected[0].key);
     }
+}
 ];
