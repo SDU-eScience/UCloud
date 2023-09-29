@@ -1,4 +1,4 @@
-import {bulkRequestOf, defaultSearch, emptyPage, emptyPageV2, useSearch} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {updatePageTitle} from "@/Navigation/Redux/StatusActions";
@@ -37,7 +37,6 @@ import {
 } from "@/Accounting";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
-import {NotificationDashboardCard} from "@/Notifications";
 import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
@@ -51,8 +50,6 @@ import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantAp
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
 function Dashboard(props: DashboardProps): JSX.Element {
-    useSearch(defaultSearch);
-
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
@@ -105,9 +102,6 @@ function Dashboard(props: DashboardProps): JSX.Element {
                     }))}
                 />
                 <DashboardRuns />
-            </div>
-            <div style={{marginBottom: "24px"}}>
-                <NotificationDashboardCard />
             </div>
             <UsageAndResources charts={usage} products={products} />
             <div className={GridClass}>

@@ -302,15 +302,16 @@ const UserMenu: React.FunctionComponent<{
             )}
             <UserMenuLink close={close.current} icon="properties" text="Settings" to={AppRoutes.users.settings()} />
             <UserMenuLink close={close.current} icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
-            <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
-                <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
-                Logout
-            </Flex>
             <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
             <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
             <Divider />
             <Username close={close.current} />
             <ProjectID close={close.current} />
+            <Divider />
+            <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
+                <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
+                Logout
+            </Flex>
             <Divider />
             <span>
                 <Flex cursor="auto">

@@ -629,49 +629,5 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
     }
 `);
 
-export const NotificationDashboardCard: React.FunctionComponent = () => {
-    const rerender = useForcedRender();
-
-    React.useEffect(() => {
-        notificationCallbacks.add(rerender);
-        return () => {
-            notificationCallbacks.delete(rerender);
-        }
-    }, []);
-
-    return <HighlightedCard
-        color="darkGreen"
-        icon="heroBell"
-        title="Recent notifications"
-        subtitle={
-            <Icon name="checkDouble" color="iconColor" color2="iconColor2" title="Mark all as read" cursor="pointer"
-                onClick={markAllAsRead} />
-        }
-    >
-        {notificationStore.length !== 0 ? null :
-            <Flex
-                alignItems="center"
-                justifyContent="center"
-                height="calc(100% - 60px)"
-                minHeight="250px"
-                mt="-30px"
-                width="100%"
-                flexDirection="column"
-            >
-                <Heading.h4>No notifications</Heading.h4>
-                As you use UCloud notifications will appear here.
-
-                <Link to="/applications/overview" mt={8}>
-                    <Button fullWidth mt={8}>Explore UCloud</Button>
-                </Link>
-            </Flex>
-        }
-
-        <div style={{display: "flex", gap: "10px", flexDirection: "column", margin: "10px 0"}}>
-            {notificationStore.slice(0, 7).map(it => <NotificationEntry key={it.uniqueId} notification={it} />)}
-        </div>
-    </HighlightedCard>;
-};
-
 export default Notifications;
 
