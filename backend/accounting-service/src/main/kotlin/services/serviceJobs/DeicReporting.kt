@@ -13,7 +13,7 @@ class DeicReporting(
 ) {
 
     fun reportCenters() {
-        //datefile should look liek YYYY-MM-DD@YYYY-MM-DD with first being start and second being end
+        //datefile should the format of YYYY-MM-DD@YYYY-MM-DD with first being start and second being end
         val dateFile = "/tmp/startAndEndDate.txt"
         val startDate = LocalDateTime.parse(File(dateFile).readText().substringBefore("@"))
         val endDate = LocalDateTime.parse(File(dateFile).readText().substringAfter("@"))
@@ -55,4 +55,52 @@ class DeicReporting(
         file.writeText(json)
     }
 
+    suspend fun reportCenterDaily() {
+        TODO()
+    }
+
+    suspend fun reportPerson() {
+        TODO()
+        val fileName = "/tmp/Person.json"
+        val file = File(fileName)
+        file.writeText("[\n")
+        val projectUsage = postgresDataService.getProjectUsage()
+        val projectMembers = postgresDataService.getProjectMembers()
+        projectUsage.forEach {usage ->
+            //Skips subsub(etc.) projects of the UCloud root-project
+            if(postgresDataService.isUnderUCloud(usage.projectId)) {
+                return@forEach
+            }
+
+            val wallets = postgresDataService.getWallets(usage.projectId)
+            val cpuAssigned = wallets.mapNotNull {
+                if (it.productType == ProductType.CPU) {
+                    it
+                } else {
+                    null
+                }
+            }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
+
+            val gpuAssigned = wallets.mapNotNull {
+                if (it.productType == ProductType.GPU) {
+                    it
+                } else {
+                    null
+                }
+            }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
+
+            val storageAssignedInMB = wallets.mapNotNull {
+                if (it.productType == ProductType.STORAGE) {
+                    it
+                } else {
+                    null
+                }
+            }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
+
+            val members = projectMembers.filter { member -> member.project == usage.projectId}
+        }
+
+
+        file.writeText("]\n")
+    }
 }

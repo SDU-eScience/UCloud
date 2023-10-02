@@ -137,14 +137,44 @@ class Server(
         scriptManager.register(
             Script(
                 ScriptMetadata(
+                    "center",
+                    "Deic report: Center",
+                    WhenToStart.Never
+                ),
+                script = {
+                    val postgresDataService = PostgresDataService(db)
+                    val deicReporting = DeicReporting(client, postgresDataService)
+                    deicReporting.reportCenters()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
                     "centerDaily",
                     "Deic report: Center Daily",
                     WhenToStart.Never
                 ),
                 script = {
                     val postgresDataService = PostgresDataService(db)
-                    val deicReporting = DeicReporting(db, client, postgresDataService)
+                    val deicReporting = DeicReporting(client, postgresDataService)
                     deicReporting.reportCenters()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "Person report",
+                    "Deic report: Person",
+                    WhenToStart.Never
+                ),
+                script = {
+                    val postgresDataService = PostgresDataService(db)
+                    val deicReporting = DeicReporting(client, postgresDataService)
+                    deicReporting.reportPerson()
                 }
             )
         )

@@ -46,6 +46,11 @@ import kotlin.random.Random
 
 const val doDebug = false
 const val allocationIdCutoff = 5900
+val UUID_REGEX =
+    Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+val PROJECT_REGEX =
+    Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 private data class InternalWallet(
     val id: Int,
@@ -1932,8 +1937,16 @@ class AccountingProcessor(
         )
     }
 
-    private val PROJECT_REGEX =
-        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+    private suspend fun getAllocationsPath(allocationId: Int): ArrayList<Int> {
+        val current = allocations[allocationId] ?: return arrayListOf()
+        return if (current.parentAllocation == null) {
+            arrayListOf(current.id)
+        } else {
+            val path = getAllocationsPath(current.parentAllocation)
+            path.add(current.id)
+            path
+        }
+    }
 
     private fun retrieveProviderAllocations(
         request: AccountingRequest.RetrieveProviderAllocations
@@ -2508,9 +2521,6 @@ private class ProjectCache(private val db: DBContext) {
             }
         }
     }
-
-    val PROJECT_REGEX =
-        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
     suspend fun retrieveProjectInfoFromId(
         id: String,
