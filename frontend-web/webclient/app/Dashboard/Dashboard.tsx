@@ -219,7 +219,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
 export async function navigateByFileType(file: FileMetadataAttached, invokeCommand: InvokeCommand, navigate: ReturnType<typeof useNavigate>): Promise<void> {
     const result = await invokeCommand<UFile>(FilesApi.retrieve({id: file.path}));
-    
+
     if (!result) {
         snackbarStore.addFailure("File was not found.", false);
         return;

@@ -1,7 +1,7 @@
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {clamp, displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/Redux";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
@@ -93,6 +93,8 @@ export function ContextSwitcher(): JSX.Element {
         })
     }, []);
 
+    const arrowKeyIndex = React.useRef(-1);
+
     const navigate = useNavigate();
 
     const [filter, setTitleFilter] = React.useState("");
@@ -100,6 +102,8 @@ export function ContextSwitcher(): JSX.Element {
     const filteredProjects = React.useMemo(() =>
         projectList.items.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
         , [projectList, filter]);
+
+    const divRef = React.useRef<HTMLDivElement>(null);
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -112,16 +116,58 @@ export function ContextSwitcher(): JSX.Element {
                 }
                 rightAligned
                 paddingControlledByContent
+                onClose={() => arrowKeyIndex.current = -1}
                 colorOnHover={false}
                 onTriggerClick={reload}
+                onKeyDown={e => {
+                    if (!divRef.current) return;
+
+                    const listEntries = divRef.current?.querySelectorAll("div[data-active]");
+                    // If filter has changed, the active index may no longer be valid, but we may also not
+                    // have used the keys yet, so -1 can be the active index.
+                    arrowKeyIndex.current = clamp(arrowKeyIndex.current, -1, listEntries.length - 1);
+                    if (listEntries.length === 0) return;
+
+                    const isUp = e.key === "ArrowUp";
+                    const isDown = e.key === "ArrowDown";
+                    const oldIndex = arrowKeyIndex.current;
+                    if (isDown) {
+                        arrowKeyIndex.current += 1;
+                        if (arrowKeyIndex.current >= listEntries.length) {
+                            arrowKeyIndex.current = 0;
+                        }
+                    } else if (isUp) {
+                        arrowKeyIndex.current -= 1;
+                        if (arrowKeyIndex.current < 0) {
+                            arrowKeyIndex.current = listEntries.length - 1;
+                        }
+                    }
+
+                    if (isUp || isDown) {
+                        if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
+                        listEntries.item(arrowKeyIndex.current)["style"].backgroundColor = "var(--lightBlue)";
+                        listEntries.item(arrowKeyIndex.current).scrollIntoView({behavior: "instant", block: "nearest"})
+                        e.stopPropagation();
+                    } else if (e.key === "Enter" && arrowKeyIndex.current !== -1) {
+                        const id = listEntries.item(arrowKeyIndex.current).getAttribute("data-project") ?? undefined;
+                        onProjectUpdated(navigate, () => setProject(id), refresh, id)
+                        e.stopPropagation();
+                    }
+                }}
                 width="500px"
             >
                 <div style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
-                        <Input autoFocus placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
+                        <Input autoFocus placeholder="Search..." defaultValue={filter} onKeyUp={e => {
+                            if (e.key === "Escape" && filter) {
+                                e.stopPropagation();
+                                setTitleFilter("");
+                            }
+                            setTitleFilter("value" in (e.target) ? e.target.value as string : "");
+                        }} type="text" />
                         <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
-                    <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
+                    <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
                         {projectId !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
                             <div key={"My Workspace"} style={{width: "100%"}} data-active={projectId === undefined} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(), refresh, "")
@@ -131,7 +177,7 @@ export function ContextSwitcher(): JSX.Element {
                             </div>
                         ) : null}
                         {filteredProjects.map(it =>
-                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === projectId} className={BottomBorderedRow} onClick={() => {
+                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === projectId} data-project={it.id} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(it.id), refresh, it.id)
                             }}>
                                 <Favorite project={it} />
@@ -173,7 +219,7 @@ function Favorite({project}: {project: Project}): JSX.Element {
     return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
-function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
+function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {
     const {pathname} = window.location;
     runThisFunction();
     let doRefresh = true;
