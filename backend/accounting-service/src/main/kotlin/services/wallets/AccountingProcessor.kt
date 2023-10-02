@@ -2124,6 +2124,7 @@ class AccountingProcessor(
             projects.fillCache()
 
             db.withSession { session ->
+                println("WALL")
                 debug.detail("Dealing with wallets")
                 wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
@@ -2190,6 +2191,7 @@ class AccountingProcessor(
                 }
 
                 debug.detail("Dealing with allocations")
+                println("ALLOC")
                 allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
@@ -2252,6 +2254,7 @@ class AccountingProcessor(
                 }
 
                 debug.detail("Dealing with transactions")
+                println("TRANS")
 
                 dirtyTransactions.chunkedSequence(500).forEach { chunk ->
                     session.sendPreparedStatement(
