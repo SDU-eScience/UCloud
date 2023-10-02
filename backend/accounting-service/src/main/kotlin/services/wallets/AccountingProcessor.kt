@@ -2287,10 +2287,10 @@ class AccountingProcessor(
                                 unnest(:local_change::bigint[]),
                                 unnest(:tree_change::bigint[]),
                                 unnest(:quota_change::bigint[])
-                        """
+                        """,debug=true
                     )
                 }
-
+            println("action")
                 dirtyTransactions.asSequence().filter { it.relatedAction == UsageReport.HistoryAction.DEPOSIT }
                     .chunkedSequence(500)
                     .forEach { chunk ->
@@ -2330,10 +2330,11 @@ class AccountingProcessor(
                                 select
                                     now(), username, project_id, category_id, balance
                                 from notification_data
-                            """
+                            """, debug = true
                         )
                     }
 
+                println("grants")
                 session.sendPreparedStatement(
                     //language=postgresql
                     """
@@ -2342,7 +2343,7 @@ class AccountingProcessor(
                         WHERE overall_state = 'APPROVED' AND synchronized = false
                     """
                 )
-
+                println("gifts")
                 session.sendPreparedStatement(
                     //language=postgresql
                     """
