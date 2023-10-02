@@ -2124,7 +2124,7 @@ class AccountingProcessor(
             projects.fillCache()
 
             db.withSession { session ->
-                println("WALL")
+
                 debug.detail("Dealing with wallets")
                 wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
@@ -2191,7 +2191,7 @@ class AccountingProcessor(
                 }
 
                 debug.detail("Dealing with allocations")
-                println("ALLOC")
+
                 allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
@@ -2254,7 +2254,6 @@ class AccountingProcessor(
                 }
 
                 debug.detail("Dealing with transactions")
-                println("TRANS")
 
                 dirtyTransactions.chunkedSequence(500).forEach { chunk ->
                     session.sendPreparedStatement(
@@ -2290,7 +2289,7 @@ class AccountingProcessor(
                         """,debug=true
                     )
                 }
-            println("action")
+
                 dirtyTransactions.asSequence().filter { it.relatedAction == UsageReport.HistoryAction.DEPOSIT }
                     .chunkedSequence(500)
                     .forEach { chunk ->
@@ -2334,7 +2333,6 @@ class AccountingProcessor(
                         )
                     }
 
-                println("grants")
                 session.sendPreparedStatement(
                     //language=postgresql
                     """
@@ -2343,7 +2341,7 @@ class AccountingProcessor(
                         WHERE overall_state = 'APPROVED' AND synchronized = false
                     """
                 )
-                println("gifts")
+
                 session.sendPreparedStatement(
                     //language=postgresql
                     """
