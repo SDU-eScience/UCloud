@@ -430,8 +430,8 @@ export class ResourceBrowser<T> {
                     <ul></ul>
                     <input class="location-bar">
                     <img class="location-bar-edit">
-                    <input class="${InputClass} search-field" hidden>
                     <div style="flex-grow: 1;"></div>
+                    <input class="${InputClass} search-field" hidden>
                     <img class="search-icon">
                     <img class="refresh-icon">
                 </div>
@@ -579,7 +579,8 @@ export class ResourceBrowser<T> {
         if (this.features.rowTitles) {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
-            titleRow["style"].height = titleRow["style"].maxHeight = "22px";
+            titleRow["style"].height = titleRow["style"].maxHeight = "28px";
+            titleRow["style"].marginBottom = "6px";
             this.setRowTitles(this.opts.rowTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
