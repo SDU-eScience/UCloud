@@ -374,7 +374,6 @@ export function Sidebar(): JSX.Element | null {
                             <Link hoverColor="fixedWhite" key={label} to={typeof to === "function" ? to() : to}>
                                 <div
                                     data-active={label === selectedPage}
-                                    onClick={() => setSelectedPage(label)}
                                     onMouseEnter={() => setHoveredPage(label)}
                                     className={SidebarMenuItem}
                                 >
@@ -383,7 +382,6 @@ export function Sidebar(): JSX.Element | null {
                             </Link>) : <div
                                 key={label}
                                 data-active={label === selectedPage}
-                                onClick={() => setSelectedPage(label)}
                                 onMouseEnter={() => setHoveredPage(label)}
                                 className={SidebarMenuItem}
                             >
@@ -413,6 +411,7 @@ export function Sidebar(): JSX.Element | null {
                 data-tag="secondary"
                 hovered={hoveredPage}
                 clicked={selectedPage}
+                setSelectedPage={setSelectedPage}
                 clearHover={() => setHoveredPage("")}
                 clearClicked={() => setSelectedPage("")}
             />
@@ -464,12 +463,14 @@ interface SecondarySidebarProps {
     clicked: string;
     clearHover(): void;
     clearClicked(): void;
+    setSelectedPage: React.Dispatch<React.SetStateAction<string>>;
 }
 
 function SecondarySidebar({
     hovered,
     clicked,
     clearHover,
+    setSelectedPage,
     clearClicked
 }: SecondarySidebarProps): JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
@@ -496,7 +497,7 @@ function SecondarySidebar({
     const active = hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
     return <div
-        className={SecondarySidebarClass + " " + SIDEBAR_IDENTIFIER}
+        className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {
             if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
         }}
@@ -505,16 +506,14 @@ function SecondarySidebar({
     >
         <header>
             <h1>{active}</h1>
-            {clicked !== "" ?
-                <Relative top="16px" right="2px" height={0} width={0}>
-                    <Absolute>
-                        <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clearClicked}>
-                            <Icon name="chevronDownLight" size={18} rotation={90} color="blue" />
-                        </Flex>
-                    </Absolute>
-                </Relative> :
-                null
-            }
+
+            <Relative top="16px" right="2px" height={0} width={0}>
+                <Absolute>
+                    <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? clearClicked : () => setSelectedPage(hovered)}>
+                        <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="blue" />
+                    </Flex>
+                </Absolute>
+            </Relative>
         </header>
 
         {active !== "Files" || !canConsume ? null : (
