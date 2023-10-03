@@ -99,11 +99,16 @@ export function ContextSwitcher(): JSX.Element {
 
     const [filter, setTitleFilter] = React.useState("");
 
+    const projects = React.useMemo(() => {
+        return [{title: "My workspace"}, projectList.items.map(it => ({id: it.id, title: it.specification.title}))];
+    }, [projectList.items]);
+
     const filteredProjects = React.useMemo(() =>
         projectList.items.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
         , [projectList, filter]);
 
     const divRef = React.useRef<HTMLDivElement>(null);
+
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -116,11 +121,33 @@ export function ContextSwitcher(): JSX.Element {
                 }
                 rightAligned
                 paddingControlledByContent
-                onClose={() => arrowKeyIndex.current = -1}
+                onClose={() => {
+                    arrowKeyIndex.current = -1;
+                    setTitleFilter("");
+                }}
                 colorOnHover={false}
                 onTriggerClick={reload}
-                onKeyDown={e => {
+                width="500px"
+            >
+                <div onKeyDown={e => {
                     if (!divRef.current) return;
+
+                    const isUp = e.key === "ArrowUp";
+                    const isDown = e.key === "ArrowDown";
+
+                    if (isUp || isDown) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+
+                    const el = e.target;
+                    if (e.key === "Escape" && el && "value" in el && el.value) {
+                        setTitleFilter("");
+                        const input = el as unknown as HTMLInputElement;
+                        input.value = "";
+                        e.stopPropagation();
+                        return;
+                    }
 
                     const listEntries = divRef.current?.querySelectorAll("div[data-active]");
                     // If filter has changed, the active index may no longer be valid, but we may also not
@@ -128,44 +155,40 @@ export function ContextSwitcher(): JSX.Element {
                     arrowKeyIndex.current = clamp(arrowKeyIndex.current, -1, listEntries.length - 1);
                     if (listEntries.length === 0) return;
 
-                    const isUp = e.key === "ArrowUp";
-                    const isDown = e.key === "ArrowDown";
                     const oldIndex = arrowKeyIndex.current;
+                    let behavior: "instant" | "smooth" = "instant";
                     if (isDown) {
                         arrowKeyIndex.current += 1;
                         if (arrowKeyIndex.current >= listEntries.length) {
                             arrowKeyIndex.current = 0;
+                            behavior = "smooth";
                         }
                     } else if (isUp) {
                         arrowKeyIndex.current -= 1;
                         if (arrowKeyIndex.current < 0) {
                             arrowKeyIndex.current = listEntries.length - 1;
+                            behavior = "smooth";
                         }
                     }
 
                     if (isUp || isDown) {
                         if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
                         listEntries.item(arrowKeyIndex.current)["style"].backgroundColor = "var(--lightBlue)";
-                        listEntries.item(arrowKeyIndex.current).scrollIntoView({behavior: "instant", block: "nearest"})
-                        e.stopPropagation();
+                        listEntries.item(arrowKeyIndex.current).scrollIntoView({behavior, block: "nearest"});
                     } else if (e.key === "Enter" && arrowKeyIndex.current !== -1) {
                         const id = listEntries.item(arrowKeyIndex.current).getAttribute("data-project") ?? undefined;
                         onProjectUpdated(navigate, () => setProject(id), refresh, id)
-                        e.stopPropagation();
                     }
-                }}
-                width="500px"
-            >
-                <div style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
+                }} style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
-                        <Input autoFocus placeholder="Search..." defaultValue={filter} onKeyUp={e => {
-                            if (e.key === "Escape" && filter) {
+                        <Input autoFocus className={"filter-input"} placeholder="Search..." defaultValue={filter} onKeyDown={e => {
+                            if (["Escape", "ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {
+                                /* Nothing */
+                            } else {
                                 e.stopPropagation();
-                                setTitleFilter("");
                             }
-                            setTitleFilter("value" in (e.target) ? e.target.value as string : "");
-                        }} type="text" />
+                        }} onKeyUp={e => setTitleFilter("value" in e.target ? e.target.value as string : "")} type="text" />
                         <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
                         {projectId !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (

@@ -9,7 +9,7 @@ import {FlexClass} from "./Flex";
 
 export interface ClickableDropdownProps<T> {
     trigger: React.ReactNode;
-    children?: any;
+    children?: React.ReactNode;
     options?: {text: string; value: T}[];
 
     keepOpenOnClick?: boolean;
@@ -42,10 +42,10 @@ export interface ClickableDropdownProps<T> {
     // click).
     closeFnRef?: React.MutableRefObject<() => void>;
     openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
-    onKeyDown?: (ev: KeyboardEvent) => void;
+    onKeyDown?: (ev: KeyboardEvent) => boolean | void;
 }
 
-type ClickableDropdownType = <T>(props: PropsWithChildren<ClickableDropdownProps<T>>, context?: any) =>
+type ClickableDropdownType = <T>(props: PropsWithChildren<ClickableDropdownProps<T>>) =>
     JSX.Element | null;
 
 const dropdownPortal = "dropdown-portal";
@@ -115,11 +115,14 @@ const ClickableDropdown: ClickableDropdownType =
         }, [props.keepOpenOnOutsideClick, open]);
 
         const handleEscPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
+            if (props.onKeyDown?.(event)) return;
+
             if (event.key === "Escape" && open) {
                 close();
-            } else {
-                props.onKeyDown?.(event);
             }
+            event.preventDefault()
+            event.stopImmediatePropagation();
+            event.stopPropagation();
         }, [open]);
 
 
@@ -150,7 +153,7 @@ const ClickableDropdown: ClickableDropdownType =
                 </Box>
             ));
         } else if (props.children) {
-            children = props.children;
+            children = [props.children];
         }
         const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
         let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
@@ -206,7 +209,7 @@ const ClickableDropdown: ClickableDropdownType =
                         toggle(e);
                     }}
                 >
-                    {props.trigger}{props.chevron ? <Icon name="chevronDownLight" my="auto" size="1em" ml=".7em" color={"darkGray"} /> : null}
+                    {props.trigger}{props.chevron ? <Icon name="chevronDownLight" my="auto" size="1em" ml=".7em" color="darkGray" /> : null}
                 </Text.TextSpan>
                 {emptyChildren || !open ? null : (
                     props.useMousePositioning ?
