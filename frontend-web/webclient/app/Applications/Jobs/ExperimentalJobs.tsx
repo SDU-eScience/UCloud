@@ -126,6 +126,8 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
 
                 browser.on("renderRow", (job, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    icon.style.minWidth = "20px"
+                    icon.style.minHeight = "20px"
                     row.title.append(icon);
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
