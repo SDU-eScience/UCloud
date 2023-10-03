@@ -580,7 +580,7 @@ export class ResourceBrowser<T> {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
             titleRow["style"].height = titleRow["style"].maxHeight = "28px";
-            titleRow["style"].marginBottom = "6px";
+            titleRow["style"].paddingBottom = "6px";
             this.setRowTitles(this.opts.rowTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
