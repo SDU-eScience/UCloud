@@ -154,7 +154,7 @@ class GrantApplicationService(
             ).rows
                 .singleOrNull()
                 ?.getString(0)
-                ?: throw RPCException("Did not find a single application", HttpStatusCode.NotFound)
+                ?: throw RPCException("Did not find a grant application", HttpStatusCode.NotFound)
         }
         return defaultMapper.decodeFromString(application)
     }
@@ -466,6 +466,7 @@ class GrantApplicationService(
         document: GrantApplication.Document,
         isInitialSubmission: Boolean = false,
     ) {
+        println("This is the document: $document ($isInitialSubmission)")
         var revisionNumber = 0
         checkReferenceID(document.referenceId)
         val recipient = document.recipient
@@ -553,6 +554,8 @@ class GrantApplicationService(
         if (!requestIsValid) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Allocations does not match products")
         }
+
+        println("This is my final verdict: $allocationRequests")
 
         session.sendPreparedStatement(
             {

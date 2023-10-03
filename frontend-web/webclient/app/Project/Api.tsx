@@ -1,4 +1,4 @@
-import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
+import {BulkRequest, FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
 import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand, useGlobalCloudAPI} from "@/Authentication/DataHook";
 import {useSelector} from "react-redux";
 import {IconName} from "@/ui-components/Icon";
@@ -132,7 +132,7 @@ class ProjectApi {
         return apiRetrieve(request, this.baseContext);
     }
 
-    public browse(request: ProjectFlags & ProjectsSortByFlags & PaginationRequestV2): APICallParameters {
+    public browse(request: ProjectFlags & ProjectsSortByFlags & PaginationRequestV2): APICallParameters<unknown, PageV2<Project>> {
         return apiBrowse(request, this.baseContext);
     }
 

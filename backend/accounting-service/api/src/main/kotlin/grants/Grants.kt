@@ -2,6 +2,7 @@ package dk.sdu.cloud.grant.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -537,6 +538,50 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
         httpBrowse(
             baseContext,
             "affiliations"
+        )
+    }
+
+    val retrieveAffiliations2 = RetrieveAffiliations2.call
+    object RetrieveAffiliations2 {
+        @Serializable
+        sealed class Request {
+            @SerialName("PersonalWorkspace")
+            @Serializable
+            class PersonalWorkspace : Request()
+
+            @SerialName("NewProject")
+            @Serializable
+            class NewProject(val title: String) : Request()
+
+            @SerialName("ExistingProject")
+            @Serializable
+            class ExistingProject(val id: String) : Request()
+
+            @SerialName("ExistingApplication")
+            @Serializable
+            class ExistingApplication(val id: String) : Request()
+        }
+
+        @Serializable
+        data class Response(
+            val allocators: List<Allocator>,
+        )
+
+        @Serializable
+        data class Allocator(
+            val id: String,
+            val title: String,
+            val description: String,
+            val template: String,
+            val categories: List<ProductCategory>
+        )
+
+        val call = call(
+            "retrieveAffiliations2",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = { httpUpdate(baseContext, "retrieveAffiliations2") }
         )
     }
 

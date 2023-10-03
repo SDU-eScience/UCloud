@@ -11,14 +11,6 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.time.LocalDateTime
 
-@Serializable
-data class UCloudUser(
-    val username: String,
-    @Contextual
-    val createdAt: LocalDateTime
-)
-
-
 class PostgresDataService(val db: AsyncDBSessionFactory) {
 
     fun getUsernames(): List<UCloudUser> {

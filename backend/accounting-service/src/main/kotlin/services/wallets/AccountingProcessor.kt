@@ -46,6 +46,11 @@ import kotlin.random.Random
 
 const val doDebug = false
 const val allocationIdCutoff = 5900
+val UUID_REGEX =
+    Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+val PROJECT_REGEX =
+    Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 private data class InternalWallet(
     val id: Int,
@@ -1206,6 +1211,7 @@ class AccountingProcessor(
         notBefore: Long,
         notAfter: Long?
     ): AccountingResponse.Error? {
+        println("Range ${notBefore} ${notAfter}")
         var current: InternalWalletAllocation? = parent
         if ((notAfter ?: Long.MAX_VALUE) < notBefore) return overlapError(parent)
         while (current != null) {
@@ -1266,6 +1272,8 @@ class AccountingProcessor(
         val b = dateString(latestBefore)
         val a = dateString(earliestAfter)
 
+        println(latestBefore)
+        println(earliestAfter)
         return AccountingResponse.Error(
             "Allocation period is outside of allowed range. It must be between $b and $a.",
             code = 400
@@ -1932,8 +1940,16 @@ class AccountingProcessor(
         )
     }
 
-    private val PROJECT_REGEX =
-        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+    private suspend fun getAllocationsPath(allocationId: Int): ArrayList<Int> {
+        val current = allocations[allocationId] ?: return arrayListOf()
+        return if (current.parentAllocation == null) {
+            arrayListOf(current.id)
+        } else {
+            val path = getAllocationsPath(current.parentAllocation)
+            path.add(current.id)
+            path
+        }
+    }
 
     private fun retrieveProviderAllocations(
         request: AccountingRequest.RetrieveProviderAllocations
@@ -2111,6 +2127,7 @@ class AccountingProcessor(
             projects.fillCache()
 
             db.withSession { session ->
+
                 debug.detail("Dealing with wallets")
                 wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
@@ -2177,6 +2194,7 @@ class AccountingProcessor(
                 }
 
                 debug.detail("Dealing with allocations")
+
                 allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
@@ -2271,7 +2289,7 @@ class AccountingProcessor(
                                 unnest(:local_change::bigint[]),
                                 unnest(:tree_change::bigint[]),
                                 unnest(:quota_change::bigint[])
-                        """
+                        """,debug=true
                     )
                 }
 
@@ -2314,7 +2332,7 @@ class AccountingProcessor(
                                 select
                                     now(), username, project_id, category_id, balance
                                 from notification_data
-                            """
+                            """, debug = true
                         )
                     }
 
@@ -2508,9 +2526,6 @@ private class ProjectCache(private val db: DBContext) {
             }
         }
     }
-
-    val PROJECT_REGEX =
-        Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
     suspend fun retrieveProjectInfoFromId(
         id: String,

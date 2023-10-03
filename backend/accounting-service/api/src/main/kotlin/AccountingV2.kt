@@ -490,6 +490,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
 data class WalletAllocationV2(
     val id: String,
     val allocationPath: List<String>,
+
     val localUsage: Long,
     val quota: Long,
     val treeUsage: Long? = null,

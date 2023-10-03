@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services.serviceJobs
 
+import dk.sdu.cloud.accounting.api.ProductCategory
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.time.LocalDateTime
@@ -373,3 +374,27 @@ enum class UniversityID(val value: Int) {
         fun fromInt(value: Int) = UniversityID.values().first { it.value == value }
     }
 }
+
+data class ProjectAndUsage(
+    val projectId: String,
+    val productCategory: ProductCategory,
+    val usage: Long
+)
+data class UserInProject(
+    val username: String,
+    val project: String?
+)
+
+data class UsageByProduct(
+    val usage: Long,
+    val productCategory: ProductCategory
+)
+
+@Serializable
+data class WalletInfo(
+    val accountId: String,
+    val allocated: Long,
+    val localUsed: Long,
+    val pricePerUnit: Long,
+    val productType: ProductType
+)

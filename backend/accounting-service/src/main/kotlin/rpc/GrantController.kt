@@ -107,6 +107,10 @@ class GrantController(
             ok(applications.retrieveGrantApplication(request.id, actorAndProject))
         }
 
+        implement(Grants.retrieveAffiliations2) {
+            ok(settings.retrieveAffiliations2(actorAndProject, request, applications))
+        }
+
         //COMMENTS
         implement(GrantComments.createComment) {
             ok(comments.postComment(actorAndProject, request))

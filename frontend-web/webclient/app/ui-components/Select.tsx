@@ -48,6 +48,12 @@ const SelectBase = styled.select<SelectProps>`
     outline: none;
     border-color: var(--blue, #f00);
   }
+  
+  &:disabled {
+    background: var(--lightGray);
+    opacity: 1;
+    color: var(--black);
+  }
 
   ${space} ${fontSize}
   ${left} ${right}

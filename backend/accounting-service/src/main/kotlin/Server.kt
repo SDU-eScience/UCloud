@@ -75,8 +75,8 @@ class Server(
         val giftService = GiftService(db, accountingService)
         val notifications = GrantNotificationService(db, client)
         val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectNotifications, accountingService)
-        val settings = GrantSettingsService(db, grantApplicationService)
         val templates = GrantTemplateService(db, config)
+        val settings = GrantSettingsService(db, grantApplicationService, accountingService, templates)
         val comments = GrantCommentService(db)
 
 
@@ -136,14 +136,44 @@ class Server(
         scriptManager.register(
             Script(
                 ScriptMetadata(
+                    "center",
+                    "Deic report: Center",
+                    WhenToStart.Never
+                ),
+                script = {
+                    val postgresDataService = PostgresDataService(db)
+                    val deicReporting = DeicReporting(client, postgresDataService)
+                    deicReporting.reportCenters()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
                     "centerDaily",
                     "Deic report: Center Daily",
                     WhenToStart.Never
                 ),
                 script = {
                     val postgresDataService = PostgresDataService(db)
-                    val deicReporting = DeicReporting(db, client, postgresDataService)
+                    val deicReporting = DeicReporting(client, postgresDataService)
                     deicReporting.reportCenters()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "Person report",
+                    "Deic report: Person",
+                    WhenToStart.Never
+                ),
+                script = {
+                    val postgresDataService = PostgresDataService(db)
+                    val deicReporting = DeicReporting(client, postgresDataService)
+                    deicReporting.reportPerson()
                 }
             )
         )
