@@ -306,9 +306,12 @@ export const Create: React.FunctionComponent = () => {
                 <Box mx="50px" mt="32px">
                     <Spacer left={<AppHeader slim application={application} flavors={appFlavors} allVersions={previousResp.data?.items ?? []} />} right={<>
                         {!application.metadata.website ? null : (
-                            <ExternalLink title="Documentation" href={application.metadata.website}>
-                                <Icon name="documentation" color="blue" />
-                            </ExternalLink>
+                            <Tooltip
+                                trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
+                                    <Icon name="documentation" color="blue" />
+                                </ExternalLink>}>
+                                View documentation
+                            </Tooltip>
                         )}
                         <UtilityBar searchEnabled={false} />
                     </>} />
