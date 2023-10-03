@@ -154,7 +154,7 @@ class GrantApplicationService(
             ).rows
                 .singleOrNull()
                 ?.getString(0)
-                ?: throw RPCException("Did not find a single application", HttpStatusCode.NotFound)
+                ?: throw RPCException("Did not find a grant application", HttpStatusCode.NotFound)
         }
         return defaultMapper.decodeFromString(application)
     }

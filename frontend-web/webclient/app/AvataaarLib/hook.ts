@@ -4,11 +4,15 @@ import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "@/AvataaarLib/index";
 import {useUState, UState} from "@/Utilities/UState";
 
 class AvatarState extends UState<AvatarState> {
+    private inflight: Record<string, true> = {};
     private cache: Record<string, AvatarType> = {};
 
     updateCache(usernames: string[]): Promise<void> {
-        const usernamesToUse = usernames.filter(it => !this.cache.hasOwnProperty(it));
+        const usernamesToUse = usernames.filter(it =>
+            !this.cache.hasOwnProperty(it) &&
+            !this.inflight.hasOwnProperty(it));
         if (usernamesToUse.length === 0) return Promise.resolve();
+        for (const username of usernamesToUse) this.inflight[username] = true;
 
         return this.run(async () => {
             const response = await callAPI<FetchBulkAvatarsResponse>(fetchBulkAvatars({usernames: usernamesToUse}));

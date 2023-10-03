@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2023.4.0-dev.40"
+        val version = "2023.4.0-dev40"
 
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
@@ -26,7 +26,7 @@ dependencies {
         ucloud("app-orchestrator-service-api")
         ucloud("service-lib-lib")
 
-        implementation("org.cliffc.high_scale_lib:cliff-utils:2023.4.0-dev.25")
+        implementation("org.cliffc.high_scale_lib:cliff-utils:$version")
     }
 
     run {
@@ -67,7 +67,7 @@ tasks.test {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(20)
     compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
 }
 

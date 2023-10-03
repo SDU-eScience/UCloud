@@ -87,20 +87,23 @@ class GrantTemplateService(
                             pm.project_id = :project_id and
                             (pm.role = 'PI' or pm.role = 'ADMIN')
                     where
-                        t.project_id = :project_id and
-                        (
-                            pm.username is not null or 
-                            "grant".can_submit_application(
-                                :username,
-                                :project_id,
-                                case
-                                    when :active_project::text is null then :username
-                                    else :active_project::text
-                                end,
-                                case
-                                    when :active_project::text is null then 'personal'
-                                    else 'existing_project'
-                                end
+                        t.project_id = :project_id
+                        and (
+                            :username = '_ucloud'
+                            or (
+                                pm.username is not null or 
+                                "grant".can_submit_application(
+                                    :username,
+                                    :project_id,
+                                    case
+                                        when :active_project::text is null then :username
+                                        else :active_project::text
+                                    end,
+                                    case
+                                        when :active_project::text is null then 'personal'
+                                        else 'existing_project'
+                                    end
+                                )
                             )
                         )
                 """

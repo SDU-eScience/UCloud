@@ -16,7 +16,7 @@ application {
     mainClass.set("dk.sdu.cloud.MainKt")
 }
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(20)
 
     sourceSets {
         val main by getting {

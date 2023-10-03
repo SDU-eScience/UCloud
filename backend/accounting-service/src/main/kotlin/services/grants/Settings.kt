@@ -1,8 +1,10 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.grants.Templates
 import dk.sdu.cloud.accounting.api.projects.*
+import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -12,7 +14,6 @@ import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.serialization.decodeFromString
 import java.io.ByteArrayOutputStream
 
 val UserCriteria.type: String
@@ -31,7 +32,9 @@ val UserCriteria.id: String?
 
 class GrantSettingsService(
     private val db: DBContext,
-    private val applicationService: GrantApplicationService
+    private val applicationService: GrantApplicationService,
+    private val accounting: AccountingService,
+    private val templates: GrantTemplateService,
 ) {
     suspend fun uploadRequestSettings(
         actorAndProject: ActorAndProject,
@@ -504,6 +507,154 @@ class GrantSettingsService(
                 throw RPCException("Unable to upload logo", HttpStatusCode.NotFound)
             }
         }
+    }
+
+    suspend fun retrieveAffiliations2(
+        actorAndProject: ActorAndProject,
+        request: Grants.RetrieveAffiliations2.Request,
+        applications: GrantApplicationService,
+    ): Grants.RetrieveAffiliations2.Response {
+        // NOTE(Dan): This is a very big mess which I am not going to clean up today. Instead, we are just moving the
+        // complexity to the backend instead of the frontend. This will allow us to clean this up later.
+
+        val existingApplication = if (request is Grants.RetrieveAffiliations2.Request.ExistingApplication) {
+            applications.retrieveGrantApplication(
+                request.id.toLongOrNull() ?: throw RPCException("Did not find application", HttpStatusCode.NotFound),
+                actorAndProject
+            )
+        } else {
+            null
+        }
+
+        // Figure out which of the legacy browseAffiliation calls we need to make.
+        val paginationCall: suspend (next: String?) -> PageV2<ProjectWithTitle> = when (request) {
+            is Grants.RetrieveAffiliations2.Request.ExistingApplication -> { next ->
+                val app = existingApplication!!
+                val doc = app.currentRevision.document
+                val recipientId  = when (val r = doc.recipient) {
+                    is GrantApplication.Recipient.ExistingProject -> r.id
+                    is GrantApplication.Recipient.NewProject -> r.title
+                    is GrantApplication.Recipient.PersonalWorkspace -> r.username
+                }
+
+                val recipientType = when (val r = doc.recipient) {
+                    is GrantApplication.Recipient.ExistingProject -> "existingProject"
+                    is GrantApplication.Recipient.NewProject -> "newProject"
+                    is GrantApplication.Recipient.PersonalWorkspace -> "personalWorkspace"
+                }
+
+                browse(
+                    ActorAndProject(
+                        Actor.SystemOnBehalfOfUser(app.createdBy),
+                        (doc.recipient as? GrantApplication.Recipient.ExistingProject)?.id
+                    ),
+                    GrantsBrowseAffiliationsRequest(
+                        itemsPerPage = 250,
+                        next = next,
+                        recipientId = recipientId,
+                        recipientType = recipientType,
+                    )
+                )
+            }
+
+            is Grants.RetrieveAffiliations2.Request.ExistingProject -> { next ->
+                browse(
+                    ActorAndProject(actorAndProject.actor, request.id),
+                    GrantsBrowseAffiliationsRequest(
+                        itemsPerPage = 250,
+                        next = next,
+                        recipientId = request.id,
+                        recipientType = "existingProject"
+                    )
+                )
+            }
+
+            is Grants.RetrieveAffiliations2.Request.NewProject -> { next ->
+                browse(
+                    actorAndProject,
+                    GrantsBrowseAffiliationsRequest(
+                        itemsPerPage = 250,
+                        next = next,
+                        recipientId = request.title,
+                        recipientType = "newProject"
+                    )
+                )
+            }
+
+            is Grants.RetrieveAffiliations2.Request.PersonalWorkspace -> { next ->
+                browse(
+                    actorAndProject,
+                    GrantsBrowseAffiliationsRequest(
+                        itemsPerPage = 250,
+                        next = next,
+                        recipientId = actorAndProject.actor.safeUsername(),
+                        recipientType = "personalWorkspace"
+                    )
+                )
+            }
+        }
+
+        // Then fetch all the affiliations (or break early if we have way too many, which is unrealistic).
+        // Filter out duplicates if we get any, which I think some of the APIs might return.
+        val allAffiliations = HashSet<ProjectWithTitle>()
+        run {
+            var next: String? = null
+            while (true) {
+                val page = paginationCall(next)
+                allAffiliations.addAll(page.items)
+                next = page.next ?: break
+                if (allAffiliations.size > 5000) break
+            }
+        }
+
+        // Then start fetching the relevant wallets and project descriptions
+        val result = ArrayList<Grants.RetrieveAffiliations2.Allocator>()
+        for (affiliation in allAffiliations) {
+            val description = fetchDescription(affiliation.projectId)
+            val affiliationWallets = accounting.retrieveWalletsInternal(
+                ActorAndProject(Actor.System, null),
+                WalletOwner.Project(affiliation.projectId)
+            )
+
+            val categories = affiliationWallets.mapNotNull { wallet ->
+                val hasAnyValid = wallet.allocations.any { it.isActive() && it.canAllocate }
+                if (!hasAnyValid) return@mapNotNull null
+                if (wallet.paysFor.freeToUse) return@mapNotNull null
+
+                wallet.paysFor
+            }
+
+            val templates = templates.fetchTemplates(
+                ActorAndProject(Actor.System, null),
+                affiliation.projectId
+            ) as? Templates.PlainText
+
+            val template = when (request) {
+                is Grants.RetrieveAffiliations2.Request.ExistingApplication -> {
+                    when (existingApplication?.currentRevision?.document?.recipient) {
+                        is GrantApplication.Recipient.ExistingProject -> templates?.existingProject
+                        is GrantApplication.Recipient.NewProject -> templates?.newProject
+                        is GrantApplication.Recipient.PersonalWorkspace -> templates?.personalProject
+                        null -> templates?.newProject
+                    }
+                }
+                is Grants.RetrieveAffiliations2.Request.ExistingProject -> templates?.existingProject
+                is Grants.RetrieveAffiliations2.Request.NewProject -> templates?.newProject
+                is Grants.RetrieveAffiliations2.Request.PersonalWorkspace -> templates?.personalProject
+            } ?: "Please describe why you are applying for these resources"
+
+            result.add(
+                Grants.RetrieveAffiliations2.Allocator(
+                    affiliation.projectId,
+                    affiliation.title,
+                    description,
+                    template,
+                    categories
+                )
+            )
+        }
+
+        return Grants.RetrieveAffiliations2.Response(result)
     }
 }
 

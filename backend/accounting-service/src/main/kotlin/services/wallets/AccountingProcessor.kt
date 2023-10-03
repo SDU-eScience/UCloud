@@ -1211,6 +1211,7 @@ class AccountingProcessor(
         notBefore: Long,
         notAfter: Long?
     ): AccountingResponse.Error? {
+        println("Range ${notBefore} ${notAfter}")
         var current: InternalWalletAllocation? = parent
         if ((notAfter ?: Long.MAX_VALUE) < notBefore) return overlapError(parent)
         while (current != null) {
@@ -1271,6 +1272,8 @@ class AccountingProcessor(
         val b = dateString(latestBefore)
         val a = dateString(earliestAfter)
 
+        println(latestBefore)
+        println(earliestAfter)
         return AccountingResponse.Error(
             "Allocation period is outside of allowed range. It must be between $b and $a.",
             code = 400

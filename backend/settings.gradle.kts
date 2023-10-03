@@ -2,7 +2,7 @@ rootProject.name = "ucloud"
 
 (rootProject.projectDir.listFiles() ?: emptyArray()).forEach { file ->
     val buildGradle = File(file, "build.gradle.kts")
-    if (file.isDirectory && buildGradle.exists()) {
+    if (file.isDirectory && buildGradle.exists() && file.name != "buildSrc") {
         include(file.name)
         val apiPackage = File(file, "api")
         val apiBuild = File(apiPackage, "build.gradle.kts")
