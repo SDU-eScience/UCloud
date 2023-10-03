@@ -617,15 +617,9 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
         margin-top: -3px;
     }
 
-    ${k} > a {
-        color: var(--blue);
-        cursor: pointer;
-    }
-
-    ${k} > .time {
+    ${k} .time {
         font-size: 12px;
-        flex-shrink: 0;
-        color: var(--midGray);
+        margin-left: auto;
     }
 `);
 
