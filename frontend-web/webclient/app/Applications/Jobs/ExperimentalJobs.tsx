@@ -3,7 +3,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, RowTitle} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
@@ -129,8 +129,12 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     row.title.append(icon);
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
-                    if (!simpleView) row.stat1.innerText = job.owner.createdBy;
-                    row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
+                    if (!simpleView) {
+                        row.stat1.innerText = job.owner.createdBy;
+                        row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
+                    } else {
+                        row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
+                    }
 
                     logoDataUrls.retrieve(job.specification.application.name, async () => {
                         const result = await appLogoCache.fetchLogo(job.specification.application.name);

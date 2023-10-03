@@ -25,6 +25,7 @@ import {isAdminOrPI} from "@/Project/Api";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
+import {TruncateClass} from "./Truncate";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
@@ -3524,8 +3525,8 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     outer.className = "provider-icon"
     outer.style.background = "var(--blue)";
     outer.style.borderRadius = "8px";
-    outer.style.width = opts?.width ?? "40px";
-    outer.style.height = opts?.height ?? "40px";
+    outer.style.width = outer.style.minWidth = opts?.width ?? "40px";
+    outer.style.height = outer.style.minHeight = opts?.height ?? "40px";
 
     const inner = div("");
     inner.style.backgroundSize = "contain";

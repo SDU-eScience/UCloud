@@ -573,3 +573,41 @@ export function clamp(val: number, lower: number, upper: number): number {
     if (val > upper) return upper;
     return val;
 }
+
+// Note(Jonas): Intended to be some HTML friendly replacement to React where needed.
+// Not really tested, so attempt at own risk.
+interface HTMLElementContent {
+    tagType: keyof HTMLElementTagNameMap;
+    style?: Partial<CSSStyleDeclaration>;
+    dataTags?: [string, string][];
+    handlers?: {onClick?: ((this: GlobalEventHandlers, ev: MouseEvent) => any); onChange?: ((this: GlobalEventHandlers, ev: Event) => any) | null;}
+    className?: string;
+    children: HTMLElementContent[];
+}
+
+export function createHTMLElements<T extends HTMLElement>(rootEntry: HTMLElementContent): T {
+    const root = document.createElement(rootEntry.tagType);
+    if (rootEntry.className) root.className = rootEntry.className;
+    if (rootEntry.handlers?.onChange) root.onchange = rootEntry.handlers?.onChange;
+    if (rootEntry.handlers?.onClick) root.onclick = rootEntry.handlers?.onClick;
+    if (rootEntry.dataTags) for (const tag of rootEntry.dataTags) {
+        root.setAttribute(tag[0], tag[1]);
+    }
+
+    addStyle(root, rootEntry.style);
+    for (const child of rootEntry.children) {
+        const childElement = createHTMLElements(child);
+        root.appendChild(childElement);
+    }
+
+    return root as T;
+
+    function addStyle(el: HTMLElement, style?: Partial<CSSStyleDeclaration>) {
+        if (!style) return;
+        for (const rule of Object.keys(style)) {
+            el.style[rule] = style[rule];
+        }
+    }
+}
+
+
