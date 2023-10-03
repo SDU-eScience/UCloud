@@ -250,14 +250,14 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
 
         val cpuUsed = makeMappingOfUsage(
             postgresDataService.retrieveUsageSDU(
-                LocalDateTime.parse("2022-01-01"),
+                LocalDateTime.parse("2022-01-01T00:00:00"),
                 LocalDateTime.now(),
                 ProductType.CPU
             )
         )
         val gpuUsed = makeMappingOfUsage(
             postgresDataService.retrieveUsageSDU(
-                LocalDateTime.parse("2022-01-01"),
+                LocalDateTime.parse("2022-01-01T00:00:00"),
                 LocalDateTime.now(),
                 ProductType.GPU
             )
@@ -265,14 +265,14 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         val storageSDU = postgresDataService.getSDUStorage()
         val computeAAU = makeMappingOfUsage(
             postgresDataService.retrieveUsageAAU(
-                LocalDateTime.parse("2022-01-01"),
+                LocalDateTime.parse("2022-01-01T00:00:00"),
                 LocalDateTime.now(),
                 ProductType.CPU
             )
         )
         val gpuAAU = makeMappingOfUsage(
             postgresDataService.retrieveUsageAAU(
-                LocalDateTime.parse("2022-01-01"),
+                LocalDateTime.parse("2022-01-01T00:00:00"),
                 LocalDateTime.now(),
                 ProductType.GPU
             )

@@ -5,7 +5,6 @@ import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.alerting.AlertingService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
-import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.*
@@ -97,61 +96,6 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
 }
 
 suspend fun main(args: Array<String>) {
-    if (args.contains("--load-simulation")) {
-        loadAndInitializeMissingCaCertsForLauncherInDevelopmentModeOnlyPlease()
-        var numberOfUsers: Int = 5
-        var userFile: String? = null
-
-        val argsIterator = args.iterator()
-        while (argsIterator.hasNext()) {
-            val arg = argsIterator.next()
-
-            if (arg.contains("numberOfSims=")) {
-                numberOfUsers = arg.split("=")[1].toInt()
-            }
-
-            if (arg == "--numberOfSims") {
-                numberOfUsers = argsIterator.next().toInt()
-            }
-
-            if (arg.contains("userFile=")) {
-                userFile = arg.split("=")[1]
-            }
-
-            if (arg == "--userFile") {
-                userFile = argsIterator.next()
-            }
-        }
-
-        val m = Micro().apply {
-            commandLineArguments = args.toList()
-            isEmbeddedService = false
-            serviceDescription = PlaceholderServiceDescription
-
-            install(ConfigurationFeature)
-            install(ClientFeature)
-            install(LogFeature)
-            install(TokenValidationFeature)
-            install(AuthenticatorFeature)
-        }
-
-        val rootProjectTitle = m.configuration.requestChunkAt<String>("rootProjectTitle")
-        val applicationName = m.configuration.requestChunkAt<String>("application", "name")
-        val applicationVersion = m.configuration.requestChunkAt<String>("application", "version")
-        val client = m.authenticator.authenticateClient(OutgoingHttpCall)
-
-        val simulator = Simulator(
-            client,
-            userFile ?: error("Missing argument userFile"),
-            numberOfUsers,
-            rootProjectTitle,
-            NameAndVersion(applicationName, applicationVersion)
-        )
-
-        simulator.start()
-        return
-    }
-
     if (args.contains("--dev")) {
         loadAndInitializeMissingCaCertsForLauncherInDevelopmentModeOnlyPlease()
     }
@@ -236,7 +180,7 @@ suspend fun main(args: Array<String>) {
                         "user",
                         "mypassword",
                         role = Role.ADMIN,
-                        email = "user@localhost.direct",
+                        email = "user@localhost.something",
                         firstnames = "user",
                         lastname = "test"
                     )
@@ -246,11 +190,9 @@ suspend fun main(args: Array<String>) {
         }
     }
 
-    if (!args.contains("--no-server")) {
-        reg.rootMicro.feature(ServerFeature).ktorApplicationEngine!!.application.routing {
-            get("/i") {
-                call.respondRedirect("http://localhost:9000/app", permanent = false)
-            }
+    reg.rootMicro.feature(ServerFeature).ktorApplicationEngine!!.application.routing {
+        get("/i") {
+            call.respondRedirect("http://localhost:9000/app", permanent = false)
         }
     }
 

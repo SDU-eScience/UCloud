@@ -227,7 +227,11 @@ data class GrantApplication(
         @Serializable
         @SerialName("newProject")
         @UCloudApiStable
-        data class NewProject(val title: String) : Recipient()
+        data class NewProject(val title: String) : Recipient() {
+            init {
+                checkSingleLine(::title, title, maximumSize = 150)
+            }
+        }
 
         @Serializable
         @SerialName("personalWorkspace")
