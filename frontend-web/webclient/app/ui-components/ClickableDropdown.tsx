@@ -115,14 +115,11 @@ const ClickableDropdown: ClickableDropdownType =
         }, [props.keepOpenOnOutsideClick, open]);
 
         const handleEscPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
-            if (props.onKeyDown?.(event)) return;
-
             if (event.key === "Escape" && open) {
                 close();
+            } else {
+                props.onKeyDown?.(event)
             }
-            event.preventDefault()
-            event.stopImmediatePropagation();
-            event.stopPropagation();
         }, [open]);
 
 
