@@ -391,7 +391,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={"fake-logo"} />
                             <div className={"header-text"}>
-                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
+                                {status?.state === "IN_QUEUE" ? <InQueueText job={job} /> : null}
                             </div>
                         </Flex>
 
@@ -612,7 +612,6 @@ const Busy: React.FunctionComponent<{
 };
 
 const InfoCardsContainer = injectStyleSimple("info-card-container", `
-  margin-top: 32px;
   display: grid;
   width: 100%;
   grid-template-columns: repeat(auto-fit, minmax(200px, 380px));

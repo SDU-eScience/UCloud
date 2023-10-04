@@ -26,10 +26,6 @@ export function injectFonts(): void {
 
 const UIGlobalStyle = `
 
-h1, h2, h3, h4, h5, h6 {
-    margin: 0;
-}
-
 /*  /files/metadata/templates/create/ START */
 
 div.modal.fade.show { 
@@ -870,6 +866,10 @@ a {
 input.search-field {
     width: 250px;
     margin-left: 8px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
 }
 
 `;

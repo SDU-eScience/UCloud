@@ -591,7 +591,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                 <Button ml="10px" my="auto" height="36px" type={"submit"}>
                                     <Text fontSize={"20px"}>Add</Text>
                                 </Button>
-                                <Relative width={"0px"} height={"0px"} left="-132px" top="8px">
+                                <Relative width={"0px"} height={"0px"} left="-122px" top="10px">
                                     {USER_ID_HELP}
                                 </Relative>
                                 <Button
@@ -1373,22 +1373,20 @@ const HelpCircleClass = injectStyle("help-circle", k => `
         width: 26px;
         height: 26px;
         border: 2px solid var(--black);
-        margin: 4px 4px 4px 2px;
         cursor: pointer;
     }
 
     ${k}::after {
         content: "?";
-        margin-left: 7px;
-        margin-top: -1px;
-        display: block;
+        display: flex;
+        justify-content: center;
     }
 `);
 
 const USER_ID_HELP = (
-    <Tooltip tooltipContentWidth={160} trigger={<div className={HelpCircleClass} />}>
+    <Tooltip tooltipContentWidth={250} trigger={<div className={HelpCircleClass} />}>
         <Text fontSize={12}>
-            Your username can be found at the bottom of the sidebar next to {" "}<Icon name="id" />.
+            Your username can be found next to {" "}<Icon name="id" />, by clicking the avatar in the bottom of the sidebar.
         </Text>
     </Tooltip>
 );
