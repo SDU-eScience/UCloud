@@ -185,7 +185,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
             )}
             <List childPadding="8px">
                 {favorites.map(it => (<Flex key={it.path}>
-                    <Icon cursor="pointer" mr="6px" name="starFilled" color="blue" onClick={async () => {
+                    <Icon cursor="pointer" mr="6px" mt="3px" name="starFilled" color="blue" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
                             await invokeCommand(

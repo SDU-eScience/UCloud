@@ -345,15 +345,6 @@ export function useSubprojectFromURL(request: ProjectFlags): {project: Project; 
     return {project: project.data, projectId: subprojectFromQuery, reload};
 }
 
-interface UseProjectFromParams {
-    project: Project | null;
-    reload: () => void;
-    projectId: string;
-    loading: boolean;
-    isPersonalWorkspace: boolean;
-    breadcrumbs: {title: string, link?: string}[];
-}
-
 const api = new ProjectApi();
 export {api};
 export default api;

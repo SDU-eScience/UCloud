@@ -3561,7 +3561,7 @@ export function checkCanConsumeResources(projectId: string | null, callbacks: nu
     if (!callbacks) return true;
 
     const {api} = callbacks;
-    if (!api) return false;
+    if (!api) return true;
 
     if (api.isCoreResource) return true;
 

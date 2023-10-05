@@ -865,6 +865,7 @@ a {
 
 input.search-field {
     width: 250px;
+    height: 35px;
     margin-left: 8px;
 }
 

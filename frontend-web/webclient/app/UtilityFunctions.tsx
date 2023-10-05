@@ -582,10 +582,10 @@ interface HTMLElementContent {
     dataTags?: [string, string][];
     handlers?: {onClick?: ((this: GlobalEventHandlers, ev: MouseEvent) => any); onChange?: ((this: GlobalEventHandlers, ev: Event) => any) | null;}
     className?: string;
-    children: HTMLElementContent[];
+    children?: HTMLElementContent[];
 }
 
-export function createHTMLElements<T extends HTMLElement>(rootEntry: HTMLElementContent): T {
+export function createHTMLElements<T extends HTMLElement>({children = [], ...rootEntry}: HTMLElementContent): T {
     const root = document.createElement(rootEntry.tagType);
     if (rootEntry.className) root.className = rootEntry.className;
     if (rootEntry.handlers?.onChange) root.onchange = rootEntry.handlers?.onChange;
@@ -595,7 +595,7 @@ export function createHTMLElements<T extends HTMLElement>(rootEntry: HTMLElement
     }
 
     addStyle(root, rootEntry.style);
-    for (const child of rootEntry.children) {
+    for (const child of children) {
         const childElement = createHTMLElements(child);
         root.appendChild(childElement);
     }

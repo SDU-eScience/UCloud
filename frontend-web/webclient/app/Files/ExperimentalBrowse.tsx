@@ -31,7 +31,7 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -682,15 +682,20 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     row.title.append(icon);
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
-                        const iconWrapper = document.createElement("div");
-                        iconWrapper.style.position = "relative";
-                        iconWrapper.style.left = "13px";
-                        iconWrapper.style.top = "-2px";
-                        iconWrapper.style.backgroundColor = "var(--blue)";
-                        iconWrapper.style.height = "10px";
-                        iconWrapper.style.width = "10px";
-                        iconWrapper.style.padding = "4px";
-                        iconWrapper.style.borderRadius = "8px";
+                        const iconWrapper = createHTMLElements({
+                            tagType: "div",
+                            style: {
+                                position: "relative",
+                                left: "13px",
+                                top: "-2px",
+                                backgroundColor: "var(--blue)",
+                                height: "10px",
+                                width: "10px",
+                                padding: "4px",
+                                borderRadius: "8px"
+                            }
+                        });
+
                         icon.append(iconWrapper);
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
                         syncThingIcon.style.height = "8px";
