@@ -17,27 +17,20 @@ import {PaginationRequestV2} from "@/UCloud";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, SelectionMode, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {Client} from "@/Authentication/HttpClientInstance";
-
-interface MemberInProjectCallbacks {
-    startCreation: () => void;
-    onSetArchivedStatus: (ids: string[], archive: boolean) => void;
-    startRename: (id: string) => void;
-    navigate: NavigateFunction;
-    isAdminOrPIForParent: boolean;
-}
 
 // Note(Jonas): Endpoint missing from ProjectV2-api
 type ListSubprojectsRequest = PaginationRequestV2;
-const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<ListSubprojectsRequest> => ({
-    method: "GET",
-    path: buildQueryString(
-        "/projects/sub-projects",
-        parameters
-    ),
-    parameters,
-    reloadId: Math.random()
-});
+function listSubprojects(parameters: ListSubprojectsRequest): APICallParameters<ListSubprojectsRequest> {
+    return ({
+        method: "GET",
+        path: buildQueryString(
+            "/projects/sub-projects",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
+    });
+}
 
 export interface OldProject {
     id: string;

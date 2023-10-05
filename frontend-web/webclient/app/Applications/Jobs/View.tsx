@@ -705,7 +705,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
                         {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
                         <br />
                     </>}
-                    <b>Price per hour:</b>
+                    <b>Price per hour:</b>{" "}
                     {job.status.resolvedSupport?.product.freeToUse ? "Free" :
                         job.status.resolvedProduct ?
                             usageExplainer(
@@ -1055,7 +1055,7 @@ const RunningContent: React.FunctionComponent<{
                         </>
                     }
                     <Box>
-                        <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" :
+                        <b>Estimated price per hour: </b>{" "}{job.status.resolvedSupport?.product.freeToUse ? "Free" :
                             job.status.resolvedProduct ?
                                 usageExplainer(
                                     costOfDuration(60, job.specification.replicas, resolvedProduct),

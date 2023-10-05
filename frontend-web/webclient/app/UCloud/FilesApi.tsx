@@ -831,7 +831,7 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     if (allSynchronized) {
         return "Remove from sync";
     } else {
-        return "Add to sync (BETA)";
+        return "Add to sync";
     }
 }
 
