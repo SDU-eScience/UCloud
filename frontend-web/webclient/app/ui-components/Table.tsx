@@ -15,7 +15,7 @@ export const TableClass = injectStyle("table", k => `
         border: 0;
         border-spacing: 0;
         
-        border-top: 1px solid rgba(34, 36, 38, .1);
+        border-bottom: 1px solid rgba(34, 36, 38, .1);
         padding: 8px 0;
     }
     

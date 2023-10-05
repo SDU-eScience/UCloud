@@ -118,6 +118,8 @@ function Dashboard(props: DashboardProps): JSX.Element {
     );
 }
 
+const FONT_SIZE = "16px";
+
 const GridClass = injectStyle("grid", k => `
 @media screen and (min-width: 900px) {
     ${k} {
@@ -183,9 +185,9 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                     </Link>
                 </NoResultsCardBody>
             )}
-            <List childPadding="8px">
-                {favorites.map(it => (<Flex key={it.path}>
-                    <Icon cursor="pointer" mr="6px" mt="3px" name="starFilled" color="blue" onClick={async () => {
+            <List>
+                {favorites.map(it => (<Flex key={it.path} height="55px">
+                    <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="blue" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
                             await invokeCommand(
@@ -200,7 +202,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
+                    <Text cursor="pointer" fontSize={FONT_SIZE} my="auto" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
                 </Flex>))}
             </List>
         </HighlightedCard>
@@ -273,7 +275,6 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
 );
 
 const ResourceGridClass = injectStyleSimple("grid", `
-    margin-top: 25px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
     grid-auto-rows: minmax(450px, auto);
@@ -310,12 +311,12 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
             <Table>
                 <tbody>
                     {props.charts.data.charts.map((it, idx) => (
-                        <TableRow key={idx}>
-                            <TableCell>
-                                <Icon name={productTypeToIcon(it.type)} mr={8} />
-                                {productTypeToTitle(it.type)}
+                        <TableRow key={idx} height="49px">
+                            <TableCell fontSize={FONT_SIZE}>
+                                    <Icon name={productTypeToIcon(it.type)} mr={8} />
+                                    {productTypeToTitle(it.type)}
                             </TableCell>
-                            <TableCell textAlign={"right"}>
+                            <TableCell fontSize={FONT_SIZE} textAlign={"right"}>
                                 {usageExplainer(it.periodUsage, it.type, it.chargeType, it.unit)}
                             </TableCell>
                         </TableRow>
@@ -405,13 +406,13 @@ function DashboardResources({products}: {
                             <tbody>
                                 {wallets.slice(0, 7).map((n, i) => (
                                     <TableRow key={i}>
-                                        <TableCell>
-                                            <Flex alignItems="center" gap="8px">
+                                        <TableCell fontSize={FONT_SIZE}>
+                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                                 <ProviderLogo providerId={n.category.provider} size={32} />
                                                 <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
                                             </Flex>
                                         </TableCell>
-                                        <TableCell textAlign={"right"}>
+                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                             {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
                                         </TableCell>
                                     </TableRow>
