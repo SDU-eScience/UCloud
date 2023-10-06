@@ -2089,8 +2089,8 @@ class AccountingProcessor(
 
     private fun authorizeProvider(actor: Actor, category: ProductCategoryIdV2): Boolean {
         val username = actor.safeUsername()
-        if (username.startsWith("_")) return true
-        if (!username.startsWith(AuthProviders.PROVIDER_PREFIX)) return false
+        if (username.startsWith("_")) return false
+        if (!username.startsWith(AuthProviders.PROVIDER_PREFIX)) return true
         return username.removePrefix(AuthProviders.PROVIDER_PREFIX) == category.provider
     }
 

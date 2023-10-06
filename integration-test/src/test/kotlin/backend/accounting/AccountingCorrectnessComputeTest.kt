@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.adminClient
-import dk.sdu.cloud.integration.backend.compute.toReference
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
