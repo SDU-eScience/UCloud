@@ -2,10 +2,6 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {
-    GrantApplicationFilter,
-    grantApplicationFilterPrettify,
-} from "@/Project/Grant/index";
 import {emptyPage} from "@/DefaultObjects";
 import * as Pagination from "@/Pagination";
 import {ListRow, ListRowStat} from "@/ui-components/List";
@@ -22,13 +18,13 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
-import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
 import {PageV2} from "@/UCloud";
-import {useProjectFromParams} from "../Api";
+import {useProjectFromParams} from "../Project/Api";
+import * as Grants from "@/Grants/index";
 
 export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (props) => {
     const [scrollGeneration, setScrollGeneration] = useState(0);
-    const [applications, fetchApplications] = useCloudAPI<PageV2<GrantApplication>>(
+    const [applications, fetchApplications] = useCloudAPI<PageV2<Grants.Application>>(
         {noop: true},
         emptyPage
     );
@@ -41,11 +37,11 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
 
     useRefreshFunction(() => {
         fetchApplications({
-            ...browseGrantApplications({
+            ...Grants.browse({
                 itemsPerPage: 50,
                 includeIngoingApplications: props.ingoing,
                 includeOutgoingApplications: !props.ingoing,
-                filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
+                filter: (filters.filterType as Grants.ApplicationFilter | undefined) ?? Grants.ApplicationFilter.ACTIVE
             }), projectOverride: projectIdToUse
         });
         setScrollGeneration(prev => prev + 1);
@@ -56,21 +52,21 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
     useEffect(() => {
         setScrollGeneration(prev => prev + 1);
         fetchApplications({
-            ...browseGrantApplications({
+            ...Grants.browse({
                 includeIngoingApplications: props.ingoing,
                 includeOutgoingApplications: !props.ingoing,
                 itemsPerPage: 50,
-                filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
+                filter: (filters.filterType as Grants.ApplicationFilter | undefined) ?? Grants.ApplicationFilter.ACTIVE
             }), projectOverride: projectIdToUse
         });
     }, [projectIdToUse, filters]);
 
     const loadMore = useCallback(() => {
-        fetchApplications(browseGrantApplications({
+        fetchApplications(Grants.browse({
             includeIngoingApplications: props.ingoing,
             includeOutgoingApplications: !props.ingoing,
             itemsPerPage: 50, next: applications.data.next,
-            filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.ACTIVE
+            filter: (filters.filterType as Grants.ApplicationFilter | undefined) ?? Grants.ApplicationFilter.ACTIVE
         }));
     }, [applications.data, filters]);
 
@@ -80,10 +76,10 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
     const onSortUpdated = React.useCallback((dir: "ascending" | "descending", column?: string) => { }, []);
 
     const [widget, pill] = EnumFilter("cubeSolid", "filterType", "Grant status", Object
-        .keys(GrantApplicationFilter)
+        .keys(Grants.ApplicationFilter)
         .map(it => ({
             icon: "tags",
-            title: grantApplicationFilterPrettify(it as GrantApplicationFilter),
+            title: Grants.applicationFilterToString(it as Grants.ApplicationFilter),
             value: it
         }))
     );
@@ -121,7 +117,7 @@ export const GrantApplications: React.FunctionComponent<{ingoing: boolean}> = (p
 };
 
 export const GrantApplicationList: React.FunctionComponent<{
-    applications: GrantApplication[],
+    applications: Grants.Application[],
     slim?: boolean
 }> = ({applications, slim = false}) => {
     const navigate = useNavigate();
@@ -135,16 +131,16 @@ export const GrantApplicationList: React.FunctionComponent<{
                 let icon: IconName;
                 let iconColor: ThemeColor;
                 switch (app.status.overallState) {
-                    case State.APPROVED:
+                    case Grants.State.APPROVED:
                         icon = "check";
                         iconColor = "green";
                         break;
-                    case State.CLOSED:
-                    case State.REJECTED:
+                    case Grants.State.CLOSED:
+                    case Grants.State.REJECTED:
                         icon = "close";
                         iconColor = "red";
                         break;
-                    case State.IN_PROGRESS:
+                    case Grants.State.IN_PROGRESS:
                         icon = "ellipsis";
                         iconColor = "black";
                         break;
@@ -152,7 +148,7 @@ export const GrantApplicationList: React.FunctionComponent<{
 
                 return <ListRow
                     key={app.id}
-                    navigate={() => navigate(`/project/grants/view/${app.id}`)}
+                    navigate={() => navigate(`/grants?id=${app.id}`)}
                     icon={
                         slim ? null : (
                             <UserAvatar

@@ -177,7 +177,7 @@ const operations: Operation<Project, Callbacks>[] = [
         primary: true,
         enabled: () => true,
         onClick: (projects, cb) => {
-            cb.navigate("/project/grants/new");
+            cb.navigate("/grants");
         }
     },
     {

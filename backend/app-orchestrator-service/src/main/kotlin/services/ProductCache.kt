@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.ReadWriterMutex
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement

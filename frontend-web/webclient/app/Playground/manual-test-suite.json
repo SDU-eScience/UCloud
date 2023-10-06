@@ -237,10 +237,10 @@
         "Filter by product type",
         "Change sub-allocations"
     ],
-    "/project/grants/ingoing": [
+    "/grants/ingoing": [
         "(issue #2923) Filter grant applications by all/active/inactive"
     ],
-    "/project/grants/view": [
+    "/grants?id=XXX": [
         {
             "Approve/reject application": [
                 "Reference ID",

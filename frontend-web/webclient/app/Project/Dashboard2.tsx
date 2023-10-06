@@ -1,8 +1,8 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {Text, Flex, Card, Icon, Link} from "@/ui-components";
-import {default as Api, isAdminOrPI, Project, useProjectFromParams} from "./Api";
+import {Flex, Card, Icon, Link} from "@/ui-components";
+import {isAdminOrPI, useProjectFromParams} from "./Api";
 import {GridCardGroup} from "@/ui-components/Grid";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
@@ -14,9 +14,8 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {shorten} from "@/Utilities/TextUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {PageV2} from "@/UCloud";
-import {browseGrantApplications} from "./Grant/GrantApplicationTypes";
 import {emptyPageV2} from "@/DefaultObjects";
-import {GrantApplicationFilter} from "./Grant";
+import * as Grants from "@/Grants";
 
 // Primary user interface
 // ================================================================================
@@ -39,10 +38,10 @@ const ProjectDashboard: React.FunctionComponent = () => {
     React.useEffect(() => {
         if (projectId && !isPersonalWorkspace) {
             fetchGrants({
-                ...browseGrantApplications({
+                ...Grants.browse({
                     includeIngoingApplications: true,
                     includeOutgoingApplications: false,
-                    filter: GrantApplicationFilter.ACTIVE,
+                    filter: Grants.ApplicationFilter.ACTIVE,
                     itemsPerPage: 25,
                 }),
                 projectOverride: projectId
@@ -115,7 +114,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                         {isPersonalWorkspace ? null : <>
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => navigate(`/project/grants/ingoing/${projectId ?? ""}`)}
+                                onClick={() => navigate(`/grants/ingoing/${projectId ?? ""}`)}
                                 title="Grant applications"
                                 icon="mail"
                                 color="red"

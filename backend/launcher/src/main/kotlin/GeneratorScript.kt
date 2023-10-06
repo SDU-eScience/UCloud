@@ -1,10 +1,6 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.projects.GrantDescription
-import dk.sdu.cloud.accounting.api.projects.GrantSettings
-import dk.sdu.cloud.accounting.api.projects.GrantsEnabled
-import dk.sdu.cloud.accounting.api.projects.ProjectLogo
 import dk.sdu.cloud.alerting.api.Alerting
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppStore
@@ -31,7 +27,7 @@ import dk.sdu.cloud.file.orchestrator.api.Shares
 import dk.sdu.cloud.file.orchestrator.api.SharesControl
 import dk.sdu.cloud.file.orchestrator.api.SharesProvider
 import dk.sdu.cloud.grant.api.Gifts
-import dk.sdu.cloud.grant.api.Grants
+import dk.sdu.cloud.grant.api.GrantsV2
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.news.api.News
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -139,11 +135,7 @@ fun generateCode() {
                         "grants",
                         "Grants",
                         listOf(
-                            Chapter.Feature("grants", "Allocation Process", Grants),
-                            Chapter.Feature("grant-admin", "Grant Administration", GrantsEnabled),
-                            Chapter.Feature("grant-settings", "Grant Settings", GrantSettings),
-                            Chapter.Feature("grant-settings-logo", "Grant Settings (Logo)", ProjectLogo),
-                            Chapter.Feature("grant-settings-description", "Grant Settings (Description)", GrantDescription),
+                            Chapter.Feature("grants", "Allocation Process", GrantsV2),
                             Chapter.Feature("gifts", "Gifts", Gifts)
                         )
                     )

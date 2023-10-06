@@ -39,7 +39,7 @@ import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
 import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
-import {isAllocationSuitableForSubAllocation} from "@/Project/Grant";
+import {isAllocationSuitableForSubAllocation} from "@/Grants";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 
 function titleForSubAllocation(alloc: SubAllocation): string {

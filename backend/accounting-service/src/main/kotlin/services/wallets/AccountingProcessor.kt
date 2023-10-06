@@ -17,7 +17,6 @@ import dk.sdu.cloud.accounting.api.WalletOwner as ApiWalletOwner
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.detail
 import dk.sdu.cloud.grant.api.GrantApplication
-import dk.sdu.cloud.grant.api.ProjectWithTitle
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.*
@@ -2756,3 +2755,5 @@ private fun <T> Sequence<T>.takeIfNotEmpty(): Sequence<T>? {
     if (!iterator.hasNext()) return null
     return Sequence { iterator }
 }
+
+private data class ProjectWithTitle(val projectId: String, val title: String)

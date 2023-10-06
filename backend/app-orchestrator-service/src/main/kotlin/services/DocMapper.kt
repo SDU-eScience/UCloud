@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.app.orchestrator.api.ComputeSupport

@@ -84,7 +84,9 @@ class GiftService(
                 """
             ).rows
 
-            if (rows.isEmpty()) { throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest) }
+            if (rows.isEmpty()) {
+                throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
+            }
 
             rows.forEach { row ->
                 val balance = row.getLong(0)!!
@@ -107,7 +109,7 @@ class GiftService(
                             owner = WalletOwner.User(actorAndProject.actor.safeUsername()),
                             parentAllocation = sourceAllocation.id,
                             quota = balance,
-                            grantedIn =  null,
+                            grantedIn = null,
                             start = Time.now(),
                             //gifts ends after 1 year
                             end = Time.now() + (1000L * 3600 * 24 * 365),
@@ -179,7 +181,7 @@ class GiftService(
                     }
 
                     gift.resources.split {
-                        into("h") {it.period}
+                        into("h") { it.period }
                         into("resource_cat_name") { it.category }
                         into("resource_provider") { it.provider }
                         into("credits") { it.balanceRequested }

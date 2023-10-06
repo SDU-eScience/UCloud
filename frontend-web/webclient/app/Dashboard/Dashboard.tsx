@@ -20,11 +20,7 @@ import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
-import {
-    GrantApplicationFilter,
-    IngoingGrantApplicationsResponse,
-} from "@/Project/Grant";
-import {GrantApplicationList} from "@/Project/Grant/GrantApplications";
+import {GrantApplicationList} from "@/Grants/GrantApplications";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
@@ -48,7 +44,7 @@ import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
+import * as Grants from "@/Grants";
 import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
@@ -74,12 +70,12 @@ function Dashboard(props: DashboardProps): JSX.Element {
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
 
-    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<PageV2<GrantApplication>>(
+    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<PageV2<Grants.Application>>(
         {noop: true},
         emptyPageV2
     );
 
-    const [ingoingApps, fetchIngoingApps] = useCloudAPI<IngoingGrantApplicationsResponse>(
+    const [ingoingApps, fetchIngoingApps] = useCloudAPI<PageV2<Grants.Application>>(
         {noop: true},
         emptyPageV2
     );
@@ -104,17 +100,17 @@ function Dashboard(props: DashboardProps): JSX.Element {
             includeBalance: true,
             includeMaxBalance: true
         }));
-        fetchOutgoingApps(browseGrantApplications({
+        fetchOutgoingApps(Grants.browse({
             itemsPerPage: 10,
             includeIngoingApplications: false,
             includeOutgoingApplications: true,
-            filter: GrantApplicationFilter.ACTIVE
+            filter: Grants.ApplicationFilter.ACTIVE
         }));
-        fetchIngoingApps(browseGrantApplications({
+        fetchIngoingApps(Grants.browse({
             itemsPerPage: 10,
             includeIngoingApplications: true,
             includeOutgoingApplications: false,
-            filter: GrantApplicationFilter.ACTIVE
+            filter: Grants.ApplicationFilter.ACTIVE
         }));
         fetchFavoriteFiles(metadataApi.browse({
             filterActive: true,
@@ -387,7 +383,7 @@ function DashboardResources({products}: {
         return (a.balance < b.balance) ? 1 : -1;
     });
 
-    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
+    const applyLinkButton = <Link to={"/grants"} mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 
@@ -438,16 +434,16 @@ function DashboardResources({products}: {
 }
 
 const DashboardGrantApplications: React.FunctionComponent<{
-    outgoingApps: APICallState<PageV2<GrantApplication>>,
-    ingoingApps: APICallState<PageV2<GrantApplication>>
+    outgoingApps: APICallState<PageV2<Grants.Application>>,
+    ingoingApps: APICallState<PageV2<Grants.Application>>
 }> = ({outgoingApps, ingoingApps}) => {
     const none = outgoingApps.data.items.length === 0 && ingoingApps.data.items.length === 0;
     const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
-    const title = (none ? <Link to={`/project/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant applications</Heading.h3></Link>
+    const title = (none ? <Link to={`/grants/outgoing/${Client.projectId ?? MY_WORKSPACE}`}><Heading.h3>Grant applications</Heading.h3></Link>
         : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}/${Client.projectId ?? MY_WORKSPACE}`}>
+            : <Link to={`/grants/${anyOutgoing ? "outgoing" : "ingoing"}/${Client.projectId ?? MY_WORKSPACE}`}>
                 <Heading.h3>Grant Applications</Heading.h3>
             </Link>
     );

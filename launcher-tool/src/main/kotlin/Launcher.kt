@@ -630,12 +630,21 @@ fun registerProvider(providerId: String, domain: String, port: Int): ProviderCre
     callService(
         "backend",
         "POST",
-        "http://localhost:8080/api/grant/setEnabled",
+        "http://localhost:8080/api/grants/v2/updateRequestSettings",
         accessToken,
         //language=json
         """
           {
-            "items": [{ "projectId":  "$projectId", "enabledStatus": true }]
+            "enabled": true,
+            "description": "An example grant allocator allocating for $providerId",
+            "allowRequestsFrom": [{ "type":"anyone" }],
+            "excludeRequestsFrom": [],
+            "templates": {
+              "type": "plain_text",
+              "personalProject": "Please describe why you are applying for resources",
+              "newProject": "Please describe why you are applying for resources",
+              "existingProject": "Please describe why you are applying for resources"
+            }
           }
         """.trimIndent(),
 
@@ -643,31 +652,6 @@ fun registerProvider(providerId: String, domain: String, port: Int): ProviderCre
             "-H", "Project: $projectId"
         )
     ) ?: error("Failed to mark project as grant giver")
-
-    callService(
-        "backend",
-        "POST",
-        "http://localhost:8080/api/grant/settings/upload",
-        accessToken,
-        //language=json
-        """
-          {
-            "type":"bulk",
-            "items":[
-              {
-                "projectId":"$projectId",
-                "automaticApproval": { "from":[], "maxResources":[] },
-                "allowRequestsFrom":[{ "type":"anyone" }],
-                "excludeRequestsFrom":[]
-              }
-            ]
-          }
-        """.trimIndent(),
-
-        opts = listOf(
-            "-H", "Project: $projectId"
-        )
-    ) ?: error("Failed to mark project as grant giver (2)")
 
     callService(
         "backend",

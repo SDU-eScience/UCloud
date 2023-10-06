@@ -368,7 +368,7 @@ export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
 }
 
 function WarningToOptions(props: {errorCode: string}): JSX.Element {
-    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/projects/browser/personal";
+    const applyPath = "/grants";
 
     switch (props.errorCode) {
         case MISSING_COMPUTE_CREDITS:

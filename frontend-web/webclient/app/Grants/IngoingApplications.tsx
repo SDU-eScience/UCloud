@@ -1,5 +1,5 @@
 import React from "react";
-import GrantApplications from "@/Project/Grant/GrantApplications";
+import GrantApplications from "@/Grants/GrantApplications";
 
 const IngoingApplications: React.FunctionComponent = () => {
     return <GrantApplications ingoing />

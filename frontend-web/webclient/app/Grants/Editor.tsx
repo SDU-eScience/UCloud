@@ -4,7 +4,7 @@ import {injectStyle} from "@/Unstyled";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Button, Checkbox, Icon, Input, Select, TextArea, theme} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
-import {Logo} from "@/Project/Grant/ProjectBrowser";
+import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {BulkResponse, FindByLongId, PageV2} from "@/UCloud";
@@ -13,22 +13,8 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
 import * as Accounting from "@/Accounting";
 import * as Projects from "@/Project/Api";
-import {
-    closeApplication,
-    Comment,
-    commentOnGrantApplication,
-    deleteGrantApplicationComment,
-    Document, editApplicationRequest,
-    fetchGrantApplication,
-    GrantApplication,
-    Period,
-    Revision,
-    State as GrantState,
-    State,
-    submitApplicationRequest, transferApplication, updateState,
-} from "@/Project/Grant/GrantApplicationTypes";
+import {useProjectId} from "@/Project/Api";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {bulkRequestOf} from "@/DefaultObjects";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {getQueryParam} from "@/Utilities/URIUtilities";
@@ -40,7 +26,6 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {useProjectId} from "@/Project/Api";
 
 // State model
 // =====================================================================================================================
@@ -62,7 +47,7 @@ interface EditorState {
 
     stateDuringEdit?: {
         id: string;
-        storedApplication: GrantApplication;
+        storedApplication: Grants.Application;
         wallets: Accounting.WalletV2[];
         activeRevision: number;
         title: string;
@@ -106,8 +91,8 @@ const defaultState: EditorState = {
 // State reducer
 // =====================================================================================================================
 type EditorAction =
-    { type: "GrantLoaded", grant: GrantApplication, wallets: Accounting.WalletV2[] }
-    | { type: "AllocatorsLoaded", allocators: Grants.Allocator[] }
+    { type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[] }
+    | { type: "AllocatorsLoaded", allocators: Grants.GrantGiver[] }
     | { type: "DurationUpdated", startYear: number }
     | { type: "AllocatorChecked", isChecked: boolean, allocatorId: string }
     | { type: "BalanceUpdated", provider: string, category: string, allocator: string, balance: number | null }
@@ -119,7 +104,7 @@ type EditorAction =
     | { type: "SourceAllocationUpdated", provider: string, category: string, allocator: string, allocationId?: string }
     | { type: "ReferenceIdUpdated", newReferenceId: string }
     | { type: "CommentPosted", comment: string, grantId: string }
-    | { type: "CommentsReloaded", comments: Comment[] }
+    | { type: "CommentsReloaded", comments: Grants.Comment[] }
     | { type: "CommentDeleted", grantId: string, commentId: string }
     | { type: "Unlock" }
     | { type: "OpenRevision", revision: number }
@@ -171,16 +156,42 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 .filter(it => action.allocators.some(other => it.id === other.id));
             const newResources: EditorState["resources"] = {...state.resources};
 
+            let templateKey: keyof Grants.Templates = "newProject";
+            if (state.stateDuringCreate) {
+                if (state.stateDuringCreate.creatingWorkspace) {
+                    templateKey = "newProject";
+                } else if (state.stateDuringCreate.reference) {
+                    templateKey = "existingProject";
+                } else {
+                    templateKey = "personalProject";
+                }
+            } else {
+                const recipient = state.stateDuringEdit?.storedApplication?.currentRevision?.document?.recipient;
+                if (recipient) {
+                    switch (recipient.type) {
+                        case "personalWorkspace":
+                            templateKey= "personalProject";
+                            break;
+                        case "newProject":
+                            templateKey = "newProject";
+                            break;
+                        case "existingProject":
+                            templateKey = "existingProject";
+                            break;
+                    }
+                }
+            }
+
             let i = 0;
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
                 if (!existing) {
                     newAllocators.push({
                         id: allocator.id, title: allocator.title, description: allocator.description,
-                        template: allocator.template, checked: false
+                        template: allocator.templates[templateKey], checked: false
                     });
-                } else if (existing.template !== allocator.template) {
-                    newAllocators[i] = {...existing, template: allocator.template};
+                } else if (existing.template !== allocator.templates[templateKey]) {
+                    newAllocators[i] = {...existing, template: allocator.templates[templateKey]};
                 }
 
                 for (const category of allocator.categories) {
@@ -209,7 +220,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const allSections = calculateNewApplication(
                 action.allocators
                     .filter(it => newAllocators.find(existing => existing.id === it.id)?.checked === true)
-                    .map(it => it.template)
+                    .map(it => it.templates[templateKey])
             );
 
             return {
@@ -418,7 +429,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                             ...state.stateDuringEdit.storedApplication.status,
                             stateBreakdown: state.stateDuringEdit.storedApplication.status.stateBreakdown.map(it => {
                                 if (it.projectId === action.grantGiver) {
-                                    return { ...it, state: action.approved ? State.APPROVED : State.REJECTED};
+                                    return {
+                                        ...it,
+                                        state: action.approved ? Grants.State.APPROVED : Grants.State.REJECTED
+                                    };
                                 } else {
                                     return it;
                                 }
@@ -606,7 +620,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 // =====================================================================================================================
 type EditorEvent =
     EditorAction
-    | { type: "Init", grantId?: string, scrollToTop?: boolean, affiliationRequest?: Grants.RetrieveAffiliations2Request }
+    | { type: "Init", grantId?: string, scrollToTop?: boolean, affiliationRequest?: Grants.RetrieveGrantGiversRequest }
     | { type: "Withdraw", id: string }
     ;
 
@@ -623,7 +637,7 @@ function useStateReducerMiddleware(
 
         switch (event.type) {
             case "Init": {
-                let affiliationRequest: Grants.RetrieveAffiliations2Request;
+                let affiliationRequest: Grants.RetrieveGrantGiversRequest;
                 if (event.grantId) {
                     affiliationRequest = {type: "ExistingApplication", id: event.grantId};
                 } else {
@@ -631,7 +645,7 @@ function useStateReducerMiddleware(
                 }
                 if (event.affiliationRequest) affiliationRequest = event.affiliationRequest;
 
-                const pAffiliations = callAPI(Grants.retrieveAffiliations2(affiliationRequest));
+                const pAffiliations = callAPI(Grants.retrieveGrantGivers(affiliationRequest));
 
                 const projectPromise = callAPI(
                     Projects.api.browse({
@@ -641,10 +655,10 @@ function useStateReducerMiddleware(
 
                 if (event.grantId) {
                     try {
-                        const pApp = fetchGrantApplication({id: event.grantId});
+                        const pApp = callAPI(Grants.retrieve({id: event.grantId}));
 
                         const affiliations = await pAffiliations;
-                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.allocators});
+                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers});
 
                         const application = await pApp;
 
@@ -675,8 +689,8 @@ function useStateReducerMiddleware(
                     }
                 } else {
                     dispatch({type: "SetIsCreating"});
-                    const {allocators} = await pAffiliations;
-                    dispatch({type: "AllocatorsLoaded", allocators});
+                    const affiliations = await pAffiliations;
+                    dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers});
                 }
 
                 const projectPage = await projectPromise;
@@ -693,19 +707,19 @@ function useStateReducerMiddleware(
 
             case "CommentPosted": {
                 dispatch(event);
-                await callAPI(commentOnGrantApplication({
-                    grantId: event.grantId,
+                await callAPI(Grants.postComment({
+                    applicationId: event.grantId,
                     comment: event.comment
                 }));
-                const app = await fetchGrantApplication({ id: event.grantId });
+                const app = await callAPI(Grants.retrieve({ id: event.grantId }));
                 dispatch({ type: "CommentsReloaded", comments: app.status.comments });
                 break;
             }
 
             case "CommentDeleted": {
                 dispatch(event);
-                await callAPI(deleteGrantApplicationComment({
-                    grantId: event.grantId,
+                await callAPI(Grants.deleteComment({
+                    applicationId: event.grantId,
                     commentId: event.commentId
                 }));
                 break;
@@ -713,7 +727,10 @@ function useStateReducerMiddleware(
 
             case "Withdraw": {
                 await callAPIWithErrorHandler(
-                    closeApplication(bulkRequestOf({applicationId: event.id})),
+                    Grants.updateState({
+                        applicationId: event.id,
+                        newState: Grants.State.CLOSED,
+                    }),
                 );
                 dispatchEvent({ type: "Init", grantId: event.id });
                 break;
@@ -723,11 +740,10 @@ function useStateReducerMiddleware(
                 dispatch(event);
                 await callAPIWithErrorHandler(
                     {
-                        ...updateState(bulkRequestOf({
+                        ...Grants.updateState({
                             applicationId: event.grantId,
-                            newState: event.approved ? State.APPROVED : State.REJECTED,
-                            notify: true,
-                        })),
+                            newState: event.approved ? Grants.State.APPROVED : Grants.State.REJECTED,
+                        }),
                         projectOverride: event.grantGiver
                     }
                 );
@@ -1012,7 +1028,7 @@ export const Editor: React.FunctionComponent = () => {
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
     const location = useLocation();
     const navigate = useNavigate();
-    const projectId = useProjectId();
+    useProjectId();
 
     useEffect(() => {
         (async () => {
@@ -1101,7 +1117,7 @@ export const Editor: React.FunctionComponent = () => {
         dispatchEvent({type: "DurationUpdated", startYear: newYear});
     }, [dispatchEvent]);
 
-    const onUnlock = useCallback<React.FormEventHandler>(ev => {
+    const onUnlock = useCallback(() => {
         dispatchEvent({ type: "Unlock" });
     }, [dispatchEvent]);
 
@@ -1122,7 +1138,7 @@ export const Editor: React.FunctionComponent = () => {
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
 
-        const doc: Document = {
+        const doc: Grants.Doc = {
             recipient: stateToCreationRecipient(state)!,
             referenceId: null,
             revisionComment: null,
@@ -1133,14 +1149,17 @@ export const Editor: React.FunctionComponent = () => {
 
         dispatchEvent({type: "LoadingStateChange", isLoading: true});
         try {
-            const response = await callAPIWithErrorHandler<BulkResponse<FindByLongId>>(
-                submitApplicationRequest(bulkRequestOf({document: doc}))
+            const response = await callAPIWithErrorHandler(
+                Grants.submitRevision({
+                    revision: doc,
+                    comment: "Submitted the application",
+                })
             );
 
             if (!response) return;
 
-            const grantId = response.responses[0].id;
-            history.replaceState(null, "", `${window.location.pathname}?id=${grantId}`); // Purposefully, do not trigger react-router
+            const grantId = response.id;
+            navigate(`${window.location.pathname.replace("/app", "")}?id=${grantId}`);
             dispatchEvent({type: "Init", grantId: grantId.toString(),scrollToTop: true});
         } finally {
             dispatchEvent({type: "LoadingStateChange", isLoading: false});
@@ -1170,10 +1189,9 @@ export const Editor: React.FunctionComponent = () => {
             validator: text => text.length > 0
         });
 
-        const doc: Document = {
+        const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
-            referenceId: editState.referenceId ?? null,
-            revisionComment: revisionCommentResult.result,
+            referenceId: editState.referenceId,
             allocationRequests: stateToRequests(state),
             form: stateToApplication(state),
             parentProjectId: currentDoc.parentProjectId
@@ -1181,10 +1199,11 @@ export const Editor: React.FunctionComponent = () => {
 
         dispatchEvent({ type: "LoadingStateChange", isLoading: true});
         try {
-            await callAPIWithErrorHandler(editApplicationRequest(bulkRequestOf({
+            await callAPIWithErrorHandler(Grants.submitRevision({
                 applicationId: editState.id,
-                document: doc,
-            })));
+                revision: doc,
+                comment: revisionCommentResult.result,
+            }));
 
             dispatchEvent({ type: "Init", grantId: editState.id });
         } finally {
@@ -1197,16 +1216,16 @@ export const Editor: React.FunctionComponent = () => {
 
         await callAPIWithErrorHandler(
             {
-                ...transferApplication(bulkRequestOf({
-                    applicationId: parseInt(state.stateDuringEdit?.id),
-                    transferToProjectId: destination,
-                    revisionComment: "Transferring to a different grant giver: " + comment
-                })),
+                ...Grants.transfer({
+                    applicationId: state.stateDuringEdit?.id,
+                    target: destination,
+                    comment: "Transferring to a different grant giver: " + comment
+                }),
                 projectOverride: source,
             }
         );
 
-        navigate("/project/grants/ingoing");
+        navigate("/grants/ingoing");
     }, [navigate, state.stateDuringEdit?.id]);
 
     const onCommentPosted = useCallback((comment: string) => {
@@ -1293,7 +1312,7 @@ export const Editor: React.FunctionComponent = () => {
         const recipient = stateToCreationRecipient(state);
         if (!recipient || !state.stateDuringCreate) return;
 
-        let req: Grants.RetrieveAffiliations2Request | undefined = undefined;
+        let req: Grants.RetrieveGrantGiversRequest | undefined = undefined;
 
         switch (recipient?.type) {
             case "existingProject":
@@ -1320,7 +1339,7 @@ export const Editor: React.FunctionComponent = () => {
     const historicEntry = activeRevision == null ? null :
         state.stateDuringEdit!.storedApplication.status.revisions.find(it => it.revisionNumber === activeRevision);
     const isReadyToApprove: boolean = !state.stateDuringEdit ? false : (() => {
-        for (const [provider, categories] of Object.entries(state.resources)) {
+        for (const [, categories] of Object.entries(state.resources)) {
             const categoriesAreFilled = categories.every(it => {
                 const allocationSet = new Set(Object.keys(it.sourceAllocations))
                 return Object.keys(it.balanceRequested).every(it => allocationSet.has(it));
@@ -1331,9 +1350,9 @@ export const Editor: React.FunctionComponent = () => {
         return true;
     })();
 
-    const hasRecentlyBeenClosed =
+    const isClosed =
         state.stateDuringEdit &&
-        state.stateDuringEdit.storedApplication.status.overallState !== GrantState.IN_PROGRESS;
+        state.stateDuringEdit.storedApplication.status.overallState !== Grants.State.IN_PROGRESS;
 
     const overallState = state.stateDuringEdit?.storedApplication?.status?.overallState
 
@@ -1369,7 +1388,7 @@ export const Editor: React.FunctionComponent = () => {
                                     </Button>
                                 }
 
-                                {state.stateDuringEdit && (overallState === GrantState.IN_PROGRESS || hasRecentlyBeenClosed) && <>
+                                {state.stateDuringEdit && (overallState === Grants.State.IN_PROGRESS || isClosed) && <>
                                     {state.locked && <Button onClick={onUnlock}>Edit this request</Button>}
                                     {!state.locked && <>
                                         <ConfirmationButton actionText={"Discard changes"} icon={"heroTrash"} color={"red"}
@@ -1378,21 +1397,21 @@ export const Editor: React.FunctionComponent = () => {
                                                             onAction={onUpdate} />
                                     </>}
 
-                                    {!hasRecentlyBeenClosed && state.stateDuringEdit.storedApplication.status.projectPI === Client.username && state.locked && <>
+                                    {!isClosed && state.stateDuringEdit.storedApplication.status.projectPI === Client.username && state.locked && <>
                                         <ConfirmationButton actionText={"Withdraw application"} icon={"heroTrash"} color={"red"}
                                                             onAction={onWithdraw} />
                                     </>}
                                 </>}
 
-                                {state.stateDuringEdit && overallState === GrantState.CLOSED && <>
+                                {state.stateDuringEdit && overallState === Grants.State.CLOSED && <>
                                     <b>This application was withdrawn.</b>
                                 </>}
 
-                                {state.stateDuringEdit && overallState === GrantState.APPROVED && <>
+                                {state.stateDuringEdit && overallState === Grants.State.APPROVED && <>
                                     <b>This application was approved.</b>
                                 </>}
 
-                                {state.stateDuringEdit && overallState === GrantState.REJECTED && <>
+                                {state.stateDuringEdit && overallState === Grants.State.REJECTED && <>
                                     <b>This application was rejected.</b>
                                 </>}
                             </>
@@ -1483,7 +1502,7 @@ export const Editor: React.FunctionComponent = () => {
                             >
                                 <label>
                                     When should the allocation start?
-                                    <Select value={state.startYear} onChange={onPeriodUpdated} disabled={state.locked || hasRecentlyBeenClosed}>
+                                    <Select value={state.startYear} onChange={onPeriodUpdated} disabled={state.locked || isClosed}>
                                         {yearOptions.map(it => <option value={it.value} key={it.value}>{it.text}</option>)}
                                     </Select>
                                 </label>
@@ -1525,16 +1544,22 @@ export const Editor: React.FunctionComponent = () => {
                                     adminOfProjects={state.loadedProjects}
                                     isEditing={state.stateDuringEdit !== undefined}
                                     onStateChange={onStateChange}
-                                    replaceApproval={!isReadyToApprove || isViewingHistoricEntry || !state.locked ? <>
-                                        {!isViewingHistoricEntry && state.locked && <>
+                                    replaceApproval={!isReadyToApprove || isViewingHistoricEntry || !state.locked || isClosed ? <>
+                                        {!isViewingHistoricEntry && state.locked && !isClosed && <>
                                             <Button onClick={onUnlock} mr={8}>Set allocations (required to approve)</Button>
                                         </>}
                                     </> : undefined}
-                                    replaceReject={isViewingHistoricEntry || !state.locked ? <>
-                                        {isViewingHistoricEntry &&
-                                            <>You cannot approve/reject a request while viewing an old version.</>}
-                                        {!state.locked &&
-                                            <>You cannot approve/reject while you are editing an application.</>}
+                                    replaceReject={isViewingHistoricEntry || !state.locked || isClosed  ? <>
+                                        {isClosed ?
+                                            <>This application has been closed.</> :
+                                            <>
+                                                {isViewingHistoricEntry &&
+                                                    <>You cannot approve/reject a request while viewing an old version.</>}
+                                                {!state.locked &&
+                                                    <>You cannot approve/reject while you are editing an application.</>}
+                                            </>
+                                        }
+
                                     </>: undefined
                                     }
                                     state={state.stateDuringEdit?.storedApplication?.status
@@ -1613,7 +1638,7 @@ export const Editor: React.FunctionComponent = () => {
                                                             <Input id={`${providerId}/${category.category.name}/${allocatorId}`}
                                                                    type={"number"} placeholder={"0"} onInput={onResourceInput}
                                                                    min={0} value={category.balanceRequested[allocatorId] ?? ""}
-                                                                   disabled={state.locked || hasRecentlyBeenClosed}/>
+                                                                   disabled={state.locked || isClosed}/>
                                                         </label>
                                                         {allocationsToSelectFrom !== undefined &&
                                                             <label style={{width: "50%"}}>
@@ -1622,7 +1647,7 @@ export const Editor: React.FunctionComponent = () => {
                                                                     id={`alloc/${providerId}/${category.category.name}/${allocatorId}`}
                                                                     onChange={onSourceAllocationUpdated}
                                                                     value={category.sourceAllocations[allocatorId] ?? "null"}
-                                                                    disabled={state.locked || hasRecentlyBeenClosed}
+                                                                    disabled={state.locked || isClosed}
                                                                 >
                                                                     {!allocationsToSelectFrom &&
                                                                         <option disabled>No suitable allocations found</option>}
@@ -1668,7 +1693,7 @@ export const Editor: React.FunctionComponent = () => {
                                     return <FormField title={val.title} key={idx} id={`${val.title}`}
                                                       description={val.description} mandatory={val.mandatory}>
                                         <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.limit}
-                                                  required={val.mandatory} disabled={state.locked || hasRecentlyBeenClosed}
+                                                  required={val.mandatory} disabled={state.locked || isClosed}
                                                   value={state.applicationDocument[val.title] ?? ""}
                                                   onChange={onApplicationChange}/>
                                     </FormField>
@@ -1723,7 +1748,7 @@ const TransferPrompt: React.FunctionComponent<{
 }
 
 function transferProject(allocators: EditorState["allocators"]): Promise<{ targetId: string, comment: string } | null> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const callback = (targetId: string, comment: string) => {
             resolve({targetId, comment});
             dialogStore.success();
@@ -1748,8 +1773,8 @@ function transferProject(allocators: EditorState["allocators"]): Promise<{ targe
 // Comments
 // ---------------------------------------------------------------------------------------------------------------------
 const CommentSection: React.FunctionComponent<{
-    comments: Comment[];
-    revisions: Revision[];
+    comments: Grants.Comment[];
+    revisions: Grants.Revision[];
     disabled: boolean;
     onCommentPosted: (newComment: string) => void;
     onCommentDeleted: (commentId: string) => void;
@@ -1781,8 +1806,8 @@ const CommentSection: React.FunctionComponent<{
         }
     }, [props.onCommentDeleted]);
 
-    const entries: (Comment | Revision)[] = useMemo(() => {
-        const result: (Comment | Revision)[] = [...props.comments, ...props.revisions];
+    const entries: (Grants.Comment | Grants.Revision)[] = useMemo(() => {
+        const result: (Grants.Comment | Grants.Revision)[] = [...props.comments, ...props.revisions];
         result.sort((a, b) => {
             if (a.createdAt < b.createdAt) return -1;
             if (a.createdAt > b.createdAt) return 1;
@@ -1833,7 +1858,6 @@ const CommentSection: React.FunctionComponent<{
                 let username: string;
                 let comment: React.ReactNode;
                 let commentId: string | null = null;
-                let revisionId: number | null = null;
                 let action: React.ReactNode;
 
                 if ("comment" in entry) {
@@ -1930,7 +1954,7 @@ const GrantGiver: React.FunctionComponent<{
     onChange: (projectId: string, checked: boolean) => void;
     isEditing: boolean;
     adminOfProjects: { id: string | null, title: string }[];
-    state?: GrantState;
+    state?: Grants.State;
     onStateChange: (projectId: string, approved: boolean) => void;
     replaceApproval?: React.ReactNode;
     replaceReject?: React.ReactNode;
@@ -1969,7 +1993,7 @@ const GrantGiver: React.FunctionComponent<{
     return <div className={"grant-giver"}>
         <div className={"grow"}>
             <label htmlFor={checkboxId}>
-                <Logo projectId={props.projectId} size={`${size}px`}/>
+                <ProjectLogo projectId={props.projectId} size={`${size}px`}/>
                 {props.title}
             </label>
             {!props.isEditing &&
@@ -1994,7 +2018,7 @@ const GrantGiver: React.FunctionComponent<{
                 />
             </div>
         }
-        {props.isEditing && isAdmin && props.state === GrantState.IN_PROGRESS && <>
+        {props.isEditing && isAdmin && props.state === Grants.State.IN_PROGRESS && <>
             {!props.replaceApproval && !props.replaceReject && props.onTransfer && <>
                 <Button onClick={startTransfer} mr={8} width={"50px"} height={"40px"}>
                     <Icon name={"heroArrowUpTray"} />
@@ -2010,11 +2034,11 @@ const GrantGiver: React.FunctionComponent<{
                 <ConfirmationButton color={"red"} icon={"heroXMark"} onAction={onReject} height={40} />
             </>}
         </>}
-        {props.isEditing && (!isAdmin || props.state !== GrantState.IN_PROGRESS) && props.state && <>
-            {props.state === GrantState.APPROVED && <Icon name={"heroCheck"} color={"green"} />}
-            {props.state === GrantState.REJECTED && <Icon name={"heroXMark"} color={"red"} />}
-            {props.state === GrantState.CLOSED && <Icon name={"heroXMark"} color={"red"} />}
-            {props.state === GrantState.IN_PROGRESS && <Icon name={"heroMinus"} color={"gray"} />}
+        {props.isEditing && (!isAdmin || props.state !== Grants.State.IN_PROGRESS) && props.state && <>
+            {props.state === Grants.State.APPROVED && <Icon name={"heroCheck"} color={"green"} />}
+            {props.state === Grants.State.REJECTED && <Icon name={"heroXMark"} color={"red"} />}
+            {props.state === Grants.State.CLOSED && <Icon name={"heroXMark"} color={"red"} />}
+            {props.state === Grants.State.IN_PROGRESS && <Icon name={"heroMinus"} color={"gray"} />}
         </>}
     </div>
 }
@@ -2174,7 +2198,7 @@ function stateToYearOptions(state: EditorState): { value: string, text: string }
     return yearOptions;
 }
 
-function stateToApplication(state: EditorState): Document["form"] {
+function stateToApplication(state: EditorState): Grants.Doc["form"] {
     let builder = "";
     for (const section of state.application) {
         builder += section.title;
@@ -2191,8 +2215,8 @@ function stateToApplication(state: EditorState): Document["form"] {
     return {type: "plain_text", text: builder};
 }
 
-function stateToRequests(state: EditorState): Document["allocationRequests"] {
-    const result: Document["allocationRequests"] = [];
+function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
+    const result: Grants.Doc["allocationRequests"] = [];
     const startOfYear = new Date();
     startOfYear.setUTCFullYear(state.startYear, 0, 1);
     startOfYear.setUTCHours(0, 0, 0, 0);
@@ -2201,7 +2225,7 @@ function stateToRequests(state: EditorState): Document["allocationRequests"] {
     endOfYear.setUTCFullYear(state.startYear, 11, 31);
     endOfYear.setUTCHours(23, 59, 59, 999);
 
-    const period: Period = {
+    const period: Grants.Period = {
         start: startOfYear.getTime(),
         end: endOfYear.getTime()
     };
@@ -2235,11 +2259,11 @@ function stateToRequests(state: EditorState): Document["allocationRequests"] {
     return result;
 }
 
-function stateToCreationRecipient(state: EditorState): Document["recipient"] | null {
+function stateToCreationRecipient(state: EditorState): Grants.Doc["recipient"] | null {
     const creationState = state.stateDuringCreate;
     if (!creationState) return null;
 
-    let recipient: Document["recipient"];
+    let recipient: Grants.Doc["recipient"];
     if (creationState.creatingWorkspace) {
         recipient = {
             type: "newProject",

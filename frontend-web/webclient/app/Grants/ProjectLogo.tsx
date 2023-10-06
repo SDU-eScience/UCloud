@@ -1,4 +1,3 @@
-// This file can probably be renamed.
 import * as React from "react";
 import {useState} from "react";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -11,12 +10,11 @@ interface LogoProps {
     cacheBust?: string;
 }
 
-
-export const Logo: React.FunctionComponent<LogoProps> = props => {
+export const ProjectLogo: React.FunctionComponent<LogoProps> = props => {
     const [hasLoadedImage, setLoadedImage] = useState(true);
     const size = props.size !== undefined ? props.size : "40px";
 
-    const url = Client.computeURL("/api", buildQueryString(`/grant/logo/retrieve`, props));
+    const url = Client.computeURL("/api", buildQueryString(`/grants/v2/retrieveLogo`, props));
 
     return (
         <>

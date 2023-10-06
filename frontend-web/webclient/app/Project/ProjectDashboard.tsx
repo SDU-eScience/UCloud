@@ -22,7 +22,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     const projectId = fetchedProject.id;
     const projectRole = fetchedProject.status.myRole;
     const needsVerification = fetchedProject.status.needsVerification;
-        
+
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
     }
@@ -83,7 +83,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow />}
-                                onClick={() => navigate("/project/grants/ingoing")}
+                                onClick={() => navigate("/grants/ingoing")}
                                 title="Grant Applications"
                                 icon="mail"
                                 color="red"

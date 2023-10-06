@@ -171,7 +171,7 @@ export default function SubprojectList(): JSX.Element | null {
                 parent: projectId
             })))).responses;
             dispatchSetProjectAction(dispatch, result.id);
-            navigate("/project/grants/existing/");
+            navigate("/grants");
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
         }

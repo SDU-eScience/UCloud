@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.ReadWriterMutex
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession

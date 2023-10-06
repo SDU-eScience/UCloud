@@ -1,4 +1,4 @@
-package dk.sdu.cloud.app.orchestrator.services
+package dk.sdu.cloud.service
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

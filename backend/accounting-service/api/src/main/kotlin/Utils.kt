@@ -145,7 +145,7 @@ fun translateToProductPriceUnit(productType: ProductType, productCategoryName: S
 }
 
 fun checkDeicReferenceFormat(referenceId: String?) {
-    if (referenceId != null) {
+    if (referenceId != null && referenceId.startsWith("deic-", ignoreCase = true)) {
         val errorMessage = "Error in DeiC reference id:"
         val deicUniList = listOf("KU", "DTU", "AU", "SDU", "AAU", "RUC", "ITU", "CBS")
         val splitId = referenceId.split("-")
@@ -167,14 +167,14 @@ fun checkDeicReferenceFormat(referenceId: String?) {
             !deicUniList.contains(splitId[1]) -> {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    "$errorMessage Uni value is not listed in DeiC. If you think this is a mistake, please contact UCloud"
+                    "$errorMessage Could not recognize university."
                 )
             }
 
             splitId[2].length != 2 -> {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    errorMessage + " Allocation category wrong fornat"
+                    errorMessage + " Allocation category uses the wrong format."
                 )
             }
 
@@ -188,7 +188,7 @@ fun checkDeicReferenceFormat(referenceId: String?) {
             !splitId[3].contains(Regex("""^\d+$""")) ->
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    errorMessage + " Only supports numeric local ids"
+                    errorMessage + " Only supports numeric local ids."
                 )
         }
     }
