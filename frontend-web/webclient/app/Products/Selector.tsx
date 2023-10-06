@@ -8,7 +8,7 @@ import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {Box, Button, Flex, Icon, Input, Link, theme, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
-import {grantsLink, stopPropagation} from "@/UtilityFunctions";
+import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
 import * as React from "react";
 import ReactDOM from "react-dom";
 import styled from "styled-components";
@@ -161,12 +161,16 @@ export const ProductSelector: React.FunctionComponent<{
     }
 
 
+    const arrowKeyIndex = React.useRef(-1);
+    const itemWrapperRef = React.useRef<HTMLTableSectionElement>(null);
+
     const [isOpen, setIsOpen] = React.useState(false);
     const onClose = React.useCallback(() => {
         setIsOpen(false);
     }, []);
 
     const onOpen = React.useCallback(() => {
+        arrowKeyIndex.current = -1;
         setIsOpen(true);
     }, []);
 
@@ -223,6 +227,8 @@ export const ProductSelector: React.FunctionComponent<{
 
     const showHeadings = filteredProducts.length >= 5 || categorizedProducts.some(it => it === NEED_CONNECT);
 
+
+
     return <>
         <div className={props.slim === true ? SelectorBoxClass + " slim" : SelectorBoxClass} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
             <div className="selected">
@@ -230,20 +236,20 @@ export const ProductSelector: React.FunctionComponent<{
                 {selected ? <>
                     <table>
                         <thead>
-                        <tr>
-                            {headers.map(it =>
-                                <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
-                                    {it}
-                                </th>
-                            )}
-                            <th>Price</th>
-                        </tr>
+                            <tr>
+                                {headers.map(it =>
+                                    <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
+                                        {it}
+                                    </th>
+                                )}
+                                <th>Price</th>
+                            </tr>
                         </thead>
                         <tbody>
-                        <tr>
-                            <ProductStats product={selected} />
-                            <td>{priceExplainer(selected)}</td>
-                        </tr>
+                            <tr>
+                                <ProductStats product={selected} />
+                                <td>{priceExplainer(selected)}</td>
+                            </tr>
                         </tbody>
                     </table>
                     <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
@@ -281,81 +287,133 @@ export const ProductSelector: React.FunctionComponent<{
                                     autoComplete={"off"}
                                     inputRef={searchRef}
                                     onInput={onSearchType}
+                                    onKeyDown={e => {
+                                        e.stopPropagation();
+                                        if (!itemWrapperRef.current) return;
+                                        if (["ArrowUp", "ArrowDown"].includes(e.key)) {
+                                            const isDown = e.key === "ArrowDown";
+                                            const isUp = e.key === "ArrowUp";
+
+                                            const listEntries = itemWrapperRef.current.querySelectorAll(`[data-active]`);
+                                            // If listEntries.length has changed, the active index may no longer be valid, but we may also not
+                                            // have used the keys yet, so -1 can be the active index.
+                                            arrowKeyIndex.current = clamp(arrowKeyIndex.current, -1, listEntries.length - 1);
+                                            if (listEntries.length === 0) return;
+
+                                            const oldIndex = arrowKeyIndex.current;
+                                            let behavior: "instant" | "smooth" = "instant";
+                                            if (isDown) {
+                                                arrowKeyIndex.current += 1;
+                                                if (arrowKeyIndex.current >= listEntries.length) {
+                                                    arrowKeyIndex.current = 0;
+                                                    behavior = "smooth";
+                                                }
+                                            } else if (isUp) {
+                                                arrowKeyIndex.current -= 1;
+                                                if (arrowKeyIndex.current < 0) {
+                                                    arrowKeyIndex.current = listEntries.length - 1;
+                                                    behavior = "smooth";
+                                                }
+                                            }
+
+                                            if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
+                                            listEntries.item(arrowKeyIndex.current)["style"].backgroundColor = "var(--lightBlue)";
+                                            listEntries.item(arrowKeyIndex.current).scrollIntoView({behavior, block: "nearest"});
+                                            e.stopPropagation();
+                                        } else if (e.key === "Enter") {
+                                            const items = itemWrapperRef.current.querySelectorAll("[data-active]");
+                                            if (items.length === 0) return;
+                                            if (arrowKeyIndex.current === -1) return;
+                                            const p = items.item(arrowKeyIndex.current).getAttribute("data-active") as string;
+                                            try {
+                                                props.onSelect(categorizedProducts[parseInt(p, 10)] as Product);
+                                                onClose();
+                                            } catch (e) {
+                                                console.warn("An error ocurred parsing index for array", e);
+                                            }
+                                        } else if (e.key === "Escape") {
+                                            e.stopPropagation();
+                                            if (e.target["value"] !== "") {
+                                                e.target["value"] = "";
+                                            } else {
+                                                onClose();
+                                            }
+                                        }
+                                    }}
                                 />
                             </div>
 
                             <Table>
                                 <thead>
-                                <TableRow>
-                                    <th style={{width: "32px"}} />
-                                    <th>Name</th>
-                                    {headers.map(it => <th key={it}>{it}</th>)}
-                                    <th>Price</th>
-                                </TableRow>
+                                    <TableRow>
+                                        <th style={{width: "32px"}} />
+                                        <th>Name</th>
+                                        {headers.map(it => <th key={it}>{it}</th>)}
+                                        <th>Price</th>
+                                    </TableRow>
                                 </thead>
-                                <tbody>
-                                {categorizedProducts.map((p, i) => {
-                                    if (typeof p === "string") {
-                                        if (!showHeadings) return null;
-
-                                        return <tr key={i} className="table-info">
-                                            {p === NEED_CONNECT ?
-                                                <td colSpan={3 + headers.length}>
-                                                    <div>
-                                                        <Link to="/providers/connect">
-                                                            <Icon name="warning" color="orange" mr="8px" />
-                                                            Connection required! You must connect with the provider before you can consume resources from it.
-                                                        </Link>
-                                                    </div>
-                                                </td> :
-                                                <td colSpan={3 + headers.length}>
-                                                    <div>
-                                                        <div className="spacer" />
-                                                        {p}
-                                                        <div className="spacer" />
-                                                    </div>
-                                                </td>
-                                            }
-                                        </tr>
-                                    } else {
-                                        const maintenance = (props.support ?? []).find(s =>
-                                            s.product.name === p.name &&
-                                            productCategoryEquals(s.product.category, p.category)
-                                        )?.support?.maintenance;
-
-                                        const isDisabled =
-                                            connectionState.canConnectToProvider(p.category.provider) ||
-                                            (maintenance?.availability === "NO_SERVICE" && !shouldAllowMaintenanceAccess());
-
-                                        const onClick = () => {
-                                            if (isDisabled) return;
-                                            props.onSelect(p);
-                                            onClose();
-                                        }
-
-                                        return <TableRow key={i} onClick={onClick} className={isDisabled ? "disabled" : undefined}>
-                                            <TableCell>
-                                                {maintenance ?
-                                                    <Tooltip
-                                                        trigger={
-                                                            <Icon
-                                                                name="warning"
-                                                                color={maintenanceIconColor(maintenance)}
-                                                                size={24}
-                                                            />
-                                                        }
-                                                    >
-                                                        {explainMaintenance(maintenance)}
-                                                    </Tooltip> :
-                                                    <ProviderLogo providerId={p.category.provider} size={24} />
+                                <tbody ref={itemWrapperRef}>
+                                    {categorizedProducts.map((p, i) => {
+                                        if (typeof p === "string") {
+                                            if (!showHeadings) return null;
+                                            return <tr key={i} className="table-info">
+                                                {p === NEED_CONNECT ?
+                                                    <td colSpan={3 + headers.length}>
+                                                        <div>
+                                                            <Link to="/providers/connect">
+                                                                <Icon name="warning" color="orange" mr="8px" />
+                                                                Connection required! You must connect with the provider before you can consume resources from it.
+                                                            </Link>
+                                                        </div>
+                                                    </td> :
+                                                    <td colSpan={3 + headers.length}>
+                                                        <div>
+                                                            <div className="spacer" />
+                                                            {p}
+                                                            <div className="spacer" />
+                                                        </div>
+                                                    </td>
                                                 }
-                                            </TableCell>
-                                            <TableCell><ProductName product={p} /></TableCell>
-                                            <ProductStats product={p} />
-                                            <TableCell>{priceExplainer(p)}</TableCell>
-                                        </TableRow>
-                                    }
-                                })}
+                                            </tr>
+                                        } else {
+                                            const maintenance = (props.support ?? []).find(s =>
+                                                s.product.name === p.name &&
+                                                productCategoryEquals(s.product.category, p.category)
+                                            )?.support?.maintenance;
+
+                                            const isDisabled =
+                                                connectionState.canConnectToProvider(p.category.provider) ||
+                                                (maintenance?.availability === "NO_SERVICE" && !shouldAllowMaintenanceAccess());
+
+                                            const onClick = () => {
+                                                if (isDisabled) return;
+                                                props.onSelect(p);
+                                                onClose();
+                                            }
+
+                                            return <TableRow key={i} data-active={isDisabled ? undefined : i.toString()} onClick={onClick} className={isDisabled ? "disabled" : undefined}>
+                                                <TableCell>
+                                                    {maintenance ?
+                                                        <Tooltip
+                                                            trigger={
+                                                                <Icon
+                                                                    name="warning"
+                                                                    color={maintenanceIconColor(maintenance)}
+                                                                    size={24}
+                                                                />
+                                                            }
+                                                        >
+                                                            {explainMaintenance(maintenance)}
+                                                        </Tooltip> :
+                                                        <ProviderLogo providerId={p.category.provider} size={24} />
+                                                    }
+                                                </TableCell>
+                                                <TableCell><ProductName product={p} /></TableCell>
+                                                <ProductStats product={p} />
+                                                <TableCell>{priceExplainer(p)}</TableCell>
+                                            </TableRow>
+                                        }
+                                    })}
                                 </tbody>
                             </Table>
                         </>

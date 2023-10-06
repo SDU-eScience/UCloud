@@ -1,4 +1,4 @@
-import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractDataTags, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {BoxProps} from "@/ui-components/Box";
 import * as React from "react";
 
@@ -67,6 +67,7 @@ export const TableRow: React.FunctionComponent<BoxProps & {
         className={props.className}
         style={unbox(props)}
         {...extractEventHandlers(props)}
+        {...extractDataTags(props as Record<string, string>)}
         children={props.children}
     />;
 };

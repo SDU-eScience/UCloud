@@ -42,7 +42,7 @@ export function extractDataTags(props: Record<string, string>): Record<string, s
     const dataTags = Object.keys(props).filter(it => it.startsWith("data-"));
     const result: Record<string, string> = {};
     for (const t of dataTags) {
-        result[t] = dataTags[t];
+        result[t] = props[t];
     }
     return result;
 }

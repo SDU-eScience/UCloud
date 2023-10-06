@@ -80,7 +80,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     status: {},
                     specification: {title: "", product: {id: "", category: "", provider: ""}},
                     id: collectionBeingCreated,
-                    owner: {createdBy: "", },
+                    owner: {createdBy: Client.username ?? "", },
                     updates: [],
                     permissions: {myself: []}
                 };

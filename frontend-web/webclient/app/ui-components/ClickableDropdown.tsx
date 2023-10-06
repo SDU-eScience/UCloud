@@ -246,7 +246,6 @@ function _onKeyDown(
     entryKey: string,
     onSelect: ((el: Element | undefined) => void) | undefined
 ) {
-    debugger;
     if (!wrapper.current) return;
     const isUp = e.key === "ArrowUp";
     const isDown = e.key === "ArrowDown";
@@ -257,7 +256,7 @@ function _onKeyDown(
     }
 
     const listEntries = wrapper.current?.querySelectorAll(`[${entryKey}]`);
-    // If filter has changed, the active index may no longer be valid, but we may also not
+    // If listEntries.length has changed, the active index may no longer be valid, but we may also not
     // have used the keys yet, so -1 can be the active index.
     index.current = clamp(index.current, -1, listEntries.length - 1);
     if (listEntries.length === 0) return;
