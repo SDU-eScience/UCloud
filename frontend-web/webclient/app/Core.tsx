@@ -48,8 +48,6 @@ const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
-const ExperimentalFileBrowse = React.lazy(() => import("@/Files/ExperimentalBrowse"));
-const ExperimentalDriveBrowse = React.lazy(() => import("@/Files/ExperimentalDriveBrowse"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import {Sidebar} from "@/ui-components/Sidebar";
@@ -76,16 +74,14 @@ import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
-import FilesApi from "@/UCloud/FilesApi";
-import FileCollectionsApi from "@/UCloud/FileCollectionsApi";
-
-import ExperimentalJobs from "./Applications/Jobs/ExperimentalJobs";
 import {ExperimentalNetworkIP} from "./Applications/NetworkIP/ExperimentalBrowse";
 import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
 import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
 import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
 import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
 import {IngoingSharesBrowse} from "@/Files/Shares";
+import {JobsRouter} from "./Applications/Jobs/Router";
+import {DrivesRouter, FilesRouter} from "./Files/Router";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -106,13 +102,9 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={AppRoutes.dashboard.dashboardB()}
                             element={React.createElement(requireAuth(Dashboard))} />
-                        {/* Kind of a hardcoded solution, removing the generalised solution fro ResourceBrowse */}
-                        <Route path={"/drives/properties/:id"} element={React.createElement(requireAuth(FileCollectionsApi.Properties), {api: FileCollectionsApi})} />
-                        <Route path={"/drives/"} element={React.createElement(requireAuth(ExperimentalDriveBrowse))} />
-                        {/* Kind of a hardcoded solution, removing the generalised solution fro ResourceBrowse */}
-                        <Route path={`/files/properties/:id/`} element={React.createElement(requireAuth(FilesApi.Properties), {api: FilesApi})} />
-                        {/* Hardcoded solution end */}
-                        <Route path={"/files/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
+                        <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
+                        <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
+
                         <Route path={AppRoutes.users.registration()} element={<Registration />} />
                         <Route path={AppRoutes.users.verifyEmail()} element={<VerifyEmail />} />
                         <Route path={AppRoutes.users.verifyResult()} element={<VerifyResult />} />
@@ -127,11 +119,16 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(Applications))} />
                         <Route path={AppRoutes.apps.overview()}
                             element={React.createElement(requireAuth(ApplicationsOverview))} />
+
+                        {/* Is this actually in use */}
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 
                         {!inDevEnvironment() ? null :
                             <Route path="/MANUAL-TESTING-OVERVIEW" element={<ManualTestingOverview />} />
                         }
+
+                        <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
+
 
                         <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobShell))} />
@@ -141,7 +138,6 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(JobVnc))} />
 
                         <Route path={AppRoutes.resources.publicLinks()} element={React.createElement(requireAuth(ExperimentalPublicLinks))} />
-                        <Route path={AppRoutes.jobs.list()} element={React.createElement(requireAuth(ExperimentalJobs))} />
 
                         <Route path="/licenses/" element={React.createElement(requireAuth(ExperimentalLicenses))} />
 
