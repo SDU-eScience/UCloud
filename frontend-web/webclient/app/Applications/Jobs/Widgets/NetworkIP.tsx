@@ -2,7 +2,6 @@ import * as React from "react";
 import {default as ReactModal} from "react-modal";
 import {Flex, Input} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
 import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
 import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
@@ -13,6 +12,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {checkProviderMismatch} from "../Create";
+import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;

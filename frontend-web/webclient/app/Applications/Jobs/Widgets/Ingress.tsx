@@ -8,11 +8,12 @@ import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {useCloudCommand} from "@/Authentication/DataHook";
-import IngressBrowse from "@/Applications/Ingresses/Browse";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
+import {ExperimentalPublicLinks} from "@/Applications/Ingresses/ExperimentalBrowse";
+import IngressBrowse from "@/Applications/Ingresses/Browse";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -93,6 +94,10 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
+            <ExperimentalPublicLinks 
+            
+                
+            />
             <IngressBrowse
                 computeProvider={props.provider}
                 onSelect={onUse}

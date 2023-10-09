@@ -9,7 +9,6 @@ const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
-const ShareRouter = React.lazy(() => import("@/Files/Shares"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
@@ -44,8 +43,6 @@ const RegisterProvider = React.lazy(() => import("@/Admin/Providers/Approve"));
 const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
-const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router"));
-const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
@@ -65,7 +62,6 @@ import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import JobRouter from "@/Applications/Jobs/Browse";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
@@ -121,11 +117,10 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.users.verifyEmail()} element={<VerifyEmail />} />
                         <Route path={AppRoutes.users.verifyResult()} element={<VerifyResult />} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
+                        <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse))} />
                         <Route path="/shares/outgoing" element={React.createElement(requireAuth(OutgoingSharesBrowse))} />
                         <Route path={"/shares/invite/:id"}
                             element={React.createElement(requireAuth(SharesAcceptLink))} />
-                        <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse))} />
-                        <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} />
                         <Route path={AppRoutes.syncthing.syncthing()}
                             element={React.createElement(requireAuth(SyncthingOverview))} />
                         <Route path={AppRoutes.apps.applications()}
@@ -146,15 +141,11 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(JobVnc))} />
 
                         <Route path={AppRoutes.resources.publicLinks()} element={React.createElement(requireAuth(ExperimentalPublicLinks))} />
-                        <Route path="/public-links/*" element={React.createElement(requireAuth(IngressRouter))} />
                         <Route path={AppRoutes.jobs.list()} element={React.createElement(requireAuth(ExperimentalJobs))} />
-                        <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
 
                         <Route path="/licenses/" element={React.createElement(requireAuth(ExperimentalLicenses))} />
-                        <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
 
                         <Route path="/public-ips/" element={React.createElement(ExperimentalNetworkIP)} />
-                        <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
 
                         <Route path={"/ssh-keys"} element={React.createElement(requireAuth(ExperimentalSSHKey))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
