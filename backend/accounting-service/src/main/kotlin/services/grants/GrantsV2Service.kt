@@ -672,7 +672,7 @@ class GrantsV2Service(
         }
 
         ctx.withSession { session ->
-            val existingSettings = retrieveRequestSettings(ActorAndProject.System, session)
+            val existingSettings = retrieveRequestSettings(actorAndProject, session)
             val allowList =
                 if (isUCloudAdmin || existingSettings.enabled) newSettings.allowRequestsFrom
                 else emptyList()

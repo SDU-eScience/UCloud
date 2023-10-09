@@ -1434,7 +1434,7 @@ class AccountingProcessor(
 
     @Suppress("DEPRECATION")
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
-        if (authorizeProvider(request.actor, request.productCategory)) return AccountingResponse.Error("Forbidden", 403)
+        if (!authorizeProvider(request.actor, request.productCategory)) return AccountingResponse.Error("Forbidden", 403)
         if (request.dryRun) return check(request)
 
         when (request) {
@@ -2089,8 +2089,8 @@ class AccountingProcessor(
 
     private fun authorizeProvider(actor: Actor, category: ProductCategoryIdV2): Boolean {
         val username = actor.safeUsername()
-        if (username.startsWith("_")) return false
-        if (!username.startsWith(AuthProviders.PROVIDER_PREFIX)) return true
+        if (username.startsWith("_")) return true
+        if (!username.startsWith(AuthProviders.PROVIDER_PREFIX)) return false
         return username.removePrefix(AuthProviders.PROVIDER_PREFIX) == category.provider
     }
 
