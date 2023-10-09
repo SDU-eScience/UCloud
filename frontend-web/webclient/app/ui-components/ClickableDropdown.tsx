@@ -10,7 +10,6 @@ import {clamp} from "@/UtilityFunctions";
 
 export interface ClickableDropdownProps<T> {
     trigger: React.ReactNode;
-    children?: React.ReactNode;
     options?: {text: string; value: T}[];
 
     keepOpenOnClick?: boolean;
@@ -33,7 +32,18 @@ export interface ClickableDropdownProps<T> {
     useMousePositioning?: boolean;
     paddingControlledByContent?: boolean;
 
+    /**
+     *   Intended usage is that either:
+     *       
+     *       - User (programmer) adds the `arrowkeyNavigationKey` to the passed `children`, that the dropdown renders
+     *   
+     *   With the above in mind, the `onSelect` function will be called on pressing "Enter", but unless the key is provided,
+     *   nothing will happen, so adding `onSelect` without `arrowkeyNavigationKey` has no effect.
+     **/
     arrowkeyNavigationKey?: string; // e.g. "data-entry";
+    /**
+     * Requires `arrowkeyNavigationKey` to be set or that `props.children` are provided.
+     **/
     onSelect?: (el: HTMLElement | undefined) => void;
 
     chevron?: boolean;
@@ -118,7 +128,8 @@ function ClickableDropdown<T>({
 
     const handleKeyPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
         if (props.arrowkeyNavigationKey) {
-            _onKeyDown(event, divRef, counter, props.arrowkeyNavigationKey, props.onSelect)
+            const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
+            _onKeyDown(event, divRef, counter, navigationKey, props.onSelect)
         }
 
         if (event.key === "Escape" && open) {
@@ -150,6 +161,7 @@ function ClickableDropdown<T>({
                 cursor="pointer"
                 width="auto"
                 key={i}
+                data-active={""}
                 onClick={() => onChange!(opt.value)}
             >
                 {opt.text}

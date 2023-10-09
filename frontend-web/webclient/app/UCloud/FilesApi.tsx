@@ -536,25 +536,28 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                                    await cb.invokeCommand(
-                                        this.copy({
-                                            type: "bulk",
-                                            items: selected.map(file => ({
-                                                oldId: file.id,
-                                                conflictPolicy: "RENAME",
-                                                newId: target + "/" + fileName(file.id)
-                                            }))
-                                        })
-                                    );
-
-                                    cb.reload();
-
-                                    dialogStore.success();
+                                    try {
+                                        await cb.invokeCommand(
+                                            this.copy({
+                                                type: "bulk",
+                                                items: selected.map(file => ({
+                                                    oldId: file.id,
+                                                    conflictPolicy: "RENAME",
+                                                    newId: target + "/" + fileName(file.id)
+                                                }))
+                                            })
+                                        );
+                                        cb.reload();
+                                        dialogStore.success();
+                                    } catch (e) {
+                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
+                                    }
                                 }
                             },
+                            additionalFilters: {
+                                filterProvider: selected[0].specification.product.provider
+                            },
                             initialPath: pathRef.current,
-                            providerFilter: selected[0].specification.product.provider
                         }} />,
                         doNothing,
                         true,
@@ -585,24 +588,26 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 onSelect: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
-                                    await cb.invokeCommand(
-                                        this.move({
-                                            type: "bulk",
-                                            items: selected.map(file => ({
-                                                oldId: file.id,
-                                                conflictPolicy: "RENAME",
-                                                newId: target + "/" + fileName(file.id)
-                                            }))
-                                        })
-                                    );
-
-                                    cb.reload();
-
-                                    dialogStore.success();
+                                    try {
+                                        await cb.invokeCommand(
+                                            this.move({
+                                                type: "bulk",
+                                                items: selected.map(file => ({
+                                                    oldId: file.id,
+                                                    conflictPolicy: "RENAME",
+                                                    newId: target + "/" + fileName(file.id)
+                                                }))
+                                            })
+                                        );
+                                        cb.reload();
+                                        dialogStore.success();
+                                    } catch (e) {
+                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
+                                    }
                                 }
                             },
                             initialPath: pathRef.current,
-                            providerFilter: selected[0].specification.product.provider
+                            additionalFilters: {filterProvider: selected[0].specification.product.provider}
                         }} />
                     </>,
                         doNothing,

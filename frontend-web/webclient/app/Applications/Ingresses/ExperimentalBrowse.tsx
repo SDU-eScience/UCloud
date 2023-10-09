@@ -11,7 +11,7 @@ import IngressApi, {Ingress, IngressSupport} from "@/UCloud/IngressApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -29,6 +29,7 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
     rowTitles: true,
+    dragToSelect: true,
 };
 
 
@@ -36,7 +37,7 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, Ingre
     globalTtl: 60_000
 });
 
-export function ExperimentalPublicLinks(): JSX.Element {
+export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Ingress> | null>(null);
     const dispatch = useDispatch();
@@ -150,7 +151,8 @@ export function ExperimentalPublicLinks(): JSX.Element {
 
                     callAPI(IngressApi.browse({
                         ...defaultRetrieveFlags,
-                        ...browser.browseFilters
+                        ...browser.browseFilters,
+                        ...opts.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -165,7 +167,8 @@ export function ExperimentalPublicLinks(): JSX.Element {
                         IngressApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts.additionalFilters
                         })
                     )
 

@@ -73,9 +73,13 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         }
     }, []);
 
-    const filters = React.useMemo(() => ({
-        filterState: "READY"
-    }), []);
+    const filters = React.useMemo(() => {
+        const filters = {
+            filterState: "READY",
+        };
+        if (props.provider) filters["filterProvider"] = props.provider;
+        return filters;
+    }, []);
 
     return (<Flex>
         <Input
@@ -94,20 +98,16 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <ExperimentalPublicLinks 
-            
-                
-            />
-            <IngressBrowse
-                computeProvider={props.provider}
-                onSelect={onUse}
-                additionalFilters={filters}
-                onSelectRestriction={res => {
-                    const errorMessage = checkProviderMismatch(res, "Public links");
-                    if (errorMessage) return errorMessage;
-                    return res.status.boundTo.length === 0;
+            <ExperimentalPublicLinks
+                selection={{
+                    onSelect: onUse,
+                    onSelectRestriction(res) {
+                        const errorMessage = checkProviderMismatch(res, "Public links");
+                        if (errorMessage) return errorMessage;
+                        return res.status.boundTo.length === 0;
+                    }
                 }}
-                browseType={BrowseType.Embedded}
+                additionalFilters={filters}
             />
         </ReactModal>
     </Flex>);

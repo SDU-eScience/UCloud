@@ -160,17 +160,8 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     });
 
                     if (opts?.selection) {
-                        if (opts.selection.onSelectRestriction(job) === true) {
-                            // Repeated in ExperimentalBrowse (Files)
-                            const button = document.createElement("button");
-                            button.innerText = "Use";
-                            button.className = ButtonClass;
-                            button.style.height = "32px";
-                            button.style.width = "64px";
-                            button.onclick = e => {
-                                e.stopImmediatePropagation();
-                                opts.selection?.onSelect(job);
-                            }
+                        const button = browser.defaultButtonRenderer(opts.selection, job);
+                        if (button) {
                             row.stat3.replaceChildren(button);
                         }
                     } else {

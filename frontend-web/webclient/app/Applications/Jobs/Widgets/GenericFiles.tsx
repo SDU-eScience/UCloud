@@ -52,38 +52,40 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const pathRef = {current: ""};
         const provider = getProviderField();
         dialogStore.addDialog(
-            <ExperimentalBrowse opts={{
-                embedded: true,
-                initialPath: "",
-                selection: {
-                    onSelect: async res => {
-                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                        if (props.errors[props.parameter.name]) {
-                            delete props.errors[props.parameter.name];
-                            props.setErrors({...props.errors});
-                        }
-                        FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
-                        WidgetSetProvider(props.parameter, res.specification.product.provider);
-                        dialogStore.success();
-                        if (anyFolderDuplicates()) {
-                            props.setWarning?.("Duplicate folders selected. This is not always supported.");
-                        }
-                    },
-                    onSelectRestriction: file => {
-                        const fileProvider = file.specification.product.provider;
-                        const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
-                        const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
-                        if (provider && provider !== fileProvider) {
-                            if (isCorrectlyDir) {
-                                return providerMismatchError("Folders", fileProvider);
-                            } else if (isCorrectlyFile) {
-                                return providerMismatchError("Files", fileProvider)
+            <ExperimentalBrowse
+                opts={{
+                    additionalFilters: {filterProvider: provider ?? ""},
+                    embedded: true,
+                    initialPath: "",
+                    selection: {
+                        onSelect: async res => {
+                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                            if (props.errors[props.parameter.name]) {
+                                delete props.errors[props.parameter.name];
+                                props.setErrors({...props.errors});
                             }
+                            FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+                            WidgetSetProvider(props.parameter, res.specification.product.provider);
+                            dialogStore.success();
+                            if (anyFolderDuplicates()) {
+                                props.setWarning?.("Duplicate folders selected. This is not always supported.");
+                            }
+                        },
+                        onSelectRestriction: file => {
+                            const fileProvider = file.specification.product.provider;
+                            const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+                            const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+                            if (provider && provider !== fileProvider) {
+                                if (isCorrectlyDir) {
+                                    return providerMismatchError("Folders", fileProvider);
+                                } else if (isCorrectlyFile) {
+                                    return providerMismatchError("Files", fileProvider)
+                                }
+                            }
+                            return isCorrectlyDir || isCorrectlyFile;
                         }
-                        return isCorrectlyDir || isCorrectlyFile;
                     }
-                }, providerFilter: provider
-            }} />,
+                }} />,
             doNothing,
             true,
             FilesApi.fileSelectorModalStyle

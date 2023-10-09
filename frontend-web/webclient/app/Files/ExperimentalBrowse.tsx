@@ -95,7 +95,7 @@ const FEATURES: ResourceBrowseFeatures = {
 }
 
 const rowTitles: RowTitleList = [{name: "Name", filterName: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", filterName: "MODIFIED_AT"}, {name: "Size", filterName: "SIZE"}];
-function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string, initialPath?: string}}): JSX.Element {
+function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -717,18 +717,9 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     }
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
 
-                    // Repeated in ExperimentalJobs
                     if (opts?.selection) {
-                        if (opts.selection.onSelectRestriction(file) === true) {
-                            const button = document.createElement("button");
-                            button.innerText = "Use";
-                            button.className = ButtonClass
-                            button.style.height = "32px";
-                            button.style.width = "64px";
-                            button.onclick = e => {
-                                e.stopImmediatePropagation();
-                                opts.selection?.onSelect(file);
-                            }
+                        const button = browser.defaultButtonRenderer(opts.selection, file);
+                        if (button) {
                             row.stat3.replaceChildren(button);
                         }
                     } else {
@@ -880,7 +871,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                                 FileCollectionsApi.browse({
                                     itemsPerPage: 250,
                                     filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                                    filterProvider: opts?.providerFilter,
+                                    ...opts?.additionalFilters
                                 })
                             ).then(res => res.items)
                         ).then(doNothing);
@@ -985,7 +976,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                                     FileCollectionsApi.browse({
                                         itemsPerPage: 250,
                                         filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                                        filterProvider: opts?.providerFilter,
+                                        ...opts?.additionalFilters
                                     })
                                 ).then(res => res.items)
                             ).then(doNothing);
@@ -1023,12 +1014,11 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     lastFetch[path] = now;
                     delete browser.emptyReasons[path];
 
-                    const promise = callAPI(FilesApi.browse({path, ...defaultRetrieveFlags, ...browser.browseFilters}))
+                    const promise = callAPI(FilesApi.browse({path, ...defaultRetrieveFlags, ...browser.browseFilters, ...opts?.additionalFilters}))
                         .then(result => {
                             browser.registerPage(result, path, true);
                             return false;
-                        })
-                        .catch(err => {
+                        }).catch(err => {
                             // TODO(Dan): This partially contains logic which can be re-used.
                             const statusCode = err["request"]?.["status"] ?? 500;
                             const errorCode: string | null = err["response"]?.["errorCode"]?.toString() ?? null;
@@ -1094,7 +1084,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         .retrieve(collectionId, () => callAPI(FileCollectionsApi.retrieve({
                             id: collectionId,
                             includeOthers: true,
-                            includeSupport: true
+                            includeSupport: true,
+                            ...opts?.additionalFilters
                         }))).then(() => {
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
@@ -1135,7 +1126,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                             path,
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     );
 
@@ -1312,7 +1304,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     FileCollectionsApi.browse({
                         itemsPerPage: 10,
                         filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                        filterProvider: opts?.providerFilter,
+                        ...opts.additionalFilters,
                     })
                 ).then(res => {
                     const [first] = res.items;

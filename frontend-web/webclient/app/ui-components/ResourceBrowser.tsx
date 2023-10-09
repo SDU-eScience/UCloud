@@ -25,13 +25,14 @@ import {isAdminOrPI} from "@/Project/Api";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
-import {TruncateClass} from "./Truncate";
+import {ButtonClass} from "./Button";
+import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
-    additionalFilters?: Record<string, string>;
+    additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     embedded?: boolean;
     omitFilters?: boolean;
     disabledKeyhandlers?: boolean;
@@ -1032,6 +1033,23 @@ export class ResourceBrowser<T> {
         icon.style.display = "inline-block";
         icon.style.backgroundPosition = "center";
         return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
+    }
+
+    public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T) {
+        if (!selection) return;
+        if (selection.onSelectRestriction(item) === true) {
+            const button = document.createElement("button");
+            button.innerText = "Use";
+            button.className = ButtonClass;
+            button.style.height = "32px";
+            button.style.width = "64px";
+            button.onclick = e => {
+                e.stopImmediatePropagation();
+                selection?.onSelect(item);
+            }
+            return button;
+        }
+        return null
     }
 
     defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
