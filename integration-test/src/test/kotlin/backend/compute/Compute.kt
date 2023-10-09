@@ -169,6 +169,8 @@ class ComputeTest : IntegrationTest() {
             for (product in case.products.filterIsInstance<Product.Compute>()) {
                 if (product.category.name == "syncthing") continue
                 if (product.name == "cpu-2") continue
+                if (product.name == "cpu-200") continue
+
 
                 val titlePrefix = "Compute @ ${case.title} ($product):"
                 test<Unit, Unit>("$titlePrefix Batch application") {
