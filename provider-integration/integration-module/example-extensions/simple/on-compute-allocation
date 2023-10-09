@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+import os
+import sys
+import json
+from helper import *
+
+if os.getuid() != 0:
+    os.execvp('sudo', ['sudo'] + sys.argv)
+
+with open(sys.argv[1]) as fp:
+    request = json.load(fp)
+
+balance = request['balance']
+owner = request['owner']
+owner_type = owner['type']
+slurm_account = None
+
+if owner_type == 'user':
+    slurm_account = get_username_by_uid(owner['uid'])
+elif owner_type == 'project':
+    slurm_account = get_group_by_gid(owner['gid'])
+else:
+    sys.exit(f'Unknown owner type: {owner_type}')
+
+if slurm_account is None:
+    sys.exit('Could not resolve slurm account')
+
+if not slurm_account_set_quota(slurm_account, balance):
+    sys.exit('Failed to update slurm quota')
+
+print('{ "type": "ucloud_managed" }')

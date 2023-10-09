@@ -1,1 +1,1 @@
-ucloud  ALL= NOPASSWD: /opt/ucloud/example-extensions/oidc-extension, /opt/ucloud/example-extensions/project-extension, /opt/ucloud/example-extensions/ucloud-connection, /opt/ucloud/example-extensions/on-compute-allocation, /opt/ucloud/example-extensions/on-storage-allocation
+ucloud ALL=(ALL) NOPASSWD: /usr/bin/ucloud, /etc/ucloud/extensions/*
