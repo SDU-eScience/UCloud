@@ -8,12 +8,10 @@ import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {useCloudCommand} from "@/Authentication/DataHook";
-import IngressApi, {Ingress} from "@/UCloud/IngressApi";
-import {BrowseType} from "@/Resource/BrowseType";
+import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
-import {ExperimentalPublicLinks} from "@/Applications/Ingresses/ExperimentalBrowse";
-import IngressBrowse from "@/Applications/Ingresses/Browse";
+import {ExperimentalPublicLinks} from "@/Applications/PublicLinks/ExperimentalBrowse";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -29,7 +27,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         setOpen(false)
     }, [setOpen]);
 
-    const onUse = useCallback((network: Ingress) => {
+    const onUse = useCallback((network: PublicLink) => {
         IngressSetter(props.parameter, {type: "ingress", id: network.id});
         WidgetSetProvider(props.parameter, network.specification.product.provider);
         if (props.errors[props.parameter.name]) {
@@ -56,7 +54,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                 const visual = visualInput();
                 if (visual) {
                     try {
-                        const ingress = await invokeCommand<Ingress>(IngressApi.retrieve({id: id}), {defaultErrorHandler: false});
+                        const ingress = await invokeCommand<PublicLink>(PublicLinkApi.retrieve({id: id}), {defaultErrorHandler: false});
                         visual.value = ingress?.specification.domain ?? "Address not found";
                     } catch (e) {
                         snackbarStore.addFailure("Failed to import custom links.", false);

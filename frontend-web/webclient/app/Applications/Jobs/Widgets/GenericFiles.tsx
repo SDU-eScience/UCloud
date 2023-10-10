@@ -51,10 +51,11 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const onActivate = useCallback(() => {
         const pathRef = {current: ""};
         const provider = getProviderField();
+        const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};
         dialogStore.addDialog(
             <ExperimentalBrowse
                 opts={{
-                    additionalFilters: {filterProvider: provider ?? ""},
+                    additionalFilters: additionalFilters,
                     embedded: true,
                     initialPath: "",
                     selection: {

@@ -59,11 +59,19 @@ export const Create: React.FunctionComponent = () => {
         return null;
     }
 
+
+
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
         null
     );
+
+    if (applicationResp) {
+        useTitle(`${applicationResp.data?.metadata.name} ${applicationResp.data?.metadata.version}`);
+    } else {
+        useTitle(`${appName} ${appVersion}`);
+    }
 
     const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
         {noop: true},

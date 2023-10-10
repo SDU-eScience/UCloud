@@ -7,7 +7,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
-import IngressApi, {Ingress, IngressSupport} from "@/UCloud/IngressApi";
+import PublicLinkApi, {PublicLink, PublicLinkSupport} from "@/UCloud/PublicLinkApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
@@ -33,13 +33,13 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 
-const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, IngressSupport>>({
+const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, PublicLinkSupport>>({
     globalTtl: 60_000
 });
 
-export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX.Element {
+export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
-    const browserRef = React.useRef<ResourceBrowser<Ingress> | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("Public links");
@@ -51,7 +51,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Ingress>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<PublicLink>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
                 browser.setRowTitles([{name: "Domain"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 let startCreation: () => void = doNothing;
@@ -66,17 +66,17 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                     updates: [],
                     permissions: {myself: []},
                     domain: ""
-                } as Ingress;
+                } as PublicLink;
 
                 const supportPromise = supportByProvider.retrieve("", () =>
-                    callAPI(IngressApi.retrieveProducts())
+                    callAPI(PublicLinkApi.retrieveProducts())
                 );
 
                 supportPromise.then(res => {
                     browser.renderOperations();
 
                     const creatableProducts: Product[] = [];
-                    const ingressSupport: IngressSupport[] = [];
+                    const ingressSupport: PublicLinkSupport[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
                             creatableProducts.push(product);
@@ -106,7 +106,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                             browser.renamePrefix = support.domainPrefix;
                             browser.renameSuffix = support.domainSuffix;
 
-                            const ingressBeingCreated: Ingress = {
+                            const ingressBeingCreated: PublicLink = {
                                 ...dummyEntry,
                                 id: temporaryFakeId,
                                 specification: {
@@ -120,7 +120,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                             browser.selectAndShow(it => it === ingressBeingCreated);
 
                             try {
-                                const response = (await callAPI(IngressApi.create(bulkRequestOf({
+                                const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
                                     domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference
                                 })))).responses[0] as unknown as FindByStringId;
@@ -149,7 +149,13 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                         return;
                     }
 
-                    callAPI(IngressApi.browse({
+                    console.log(PublicLinkApi.browse({
+                        ...defaultRetrieveFlags,
+                        ...browser.browseFilters,
+                        ...opts.additionalFilters
+                    }));
+
+                    callAPI(PublicLinkApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,
                         ...opts.additionalFilters
@@ -164,7 +170,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                 browser.on("wantToFetchNextPage", async path => {
                     /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
-                        IngressApi.browse({
+                        PublicLinkApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
@@ -289,7 +295,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                 });
 
                 browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
-                    const callbacks: ResourceBrowseCallbacks<Ingress> = {
+                    const callbacks: ResourceBrowseCallbacks<PublicLink> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         embedded: false,
@@ -300,13 +306,13 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: Ingress): void { },
-                        viewProperties(res: Ingress): void {
-                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
+                        startRenaming(resource: PublicLink): void { },
+                        viewProperties(res: PublicLink): void {
+                            navigate(AppRoutes.resource.properties("public-links", res.id));
                         },
                         commandLoading: false,
                         invokeCommand: callAPI,
-                        api: IngressApi,
+                        api: PublicLinkApi,
                         isCreating: false
                     };
 
@@ -316,7 +322,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<Ingress>): JSX
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    return IngressApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
+                    return PublicLinkApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
                 });
 
                 browser.on("pathToEntry", entry => entry.id);

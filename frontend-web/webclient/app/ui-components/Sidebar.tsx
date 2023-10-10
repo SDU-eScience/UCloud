@@ -3,7 +3,6 @@ import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {
     copyToClipboard,
-    isLightThemeStored,
     joinToString,
     useFrameHidden
 } from "@/UtilityFunctions";
@@ -13,7 +12,7 @@ import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import Text, {EllipsedText, TextClass, TextSpan} from "./Text";
+import Text, {EllipsedText, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback} from "react";
@@ -208,7 +207,6 @@ interface SidebarMenuElements {
 export const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
-    SidebarMenuElements,
 ] = [
         {
             items: [
@@ -219,7 +217,6 @@ export const sideBarMenuElements: [
                 {icon: "heroServer", label: "Runs", to: "/jobs/"}
             ], predicate: () => Client.isLoggedIn
         },
-        {items: [], predicate: () => Client.isLoggedIn},
         {items: [{icon: "heroBolt", label: "Admin"}], predicate: () => Client.userIsAdmin}
     ];
 

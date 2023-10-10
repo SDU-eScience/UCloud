@@ -188,10 +188,10 @@ export function ExperimentalNetworkIP(): JSX.Element {
 
                 browser.on("renderRow", (ip, row, dims) => {
                     if (ip.id !== DUMMY_ENTRY_ID) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
                         const icon = providerIcon(ip.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
                     }
                 });
 
@@ -241,17 +241,14 @@ export function ExperimentalNetworkIP(): JSX.Element {
                             // TODO
                         },
                         viewProperties(res: NetworkIP): void {
-                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
+                            navigate(AppRoutes.resource.properties("public-ips", res.id));
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
                         api: NetworkIPApi,
                         isCreating: false
                     };
-
                     return callbacks;
-
-
                 });
 
                 browser.on("fetchOperations", () => {

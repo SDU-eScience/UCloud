@@ -74,14 +74,13 @@ import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
-import {ExperimentalNetworkIP} from "./Applications/NetworkIP/ExperimentalBrowse";
 import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
-import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
-import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
 import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {JobsRouter} from "./Applications/Jobs/Router";
 import {DrivesRouter, FilesRouter} from "./Files/Router";
+import LicenseRouter from "./Applications/Licenses";
+import PublicLinksRouter from "./Applications/PublicLinks/Router";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -137,11 +136,9 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobVnc))} />
 
-                        <Route path={AppRoutes.resources.publicLinks()} element={React.createElement(requireAuth(ExperimentalPublicLinks))} />
-
-                        <Route path="/licenses/" element={React.createElement(requireAuth(ExperimentalLicenses))} />
-
-                        <Route path="/public-ips/" element={React.createElement(ExperimentalNetworkIP)} />
+                        <Route path={"/public-links/*"} element={React.createElement(requireAuth(PublicLinksRouter))} />
+                        <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
+                        <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
 
                         <Route path={"/ssh-keys"} element={React.createElement(requireAuth(ExperimentalSSHKey))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />

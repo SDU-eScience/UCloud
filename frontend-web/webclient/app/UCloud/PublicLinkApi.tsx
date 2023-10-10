@@ -2,7 +2,8 @@ import * as React from "react";
 import {
     ProductSupport,
     Resource,
-    ResourceApi, ResourceBrowseCallbacks, ResourceIncludeFlags,
+    ResourceApi,
+    ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
@@ -10,44 +11,44 @@ import {
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {ProductIngress} from "@/Accounting";
+import {ProductIngress as ProductPublicLink} from "@/Accounting";
 
-export interface IngressSpecification extends ResourceSpecification {
+export interface PublicLinkSpecification extends ResourceSpecification {
     domain: string;
 }
 
-export type IngressState = "READY" | "PREPARING" | "UNAVAILABLE";
+export type PublicLinkState = "READY" | "PREPARING" | "UNAVAILABLE";
 
-export interface IngressStatus extends ResourceStatus {
+export interface PublicLinkStatus extends ResourceStatus {
     boundTo: string[];
-    state: IngressState;
+    state: PublicLinkState;
 }
 
-export interface IngressSupport extends ProductSupport {
+export interface PublicLinkSupport extends ProductSupport {
     domainPrefix: string;
     domainSuffix: string;
 }
 
-export interface IngressUpdate extends ResourceUpdate {
-    state?: IngressState;
+export interface PublicLinkUpdate extends ResourceUpdate {
+    state?: PublicLinkState;
     didBind: boolean;
     newBinding?: string;
 }
 
-export interface IngressFlags extends ResourceIncludeFlags {
+export interface PublicLinkFlags extends ResourceIncludeFlags {
     filterState?: string;
 }
 
-export type Ingress = Resource<IngressUpdate, IngressStatus, IngressSpecification>;
+export type PublicLink = Resource<PublicLinkUpdate, PublicLinkStatus, PublicLinkSpecification>;
 
-class IngressApi extends ResourceApi<Ingress, ProductIngress, IngressSpecification, IngressUpdate,
-    IngressFlags, IngressStatus, IngressSupport> {
+class PublicLinkApi extends ResourceApi<PublicLink, ProductPublicLink, PublicLinkSpecification, PublicLinkUpdate,
+    PublicLinkFlags, PublicLinkStatus, PublicLinkSupport> {
     routingNamespace = "public-links";
     title = "Public Link";
     productType = "INGRESS" as const;
 
-    renderer: ItemRenderer<Ingress> = {
-        Icon({resource, size}) {return <Icon name={"globeEuropeSolid"} size={size}/>},
+    renderer: ItemRenderer<PublicLink> = {
+        Icon({resource, size}) {return <Icon name={"globeEuropeSolid"} size={size} />},
         MainTitle({resource}) {return <>{resource?.specification?.domain ?? ""}</>}
     };
 
@@ -85,4 +86,4 @@ class IngressApi extends ResourceApi<Ingress, ProductIngress, IngressSpecificati
     }
 }
 
-export default new IngressApi();
+export default new PublicLinkApi();
