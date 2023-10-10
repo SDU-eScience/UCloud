@@ -45,7 +45,7 @@ import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router";
-import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
+import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 import {ResourceLinks} from "@/Resource/ResourceOptions";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";

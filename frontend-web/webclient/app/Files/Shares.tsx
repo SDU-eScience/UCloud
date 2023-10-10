@@ -22,7 +22,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";

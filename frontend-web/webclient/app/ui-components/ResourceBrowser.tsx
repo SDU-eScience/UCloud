@@ -3543,14 +3543,14 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     outer.className = "provider-icon"
     outer.style.background = "var(--blue)";
     outer.style.borderRadius = "8px";
-    outer.style.width = outer.style.minWidth = opts?.width ?? "40px";
-    outer.style.height = outer.style.minHeight = opts?.height ?? "40px";
+    outer.style.width = outer.style.minWidth = opts?.width ?? "20px";
+    outer.style.height = outer.style.minHeight = opts?.height ?? "20px";
 
     const inner = div("");
     inner.style.backgroundSize = "contain";
     inner.style.width = "100%";
     inner.style.height = "100%";
-    inner.style.fontSize = opts?.fontSize ?? "30px";
+    inner.style.fontSize = opts?.fontSize ?? "14px";
     inner.style.color = "white"
     if (myInfo) {
         outer.style.padding = "5px";

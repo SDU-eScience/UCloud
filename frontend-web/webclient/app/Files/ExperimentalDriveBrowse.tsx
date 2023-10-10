@@ -9,7 +9,6 @@ import {
     resourceCreationWithProductSelector,
     providerIcon,
     checkIsWorkspaceAdmin,
-    Filter,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -291,9 +290,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 // =========================================================================================================
                 browser.on("renderRow", (drive, row, dims) => {
                     if (drive.specification.product.provider) {
-                        const pIcon = providerIcon(drive.specification.product.provider, {
-                            fontSize: "14px", width: "20px", height: "20px"
-                        });
+                        const pIcon = providerIcon(drive.specification.product.provider);
                         pIcon.style.marginRight = "8px";
                         row.title.append(pIcon);
                     }
