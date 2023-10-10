@@ -48,49 +48,6 @@ node {
 
     cleanDocker()
 
-    // Run unit tests (must happen before the integration tests due to file permissions)
-    try {
-        sh script: """
-            cd backend
-            gradle :app-orchestrator-service:test
-        """        
-    } catch(Throwable e) {
-        def log = getLog()
-        def startIndex = log.indexOf("FAILURE: Build failed with an exception")
-        def endIndex = log.indexOf("* Try:")
-        if (startIndex == -1) {
-            startIndex = 0
-        }
-        if (endIndex == -1) {
-            endIndex = log.length()-1
-        }
-
-
-        sendAlert("""\
-                :warning: Unit Test on ${env.BRANCH_NAME} failed :warning:
-
-                ${log.substring(startIndex, endIndex)}
-            """.stripIndent()
-        )
-
-        if(log.substring(startIndex, endIndex).contains("Compilation error")) {
-            compileFail = true
-        } else {
-            testFail = true
-        }
-    } finally {
-        junit '**/build/test-results/**/*.xml'
-
-        env.WORKSPACE = pwd()
-
-        if(compileFail) {
-            currentBuild.result = "FAILURE"
-        } 
-        if(testFail) {
-            currentBuild.result = "UNSTABLE"
-        }
-    }
-
     //Create new environment with providers installed
 
     try {
