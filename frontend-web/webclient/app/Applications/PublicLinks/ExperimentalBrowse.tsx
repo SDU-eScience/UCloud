@@ -149,12 +149,6 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
                         return;
                     }
 
-                    console.log(PublicLinkApi.browse({
-                        ...defaultRetrieveFlags,
-                        ...browser.browseFilters,
-                        ...opts.additionalFilters
-                    }));
-
                     callAPI(PublicLinkApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,

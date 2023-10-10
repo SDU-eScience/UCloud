@@ -229,6 +229,7 @@ const FEATURES: ResourceBrowseFeatures = {
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     rowTitles: true,
+    dragToSelect: true,
 };
 
 const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: true} = {
@@ -269,6 +270,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                         SharesApi.browse({
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     ).then(result => {
                         browser.registerPage(result, newPath, true);
@@ -282,7 +284,8 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                         SharesApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     );
                     browser.registerPage(result, path, false);
