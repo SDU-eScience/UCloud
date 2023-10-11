@@ -382,17 +382,11 @@ export interface AppCardProps extends React.PropsWithChildren<ApplicationCardPro
     type: ApplicationCardType;
 }
 
-function lineCountFromType(t: ApplicationCardType): number {
-    switch (t) {
-        case ApplicationCardType.TALL:
-            return 5;
-        case ApplicationCardType.EXTRA_TALL:
-            return 4;
-        case ApplicationCardType.WIDE:
-            return 4;
-        case ApplicationCardType.EXTRA_WIDE:
-            return 9;
-    }
+const typeLineCount = {
+    [ApplicationCardType.TALL]: 5,
+    [ApplicationCardType.EXTRA_TALL]: 4,
+    [ApplicationCardType.WIDE]: 4,
+    [ApplicationCardType.EXTRA_WIDE]: 9
 }
 
 const FavoriteAppClass = injectStyle("favorite-app", k => `
@@ -434,7 +428,7 @@ export function FavoriteApp(props: {name: string, version: string, title: string
 
 export function AppCard(props: AppCardProps): JSX.Element {
     return React.useMemo(() => {
-        let lineCount = lineCountFromType(props.type);
+        let lineCount = typeLineCount[props.type];
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
                 <div><b>{props.title}</b></div>
