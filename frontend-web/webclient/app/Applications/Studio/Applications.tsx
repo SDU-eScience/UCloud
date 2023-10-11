@@ -101,7 +101,7 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
             options={
                 props.options.map((appGroup) => ({text: appGroup.title, value: appGroup})).sort((a, b) => a.text > b.text ? 1 : -1)
             }
-            onChange={group => props.onSelect(group)}
+            onChange={props.onSelect}
         />
     );
 }
