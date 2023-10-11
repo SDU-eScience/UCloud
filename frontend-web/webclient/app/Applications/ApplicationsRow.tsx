@@ -56,11 +56,7 @@ const ScrollButtonClass = injectStyle("scroll-button", k => `
 
 function ScrollButton({disabled, left, onClick}: {disabled: boolean; left: boolean; onClick(): void}): JSX.Element {
     return <div onClick={onClick} data-is-left={left} className={ScrollButtonClass} data-disabled={disabled}>
-        {left ? (
-            <Icon name="backward" size="14" />
-        ) : (
-            <Icon name="forward" size="14" />
-        )}
+     <Icon name={left ? "backward" : "forward"} size="14" />
     </div>
 }
 
