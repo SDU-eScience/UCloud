@@ -264,30 +264,27 @@ export const AppGroup: React.FunctionComponent = () => {
                                     ))}
                                     <Flex>
                                         <Box flexGrow={1}>
-                                            {allTags.data.length > 0 ?
-                                                <DataList
-                                                    rightLabel
-                                                    options={allTags.data.map(tag => ({value: tag, content: tag}))}
-                                                    onSelect={async item => {
-                                                        setSelectedTag(item);
+                                            <DataList
+                                                rightLabel
+                                                options={allTags.data.map(tag => ({value: tag, content: tag}))}
+                                                onSelect={async item => {
+                                                    setSelectedTag(item);
 
-                                                        if (commandLoading) return;
-                                                        if (selectedTag === null) return;
-                                                        if (selectedTag === "") return;
-                                                        if (!group.data) return;
+                                                    if (commandLoading) return;
+                                                    if (selectedTag === null) return;
+                                                    if (selectedTag === "") return;
+                                                    if (!group.data) return;
 
-                                                        await invokeCommand(UCloud.compute.apps.createTag({
-                                                            groupId: group.data.group.id,
-                                                            tags: [selectedTag]
-                                                        }));
+                                                    await invokeCommand(UCloud.compute.apps.createTag({
+                                                        groupId: group.data.group.id,
+                                                        tags: [selectedTag]
+                                                    }));
 
-                                                        refresh();
-                                                    }}
-                                                    onChange={item => setSelectedTag(item)}
-                                                    placeholder={"Enter or choose a tag..."}
-                                                />
-                                                : <></>
-                                            }
+                                                    refresh();
+                                                }}
+                                                onChange={item => setSelectedTag(item)}
+                                                placeholder={"Enter or choose a tag..."}
+                                            />
                                         </Box>
                                         <Button
                                             disabled={commandLoading}
