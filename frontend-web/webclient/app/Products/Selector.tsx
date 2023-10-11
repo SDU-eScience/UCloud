@@ -5,7 +5,7 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {Box, Button, Flex, Icon, Input, Link, theme, Tooltip} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Link, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
@@ -15,7 +15,6 @@ import styled from "styled-components";
 import {boxShadow, BoxShadowProps} from "styled-system";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
-import {IconClass} from "@/ui-components/Icon";
 import {injectStyle} from "@/Unstyled";
 
 const NEED_CONNECT = "need-connection";

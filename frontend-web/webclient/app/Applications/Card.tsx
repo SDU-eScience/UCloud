@@ -139,8 +139,6 @@ const appColors = theme.appColors;
 
 const nColors = appColors.length;
 
-const bgGradients = appColors.map(x => (`linear-gradient(0deg, ${x[0]}, ${x[2]})`));
-
 interface AppLogoRawProps {
     color1Offset: number;
     color2Offset: number;

@@ -10,7 +10,6 @@ import {sendNotification} from "@/Notifications";
 import React from "react";
 import BaseLink from "@/ui-components/BaseLink";
 import {ProviderTitle} from "./ProviderTitle";
-import {emptyPageV2} from "@/DefaultObjects";
 
 class ConnectionState extends UState<ConnectionState> {
     private lastConnectionAt = new LocalStorageCache<number>("last-connection-at");

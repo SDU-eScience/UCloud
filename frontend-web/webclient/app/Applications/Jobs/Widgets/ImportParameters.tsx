@@ -8,13 +8,13 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
-import {compute, PageV2} from "@/UCloud";
+import {compute} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import {TextP} from "@/ui-components/Text";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {default as JobsApi, Job} from "@/UCloud/JobsApi";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {default as JobsApi} from "@/UCloud/JobsApi";
+import {bulkRequestOf} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
@@ -46,14 +46,6 @@ export const ImportParameters: React.FunctionComponent<{
             });
         }
     }, [jobId]);
-
-    const [previousRuns] = useCloudAPI<PageV2<Job>>(
-        JobsApi.browse({
-            itemsPerPage: 50,
-            filterApplication: application.metadata.name,
-        }),
-        emptyPageV2
-    );
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 

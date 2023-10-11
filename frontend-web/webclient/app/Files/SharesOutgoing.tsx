@@ -1,34 +1,21 @@
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState} from "@/UCloud/SharesApi";
-import {useCallback, useMemo, useRef, useState} from "react";
-import {ItemRow} from "@/ui-components/Browse";
 import MainContainer from "@/MainContainer/MainContainer";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import {PrettyFilePath, prettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath} from "@/Files/FilePath";
 import {
-    Button,
     Flex,
-    Input, Link,
-    List,
     RadioTile,
     RadioTilesContainer,
     Tooltip
 } from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
-import {capitalized, displayErrorMessageOrDefault, doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
-import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
-import {Client} from "@/Authentication/HttpClientInstance";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {callAPI, noopCall, useCloudCommand} from "@/Authentication/DataHook";
+import {capitalized, displayErrorMessageOrDefault, doNothing, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useLocation, useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
-import Icon from "../ui-components/Icon";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {Spacer} from "@/ui-components/Spacer";
-import {BrowseType} from "@/Resource/BrowseType";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, SelectionMode, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -42,6 +29,7 @@ import {arrayToPage} from "@/Types";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {fileName} from "@/Utilities/FileUtilities";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -247,7 +235,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         }
                     }
 
-                    const searchPath = new URLSearchParams(location.search).get("path") as string;
                     browser.renderRows();
 
                     Promise.allSettled(promises).finally(() => {
@@ -560,7 +547,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         enabled(selected) {
                             return (selected.length !== 0) && isViewingShareGroupPreview(selected[0]);
                         },
-                        async onClick(selected, extra, all) {
+                        async onClick(selected, extra) {
                             if (isViewingShareGroupPreview(selected[0])) {
                                 const previews = selected as OutgoingShareGroupPreview[];
                                 await extra.invokeCommand(extra.api.remove(bulkRequestOf(...previews.map(it => ({id: it.shareId})))));

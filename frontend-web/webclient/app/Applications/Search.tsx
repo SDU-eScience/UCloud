@@ -40,7 +40,7 @@ function readQuery(queryParams: string): SearchQuery {
     return {query, tags, showAllVersions, itemsPerPage, page};
 }
 
-export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = ({entriesPerPage}) => {
+export const SearchResults: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [, invokeCommand] = useCloudCommand();

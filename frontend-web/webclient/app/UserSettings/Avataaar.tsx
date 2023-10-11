@@ -1,7 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Avatar} from "@/AvataaarLib";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {MainContainer} from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";

@@ -128,7 +128,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
         setSize(size);
     }, []);
 
-    const mouseUpHandler: (e: MouseEvent) => void = useCallback(e => {
+    const mouseUpHandler: (e: MouseEvent) => void = useCallback(() => {
         document.body.removeEventListener("mousemove", mouseMoveHandler);
         document.body.removeEventListener("mouseup", mouseUpHandler);
     }, []);

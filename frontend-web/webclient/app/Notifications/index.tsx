@@ -4,7 +4,7 @@ import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ThemeProvider} from "styled-components";
-import {Link, Button, Absolute, Flex, Icon, Relative} from "@/ui-components";
+import {Absolute, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
@@ -19,8 +19,6 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {Location, NavigateFunction, useLocation, useNavigate} from "react-router";
 import {useDispatch, useSelector} from "react-redux";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import * as Heading from "@/ui-components/Heading";
 import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
@@ -67,7 +65,7 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, navigate: NavigateFunction, dispatch: Dispatch) {
+function onNotificationAction(notification: Notification, navigate: NavigateFunction) {
     switch (notification.type) {
         case "APP_COMPLETE":
             navigate(`/applications/results/${notification.meta.jobId}`);
@@ -477,7 +475,7 @@ export interface Notification {
 function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
-    const {location, dispatch, refresh, navigate} = normalizationDependencies!;
+    const {location, refresh, navigate} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -514,7 +512,7 @@ function normalizeNotification(
         const before = location.pathname;
 
         markAsRead([result]);
-        onNotificationAction(notification, navigate, dispatch);
+        onNotificationAction(notification, navigate);
 
         const after = location.pathname;
         if (before === after && refresh.current) refresh.current();

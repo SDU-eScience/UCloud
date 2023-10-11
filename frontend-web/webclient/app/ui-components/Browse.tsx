@@ -28,7 +28,6 @@ interface BrowseProps<T> {
     onLoad?: (newItems: T[]) => void;
 
     isSearch?: boolean;
-    browseType?: BrowseType;
     loadingRef?: React.MutableRefObject<boolean>;
     reloadRef?: React.MutableRefObject<() => void>;
     onReload?: () => void;
@@ -38,7 +37,7 @@ interface BrowseProps<T> {
     pageSizeRef?: React.MutableRefObject<number>;
 }
 
-export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
+function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
     const hasPreloadedResources = !!props.preloadedResources;
     const [remoteResources, setRemoteResources] = useState<PageV2<T>>(emptyPageV2);
     const [error, setError] = useState<string | undefined>(undefined)

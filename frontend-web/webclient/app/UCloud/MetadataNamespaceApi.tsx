@@ -1,5 +1,4 @@
 import {
-    CREATE_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,

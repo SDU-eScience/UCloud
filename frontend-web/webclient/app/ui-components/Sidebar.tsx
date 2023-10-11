@@ -171,18 +171,6 @@ const SidebarMenuItem = injectStyle("sidebar-item", k => `
     }
 `);
 
-interface TextLabelProps {
-    icon: IconName;
-    children: | string | number | JSX.Element;
-    ml?: string;
-    height?: string;
-    color?: ThemeColor;
-    color2?: ThemeColor;
-    iconSize?: string;
-    textSize?: number;
-    space?: string;
-    title?: string;
-}
 
 interface SidebarElement {
     icon: IconName;
@@ -469,7 +457,7 @@ function SecondarySidebar({
     clearHover,
     setSelectedPage,
     clearClicked
-}: SecondarySidebarProps): JSX.Element {
+}: SecondarySidebarProps): React.JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 

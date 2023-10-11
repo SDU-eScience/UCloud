@@ -47,7 +47,7 @@ function Search(props: SearchProps): JSX.Element {
     useResourceSearch(ApiLike);
 
     return (
-        <MainContainer main={<Applications.SearchResults entriesPerPage={25} />} />
+        <MainContainer main={<Applications.SearchResults />} />
     );
 }
 

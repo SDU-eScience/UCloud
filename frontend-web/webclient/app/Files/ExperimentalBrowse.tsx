@@ -9,7 +9,6 @@ import {
     addContextSwitcherInPortal,
     checkIsWorkspaceAdmin,
     EmptyReasonTag,
-    Filter,
     OperationOrGroup,
     placeholderImage,
     providerIcon,
@@ -53,7 +52,6 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
-import {ButtonClass} from "@/ui-components/Button";
 import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";

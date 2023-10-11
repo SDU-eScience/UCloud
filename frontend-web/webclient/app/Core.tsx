@@ -82,9 +82,9 @@ import {DrivesRouter, FilesRouter} from "./Files/Router";
 import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "./Applications/PublicLinks/Router";
 
-const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
+const NotFound = (): React.JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
-const Core = (): JSX.Element => (
+const Core = (): React.JSX.Element => (
     <>
         <Dialog />
         <Snackbars />
@@ -296,7 +296,7 @@ const RouteWrapperClass = injectStyleSimple("route-wrapper", `
     overflow-y: auto;
 `);
 
-const LoginSuccess = (): JSX.Element => {
+const LoginSuccess = (): React.JSX.Element => {
     React.useEffect(() => {
         dispatchUserAction(USER_LOGIN);
         onLogin();
@@ -315,7 +315,7 @@ export async function onLogin(): Promise<void> {
     if (action !== null) store.dispatch(action);
 }
 
-const _ignored = injectStyle("ignored", () => `
+injectStyle("ignored", () => `
     ${UIGlobalStyle}
 `);
 
@@ -343,7 +343,7 @@ export function removeThemeListener(key: string) {
     delete themeListeners[key];
 }
 
-function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
+function MainApp({children}: {children?: React.ReactNode}): React.JSX.Element {
     return (
         <BrowserRouter basename="app">
             <Flex>
