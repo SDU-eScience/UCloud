@@ -63,11 +63,6 @@ function ScrollButton({disabled, left, onClick}: {disabled: boolean; left: boole
 const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
     items, type, scrolling
 }: ApplicationRowProps) => {
-    const filteredItems = React.useMemo(() =>
-        items,
-        [items]
-    );
-
     const [hasScroll, setHasScroll] = useState<boolean>(false);
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -100,11 +95,11 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
             {type === ApplicationCardType.WIDE ?
                 <div ref={scrollRef} className={ApplicationRowContainerClass}>
                     <Flex
-                        justifyContent={filteredItems.length < 3 ? "space-evenly" : "space-between"}
+                        justifyContent={items.length < 3 ? "space-evenly" : "space-between"}
                         gap="10px"
                         py="10px"
                     >
-                        {filteredItems.map(app =>
+                        {items.map(app =>
                             <Link key={app.id} to={groupCardLink(app)}>
                                 <AppCard
                                     type={ApplicationCardType.WIDE}
@@ -127,7 +122,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             gridTemplateColumns={"repeat(auto-fill, 166px)"}
                             style={{gridAutoFlow: "column"}}
                         >
-                            {filteredItems.map(app =>
+                            {items.map(app =>
                                 <>
                                     <Link key={app.id} to={groupCardLink(app)}>
                                         <AppCard
@@ -150,7 +145,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             gap="10px"
                             py="10px"
                         >
-                            {filteredItems.map(app =>
+                            {items.map(app =>
                                 <Link key={app.id} to={groupCardLink(app)}>
                                     <AppCard
                                         type={ApplicationCardType.EXTRA_TALL}

@@ -22,6 +22,7 @@ import AppRoutes from "@/Routes";
 import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
+import {FavoriteAppRow} from "./Landing";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -206,54 +207,6 @@ interface TagGridProps {
     favoriteStatus: React.MutableRefObject<FavoriteStatus>;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
     refreshId: number;
-}
-
-function filterAppsByFavorite(
-    items: compute.ApplicationSummaryWithFavorite[],
-    showFavorites: boolean,
-    tagBanList: string[] = [],
-    favoriteStatus: React.MutableRefObject<FavoriteStatus>
-): compute.ApplicationSummaryWithFavorite[] {
-    let _filteredItems = items
-        .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
-        .filter(item => {
-            const isFavorite = favoriteStatus.current[favoriteStatusKey(item.metadata)]?.override ?? item.favorite;
-            return isFavorite === showFavorites;
-        });
-
-    if (showFavorites) {
-        _filteredItems = _filteredItems.concat(Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app));
-        _filteredItems = _filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it.metadata)]?.override !== false);
-    }
-
-    // Remove duplicates (This can happen due to favorite cache)
-    {
-        const observed = new Set<string>();
-        const newList: ApplicationSummaryWithFavorite[] = [];
-        for (const item of _filteredItems) {
-            const key = favoriteStatusKey(item.metadata);
-            if (!observed.has(key)) {
-                observed.add(key);
-                newList.push(item);
-            }
-        }
-        return newList;
-    }
-}
-
-export function FavoriteAppRow({favoriteStatus, onFavorite}: Omit<TagGridProps, "tag" | "items" | "tagBanList">): JSX.Element {
-    const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
-    const filteredItems = React.useMemo(() =>
-        filterAppsByFavorite(items, true, [], favoriteStatus),
-        [items, favoriteStatus.current]);
-
-    return <Flex overflowX="auto" width="100%">
-        <Flex mx="auto" mb="16px">
-            {filteredItems.map(app =>
-                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} title={app.metadata.title} onFavorite={() => onFavorite(app)} />
-            )}
-        </Flex>
-    </Flex>
 }
 
 export default ApplicationsOverview;

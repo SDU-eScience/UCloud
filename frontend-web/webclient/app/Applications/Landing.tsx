@@ -274,27 +274,20 @@ interface FavoriteAppRowProps {
 
 function filterAppsByFavorite(
     items: compute.ApplicationSummaryWithFavorite[],
-    showFavorites: boolean,
-    tagBanList: string[] = [],
     favoriteStatus: React.MutableRefObject<FavoriteStatus>
 ): compute.ApplicationSummaryWithFavorite[] {
-    let _filteredItems = items
-        .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
-        .filter(item => {
-            const isFavorite = favoriteStatus.current[favoriteStatusKey(item.metadata)]?.override ?? item.favorite;
-            return isFavorite === showFavorites;
-        });
+    let filteredItems = items.filter(item => 
+        favoriteStatus.current[favoriteStatusKey(item.metadata)]?.override ?? item.favorite
+    );
 
-    if (showFavorites) {
-        _filteredItems = _filteredItems.concat(Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app));
-        _filteredItems = _filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it.metadata)]?.override !== false);
-    }
+    filteredItems = [...filteredItems, ...Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app)];
+    filteredItems = filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it.metadata)]?.override !== false);
 
     // Remove duplicates (This can happen due to favorite cache)
     {
         const observed = new Set<string>();
         const newList: ApplicationSummaryWithFavorite[] = [];
-        for (const item of _filteredItems) {
+        for (const item of filteredItems) {
             const key = favoriteStatusKey(item.metadata);
             if (!observed.has(key)) {
                 observed.add(key);
@@ -308,8 +301,9 @@ function filterAppsByFavorite(
 export function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
     const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const filteredItems = React.useMemo(() =>
-        filterAppsByFavorite(items, true, [], favoriteStatus),
-        [items, favoriteStatus.current]);
+        filterAppsByFavorite(items, favoriteStatus),
+        [items, favoriteStatus.current]
+    );
 
     return <Flex overflowX="auto" width="100%">
         <Flex mx="auto" mb="16px">

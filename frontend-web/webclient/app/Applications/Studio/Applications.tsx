@@ -70,9 +70,6 @@ const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
         height: 42px;
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
 
-        --inputBorder: var(--blue);
-        --inputDisabledBorder: var(--lightGray);
-
         border: 1px solid var(--midGray);
     }
     
@@ -89,6 +86,10 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
         invokeCommand(setGroup({groupId: props.selectedGroup.id, applicationName: props.applicationName}))
     }, [props.selectedGroup]);
 
+    const options = React.useMemo(() => {
+        return props.options.map((appGroup) => ({text: appGroup.title, value: appGroup})).sort((a, b) => a.text > b.text ? 1 : -1) 
+    }, [props.options]);
+
     return (
         <ClickableDropdown
             fullWidth
@@ -98,9 +99,7 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
                     <Icon name="chevronDownLight" ml="-32px" size={14} />
                 </div >
             }
-            options={
-                props.options.map((appGroup) => ({text: appGroup.title, value: appGroup})).sort((a, b) => a.text > b.text ? 1 : -1)
-            }
+            options={options}
             onChange={group => props.onSelect(group)}
         />
     );
@@ -200,7 +199,7 @@ export const App: React.FunctionComponent = () => {
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
-    const flavorName = apps.data.items.length > 0 ? apps.data.items[0].metadata.flavorName ?? appTitle : undefined;
+    const flavorName = apps.data.items.length > 0 ? (apps.data.items[0].metadata.flavorName ?? appTitle) : undefined;
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const flavorField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);

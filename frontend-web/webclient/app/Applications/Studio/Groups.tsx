@@ -19,14 +19,9 @@ export const ApplicationGroups: React.FunctionComponent = () => {
     const filterRef = React.useRef<HTMLInputElement>(null);
 
     const [allGroups, setGroups] = useCloudAPI<ApplicationGroup[]>(
-        {noop: true},
+        listGroups({}),
         []
     );
-
-    useEffect(() => {
-        setGroups(listGroups({}));
-    }, []);
-
 
     const refresh = useCallback(() => {
         setGroups(listGroups({}));

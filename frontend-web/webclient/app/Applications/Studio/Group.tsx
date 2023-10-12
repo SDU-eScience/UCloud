@@ -1,7 +1,7 @@
 import * as UCloud from "@/UCloud";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Box, Button, Checkbox, DataList, Flex, Icon, Input, Label, Relative, TextArea} from "@/ui-components";
-import React, {useEffect, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {RetrieveGroupResponse, clearLogo, setGroup, retrieveGroup, updateGroup, uploadLogo} from "../api";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -50,15 +50,15 @@ export const AppGroup: React.FunctionComponent = () => {
     const [commandLoading, invokeCommand] = useCloudCommand();
 
     useEffect(() => {
-        fetchGroup(retrieveGroup({id: id}));
+        fetchGroup(retrieveGroup({id}));
         fetchAllTags(UCloud.compute.apps.listTags({}));
         setAppList(compute.apps.listAll({}));
     }, [id]);
 
-    const refresh = () => {
-        fetchGroup(retrieveGroup({id: id}));
+    const refresh = useCallback(() => {
+        fetchGroup(retrieveGroup({id}));
         fetchAllTags(UCloud.compute.apps.listTags({}));
-    };
+    }, [id]);
 
     useEffect(() => {
         if (group.data) {
@@ -66,7 +66,6 @@ export const AppGroup: React.FunctionComponent = () => {
             setTags(group.data.group.tags);
         }
     }, [group.data]);
-
 
     const navigate = useNavigate();
 
