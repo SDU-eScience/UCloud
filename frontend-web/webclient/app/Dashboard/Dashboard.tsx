@@ -45,7 +45,7 @@ import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
-import ExperimentalJobs from "@/Applications/Jobs/ExperimentalJobs";
+import JobsBrowse from "@/Applications/Jobs/ExperimentalJobs";
 import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
@@ -333,7 +333,7 @@ function DashboardRuns(): JSX.Element {
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="heroBeaker"
     >
-        <ExperimentalJobs opts={{
+        <JobsBrowse opts={{
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
             additionalFilters: {"itemsPerPage": "10"}
         }} />

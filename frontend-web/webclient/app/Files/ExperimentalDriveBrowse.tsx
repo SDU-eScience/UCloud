@@ -9,6 +9,7 @@ import {
     resourceCreationWithProductSelector,
     providerIcon,
     checkIsWorkspaceAdmin,
+    ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -53,7 +54,7 @@ const FEATURES: ResourceBrowseFeatures = {
     rowTitles: true,
 };
 
-const ExperimentalBrowse: React.FunctionComponent = () => {
+const ExperimentalBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
@@ -66,7 +67,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<FileCollection>(mount, "drive").init(browserRef, FEATURES, "/", browser => {
+            new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
                 browser.setRowTitles([{name: "Drive name", filterName: "title"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: ""}])
 
                 // Load products and initialize dependencies

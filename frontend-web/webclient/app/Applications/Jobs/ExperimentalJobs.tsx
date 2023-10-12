@@ -35,7 +35,7 @@ const FEATURES: ResourceBrowseFeatures = {
 const logoDataUrls = new AsyncCache<string>();
 
 const rowTitles: [RowTitle, RowTitle, RowTitle, RowTitle] = [{name: "Job name"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: "State"}];
-function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -296,4 +296,4 @@ const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     CANCELING: ["close", "red"]
 };
 
-export default ExperimentalJobs;
+export default JobBrowse;

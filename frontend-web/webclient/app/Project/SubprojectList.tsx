@@ -2,7 +2,6 @@ import MainContainer from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {useNavigate} from "react-router";
 import {Icon} from "@/ui-components";
 import {createHTMLElements, doNothing, errorMessageOrDefault, extractErrorMessage} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
@@ -15,7 +14,7 @@ import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, SelectionMode, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 
 // Note(Jonas): Endpoint missing from ProjectV2-api
@@ -57,7 +56,7 @@ const UserRoleIconCache: Record<OldProjectRole, ReactStaticRenderer | null> = {
     [OldProjectRole.USER]: null
 };
 
-export default function ExperimentalSubprojectList() {
+export default function ExperimentalSubprojectList({opts}: {opts?: ResourceBrowserOpts<MemberInProject>}) {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<MemberInProject> | null>(null);
     const dispatch = useDispatch();
@@ -93,7 +92,7 @@ export default function ExperimentalSubprojectList() {
                 fillRoleIconCache();
             }
 
-            new ResourceBrowser<MemberInProject>(mount, "Subprojects").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<MemberInProject>(mount, "Subprojects", opts).init(browserRef, FEATURES, "", browser => {
 
                 browser.setRowTitles([{name: "Project name"}, {name: ""}, {name: ""}, {name: "Archival status"}]);
 

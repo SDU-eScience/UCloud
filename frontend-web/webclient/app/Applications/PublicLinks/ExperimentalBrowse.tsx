@@ -10,7 +10,7 @@ import {FindByStringId} from "@/UCloud";
 import PublicLinkApi, {PublicLink, PublicLinkSupport} from "@/UCloud/PublicLinkApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -37,7 +37,7 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, Publi
     globalTtl: 60_000
 });
 
-export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): JSX.Element {
+export function ExperimentalPublicLinks({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
@@ -51,7 +51,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<PublicLink>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<PublicLink>(mount, "Public Links", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setRowTitles([{name: "Domain"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 let startCreation: () => void = doNothing;
@@ -96,16 +96,6 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
                                 provider: product.category.provider
                             };
 
-                            const support = ingressSupport.find(it =>
-                                it.product.id === product.category.name &&
-                                it.product.provider === product.category.provider
-                            );
-
-                            if (!support) return;
-
-                            browser.renamePrefix = support.domainPrefix;
-                            browser.renameSuffix = support.domainSuffix;
-
                             const ingressBeingCreated: PublicLink = {
                                 ...dummyEntry,
                                 id: temporaryFakeId,
@@ -133,7 +123,16 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
                                 return;
                             }
                         },
-                        "INGRESS"
+                        "INGRESS",
+                        product => {
+                            const support = ingressSupport.find(it =>
+                                it.product.id === product.category.name &&
+                                it.product.provider === product.category.provider
+                            );
+                            if (!support) return;
+                            browser.renamePrefix = support.domainPrefix;
+                            browser.renameSuffix = support.domainSuffix;
+                        }
                     );
 
                     startCreation = resourceCreator.startCreation;
@@ -152,7 +151,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
                     callAPI(PublicLinkApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,
-                        ...opts.additionalFilters
+                        ...opts?.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -168,7 +167,7 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
-                            ...opts.additionalFilters
+                            ...opts?.additionalFilters
                         })
                     )
 
@@ -226,21 +225,29 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
                     {
                         if (inputField?.style.display !== "none") {
                             if (!prefix) {
-                                const newPrefix = document.createElement("span");
+                                const newPrefix = createHTMLElements({
+                                    tagType: "span",
+                                    className: "PREFIX",
+                                    style: {
+                                        position: "absolute",
+                                        top: inputField.style.top,
+                                        left: inputField.getBoundingClientRect().left - 120 + "px"
+                                    }
+                                });
                                 newPrefix.innerText = browser.renamePrefix;
-                                newPrefix.className = "PREFIX";
-                                newPrefix.style.position = "absolute";
-                                newPrefix.style.top = inputField.style.top;
-                                newPrefix.style.left = inputField.getBoundingClientRect().left - 120 + "px";
                                 parent.prepend(newPrefix);
                             }
                             if (!postfix) {
-                                const newPostfix = document.createElement("span");
+                                const newPostfix = createHTMLElements({
+                                    tagType: "span",
+                                    className: "POSTFIX",
+                                    style: {
+                                        position: "absolute",
+                                        top: inputField.style.top,
+                                        left: inputField.getBoundingClientRect().right - 80 + "px"
+                                    }
+                                })
                                 newPostfix.innerText = browser.renameSuffix;
-                                newPostfix.className = "POSTFIX";
-                                newPostfix.style.position = "absolute";
-                                newPostfix.style.top = inputField.style.top;
-                                newPostfix.style.left = inputField.getBoundingClientRect().right - 80 + "px";
                                 parent.prepend(newPostfix);
                             }
                         }
@@ -255,6 +262,13 @@ export function ExperimentalPublicLinks(opts: ResourceBrowserOpts<PublicLink>): 
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
                         row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, dims));
+                    }
+
+                    if (opts?.selection) {
+                        const button = browser.defaultButtonRenderer(opts.selection, link);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
+                        }
                     }
                 });
 

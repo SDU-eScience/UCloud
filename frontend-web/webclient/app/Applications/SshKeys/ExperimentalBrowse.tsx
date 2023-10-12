@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -20,9 +20,10 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
     rowTitles: true,
+    dragToSelect: true,
 };
 
-export function ExperimentalSSHKey(): JSX.Element {
+export function ExperimentalSSHKey(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<SSHKey> | null>(null);
     const dispatch = useDispatch();
@@ -33,7 +34,7 @@ export function ExperimentalSSHKey(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<SSHKey>(mount, "SSH Keys").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<SSHKey>(mount, "SSH Keys", props.opts).init(browserRef, FEATURES, "", browser => {
                 browser.setRowTitles([{name: "Title"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 // Ensure no refecthing on `beforeOpen`.

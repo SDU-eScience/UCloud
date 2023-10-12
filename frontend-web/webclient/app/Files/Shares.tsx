@@ -254,7 +254,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Share>(mount, "Shared with me").init(browserRef, features, "", browser => {
+            new ResourceBrowser<Share>(mount, "Shared with me", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 

@@ -12,7 +12,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {checkProviderMismatch} from "../Create";
-import ExperimentalJobs from "../ExperimentalJobs";
+import JobBrowse from "../ExperimentalJobs";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -130,7 +130,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <ExperimentalJobs
+            <JobBrowse
                 opts={{
                     additionalFilters: filters,
                     embedded: true,

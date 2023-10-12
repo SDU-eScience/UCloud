@@ -11,7 +11,7 @@ import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -27,6 +27,7 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
     rowTitles: true,
+    dragToSelect: true,
 };
 
 const DUMMY_ENTRY_ID = "dummy";
@@ -35,7 +36,8 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductNetworkIP, Net
     globalTtl: 60_000
 });
 
-export function ExperimentalNetworkIP(): JSX.Element {
+export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<NetworkIP>}): JSX.Element {
+    console.log("Unused so far!", props.opts)
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
     const dispatch = useDispatch();
@@ -49,7 +51,7 @@ export function ExperimentalNetworkIP(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "Public IPs").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<NetworkIP>(mount, "Public IPs", props.opts).init(browserRef, FEATURES, "", browser => {
                 browser.setRowTitles([{name: "IP address"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 var startCreation = function () { };

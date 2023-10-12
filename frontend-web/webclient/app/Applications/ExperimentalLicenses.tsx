@@ -50,7 +50,7 @@ export function ExperimentalLicenses({opts}: {opts?: ResourceBrowserOpts<License
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
                 var startCreation = function () { };
 
                 browser.setRowTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);

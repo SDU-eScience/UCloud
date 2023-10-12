@@ -20,7 +20,7 @@ import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {ButtonClass} from "@/ui-components/Button";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import ExperimentalJobs from "../ExperimentalJobs";
+import JobBrowse from "../ExperimentalJobs";
 import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
 export const ImportParameters: React.FunctionComponent<{
@@ -188,7 +188,7 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-                            <ExperimentalJobs opts={{
+                            <JobBrowse opts={{
                                 selection: {
                                     onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here
                                     onSelect: res => {

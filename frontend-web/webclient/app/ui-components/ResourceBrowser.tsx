@@ -391,7 +391,7 @@ export class ResourceBrowser<T> {
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
-    constructor(root: HTMLElement, resourceName: string, opts?: ResourceBrowserOpts<T>) {
+    constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
         this.root = root;
         this.resourceName = resourceName;
         this.isModal = !!opts?.isModal;
@@ -3444,6 +3444,9 @@ export function resourceCreationWithProductSelector<T>(
     dummyEntry: T,
     onCreate: (product: Product) => void,
     type: ProductType,
+    // Note(Jonas): Used in the event that the product contains info that the browser component needs.
+    // See PublicLinks usage for an example of it's usage.
+    onSelect?: (product: Product) => void,
 ): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
@@ -3500,6 +3503,7 @@ export function resourceCreationWithProductSelector<T>(
     };
 
     const onProductSelected = (product: Product) => {
+        onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
             browser.showRenameField(

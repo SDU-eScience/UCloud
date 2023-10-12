@@ -13,7 +13,6 @@ import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Bro
 import {SvgFt} from "@/ui-components/FtIcon";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
-import {BrowseType} from "@/Resource/BrowseType";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 export const entityName = "Metadata (BETA)";
@@ -85,7 +84,9 @@ export const MetadataBrowse: React.FunctionComponent<{
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
         >
-            <MetadataNamespacesBrowse browseType={BrowseType.Embedded} onTemplateSelect={selectTemplate} />
+            <MetadataNamespacesBrowse opts={{embedded: true, selection: {onSelect: selectTemplate as any, onSelectRestriction(res) {
+                return true;
+            },}}} />
         </ReactModal>
     </div>;
 };

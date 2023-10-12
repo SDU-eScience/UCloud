@@ -2,7 +2,7 @@ import * as React from "react";
 import {default as ReactModal} from "react-modal";
 import {Flex, Input} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
+import {default as NetworkIPApi} from "@/UCloud/NetworkIPApi";
 import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {useCallback, useLayoutEffect, useState} from "react";
@@ -10,9 +10,8 @@ import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
-import {BrowseType} from "@/Resource/BrowseType";
 import {checkProviderMismatch} from "../Create";
-import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
+import {ExperimentalNetworkIP} from "@/Applications/NetworkIP/ExperimentalBrowse";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -61,9 +60,13 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
         }
     }, []);
 
-    const filters: NetworkIPFlags = React.useMemo(() => ({
-        filterState: "READY"
-    }), []);
+    const filters = React.useMemo(() => {
+        const f = {
+            filterState: "READY"
+        };
+        if (props.provider) f["filterProvider"] = props.provider
+        return f;
+    }, [props.provider]);
 
     return (<Flex>
         <Input
@@ -82,16 +85,21 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <NetworkIPBrowse
-                provider={props.provider}
-                additionalFilters={filters}
-                onSelect={onUse}
-                browseType={BrowseType.Embedded}
-                onSelectRestriction={res => {
-                    const errorMessage = checkProviderMismatch(res, "Public IPs");
-                    if (errorMessage) return errorMessage;
-                    return res.status.boundTo.length === 0;
+            <ExperimentalNetworkIP
+                opts={{
+                    additionalFilters: filters,
+                    embedded: true,
+                    isModal: true,
+                    selection: {
+                        onSelect: onUse,
+                        onSelectRestriction(res) {
+                            const errorMessage = checkProviderMismatch(res, "Public IPs");
+                            if (errorMessage) return errorMessage;
+                            return res.status.boundTo.length === 0;
+                        },
+                    }
                 }}
+
             />
         </ReactModal>
     </Flex>);

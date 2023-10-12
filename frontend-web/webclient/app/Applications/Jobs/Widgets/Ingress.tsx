@@ -97,15 +97,19 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             onRequestClose={doClose}
         >
             <ExperimentalPublicLinks
-                selection={{
-                    onSelect: onUse,
-                    onSelectRestriction(res) {
-                        const errorMessage = checkProviderMismatch(res, "Public links");
-                        if (errorMessage) return errorMessage;
-                        return res.status.boundTo.length === 0;
-                    }
+                opts={{
+                    selection: {
+                        onSelect: onUse,
+                        onSelectRestriction(res) {
+                            const errorMessage = checkProviderMismatch(res, "Public links");
+                            if (errorMessage) return errorMessage;
+                            return res.status.boundTo.length === 0;
+                        }
+                    },
+                    isModal: true,
+                    embedded: true,
+                    additionalFilters: filters
                 }}
-                additionalFilters={filters}
             />
         </ReactModal>
     </Flex>);
