@@ -3,6 +3,9 @@ import {buildQueryString} from "./Utilities/URIUtilities";
 const users = {
     settings: () => "/users/settings",
     avatar: () => "/users/avatar",
+    registration: () => "/registration",
+    verifyEmail: () => "/verifyEmail",
+    verifyResult: () => "/verifyResult",
 };
 
 const news = {
@@ -21,7 +24,6 @@ const admin = {
 const shares = {
     sharedByMe: () => "/shares/outgoing",
     sharedWithMe: () => "/shares",
-    view: (shareId: string) => `/shares/properties/${shareId}`
 }
 
 const resources = {

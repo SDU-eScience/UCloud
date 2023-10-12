@@ -5,7 +5,6 @@ import {useCallback} from "react";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Markdown} from "@/ui-components";
-import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useNavigate} from "react-router";

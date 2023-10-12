@@ -1,20 +1,15 @@
 import * as React from "react";
-import {ResourceBrowse} from "@/Resource/Browse";
-import {ResourceRouter} from "@/Resource/Router";
 import SharesApi, {Share, ShareLink, ShareState, shareLinksApi} from "@/UCloud/SharesApi";
-import {NavigateFunction, useLocation, useNavigate} from "react-router";
-import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {NavigateFunction, useNavigate} from "react-router";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {useEffect, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {BrowseType} from "@/Resource/BrowseType";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {LinkInfo} from "@/ui-components/SidebarLink";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
-import {BulkResponse, PageV2} from "@/UCloud";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
-import {UFile} from "@/UCloud/FilesApi";
+import {BulkResponse, PageV2, accounting} from "@/UCloud";
+import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {copyToClipboard, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
@@ -22,20 +17,18 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
-import {classConcat, injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {BoxClass} from "@/ui-components/Box";
-import {RadioTilesContainerClass, tileAsHTML} from "@/ui-components/RadioTiles";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -51,8 +44,8 @@ function inviteLinkFromToken(token: string): string {
 }
 
 export const ShareModal: React.FunctionComponent<{
-    selected: UFile,
-    cb: ResourceBrowseCallbacks<UFile>
+    selected: {path: string; product: accounting.ProductReference},
+    cb: {invokeCommand: InvokeCommand, navigate: NavigateFunction}
 }> = ({selected, cb}) => {
 
     const [inviteLinks, fetchLinks] = useCloudAPI<PageV2<ShareLink>>({noop: true}, emptyPageV2);
@@ -76,7 +69,7 @@ export const ShareModal: React.FunctionComponent<{
 
     useEffect(() => {
         fetchLinks(
-            shareLinksApi.browse({itemsPerPage: 10, path: selected.id}),
+            shareLinksApi.browse({itemsPerPage: 10, path: selected.path}),
         );
     }, []);
 
@@ -92,9 +85,9 @@ export const ShareModal: React.FunctionComponent<{
                     SharesApi.create(
                         bulkRequestOf({
                             sharedWith: usernameRef.current?.value ?? "",
-                            sourceFilePath: selected.id,
-                            permissions: ["READ" as const],
-                            product: selected.specification.product
+                            sourceFilePath: selected.path,
+                            permissions: ["READ"],
+                            product: selected.product
                         })
                     )
                 ).then(it => {
@@ -118,11 +111,11 @@ export const ShareModal: React.FunctionComponent<{
                 <Button
                     onClick={async () => {
                         await callAPIWithErrorHandler(
-                            shareLinksApi.create({path: selected.id})
+                            shareLinksApi.create({path: selected.path})
                         );
 
                         fetchLinks(
-                            shareLinksApi.browse({itemsPerPage: 10, path: selected.id}),
+                            shareLinksApi.browse({itemsPerPage: 10, path: selected.path}),
                         );
                     }}
                 >Create link</Button>
@@ -134,11 +127,11 @@ export const ShareModal: React.FunctionComponent<{
                     <Button
                         onClick={async () => {
                             await callAPIWithErrorHandler(
-                                shareLinksApi.create({path: selected.id})
+                                shareLinksApi.create({path: selected.path})
                             );
 
                             fetchLinks(
-                                shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
+                                shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
                             );
                         }}
                     >Create link</Button>
@@ -179,11 +172,11 @@ export const ShareModal: React.FunctionComponent<{
                                     height={40}
                                     onAction={async () => {
                                         await callAPIWithErrorHandler(
-                                            shareLinksApi.delete({token: link.token, path: selected.id})
+                                            shareLinksApi.delete({token: link.token, path: selected.path})
                                         );
 
                                         fetchLinks(
-                                            shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
+                                            shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
                                         );
                                     }}
                                 />
@@ -215,11 +208,11 @@ export const ShareModal: React.FunctionComponent<{
                             const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
 
                             await callAPIWithErrorHandler(
-                                shareLinksApi.update({token: editingLink, path: selected.id, permissions: newPermissions})
+                                shareLinksApi.update({token: editingLink, path: selected.path, permissions: newPermissions})
                             );
 
                             fetchLinks(
-                                shareLinksApi.browse({itemsPerPage: 10, path: selected.id})
+                                shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
                             );
                         }}
                     />
@@ -230,84 +223,21 @@ export const ShareModal: React.FunctionComponent<{
 
 };
 
-export const ShareBrowse: React.FunctionComponent<{
-    onSelect?: (selection: Share) => void;
-    isSearch?: boolean;
-    browseType?: BrowseType;
-}> = props => {
-    const browseType = props.browseType ?? BrowseType.MainContent;
-    const location = useLocation();
-    const filterIngoing = getQueryParam(location.search, "filterIngoing") !== "false";
-    const filterRejected = getQueryParam(location.search, "filterRejected") !== "false";
-    const filterOriginalPath = getQueryParam(location.search, "filterOriginalPath");
-    const avatars = useAvatars();
-
-    const additionalFilters: Record<string, string> = useMemo(() => {
-        const result: Record<string, string> = {};
-        result["filterIngoing"] = filterIngoing.toString()
-        if (filterOriginalPath) {
-            result["filterOriginalPath"] = filterOriginalPath;
-        }
-        if (filterRejected) {
-            result["filterRejected"] = filterRejected.toString();
-        }
-        return result;
-    }, [filterIngoing]);
-
-    const onSharesLoaded = useCallback((items: Share[]) => {
-        if (items.length === 0) return;
-        avatars.updateCache(items.map(it => it.specification.sharedWith));
-    }, []);
-
-    const navigateToEntry = React.useCallback((navigate: NavigateFunction, share: Share): void => {
-        if (browseType === BrowseType.MainContent) {
-            if (share.status.state === "APPROVED" || share.specification.sharedWith !== Client.username) {
-                navigate(buildQueryString("/files", {path: share.status.shareAvailableAt}));
-            } else {
-                snackbarStore.addFailure("Share must be accepted to access.", false);
-            }
-        } else {
-            // Should we handle this differently for other browseTypes?
-            navigate(buildQueryString("/files", {path: share.status.shareAvailableAt}));
-        }
-    }, []);
-
-    return <Box ml="12px" mt="12px">
-        <ResourceBrowse
-            api={SharesApi}
-            disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES
-            onSelect={props.onSelect}
-            browseType={BrowseType.Embedded}
-            isSearch={props.isSearch}
-            onResourcesLoaded={onSharesLoaded}
-            additionalFilters={additionalFilters}
-            navigateToChildren={navigateToEntry}
-            headerSize={55}
-            emptyPage={
-                <Heading.h3 textAlign={"center"}>
-                    No shares match your search/filter criteria.
-                    <br />
-                    <small>You can create a new share by clicking 'Share' on one of your directories.</small>
-                </Heading.h3>
-            }
-        />
-    </Box>;
-};
-
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
+    rowTitles: true,
+    dragToSelect: true,
 };
 
-const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: boolean; filterOutgoing: boolean;} = {
+const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: true} = {
     itemsPerPage: 250,
     filterIngoing: true,
-    filterOutgoing: true,
 };
 
-export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
+export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Share> | null>(null);
     const navigate = useNavigate();
@@ -315,9 +245,7 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
 
     const avatars = useAvatars();
 
-    useTitle(isIngoing ? "Shared with me" : "Shared by me");
-    defaultRetrieveFlags.filterIngoing = isIngoing;
-    defaultRetrieveFlags.filterOutgoing = !isIngoing;
+    useTitle("Shared with me");
 
     const features: ResourceBrowseFeatures = FEATURES;
 
@@ -326,25 +254,29 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Share>(mount, isIngoing ? "Shared with me" : "Shared by me").init(browserRef, features, "", browser => {
+            new ResourceBrowser<Share>(mount, "Shared with me", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                const flags = defaultRetrieveFlags;
+                browser.setRowTitles([{name: "Filename"}, {name: "Share state"}, {name: "Last updated"}, {name: "Shared by"}]);
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        navigate(AppRoutes.shares.view(resource.id));
+                        navigate(buildQueryString("/files", {path: resource.specification.sourceFilePath}));
                         return;
                     }
 
-                    callAPI(SharesApi.browse({
-                        ...flags,
-                        ...browser.browseFilters,
-                    })).then(result => {
+                    callAPI(
+                        SharesApi.browse({
+                            ...defaultRetrieveFlags,
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
+                        })
+                    ).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
                     });
+
                 });
 
                 browser.on("wantToFetchNextPage", async (path) => {
@@ -352,12 +284,12 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                         SharesApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     );
                     browser.registerPage(result, path, false);
                 });
-
 
                 // GET https://dev.cloud.sdu.dk/api/shares/browse?itemsPerPage=100&includeUpdates=true&includeOthers=true&filterCreatedAfter=1693951200000&filterCreatedBy=a&sortDirection=ascending&filterIngoing=true&filterRejected=true
                 browser.on("fetchFilters", () => [{
@@ -402,8 +334,6 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                     );
 
                     // Row stat1
-
-
                     const {state} = share.status;
                     const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                     stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
@@ -414,52 +344,38 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                         height: 32,
                         width: 32,
                     }).then(setStateIcon);
-                    const pIcon = providerIcon(share.specification.product.provider, {
-                        fontSize: "28px", width: "40px", height: "40px", marginRight: "8px",
-                    });
-                    pIcon.style.marginTop = pIcon.style.marginBottom = "auto"
-                    row.stat1.appendChild(pIcon);
                     const isEdit = share.specification.permissions.some(it => it === "EDIT");
 
-                    const radioTilesContainer = document.createElement("div");
-                    radioTilesContainer.className = classConcat(BoxClass, RadioTilesContainerClass);
-                    radioTilesContainer.style.marginTop = radioTilesContainer.style.marginBottom = "auto";
-                    radioTilesContainer.style.height = "48px";
-                    radioTilesContainer.onclick = stopPropagation;
-                    if (sharedByMe || !isEdit) {
-                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-
-                        browser.icons.renderIcon({color: "black", color2: "black", height: 48, width: 48, name: "search"}).
-                            then(setIcon);
-
-                        row.stat1.append(tileAsHTML({
-                            disabled: share.owner.createdBy !== Client.username,
-                            label: "Read",
-                            onChange: () => updatePermissions(share, false),
-                            fontSize: "0.5em",
-                            name: "READ",
-                            checked: !isEdit && sharedByMe,
-                            height: 40,
-                            icon: icon as any,
-                        }));
-                    }
-
-                    if (sharedByMe || isEdit) {
-                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-
-                        browser.icons.renderIcon({color: "black", color2: "black", height: 48, width: 48, name: "edit"}).
-                            then(setIcon);
-                        row.stat1.append(tileAsHTML({
-                            disabled: share.owner.createdBy !== Client.username,
-                            label: "Edit",
-                            onChange: () => updatePermissions(share, false),
-                            fontSize: "0.5em",
-                            name: "EDIT",
-                            checked: isEdit && sharedByMe,
-                            height: 40,
-                            icon: icon as any,
-                        }));
-                    }
+                    // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
+                    // the re-render doesn't happen multiple times, when re-rendering. The radioTilesContainerWrapper can be dead,
+                    // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
+                    // causing multiple avatars to be shown.
+                    const radioTilesContainerWrapper = document.createElement("div");
+                    row.stat1.append(radioTilesContainerWrapper);
+                    new ReactStaticRenderer(() =>
+                        <RadioTilesContainer height={48} onClick={stopPropagation}>
+                            {!isEdit ? <RadioTile
+                                disabled={share.owner.createdBy !== Client.username}
+                                label={"Read"}
+                                onChange={noopCall}
+                                icon={"search"}
+                                name={"READ"}
+                                checked={!isEdit && sharedByMe}
+                                height={40}
+                                fontSize={"0.5em"}
+                            /> : null}
+                            {isEdit ? <RadioTile
+                                disabled
+                                label={"Edit"}
+                                onChange={noopCall}
+                                icon={"edit"}
+                                name={"EDIT"}
+                                checked={isEdit && sharedByMe}
+                                height={40}
+                                fontSize={"0.5em"}
+                            /> : null}
+                        </RadioTilesContainer>
+                    ).promise.then(it => radioTilesContainerWrapper.append(it.clone()));
 
                     // Row stat2
                     row.stat2.innerText = dateToString(share.createdAt ?? timestampUnixMs());
@@ -478,16 +394,11 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                     row.stat3.append(avatarWrapper);
 
                     new ReactStaticRenderer(() =>
-                        sharedByMe ? <Tooltip
-                            trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="circle" {...avatar} />}
+                        <Tooltip
+                            trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />}
                         >
-                            Shared with {share.permissions.others?.map(it => it.entity.type === "user" ? it.entity.username : it.entity.group)}
-                        </Tooltip> : (
-                            <Tooltip
-                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="circle" {...avatar} />}
-                            >
-                                Shared by {share.owner.createdBy}
-                            </Tooltip>)
+                            Shared by {share.owner.createdBy}
+                        </Tooltip>
                     ).promise.then(it => {
                         avatarWrapper.appendChild(it.clone());
                     });
@@ -542,7 +453,7 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                         reload: () => browser.refresh(),
                         isWorkspaceAdmin: true, // This is shares, after all.
                         viewProperties: s => {
-                            navigate(AppRoutes.shares.view(s.id))
+                            navigate(AppRoutes.resource.properties("shares", s.id));
                         }
                     };
                     return callbacks;
@@ -552,7 +463,7 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
                     return SharesApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
                 });
-                browser.on("generateBreadcrumbs", () => [{title: "Shares", absolutePath: ""}]);
+                browser.on("generateBreadcrumbs", () => [{title: "Shared with me", absolutePath: ""}]);
                 browser.on("search", query => {
                     browser.searchQuery = query;
                     browser.currentPath = "/search";
@@ -579,16 +490,6 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
                     browser.renderOperations();
                     browser.renderBreadcrumbs();
                 });
-
-                async function updatePermissions(share: Share, isEditing: boolean) {
-                    await callAPI(SharesApi.updatePermissions(bulkRequestOf(
-                        {
-                            id: share.id,
-                            permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
-                        }
-                    )));
-                    // TODO(Jonas): Reload
-                };
             });
         }
     }, []);
@@ -601,9 +502,6 @@ export function IngoingSharesBrowse({opts, isIngoing}: {isIngoing: boolean, opts
     return <MainContainer main={main} />;
 }
 
-const Router: React.FunctionComponent = () => {
-    return <ResourceRouter api={SharesApi} Browser={ShareBrowse} />;
-};
 
 const SelectBoxClass = injectStyleSimple("select-box", `
     border: 2px solid var(--midGray);
@@ -611,10 +509,9 @@ const SelectBoxClass = injectStyleSimple("select-box", `
     padding: 10px;
 `);
 
-const StateIconAndColor: Record<ShareState, {name: IconName, color: ThemeColor}> = {
+export const StateIconAndColor: Record<ShareState, {name: IconName, color: ThemeColor}> = {
     "APPROVED": {color: "green", name: "check"},
     "PENDING": {color: "blue", name: "questionSolid"},
     "REJECTED": {color: "red", name: "close"},
 }
 
-export default Router;

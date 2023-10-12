@@ -13,7 +13,6 @@ import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Bro
 import {SvgFt} from "@/ui-components/FtIcon";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
-import {BrowseType} from "@/Resource/BrowseType";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 
 export const entityName = "Metadata (BETA)";
@@ -70,7 +69,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             close={() => setCreatingForTemplate(null)} />;
     }
 
-    const filteredOperations = inPopIn ? [] : operations; 
+    const filteredOperations = inPopIn ? [] : operations;
 
     return <div>
         <StandardList
@@ -85,10 +84,12 @@ export const MetadataBrowse: React.FunctionComponent<{
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
         >
-            <MetadataNamespacesBrowse browseType={BrowseType.Embedded} onTemplateSelect={selectTemplate} />
+            <MetadataNamespacesBrowse opts={{embedded: true, selection: {onSelect: selectTemplate as any, onSelectRestriction(res) {
+                return true;
+            },}}} />
         </ReactModal>
     </div>;
-};  
+};
 
 interface MetadataRow {
     key: string;
@@ -138,25 +139,12 @@ interface Callbacks {
     setLookingForTemplate: (looking: boolean) => void;
 }
 
-const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callbacks>[] = [
-    {
-        text: `Add ${entityName.toLowerCase()}`,
-        primary: true,
-        icon: "docs",
-        enabled: (selected, cb) => {
-            return selected.length === 0 && cb.inspecting == null &&
-                cb.file.permissions.myself.some(it => it === "EDIT" || it === "ADMIN");
-        },
-        onClick: (_, cb) => {
-            cb.setLookingForTemplate(true);
-        }
-    },
-    {
-        text: "Properties",
-        icon: "properties",
-        enabled: (selected) => selected.length === 1,
-        onClick: (selected, cb) => {
-            cb.setInspecting(selected[0].key);
-        }
+const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callbacks>[] = [{
+    text: "Properties",
+    icon: "properties",
+    enabled: (selected) => selected.length === 1,
+    onClick: (selected, cb) => {
+        cb.setInspecting(selected[0].key);
     }
+}
 ];

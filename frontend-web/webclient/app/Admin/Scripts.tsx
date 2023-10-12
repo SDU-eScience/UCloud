@@ -47,11 +47,12 @@ interface ScriptInfo {
     lastRun: number;
 }
 
+/* TODO(Jonas): Use new Browse-component */
 const Scripts: React.FunctionComponent = () => {
     const [scripts, fetchScripts] = useCloudAPI<PageV2<ScriptInfo>>({noop: true}, emptyPageV2);
 
     const toggleSet = useToggleSet(scripts.data.items);
-    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
 
     const reload = useCallback(() => {
         if (Client.userIsAdmin) fetchScripts(apiBrowse({itemsPerPage: 50}, baseContext));

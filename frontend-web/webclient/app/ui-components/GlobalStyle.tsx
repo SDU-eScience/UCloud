@@ -317,7 +317,6 @@ body {
 
 h1 {
   font-size: 2em;
-  margin: 0.67em 0;
 }
 
 /* Grouping content
@@ -868,7 +867,12 @@ a {
 
 input.search-field {
     width: 250px;
+    height: 35px;
     margin-left: 8px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
 }
 
 `;

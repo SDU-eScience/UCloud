@@ -11,7 +11,7 @@ import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -20,12 +20,14 @@ const defaultRetrieveFlags = {
     itemsPerPage: 100,
 }
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    rowTitles: true,
+    dragToSelect: true,
 };
 
 const DUMMY_ENTRY_ID = "dummy";
@@ -34,7 +36,8 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductNetworkIP, Net
     globalTtl: 60_000
 });
 
-export function ExperimentalNetworkIP(): JSX.Element {
+export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<NetworkIP>}): JSX.Element {
+    console.log("Unused so far!", props.opts)
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
     const dispatch = useDispatch();
@@ -48,8 +51,8 @@ export function ExperimentalNetworkIP(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "Public IPs").init(browserRef, FEATURES, "", browser => {
-                // TODO(Jonas): Set filter to "RUNNING" initially for state.
+            new ResourceBrowser<NetworkIP>(mount, "Public IPs", props.opts).init(browserRef, FEATURES, "", browser => {
+                browser.setRowTitles([{name: "IP address"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 var startCreation = function () { };
 
@@ -187,10 +190,10 @@ export function ExperimentalNetworkIP(): JSX.Element {
 
                 browser.on("renderRow", (ip, row, dims) => {
                     if (ip.id !== DUMMY_ENTRY_ID) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
                         const icon = providerIcon(ip.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
                     }
                 });
 
@@ -240,17 +243,14 @@ export function ExperimentalNetworkIP(): JSX.Element {
                             // TODO
                         },
                         viewProperties(res: NetworkIP): void {
-                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
+                            navigate(AppRoutes.resource.properties("public-ips", res.id));
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
                         api: NetworkIPApi,
                         isCreating: false
                     };
-
                     return callbacks;
-
-
                 });
 
                 browser.on("fetchOperations", () => {

@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -22,19 +22,21 @@ const defaultRetrieveFlags = {
 
 const DUMMY_ENTRY_ID = "dummy";
 
-const FEATURES = {
+const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    rowTitles: true,
+    dragToSelect: true,
 };
 
 const supportByProvider = new AsyncCache<SupportByProvider<ProductLicense, LicenseSupport>>({
     globalTtl: 60_000
 });
 
-export function ExperimentalLicenses(): JSX.Element {
+export function ExperimentalLicenses({opts}: {opts?: ResourceBrowserOpts<License>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
@@ -48,8 +50,10 @@ export function ExperimentalLicenses(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<License>(mount, "Licenses").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
                 var startCreation = function () { };
+
+                browser.setRowTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 supportByProvider.retrieve("", () =>
                     callAPI(LicenseApi.retrieveProducts())
@@ -122,7 +126,8 @@ export function ExperimentalLicenses(): JSX.Element {
 
                     callAPI(LicenseApi.browse({
                         ...defaultRetrieveFlags,
-                        ...browser.browseFilters
+                        ...browser.browseFilters,
+                        ...opts?.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -137,7 +142,8 @@ export function ExperimentalLicenses(): JSX.Element {
                         LicenseApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     )
 
@@ -193,6 +199,13 @@ export function ExperimentalLicenses(): JSX.Element {
                         const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
                         row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
                     }
+
+                    if (opts?.selection) {
+                        const button = browser.defaultButtonRenderer(opts.selection, license);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
+                        }
+                    }
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
@@ -235,7 +248,7 @@ export function ExperimentalLicenses(): JSX.Element {
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
-                        startCreation(): void {
+                        startCreation: opts?.isModal ? undefined : function(): void {
                             startCreation();
                         },
                         cancelCreation: doNothing,

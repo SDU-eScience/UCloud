@@ -1,4 +1,4 @@
-import {bulkRequestOf, defaultSearch, emptyPage, emptyPageV2, useSearch} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {updatePageTitle} from "@/Navigation/Redux/StatusActions";
@@ -17,7 +17,6 @@ import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
-import {GrantApplicationFilter, IngoingGrantApplicationsResponse, } from "@/Project/Grant";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
@@ -36,11 +35,8 @@ import {
     UsageChart,
     usageExplainer
 } from "@/Accounting";
-import {api as JobsApi, Job} from "@/UCloud/JobsApi";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {browseGrantApplications, GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import {Connect} from "@/Providers/Connect";
-import {NotificationDashboardCard} from "@/Notifications";
 import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
@@ -49,13 +45,11 @@ import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
-import ExperimentalJobs from "@/Applications/Jobs/ExperimentalJobs";
+import JobsBrowse from "@/Applications/Jobs/ExperimentalJobs";
 import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
 function Dashboard(props: DashboardProps): JSX.Element {
-    useSearch(defaultSearch);
-
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
@@ -109,9 +103,6 @@ function Dashboard(props: DashboardProps): JSX.Element {
                 />
                 <DashboardRuns />
             </div>
-            <div style={{marginBottom: "24px"}}>
-                <NotificationDashboardCard />
-            </div>
             <UsageAndResources charts={usage} products={products} />
             <div className={GridClass}>
                 <Connect embedded />
@@ -126,6 +117,8 @@ function Dashboard(props: DashboardProps): JSX.Element {
         </div>
     );
 }
+
+const FONT_SIZE = "16px";
 
 const GridClass = injectStyle("grid", k => `
 @media screen and (min-width: 900px) {
@@ -192,9 +185,9 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                     </Link>
                 </NoResultsCardBody>
             )}
-            <List childPadding="8px">
-                {favorites.map(it => (<Flex key={it.path}>
-                    <Icon cursor="pointer" mr="6px" name="starFilled" color="blue" onClick={async () => {
+            <List>
+                {favorites.map(it => (<Flex key={it.path} height="55px">
+                    <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="blue" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
                             await invokeCommand(
@@ -209,7 +202,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
                     }} />
-                    <Text cursor="pointer" fontSize="20px" mb="6px" mt="-3px" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
+                    <Text cursor="pointer" fontSize={FONT_SIZE} my="auto" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
                 </Flex>))}
             </List>
         </HighlightedCard>
@@ -228,7 +221,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
 export async function navigateByFileType(file: FileMetadataAttached, invokeCommand: InvokeCommand, navigate: ReturnType<typeof useNavigate>): Promise<void> {
     const result = await invokeCommand<UFile>(FilesApi.retrieve({id: file.path}));
-    
+
     if (!result) {
         snackbarStore.addFailure("File was not found.", false);
         return;
@@ -282,7 +275,6 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
 );
 
 const ResourceGridClass = injectStyleSimple("grid", `
-    margin-top: 25px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
     grid-auto-rows: minmax(450px, auto);
@@ -319,12 +311,12 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
             <Table>
                 <tbody>
                     {props.charts.data.charts.map((it, idx) => (
-                        <TableRow key={idx}>
-                            <TableCell>
-                                <Icon name={productTypeToIcon(it.type)} mr={8} />
-                                {productTypeToTitle(it.type)}
+                        <TableRow key={idx} height="49px">
+                            <TableCell fontSize={FONT_SIZE}>
+                                    <Icon name={productTypeToIcon(it.type)} mr={8} />
+                                    {productTypeToTitle(it.type)}
                             </TableCell>
-                            <TableCell textAlign={"right"}>
+                            <TableCell fontSize={FONT_SIZE} textAlign={"right"}>
                                 {usageExplainer(it.periodUsage, it.type, it.chargeType, it.unit)}
                             </TableCell>
                         </TableRow>
@@ -341,7 +333,7 @@ function DashboardRuns(): JSX.Element {
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="heroBeaker"
     >
-        <ExperimentalJobs opts={{
+        <JobsBrowse opts={{
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
             additionalFilters: {"itemsPerPage": "10"}
         }} />
@@ -414,13 +406,13 @@ function DashboardResources({products}: {
                             <tbody>
                                 {wallets.slice(0, 7).map((n, i) => (
                                     <TableRow key={i}>
-                                        <TableCell>
-                                            <Flex alignItems="center" gap="8px">
+                                        <TableCell fontSize={FONT_SIZE}>
+                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                                 <ProviderLogo providerId={n.category.provider} size={32} />
                                                 <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
                                             </Flex>
                                         </TableCell>
-                                        <TableCell textAlign={"right"}>
+                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                             {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
                                         </TableCell>
                                     </TableRow>

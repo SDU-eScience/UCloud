@@ -2,129 +2,69 @@ import MainContainer from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {NavigateFunction, useNavigate} from "react-router";
-import {Box, Button, ButtonGroup, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
-import List, {ListRow, ListRowStat} from "@/ui-components/List";
-import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {Icon} from "@/ui-components";
+import {createHTMLElements, doNothing, errorMessageOrDefault, extractErrorMessage} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
-import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {BrowseType} from "@/Resource/BrowseType";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
-import {Toggle} from "@/ui-components/Toggle";
-import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToString, projectRoleToStringIcon, useProjectId} from "./Api";
+import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToStringIcon, useProjectId} from "./Api";
 import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";
-import {UtilityBar} from "@/Playground/Playground";
-import {Spacer} from "@/ui-components/Spacer";
-import {ProjectPageTitle} from "./Allocations";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 
-interface MemberInProjectCallbacks {
-    startCreation: () => void;
-    onSetArchivedStatus: (id: string, archive: boolean) => void;
-    startRename: (id: string) => void;
-    navigate: NavigateFunction;
-    setActiveProject: (id: string, title: string) => void;
-    isAdminOrPIForParent: boolean;
+// Note(Jonas): Endpoint missing from ProjectV2-api
+type ListSubprojectsRequest = PaginationRequestV2;
+function listSubprojects(parameters: ListSubprojectsRequest): APICallParameters<ListSubprojectsRequest> {
+    return ({
+        method: "GET",
+        path: buildQueryString(
+            "/projects/sub-projects",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
+    });
 }
 
-type ProjectOperation = Operation<MemberInProject, MemberInProjectCallbacks>;
+export interface OldProject {
+    id: string;
+    title: string;
+    parent?: string;
+    archived: boolean;
+    fullPath?: string;
+}
 
-const subprojectsRenderer: ItemRenderer<MemberInProject, MemberInProjectCallbacks> = {
-    MainTitle({resource}) {
-        if (!resource) return null;
-        return <Text>{resource.project.title}</Text>;
-    },
-    Icon() {
-        return <Icon color={"iconColor"} color2={"iconColor2"} name="projects" />;
-    },
-    ImportantStats({resource, callbacks}) {
-        if (!resource) return null;
-        const projectId = useProjectId();
-        const isActive = projectId === resource.project.id;
-        return <>
-            {resource.project.archived ? <Icon mr="8px" mt="7px" name="tags" /> : null}
-            {resource.role ? <Box mt="7px" title="Set as active project" mr="12px">
-                <Toggle
-                    checked={isActive}
-                    onChange={() => callbacks.setActiveProject(resource.project.id, resource.project.title)}
-                />
-            </Box> : null}
-            {resource.role ? <Tooltip
-                trigger={(
-                    <Icon
-                        size="30"
-                        squared={false}
-                        name={projectRoleToStringIcon(resource.role)}
-                        color="gray"
-                        color2="midGray"
-                        mr=".5em"
-                    />
-                )}
-            >
-                <Text>{projectRoleToString(resource.role)}</Text>
-            </Tooltip> : null}
-        </>;
-    },
-    Stats({resource}) {
-        return <ListRowStat>{resource?.project.fullPath}</ListRowStat>;
-    }
+interface MemberInProject {
+    role?: OldProjectRole;
+    project: OldProject;
+}
+
+const FEATURES: ResourceBrowseFeatures = {
+    breadcrumbsSeparatedBySlashes: false,
+    contextSwitcher: true,
+    rowTitles: true,
 };
 
-const projectOperations: ProjectOperation[] = [
-    {
-        enabled: () => true,
-        onClick: (_, extra) => extra.startCreation(),
-        text: "Create subproject",
-        canAppearInLocation: loc => loc === "SIDEBAR",
-        color: "blue",
-        primary: true
-    },
-    {
-        enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role),
-        onClick: ([{project}], extra) =>  extra.setActiveProject(project.id, project.title),
-        text: "View subprojects",
-        icon: "projects",
-    },
-    {
-        enabled: (selected) => selected.length === 1 && !selected[0].project.archived && isAdminOrPI(selected[0].role),
-        onClick: ([{project}], extras) => extras.onSetArchivedStatus(project.id, true),
-        text: "Archive",
-        icon: "tags"
-    },
-    {
-        enabled: (selected) => selected.length === 1 && selected[0].project.archived && isAdminOrPI(selected[0].role),
-        onClick: ([{project}], extras) => extras.onSetArchivedStatus(project.id, false),
-        text: "Unarchive",
-        icon: "tags"
-    },
-    {
-        enabled: (selected, extras) => {
-            if (selected.length !== 1) return false;
-            if (extras.isAdminOrPIForParent || isAdminOrPI(selected[0].role)) {
-                return true;
-            } else {
-                return "Only Admins and PIs can rename.";
-            }
-        },
-        onClick: ([{project}], extras) => extras.startRename(project.id),
-        text: "Rename",
-        icon: "rename"
-    }
-];
+const UserRoleIconCache: Record<OldProjectRole, ReactStaticRenderer | null> = {
+    [OldProjectRole.ADMIN]: null,
+    [OldProjectRole.PI]: null,
+    [OldProjectRole.USER]: null
+};
 
-export default function SubprojectList(): JSX.Element | null {
-    useTitle("Subproject");
-    const navigate = useNavigate();
+export default function ExperimentalSubprojectList({opts}: {opts?: ResourceBrowserOpts<MemberInProject>}) {
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<MemberInProject> | null>(null);
+    const dispatch = useDispatch();
     const projectId = useProjectId();
+    const isPersonalWorkspace = !!projectId;
     const [project, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
-    const isPersonalWorkspace = projectId == undefined;
 
-    const reload = React.useCallback(() => {
+    const projectReload = React.useCallback(() => {
         if (!isPersonalWorkspace && projectId) {
             fetchProject(api.retrieve({
                 id: projectId,
@@ -138,197 +78,270 @@ export default function SubprojectList(): JSX.Element | null {
     }, [projectId]);
 
     React.useEffect(() => {
-        reload();
+        projectReload();
     }, [projectId]);
 
-    const dispatch = useDispatch();
-    const setProject = React.useCallback((id: string, title: string) => {
-        dispatchSetProjectAction(dispatch, id);
-        snackbarStore.addInformation(
-            `${title} is now the active project`,
-            false
-        );
-    }, [dispatch]);
 
-    const [, invokeCommand] = useCloudCommand();
+    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    useTitle("Subprojects");
 
-    const [creating, setCreating] = React.useState(false);
-    const [renameId, setRenameId] = React.useState("");
-    const reloadRef = React.useRef<() => void>(() => undefined);
-    const creationRef = React.useRef<HTMLInputElement>(null);
-    const renameRef = React.useRef<HTMLInputElement>(null);
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            if (UserRoleIconCache.ADMIN === null) {
+                fillRoleIconCache();
+            }
 
-    const startCreation = React.useCallback(() => {
-        setCreating(true);
-    }, []);
+            new ResourceBrowser<MemberInProject>(mount, "Subprojects", opts).init(browserRef, FEATURES, "", browser => {
 
-    const toggleSet = useToggleSet<MemberInProject>([]);
+                browser.setRowTitles([{name: "Project name"}, {name: ""}, {name: ""}, {name: "Archival status"}]);
 
-    const onCreate = React.useCallback(async () => {
-        const subprojectName = creationRef.current?.value ?? "";
-        if (!subprojectName) {
-            snackbarStore.addFailure("Subproject name cannot be empty.", false);
-            return;
-        }
+                const startRenaming = (path: string) => {
+                    const page = browser.cachedData["/"] ?? [];
+                    const actualProject = page.find(it => it.project.id === path);
 
-        if (subprojectName.trim().length !== subprojectName.length) {
-            snackbarStore.addFailure("Subproject name cannot end or start with whitespace.", false);
-            return;
-        }
+                    browser.showRenameField(
+                        it => it.project.id === path,
+                        () => {
+                            if (!browser.renameValue) return; // No change
+                            if (browser.renameValue.trim().length !== browser.renameValue.length) {
+                                snackbarStore.addFailure("Subproject name cannot end or start with whitespace.", false);
+                                return;
+                            }
+                            if (actualProject) {
+                                const oldTitle = actualProject.project.title;
+                                page.sort((a, b) => a.project.title.localeCompare(b.project.title));
+                                const newRow = browser.findVirtualRowIndex(it => it.project.id === actualProject.project.id);
+                                if (newRow != null) {
+                                    browser.ensureRowIsVisible(newRow, true, true);
+                                    browser.select(newRow, SelectionMode.SINGLE);
+                                }
 
-        setCreating(false);
+                                if (browser.renameValue === actualProject.project.title) return; // No change
 
-        try {
-            const [result] = (await invokeCommand(ProjectAPI.create(bulkRequestOf({
-                title: subprojectName,
-                parent: projectId
-            })))).responses;
-            dispatchSetProjectAction(dispatch, result.id);
-            navigate("/project/grants/existing/");
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
-        }
-    }, [creationRef, projectId]);
+                                callAPI(ProjectAPI.renameProject(bulkRequestOf(
+                                    ...[{id: actualProject.project.id, newTitle: browser.renameValue}]
+                                ))).catch(err => {
+                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    browser.refresh();
+                                });
 
-    const onRenameProject = React.useCallback(async (id: string) => {
-        const newProjectName = renameRef.current?.value;
-        if (!newProjectName) {
-            snackbarStore.addFailure("Invalid subproject name", false);
-            return;
-        }
-        if (newProjectName.trim().length != newProjectName.length) {
-            snackbarStore.addFailure("Subproject name cannot end or start with whitespace.", false);
-            return;
-        }
-        try {
-            await invokeCommand(ProjectAPI.renameProject(bulkRequestOf({id, newTitle: newProjectName})));
-            reloadRef.current();
-            toggleSet.uncheckAll();
-            setRenameId("");
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
-        }
-    }, [projectId]);
+                                browser.undoStack.unshift(() => {
+                                    callAPI(ProjectAPI.renameProject(bulkRequestOf(
+                                        ...[{id: actualProject.project.id, newTitle: oldTitle}]
+                                    ))).catch(err => {
+                                        snackbarStore.addFailure(extractErrorMessage(err), false);
+                                        browser.refresh();
+                                    });
 
-    const onSetArchivedStatus = React.useCallback(async (id: string, archive: boolean) => {
-        try {
-            const bulk = bulkRequestOf({id});
-            const req = archive ? ProjectAPI.archive(bulk) : ProjectAPI.unarchive(bulk);
-            await invokeCommand(req);
-            toggleSet.uncheckAll();
-            reloadRef.current();
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
-        }
-    }, []);
+                                    actualProject.project.title = oldTitle;
+                                    browser.renderRows();
+                                });
 
+                                actualProject.project.title = browser.renameValue;
+                                browser.renderRows();
+                            }
+                        },
+                        doNothing,
+                        actualProject?.project.title ?? ""
+                    );
+                };
 
-    const generateCall = React.useCallback((next?: string) => {
-        setCreating(false);
-        return ({
-            ...listSubprojects({
-                itemsPerPage: 50,
-                next,
-            }),
-            projectOverride: projectId
-        });
-    }, [projectId]);
+                browser.on("beforeOpen", (oldPath, newPath, res) => res != null);
+                browser.on("open", async (oldPath, newPath, resource) => {
+                    const result = await callAPI(listSubprojects({itemsPerPage: 250}));
+                    browser.registerPage(result, "/", true);
+                    browser.renderRows();
+                });
 
-    const extra: MemberInProjectCallbacks = {
-        startCreation,
-        navigate,
-        onSetArchivedStatus,
-        startRename: setRenameId,
-        setActiveProject: setProject,
-        isAdminOrPIForParent: isAdminOrPI(project.data?.status.myRole),
-    };
+                browser.on("unhandledShortcut", () => { });
 
-    if (isPersonalWorkspace) return null;
-    return <MainContainer
-        header={<Spacer
-            left={<ProjectPageTitle>Subprojects</ProjectPageTitle>}
-            right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
-        />}
-        main={
-            isPersonalWorkspace || !projectId ? <Text fontSize={"24px"}>Missing subproject</Text> :
-                <StandardBrowse
-                    reloadRef={reloadRef}
-                    generateCall={generateCall}
-                    pageRenderer={pageRenderer}
-                    toggleSet={toggleSet}
-                />
-        }
-    />;
+                browser.on("wantToFetchNextPage", async path => {
+                    const result = await callAPI(
+                        listSubprojects({itemsPerPage: 250, next: browser.cachedNext[path] ?? undefined})
+                    )
 
-    function pageRenderer(items: MemberInProject[]): JSX.Element {
-        return (
-            <List bordered onContextMenu={preventDefault}>
-                {items.length !== 0 ? null : <Text fontSize="24px" key="no-entries">No subprojects found for project.</Text>}
-                {creating ?
-                    <ListRow
-                        left={
-                            <form onSubmit={e => {stopPropagationAndPreventDefault(e); onCreate();}}>
-                                <Flex height="56px">
-                                    <Icon mx="8px" mt="17.3px" color={"iconColor"} color2={"iconColor2"} name="projects" />
-                                    <ButtonGroup height="36px" mt="8px">
-                                        <Button color="green" type="submit">Create</Button>
-                                        <Button color="red" type="button" onClick={() => setCreating(false)}>Cancel</Button>
-                                    </ButtonGroup>
-                                    <Input noBorder placeholder="Project name..." inputRef={creationRef} />
-                                </Flex>
-                            </form>
+                    if (path !== browser.currentPath) return; // Shouldn't be possible.
+
+                    browser.registerPage(result, "/", false);
+                });
+
+                browser.on("fetchFilters", () => []);
+
+                browser.on("renderRow", (project, row, dims) => {
+                    const title = project.project.title;
+
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
+                    if (project.project.fullPath) row.title.title = project.project.fullPath;
+
+                    if (project.project.archived) {
+                        const [archiveIcon, setArchiveIcon] = ResourceBrowser.defaultIconRenderer();
+                        row.stat3.appendChild(archiveIcon);
+                        browser.icons.renderIcon({name: "tags", color: "black", color2: "black", height: 36, width: 36}).then(setArchiveIcon);
+                    }
+
+                    if (project.role) {
+                        const roleIcon = UserRoleIconCache[project.role];
+                        if (roleIcon != null) {
+                            row.title.prepend(roleIcon.clone());
                         }
-                        right={null}
-                    /> : null}
-                {items.map(it => it.project.id === renameId ? (
-                    <form key={it.project.id} onSubmit={e => {stopPropagationAndPreventDefault(e); onRenameProject(it.project.id);}}>
-                        <Flex height="56px">
-                            <Icon mx="8px" mt="17.3px" color={"iconColor"} color2={"iconColor2"} name="projects" />
-                            <ButtonGroup height="36px" mt="8px">
-                                <Button color="green" type="submit">Rename</Button>
-                                <Button color="red" type="button" onClick={() => setRenameId("")}>Cancel</Button>
-                            </ButtonGroup>
-                            <Input noBorder placeholder="Project name..." defaultValue={it.project.title} inputRef={renameRef} />
-                        </Flex>
-                    </form>
-                ) : (
-                    <ItemRow
-                        key={it.project.id}
-                        item={it}
-                        browseType={BrowseType.MainContent}
-                        renderer={subprojectsRenderer}
-                        toggleSet={toggleSet}
-                        operations={projectOperations}
-                        callbacks={extra}
-                        itemTitle={"Subproject"}
-                    />
-                ))}
-            </List>
-        );
-    }
+                    } else {
+                        row.title.prepend(createHTMLElements({tagType: "div", style: {width: "28px", height: "20px"}}));
+                    }
+                });
+
+                browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
+                browser.on("renderEmptyPage", reason => {
+                    const e = browser.emptyPageElement;
+                    switch (reason.tag) {
+                        case EmptyReasonTag.LOADING: {
+                            e.reason.append("We are fetching your subprojects...");
+                            break;
+                        }
+
+                        case EmptyReasonTag.EMPTY: {
+                            if (Object.values(browser.browseFilters).length !== 0)
+                                e.reason.append("No license found with active filters.")
+                            else e.reason.append("This workspace has no subprojects.");
+                            break;
+                        }
+
+                        case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
+                            e.reason.append("We could not find any data related to your subprojects.");
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+
+                        case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                            e.reason.append("We are currently unable to show your subprojects. Try again later.");
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+                    }
+                });
+
+                browser.setEmptyIcon("projects");
+
+                browser.on("fetchOperationsCallback", (): {} => ({}));
+
+                browser.on("fetchOperations", () => {
+                    // View subprojects, rename, archive
+                    const isAdminOrPIForParent = isAdminOrPI(project.data?.status.myRole);
+                    const operations: Operation<MemberInProject, {}>[] = [{
+                        text: "View subprojects",
+                        icon: "projects",
+                        enabled(entries): boolean {
+                            return entries.length === 1 && entries[0].role != null;
+                        },
+                        onClick([entry]) {
+                            dispatchSetProjectAction(dispatch, entry.project.id);
+                        }
+                    }, {
+                        text: "Rename",
+                        icon: "rename",
+                        enabled(entries) {
+                            if (entries.length !== 1) return false;
+                            if (isAdminOrPIForParent || isAdminOrPI(entries[0].role)) {
+                                return true;
+                            } else {
+                                return "Only Admins and PIs can rename.";
+                            }
+                        },
+                        onClick([selected]) {
+                            startRenaming(selected.project.id);
+                        },
+                    }, {
+                        text: "Archive",
+                        icon: "tags",
+                        enabled(entries) {
+                            return entries.length > 0 && entries.every(it => !it.project.archived);
+                        },
+                        onClick(entries) {
+                            onSetArchivedStatus(entries.map(it => it.project.id), true);
+                        }
+                    }, {
+                        text: "Unarchive",
+                        icon: "tags",
+                        enabled(entries) {
+                            return entries.length > 0 && entries.every(it => it.project.archived);
+                        },
+                        onClick(entries) {
+                            onSetArchivedStatus(entries.map(it => it.project.id), false);
+                        }
+                    }];
+
+                    const selected = browser.findSelectedEntries();
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as {};
+                    return operations.filter(it => it.enabled(selected, callbacks, selected));
+
+                    async function onSetArchivedStatus(ids: string[], archive: boolean) {
+                        const page = browser.cachedData["/"];
+
+                        ids.forEach(id => {
+                            const project = page.find(it => it.project.id === id);
+                            if (project) project.project.archived = archive;
+                        });
+
+                        try {
+                            const bulk = bulkRequestOf(...ids.map(id => ({id})));
+                            const req = archive ? ProjectAPI.archive(bulk) : ProjectAPI.unarchive(bulk);
+                            await callAPI(req);
+                        } catch (e) {
+                            const archiveString = archive ? "archive" : "unarchive"
+                            ids.forEach(id => {
+                                const project = page.find(it => it.project.id === id);
+                                if (project) project.project.archived = !archive;
+                            });
+                            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to " + archiveString + " project"), false);
+                            browser.renderRows();
+                        }
+
+                        browser.renderRows();
+                    }
+                });
+                browser.on("pathToEntry", f => f.project.id);
+                browser.on("nameOfEntry", f => f.project.title);
+                browser.on("sort", page => page.sort((a, b) => a.project.title.localeCompare(b.project.title)));
+            });
+        }
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+    }, []);
+
+    useRefreshFunction(() => {
+        browserRef.current?.refresh();
+    });
+
+    if (!projectId) return null;
+
+    return <MainContainer
+        main={<>
+            <div ref={mountRef} />
+            {switcher}
+        </>}
+    />
 }
 
-// Note(Jonas): Endpoint missing from ProjectV2-api
-type ListSubprojectsRequest = PaginationRequestV2;
-const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<ListSubprojectsRequest> => ({
-    method: "GET",
-    path: buildQueryString(
-        "/projects/sub-projects",
-        parameters
-    ),
-    parameters,
-    reloadId: Math.random()
-});
-
-export interface OldProject {
-    id: string;
-    title: string;
-    parent?: string;
-    archived: boolean;
-    fullPath?: string;
+function fillRoleIconCache() {
+    new ReactStaticRenderer(() =>
+        <RoleIconComp role={OldProjectRole.USER} />
+    ).promise.then(it => UserRoleIconCache[OldProjectRole.USER] = it);
+    new ReactStaticRenderer(() =>
+        <RoleIconComp role={OldProjectRole.ADMIN} />
+    ).promise.then(it => UserRoleIconCache[OldProjectRole.ADMIN] = it);
+    new ReactStaticRenderer(() =>
+        <RoleIconComp role={OldProjectRole.PI} />
+    ).promise.then(it => UserRoleIconCache[OldProjectRole.PI] = it);
 }
 
-interface MemberInProject {
-    role?: OldProjectRole;
-    project: OldProject;
+function RoleIconComp({role}: {role: OldProjectRole}): JSX.Element {
+    return (
+        <Icon
+            size="20"
+            squared={false}
+            name={projectRoleToStringIcon(role)}
+            color="gray"
+            color2="midGray"
+            mr=".5em"
+        />
+    )
 }

@@ -38,7 +38,7 @@ import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {costOfDuration, ProductCompute, usageExplainer} from "@/Accounting";
 import {prettyFilePath} from "@/Files/FilePath";
-import IngressApi, {Ingress} from "@/UCloud/IngressApi";
+import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
@@ -391,7 +391,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={"fake-logo"} />
                             <div className={"header-text"}>
-                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
+                                {status?.state === "IN_QUEUE" ? <InQueueText job={job} /> : null}
                             </div>
                         </Flex>
 
@@ -507,16 +507,10 @@ const Content = injectStyleSimple("content", `
   flex-direction: column;
 `);
 
-function PeerEntry(props: {peer: AppParameterValueNS.Peer}): JSX.Element {
-    return <Flex width={1}>
-        <Truncate width={0.5}>{props.peer.hostname}</Truncate><Truncate width={0.5}></Truncate>
-    </Flex>
-}
-
-function IngressEntry({id}: {id: string}): JSX.Element {
-    const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
-    if (ingress.data == null) return <div />
-    const {domain} = ingress.data.specification;
+function PublicLinkEntry({id}: {id: string}): JSX.Element {
+    const [publicLink] = useCloudAPI<PublicLink | null>(PublicLinkApi.retrieve({id}), null);
+    if (publicLink.data == null) return <div />
+    const {domain} = publicLink.data.specification;
 
     const httpDomain = domain.startsWith("https://") ? domain : "https://" + domain;
     return <Truncate width={1}>
@@ -612,7 +606,6 @@ const Busy: React.FunctionComponent<{
 };
 
 const InfoCardsContainer = injectStyleSimple("info-card-container", `
-  margin-top: 32px;
   display: grid;
   width: 100%;
   grid-template-columns: repeat(auto-fit, minmax(200px, 380px));
@@ -706,7 +699,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
                         {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
                         <br />
                     </>}
-                    <b>Price per hour:</b>
+                    <b>Price per hour:</b>{" "}
                     {job.status.resolvedSupport?.product.freeToUse ? "Free" :
                         job.status.resolvedProduct ?
                             usageExplainer(
@@ -1056,7 +1049,7 @@ const RunningContent: React.FunctionComponent<{
                         </>
                     }
                     <Box>
-                        <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" :
+                        <b>Estimated price per hour: </b>{" "}{job.status.resolvedSupport?.product.freeToUse ? "Free" :
                             job.status.resolvedProduct ?
                                 usageExplainer(
                                     costOfDuration(60, job.specification.replicas, resolvedProduct),
@@ -1097,7 +1090,7 @@ const RunningContent: React.FunctionComponent<{
             {ingresses.length === 0 ? null :
                 <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                        {ingresses.map(ingress => <IngressEntry id={ingress.id} />)}
+                        {ingresses.map(ingress => <PublicLinkEntry id={ingress.id} />)}
                     </Text>
                 </HighlightedCard>
             }

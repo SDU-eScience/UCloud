@@ -14,6 +14,7 @@ const SelectClass = injectStyle("select", k => `
         appearance: none;
         display: block;
         width: 100%;
+        cursor: pointer;
         font-family: inherit;
         color: inherit;
         background-color: transparent;

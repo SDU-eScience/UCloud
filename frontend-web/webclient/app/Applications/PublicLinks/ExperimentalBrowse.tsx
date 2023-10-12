@@ -7,11 +7,11 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
-import IngressApi, {Ingress, IngressSupport} from "@/UCloud/IngressApi";
+import PublicLinkApi, {PublicLink, PublicLinkSupport} from "@/UCloud/PublicLinkApi";
 import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {createHTMLElements, doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -28,19 +28,18 @@ const FEATURES: ResourceBrowseFeatures = {
     sortDirection: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
+    rowTitles: true,
+    dragToSelect: true,
 };
 
-const INGRESS_PREFIX = "app-";
-const INGRESS_POSTFIX = ".dev.cloud.sdu.dk";
 
-
-const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, IngressSupport>>({
+const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, PublicLinkSupport>>({
     globalTtl: 60_000
 });
 
-export function ExperimentalPublicLinks(): JSX.Element {
+export function ExperimentalPublicLinks({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
-    const browserRef = React.useRef<ResourceBrowser<Ingress> | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useTitle("Public links");
@@ -52,7 +51,9 @@ export function ExperimentalPublicLinks(): JSX.Element {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Ingress>(mount, "Public Links").init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<PublicLink>(mount, "Public Links", opts).init(browserRef, FEATURES, "", browser => {
+                browser.setRowTitles([{name: "Domain"}, {name: ""}, {name: ""}, {name: ""}]);
+
                 let startCreation: () => void = doNothing;
                 const ingressBeingCreated = "collectionBeingCreated$$___$$";
                 const isCreatingPrefix = "creating-";
@@ -61,28 +62,27 @@ export function ExperimentalPublicLinks(): JSX.Element {
                     status: {createdAt: 0, boundTo: [], state: "PREPARING"},
                     specification: {domain: "", product: {category: "", id: "", provider: ""}},
                     id: ingressBeingCreated,
-                    owner: {createdBy: "", },
+                    owner: {createdBy: ""},
                     updates: [],
                     permissions: {myself: []},
                     domain: ""
-                } as Ingress;
+                } as PublicLink;
 
                 const supportPromise = supportByProvider.retrieve("", () =>
-                    callAPI(IngressApi.retrieveProducts())
+                    callAPI(PublicLinkApi.retrieveProducts())
                 );
 
                 supportPromise.then(res => {
                     browser.renderOperations();
 
                     const creatableProducts: Product[] = [];
+                    const ingressSupport: PublicLinkSupport[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
                             creatableProducts.push(product);
+                            ingressSupport.push(support);
                         }
                     }
-
-                    browser.renamePrefix = INGRESS_PREFIX;
-                    browser.renamePostfix = INGRESS_POSTFIX;
 
                     const resourceCreator = resourceCreationWithProductSelector(
                         browser,
@@ -96,25 +96,22 @@ export function ExperimentalPublicLinks(): JSX.Element {
                                 provider: product.category.provider
                             };
 
-                            const ingressBeingCreated = {
+                            const ingressBeingCreated: PublicLink = {
                                 ...dummyEntry,
                                 id: temporaryFakeId,
                                 specification: {
-                                    domain: INGRESS_PREFIX + browser.renameValue + INGRESS_POSTFIX,
-                                    title: browser.renameValue,
+                                    domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference
                                 },
-                            } as Ingress;
-
-
+                            };
 
                             browser.insertEntryIntoCurrentPage(ingressBeingCreated);
                             browser.renderRows();
                             browser.selectAndShow(it => it === ingressBeingCreated);
 
                             try {
-                                const response = (await callAPI(IngressApi.create(bulkRequestOf({
-                                    domain: browser.renameValue,
+                                const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
+                                    domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference
                                 })))).responses[0] as unknown as FindByStringId;
 
@@ -126,7 +123,16 @@ export function ExperimentalPublicLinks(): JSX.Element {
                                 return;
                             }
                         },
-                        "INGRESS"
+                        "INGRESS",
+                        product => {
+                            const support = ingressSupport.find(it =>
+                                it.product.id === product.category.name &&
+                                it.product.provider === product.category.provider
+                            );
+                            if (!support) return;
+                            browser.renamePrefix = support.domainPrefix;
+                            browser.renameSuffix = support.domainSuffix;
+                        }
                     );
 
                     startCreation = resourceCreator.startCreation;
@@ -142,9 +148,10 @@ export function ExperimentalPublicLinks(): JSX.Element {
                         return;
                     }
 
-                    callAPI(IngressApi.browse({
+                    callAPI(PublicLinkApi.browse({
                         ...defaultRetrieveFlags,
-                        ...browser.browseFilters
+                        ...browser.browseFilters,
+                        ...opts?.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -156,10 +163,11 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 browser.on("wantToFetchNextPage", async path => {
                     /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
-                        IngressApi.browse({
+                        PublicLinkApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     )
 
@@ -211,27 +219,35 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 browser.on("endRenderPage", () => {
                     const inputField = browser.renameField;
                     const parent = inputField?.parentElement;
-                    if (!parent) return;
+                    if (!parent || parent.hidden) return;
                     const prefix = browser.root.querySelector(".PREFIX");
                     const postfix = browser.root.querySelector(".POSTFIX");
                     {
                         if (inputField?.style.display !== "none") {
                             if (!prefix) {
-                                const newPrefix = document.createElement("span");
+                                const newPrefix = createHTMLElements({
+                                    tagType: "span",
+                                    className: "PREFIX",
+                                    style: {
+                                        position: "absolute",
+                                        top: inputField.style.top,
+                                        left: inputField.getBoundingClientRect().left - 120 + "px"
+                                    }
+                                });
                                 newPrefix.innerText = browser.renamePrefix;
-                                newPrefix.className = "PREFIX";
-                                newPrefix.style.position = "absolute";
-                                newPrefix.style.top = inputField.style.top;
-                                newPrefix.style.left = inputField.getBoundingClientRect().left - 120 + "px";
                                 parent.prepend(newPrefix);
                             }
                             if (!postfix) {
-                                const newPostfix = document.createElement("span");
-                                newPostfix.innerText = browser.renamePostfix;
-                                newPostfix.className = "POSTFIX";
-                                newPostfix.style.position = "absolute";
-                                newPostfix.style.top = inputField.style.top;
-                                newPostfix.style.left = inputField.getBoundingClientRect().right - 80 + "px";
+                                const newPostfix = createHTMLElements({
+                                    tagType: "span",
+                                    className: "POSTFIX",
+                                    style: {
+                                        position: "absolute",
+                                        top: inputField.style.top,
+                                        left: inputField.getBoundingClientRect().right - 80 + "px"
+                                    }
+                                })
+                                newPostfix.innerText = browser.renameSuffix;
                                 parent.prepend(newPostfix);
                             }
                         }
@@ -246,6 +262,13 @@ export function ExperimentalPublicLinks(): JSX.Element {
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
                         row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, dims));
+                    }
+
+                    if (opts?.selection) {
+                        const button = browser.defaultButtonRenderer(opts.selection, link);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
+                        }
                     }
                 });
 
@@ -280,7 +303,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 });
 
                 browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
-                    const callbacks: ResourceBrowseCallbacks<Ingress> = {
+                    const callbacks: ResourceBrowseCallbacks<PublicLink> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         embedded: false,
@@ -291,13 +314,13 @@ export function ExperimentalPublicLinks(): JSX.Element {
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: Ingress): void { },
-                        viewProperties(res: Ingress): void {
-                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
+                        startRenaming(resource: PublicLink): void { },
+                        viewProperties(res: PublicLink): void {
+                            navigate(AppRoutes.resource.properties("public-links", res.id));
                         },
                         commandLoading: false,
                         invokeCommand: callAPI,
-                        api: IngressApi,
+                        api: PublicLinkApi,
                         isCreating: false
                     };
 
@@ -307,7 +330,7 @@ export function ExperimentalPublicLinks(): JSX.Element {
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    return IngressApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
+                    return PublicLinkApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
                 });
 
                 browser.on("pathToEntry", entry => entry.id);

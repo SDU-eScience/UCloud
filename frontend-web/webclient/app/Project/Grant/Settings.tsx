@@ -249,7 +249,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     if (!enabled.data.enabled) return null;
 
     return <Box>
-        <Heading.h4>Grant settings</Heading.h4>
+        <Heading.h3>Grant settings</Heading.h3>
         <TemplateEditor
             templatePersonal={templatePersonal}
             templateExisting={templateExisting}

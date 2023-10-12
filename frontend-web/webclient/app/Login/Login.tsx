@@ -5,7 +5,7 @@ import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Relative} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {TextSpan} from "@/ui-components/Text";
+import {TextProps, TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
 import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
@@ -469,8 +469,8 @@ function LoginButton(props: ButtonProps): JSX.Element {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
-function BlackLoginText(props): JSX.Element {
-    return <Text className={BlackLoginTextClass} />
+function BlackLoginText(props: React.PropsWithChildren<TextProps>): JSX.Element {
+    return <Text className={BlackLoginTextClass} {...props} />
 }
 
 const BlackLoginTextClass = injectStyleSimple("black-login-text", `

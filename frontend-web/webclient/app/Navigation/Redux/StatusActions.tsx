@@ -1,5 +1,5 @@
 import {SetLoadingAction} from "@/Types";
-import {SET_ACTIVE_PAGE, SET_STATUS_LOADING, UPDATE_PAGE_TITLE} from "./StatusReducer";
+import {SET_STATUS_LOADING, UPDATE_PAGE_TITLE} from "./StatusReducer";
 import {useDispatch} from "react-redux";
 import {useEffect} from "react";
 

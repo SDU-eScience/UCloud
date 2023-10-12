@@ -37,6 +37,7 @@ export interface Operation<T, R = undefined> {
     outline?: boolean;
     operationType?: (location: OperationLocation, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
+    // Deprecated(Jonas)?
     canAppearInLocation?: (location: OperationLocation) => boolean;
     confirm?: boolean;
     tag?: string;

@@ -1,5 +1,4 @@
 import {
-    CREATE_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
@@ -224,13 +223,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     }
 
     retrieveOperations(): Operation<FileMetadataTemplateNamespace, ResourceBrowseCallbacks<FileMetadataTemplateNamespace>>[] {
-        const baseOps = super.retrieveOperations();
-        const createOp = baseOps.find(it => it.tag === CREATE_TAG)!;
-        createOp.text = "Create template";
-        createOp.onClick = (selected, cb) => {
-            cb.navigate(`/${this.routingNamespace}/create`);
-        };
-        return baseOps;
+        return super.retrieveOperations();
     }
 
     createTemplate(request: BulkRequest<FileMetadataTemplate>): APICallParameters<BulkRequest<FileMetadataTemplate>> {

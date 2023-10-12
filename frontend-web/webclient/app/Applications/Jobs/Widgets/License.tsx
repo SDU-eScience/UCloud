@@ -7,11 +7,10 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {useCallback, useState} from "react";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {LicenseBrowse} from "@/Applications/Licenses";
 import {License} from "@/UCloud/LicenseApi";
-import {BrowseType} from "@/Resource/BrowseType";
 import {checkProviderMismatch} from "../Create";
 import {Input} from "@/ui-components";
+import {ExperimentalLicenses} from "@/Applications/ExperimentalLicenses";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -47,16 +46,20 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             ariaHideApp={false}
             shouldCloseOnEsc
         >
-            <LicenseBrowse
-                tagged={props.parameter.tagged}
-                additionalFilters={filters}
-                onSelectRestriction={res => {
-                    const errorMessage = checkProviderMismatch(res, "Licenses");
-                    if (errorMessage) return errorMessage;
-                    return true;
+            <ExperimentalLicenses
+                opts={{
+                    isModal: true,
+                    embedded: true,
+                    additionalFilters: filters,
+                    selection: {
+                        onSelect: onUse,
+                        onSelectRestriction(res) {
+                            const errorMessage = checkProviderMismatch(res, "Licenses");
+                            if (errorMessage) return errorMessage;
+                            return true;
+                        },
+                    }
                 }}
-                browseType={BrowseType.Embedded}
-                onSelect={onUse}
             />
         </ReactModal>
         <Input

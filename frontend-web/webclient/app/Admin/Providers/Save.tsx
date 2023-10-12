@@ -13,7 +13,7 @@ import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
-function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
+function getByIdRequest(payload: { id: string }): APICallParameters<{ id: string }> {
     return {
         path: buildQueryString("/providers/retrieve", payload),
         payload
@@ -21,8 +21,8 @@ function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> 
 }
 
 function Save(): JSX.Element | null {
-    const {id} = useParams<{id: string}>();
-    const [provider, setParams, params] = useCloudAPI<Provider | null, {id: string}>({noop: true}, null);
+    const {id} = useParams<{ id: string }>();
+    const [provider, setParams] = useCloudAPI<Provider | null, { id: string }>({noop: true}, null);
     const navigate = useNavigate();
 
     React.useEffect(() => {
@@ -35,7 +35,7 @@ function Save(): JSX.Element | null {
 
     useTitle(title);
 
-    if (provider.loading) return <MainContainer headerSize={0} main={<Loading size={24} />} />;
+    if (provider.loading) return <MainContainer headerSize={0} main={<Loading size={24}/>}/>;
 
     if (!Client.userIsAdmin) return null;
 

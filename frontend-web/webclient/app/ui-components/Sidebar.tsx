@@ -3,7 +3,6 @@ import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {
     copyToClipboard,
-    isLightThemeStored,
     joinToString,
     useFrameHidden
 } from "@/UtilityFunctions";
@@ -13,7 +12,7 @@ import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import Text, {EllipsedText, TextClass, TextSpan} from "./Text";
+import Text, {EllipsedText, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback} from "react";
@@ -45,7 +44,7 @@ import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router";
-import JobsApi, {Job, jobStateToIconAndColor} from "@/UCloud/JobsApi";
+import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {ProjectLinks} from "@/Project/ProjectLinks";
 import {ResourceLinks} from "@/Resource/ResourceOptions";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
@@ -172,18 +171,6 @@ const SidebarMenuItem = injectStyle("sidebar-item", k => `
     }
 `);
 
-interface TextLabelProps {
-    icon: IconName;
-    children: | string | number | JSX.Element;
-    ml?: string;
-    height?: string;
-    color?: ThemeColor;
-    color2?: ThemeColor;
-    iconSize?: string;
-    textSize?: number;
-    space?: string;
-    title?: string;
-}
 
 interface SidebarElement {
     icon: IconName;
@@ -208,26 +195,16 @@ interface SidebarMenuElements {
 export const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
-    SidebarMenuElements,
-    SidebarMenuElements,
 ] = [
-        {
-            items: [
-                {icon: "heroFolder", label: "Files", to: AppRoutes.login.login()},
-                {icon: "heroUserGroup", label: "Workspace", to: AppRoutes.login.login()},
-                {icon: "heroBuildingStorefront", label: "Applications", to: AppRoutes.login.login()}
-            ], predicate: () => !Client.isLoggedIn
-        },
         {
             items: [
                 {icon: "heroFolder", label: "Files", to: "/drives/"},
                 {icon: "heroUserGroup", label: "Workspace"},
                 {icon: "heroSquaresPlus", label: "Resources"},
-                {icon: "heroBuildingStorefront", label: "Applications", to: AppRoutes.apps.landing()},
-                {icon: "heroBeaker", label: "Runs", to: "/jobs/"}
+                {icon: "heroShoppingBag", label: "Applications", to: AppRoutes.apps.landing()},
+                {icon: "heroServer", label: "Runs", to: "/jobs/"}
             ], predicate: () => Client.isLoggedIn
         },
-        {items: [], predicate: () => Client.isLoggedIn},
         {items: [{icon: "heroBolt", label: "Admin"}], predicate: () => Client.userIsAdmin}
     ];
 
@@ -260,9 +237,9 @@ const SidebarItemsClass = injectStyle("sidebar-items", k => `
     }
 `);
 
-function UserMenuLink(props: {icon: IconName; text: string; to: string;}): JSX.Element {
-    return <Link color="black" hoverColor="black" to={props.to}>
-        <Flex>
+function UserMenuLink(props: {icon: IconName; text: string; to: string; close(): void;}): JSX.Element {
+    return <Link color="black" onClick={props.close} hoverColor="black" height="28px" to={props.to}>
+        <Flex className={HoverClass}>
             <Icon name={props.icon} color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em"
                 size="1.3em" />
             <TextSpan color="var(--black)">{props.text}</TextSpan>
@@ -270,10 +247,10 @@ function UserMenuLink(props: {icon: IconName; text: string; to: string;}): JSX.E
     </Link>
 }
 
-function UserMenuExternalLink(props: {icon: IconName; href: string; text: string}): JSX.Element | null {
+function UserMenuExternalLink(props: {icon: IconName; href: string; text: string; close(): void;}): JSX.Element | null {
     if (!props.text) return null;
-    return <div>
-        <ExternalLink hoverColor="text" href={props.href}>
+    return <div className={HoverClass}>
+        <ExternalLink hoverColor="text" onClick={props.close} href={props.href}>
             <Icon name={props.icon} color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
             <TextSpan color="black">{props.text}</TextSpan>
         </ExternalLink>
@@ -283,20 +260,22 @@ function UserMenuExternalLink(props: {icon: IconName; href: string; text: string
 const UserMenu: React.FunctionComponent<{
     avatar: AvatarType;
 }> = ({avatar}) => {
+    const close = React.useRef(() => undefined);
     return <ClickableDropdown
         width="230px"
         paddingControlledByContent
         left="var(--sidebarWidth)"
         bottom="0"
+        closeFnRef={close}
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
-            <UserAvatar avatarStyle={""} height="42px" width="42px" avatar={avatar} /> : null}
+            <UserAvatar height="42px" width="42px" avatar={avatar} /> : null}
     >
-        <Box p="12px">
+        <Box py="12px">
             {!CONF.STATUS_PAGE ? null : (
                 <>
-                    <Box>
-                        <ExternalLink href={CONF.STATUS_PAGE}>
+                    <Box className={HoverClass} >
+                        <ExternalLink onClick={close.current} href={CONF.STATUS_PAGE}>
                             <Flex>
                                 <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
                                 <TextSpan color="black">Site status</TextSpan>
@@ -306,17 +285,18 @@ const UserMenu: React.FunctionComponent<{
                     <Divider />
                 </>
             )}
-            <UserMenuLink icon="properties" text="Settings" to={AppRoutes.users.settings()} />
-            <UserMenuLink icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
-            <Flex onClick={() => Client.logout()} data-component={"logout-button"}>
+            <UserMenuLink close={close.current} icon="properties" text="Settings" to={AppRoutes.users.settings()} />
+            <UserMenuLink close={close.current} icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
+            <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
+            <Divider />
+            <Username close={close.current} />
+            <ProjectID close={close.current} />
+            <Divider />
+            <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
                 <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
                 Logout
             </Flex>
-            <UserMenuExternalLink href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
-            <UserMenuExternalLink href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
-            <Divider />
-            <Username />
-            <ProjectID />
             <Divider />
             <span>
                 <Flex cursor="auto">
@@ -326,6 +306,16 @@ const UserMenu: React.FunctionComponent<{
         </Box>
     </ClickableDropdown>;
 }
+
+const HoverClass = injectStyle("hover-class", k => `
+    ${k} {
+        padding-left: 12px;
+    }
+
+    ${k}:hover {
+        background: var(--lightBlue);
+    }
+`);
 
 export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
@@ -369,7 +359,6 @@ export function Sidebar(): JSX.Element | null {
                             <Link hoverColor="fixedWhite" key={label} to={typeof to === "function" ? to() : to}>
                                 <div
                                     data-active={label === selectedPage}
-                                    onClick={() => setSelectedPage(label)}
                                     onMouseEnter={() => setHoveredPage(label)}
                                     className={SidebarMenuItem}
                                 >
@@ -378,7 +367,6 @@ export function Sidebar(): JSX.Element | null {
                             </Link>) : <div
                                 key={label}
                                 data-active={label === selectedPage}
-                                onClick={() => setSelectedPage(label)}
                                 onMouseEnter={() => setHoveredPage(label)}
                                 className={SidebarMenuItem}
                             >
@@ -408,6 +396,7 @@ export function Sidebar(): JSX.Element | null {
                 data-tag="secondary"
                 hovered={hoveredPage}
                 clicked={selectedPage}
+                setSelectedPage={setSelectedPage}
                 clearHover={() => setHoveredPage("")}
                 clearClicked={() => setSelectedPage("")}
             />
@@ -459,14 +448,16 @@ interface SecondarySidebarProps {
     clicked: string;
     clearHover(): void;
     clearClicked(): void;
+    setSelectedPage: React.Dispatch<React.SetStateAction<string>>;
 }
 
 function SecondarySidebar({
     hovered,
     clicked,
     clearHover,
+    setSelectedPage,
     clearClicked
-}: SecondarySidebarProps): JSX.Element {
+}: SecondarySidebarProps): React.JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
 
@@ -496,7 +487,7 @@ function SecondarySidebar({
     const active = hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
     return <div
-        className={SecondarySidebarClass + " " + SIDEBAR_IDENTIFIER}
+        className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {
             if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
         }}
@@ -505,16 +496,14 @@ function SecondarySidebar({
     >
         <header>
             <h1>{active}</h1>
-            {clicked !== "" ?
-                <Relative top="16px" right="2px" height={0} width={0}>
-                    <Absolute>
-                        <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clearClicked}>
-                            <Icon name="chevronDownLight" size={18} rotation={90} color="blue" />
-                        </Flex>
-                    </Absolute>
-                </Relative> :
-                null
-            }
+
+            <Relative top="16px" right="2px" height={0} width={0}>
+                <Absolute>
+                    <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? clearClicked : () => setSelectedPage(hovered)}>
+                        <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="blue" />
+                    </Flex>
+                </Absolute>
+            </Relative>
         </header>
 
         {active !== "Files" || !canConsume ? null : (
@@ -623,13 +612,18 @@ function AppTitleAndLogo({name, title, to}): JSX.Element {
     </Link>
 }
 
-function Username(): JSX.Element | null {
+function Username({close}: {close(): void}): JSX.Element | null {
     if (!Client.isLoggedIn) return null;
     return <Tooltip
         trigger={(
             <EllipsedText
+                className={HoverClass}
                 cursor="pointer"
-                onClick={copyUserName}
+                onClick={() => {
+                    copyUserName();
+                    close();
+                }}
+                width={"100%"}
             >
                 <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
             </EllipsedText>
@@ -639,7 +633,7 @@ function Username(): JSX.Element | null {
     </Tooltip>
 }
 
-function ProjectID(): JSX.Element | null {
+function ProjectID({close}: {close(): void}): JSX.Element | null {
     const projectId = useProjectId();
 
     const project = useProject();
@@ -657,9 +651,13 @@ function ProjectID(): JSX.Element | null {
     return <Tooltip
         trigger={
             <EllipsedText
+                className={HoverClass}
                 cursor="pointer"
-                onClick={copyProjectPath}
-                width="140px"
+                onClick={() => {
+                    copyProjectPath();
+                    close();
+                }}
+                width={"100%"}
             >
                 <Icon key={projectId} name={"projects"} color2="white" color="black" mr="0.5em" my="0.2em"
                     size="1.3em" />{projectPath}

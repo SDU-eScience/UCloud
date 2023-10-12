@@ -6,7 +6,6 @@ import {
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate,
-    SupportByProvider
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, compute} from "@/UCloud/index";
 import {Icon} from "@/ui-components";

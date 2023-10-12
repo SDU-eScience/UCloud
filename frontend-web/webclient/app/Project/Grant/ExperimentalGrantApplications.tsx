@@ -150,7 +150,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                 });
 
                 browser.on("fetchOperationsCallback", () => ({
-                    dispatch, navigate, api: {}, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0
+                    dispatch, navigate, api: {isCoreResource: true}, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0
                 }));
 
                 browser.on("fetchOperations", () => {

@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {default as ReactModal} from "react-modal";
-import {Box, Flex, FtIcon, Icon, Truncate, Text, Relative} from "@/ui-components";
+import {Box, Flex, FtIcon, Icon, Truncate, Text} from "@/ui-components";
 import {TextSpan} from "@/ui-components/Text";
 import {
     errorMessageOrDefault,

@@ -3,7 +3,6 @@ import {PRODUCT_NAME} from "../../../site.config.json";
 import {StatusActions} from "./StatusActions";
 
 export const UPDATE_PAGE_TITLE = "UPDATE_PAGE_TITLE";
-export const SET_ACTIVE_PAGE = "SET_ACTIVE_PAGE";
 export const SET_STATUS_LOADING = "SET_STATUS_LOADING";
 
 const status = (state: StatusReduxObject = initStatus(), action: StatusActions): StatusReduxObject => {

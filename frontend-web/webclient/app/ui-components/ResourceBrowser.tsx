@@ -2,7 +2,7 @@ import {Operation} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalize, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -25,15 +25,18 @@ import {isAdminOrPI} from "@/Project/Api";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
+import {ButtonClass} from "./Button";
+import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
-    additionalFilters?: Record<string, string>;
+    additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     embedded?: boolean;
     omitFilters?: boolean;
     disabledKeyhandlers?: boolean;
+    isModal?: boolean;
     selection?: {
         onSelect(res: T): void;
         onSelectRestriction(res: T): boolean | string;
@@ -86,17 +89,10 @@ interface MultiOption {
     values: [string, string];
 }
 
-const SORT_DIRECTIONS: FilterWithOptions = {
-    type: "options",
-    key: "sortDirection",
-    text: "Sort order",
-    icon: "heroArrowsUpDown",
-    clearable: false,
-    options: [
-        {color: "black", icon: "heroArrowUp", text: "Ascending", value: "ascending"},
-        {color: "black", icon: "heroArrowDown", text: "Descending", value: "descending"}
-    ]
-};
+const SORT_BY = "sortBy";
+const SORT_DIRECTION = "sortDirection";
+const ASC = "ascending";
+const DESC = "descending";
 
 export function dateRangeFilters(text: string): MultiOptionFilter {
     const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
@@ -255,7 +251,15 @@ export interface ResourceBrowseFeatures {
     filters?: boolean;
     sortDirection?: boolean;
     contextSwitcher?: boolean;
+    rowTitles?: boolean;
 }
+
+export interface RowTitle {
+    name: string;
+    filterName?: string;
+}
+
+export type RowTitleList = [RowTitle, RowTitle, RowTitle, RowTitle];
 
 export class ResourceBrowser<T> {
     // DOM component references
@@ -307,7 +311,7 @@ export class ResourceBrowser<T> {
     private renameFieldIndex: number = -1;
     renameValue: string = "";
     renamePrefix: string = "";
-    renamePostfix: string = "";
+    renameSuffix: string = "";
     private renameOnSubmit: () => void = doNothing;
     private renameOnCancel: () => void = doNothing;
 
@@ -365,7 +369,17 @@ export class ResourceBrowser<T> {
         filters: false,
         sortDirection: false,
         contextSwitcher: false,
+        rowTitles: false,
     };
+
+    // Modal handling:
+    // When multiple 
+    public static isAnyModalOpen = false;
+    private isModal: boolean;
+    private allowEventListenerAction(): boolean {
+        return !ResourceBrowser.isAnyModalOpen || this.isModal;
+    }
+
 
     private listeners: Record<string, any[]> = {};
 
@@ -373,16 +387,20 @@ export class ResourceBrowser<T> {
         embedded: boolean;
         selector: boolean;
         disabledKeyhandlers: boolean;
+        rowTitles: RowTitleList;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
-    constructor(root: HTMLElement, resourceName: string, opts?: ResourceBrowserOpts<T>) {
+    constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
         this.root = root;
         this.resourceName = resourceName;
+        this.isModal = !!opts?.isModal;
+        ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
             disabledKeyhandlers: !!opts?.disabledKeyhandlers,
+            rowTitles: [{name: ""}, {name: ""}, {name: ""}, {name: ""}]
         }
     };
 
@@ -414,6 +432,7 @@ export class ResourceBrowser<T> {
                     <ul></ul>
                     <input class="location-bar">
                     <img class="location-bar-edit">
+                    <div style="flex-grow: 1;"></div>
                     <input class="${InputClass} search-field" hidden>
                     <img class="search-icon">
                     <img class="refresh-icon">
@@ -426,6 +445,13 @@ export class ResourceBrowser<T> {
                 </div>
             </header>
             
+            <div class="row rows-title">
+                <div class="favorite" style="width: 20px;"></div>
+                <div class="title"></div>
+                <div class="stat1"></div>
+                <div class="stat2"></div>
+                <div class="stat3"></div>
+            </div>
             <div style="overflow-y: auto; position: relative;">
                 <div class="scrolling">
                     <input class="rename-field">
@@ -472,6 +498,7 @@ export class ResourceBrowser<T> {
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
+                if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.resourceName);
                 removeProjectListener(this.resourceName);
                 window.clearInterval(unmountInterval);
@@ -489,6 +516,9 @@ export class ResourceBrowser<T> {
             editIcon.src = placeholderImage;
             editIcon.width = 24;
             editIcon.height = 24;
+
+            // TODO(Jonas): This should be handlded in CSS.
+            editIcon.style.marginLeft = editIcon.style.marginRight = "14px";
             this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => editIcon.src = url);
             editIcon.addEventListener("click", () => {
@@ -501,6 +531,8 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
+
+            // TODO(Jonas): This should be handlded in CSS.
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
 
@@ -528,7 +560,7 @@ export class ResourceBrowser<T> {
             }
         }
 
-        if (this.features.filters || this.features.sortDirection) {
+        if (this.features.filters) {
             // Note(Jonas): Expand height of header if filters/sort-directions are available.
             this.header.setAttribute("data-has-filters", "");
         }
@@ -546,6 +578,17 @@ export class ResourceBrowser<T> {
             }
         }
 
+        if (this.features.rowTitles) {
+            const titleRow = this.root.querySelector(".row.rows-title")!;
+            titleRow["style"].display = "flex";
+            titleRow["style"].height = titleRow["style"].maxHeight = "28px";
+            titleRow["style"].paddingBottom = "6px";
+            this.setRowTitles(this.opts.rowTitles);
+        } else {
+            const titleRow = this.root.querySelector(".row.rows-title")!;
+            this.root.removeChild(titleRow);
+        }
+
         {
             // Render refresh icon
             const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .refresh-icon")!;
@@ -559,11 +602,12 @@ export class ResourceBrowser<T> {
             });
         }
 
-
         if (!this.opts.disabledKeyhandlers) {
             // Event handlers not related to rows
             this.renameField.addEventListener("keydown", ev => {
-                this.onRenameFieldKeydown(ev);
+                if (this.allowEventListenerAction()) {
+                    this.onRenameFieldKeydown(ev);
+                }
             });
 
             this.renameField.addEventListener("beforeinput", ev => {
@@ -589,7 +633,9 @@ export class ResourceBrowser<T> {
             });
 
             this.locationBar.addEventListener("keydown", ev => {
-                this.onLocationBarKeyDown(ev);
+                if (this.allowEventListenerAction()) {
+                    this.onLocationBarKeyDown(ev);
+                }
             });
 
             this.locationBar.addEventListener("input", ev => {
@@ -602,7 +648,9 @@ export class ResourceBrowser<T> {
                     return;
                 }
 
-                this.onKeyPress(ev);
+                if (this.allowEventListenerAction()) {
+                    this.onKeyPress(ev);
+                }
             };
             document.addEventListener("keydown", keyDownListener);
         }
@@ -617,8 +665,10 @@ export class ResourceBrowser<T> {
                 this.closeContextMenu();
             }
 
-            if (this.renameFieldIndex !== -1 && ev.target !== this.renameField) {
-                this.closeRenameField("submit");
+            if (this.allowEventListenerAction()) {
+                if (this.renameFieldIndex !== -1 && ev.target !== this.renameField) {
+                    this.closeRenameField("submit");
+                }
             }
         };
         document.addEventListener("click", clickHandler);
@@ -807,13 +857,11 @@ export class ResourceBrowser<T> {
 
         if (!this.canConsumeResources) return;
 
-        if (this.features.sortDirection) {
-            this.renderSortOrder();
-        }
         if (this.features.filters) {
             this.renderFilters();
             this.rerenderSessionFilterIcons();
         }
+        this.renderRowTitles();
     }
 
     private rerenderSessionFilterIcons() {
@@ -987,8 +1035,25 @@ export class ResourceBrowser<T> {
         return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
     }
 
+    public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T) {
+        if (!selection) return;
+        if (selection.onSelectRestriction(item) === true) {
+            const button = document.createElement("button");
+            button.innerText = "Use";
+            button.className = ButtonClass;
+            button.style.height = "32px";
+            button.style.width = "64px";
+            button.onclick = e => {
+                e.stopImmediatePropagation();
+                selection?.onSelect(item);
+            }
+            return button;
+        }
+        return null
+    }
+
     defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
-        return [{title: capitalize(this.resourceName), absolutePath: ""}];
+        return [{title: capitalized(this.resourceName), absolutePath: ""}];
     }
 
     static resetTitleComponent(element: HTMLElement) {
@@ -1073,7 +1138,9 @@ export class ResourceBrowser<T> {
                     this.open(myPath);
                 });
                 listItem.addEventListener("mousemove", () => {
-                    this.entryBelowCursorTemporary = myPath;
+                    if (this.allowEventListenerAction()) {
+                        this.entryBelowCursorTemporary = myPath;
+                    }
                 });
 
                 fragment.append(listItem);
@@ -1082,10 +1149,6 @@ export class ResourceBrowser<T> {
         }
 
         this.breadcrumbs.append(fragment);
-    }
-
-    renderSortOrder() {
-        this.addOptionsToFilter(SORT_DIRECTIONS);
     }
 
     renderFilters() {
@@ -1105,7 +1168,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    // This might be a stupid solution, but some filters should not exist beyond the lifetime of the component,
+    // TODO(Jonas): This might be a stupid solution, but some filters should not exist beyond the lifetime of the component,
     // referred to `session` here.
     renderSessionFilters() {
         const filters = this.dispatchMessage("fetchFilters", k => k());
@@ -1119,7 +1182,7 @@ export class ResourceBrowser<T> {
         this.renderOperationsIn(false);
     }
 
-    public renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
+    private renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
         const renderOpIconAndText = (
             op: {text: string; icon: IconName; color: ThemeColor},
             element: HTMLElement,
@@ -1156,35 +1219,8 @@ export class ResourceBrowser<T> {
             posY: number
         ) => {
             var counter = 1;
+            this.prepareContextMenu(posX, posY, options.length);
             const menu = this.contextMenu;
-            let actualPosX = posX;
-            let actualPosY = posY;
-            menu.innerHTML = "";
-
-            const itemSize = 40;
-            let opCount = options.length;
-            const listHeight = opCount * itemSize;
-            const listWidth = 400;
-
-            const windowWidth = window.innerWidth;
-            const windowHeight = window.innerHeight;
-
-            if (posX + listWidth >= windowWidth - 32) {
-                actualPosX -= listWidth;
-            }
-
-            if (posY + listHeight >= windowHeight - 32) {
-                actualPosY -= listHeight;
-            }
-
-            menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
-            window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
-            menu.style.display = "block";
-            menu.style.opacity = "1";
-
-            menu.style.top = actualPosY + "px";
-            menu.style.left = actualPosX + "px";
-
             const menuList = document.createElement("ul");
             menu.append(menuList);
             let shortcutNumber = counter;
@@ -1256,6 +1292,36 @@ export class ResourceBrowser<T> {
                 values: [CLEAR_FILTER_VALUE, ""]
             });
             renderFilterInContextMenu(filters, x, y);
+        }
+    }
+
+    public setToContextMenuEntries(elements: HTMLElement[], handlers: (() => void)[]): void {
+        const menu = this.contextMenu;
+        const menuList = document.createElement("ul");
+        menu.append(menuList);
+        let shortcutNumber = 1;
+        for (const [index, element] of elements.entries()) {
+            const myIndex = shortcutNumber - 1;
+            this.contextMenuHandlers.push(() => {
+                const handler = handlers[myIndex];
+                handler?.();
+            });
+
+            shortcutNumber++;
+
+            element.addEventListener("mouseover", () => {
+                this.findActiveContextMenuItem(true);
+                this.selectContextMenuItem(myIndex);
+            });
+
+            element.addEventListener("click", ev => {
+                ev.stopPropagation();
+                const handler = handlers[myIndex];
+                handler?.();
+                this.selectContextMenuItem(myIndex);
+            });
+
+            menuList.append(element);
         }
     }
 
@@ -1398,11 +1464,6 @@ export class ResourceBrowser<T> {
         ): number => {
             const menu = this.contextMenu;
             if (allowCreation) {
-                let actualPosX = posX;
-                let actualPosY = posY;
-                menu.innerHTML = "";
-
-                const itemSize = 40;
                 let opCount = 0;
                 for (const op of operations) {
                     if (!isOperation(op)) {
@@ -1411,28 +1472,7 @@ export class ResourceBrowser<T> {
                         opCount++;
                     }
                 }
-
-                const listHeight = opCount * itemSize;
-                const listWidth = 400;
-
-                const rootWidth = window.innerWidth;
-                const rootHeight = window.innerHeight;
-
-                if (posX + listWidth >= rootWidth - 32) {
-                    actualPosX -= listWidth;
-                }
-
-                if (posY + listHeight >= rootHeight - 32) {
-                    actualPosY -= listHeight;
-                }
-
-                menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
-                window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
-                menu.style.display = "block";
-                menu.style.opacity = "1";
-
-                menu.style.top = actualPosY + "px";
-                menu.style.left = actualPosX + "px";
+                this.prepareContextMenu(posX, posY, opCount);
             }
 
             const menuList = allowCreation ? document.createElement("ul") : menu.querySelector("ul")!;
@@ -2708,6 +2748,35 @@ export class ResourceBrowser<T> {
         return result;
     }
 
+    public prepareContextMenu(posX: number, posY: number, entryCount: number) {
+        let actualPosX = posX;
+        let actualPosY = posY;
+        const menu = this.contextMenu;
+        menu.innerHTML = "";
+        const itemSize = 40;
+        const listHeight = entryCount * itemSize;
+        const listWidth = 400;
+
+        const rootWidth = window.innerWidth;
+        const rootHeight = window.innerHeight;
+
+        if (posX + listWidth >= rootWidth - 32) {
+            actualPosX -= listWidth;
+        }
+
+        if (posY + listHeight >= rootHeight - 32) {
+            actualPosY -= listHeight;
+        }
+
+        menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
+        window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
+        menu.style.display = "block";
+        menu.style.opacity = "1";
+
+        menu.style.top = actualPosY + "px";
+        menu.style.left = actualPosX + "px";
+    }
+
     static rowTitleSizePercentage = 56;
     static rowSize = 55;
     static extraRowsToPreRender = 6;
@@ -2789,6 +2858,7 @@ export class ResourceBrowser<T> {
             .file-browser header .header-first-row {
                 display: flex;
                 align-items: center;
+                margin-bottom: 8px;
             }
 
             .file-browser header .header-first-row img {
@@ -2797,7 +2867,6 @@ export class ResourceBrowser<T> {
                 margin-left: 16px;
             }
 
-            .file-browser header .header-first-row ul,
             .file-browser header .header-first-row .location-bar {
                 flex-grow: 1;
             }
@@ -2842,7 +2911,6 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 font-size: 120%;
                 height: 35px;
-                margin-bottom: 8px;
             }
             
             .file-browser header > div > ul[data-no-slashes="true"] li::before {
@@ -2876,6 +2944,12 @@ export class ResourceBrowser<T> {
                 user-select: none;
                 padding: 0 8px;
                 transition: filter 0.3s;
+            }
+            
+            .file-browser .rows-title {
+                max-height: 0px;
+                color: var(--textColor);
+                display: hidden;
             }
             
             body[data-cursor=grabbing] .file-browser .row:hover {
@@ -3070,16 +3144,15 @@ export class ResourceBrowser<T> {
     private addCheckboxToFilter(filter: FilterCheckbox) {
         const wrapper = document.createElement("label");
         wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "8px";
+        wrapper.style.marginRight = "24px";
 
         const icon = this.createFilterImg(filter.icon);
         icon.style.marginTop = "0";
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
 
-        const span = document.createElement("span");
-        span.innerText = filter.text;
-        wrapper.appendChild(span);
+        const node = document.createTextNode(filter.text);
+        wrapper.appendChild(node);
 
         const check = document.createElement("input");
         check.style.marginLeft = "5px";
@@ -3114,7 +3187,7 @@ export class ResourceBrowser<T> {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "8px";
+        wrapper.style.marginRight = "24px";
         wrapper.style.userSelect = "none";
 
         const valueFromStorage = getFilterStorageValue(this.resourceName, filter.type === "options" ? filter.key : filter.keys[0]);
@@ -3179,7 +3252,7 @@ export class ResourceBrowser<T> {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
         wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "8px";
+        wrapper.style.marginRight = "24px";
         wrapper.style.userSelect = "none";
 
         const icon = this.createFilterImg(filter.icon)
@@ -3269,6 +3342,78 @@ export class ResourceBrowser<T> {
             this.defaultEmptyGraphic = fragment;
         });
     }
+
+    public setRowTitles(titles: RowTitleList) {
+        this.opts.rowTitles = titles;
+        this.renderRowTitles();
+    }
+
+    public renderRowTitles() {
+        const titles = this.opts.rowTitles;
+        for (const title of titles) {
+            if (title.filterName) {
+                const value = getFilterStorageValue(this.resourceName, SORT_BY);
+                if (value) this.browseFilters["sortBy"] = value;
+            }
+        }
+        if (this.features.sortDirection) {
+            const value = getFilterStorageValue(this.resourceName, SORT_DIRECTION);
+            if (value) this.browseFilters[SORT_DIRECTION] = value;
+        }
+        const titleRow = this.root.querySelector(".row.rows-title");
+        if (!titleRow) return;
+        this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
+        this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
+        this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
+        // If this is a selector, the third row will show the use button.
+        if (!this.opts.selector) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
+    }
+
+    private setTitleAndHandlers(el: HTMLElement, rowTitle: RowTitle, position: "left" | "right"): void {
+        el.innerHTML = "";
+        const wrapper = document.createElement("div");
+        el.append(wrapper);
+        const rowTitleName = document.createElement("span");
+        rowTitleName.innerText = rowTitle.name;
+        wrapper.append(rowTitleName);
+        const filter = rowTitle.filterName;
+        if (!filter) return;
+        wrapper.style.cursor = "pointer";
+        wrapper.onclick = e => {
+            e.stopPropagation();
+            if (this.browseFilters[SORT_BY] !== filter) {
+                setFilterStorageValue(this.resourceName, SORT_BY, filter);
+            } else if (this.features.sortDirection) {
+                if (this.browseFilters[SORT_DIRECTION] === ASC) {
+                    setFilterStorageValue(this.resourceName, SORT_DIRECTION, DESC);
+                } else {
+                    setFilterStorageValue(this.resourceName, SORT_DIRECTION, ASC);
+                }
+            }
+            this.open(this.currentPath, true);
+        }
+        if (this.browseFilters["sortBy"] === filter) {
+            wrapper.style.fontWeight = "bold";
+            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
+            this.icons.renderIcon({
+                name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
+                color: "black",
+                color2: "black",
+                height: 24,
+                width: 24,
+            }).then(setArrow);
+            arrow.style.height = arrow.style.width = "12px";
+            arrow.style.marginLeft = "8px";
+            if (position === "left") {
+                arrow.style.marginTop = "6px";
+                wrapper.prepend(arrow);
+            } else {
+                wrapper.appendChild(arrow);
+            }
+        } else {
+            wrapper.style.fontWeight = "unset";
+        }
+    }
 }
 
 export function getFilterStorageValue(namespace: string, key: string): string | null {
@@ -3299,6 +3444,9 @@ export function resourceCreationWithProductSelector<T>(
     dummyEntry: T,
     onCreate: (product: Product) => void,
     type: ProductType,
+    // Note(Jonas): Used in the event that the product contains info that the browser component needs.
+    // See PublicLinks usage for an example of it's usage.
+    onSelect?: (product: Product) => void,
 ): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
@@ -3355,6 +3503,7 @@ export function resourceCreationWithProductSelector<T>(
     };
 
     const onProductSelected = (product: Product) => {
+        onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
             browser.showRenameField(
@@ -3398,14 +3547,14 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     outer.className = "provider-icon"
     outer.style.background = "var(--blue)";
     outer.style.borderRadius = "8px";
-    outer.style.width = opts?.width ?? "40px";
-    outer.style.height = opts?.height ?? "40px";
+    outer.style.width = outer.style.minWidth = opts?.width ?? "20px";
+    outer.style.height = outer.style.minHeight = opts?.height ?? "20px";
 
     const inner = div("");
     inner.style.backgroundSize = "contain";
     inner.style.width = "100%";
     inner.style.height = "100%";
-    inner.style.fontSize = opts?.fontSize ?? "30px";
+    inner.style.fontSize = opts?.fontSize ?? "14px";
     inner.style.color = "white"
     if (myInfo) {
         outer.style.padding = "5px";
@@ -3434,7 +3583,7 @@ export function checkCanConsumeResources(projectId: string | null, callbacks: nu
     if (!callbacks) return true;
 
     const {api} = callbacks;
-    if (!api) return false;
+    if (!api) return true;
 
     if (api.isCoreResource) return true;
 

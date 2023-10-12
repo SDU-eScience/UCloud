@@ -4,6 +4,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {Client} from "./Authentication/HttpClientInstance";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -365,6 +366,7 @@ if (onDevSite()) {
     document.body.addEventListener("keydown", async e => {
         if (e.altKey) {
             if (e.code === "KeyK") {
+                await Client.receiveAccessTokenOrRefreshIt();
                 await navigator.clipboard.writeText(`localStorage.accessToken="${localStorage.accessToken}";localStorage.csrfToken="${localStorage.csrfToken}";`);
                 snackbarStore.addFailure("Copied CSRF and access token to clipboard", false);
             } else if (e.code === "KeyL") {
@@ -529,12 +531,6 @@ export function isAbsoluteUrl(url: string): boolean {
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
 }
 
-export function capitalize(text: string): string {
-    if (text.length === 0) return text;
-    return text[0].toUpperCase() + text.substring(1);
-}
-
-
 // TODO(jonas): Might have to be done, more than once (Currently happens on page load).
 export function removeExpiredFileUploads(): void {
     const now = new Date().getTime();
@@ -571,3 +567,47 @@ export function grantsLink(client: {hasActiveProject: boolean}): string {
     if (client.hasActiveProject) return "/project/grants/existing";
     return "/project/grants/personal";
 }
+
+export function clamp(val: number, lower: number, upper: number): number {
+    if (val < lower) return lower;
+    if (val > upper) return upper;
+    return val;
+}
+
+// Note(Jonas): Intended to be some HTML friendly replacement to React where needed.
+// Not really tested, so attempt at own risk.
+interface HTMLElementContent {
+    tagType: keyof HTMLElementTagNameMap;
+    style?: Partial<CSSStyleDeclaration>;
+    dataTags?: [string, string][];
+    handlers?: {onClick?: ((this: GlobalEventHandlers, ev: MouseEvent) => any); onChange?: ((this: GlobalEventHandlers, ev: Event) => any) | null;}
+    className?: string;
+    children?: HTMLElementContent[];
+}
+
+export function createHTMLElements<T extends HTMLElement>({children = [], ...rootEntry}: HTMLElementContent): T {
+    const root = document.createElement(rootEntry.tagType);
+    if (rootEntry.className) root.className = rootEntry.className;
+    if (rootEntry.handlers?.onChange) root.onchange = rootEntry.handlers?.onChange;
+    if (rootEntry.handlers?.onClick) root.onclick = rootEntry.handlers?.onClick;
+    if (rootEntry.dataTags) for (const tag of rootEntry.dataTags) {
+        root.setAttribute(tag[0], tag[1]);
+    }
+
+    addStyle(root, rootEntry.style);
+    for (const child of children) {
+        const childElement = createHTMLElements(child);
+        root.appendChild(childElement);
+    }
+
+    return root as T;
+
+    function addStyle(el: HTMLElement, style?: Partial<CSSStyleDeclaration>) {
+        if (!style) return;
+        for (const rule of Object.keys(style)) {
+            el.style[rule] = style[rule];
+        }
+    }
+}
+
+

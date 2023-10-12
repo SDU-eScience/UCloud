@@ -3,9 +3,9 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, RowTitle} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -16,7 +16,6 @@ import {useNavigate} from "react-router";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
-import {ButtonClass} from "@/ui-components/Button";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -30,11 +29,13 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
     contextSwitcher: true,
     search: true,
+    rowTitles: true,
 };
 
 const logoDataUrls = new AsyncCache<string>();
 
-function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
+const rowTitles: [RowTitle, RowTitle, RowTitle, RowTitle] = [{name: "Job name"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: "State"}];
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -50,12 +51,16 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         filters: !omitFilters,
+        showHeaderInEmbedded: !!opts?.selection,
         sortDirection: !omitFilters,
         dragToSelect: !opts?.embedded,
-        search: !opts?.embedded
+        search: !opts?.embedded,
+        rowTitles: !opts?.embedded,
     };
 
-    const dateRanges = dateRangeFilters("Created after");
+    const dateRanges = dateRangeFilters("Created");
+
+    const simpleView = !!(opts?.embedded && !opts.isModal);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -63,6 +68,8 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
             new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
+
+                if (!simpleView) browser.setRowTitles(rowTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -75,10 +82,9 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         return;
                     }
 
-
                     callAPI(JobsApi.browse({
+                        ...browser.browseFilters,
                         ...flags,
-                        ...browser.browseFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -89,39 +95,19 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                     const result = await callAPI(
                         JobsApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
-                            ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...flags,
                         })
                     );
                     browser.registerPage(result, path, false);
                 });
 
                 browser.on("fetchFilters", () => [{
-                    key: "sortBy",
-                    text: "Sort by",
-                    clearable: false,
-                    options: [{
-                        color: "text",
-                        icon: "calendar",
-                        text: "Date created",
-                        value: "createdAt"
-                    }, {
-                        value: "createdBy",
-                        color: "text",
-                        icon: "user",
-                        text: "Created by"
-                    }],
-                    type: "options",
-                    icon: "heroAdjustmentsHorizontal",
-                },
-                {
                     key: "filterCreatedBy",
                     text: "Created by",
                     type: "input",
                     icon: "user"
-                },
-                    dateRanges,
-                {
+                }, dateRanges, {
                     key: "filterState",
                     options: [
                         {text: "In queue", value: "IN_QUEUE", icon: "hashtag", color: "text"},
@@ -139,10 +125,17 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
 
                 browser.on("renderRow", (job, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    icon.style.minWidth = "20px"
+                    icon.style.minHeight = "20px"
                     row.title.append(icon);
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
-                    row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
+                    if (!simpleView) {
+                        row.stat1.innerText = job.owner.createdBy;
+                        row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
+                    } else {
+                        row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
+                    }
 
                     logoDataUrls.retrieve(job.specification.application.name, async () => {
                         const result = await appLogoCache.fetchLogo(job.specification.application.name);
@@ -165,30 +158,25 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
                         }
                     });
 
-                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
-                    const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
-                    browser.icons.renderIcon({
-                        name: statusIconName,
-                        width: 32,
-                        height: 32,
-                        color: statusIconColor,
-                        color2: statusIconColor
-                    }).then(setStatus);
-                    row.stat3.append(status);
-
-                    // Repeated in ExperimentalBrowse (Files)
-                    if (opts?.selection && opts.selection.onSelectRestriction(job) === true) {
-                        const button = document.createElement("button");
-                        button.innerText = "Use";
-                        button.className = ButtonClass;
-                        button.style.height = "32px";
-                        button.style.width = "64px";
-                        button.onclick = e => {
-                            e.stopImmediatePropagation();
-                            opts.selection?.onSelect(job);
+                    if (opts?.selection) {
+                        const button = browser.defaultButtonRenderer(opts.selection, job);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
                         }
-                        row.stat3.replaceChildren(button);
+                    } else {
+                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
+                        const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
+                        browser.icons.renderIcon({
+                            name: statusIconName,
+                            width: 32,
+                            height: 32,
+                            color: statusIconColor,
+                            color2: statusIconColor
+                        }).then(setStatus);
+                        row.stat3.append(status);
                     }
+
+
                 });
 
                 browser.setEmptyIcon("play");
@@ -295,7 +283,7 @@ function ExperimentalJobs({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadc
         {switcher}
     </>;
     if (opts?.embedded === true) return <div>{main}</div>;
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 }
 
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
@@ -308,4 +296,4 @@ const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     CANCELING: ["close", "red"]
 };
 
-export default ExperimentalJobs;
+export default JobBrowse;

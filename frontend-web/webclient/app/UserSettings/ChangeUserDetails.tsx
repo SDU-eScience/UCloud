@@ -1,8 +1,7 @@
 import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
-import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {Box, Button, Checkbox, Input, Label} from "@/ui-components";
+import {Box, Button, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {Feature, hasFeature} from "@/Features";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";

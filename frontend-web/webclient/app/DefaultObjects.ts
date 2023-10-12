@@ -16,7 +16,7 @@ import {NavigateFunction} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
 import {PopInArgs} from "./ui-components/PopIn";
 import {SidebarStateProps} from "./Applications/Redux/Reducer";
-import {getUserThemePreference, isLightThemeStored} from "./UtilityFunctions";
+import {getUserThemePreference} from "./UtilityFunctions";
 
 export enum KeyCode {
     ENTER = 13,

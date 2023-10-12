@@ -44,7 +44,6 @@ import {addStandardDialog, Sensitivity} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
-import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {apiCreate, apiUpdate, callAPI, InvokeCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
@@ -532,29 +531,32 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <ExperimentalBrowse opts={{
-                            embedded: true, selection: {
+                            embedded: true, isModal: true, selection: {
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                                    await cb.invokeCommand(
-                                        this.copy({
-                                            type: "bulk",
-                                            items: selected.map(file => ({
-                                                oldId: file.id,
-                                                conflictPolicy: "RENAME",
-                                                newId: target + "/" + fileName(file.id)
-                                            }))
-                                        })
-                                    );
-
-                                    cb.reload();
-
-                                    dialogStore.success();
+                                    try {
+                                        await cb.invokeCommand(
+                                            this.copy({
+                                                type: "bulk",
+                                                items: selected.map(file => ({
+                                                    oldId: file.id,
+                                                    conflictPolicy: "RENAME",
+                                                    newId: target + "/" + fileName(file.id)
+                                                }))
+                                            })
+                                        );
+                                        cb.reload();
+                                        dialogStore.success();
+                                    } catch (e) {
+                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
+                                    }
                                 }
                             },
+                            additionalFilters: {
+                                filterProvider: selected[0].specification.product.provider
+                            },
                             initialPath: pathRef.current,
-                            providerFilter: selected[0].specification.product.provider
                         }} />,
                         doNothing,
                         true,
@@ -580,29 +582,31 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(<>
                         <ExperimentalBrowse opts={{
-                            embedded: true, selection: {
+                            embedded: true, isModal: true, selection: {
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
-                                    await cb.invokeCommand(
-                                        this.move({
-                                            type: "bulk",
-                                            items: selected.map(file => ({
-                                                oldId: file.id,
-                                                conflictPolicy: "RENAME",
-                                                newId: target + "/" + fileName(file.id)
-                                            }))
-                                        })
-                                    );
-
-                                    cb.reload();
-
-                                    dialogStore.success();
+                                    try {
+                                        await cb.invokeCommand(
+                                            this.move({
+                                                type: "bulk",
+                                                items: selected.map(file => ({
+                                                    oldId: file.id,
+                                                    conflictPolicy: "RENAME",
+                                                    newId: target + "/" + fileName(file.id)
+                                                }))
+                                            })
+                                        );
+                                        cb.reload();
+                                        dialogStore.success();
+                                    } catch (e) {
+                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
+                                    }
                                 }
                             },
                             initialPath: pathRef.current,
-                            providerFilter: selected[0].specification.product.provider
+                            additionalFilters: {filterProvider: selected[0].specification.product.provider}
                         }} />
                     </>,
                         doNothing,
@@ -644,7 +648,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: async (selected, cb) => {
                     dialogStore.addDialog(
                         <ShareModal
-                            selected={selected[0]}
+                            selected={{path: selected[0].id, product: selected[0].specification.product}}
                             cb={cb}
                         />,
                         doNothing, true
@@ -705,7 +709,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
             {
                 icon: "refresh",
-                text: "Manage synchronization (BETA)",
+                text: "Manage synchronization",
                 enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig,
                 onClick: (selected, extra) =>
                     extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`)
@@ -717,18 +721,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
                     synchronizationOpOnClick(selected, cb)
-                }
-            },
-            {
-                // Folder synchronization
-                text: synchronizationOpText,
-                icon: "refresh",
-                primary: true,
-                tag: "syncthing",
-                enabled: (selected, cb) => synchronizationOpEnabled(true, selected, cb),
-                onClick: (selected, cb) => {
-                    if (!cb.directory) return;
-                    synchronizationOpOnClick([cb.directory], cb);
                 }
             },
             {
@@ -833,7 +825,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
-    if (devices.length === 0) return "Sync setup (BETA)";
+    if (devices.length === 0) return "Sync setup";
 
     const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
@@ -843,7 +835,7 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     if (allSynchronized) {
         return "Remove from sync";
     } else {
-        return "Add to sync (BETA)";
+        return "Add to sync";
     }
 }
 

@@ -5,7 +5,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Grid, Icon, Link, Markdown, Tooltip, VerticalButtonGroup} from "@/ui-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Grid, Icon, Link, Markdown, Tooltip} from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
@@ -66,6 +66,8 @@ export const Create: React.FunctionComponent = () => {
         return null;
     }
 
+
+
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
@@ -76,6 +78,12 @@ export const Create: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+
+    if (applicationResp) {
+        useTitle(`${applicationResp.data?.metadata.name} ${applicationResp.data?.metadata.version}`);
+    } else {
+        useTitle(`${appName} ${appVersion}`);
+    }
 
     const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
         {noop: true},
@@ -318,6 +326,8 @@ export const Create: React.FunctionComponent = () => {
         main={
             <>
                 <Box mx="50px" mt="32px">
+                    {/*
+<<<<<<< HEAD
                     <Spacer
                         left={
                             <AppHeader
@@ -339,6 +349,28 @@ export const Create: React.FunctionComponent = () => {
                             </>
                         }
                     />
+=======
+                    */}
+                    <Spacer left={
+                        <AppHeader
+                            title={appGroup?.data?.group.title ?? application.metadata.title}
+                            slim application={application}
+                            flavors={appGroup?.data?.applications ?? []}
+                            allVersions={previousResp.data?.items ?? []}
+                            />} right={<>
+                        {!application.metadata.website ? null : (
+                            <Tooltip
+                                trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
+                                    <Icon name="documentation" color="blue" />
+                                </ExternalLink>}>
+                                View documentation
+                            </Tooltip>
+                        )}
+                        <UtilityBar searchEnabled={false} />
+                    </>} />
+                    {/*
+>>>>>>> 48630d4b552660cfe93ea268bc2d8f2a6af52639
+                        */}
                 </Box>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>

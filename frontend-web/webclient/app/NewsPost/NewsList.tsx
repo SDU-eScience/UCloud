@@ -1,20 +1,21 @@
 import * as React from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
-import {Link, Text, Flex, Box, Icon, theme, Grid} from "@/ui-components";
+import {Link, Text, Flex, Box, Icon, Grid} from "@/ui-components";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {NewsPost} from "@/Dashboard/Dashboard";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {emptyPage} from "@/DefaultObjects";
-import { useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as Pagination from "@/Pagination";
 import {format} from "date-fns/esm";
-import {Tag, hashF, appColor} from "@/Applications/Card";
+import {Tag} from "@/Applications/Card";
 import {capitalized} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
+import {colorFromTitle} from "@/ui-components/theme";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;
@@ -54,15 +55,16 @@ export const NewsList: React.FC = () => {
 
     return (
         <MainContainer
+            headerSize={142}
             header={(
-                <Flex>
+                <Box ml="10px">
                     <Heading.h2>News</Heading.h2>
                     {!filter ? null :
-                        <Text mt="14px" ml="10px">
+                        <Text>
                             {capitalized(filter)} <Icon cursor="pointer" color="black" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
                         </Text>
                     }
-                </Flex>
+                </Box>
             )}
             main={(
                 <Pagination.List
@@ -86,15 +88,15 @@ export const NewsList: React.FC = () => {
         return <Grid gridTemplateColumns={"repeat(1, auto)"} gridGap={32}>
             {page.items.map(item => (
                 <HighlightedCard color={"blue"} isLoading={false} key={item.id}>
-                    <Box mb={16}>
-                        <Link to={AppRoutes.news.detailed(item.id)}>
+                    <Box my={16}>
+                        <Link mt="12px" to={AppRoutes.news.detailed(item.id)}>
                             <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden} /></Flex>
                         </Link>
                         <Heading.h5>{item.subtitle}</Heading.h5>
                         <Flex>
                             <Text>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
                             <Box mt="-3px" ml="4px">
-                                <Tag bg={theme.appColors[appColor(hashF(item.category))][0]} label={item.category} />
+                                <Tag bg={colorFromTitle(item.category)} label={item.category} />
                             </Box>
                         </Flex>
                         <IsExpired now={now} expiration={item.hideFrom} />

@@ -1,6 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useEffect, useReducer, useRef, useState} from "react";
-import {capitalize, defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "@/UtilityFunctions";
 import {useGlobal, ValueOrSetter} from "@/Utilities/ReduxHooks";
 import {HookStore} from "@/DefaultObjects";
 import {usePromiseKeeper} from "@/PromiseKeeper";
@@ -66,7 +66,7 @@ export function apiBrowse<R extends Record<string, any>>(request: R, baseContext
         context: "",
         method: "GET",
         path: buildQueryString(
-            removeTrailingSlash(baseContext) + "/browse" + (subResource ? capitalize(subResource) : ""),
+            removeTrailingSlash(baseContext) + "/browse" + (subResource ? capitalized(subResource) : ""),
             request
         ),
         parameters: request
@@ -77,7 +77,7 @@ export function apiRetrieve<R extends Record<string, any>>(request: R, baseConte
         context: "",
         method: "GET",
         path: buildQueryString(
-            removeTrailingSlash(baseContext) + "/retrieve" + (subResource ? capitalize(subResource) : ""),
+            removeTrailingSlash(baseContext) + "/retrieve" + (subResource ? capitalized(subResource) : ""),
             request
         ),
         parameters: request
@@ -87,7 +87,7 @@ export function apiSearch<R>(request: R, baseContext: string, subResource?: stri
     return {
         context: "",
         method: "POST",
-        path: removeTrailingSlash(baseContext) + "/search" + (subResource ? capitalize(subResource) : ""),
+        path: removeTrailingSlash(baseContext) + "/search" + (subResource ? capitalized(subResource) : ""),
         parameters: request,
         payload: request
     };

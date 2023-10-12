@@ -11,7 +11,6 @@ const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
-const ShareRouter = React.lazy(() => import("@/Files/Shares"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
@@ -48,15 +47,11 @@ const RegisterProvider = React.lazy(() => import("@/Admin/Providers/Approve"));
 const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
-const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router"));
-const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
-const ExperimentalFileBrowse = React.lazy(() => import("@/Files/ExperimentalBrowse"));
-const ExperimentalDriveBrowse = React.lazy(() => import("@/Files/ExperimentalDriveBrowse"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import {Sidebar} from "@/ui-components/Sidebar";
@@ -69,7 +64,6 @@ import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import JobRouter from "@/Applications/Jobs/Browse";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
@@ -78,26 +72,23 @@ import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
 import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
-import {SharesOutgoing} from "@/Files/SharesOutgoing";
+import {OutgoingSharesBrowse} from "@/Files/SharesOutgoing";
 import {TerminalContainer} from "@/Terminal/Container";
 import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
-import FilesApi from "@/UCloud/FilesApi";
-import FileCollectionsApi from "@/UCloud/FileCollectionsApi";
-
-import ExperimentalJobs from "./Applications/Jobs/ExperimentalJobs";
-import {ExperimentalNetworkIP} from "./Applications/NetworkIP/ExperimentalBrowse";
 import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
-import {ExperimentalLicenses} from "./Applications/ExperimentalLicenses";
-import {ExperimentalPublicLinks} from "./Applications/Ingresses/ExperimentalBrowse";
 import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
 import {IngoingSharesBrowse} from "@/Files/Shares";
+import {JobsRouter} from "./Applications/Jobs/Router";
+import {DrivesRouter, FilesRouter} from "./Files/Router";
+import LicenseRouter from "./Applications/Licenses";
+import PublicLinksRouter from "./Applications/PublicLinks/Router";
 
-const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
+const NotFound = (): React.JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
-const Core = (): JSX.Element => (
+const Core = (): React.JSX.Element => (
     <>
         <Dialog />
         <Snackbars />
@@ -114,23 +105,17 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(Dashboard))} />
                         <Route path={AppRoutes.dashboard.dashboardB()}
                             element={React.createElement(requireAuth(Dashboard))} />
-                        {/* Kind of a hardcoded solution, removing the generalised solution fro ResourceBrowse */}
-                        <Route path={"/drives/properties/:id/"} element={React.createElement(requireAuth(FileCollectionsApi.Properties), {api: FileCollectionsApi})} />
-                        <Route path={"/drives/"} element={React.createElement(requireAuth(ExperimentalDriveBrowse))} />
-                        {/* Kind of a hardcoded solution, removing the generalised solution fro ResourceBrowse */}
-                        <Route path={`/files/properties/:id/`} element={React.createElement(requireAuth(FilesApi.Properties), {api: FilesApi})} />
-                        {/* Hardcoded solution end */}
-                        <Route path={"/files/*"} element={React.createElement(requireAuth(ExperimentalFileBrowse))} />
-                        <Route path="/registration" element={<Registration />} />
-                        <Route path="/verifyEmail" element={<VerifyEmail />} />
-                        <Route path="/verifyResult" element={<VerifyResult />} />
+                        <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
+                        <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
+
+                        <Route path={AppRoutes.users.registration()} element={<Registration />} />
+                        <Route path={AppRoutes.users.verifyEmail()} element={<VerifyEmail />} />
+                        <Route path={AppRoutes.users.verifyResult()} element={<VerifyResult />} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
-                        <Route path="/shares/outgoing" element={React.createElement(requireAuth(SharesOutgoing))} />
+                        <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse))} />
+                        <Route path="/shares/outgoing" element={React.createElement(requireAuth(OutgoingSharesBrowse))} />
                         <Route path={"/shares/invite/:id"}
                             element={React.createElement(requireAuth(SharesAcceptLink))} />
-                        <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse), {isIngoing: true})} />
-                        /* <Route path={"/shares/*"} element={React.createElement(requireAuth(ShareRouter))} /> */
-
                         <Route path={AppRoutes.syncthing.syncthing()}
                             element={React.createElement(requireAuth(SyncthingOverview))} />
 
@@ -140,11 +125,16 @@ const Core = (): JSX.Element => (
                             element={React.createElement(requireAuth(ApplicationsLanding))} />
                         <Route path={AppRoutes.apps.group(":id")}
                             element={React.createElement(requireAuth(ApplicationsGroup))} />
+
+                        {/* Is this actually in use */}
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
 
                         {!inDevEnvironment() ? null :
                             <Route path="/MANUAL-TESTING-OVERVIEW" element={<ManualTestingOverview />} />
                         }
+
+                        <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
+
 
                         <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobShell))} />
@@ -153,15 +143,8 @@ const Core = (): JSX.Element => (
                         <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobVnc))} />
 
-                        <Route path={AppRoutes.resources.publicLinks()} element={React.createElement(requireAuth(ExperimentalPublicLinks))} />
-                        <Route path="/public-links/*" element={React.createElement(requireAuth(IngressRouter))} />
-                        <Route path={AppRoutes.jobs.list()} element={React.createElement(requireAuth(ExperimentalJobs))} />
-                        <Route path="/jobs/*" element={React.createElement(requireAuth(JobRouter))} />
-
-                        <Route path="/licenses/" element={React.createElement(requireAuth(ExperimentalLicenses))} />
+                        <Route path={"/public-links/*"} element={React.createElement(requireAuth(PublicLinksRouter))} />
                         <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
-
-                        <Route path="/public-ips/" element={React.createElement(ExperimentalNetworkIP)} />
                         <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
 
                         <Route path={"/ssh-keys"} element={React.createElement(requireAuth(ExperimentalSSHKey))} />
@@ -323,7 +306,7 @@ const RouteWrapperClass = injectStyleSimple("route-wrapper", `
     overflow-y: auto;
 `);
 
-const LoginSuccess = (): JSX.Element => {
+const LoginSuccess = (): React.JSX.Element => {
     React.useEffect(() => {
         dispatchUserAction(USER_LOGIN);
         onLogin();
@@ -342,7 +325,7 @@ export async function onLogin(): Promise<void> {
     if (action !== null) store.dispatch(action);
 }
 
-const _ignored = injectStyle("ignored", () => `
+injectStyle("ignored", () => `
     ${UIGlobalStyle}
 `);
 
@@ -370,7 +353,7 @@ export function removeThemeListener(key: string) {
     delete themeListeners[key];
 }
 
-function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
+function MainApp({children}: {children?: React.ReactNode}): React.JSX.Element {
     return (
         <BrowserRouter basename="app">
             <Flex>
@@ -383,7 +366,7 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
 
 injectFonts();
 
-export default function UCloudApp(): JSX.Element {
+export default function UCloudApp(): React.ReactNode {
     if (window.location.pathname === "/" && inDevEnvironment()) window.location.href = "/app";
     return (
         <Provider store={store}>

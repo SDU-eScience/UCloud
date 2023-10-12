@@ -496,7 +496,7 @@ const theme = {
     regular,
     bold,
     textStyles,
-    colors,
+    colors: colors as Record<ThemeColor, string>,
     colorStyles,
     appColors,
     chartColors,
@@ -509,6 +509,23 @@ const theme = {
     transitionDelays,
     borderWidth,
 };
+
+export function colorFromTitle(title: string): ThemeColor {
+    let hash = 5381;
+    let i = title.length;
+
+    while (i) {
+        hash = (hash * 33) ^ title.charCodeAt(--i);
+    }
+
+    /* JavaScript does bitwise operations (like XOR, above) on 32-bit signed
+     * integers. Since we want the results to be always positive, convert the
+     * signed int to an unsigned by doing an unsigned bitshift. */
+
+    const index = hash >>> 0;
+    const keys = Object.keys(theme.colors);
+    return keys.at(index) as ThemeColor;
+}
 
 export function selectHoverColor(inputColor: string | ThemeColor): string | ThemeColor {
     switch (inputColor) {

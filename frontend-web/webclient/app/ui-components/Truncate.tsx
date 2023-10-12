@@ -2,7 +2,7 @@ import Text, {TextProps} from "./Text";
 import * as React from "react";
 import {injectStyle} from "@/Unstyled";
 
-const TruncateClass = injectStyle("truncate", k => `
+export const TruncateClass = injectStyle("truncate", k => `
     ${k} {
         flex: 1;
         overflow: hidden;

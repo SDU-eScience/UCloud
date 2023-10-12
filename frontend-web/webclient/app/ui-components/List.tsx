@@ -19,11 +19,7 @@ export const ListClass = injectStyle("list", k => `
     }
     
     ${k}[data-bordered="true"] > *, .list-item {
-        border-bottom: 1px solid var(--borderGray);
-    }
-    
-    ${k}[data-bordered="true"] > *:last-child {
-        border-bottom: 0;
+        border-bottom: 1px solid #96B3FF;
     }
 `);
 

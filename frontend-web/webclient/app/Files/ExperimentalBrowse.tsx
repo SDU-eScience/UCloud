@@ -9,13 +9,13 @@ import {
     addContextSwitcherInPortal,
     checkIsWorkspaceAdmin,
     EmptyReasonTag,
-    Filter,
     OperationOrGroup,
     placeholderImage,
     providerIcon,
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
+    RowTitleList,
     SelectionMode
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -30,7 +30,7 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -52,10 +52,10 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
-import {ButtonClass} from "@/ui-components/Button";
 import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 // Cached network data
 // =====================================================================================================================
@@ -89,9 +89,11 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
+    rowTitles: true,
 }
 
-function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {providerFilter?: string, initialPath?: string}}): JSX.Element {
+const rowTitles: RowTitleList = [{name: "Name", filterName: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", filterName: "MODIFIED_AT"}, {name: "Size", filterName: "SIZE"}];
+function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -110,7 +112,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
     const didUnmount = useDidUnmount();
 
-
     const features = {
         ...FEATURES
     };
@@ -122,6 +123,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
         let searching = "";
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
+                browser.setRowTitles(rowTitles);
+
                 // Syncthing data
                 // =========================================================================================================
                 let syncthingConfig: Sync.SyncthingConfig | undefined = undefined;
@@ -489,35 +492,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     );
                 };
 
-                browser.on("fetchFilters", () => {
-                    const filters: Filter[] = [
-                        {
-                            type: "options",
-                            key: "sortBy",
-                            text: "Sort by",
-                            clearable: false,
-                            icon: "heroAdjustmentsHorizontal",
-                            options: [{
-                                color: "black",
-                                text: "Name",
-                                icon: "id",
-                                value: "PATH"
-                            }, {
-                                color: "black",
-                                icon: "edit",
-                                text: "Modified at",
-                                value: "MODIFIED_AT"
-                            }, {
-                                color: "black",
-                                icon: "fullscreen",
-                                text: "Size",
-                                value: "SIZE"
-                            }],
-                        },
-                    ];
-
-                    return filters;
-                });
+                browser.on("fetchFilters", () => []);
 
                 browser.on("fetchOperations", () => {
                     function groupOperations<T, R>(ops: Operation<T, R>[]): OperationOrGroup<T, R>[] {
@@ -705,15 +680,20 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     row.title.append(icon);
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
-                        const iconWrapper = document.createElement("div");
-                        iconWrapper.style.position = "relative";
-                        iconWrapper.style.left = "13px";
-                        iconWrapper.style.top = "-2px";
-                        iconWrapper.style.backgroundColor = "var(--blue)";
-                        iconWrapper.style.height = "10px";
-                        iconWrapper.style.width = "10px";
-                        iconWrapper.style.padding = "4px";
-                        iconWrapper.style.borderRadius = "8px";
+                        const iconWrapper = createHTMLElements({
+                            tagType: "div",
+                            style: {
+                                position: "relative",
+                                left: "13px",
+                                top: "-2px",
+                                backgroundColor: "var(--blue)",
+                                height: "10px",
+                                width: "10px",
+                                padding: "4px",
+                                borderRadius: "8px"
+                            }
+                        });
+
                         icon.append(iconWrapper);
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
                         syncThingIcon.style.height = "8px";
@@ -735,18 +715,11 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     }
                     row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
 
-                    // Repeated in ExperimentalJobs
-                    if (opts?.selection && opts.selection.onSelectRestriction(file) === true) {
-                        const button = document.createElement("button");
-                        button.innerText = "Use";
-                        button.className = ButtonClass
-                        button.style.height = "32px";
-                        button.style.width = "64px";
-                        button.onclick = e => {
-                            e.stopImmediatePropagation();
-                            opts.selection?.onSelect(file);
+                    if (opts?.selection) {
+                        const button = browser.defaultButtonRenderer(opts.selection, file);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
                         }
-                        row.stat3.replaceChildren(button);
                     } else {
                         row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
                     }
@@ -890,6 +863,31 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         pIcon.replaceChildren(icon);
                     }
 
+                    if (browser.opts.embedded) {
+                        collectionCacheForCompletion.retrieve("", () =>
+                            callAPI(
+                                FileCollectionsApi.browse({
+                                    itemsPerPage: 250,
+                                    filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                                    ...opts?.additionalFilters
+                                })
+                            ).then(res => res.items)
+                        ).then(doNothing);
+                        if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
+                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
+                            driveIcon.className = "drive-icon-dropdown";
+                            driveIcon.style.cursor = "pointer";
+                            const url = browser.header.querySelector("div.header-first-row");
+                            url?.prepend(driveIcon);
+                            browser.icons.renderIcon({name: "chevronDownLight", color: "black", color2: "black", height: 32, width: 32}).then(setDriveIcon);
+                            driveIcon.onclick = e => {
+                                e.stopImmediatePropagation();
+                                const rect = driveIcon.getBoundingClientRect();
+                                temporaryDriveDropdownFunction(browser, rect.x, rect.y + rect.height);
+                            }
+                        }
+                    }
+
                     return result;
                 });
 
@@ -976,7 +974,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                                     FileCollectionsApi.browse({
                                         itemsPerPage: 250,
                                         filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                                        filterProvider: opts?.providerFilter,
+                                        ...opts?.additionalFilters
                                     })
                                 ).then(res => res.items)
                             ).then(doNothing);
@@ -1014,12 +1012,11 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     lastFetch[path] = now;
                     delete browser.emptyReasons[path];
 
-                    const promise = callAPI(FilesApi.browse({path, ...defaultRetrieveFlags, ...browser.browseFilters}))
+                    const promise = callAPI(FilesApi.browse({path, ...defaultRetrieveFlags, ...browser.browseFilters, ...opts?.additionalFilters}))
                         .then(result => {
                             browser.registerPage(result, path, true);
                             return false;
-                        })
-                        .catch(err => {
+                        }).catch(err => {
                             // TODO(Dan): This partially contains logic which can be re-used.
                             const statusCode = err["request"]?.["status"] ?? 500;
                             const errorCode: string | null = err["response"]?.["errorCode"]?.toString() ?? null;
@@ -1085,7 +1082,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                         .retrieve(collectionId, () => callAPI(FileCollectionsApi.retrieve({
                             id: collectionId,
                             includeOthers: true,
-                            includeSupport: true
+                            includeSupport: true,
+                            ...opts?.additionalFilters
                         }))).then(() => {
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
@@ -1126,7 +1124,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                             path,
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     );
 
@@ -1303,7 +1302,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {provid
                     FileCollectionsApi.browse({
                         itemsPerPage: 10,
                         filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                        filterProvider: opts?.providerFilter,
+                        ...opts.additionalFilters,
                     })
                 ).then(res => {
                     const [first] = res.items;
@@ -1344,3 +1343,33 @@ function isReadonly(entries: Permission[]): boolean {
 }
 
 export default ExperimentalBrowse;
+
+function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
+    const collections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
+    const activeDrive = browser.currentPath.split("/").filter(it => it)[0] ?? "";
+    const filteredCollections = collections.filter(it => it.id !== activeDrive);
+
+    const elements: HTMLElement[] = filteredCollections.map((collection, index) => {
+        const wrapper = document.createElement("li");
+        const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
+        wrapper.append(pIcon);
+        const span = document.createElement("span");
+        wrapper.append(span);
+        span.innerText = `${collection.specification.title} (${collection.id})`;
+        span.className = TruncateClass;
+        const shortcutElem = document.createElement("kbd");
+        shortcutElem.append(`[${index + 1}]`);
+        wrapper.append(shortcutElem);
+        return wrapper;
+    });
+
+    const handlers: (() => void)[] = filteredCollections.map(collection => {
+        return () => {
+            browser.open(`/${collection.id}`);
+            browser.closeContextMenu();
+        }
+    });
+
+    browser.prepareContextMenu(posX, posY, filteredCollections.length);
+    browser.setToContextMenuEntries(elements, handlers);
+}

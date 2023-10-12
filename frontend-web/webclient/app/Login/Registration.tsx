@@ -21,7 +21,7 @@ interface Registration {
     position?: string | null;
 }
 
-const Registration: React.FunctionComponent = props => {
+const Registration: React.FunctionComponent = () => {
     const firstNames = useRef<HTMLInputElement>(null);
     const lastName = useRef<HTMLInputElement>(null);
     const email = useRef<HTMLInputElement>(null);

@@ -1,10 +1,14 @@
-import {format} from "date-fns/esm";
+import {format, isToday} from "date-fns/esm";
 
 // Could potentially cause issues with time if user is outside CEST
 export const dateToStringNoTime = (date: number): string => format(date, "dd/MM/yyyy");
 export const dateToString = (date: number): string => format(date, "HH:mm dd/MM/yyyy");
 export const dateToTimeOfDayString = (date: number): string => format(date, "HH:mm");
 export const dateToTimeOfDayStringDetailed = (date: number): string => format(date, "HH:mm:ss.SSS");
+export function dateToDateStringOrTime(date: number): string {
+    if (isToday(date)) return dateToTimeOfDayString(date);
+    else return dateToStringNoTime(date);
+}
 
 export const getEndOfDay = (d: Date): Date => {
     const copy = new Date(d);

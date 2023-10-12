@@ -126,7 +126,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                                 <>
                                     <Link key={app.id} to={groupCardLink(app)}>
                                         <AppCard
-                                            type={ApplicationCardType.EXTRA_TALL}
+                                            type={ApplicationCardType.TALL}
                                             title={app.title}
                                             description={app.description}
                                             logo={app.id.toString()}
@@ -148,7 +148,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             {items.map(app =>
                                 <Link key={app.id} to={groupCardLink(app)}>
                                     <AppCard
-                                        type={ApplicationCardType.EXTRA_TALL}
+                                        type={ApplicationCardType.TALL}
                                         title={app.title}
                                         description={app.description}
                                         logo={app.id.toString()}

@@ -1,7 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Avatar} from "@/AvataaarLib";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {MainContainer} from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";
@@ -33,132 +32,124 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
     }, []);
 
     return (
-        <MainContainer
-            headerSize={220}
-            header={(
-                <>
-                    <Flex>
-                        <Box ml="auto" />
-                        <Avatar
-                            style={{height: "150px"}}
-                            avatarStyle="circle"
-                            {...avatar}
-                        />
-                        <Box mr="auto" />
-                    </Flex>
-                    <Flex>
-                        <Button
-                            ml="auto"
-                            mr="auto"
-                            onClick={() => props.save(avatar)}
-                            mt="5px"
-                            mb="5px"
-                            color="blue"
-                        >
-                            Update avatar
-                        </Button>
-                    </Flex>
-                </>
-            )}
-
-            main={
-                loading ? <Spinner /> : (
-                    <>
-                        <AvatarSelect
-                            defaultValue={avatar.top}
-                            update={top => setAvatar({...avatar, top})}
-                            options={Options.Top}
-                            title="Top"
-                            disabled={false}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.hatColor}
-                            update={hatColor => setAvatar({...avatar, hatColor})}
-                            options={Options.HatColor}
-                            title="Hat color"
-                            disabled={!["Turban", "Hijab", "WinterHat1", "WinterHat2", "WinterHat3", "WinterHat4"]
-                                .includes(avatar.top)}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.topAccessory}
-                            update={topAccessory => setAvatar({...avatar, topAccessory})}
-                            options={Options.TopAccessory}
-                            title="Accessories"
-                            disabled={avatar.top === "Eyepatch"}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.hairColor}
-                            update={hairColor => setAvatar({...avatar, hairColor})}
-                            options={Options.HairColor}
-                            title="Hair color"
-                            disabled={!avatar.top.includes("Hair") || ["LongHairFrida", "LongHairShavedSides"].includes(avatar.top)}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.facialHair}
-                            update={facialHair => setAvatar({...avatar, facialHair})}
-                            options={Options.FacialHair}
-                            title="Facial Hair"
-                            disabled={avatar.top === "Hijab"}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.facialHairColor}
-                            update={facialHairColor => setAvatar({...avatar, facialHairColor})}
-                            options={Options.FacialHairColor}
-                            title="Facial Hair Color"
-                            disabled={avatar.facialHair === "Blank"}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.clothes}
-                            update={clothes => setAvatar({...avatar, clothes})}
-                            options={Options.Clothes}
-                            title="Clothes"
-                            disabled={false}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.colorFabric}
-                            title="Clothes Fabric"
-                            options={Options.ColorFabric}
-                            update={colorFabric => setAvatar({...avatar, colorFabric})}
-                            disabled={avatar.clothes === "BlazerShirt" || avatar.clothes === "BlazerSweater"}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.clothesGraphic}
-                            title="Graphic"
-                            update={clothesGraphic => setAvatar({...avatar, clothesGraphic})}
-                            options={Options.ClothesGraphic}
-                            disabled={avatar.clothes !== "GraphicShirt"}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.eyes}
-                            title="Eyes"
-                            options={Options.Eyes}
-                            update={eyes => setAvatar({...avatar, eyes})}
-                            disabled={false}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.eyebrows}
-                            title="Eyebrow"
-                            options={Options.Eyebrows}
-                            update={eyebrows => setAvatar({...avatar, eyebrows})}
-                            disabled={false}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.mouthTypes}
-                            title="Mouth type"
-                            options={Options.MouthTypes}
-                            update={mouthTypes => setAvatar({...avatar, mouthTypes})}
-                            disabled={false}
-                        />
-                        <AvatarSelect
-                            defaultValue={avatar.skinColors}
-                            title={"Skin color"}
-                            options={Options.SkinColors}
-                            update={skinColors => setAvatar({...avatar, skinColors})}
-                            disabled={false}
-                        />
-                    </>
-                )}
-        />
+        <Box overflow={"hidden"} height="100%" maxWidth="1200px" mx="auto">
+            <Box>
+                <Flex mx="auto">
+                    <Box mr="auto" />
+                    <Avatar
+                        style={{height: "150px"}}
+                        avatarStyle="Circle"
+                        {...avatar}
+                    />
+                    <Box ml="auto" />
+                </Flex>
+                <Button
+                    ml="auto"
+                    mr="auto"
+                    onClick={() => props.save(avatar)}
+                    mt="5px"
+                    mb="5px"
+                    color="blue"
+                >
+                    Update avatar
+                </Button>
+            </Box>
+            {loading ? <Spinner /> : (
+                <Box maxWidth="720px" overflowY="scroll" maxHeight={"calc(100% - 197px - 32px)"} mx="auto" mb="16px">
+                    <AvatarSelect
+                        defaultValue={avatar.top}
+                        update={top => setAvatar({...avatar, top})}
+                        options={Options.Top}
+                        title="Top"
+                        disabled={false}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.hatColor}
+                        update={hatColor => setAvatar({...avatar, hatColor})}
+                        options={Options.HatColor}
+                        title="Hat color"
+                        disabled={!["Turban", "Hijab", "WinterHat1", "WinterHat2", "WinterHat3", "WinterHat4"]
+                            .includes(avatar.top)}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.topAccessory}
+                        update={topAccessory => setAvatar({...avatar, topAccessory})}
+                        options={Options.TopAccessory}
+                        title="Accessories"
+                        disabled={avatar.top === "Eyepatch"}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.hairColor}
+                        update={hairColor => setAvatar({...avatar, hairColor})}
+                        options={Options.HairColor}
+                        title="Hair color"
+                        disabled={!avatar.top.includes("Hair") || ["LongHairFrida", "LongHairShavedSides"].includes(avatar.top)}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.facialHair}
+                        update={facialHair => setAvatar({...avatar, facialHair})}
+                        options={Options.FacialHair}
+                        title="Facial Hair"
+                        disabled={avatar.top === "Hijab"}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.facialHairColor}
+                        update={facialHairColor => setAvatar({...avatar, facialHairColor})}
+                        options={Options.FacialHairColor}
+                        title="Facial Hair Color"
+                        disabled={avatar.facialHair === "Blank"}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.clothes}
+                        update={clothes => setAvatar({...avatar, clothes})}
+                        options={Options.Clothes}
+                        title="Clothes"
+                        disabled={false}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.colorFabric}
+                        title="Clothes Fabric"
+                        options={Options.ColorFabric}
+                        update={colorFabric => setAvatar({...avatar, colorFabric})}
+                        disabled={avatar.clothes === "BlazerShirt" || avatar.clothes === "BlazerSweater"}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.clothesGraphic}
+                        title="Graphic"
+                        update={clothesGraphic => setAvatar({...avatar, clothesGraphic})}
+                        options={Options.ClothesGraphic}
+                        disabled={avatar.clothes !== "GraphicShirt"}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.eyes}
+                        title="Eyes"
+                        options={Options.Eyes}
+                        update={eyes => setAvatar({...avatar, eyes})}
+                        disabled={false}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.eyebrows}
+                        title="Eyebrow"
+                        options={Options.Eyebrows}
+                        update={eyebrows => setAvatar({...avatar, eyebrows})}
+                        disabled={false}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.mouthTypes}
+                        title="Mouth type"
+                        options={Options.MouthTypes}
+                        update={mouthTypes => setAvatar({...avatar, mouthTypes})}
+                        disabled={false}
+                    />
+                    <AvatarSelect
+                        defaultValue={avatar.skinColors}
+                        title={"Skin color"}
+                        options={Options.SkinColors}
+                        update={skinColors => setAvatar({...avatar, skinColors})}
+                        disabled={false}
+                    />
+                </Box>)}
+        </Box>
     );
 
     async function fetchAvatar(promises: PromiseKeeper): Promise<void> {

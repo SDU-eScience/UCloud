@@ -9,7 +9,7 @@ import {
     resourceCreationWithProductSelector,
     providerIcon,
     checkIsWorkspaceAdmin,
-    Filter,
+    ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -51,9 +51,10 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     sortDirection: true,
     contextSwitcher: true,
+    rowTitles: true,
 };
 
-const ExperimentalBrowse: React.FunctionComponent = () => {
+const ExperimentalBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
@@ -66,8 +67,8 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<FileCollection>(mount, "drive").init(browserRef, FEATURES, "/", browser => {
-
+            new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
+                browser.setRowTitles([{name: "Drive name", filterName: "title"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: ""}])
 
                 // Load products and initialize dependencies
                 // =========================================================================================================
@@ -79,7 +80,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     status: {},
                     specification: {title: "", product: {id: "", category: "", provider: ""}},
                     id: collectionBeingCreated,
-                    owner: {createdBy: "", },
+                    owner: {createdBy: Client.username ?? "", },
                     updates: [],
                     permissions: {myself: []}
                 };
@@ -188,26 +189,10 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 };
 
                 browser.on("fetchFilters", () => {
-                    const filters: Filter[] = [{
-                        key: "sortBy",
-                        text: "Sort by",
-                        type: "options",
-                        icon: "heroAdjustmentsHorizontal",
-                        clearable: false,
-                        options: [{
-                            color: "black", icon: "id", text: "Name", value: "title"
-                        }, {
-                            color: "black", icon: "calendar", text: "Date created", value: "createdAt"
-                        }, {
-                            color: "black", icon: "user", text: "Created by", value: "createdBy"
-                        }]
-                    }]
-
                     if (Client.hasActiveProject) {
-                        filters.push({type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"})
+                        return [{type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"}];
                     }
-
-                    return filters;
+                    return [];
                 });
 
                 browser.on("fetchOperationsCallback", () => {
@@ -306,9 +291,7 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                 // =========================================================================================================
                 browser.on("renderRow", (drive, row, dims) => {
                     if (drive.specification.product.provider) {
-                        const pIcon = providerIcon(drive.specification.product.provider, {
-                            fontSize: "14px", width: "20px", height: "20px"
-                        });
+                        const pIcon = providerIcon(drive.specification.product.provider);
                         pIcon.style.marginRight = "8px";
                         row.title.append(pIcon);
                     }
@@ -316,6 +299,9 @@ const ExperimentalBrowse: React.FunctionComponent = () => {
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims)
                     row.title.append(title);
                     row.title.title = title;
+                    if (drive.owner.createdBy !== "_ucloud") {
+                        row.stat1.innerText = drive.owner.createdBy;
+                    }
                     row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                     if (drive.id.startsWith(isCreatingPrefix)) {
                         row.stat1.append(browser.createSpinner(30));

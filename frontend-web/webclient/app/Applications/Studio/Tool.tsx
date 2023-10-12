@@ -12,7 +12,7 @@ import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Flex, Link, VerticalButtonGroup} from "@/ui-components";
+import {Button, Flex, Link} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";

@@ -5,7 +5,7 @@ import Box from "@/ui-components/Box";
 import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
 import {EllipsedText, TextClass} from "@/ui-components/Text";
-import theme from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Pages from "./Pages";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
@@ -77,7 +77,48 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
     }
 `);
 
-export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
+export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
+    return (
+        <Box className={AppCardBase}>
+            <Box mr={16}>
+                <AppToolLogo name={props.logo} type={"APPLICATION"} size={"32px"} />
+            </Box>
+            <b>{props.title}</b>
+            <EllipsedText>
+                <Markdown
+                    disallowedElements={[
+                        "break",
+                        "paragraph",
+                        "emphasis",
+                        "strong",
+                        "thematicBreak",
+                        "blockquote",
+                        "delete",
+                        "link",
+                        "image",
+                        "linkReference",
+                        "imageReference",
+                        "table",
+                        "tableRow",
+                        "tableCell",
+                        "list",
+                        "listItem",
+                        "definition",
+                        "heading",
+                        "inlineCode",
+                        "code",
+                        "html"]}
+                    unwrapDisallowed
+                >
+                    {props.description ?? ""}
+                </Markdown>
+            </EllipsedText>
+            <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
+        </Box>
+    );
+};
+
+export const Tag = ({label, bg = "black"}: {label: string; bg?: ThemeColor}): JSX.Element => (
     <div style={{
         marginRight: "3px",
         background: `var(--${bg})`,
@@ -97,8 +138,6 @@ export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX
 const appColors = theme.appColors;
 
 const nColors = appColors.length;
-
-const bgGradients = appColors.map(x => (`linear-gradient(0deg, ${x[0]}, ${x[2]})`));
 
 interface AppLogoRawProps {
     color1Offset: number;

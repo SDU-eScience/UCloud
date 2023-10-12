@@ -10,7 +10,7 @@ import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Checkbox, DataList, Flex, Icon, Label, Text, TextArea, VerticalButtonGroup} from "@/ui-components";
+import {Button, Checkbox, Flex, Icon, Label, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
@@ -555,7 +555,7 @@ export const App: React.FunctionComponent = () => {
     );
 };
 
-const WordBreakDivClass = injectStyle("work-break", k => `
+const WordBreakDivClass = injectStyleSimple("work-break", `
     word-break: break-word;
     width: 100%;
 `);

@@ -93,6 +93,8 @@ export function ContextSwitcher(): JSX.Element {
         })
     }, []);
 
+    const arrowKeyIndex = React.useRef(-1);
+
     const navigate = useNavigate();
 
     const [filter, setTitleFilter] = React.useState("");
@@ -100,6 +102,9 @@ export function ContextSwitcher(): JSX.Element {
     const filteredProjects = React.useMemo(() =>
         projectList.items.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
         , [projectList, filter]);
+
+    const divRef = React.useRef<HTMLDivElement>(null);
+
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -110,18 +115,34 @@ export function ContextSwitcher(): JSX.Element {
                         <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
                     </Flex>
                 }
+                rightAligned
+                paddingControlledByContent
+                arrowkeyNavigationKey="data-active"
+                onSelect={el => {
+                    const id = el?.getAttribute("data-project") ?? undefined;
+                    onProjectUpdated(navigate, () => setProject(id), refresh, id)
+                }}
+                onClose={() => {
+                    arrowKeyIndex.current = -1;
+                    setTitleFilter("");
+                }}
                 colorOnHover={false}
-                useMousePositioning
                 onTriggerClick={reload}
                 width="500px"
             >
-                <div style={{maxHeight: "385px"}}>
+                <div style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
                     <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
                     <Flex>
-                        <Input autoFocus placeholder="Search..." defaultValue={filter} onKeyUp={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")} type="text" />
+                        <Input autoFocus className={"filter-input"} placeholder="Search..." defaultValue={filter} onKeyDown={e => {
+                            if (["Escape"].includes(e.key) && e.target["value"]) {
+                                setTitleFilter("");
+                                e.target["value"] = "";
+                                e.stopPropagation();
+                            }
+                        }} onKeyUp={e => setTitleFilter("value" in e.target ? e.target.value as string : "")} type="text" />
                         <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
-                    <div style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
-                        {projectId !== undefined ? (
+                    <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
+                        {projectId !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
                             <div key={"My Workspace"} style={{width: "100%"}} data-active={projectId === undefined} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(), refresh, "")
                             }}>
@@ -130,7 +151,7 @@ export function ContextSwitcher(): JSX.Element {
                             </div>
                         ) : null}
                         {filteredProjects.map(it =>
-                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === projectId} className={BottomBorderedRow} onClick={() => {
+                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === projectId} data-project={it.id} className={BottomBorderedRow} onClick={() => {
                                 onProjectUpdated(navigate, () => setProject(it.id), refresh, it.id)
                             }}>
                                 <Favorite project={it} />
@@ -172,7 +193,7 @@ function Favorite({project}: {project: Project}): JSX.Element {
     return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
-function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
+function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {
     const {pathname} = window.location;
     runThisFunction();
     let doRefresh = true;

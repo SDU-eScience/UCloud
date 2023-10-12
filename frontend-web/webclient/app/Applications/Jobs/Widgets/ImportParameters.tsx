@@ -2,26 +2,25 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
-import {Box, Button, Flex, Icon, Label} from "@/ui-components";
+import {Box, Button, Flex, Icon} from "@/ui-components";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
-import {compute, PageV2} from "@/UCloud";
+import {compute} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import {TextP} from "@/ui-components/Text";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {default as JobsApi, Job} from "@/UCloud/JobsApi";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
-import {BrowseType} from "@/Resource/BrowseType";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {default as JobsApi} from "@/UCloud/JobsApi";
+import {bulkRequestOf} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {ButtonClass} from "@/ui-components/Button";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import ExperimentalJobs from "../ExperimentalJobs";
+import JobBrowse from "../ExperimentalJobs";
 import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
 
 export const ImportParameters: React.FunctionComponent<{
@@ -47,14 +46,6 @@ export const ImportParameters: React.FunctionComponent<{
             });
         }
     }, [jobId]);
-
-    const [previousRuns] = useCloudAPI<PageV2<Job>>(
-        JobsApi.browse({
-            itemsPerPage: 50,
-            filterApplication: application.metadata.name,
-        }),
-        emptyPageV2
-    );
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 
@@ -125,14 +116,6 @@ export const ImportParameters: React.FunctionComponent<{
         }
     }, []);
 
-    const previousRunsValid: Job[] = [];
-    for (const run of previousRuns.data.items) {
-        if (previousRunsValid.length >= 10) break;
-        if (run.status.jobParametersJson != null && run.status.jobParametersJson["siteVersion"] != null) {
-            previousRunsValid.push(run);
-        }
-    }
-
     return <Box>
         <Flex flexDirection="row" flexWrap="wrap">
             <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
@@ -185,13 +168,15 @@ export const ImportParameters: React.FunctionComponent<{
                         onImportDialogClose();
                         dialogStore.addDialog(
                             <ExperimentalBrowse
-                                opts={{embedded: true, initialPath: "", selection: {
-                                    onSelect: res => {
-                                        fetchAndImportParameters(res);
-                                        dialogStore.success();
-                                    },
-                                    onSelectRestriction: res => res.status.type === "FILE" && res.id.endsWith(".json")
-                                }}}
+                                opts={{
+                                    embedded: true, initialPath: "", selection: {
+                                        onSelect: res => {
+                                            fetchAndImportParameters(res);
+                                            dialogStore.success();
+                                        },
+                                        onSelectRestriction: res => res.status.type === "FILE" && res.id.endsWith(".json")
+                                    }
+                                }}
                             />,
                             () => undefined,
                             true,
@@ -203,7 +188,7 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-                            <ExperimentalJobs opts={{
+                            <JobBrowse opts={{
                                 selection: {
                                     onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here
                                     onSelect: res => {

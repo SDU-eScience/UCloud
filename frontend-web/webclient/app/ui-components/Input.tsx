@@ -8,7 +8,7 @@ import {
     WidthProps
 } from "styled-system";
 import {ThemeColor} from "./theme";
-import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractEventHandlers, injectStyle, unbox, unboxDataTags} from "@/Unstyled";
 import * as React from "react";
 import {Cursor} from "./Types";
 
@@ -105,6 +105,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["name"] = props.name;
     inputProps["placeholder"] = props.placeholder;
     inputProps["defaultValue"] = props.defaultValue;
+    inputProps["value"] = props.value;
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;
@@ -120,11 +121,11 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["rows"] = props.rows;
 
     if (props.as !== "textarea") {
-        return <input {...inputProps} />;
+        return <input {...inputProps} {...unboxDataTags(props as Record<string, string>)} />;
     } else {
         style.height = "unset";
         style.resize = props.resize;
-        return <textarea {...inputProps} />;
+        return <textarea {...inputProps} {...unboxDataTags(props as Record<string, string>)} />;
     }
 }
 

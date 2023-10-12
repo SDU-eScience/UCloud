@@ -44,7 +44,7 @@ import {AvatarType} from "@/UserSettings/Avataaar";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
 export interface AvatarComponentProps {
-    avatarStyle: string;
+    avatarStyle: "Circle" | "Transparent";
     style?: React.CSSProperties;
     top: Top;
     topAccessory: TopAccessory;

@@ -47,7 +47,7 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactEleme
 export default function ProviderOverview() {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
 
-    useTitle("Provider Overview");
+    useTitle("Provider overview");
 
     const main = <Box m="12px 24px">
         <GridCardGroup minmax={250}>

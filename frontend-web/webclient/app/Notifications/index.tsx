@@ -4,7 +4,7 @@ import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ThemeProvider} from "styled-components";
-import {Link, Button, Absolute, Flex, Icon, Relative} from "@/ui-components";
+import {Absolute, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
@@ -19,8 +19,6 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {Location, NavigateFunction, useLocation, useNavigate} from "react-router";
 import {useDispatch, useSelector} from "react-redux";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import * as Heading from "@/ui-components/Heading";
 import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
@@ -67,7 +65,7 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, navigate: NavigateFunction, dispatch: Dispatch) {
+function onNotificationAction(notification: Notification, navigate: NavigateFunction) {
     switch (notification.type) {
         case "APP_COMPLETE":
             navigate(`/applications/results/${notification.meta.jobId}`);
@@ -343,6 +341,19 @@ export const Notifications: React.FunctionComponent = () => {
 
     const unreadLength = notificationStore.filter(e => !e.read).length;
 
+    const divRef = React.useRef<HTMLDivElement>(null);
+    const closeOnOutsideClick = React.useCallback(e => {
+        if (divRef.current && !divRef.current.contains(e.target)) {
+            setNotificationsVisible(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        document.addEventListener("mousedown", closeOnOutsideClick);
+        return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    }, []);
+
+
     return <>
         <NotificationPopups />
         <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
@@ -378,7 +389,7 @@ export const Notifications: React.FunctionComponent = () => {
         </Flex>
 
         {!notificationsVisible ? null :
-            <div className={ContentWrapper} onClick={UF.stopPropagation}>
+            <div ref={divRef} className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
                     <Icon name="checkDouble" className="read-all" cursor="pointer" color="iconColor" color2="iconColor2"
@@ -428,6 +439,10 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
         flex-direction: column;
     }
 
+    ${k} > .container-wrapper > .container > div {
+        margin-bottom: 8px;
+    }
+
     ${k} > .header {
         display: flex;
         align-items: center;
@@ -460,7 +475,7 @@ export interface Notification {
 function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
-    const {location, dispatch, refresh, navigate} = normalizationDependencies!;
+    const {location, refresh, navigate} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -497,7 +512,7 @@ function normalizeNotification(
         const before = location.pathname;
 
         markAsRead([result]);
-        onNotificationAction(notification, navigate, dispatch);
+        onNotificationAction(notification, navigate);
 
         const after = location.pathname;
         if (before === after && refresh.current) refresh.current();
@@ -600,61 +615,11 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
         margin-top: -3px;
     }
 
-    ${k} > a {
-        color: var(--blue);
-        cursor: pointer;
-    }
-
-    ${k} > .time {
+    ${k} .time {
         font-size: 12px;
-        flex-shrink: 0;
-        color: var(--midGray);
+        margin-left: auto;
     }
 `);
-
-export const NotificationDashboardCard: React.FunctionComponent = () => {
-    const rerender = useForcedRender();
-
-    React.useEffect(() => {
-        notificationCallbacks.add(rerender);
-        return () => {
-            notificationCallbacks.delete(rerender);
-        }
-    }, []);
-
-    return <HighlightedCard
-        color="darkGreen"
-        icon="heroBell"
-        title="Recent notifications"
-        subtitle={
-            <Icon name="checkDouble" color="iconColor" color2="iconColor2" title="Mark all as read" cursor="pointer"
-                onClick={markAllAsRead} />
-        }
-    >
-        {notificationStore.length !== 0 ? null :
-            <Flex
-                alignItems="center"
-                justifyContent="center"
-                height="calc(100% - 60px)"
-                minHeight="250px"
-                mt="-30px"
-                width="100%"
-                flexDirection="column"
-            >
-                <Heading.h4>No notifications</Heading.h4>
-                As you use UCloud notifications will appear here.
-
-                <Link to="/applications" mt={8}>
-                    <Button fullWidth mt={8}>Explore UCloud</Button>
-                </Link>
-            </Flex>
-        }
-
-        <div style={{display: "flex", gap: "10px", flexDirection: "column", margin: "10px 0"}}>
-            {notificationStore.slice(0, 7).map(it => <NotificationEntry key={it.uniqueId} notification={it} />)}
-        </div>
-    </HighlightedCard>;
-};
 
 export default Notifications;
 

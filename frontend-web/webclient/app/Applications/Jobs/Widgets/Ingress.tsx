@@ -8,11 +8,10 @@ import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {useCloudCommand} from "@/Authentication/DataHook";
-import IngressBrowse from "@/Applications/Ingresses/Browse";
-import IngressApi, {Ingress} from "@/UCloud/IngressApi";
-import {BrowseType} from "@/Resource/BrowseType";
+import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
+import {ExperimentalPublicLinks} from "@/Applications/PublicLinks/ExperimentalBrowse";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -28,7 +27,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         setOpen(false)
     }, [setOpen]);
 
-    const onUse = useCallback((network: Ingress) => {
+    const onUse = useCallback((network: PublicLink) => {
         IngressSetter(props.parameter, {type: "ingress", id: network.id});
         WidgetSetProvider(props.parameter, network.specification.product.provider);
         if (props.errors[props.parameter.name]) {
@@ -55,7 +54,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                 const visual = visualInput();
                 if (visual) {
                     try {
-                        const ingress = await invokeCommand<Ingress>(IngressApi.retrieve({id: id}), {defaultErrorHandler: false});
+                        const ingress = await invokeCommand<PublicLink>(PublicLinkApi.retrieve({id: id}), {defaultErrorHandler: false});
                         visual.value = ingress?.specification.domain ?? "Address not found";
                     } catch (e) {
                         snackbarStore.addFailure("Failed to import custom links.", false);
@@ -72,9 +71,13 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         }
     }, []);
 
-    const filters = React.useMemo(() => ({
-        filterState: "READY"
-    }), []);
+    const filters = React.useMemo(() => {
+        const filters = {
+            filterState: "READY",
+        };
+        if (props.provider) filters["filterProvider"] = props.provider;
+        return filters;
+    }, []);
 
     return (<Flex>
         <Input
@@ -93,16 +96,20 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <IngressBrowse
-                computeProvider={props.provider}
-                onSelect={onUse}
-                additionalFilters={filters}
-                onSelectRestriction={res => {
-                    const errorMessage = checkProviderMismatch(res, "Public links");
-                    if (errorMessage) return errorMessage;
-                    return res.status.boundTo.length === 0;
+            <ExperimentalPublicLinks
+                opts={{
+                    selection: {
+                        onSelect: onUse,
+                        onSelectRestriction(res) {
+                            const errorMessage = checkProviderMismatch(res, "Public links");
+                            if (errorMessage) return errorMessage;
+                            return res.status.boundTo.length === 0;
+                        }
+                    },
+                    isModal: true,
+                    embedded: true,
+                    additionalFilters: filters
                 }}
-                browseType={BrowseType.Embedded}
             />
         </ReactModal>
     </Flex>);

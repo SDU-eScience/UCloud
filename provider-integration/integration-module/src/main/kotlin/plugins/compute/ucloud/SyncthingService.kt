@@ -382,9 +382,9 @@ class SyncthingService(
         // utilization of our cluster resources.
         // TODO(Dan): Re-evaluate these numbers based on some proper tests. I am very much guessing at
         // what the values should be.
-        builder.vCpuMillis = 100
-        builder.memoryMegabytes = 200
-        builder.mountSharedMemory(200)
+        builder.vCpuMillis = 400
+        builder.memoryMegabytes = 2000
+        builder.mountSharedMemory(2000)
     }
 
     companion object : Loggable {

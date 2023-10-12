@@ -2,7 +2,6 @@ import * as React from "react";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import {TextSpan} from "./Text";
 import Box from "./Box";
 
 export interface LinkInfo {

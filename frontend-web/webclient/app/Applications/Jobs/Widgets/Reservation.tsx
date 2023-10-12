@@ -1,7 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {Box, Flex, Input, Label, theme} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
+import {Flex, Input, Label} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
     findRelevantMachinesForApplication, Machines, setMachineReservationFromRef, validateMachineReservation

@@ -120,6 +120,7 @@ export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<Dr
     return <div
         className={DropdownContentClass}
         data-hover={props.hover === true}
+        ref={props.dropdownRef}
         data-square={props.squareTop === true}
         data-fixed={props.fixed === true}
         data-hover-color={props.colorOnHover === true}
@@ -161,4 +162,6 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     fixed?: boolean;
     paddingControlledByContent?: boolean;
     color?: string;
+    onKeyDown?: React.KeyboardEventHandler;
+    dropdownRef?: React.Ref<HTMLDivElement>
 }
