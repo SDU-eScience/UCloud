@@ -135,10 +135,21 @@ class FeatureFileMount(
         )
 
         fileMounts.forEach { mount ->
+            //TODO(HENRIK) Is there a better way to check if it a drive??
+            val pathSplit = mount.path.split("/")
+            val mountPath =
+                if (
+                    (pathSplit.size == 4 && pathSplit.indexOf("Members' Files") == 2) ||
+                    (pathSplit.size == 2 && pathSplit.first() == "home")
+                ) {
+                    joinPath(pathSplit[pathSplit.size - 2], pathSplit.last())
+                } else {
+                    pathSplit.last()
+                }
             builder.mountUCloudFileSystem(
                 mount.system,
                 mount.path.normalize().removePrefix("/"),
-                joinPath("/work", mount.fileName),
+                joinPath("/work", mountPath),
                 readOnly = mount.readOnly,
             )
         }
