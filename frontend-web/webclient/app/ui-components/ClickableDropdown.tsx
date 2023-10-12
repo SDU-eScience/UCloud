@@ -126,11 +126,16 @@ function ClickableDropdown<T>({
         }
     }, [props.keepOpenOnOutsideClick, open]);
 
+    const counter = useRef(-1);
+    const divRef = useRef<HTMLDivElement>(null);
+
     const handleKeyPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
         if (props.arrowkeyNavigationKey) {
             const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
             _onKeyDown(event, divRef, counter, navigationKey, props.onSelect)
         }
+
+        console.log(event)
 
         if (event.key === "Escape" && open) {
             close();
@@ -143,14 +148,14 @@ function ClickableDropdown<T>({
     useEffect(() => {
         if (open) {
             document.addEventListener("mousedown", handleClickOutside);
-            document.addEventListener("keydown", handleKeyPress);
+            divRef.current?.addEventListener("keydown", handleKeyPress);
         } else {
             document.removeEventListener("mousedown", handleClickOutside);
-            document.removeEventListener("keydown", handleKeyPress);
+            divRef.current?.removeEventListener("keydown", handleKeyPress);
         }
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
-            document.removeEventListener("keydown", handleKeyPress);
+            divRef.current?.removeEventListener("keydown", handleKeyPress);
         };
     }, [handleClickOutside, handleKeyPress, open]);
 
@@ -192,9 +197,6 @@ function ClickableDropdown<T>({
             top = topAsNumber - estimatedHeight;
         }
     }
-
-    const counter = useRef(-1);
-    const divRef = useRef<HTMLDivElement>(null);
 
     const dropdownContent = <DropdownContent
         dropdownRef={divRef}
@@ -261,8 +263,9 @@ function _onKeyDown(
     if (!wrapper.current) return;
     const isUp = e.key === "ArrowUp";
     const isDown = e.key === "ArrowDown";
+    const isEnter = e.key === "Enter";
 
-    if (isUp || isDown) {
+    if (isUp || isDown || isEnter) {
         e.preventDefault();
         e.stopPropagation();
     }
@@ -293,7 +296,7 @@ function _onKeyDown(
         if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
         listEntries.item(index.current)["style"].backgroundColor = "var(--lightBlue)";
         listEntries.item(index.current).scrollIntoView({behavior, block: "nearest"});
-    } else if (e.key === "Enter" && index.current !== -1) {
+    } else if (isEnter && index.current !== -1) {
         onSelect?.(listEntries.item(index.current));
     }
 }
