@@ -100,7 +100,7 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
                 </div >
             }
             options={options}
-            onChange={group => props.onSelect(group)}
+            onChange={props.onSelect}
         />
     );
 }

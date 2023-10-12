@@ -44,7 +44,6 @@ export const AppHeader: React.FunctionComponent<{
                                 <Flex style={{alignSelf: "center"}}>
                                     {props.flavors.length <= 1 ? null :
                                         <ClickableDropdown
-                                            colorOnHover={true}
                                             trigger={
                                                 <Flex className={FlavorSelectorClass}>
                                                     {props.application.metadata.flavorName ?? props.application.metadata.title} <Icon ml="8px" name="chevronDownLight" size={12} />
