@@ -2,12 +2,12 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {injectStyle} from "@/Unstyled";
 import MainContainer from "@/MainContainer/MainContainer";
-import {Button, Checkbox, Icon, Input, Select, TextArea, theme} from "@/ui-components";
+import {Box, Button, Checkbox, Icon, Input, Select, TextArea, theme, Tooltip} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {BulkResponse, FindByLongId, PageV2} from "@/UCloud";
+import {PageV2} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
@@ -26,6 +26,9 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
+import formatDistance from "date-fns/formatDistance";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 // State model
 // =====================================================================================================================
@@ -36,7 +39,7 @@ interface EditorState {
     fullScreenLoading: boolean;
     fullScreenError?: string;
 
-    startYear: number;
+    allocationPeriod: { start: { month: number, year: number }, durationInMonths: number };
     principalInvestigator: string;
     loadedProjects: { id: string | null; title: string; }[];
 
@@ -71,15 +74,31 @@ interface EditorState {
 interface ResourceCategory {
     category: Accounting.ProductCategoryV2;
     allocators: Set<string>;
-    balanceRequested: Record<string, number>; // value stored in the input field (not yet multiplied by anything)
-    sourceAllocations: Record<string, string>;
+    resourceSplits: Record<string, ResourceSplit[]>;
+    totalBalanceRequested: Record<string, number>;
+    error?: {
+        allocator: string;
+        message: string;
+    };
+}
+
+interface ResourceSplit {
+    balanceRequested?: number; // value stored in the input field (not yet multiplied by anything)
+    sourceAllocation?: string;
+    originalRequest?: Grants.AllocationRequest;
 }
 
 const defaultState: EditorState = {
     locked: false,
     allocators: [],
     resources: {},
-    startYear: new Date().getFullYear(),
+    allocationPeriod: {
+        start: {
+            month: new Date().getMonth(),
+            year: new Date().getFullYear(),
+        },
+        durationInMonths: 12
+    },
     application: [],
     applicationDocument: {},
     loading: false,
@@ -93,15 +112,15 @@ const defaultState: EditorState = {
 type EditorAction =
     { type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[] }
     | { type: "AllocatorsLoaded", allocators: Grants.GrantGiver[] }
-    | { type: "DurationUpdated", startYear: number }
+    | { type: "DurationUpdated", month?: number, year?: number, duration?: number }
     | { type: "AllocatorChecked", isChecked: boolean, allocatorId: string }
-    | { type: "BalanceUpdated", provider: string, category: string, allocator: string, balance: number | null }
+    | { type: "BalanceUpdated", provider: string, category: string, allocator: string, balance: number | null, splitIndex?: number }
     | { type: "SetIsCreating" }
     | { type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string }
     | { type: "ProjectsReloaded", projects: { id: string | null, title: string }[] }
     | { type: "ApplicationUpdated", section: string, contents: string }
     | { type: "LoadingStateChange", isLoading: boolean }
-    | { type: "SourceAllocationUpdated", provider: string, category: string, allocator: string, allocationId?: string }
+    | { type: "SourceAllocationUpdated", provider: string, category: string, allocator: string, allocationId?: string, splitIndex: number }
     | { type: "ReferenceIdUpdated", newReferenceId: string }
     | { type: "CommentPosted", comment: string, grantId: string }
     | { type: "CommentsReloaded", comments: Grants.Comment[] }
@@ -111,6 +130,9 @@ type EditorAction =
     | { type: "GrantGiverStateChange", grantGiver: string, approved: boolean, grantId: string }
     | { type: "UpdateFullScreenLoading", isLoading: boolean }
     | { type: "UpdateFullScreenError", error: string }
+    | { type: "CleanupSplits" }
+    | { type: "SetResourceError", provider: string, category: string, allocator: string, message: string }
+    | { type: "AutoAssignAllocations" }
     ;
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -207,7 +229,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     } else {
                         const allocators = new Set<string>();
                         allocators.add(allocator.id);
-                        sectionForProvider.push({category, allocators, balanceRequested: {}, sourceAllocations: {}});
+                        sectionForProvider.push({category, allocators, resourceSplits: {}, totalBalanceRequested: {}});
                     }
                 }
                 i++;
@@ -266,7 +288,13 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         case "DurationUpdated": {
             return {
                 ...state,
-                startYear: action.startYear
+                allocationPeriod: {
+                    start: {
+                        month: action.month ?? state.allocationPeriod.start.month,
+                        year: action.year ?? state.allocationPeriod.start.year,
+                    },
+                    durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
+                }
             };
         }
 
@@ -322,10 +350,23 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const newResources = {...state.resources};
             const newSection = [...newResources[action.provider]];
             newResources[action.provider] = newSection;
-            if (action.balance === null) {
-                delete newSection[categoryIdx].balanceRequested[action.allocator];
+            const category = newSection[categoryIdx];
+
+            if (action.splitIndex !== undefined) {
+                const splits = category.resourceSplits[action.allocator] ?? [];
+                category.resourceSplits[action.allocator] = splits;
+                if (splits.length <= action.splitIndex) {
+                    const missing = (action.splitIndex + 1) - splits.length;
+                    for (let i = 0; i < missing; i++) splits.push({});
+                }
+
+                splits[action.splitIndex].balanceRequested = action.balance ?? undefined;
             } else {
-                newSection[categoryIdx].balanceRequested[action.allocator] = action.balance;
+                if (action.balance === null) {
+                    delete category.totalBalanceRequested[action.allocator];
+                } else {
+                    category.totalBalanceRequested[action.allocator] = action.balance;
+                }
             }
 
             return {
@@ -341,15 +382,14 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const newResources = {...state.resources};
             const newSection = [...newResources[action.provider]];
             newResources[action.provider] = newSection;
-            if (!action.allocationId) {
-                delete newSection[categoryIdx].sourceAllocations[action.allocator];
-            } else {
-                newSection[categoryIdx].sourceAllocations[action.allocator] = action.allocationId;
-            }
 
-            console.log("Before", state.resources);
-            console.log("After", newResources);
-            console.log("Action", action);
+            const splits = newSection[categoryIdx].resourceSplits[action.allocator] ?? [];
+            newSection[categoryIdx].resourceSplits[action.allocator] = splits;
+            if (splits.length <= action.splitIndex) {
+                const missing = (action.splitIndex + 1) - splits.length;
+                for (let i = 0; i < missing; i++) splits.push({});
+            }
+            splits[action.splitIndex].sourceAllocation = action.allocationId ?? undefined;
 
             return {
                 ...state,
@@ -369,9 +409,138 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             };
         }
 
+        case "CleanupSplits": {
+            if (!state.stateDuringEdit === undefined) return state;
+
+            const resources = deepCopy(state.resources);
+            for (const categories of Object.values(resources)) {
+                for (const category of categories) {
+                    for (const [allocator, splits] of Object.entries(category.resourceSplits)) {
+                        const totalRequested = category.totalBalanceRequested[allocator] ?? 0;
+                        if (totalRequested === 0) {
+                            category.resourceSplits[allocator] = [];
+                        } else {
+                            if (category.category.accountingFrequency === "ONCE") {
+                                category.resourceSplits[allocator] = splits.filter(split => split.sourceAllocation);
+                            } else {
+                                category.resourceSplits[allocator] = splits.filter(split =>
+                                    split.balanceRequested || split.sourceAllocation
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
+            return {
+                ...state,
+                resources,
+            };
+        }
+
+        case "SetResourceError": {
+            const resources = deepCopy(state.resources);
+            for (const categories of Object.values(resources)) {
+                for (const category of categories) {
+                    if (category.category.name === action.category) {
+                        category.error = {
+                            allocator: action.allocator,
+                            message: action.message
+                        };
+                    } else {
+                        category.error = undefined;
+                    }
+                }
+            }
+
+            return {
+                ...state,
+                resources
+            };
+        }
+
+        case "AutoAssignAllocations": {
+            if (!state.stateDuringEdit) return state;
+            const wallets = state.stateDuringEdit.wallets;
+            if (wallets.length === 0) return state;
+
+            const [startTs, endTs] = stateToAllocationPeriod(state);
+            const duration = endTs - startTs;
+            if (duration === 0) return state;
+
+            const resources = deepCopy(state.resources);
+            for (const categories of Object.values(resources)) {
+                for (const category of categories) {
+                    for (const allocatorObject of state.allocators) {
+                        if (!allocatorObject.checked) continue;
+                        const allocator = allocatorObject.id;
+                        const splits = category.resourceSplits[allocator] ?? [];
+
+                        const balanceRequested = category.totalBalanceRequested[allocator] ?? 0;
+                        if (balanceRequested <= 0) continue;
+
+                        const hasAnyAllocationSet = splits.some(it => it.sourceAllocation);
+                        if (hasAnyAllocationSet) continue;
+                        if (splits.length > 1) continue;
+
+                        const wallet = wallets.find(it =>
+                            it.owner["projectId"] === allocator &&
+                            it.paysFor.name === category.category.name &&
+                            it.paysFor.provider === category.category.provider
+                        );
+                        if (!wallet) continue;
+
+                        const proposedSplit: ResourceSplit[] = [];
+                        const timeTracker = new TimeTracker();
+
+                        let sum = 0;
+
+                        for (const alloc of wallet.allocations) {
+                            const allocStart = alloc.startDate;
+                            const allocEnd = alloc.endDate ?? Number.MAX_SAFE_INTEGER;
+
+                            const allocationOverlaps =
+                                (allocStart >= startTs && allocStart <= endTs) ||
+                                (allocEnd >= startTs && allocEnd <= endTs);
+                            if (!allocationOverlaps) continue;
+
+                            const proposedStart = Math.max(startTs, allocStart);
+                            const proposedEnd = Math.min(endTs, allocEnd);
+                            const proposedDuration = proposedEnd - proposedStart;
+                            const proposedPercentage = proposedDuration / duration;
+
+                            if (timeTracker.hasOverlap(proposedStart, proposedEnd)) continue;
+                            timeTracker.add(proposedStart, proposedEnd);
+
+                            proposedSplit.push({
+                                sourceAllocation: alloc.id,
+                                balanceRequested: category.category.accountingFrequency === "ONCE" ?
+                                    balanceRequested :
+                                    Math.floor(balanceRequested * proposedPercentage),
+                            });
+
+                            sum += Math.floor(balanceRequested * proposedPercentage);
+                        }
+
+                        if (category.category.accountingFrequency !== "ONCE" && proposedSplit) {
+                            proposedSplit[0].balanceRequested =
+                                (proposedSplit[0].balanceRequested ?? 0) + balanceRequested - sum;
+                        }
+
+                        category.resourceSplits[allocator] = proposedSplit;
+                    }
+                }
+            }
+
+            return {
+                ...state,
+                resources
+            };
+        }
+
         // Partial reloads
         // -------------------------------------------------------------------------------------------------------------
-        // These events return a partially reloaded application. We typicially do this to ensure that our state is
+        // These events return a partially reloaded application. We typically do this to ensure that our state is
         // up-to-date with the current version.
         case "ProjectsReloaded": {
             return {
@@ -534,7 +703,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             if (relevantCategories.length <= 0) continue;
 
             for (const category of categories) {
-                category.sourceAllocations = {};
+                category.resourceSplits = {};
             }
 
             newResources[provider] = categories;
@@ -547,9 +716,38 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             for (const category of section) {
                 const {priceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
-                category.balanceRequested[request.grantGiver] = request.balanceRequested * priceFactor;
-                if (request.sourceAllocation) {
-                    category.sourceAllocations[request.grantGiver] = request.sourceAllocation;
+
+                const arr = category.resourceSplits[request.grantGiver] ?? [];
+                category.resourceSplits[request.grantGiver] = arr;
+                arr.push({
+                    balanceRequested: request.balanceRequested * priceFactor,
+                    sourceAllocation: request.sourceAllocation ?? undefined,
+                    originalRequest: request,
+                });
+            }
+        }
+
+        for (const section of Object.values(newResources)) {
+            for (const category of section) {
+                for (const [allocatorId, splits] of Object.entries(category.resourceSplits)) {
+                    if (category.category.accountingFrequency === "ONCE") {
+                        category.totalBalanceRequested[allocatorId] = splits[0].balanceRequested ?? 0;
+                    } else {
+                        category.totalBalanceRequested[allocatorId] =
+                            splits.reduce((sum, split) => sum + (split.balanceRequested ?? 0), 0);
+                    }
+
+                    splits.sort((a, b) => {
+                        const aEnd = a.originalRequest?.period.end;
+                        const bEnd = b.originalRequest?.period.end;
+
+                        if (aEnd === bEnd) return 0;
+                        if (aEnd === undefined) return 1;
+                        if (bEnd === undefined) return -1;
+
+                        if (aEnd > bEnd) return 1;
+                        return -1;
+                    })
                 }
             }
         }
@@ -576,12 +774,22 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             newApplicationDocument["Other"] = otherSection;
         }
 
-        const startYear = Math.max(
-            2019,
+        const startDate = new Date(
             doc.allocationRequests
-                .map(it => new Date(it.period.start ?? Date.now()).getUTCFullYear())
+                .map(it => new Date(it.period.start ?? Date.now()).getTime())
                 .reduce((a, b) => Math.min(a, b), Number.MAX_SAFE_INTEGER)
         );
+
+        const endDate = new Date(
+            doc.allocationRequests
+                .map(it => new Date(it.period.end ?? Date.now()).getTime())
+                .reduce((a, b) => Math.max(a, b), 0)
+        );
+
+        const startYear = Math.max(2019, startDate.getUTCFullYear());
+        const startMonth = startDate.getUTCMonth();
+        const normalizedStart = (startDate.getUTCFullYear() * 12) + (startDate.getUTCMonth() + 1);
+        const normalizedEnd = (endDate.getUTCFullYear() * 12) + (endDate.getUTCMonth() + 1);
 
         const projectPi = state.stateDuringEdit.storedApplication.status.projectPI;
         let recipientName: string;
@@ -609,7 +817,13 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             resources: newResources,
             application: newApplication,
             applicationDocument: newApplicationDocument,
-            startYear,
+            allocationPeriod: {
+                start: {
+                    month: startMonth,
+                    year: startYear,
+                },
+                durationInMonths: normalizedEnd - normalizedStart,
+            },
             principalInvestigator: projectPi,
             stateDuringEdit: newEditState,
         };
@@ -627,7 +841,7 @@ type EditorEvent =
 function useStateReducerMiddleware(
     doDispatch: (EditorAction) => void,
     scrollToTopRef: React.MutableRefObject<boolean>,
-): {dispatchEvent: (EditorEvent) => Promise<void>} {
+): {dispatchEvent: (EditorEvent) => unknown} {
     const didCancel = useDidUnmount();
     const dispatchEvent = useCallback(async (event: EditorEvent) => {
         function dispatch(ev: EditorAction) {
@@ -732,7 +946,7 @@ function useStateReducerMiddleware(
                         newState: Grants.State.CLOSED,
                     }),
                 );
-                dispatchEvent({ type: "Init", grantId: event.id });
+                await dispatchEvent({ type: "Init", grantId: event.id });
                 break;
             }
 
@@ -747,7 +961,7 @@ function useStateReducerMiddleware(
                         projectOverride: event.grantGiver
                     }
                 );
-                dispatchEvent({ type: "Init", grantId: event.grantId });
+                await dispatchEvent({ type: "Init", grantId: event.grantId });
                 break;
             }
 
@@ -822,9 +1036,9 @@ const style = injectStyle("grant-editor", k => `
         margin-top: -5px;
     }
     
-    ${k} .application {
+    ${k} .application-wrapper {
         /* ensures that the sticky header doesn't feel cramped (application is the last section of the page) */
-        min-height: 100vh;
+        min-height: calc(100vh - 200px);
     }
     
     /* typography tweaks */
@@ -942,12 +1156,24 @@ const style = injectStyle("grant-editor", k => `
     /* -------------------------------------------------------------------------------------------------------------- */
     ${k} .allocation-row {
         display: flex;
-        flex-direction: row;
-        gap: 8px;
+        flex-direction: column;
     }
     
     ${k} .allocation-row label {
-        flex-grow: 1;
+        display: block;
+    }
+    
+    ${k} .allocation-row td:first-child {
+        width: 32px;
+    }
+    
+    ${k} .allocation-row table {
+        border-collapse: separate;
+        border-spacing: 4px;
+    }
+    
+    ${k} .allocation-row th {
+        text-align: left;
     }
     
     /* comments */
@@ -1066,23 +1292,30 @@ export const Editor: React.FunctionComponent = () => {
 
     const onResourceInput = useCallback<React.FormEventHandler>(ev => {
         const inputElem = ev.target as HTMLInputElement;
-        const [provider, category, allocator] = inputElem.id.split("/");
+        const [provider, category, allocator, idxText] = inputElem.id.split("/");
         let balance: number | null = parseInt(inputElem.value);
         if (isNaN(balance)) balance = null;
+        const idx = parseInt(idxText);
 
-        dispatchEvent({type: "BalanceUpdated", provider, allocator, category, balance});
+        dispatchEvent({
+            type: "BalanceUpdated",
+            provider, allocator, category, balance,
+            splitIndex: idxText === undefined ? undefined : idx,
+        });
     }, [dispatchEvent]);
 
     const onSourceAllocationUpdated = useCallback<React.FormEventHandler>(ev => {
         const selectElem = ev.target as HTMLSelectElement;
-        const [_, provider, category, allocator] = selectElem.id.split("/");
+        const [_, provider, category, allocator, idxText] = selectElem.id.split("/");
+        const idx = parseInt(idxText);
 
         dispatchEvent({
             type: "SourceAllocationUpdated",
             provider,
             category,
             allocator,
-            allocationId: selectElem.value === "null" ? undefined : selectElem.value
+            allocationId: selectElem.value === "null" ? undefined : selectElem.value,
+            splitIndex: idx
         });
     }, [dispatchEvent]);
 
@@ -1110,15 +1343,24 @@ export const Editor: React.FunctionComponent = () => {
         dispatchEvent({type: "ApplicationUpdated", section: id, contents: newValue});
     }, [dispatchEvent]);
 
-    const onPeriodUpdated = useCallback<React.FormEventHandler>(ev => {
+    const onStartUpdated = useCallback<React.FormEventHandler>(ev => {
         const select = ev.target as HTMLSelectElement;
-        const newYear = parseInt(select.value);
-        if (isNaN(newYear)) return;
-        dispatchEvent({type: "DurationUpdated", startYear: newYear});
+        const valSplit = select.value.split("/");
+        const [month, year] = valSplit.map(it => parseInt(it));
+        if (isNaN(month) || isNaN(year)) return;
+        dispatchEvent({type: "DurationUpdated", year, month });
+    }, [dispatchEvent]);
+
+    const onDurationUpdated = useCallback<React.FormEventHandler>(ev => {
+        const select = ev.target as HTMLSelectElement;
+        const duration = parseInt(select.value);
+        if (isNaN(duration)) return;
+        dispatchEvent({type: "DurationUpdated", duration });
     }, [dispatchEvent]);
 
     const onUnlock = useCallback(() => {
         dispatchEvent({ type: "Unlock" });
+        dispatchEvent({ type: "AutoAssignAllocations" });
     }, [dispatchEvent]);
 
     const onWithdraw = useCallback(() => {
@@ -1130,6 +1372,18 @@ export const Editor: React.FunctionComponent = () => {
     const triggerFormSubmit = useCallback(() => {
         formRef.current?.requestSubmit();
     }, []);
+
+    const cleanupSplits = useCallback(() => {
+        // NOTE(Dan): We need to delay this until the end of the event loop(? I forget what it is called). If we do not,
+        // then the active element will likely be the body.
+
+        window.setTimeout(() => {
+            const activeNodeType = document.activeElement?.nodeName ?? "BODY";
+            if (activeNodeType !== "SELECT" && activeNodeType !== "INPUT") {
+                dispatchEvent({type: "CleanupSplits"});
+            }
+        }, 0);
+    }, [dispatchEvent]);
 
     const onSubmit = useCallback<React.FormEventHandler>(async ev => {
         ev.preventDefault();
@@ -1172,14 +1426,14 @@ export const Editor: React.FunctionComponent = () => {
         dispatchEvent({type: "Init", grantId: id});
     }, [dispatchEvent, state.stateDuringEdit?.id]);
 
-    const onUpdate = useCallback(async () => {
+    const onUpdate = useCallback(async (dry: boolean = false) => {
         if (!state.stateDuringEdit) return;
         if (state.loading) return;
 
         const editState = state.stateDuringEdit;
         const currentDoc = editState.storedApplication.currentRevision.document;
 
-        const revisionCommentResult = await addStandardInputDialog({
+        const revisionCommentResult = dry ? "Dry run" : (await addStandardInputDialog({
             type: "textarea",
             title: "Revision comment",
             placeholder: "Please provider a comment describing the change and the reason for the change.",
@@ -1187,7 +1441,7 @@ export const Editor: React.FunctionComponent = () => {
             rows: 9,
             validationFailureMessage: "Comment cannot be empty",
             validator: text => text.length > 0
-        });
+        })).result;
 
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
@@ -1197,19 +1451,131 @@ export const Editor: React.FunctionComponent = () => {
             parentProjectId: currentDoc.parentProjectId
         };
 
-        dispatchEvent({ type: "LoadingStateChange", isLoading: true});
-        try {
-            await callAPIWithErrorHandler(Grants.submitRevision({
-                applicationId: editState.id,
-                revision: doc,
-                comment: revisionCommentResult.result,
-            }));
+        let error: {
+            message: string;
+            provider: string;
+            category: string;
+            allocator: string;
+        } | null = null;
 
-            dispatchEvent({ type: "Init", grantId: editState.id });
-        } finally {
-            dispatchEvent({ type: "LoadingStateChange", isLoading: false});
+        const resources = state.resources;
+        const [startTs, endTs] = stateToAllocationPeriod(state);
+        console.log("Resources", resources)
+        for (const [provider, categories] of Object.entries(resources)) {
+            for (const category of categories) {
+                const unit = Accounting.explainUnit(category.category);
+                for (const [allocator, splitsRaw] of Object.entries(category.resourceSplits)) {
+                    const requestedBalance = category.totalBalanceRequested[allocator] ?? 0;
+                    if (requestedBalance === 0) continue;
+                    const splits = splitsRaw.filter(it =>
+                        // We must have an allocation if the requested balance is inferred
+                        (category.category.accountingFrequency !== "ONCE" || it.sourceAllocation) &&
+                        (it.balanceRequested || requestedBalance));
+                    let mustAllocateForEntirePeriod = splits.some(it => it.sourceAllocation);
+                    const isGrantGiver = state.stateDuringEdit.wallets.some(it =>
+                        it.paysFor.name === category.category.name && it.paysFor.provider === provider &&
+                        it.owner["projectId"] === allocator
+                    );
+
+                    const frequency = category.category.accountingFrequency;
+
+                    if (isGrantGiver && splits.length > 1 && frequency !== "ONCE") {
+                        // Check that splits match the total requested amount
+                        const actualRequested = splits.reduce((sum, split) => sum + (split.balanceRequested ?? 0), 0);
+                        if (requestedBalance !== actualRequested) {
+                            let message = "Only ";
+                            message += Accounting.balanceToString(category.category, actualRequested * unit.invPriceFactor);
+                            message += " out of "
+                            message += Accounting.balanceToString(category.category, requestedBalance * unit.invPriceFactor);
+                            message += " has been assigned!";
+
+                            error = {
+                                message,
+                                provider, category: category.category.name, allocator,
+                            };
+                        }
+                    }
+
+                    // Check that the entire period is covered and adjust the requests to fit into the period
+                    // TODO This should only trigger if the user is an administrator of `allocator`
+                    // TODO End-users should be allowed to change the requested amount without being able to fix
+                    //  these numbers to be correct.
+                    if (!error && mustAllocateForEntirePeriod && isGrantGiver) {
+                        const timeTracker = new TimeTracker();
+
+                        const relevantAllocations = state.stateDuringEdit.wallets
+                            .filter(it => it.paysFor.name === category.category.name && it.paysFor.provider === provider)
+                            .flatMap(it => it.allocations);
+
+                        for (const request of doc.allocationRequests) {
+                            if (!(request.category === category.category.name && request.provider === provider)) continue;
+
+                            const allocId = request.sourceAllocation?.toString();
+                            if (!allocId) {
+                                error = {
+                                    message: "All resource splits must have an allocation assigned to them",
+                                    provider, category: category.category.name, allocator,
+                                };
+                                break;
+                            }
+
+                            const allocation = relevantAllocations.find(it => it.id === allocId)!;
+
+                            request.period = {
+                                start: Math.max(startTs, allocation.startDate),
+                                end: Math.min(endTs, allocation.endDate)
+                            };
+
+                            timeTracker.add(request.period.start ?? 0, request.period.end ?? 0);
+                        }
+
+                        if (!error && !timeTracker.contains(startTs, endTs)) {
+                            error = {
+                                message: timeTracker.explainMismatch(startTs, endTs),
+                                provider, category: category.category.name, allocator,
+                            };
+                        }
+                    }
+                }
+            }
         }
+
+        if (error) {
+            dispatchEvent({
+                type: "SetResourceError",
+                provider: error.provider,
+                category: error.category,
+                allocator: error.allocator,
+                message: error.message
+            });
+            return false;
+        }
+
+        console.log("Want to send", doc);
+
+        if (!dry) {
+            dispatchEvent({type: "LoadingStateChange", isLoading: true});
+            try {
+                await callAPIWithErrorHandler(Grants.submitRevision({
+                    applicationId: editState.id,
+                    revision: doc,
+                    comment: revisionCommentResult,
+                }));
+
+                dispatchEvent({type: "Init", grantId: editState.id});
+            } finally {
+                dispatchEvent({type: "LoadingStateChange", isLoading: false});
+            }
+        }
+
+        return true;
     }, [state, dispatchEvent]);
+
+    const validateThenUpdate = useCallback(async () => {
+        if (await onUpdate(true)) {
+            await onUpdate(false);
+        }
+    }, [onUpdate]);
 
     const onTransfer = useCallback(async (source: string, destination: string, comment: string) => {
         if (!state.stateDuringEdit) return;
@@ -1331,7 +1697,7 @@ export const Editor: React.FunctionComponent = () => {
 
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
-    const yearOptions = stateToYearOptions(state);
+    const monthOptions = stateToMonthOptions(state);
     const anyChecked = state.allocators.some(it => it.checked);
     const newestRevision = state.stateDuringEdit?.storedApplication?.currentRevision?.revisionNumber
     const activeRevision = state.stateDuringEdit?.activeRevision;
@@ -1340,9 +1706,13 @@ export const Editor: React.FunctionComponent = () => {
         state.stateDuringEdit!.storedApplication.status.revisions.find(it => it.revisionNumber === activeRevision);
     const isReadyToApprove: boolean = !state.stateDuringEdit ? false : (() => {
         for (const [, categories] of Object.entries(state.resources)) {
-            const categoriesAreFilled = categories.every(it => {
-                const allocationSet = new Set(Object.keys(it.sourceAllocations))
-                return Object.keys(it.balanceRequested).every(it => allocationSet.has(it));
+            const categoriesAreFilled = categories.every(cat => {
+                for (const split of Object.values(cat.resourceSplits)) {
+                    if (!split.every(it => !it.balanceRequested || it.sourceAllocation)) {
+                        return false;
+                    }
+                }
+                return true;
             });
 
             if (!categoriesAreFilled) return false
@@ -1393,8 +1763,11 @@ export const Editor: React.FunctionComponent = () => {
                                     {!state.locked && <>
                                         <ConfirmationButton actionText={"Discard changes"} icon={"heroTrash"} color={"red"}
                                                             onAction={onDiscard} />
-                                        <ConfirmationButton actionText={"Save changes"} icon={"heroCheck"} color={"green"}
-                                                            onAction={onUpdate} />
+
+                                        <Button onClick={validateThenUpdate} type={"button"} color={"green"}>
+                                            <Icon name={"heroCheck"} mr={"20px"} />
+                                            <Box mr={"20px"}>Save changes</Box>
+                                        </Button>
                                     </>}
 
                                     {!isClosed && state.stateDuringEdit.storedApplication.status.projectPI === Client.username && state.locked && <>
@@ -1418,7 +1791,7 @@ export const Editor: React.FunctionComponent = () => {
                         }
                     </header>
 
-                    <form onSubmit={onSubmit} ref={formRef}>
+                    <form onSubmit={onSubmit} onBlur={cleanupSplits} ref={formRef}>
                         <h3>Information about your project</h3>
                         <div className={"project-info"}>
                             <FormField
@@ -1489,26 +1862,30 @@ export const Editor: React.FunctionComponent = () => {
                                 title={"Allocation duration"}
                                 showDescriptionInEditMode={true}
                                 description={<>
-                                    <p>
-                                        Allocations in UCloud will, by default, run for a year at a time.
-                                        Each allocation starts at the beginning of the year and ends at the end of the year.
-                                    </p>
-
-                                    <p>
-                                        There is no carry over to the next year. If you have unused resources at the end
-                                        of the year, then you will lose them.
-                                    </p>
                                 </>}
                             >
                                 <label>
                                     When should the allocation start?
-                                    <Select value={state.startYear} onChange={onPeriodUpdated} disabled={state.locked || isClosed}>
-                                        {yearOptions.map(it => <option value={it.value} key={it.value}>{it.text}</option>)}
+                                    <Select
+                                        value={state.allocationPeriod.start.month + "/" + state.allocationPeriod.start.year}
+                                        onChange={onStartUpdated}
+                                        disabled={state.locked || isClosed}
+                                    >
+                                        {monthOptions.map(it => <option value={it.key} key={it.key}>{it.text}</option>)}
                                     </Select>
                                 </label>
+
                                 <label>
-                                    When should this allocation end?
-                                    <Input value={`31/12/${state.startYear}`} disabled/>
+                                    For how many months should the allocation last?
+                                    <Select
+                                        value={state.allocationPeriod.durationInMonths}
+                                        onChange={onDurationUpdated}
+                                        disabled={state.locked || isClosed}
+                                    >
+                                        <option value="6">6 months</option>
+                                        <option value="12">12 months</option>
+                                        <option value="24">24 months</option>
+                                    </Select>
                                 </label>
                             </FormField>
 
@@ -1630,57 +2007,120 @@ export const Editor: React.FunctionComponent = () => {
 
                                                     const unit = Accounting.explainUnit(category.category);
 
-                                                    return <div key={allocatorId} className={"allocation-row"}>
-                                                        <label>
-                                                            {unit.name} requested
-                                                            {checkedAllocators.length > 1 && <> from {allocatorName}</>}
+                                                    const splits = category.resourceSplits[allocatorId] ?? [];
+                                                    const shouldShowSplitSelector =
+                                                        state.stateDuringEdit &&
+                                                        ((category.totalBalanceRequested[allocatorId] ?? 0) > 0) &&
+                                                        (
+                                                            allocationsToSelectFrom ||
+                                                            splits.some(it => it.balanceRequested || it.sourceAllocation) ||
+                                                            (!state.locked && allocationsToSelectFrom)
+                                                        ) &&
+                                                        !(
+                                                            // Don't show the period selector for splits which will
+                                                            // contain the same value when you are not a grant giver
+                                                            allocationsToSelectFrom === undefined &&
+                                                            category.category.accountingFrequency === "ONCE"
+                                                        )
+                                                    ;
 
-                                                            <Input id={`${providerId}/${category.category.name}/${allocatorId}`}
-                                                                   type={"number"} placeholder={"0"} onInput={onResourceInput}
-                                                                   min={0} value={category.balanceRequested[allocatorId] ?? ""}
-                                                                   disabled={state.locked || isClosed}/>
-                                                        </label>
-                                                        {allocationsToSelectFrom !== undefined &&
-                                                            <label style={{width: "50%"}}>
-                                                                Allocation
-                                                                <Select
-                                                                    id={`alloc/${providerId}/${category.category.name}/${allocatorId}`}
-                                                                    onChange={onSourceAllocationUpdated}
-                                                                    value={category.sourceAllocations[allocatorId] ?? "null"}
-                                                                    disabled={state.locked || isClosed}
-                                                                >
-                                                                    {!allocationsToSelectFrom &&
-                                                                        <option disabled>No suitable allocations found</option>}
+                                                    const freq = category.category.accountingFrequency;
 
-                                                                    {allocationsToSelectFrom &&
-                                                                        <option value={"null"}>No allocation selected</option>}
+                                                    const errorMessage = category.error?.allocator === allocatorId ?
+                                                        category.error?.message : undefined;
 
-                                                                    {allocationsToSelectFrom.map(it =>
-                                                                        <option
-                                                                            key={it.id}
-                                                                            value={it.id}
-                                                                            disabled={
-                                                                                new Date(it.startDate).getUTCFullYear() > state.startYear ||
-                                                                                (it.endDate != null && new Date(it.endDate).getUTCFullYear() < state.startYear)
-                                                                            }
-                                                                        >
-                                                                            [{it.id}]
-                                                                            {" "}
-                                                                            {Accounting.balanceToString(category.category, it.quota)}
-                                                                            {" | "}
-                                                                            {Math.floor(((it.treeUsage ?? it.localUsage) / it.quota) * 100)}% used
-                                                                            {it.endDate != null && <>
-                                                                                {" | "}
-                                                                                Exp. {Accounting.simpleUtcDate(it.endDate)}
-                                                                            </>}
-                                                                        </option>
-                                                                    )}
-                                                                </Select>
-                                                            </label>
+                                                    if (allocationsToSelectFrom && !state.locked) {
+                                                        const lastSplit = splits.length === 0 ? undefined : splits[splits.length - 1];
+                                                        if (lastSplit === undefined || lastSplit.sourceAllocation || lastSplit.balanceRequested) {
+                                                            splits.push({});
                                                         }
-                                                    </div>
-                                                })}
+                                                    }
 
+                                                    return <React.Fragment key={allocatorId}>
+                                                        <div className={"allocation-row"}>
+                                                            <label>
+                                                                {unit.name} requested
+                                                                {checkedAllocators.length > 1 && <> from {allocatorName}</>}
+
+                                                                <Input id={`${providerId}/${category.category.name}/${allocatorId}`}
+                                                                       type={"number"} placeholder={"0"} onInput={onResourceInput}
+                                                                       min={0} value={category.totalBalanceRequested[allocatorId] ?? ""}
+                                                                       disabled={state.locked || isClosed}/>
+                                                            </label>
+
+                                                            {errorMessage && <div style={{color: "var(--red)"}}>{errorMessage}</div>}
+
+                                                            {shouldShowSplitSelector && <table>
+                                                                <thead>
+                                                                <tr>
+                                                                    <th/>
+                                                                    <th>{unit.name}</th>
+                                                                    <th>{allocationsToSelectFrom === undefined ? "Period" : "Allocation"}</th>
+                                                                </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                {splits.map((split, idx) => (<React.Fragment key={idx}>
+                                                                    <tr>
+                                                                        <td><Icon name={"heroArrowRight"} size={24} /></td>
+
+                                                                        <td>
+                                                                            <Input
+                                                                               id={`${providerId}/${category.category.name}/${allocatorId}/${idx}`}
+                                                                               type={"number"} placeholder={"0"} onInput={onResourceInput}
+                                                                               min={0} value={freq === "ONCE" ? (category.totalBalanceRequested[allocatorId] ?? "") : (split.balanceRequested ?? "")}
+                                                                               disabled={state.locked || isClosed || allocationsToSelectFrom === undefined || freq === "ONCE"}/>
+                                                                        </td>
+
+                                                                        <td>
+                                                                            {allocationsToSelectFrom !== undefined && <Select
+                                                                                id={`alloc/${providerId}/${category.category.name}/${allocatorId}/${idx}`}
+                                                                                onChange={onSourceAllocationUpdated}
+                                                                                value={split.sourceAllocation ?? "null"}
+                                                                                disabled={state.locked || isClosed}
+                                                                            >
+                                                                                {!allocationsToSelectFrom &&
+                                                                                    <option disabled>No suitable allocations found</option>}
+
+                                                                                {allocationsToSelectFrom &&
+                                                                                    <option value={"null"}>No allocation selected</option>}
+
+                                                                                {allocationsToSelectFrom.map(it =>
+                                                                                    <option
+                                                                                        key={it.id}
+                                                                                        value={it.id}
+                                                                                        disabled={
+                                                                                            !isInAllocationPeriod(it.startDate, state) && !isInAllocationPeriod(it.endDate, state)
+                                                                                        }
+                                                                                    >
+                                                                                        {Accounting.utcDate(it.startDate)}
+                                                                                        {" - "}
+                                                                                        {it.endDate == null ? "never" : Accounting.utcDate(it.endDate)}
+
+                                                                                        {" | "}{Accounting.balanceToString(category.category, it.quota)}
+                                                                                        {" | "}{Math.floor(((it.treeUsage ?? it.localUsage) / it.quota) * 100)}% used
+                                                                                        {" | "}ID {it.id}
+                                                                                    </option>
+                                                                                )}
+                                                                            </Select>}
+
+                                                                            {allocationsToSelectFrom === undefined &&
+                                                                                <Input
+                                                                                    disabled
+                                                                                    value={
+                                                                                       split.sourceAllocation && split.originalRequest?.period?.end ?
+                                                                                           `${Accounting.utcDate(split.originalRequest.period.start ?? 0)} - ${Accounting.utcDate(split.originalRequest.period.end)}` :
+                                                                                           "No period assigned"
+                                                                                   }
+                                                                                />
+                                                                            }
+                                                                        </td>
+                                                                    </tr>
+                                                                </React.Fragment>))}
+                                                                </tbody>
+                                                            </table>}
+                                                        </div>
+                                                    </React.Fragment>;
+                                                })}
                                             </FormField>;
                                         })}
                                     </div>
@@ -1688,16 +2128,18 @@ export const Editor: React.FunctionComponent = () => {
                             })}
 
                             <h3>Application</h3>
-                            <div className="application">
-                                {state.application.map((val, idx) => {
-                                    return <FormField title={val.title} key={idx} id={`${val.title}`}
-                                                      description={val.description} mandatory={val.mandatory}>
-                                        <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.limit}
-                                                  required={val.mandatory} disabled={state.locked || isClosed}
-                                                  value={state.applicationDocument[val.title] ?? ""}
-                                                  onChange={onApplicationChange}/>
-                                    </FormField>
-                                })}
+                            <div className="application-wrapper">
+                                <div className="application">
+                                    {state.application.map((val, idx) => {
+                                        return <FormField title={val.title} key={idx} id={`${val.title}`}
+                                                          description={val.description} mandatory={val.mandatory}>
+                                            <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.limit}
+                                                      required={val.mandatory} disabled={state.locked || isClosed}
+                                                      value={state.applicationDocument[val.title] ?? ""}
+                                                      onChange={onApplicationChange}/>
+                                        </FormField>
+                                    })}
+                                </div>
                             </div>
                         </>}
                     </form>
@@ -1887,7 +2329,9 @@ const CommentSection: React.FunctionComponent<{
                                     <Icon name={"trash"} color={"red"}/>
                                 </div>
                             ) : null}
-                            <time>{dateToString(entry.createdAt)}</time>
+                            <TooltipV2 tooltip={dateToString(entry.createdAt)}>
+                                <time>{formatDistance(entry.createdAt, Date.now(), { addSuffix: true })}</time>
+                            </TooltipV2>
                         </div>
                         <div>{comment}</div>
                     </div>
@@ -2020,18 +2464,24 @@ const GrantGiver: React.FunctionComponent<{
         }
         {props.isEditing && isAdmin && props.state === Grants.State.IN_PROGRESS && <>
             {!props.replaceApproval && !props.replaceReject && props.onTransfer && <>
-                <Button onClick={startTransfer} mr={8} width={"50px"} height={"40px"}>
-                    <Icon name={"heroArrowUpTray"} />
-                </Button>
+                <TooltipV2 tooltip={"Transfer to new grant giver"}>
+                    <Button onClick={startTransfer} mr={8} width={"50px"} height={"40px"}>
+                        <Icon name={"heroArrowUpTray"} />
+                    </Button>
+                </TooltipV2>
             </>}
             {props.replaceApproval}
             {!props.replaceApproval && <>
-                <ConfirmationButton color={"green"} icon={"heroCheck"} onAction={onApprove} height={40} mr={8} />
+                <TooltipV2 tooltip={"Approve (hold to confirm)"}>
+                    <ConfirmationButton color={"green"} icon={"heroCheck"} onAction={onApprove} height={40} mr={8} />
+                </TooltipV2>
             </>}
 
             {props.replaceReject}
             {!props.replaceReject && <>
-                <ConfirmationButton color={"red"} icon={"heroXMark"} onAction={onReject} height={40} />
+                <TooltipV2 tooltip={"Reject (hold to confirm)"}>
+                    <ConfirmationButton color={"red"} icon={"heroXMark"} onAction={onReject} height={40} />
+                </TooltipV2>
             </>}
         </>}
         {props.isEditing && (!isAdmin || props.state !== Grants.State.IN_PROGRESS) && props.state && <>
@@ -2166,38 +2616,8 @@ function parseIntoSections(text: string): ApplicationSection[] {
     return result;
 }
 
-// Utility functions to extract information from state
+// Utility functions
 // =====================================================================================================================
-function stateToYearOptions(state: EditorState): { value: string, text: string }[] {
-    const yearOptions: { value: string, text: string }[] = [];
-    {
-        let date = new Date();
-        date.setDate(1);
-
-        for (let i = 0; i <= 2; i++) {
-            let thisYear = date.getFullYear();
-            yearOptions.push({
-                text: i === 0 ? `Immediately (01/01/${date.getFullYear()})` : `01/01/${date.getFullYear()}`,
-                value: `${date.getFullYear()}`
-            });
-
-            date.setFullYear(thisYear + 1);
-        }
-    }
-
-    if (!yearOptions.some(it => it.value === state.startYear.toString())) {
-        return [
-            {
-                value: state.startYear.toString(),
-                text: `01/01/${state.startYear}`
-            },
-            ...yearOptions,
-        ]
-    }
-
-    return yearOptions;
-}
-
 function stateToApplication(state: EditorState): Grants.Doc["form"] {
     let builder = "";
     for (const section of state.application) {
@@ -2217,18 +2637,9 @@ function stateToApplication(state: EditorState): Grants.Doc["form"] {
 
 function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
     const result: Grants.Doc["allocationRequests"] = [];
-    const startOfYear = new Date();
-    startOfYear.setUTCFullYear(state.startYear, 0, 1);
-    startOfYear.setUTCHours(0, 0, 0, 0);
+    const [start, end] = stateToAllocationPeriod(state);
 
-    const endOfYear = new Date();
-    endOfYear.setUTCFullYear(state.startYear, 11, 31);
-    endOfYear.setUTCHours(23, 59, 59, 999);
-
-    const period: Grants.Period = {
-        start: startOfYear.getTime(),
-        end: endOfYear.getTime()
-    };
+    const period: Grants.Period = {start, end};
 
     const checkedAllocators = new Set(state.allocators.filter(it => it.checked).map(it => it.id));
 
@@ -2236,25 +2647,82 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
         for (const category of providerSection) {
             const pc = category.category;
             const explanation = Accounting.explainUnit(pc);
-            for (const [allocator, amount] of Object.entries(category.balanceRequested)) {
-                if (!checkedAllocators.has(allocator)) continue;
-                if (amount <= 0) continue;
 
-                result.push({
-                    category: pc.name,
-                    provider: pc.provider,
-                    balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
-                    grantGiver: allocator,
-                    period,
-                    sourceAllocation: category.sourceAllocations[allocator] ?? null,
-                });
+            if (state.stateDuringEdit) {
+                for (const allocatorObject of state.allocators) {
+                    if (!allocatorObject.checked) continue;
+                    const allocator = allocatorObject.id;
+                    const splits = category.resourceSplits[allocator] ?? [];
+
+                    const isGrantGiver = state.stateDuringEdit.wallets.some(it =>
+                        it.paysFor.name === category.category.name && it.paysFor.provider === category.category.provider &&
+                        it.owner["projectId"] === allocator
+                    );
+
+                    const totalBalanceRequested = category.totalBalanceRequested[allocator] ?? 0;
+                    console.log(category.category.name, totalBalanceRequested, splits);
+                    const frequency = category.category.accountingFrequency;
+                    if (
+                        frequency === "ONCE" &&
+                        splits.filter(it => it.sourceAllocation || it.balanceRequested).length === 0 &&
+                        totalBalanceRequested
+                    ) {
+                        splits.splice(0);
+                        splits.push({ balanceRequested: totalBalanceRequested });
+                    }
+
+                    if (!isGrantGiver) {
+                        // Here we must check if we have to discard all the current splits in favor of a single
+                        // spanning the entire period. This needs to happen if the applicant changes the numbers. We
+                        // detect this by determining if the splits match the totalBalanceRequested.
+
+                        const balanceMismatch = frequency === "ONCE" ?
+                            splits.length === 0 || splits.some(it => it.balanceRequested !== totalBalanceRequested) :
+                            splits.reduce((sum, it) => sum + (it.balanceRequested ?? 0), 0) !== totalBalanceRequested;
+
+                        if (balanceMismatch) {
+                            splits.splice(0);
+                            splits.push({ balanceRequested: totalBalanceRequested });
+                        }
+                    }
+
+                    const hasAnySourceAllocation = splits.some(it => it.sourceAllocation);
+                    for (const split of splits) {
+                        if (frequency === "ONCE" && hasAnySourceAllocation && !split.sourceAllocation) continue;
+
+                        let amount = split.balanceRequested ?? 0;
+                        if (frequency === "ONCE") amount = totalBalanceRequested;
+                        if (amount <= 0) continue;
+                        console.log(category.category.name, split, amount);
+
+                        result.push({
+                            category: pc.name,
+                            provider: pc.provider,
+                            balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
+                            grantGiver: allocator,
+                            period,
+                            sourceAllocation: split.sourceAllocation ?? null,
+                        });
+                    }
+                }
+            } else {
+                for (const [allocator, amount] of Object.entries(category.totalBalanceRequested)) {
+                    if (!checkedAllocators.has(allocator)) continue;
+
+                    result.push({
+                        category: pc.name,
+                        provider: pc.provider,
+                        balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
+                        grantGiver: allocator,
+                        period,
+                        sourceAllocation: null,
+                    });
+                }
             }
         }
     }
 
-    console.log("Full state", state)
-    console.log("providerSection", Object.values(state.resources))
-    console.log("Result", result)
+    console.log(result);
 
     return result;
 }
@@ -2285,5 +2753,153 @@ function stateToCreationRecipient(state: EditorState): Grants.Doc["recipient"] |
 
     return recipient;
 }
+
+function stateToAllocationPeriod(state: EditorState): [number, number] {
+    const start = new Date();
+    start.setUTCFullYear(state.allocationPeriod.start.year, state.allocationPeriod.start.month, 1);
+    start.setUTCHours(0, 0, 0, 0);
+
+    const end = new Date(start.getTime());
+    end.setUTCMonth(end.getUTCMonth() + state.allocationPeriod.durationInMonths);
+    end.setUTCHours(23, 59, 59, 999);
+
+    return [start.getTime(), end.getTime()];
+}
+
+const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+    "November", "December"];
+
+function stateToMonthOptions(state: EditorState): { key: string, text: string }[] {
+    const result: { key: string, text: string }[] = [];
+
+    const date = new Date();
+    date.setDate(1);
+
+    for (let i = 0; i < 12; i++) {
+        const month = monthNames[date.getMonth()];
+        if (i === 0) {
+            result.push({ key: `${date.getMonth()}/${date.getFullYear()}`, text: `Immediately` });
+        } else {
+            result.push({key: `${date.getMonth()}/${date.getFullYear()}`, text: `${month} ${date.getFullYear()}`});
+        }
+
+        let currentMonth = date.getMonth();
+        date.setMonth((currentMonth + 1) % 12);
+        if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
+    }
+
+    if (state.stateDuringEdit) {
+        // TODO Insert the current option at the top
+    }
+
+    return result;
+}
+
+function isInAllocationPeriod(timestamp: number, state: EditorState) {
+    const [start, end] = stateToAllocationPeriod(state);
+    return timestamp >= start && timestamp <= end;
+}
+
+type PeriodEntry = {start: number, end: number};
+class TimeTracker {
+    private periods: PeriodEntry[] = [];
+
+    add(start: number, end: number) {
+        if (end < start) throw "Invalid use (end < start)";
+
+        const entry: PeriodEntry = {start: Math.floor(start / 1000), end: Math.floor(end / 1000)};
+
+        const overlappingEntry = this.periods.find(it => TimeTracker.overlaps(it, entry));
+        if (overlappingEntry) {
+            TimeTracker.expand(overlappingEntry, entry);
+        } else {
+            this.periods.push(entry);
+        }
+
+        this.collapseAdjacentPeriods();
+    }
+
+    hasOverlap(start: number, end: number): boolean {
+        if (end < start) throw "Invalid use (end < start)";
+        const entry: PeriodEntry = {start: Math.floor(start / 1000), end: Math.floor(end / 1000)};
+        return this.periods.some(it => TimeTracker.overlaps(it, entry));
+    }
+
+    isContiguous(): boolean {
+        return this.periods.length === 1;
+    }
+
+    contains(start: number, end: number): boolean {
+        const s = Math.floor(start / 1000);
+        const e = Math.floor(end / 1000);
+        return this.periods.some(it => TimeTracker.periodContains(it, s) && TimeTracker.periodContains(it, e));
+    }
+
+    explainMismatch(start: number, end: number): string {
+        if (this.contains(start, end)) return "No mismatch";
+        if (this.periods.length === 0) return "The allocation period is empty";
+
+        const s = Math.floor(start / 1000);
+        const e = Math.floor(end / 1000);
+
+        if (!this.isContiguous()) {
+            let reason = "Missing allocation between "
+            reason += Accounting.utcDateAndTime(this.periods[0].end * 1000);
+            reason += " and ";
+            reason += Accounting.utcDateAndTime(this.periods[1].start * 1000);
+            reason += "!"
+
+            return reason;
+        } else {
+            if (s < this.periods[0].start) {
+                let reason = "Missing allocation between "
+                reason += Accounting.utcDateAndTime(this.periods[0].start * 1000);
+                reason += " and ";
+                reason += Accounting.utcDateAndTime(start);
+                reason += "!"
+                return reason;
+            } else {
+                let reason = "Missing allocation between "
+                reason += Accounting.utcDateAndTime(this.periods[0].end * 1000);
+                reason += " and ";
+                reason += Accounting.utcDateAndTime(end);
+                reason += "!"
+                return reason;
+            }
+        }
+    }
+
+    private collapseAdjacentPeriods() {
+        outer: while (true) {
+            for (let i = 0; i < this.periods.length; i++) {
+                const aEntry = this.periods[i];
+                for (let j = i + 1; j < this.periods.length; j++) {
+                    const bEntry = this.periods[j];
+                    if (aEntry.end === bEntry.start - 1 || bEntry.end === aEntry.start - 1) {
+                        TimeTracker.expand(aEntry, bEntry);
+                        this.periods.splice(j, 1);
+                        continue outer;
+                    }
+                }
+            }
+
+            break;
+        }
+    }
+
+    private static overlaps(a: PeriodEntry, b: PeriodEntry): boolean {
+        return TimeTracker.periodContains(b, a.start) || TimeTracker.periodContains(b, a.end);
+    }
+
+    private static periodContains(period: PeriodEntry, time: number): boolean {
+        return time >= period.start && time <= period.end;
+    }
+
+    private static expand(existing: PeriodEntry, newPeriod: PeriodEntry) {
+        existing.start = Math.min(existing.start, newPeriod.start);
+        existing.end = Math.max(existing.end, newPeriod.end);
+    }
+}
+window["TimeTracker"] = TimeTracker;
 
 export default Editor;

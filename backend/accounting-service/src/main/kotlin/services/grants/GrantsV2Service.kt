@@ -194,6 +194,10 @@ class GrantsV2Service(
         actorAndProject: ActorAndProject,
         request: GrantsV2.SubmitRevision.Request,
     ): FindByStringId {
+        if (request.revision.allocationRequests.none { (it.balanceRequested ?: 0L) > 0 }) {
+            throw RPCException("No resources requested", HttpStatusCode.BadRequest)
+        }
+
         val applicationId = request.applicationId
         return modify(
             actorAndProject = actorAndProject,
@@ -1026,6 +1030,8 @@ class GrantsV2Service(
                                 WalletOwner.Project(grantGiver)
                             )
 
+                            // TODO We should probably use old values if they are not coming from a grantGiver admin,
+                            //  although this is probably close enough.
                             for (req in command.doc.allocationRequests) {
                                 if (req.grantGiver != grantGiver) continue
                                 val sourceAlloc = req.sourceAllocation ?: continue

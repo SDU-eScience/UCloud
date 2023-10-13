@@ -263,7 +263,7 @@ object GrantsV2 : CallDescriptionContainer("grants.v2") {
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpRetrieve(baseContext, "logo")
+                httpRetrieve(baseContext, "logo", roles = Roles.PUBLIC)
             }
         )
     }

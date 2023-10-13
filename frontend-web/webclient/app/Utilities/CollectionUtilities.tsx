@@ -1,3 +1,5 @@
+import deepcopy from "deepcopy";
+
 type PrimitiveDataTypes = string | number | boolean;
 
 /**
@@ -35,5 +37,5 @@ export function takeLast<T>(items: T[], numberOfItems: number): T[] {
 }
 
 export function deepCopy<T>(item: T): T {
-    return JSON.parse(JSON.stringify(item));
+    return deepcopy(item);
 }

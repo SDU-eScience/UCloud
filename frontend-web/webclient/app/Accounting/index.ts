@@ -996,9 +996,26 @@ export function browseWalletsV2(
     return apiBrowse(request, baseContextV2, "wallets");
 }
 
-export function simpleUtcDate(ts: number): string {
+export function utcDate(ts: number): string {
     const d = new Date(ts);
     if (ts >= Number.MAX_SAFE_INTEGER) return "31/12/9999";
 
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
+}
+
+export function utcDateAndTime(ts: number): string {
+    const d = new Date(ts);
+    if (ts >= Number.MAX_SAFE_INTEGER) return "31/12/9999";
+
+    let message = "";
+    message += d.getUTCDate().toString().padStart(2, '0');
+    message += "/";
+    message += (d.getUTCMonth() + 1).toString().padStart(2, '0');
+    message += "/";
+    message += d.getUTCFullYear();
+    message += " ";
+    message += d.getUTCHours().toString().padStart(2, '0');
+    message += ":";
+    message += d.getUTCMinutes().toString().padStart(2, '0');
+    return message;
 }
