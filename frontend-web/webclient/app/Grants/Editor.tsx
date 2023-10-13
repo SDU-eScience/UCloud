@@ -54,7 +54,7 @@ interface EditorState {
         wallets: Accounting.WalletV2[];
         activeRevision: number;
         title: string;
-        referenceId?: string;
+        referenceIds: string[];
     };
 
     allocators: {
@@ -121,7 +121,8 @@ type EditorAction =
     | { type: "ApplicationUpdated", section: string, contents: string }
     | { type: "LoadingStateChange", isLoading: boolean }
     | { type: "SourceAllocationUpdated", provider: string, category: string, allocator: string, allocationId?: string, splitIndex: number }
-    | { type: "ReferenceIdUpdated", newReferenceId: string }
+    | { type: "ReferenceIdUpdated", newReferenceId: string, idx: number }
+    | { type: "CleanupReferenceIds" }
     | { type: "CommentPosted", comment: string, grantId: string }
     | { type: "CommentsReloaded", comments: Grants.Comment[] }
     | { type: "CommentDeleted", grantId: string, commentId: string }
@@ -273,6 +274,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     activeRevision: action.grant.currentRevision.revisionNumber,
                     wallets: action.wallets,
                     title: "",
+                    referenceIds: [],
                 },
                 locked: true,
             };
@@ -399,12 +401,29 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         case "ReferenceIdUpdated": {
             if (state.stateDuringEdit === undefined) return state;
+            const newIds = [...state.stateDuringEdit.referenceIds];
+            const missing = (action.idx + 1) - newIds.length;
+            for (let i = 0; i < missing; i++) newIds.push("");
+            newIds[action.idx] = action.newReferenceId;
 
             return {
                 ...state,
                 stateDuringEdit: {
                     ...state.stateDuringEdit,
-                    referenceId: action.newReferenceId || undefined
+                    referenceIds: newIds,
+                }
+            };
+        }
+
+        case "CleanupReferenceIds": {
+            if (state.stateDuringEdit === undefined) return state;
+            const newIds = [...state.stateDuringEdit.referenceIds].filter(it => it.length > 0);
+
+            return {
+                ...state,
+                stateDuringEdit: {
+                    ...state.stateDuringEdit,
+                    referenceIds: newIds,
                 }
             };
         }
@@ -809,7 +828,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         newEditState.title = recipientName;
-        newEditState.referenceId = revision.document.referenceId ?? undefined;
+        newEditState.referenceIds = revision.document.referenceIds ?? [];
 
         return {
             ...state,
@@ -1332,7 +1351,12 @@ export const Editor: React.FunctionComponent = () => {
 
     const onReferenceIdInput = useCallback<React.FormEventHandler>(ev => {
         const input = ev.target as HTMLInputElement;
-        dispatchEvent({ type: "ReferenceIdUpdated", newReferenceId: input.value });
+        const idx = parseInt(input.id.split("-")[1]);
+        dispatchEvent({ type: "ReferenceIdUpdated", newReferenceId: input.value, idx });
+    }, [dispatchEvent]);
+
+    const onReferenceBlur = useCallback(() => {
+        dispatchEvent({ type: "CleanupReferenceIds" });
     }, [dispatchEvent]);
 
     const onApplicationChange = useCallback<React.FormEventHandler>(ev => {
@@ -1394,7 +1418,7 @@ export const Editor: React.FunctionComponent = () => {
 
         const doc: Grants.Doc = {
             recipient: stateToCreationRecipient(state)!,
-            referenceId: null,
+            referenceIds: null,
             revisionComment: null,
             form: stateToApplication(state),
             parentProjectId: checked[0].id,
@@ -1445,7 +1469,7 @@ export const Editor: React.FunctionComponent = () => {
 
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
-            referenceId: editState.referenceId,
+            referenceIds: editState.referenceIds ? editState.referenceIds : null,
             allocationRequests: stateToRequests(state),
             form: stateToApplication(state),
             parentProjectId: currentDoc.parentProjectId
@@ -1723,6 +1747,17 @@ export const Editor: React.FunctionComponent = () => {
 
     const overallState = state.stateDuringEdit?.storedApplication?.status?.overallState
 
+    const referenceIdsToShow = state.stateDuringEdit?.referenceIds ?? [];
+    const isGrantGiverAndNeedsNewIdField = (
+        !state.locked && state.stateDuringEdit?.wallets &&
+        referenceIdsToShow &&
+        referenceIdsToShow[referenceIdsToShow.length - 1] !== ""
+    );
+
+    if (isGrantGiverAndNeedsNewIdField || !referenceIdsToShow.length) {
+        referenceIdsToShow.push("");
+    }
+
     const classes = [style];
     if (state.stateDuringEdit !== undefined) classes.push("is-editing");
     if (state.stateDuringCreate !== undefined) classes.push("is-creating");
@@ -1888,16 +1923,16 @@ export const Editor: React.FunctionComponent = () => {
 
                             {state.stateDuringEdit && <>
                                 <FormField
-                                    id={FormIds.deicId}
+                                    id={FormIds.deicId + "-0"}
                                     title={"Reference ID"}
                                     description={"The reference ID allows you to attach additional information to this request."}
                                 >
-                                    <label>
-                                        Reference ID
-                                        <Input id={FormIds.deicId} disabled={state.locked}
+                                    {referenceIdsToShow.map((id, idx) => <label key={idx}>
+                                        Reference ID #{idx + 1}
+                                        <Input id={FormIds.deicId + "-" + idx} disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
                                                placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
-                                               value={state.stateDuringEdit.referenceId ?? ""} onInput={onReferenceIdInput} />
-                                    </label>
+                                               value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
+                                    </label>)}
                                 </FormField>
                             </>}
                         </div>
@@ -2495,7 +2530,7 @@ const FormIds = {
     title: "title",
     startDate: "start-date",
     endDate: "end-date",
-    deicId: "deic-id",
+    deicId: "deicref",
     revisions: "revisions",
 };
 

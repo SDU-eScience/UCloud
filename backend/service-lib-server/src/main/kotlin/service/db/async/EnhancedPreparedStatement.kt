@@ -240,7 +240,7 @@ class EnhancedPreparedStatement(
             return response
         } catch (ex: GenericDatabaseException) {
             val msg = ex.message ?: ""
-            if (msg.contains("invalid input syntax") || msg.contains("syntax error")) {
+            if (msg.contains("invalid input syntax") || msg.contains("syntax error") || msg.contains("does not exist")) {
                 throw RuntimeException("Invalid query!\n\tQuery=${rawStatement}", ex)
             }
 

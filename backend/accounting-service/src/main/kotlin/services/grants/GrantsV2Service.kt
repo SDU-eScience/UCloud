@@ -968,14 +968,16 @@ class GrantsV2Service(
                 }
 
                 is Command.InsertRevision -> {
-                    val newRefId = if (isGrantGiver()) command.doc.referenceId else null
-                    checkDeicReferenceFormat(newRefId)
+                    val newRefIds = if (isGrantGiver()) command.doc.referenceIds else null
+                    if (newRefIds != null) {
+                        for (id in newRefIds) checkDeicReferenceFormat(id)
+                    }
 
                     if (application.status.overallState != GrantApplication.State.IN_PROGRESS) {
                         // We only allow editing of the reference ID for closed applications.
                         insertRevision(
                             command.comment,
-                            application.currentRevision.document.copy(referenceId = newRefId)
+                            application.currentRevision.document.copy(referenceIds = newRefIds)
                         )
                     } else {
                         when (idCard) {
@@ -1046,7 +1048,7 @@ class GrantsV2Service(
 
                         insertRevision(
                             command.comment,
-                            command.doc.copy(referenceId = newRefId)
+                            command.doc.copy(referenceIds = newRefIds)
                         )
                     }
                 }
@@ -1228,10 +1230,10 @@ class GrantsV2Service(
                                     "form",
                                     (action.revision.document.form as GrantApplication.Form.PlainText).text
                                 )
-                                setParameter("ref_id", action.revision.document.referenceId)
+                                setParameter("ref_id", action.revision.document.referenceIds)
                             },
                             """
-                                insert into "grant".forms (application_id, revision_number, parent_project_id, recipient, recipient_type, form, reference_id)
+                                insert into "grant".forms (application_id, revision_number, parent_project_id, recipient, recipient_type, form, reference_ids)
                                 values (:app_id, :rev, :parent, :recipient, :recipient_type, :form, :ref_id)
                             """
                         )
@@ -1428,12 +1430,13 @@ class GrantsV2Service(
                                     start = req.period.start ?: Time.now(),
                                     end = req.period.end,
                                     grantedIn = application.id.toLong(),
-                                    deicAllocationId = doc.referenceId?.takeIf {
-                                        it.startsWith(
-                                            "deic",
-                                            ignoreCase = true
-                                        )
-                                    }
+                                    // TODO(Dan): Why is this code dead?
+                                    // deicAllocationId = doc.referenceId?.takeIf {
+                                    //     it.startsWith(
+                                    //         "deic",
+                                    //         ignoreCase = true
+                                    //     )
+                                    // }
                                 )
                             }.let { BulkRequest(it) }
                         )

@@ -148,12 +148,12 @@ export interface Doc {
     form: Form;
 
     /*
-        A reference used for out-of-band book-keeping
+        A reference used for out-of-band bookkeeping
 
         Updateable by: Grant givers
         Immutable after creation: No
         */
-    referenceId?: string | null,
+    referenceIds?: string[] | null,
 
     /*
         A comment describing why this change was made

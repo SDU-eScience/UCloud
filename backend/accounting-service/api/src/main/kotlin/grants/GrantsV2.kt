@@ -475,13 +475,13 @@ data class GrantApplication(
 
         @UCloudApiDoc(
             """
-                A reference used for out-of-band book-keeping
+                A reference used for out-of-band bookkeeping
 
                 Updateable by: Grant givers
                 Immutable after creation: No
             """
         )
-        val referenceId: String? = null,
+        val referenceIds: List<String>? = null,
 
         @UCloudApiDoc(
             """
