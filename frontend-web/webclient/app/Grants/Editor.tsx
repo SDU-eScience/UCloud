@@ -1460,7 +1460,6 @@ export const Editor: React.FunctionComponent = () => {
 
         const resources = state.resources;
         const [startTs, endTs] = stateToAllocationPeriod(state);
-        console.log("Resources", resources)
         for (const [provider, categories] of Object.entries(resources)) {
             for (const category of categories) {
                 const unit = Accounting.explainUnit(category.category);
@@ -1550,8 +1549,6 @@ export const Editor: React.FunctionComponent = () => {
             });
             return false;
         }
-
-        console.log("Want to send", doc);
 
         if (!dry) {
             dispatchEvent({type: "LoadingStateChange", isLoading: true});
@@ -2660,7 +2657,6 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                     );
 
                     const totalBalanceRequested = category.totalBalanceRequested[allocator] ?? 0;
-                    console.log(category.category.name, totalBalanceRequested, splits);
                     const frequency = category.category.accountingFrequency;
                     if (
                         frequency === "ONCE" &&
@@ -2693,7 +2689,6 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                         let amount = split.balanceRequested ?? 0;
                         if (frequency === "ONCE") amount = totalBalanceRequested;
                         if (amount <= 0) continue;
-                        console.log(category.category.name, split, amount);
 
                         result.push({
                             category: pc.name,
@@ -2722,7 +2717,6 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
         }
     }
 
-    console.log(result);
 
     return result;
 }
