@@ -326,31 +326,6 @@ export const Create: React.FunctionComponent = () => {
         main={
             <>
                 <Box mx="50px" mt="32px">
-                    {/*
-<<<<<<< HEAD
-                    <Spacer
-                        left={
-                            <AppHeader
-                                slim
-                                title={appGroup?.data?.group.title ?? application.metadata.title}
-                                application={application}
-                                flavors={appGroup?.data?.applications ?? []}
-                                allVersions={previousResp.data?.items ?? []}
-                            />
-                        }
-                        right={
-                            <>
-                                {!application.metadata.website ? null : (
-                                    <ExternalLink title="Documentation" href={application.metadata.website}>
-                                        <Icon name="documentation" color="blue" />
-                                    </ExternalLink>
-                                )}
-                                <UtilityBar searchEnabled={false} />
-                            </>
-                        }
-                    />
-=======
-                    */}
                     <Spacer left={
                         <AppHeader
                             title={appGroup?.data?.group.title ?? application.metadata.title}
@@ -368,9 +343,6 @@ export const Create: React.FunctionComponent = () => {
                         )}
                         <UtilityBar searchEnabled={false} />
                     </>} />
-                    {/*
->>>>>>> 48630d4b552660cfe93ea268bc2d8f2a6af52639
-                        */}
                 </Box>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
