@@ -1,4 +1,4 @@
-import {AppOrTool} from "@/Applications/api";
+import {LogoType} from "@/Applications/api";
 import * as localForage from "localforage";
 import {AppLogo, hashF} from "@/Applications/Card";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -8,7 +8,7 @@ import {useEffect, useState} from "react";
 interface AppToolLogoProps {
     name: string;
     size?: string;
-    type: AppOrTool;
+    type: LogoType;
 }
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
@@ -22,7 +22,9 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         (async () => {
             const fetchedLogo = props.type === "APPLICATION" ?
                 await appLogoCache.fetchLogo(props.name) :
-                await toolLogoCache.fetchLogo(props.name);
+                props.type === "GROUP" ? 
+                    await groupLogoCache.fetchLogo(props.name) :
+                    await toolLogoCache.fetchLogo(props.name);
 
             if (!didCancel) {
                 setDataUrl(fetchedLogo);
@@ -76,12 +78,10 @@ class LogoCache {
                     localForage.setItem(itemKey, blob);
                     return URL.createObjectURL(blob);
                 } else {
-                    localForage.setItem(itemKey, false);
                     return null;
                 }
             } catch (e) {
                 console.warn(e);
-                localForage.setItem(itemKey, false);
                 return null;
             }
         } else {
@@ -113,3 +113,4 @@ class LogoCache {
 
 export const appLogoCache = new LogoCache("apps");
 export const toolLogoCache = new LogoCache("tools");
+export const groupLogoCache = new LogoCache("apps/group");

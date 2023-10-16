@@ -201,7 +201,7 @@ export const sideBarMenuElements: [
                 {icon: "heroFolder", label: "Files", to: "/drives/"},
                 {icon: "heroUserGroup", label: "Workspace"},
                 {icon: "heroSquaresPlus", label: "Resources"},
-                {icon: "heroShoppingBag", label: "Applications", to: AppRoutes.apps.overview()},
+                {icon: "heroShoppingBag", label: "Applications", to: AppRoutes.apps.landing()},
                 {icon: "heroServer", label: "Runs", to: "/jobs/"}
             ], predicate: () => Client.isLoggedIn
         },
@@ -469,6 +469,11 @@ function SecondarySidebar({
         emptyPage,
     );
 
+    const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
+        compute.apps.appStoreSections({page: "FULL"}),
+        {sections: []}
+    );
+
     const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
 
     const dispatch = useDispatch();
@@ -540,19 +545,27 @@ function SecondarySidebar({
         {active !== "Workspace" ? null : (<ProjectLinks />)}
 
         {active !== "Applications" ? null :
-            <Flex flexDirection={"column"}>
-                <h3 className={"no-link"}>Favorite apps</h3>
+            <Flex flexDirection={"column"} gap="16px">
+                <div>
+                    {appStoreSections.data.sections.map(section =>
+                        <Link key={section.id} to={`/applications/full#section${section.id}`}>{section.name}</Link>
+                    )}
+                </div>
 
-                {appFavorites.map(it =>
-                    <AppTitleAndLogo
-                        key={it.metadata.name + it.metadata.version}
-                        to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
-                        name={it.metadata.name}
-                        title={it.metadata.title}
-                    />
-                )}
+                <div>
+                    <h3 className={"no-link"}>Favorite apps</h3>
 
-                {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
+                    {appFavorites.map(it =>
+                        <AppTitleAndLogo
+                            key={it.metadata.name + it.metadata.version}
+                            to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
+                            name={it.metadata.name}
+                            title={it.metadata.title}
+                        />
+                    )}
+
+                    {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
+                </div>
             </Flex>
         }
 

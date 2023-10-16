@@ -35,12 +35,43 @@ class AppLogoController (
         }
 
         implement(AppStore.clearLogo) {
-            logoService.clearLogo(ctx.securityPrincipal, LogoType.APPLICATION, request.name)
+            logoService.clearLogo(actorAndProject, LogoType.APPLICATION, request.name)
             ok(Unit)
         }
 
         implement(AppStore.fetchLogo) {
-            val logo = logoService.fetchLogo(LogoType.APPLICATION, request.name)
+            val logo = logoService.fetchLogo(actorAndProject, LogoType.APPLICATION, request.name)
+
+            (ctx as HttpCall).call.respond(
+                object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength = logo.size.toLong()
+                    override val contentType = ContentType.Image.Any
+                    override fun readFrom(): ByteReadChannel = ByteArrayInputStream(logo).toByteReadChannel()
+                }
+            )
+
+            okContentAlreadyDelivered()
+        }
+
+        implement(AppStore.uploadGroupLogo) {
+            logoService.acceptUpload(
+                actorAndProject,
+                LogoType.GROUP,
+                request.name,
+                (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),
+                (ctx as HttpCall).call.request.receiveChannel()
+            )
+
+            ok(Unit)
+        }
+
+        implement(AppStore.clearGroupLogo) {
+            logoService.clearLogo(actorAndProject, LogoType.GROUP, request.name)
+            ok(Unit)
+        }
+
+        implement(AppStore.fetchGroupLogo) {
+            val logo = logoService.fetchLogo(actorAndProject, LogoType.GROUP, request.name)
 
             (ctx as HttpCall).call.respond(
                 object : OutgoingContent.ReadChannelContent() {

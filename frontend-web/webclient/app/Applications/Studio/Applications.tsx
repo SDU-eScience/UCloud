@@ -10,22 +10,22 @@ import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Checkbox, DataList, Flex, Icon, Label, Text} from "@/ui-components";
+import {Button, Checkbox, Flex, Icon, Label, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
 import Input, {HiddenInputField, InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {PropType, stopPropagation} from "@/UtilityFunctions";
+import {PropType, doNothing, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {clearLogo, uploadLogo} from "@/Applications/api";
+import {ApplicationGroup, clearLogo, listGroups, setGroup, updateFlavor, updateGroup, uploadLogo} from "@/Applications/api";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
-import {ButtonClass} from "@/ui-components/Button";
+import {ButtonClass, StandardButtonSize} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 interface AppVersion {
@@ -44,6 +44,66 @@ const entityTypes = [
 ];
 
 type ApplicationAccessRight = PropType<UCloud.compute.DetailedEntityWithPermission, "permission">;
+
+interface GroupSelectorProps {
+    applicationName: string;
+    selectedGroup?: ApplicationGroup;
+    options: ApplicationGroup[];
+    onSelect: (group: ApplicationGroup) => void;
+}
+
+const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        font-family: inherit;
+        color: var(--black);
+        background-color: var(--inputColor);
+        margin: 0;
+        border-width: 0px;
+        
+        width: 100%;
+        border-radius: 5px;
+        padding: 7px 12px;
+        height: 42px;
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
+
+        border: 1px solid var(--midGray);
+    }
+    
+    ${k}:hover {
+        border-color: var(--gray);
+    }
+`);
+
+const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
+    const [commandLoading, invokeCommand] = useCloudCommand();
+
+    useEffect(() => {
+        if (!props.selectedGroup) return;
+        invokeCommand(setGroup({groupId: props.selectedGroup.id, applicationName: props.applicationName}))
+    }, [props.selectedGroup]);
+
+    const options = React.useMemo(() => {
+        return props.options.map((appGroup) => ({text: appGroup.title, value: appGroup})).sort((a, b) => a.text > b.text ? 1 : -1) 
+    }, [props.options]);
+
+    return (
+        <ClickableDropdown
+            fullWidth
+            trigger={
+                <div className={GroupSelectorTriggerClass}>
+                    <Text>{props.selectedGroup ? props.selectedGroup.title : "No group selected"}</Text>
+                    <Icon name="chevronDownLight" ml="-32px" size={14} />
+                </div >
+            }
+            options={options}
+            onChange={props.onSelect}
+        />
+    );
+}
 
 function prettifyAccessRight(accessRight: ApplicationAccessRight): "Can launch" {
     switch (accessRight) {
@@ -82,11 +142,11 @@ export const App: React.FunctionComponent = () => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [, setLogoCacheBust] = useState("" + Date.now());
     const [access, setAccess] = React.useState<ApplicationAccessRight>("LAUNCH");
-    const [allTags, fetchAllTags] = useCloudAPI<string[]>(
+    const [allGroups, setGroups] = useCloudAPI<ApplicationGroup[]>(
         {noop: true},
         []
     );
-    const [selectedTag, setSelectedTag] = useState<string>("");
+    const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | undefined>(undefined);
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI<UCloud.compute.DetailedEntityWithPermission[]>(
         {noop: true},
@@ -107,8 +167,16 @@ export const App: React.FunctionComponent = () => {
     // Loading of permission entries
     useEffect(() => {
         fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
-        fetchAllTags(UCloud.compute.apps.listTags({}));
+        setGroups(listGroups({}));
     }, [name]);
+
+    useEffect(() => {
+        if (!allGroups) return;
+
+        if (apps.data.items[0]) {
+            setSelectedGroup(apps.data.items[0].metadata.group ?? undefined);
+        }
+    }, [allGroups, apps]);
 
     // Loading of application versions
     useEffect(() => {
@@ -124,15 +192,16 @@ export const App: React.FunctionComponent = () => {
 
     const refresh = useCallback(() => {
         setAppParameters(UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}));
-        fetchAllTags(UCloud.compute.apps.listTags({}));
+        setGroups(listGroups({}));
     }, [name]);
 
     useRefreshFunction(refresh);
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
-    const tags = apps.data.items[0]?.tags ?? [];
+    const flavorName = apps.data.items.length > 0 ? (apps.data.items[0].metadata.flavorName ?? appTitle) : undefined;
     const userEntityField = React.useRef<HTMLInputElement>(null);
+    const flavorField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
 
@@ -140,110 +209,102 @@ export const App: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={(
-                <Heading.h1>
-                    <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} />
-                    {" "}
-                    {appTitle}
-                </Heading.h1>
+                <Flex justifyContent="space-between">
+                    <Heading.h2 style={{margin: 0}}>
+                        <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} />
+                        {" "}
+                        {appTitle}
+                    </Heading.h2>
+                    <Flex>
+                        <label className={ButtonClass}>
+                            Upload Logo
+                            <HiddenInputField
+                                type="file"
+                                onChange={async e => {
+                                    const target = e.target;
+                                    if (target.files) {
+                                        const file = target.files[0];
+                                        target.value = "";
+                                        if (file.size > 1024 * 512) {
+                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                        } else {
+                                            if (await uploadLogo({name, file, type: "APPLICATION"})) {
+                                                setLogoCacheBust("" + Date.now());
+                                            }
+                                        }
+                                        dialogStore.success();
+                                    }
+                                }}
+                            />
+                        </label>
+
+                        <Button
+                            mx="10px"
+                            type="button"
+                            color="red"
+                            disabled={commandLoading}
+                            onClick={async () => {
+                                await invokeCommand(clearLogo({type: "APPLICATION", name}));
+                                setLogoCacheBust("" + Date.now());
+                            }}
+                        >
+                            Remove Logo
+                        </Button>
+                    </Flex>
+                </Flex>
             )}
             main={(<>
-                <label className={ButtonClass}>
-                    Upload Logo
-                    <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 512) {
-                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                } else {
-                                    if (await uploadLogo({name, file, type: "APPLICATION"})) {
-                                        setLogoCacheBust("" + Date.now());
-                                    }
-                                }
-                                dialogStore.success();
-                            }
-                        }}
-                    />
-                </label>
-
-                <Button
-                    type="button"
-                    color="red"
-                    disabled={commandLoading}
-                    onClick={async () => {
-                        await invokeCommand(clearLogo({type: "APPLICATION", name}));
-                        setLogoCacheBust("" + Date.now());
-                    }}
-                >
-                    Remove Logo
-                </Button>
-
                 <Flex flexDirection="column">
-                    <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
-                        <Heading.h2>Tags</Heading.h2>
-                        <Box mb={46} mt={26}>
-                            {tags.map(tag => (
-                                <Flex key={tag} mb={16}>
-                                    <Box flexGrow={1}>
-                                        <Tag key={tag} label={tag} />
-                                    </Box>
-                                    <Box>
-                                        <Button
-                                            color={"red"}
-                                            type={"button"}
+                    <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
+                        <form
+                            onSubmit={async e => {
+                                e.preventDefault();
+                                if (commandLoading) return;
 
-                                            disabled={commandLoading}
-                                            onClick={async () => {
-                                                await invokeCommand(UCloud.compute.apps.removeTag({
-                                                    applicationName: name,
-                                                    tags: [tag]
-                                                }));
-                                                refresh();
-                                            }}
-                                        >
-                                            <Icon size={16} name="trash" />
-                                        </Button>
-                                    </Box>
-                                </Flex>
-                            ))}
-                            <form
-                                onSubmit={async e => {
-                                    e.preventDefault();
-                                    if (commandLoading) return;
+                                if (!selectedGroup) return;
 
-                                    if (selectedTag === null) return;
-                                    if (selectedTag === "") return;
+                                await invokeCommand(setGroup({
+                                    groupId: selectedGroup.id,
+                                    applicationName: name
+                                }));
 
-                                    await invokeCommand(UCloud.compute.apps.createTag({
-                                        applicationName: name,
-                                        tags: [selectedTag]
-                                    }));
+                                snackbarStore.addSuccess(`Added to group ${selectedGroup}`, false);
 
-                                    refresh();
-                                }}
-                            >
-                                <Flex>
-                                    <Box flexGrow={1}>
-                                        {allTags.data.length > 0 ?
-                                            <DataList
-                                                rightLabel
-                                                options={allTags.data.map(tag => ({value: tag, content: tag}))}
-                                                onSelect={item => setSelectedTag(item)}
-                                                onChange={item => setSelectedTag(item)}
-                                                placeholder={"Enter or choose a tag..."}
-                                            />
-                                            : <></>
-                                        }
-                                    </Box>
-                                    <Button disabled={commandLoading} type="submit" width={100} attached>
-                                        Add tag
-                                    </Button>
-                                </Flex>
-                            </form>
-                        </Box>
+                                refresh();
+                            }}
+                        >
+                            <Heading.h2>Group</Heading.h2>
+                            <Flex>
+                                <GroupSelector
+                                    selectedGroup={selectedGroup}
+                                    applicationName={name}
+                                    options={allGroups.data}
+                                    onSelect={item => setSelectedGroup(item)}
+                                />
+                            </Flex>
+
+                            <Heading.h2>Flavor (name)</Heading.h2>
+                            <Flex>
+                                <Input rightLabel inputRef={flavorField} defaultValue={flavorName} />
+                                <Button
+                                    attached
+                                    onClick={async () => {
+                                        if (commandLoading) return;
+
+                                        const flavorFieldCurrent = flavorField.current;
+                                        if (flavorFieldCurrent === null) return;
+
+                                        const flavorFieldValue = flavorFieldCurrent.value;
+                                        if (flavorFieldValue === "") return;
+
+                                        await invokeCommand(updateFlavor({applicationName: name, flavorName: flavorFieldValue}));
+                                        refresh();
+                                    }}
+                                >
+                                    Save
+                                </Button>
+                            </Flex>
+                        </form>
                     </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>
@@ -344,7 +405,7 @@ export const App: React.FunctionComponent = () => {
                                             />
                                         </>
                                     )}
-                                    <InputLabel width={300} rightLabel>
+                                    <InputLabel width={300} rightLabel leftLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"

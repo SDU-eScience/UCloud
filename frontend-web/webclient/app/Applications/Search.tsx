@@ -9,10 +9,12 @@ import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {AppCard, ApplicationCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
-import {Input} from "@/ui-components";
+import {Box, Flex, Input} from "@/ui-components";
 import AppRoutes from "@/Routes";
 import {Link} from "react-router-dom";
 import * as Pages from "./Pages";
+import {FavoriteAppRow, LargeSearchBox} from "./Overview";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 interface SearchQuery {
     tags: string[];
@@ -66,19 +68,14 @@ export const SearchResults: React.FunctionComponent = () => {
         await invokeCommand(UCloud.compute.apps.toggleFavorite({appName, appVersion}));
     }, [fetch]);
 
-    return <>
-        <Input
-            my="8px"
-            width="400px"
-            mx="auto"
-            defaultValue={new URLSearchParams(queryParams).get("q") ?? ""}
-            placeholder="Application name..."
-            onKeyUp={e => {
-                if (e.key === "Enter") {
-                    navigate(AppRoutes.apps.search((e.target as unknown as {value: string}).value));
-                }
-            }}
-        />
+    return <Box mx="auto" maxWidth="1340px">
+        <Flex width="100%">
+            <Box ml="auto" mt="30px">
+                <ContextSwitcher />
+            </Box>
+        </Flex>
+        <Box mt="12px" />
+        <LargeSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} />
 
         <Pagination.List
             loading={results.loading}
@@ -88,11 +85,13 @@ export const SearchResults: React.FunctionComponent = () => {
                     {page.items.map(app => (
                         <Link key={`${app.metadata.name}${app.metadata.version}`} to={Pages.run(app.metadata.name, app.metadata.version)}>
                             <AppCard
-                                app={app}
+                                title={app.metadata.title}
+                                description={app.metadata.description}
+                                logo={app.metadata.name} 
+                                logoType="APPLICATION"
                                 type={ApplicationCardType.WIDE}
                                 onFavorite={toggleFavorite}
                                 isFavorite={app.favorite}
-                                tags={app.tags}
                             />
                         </Link>))
                     }
@@ -108,5 +107,5 @@ export const SearchResults: React.FunctionComponent = () => {
                 }));
             }}
         />
-    </>;
+    </Box>;
 };

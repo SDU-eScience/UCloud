@@ -12,13 +12,14 @@ import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import {compute} from "@/UCloud";
 import Application = compute.Application;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 export const AppHeader: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags;
     slim?: boolean;
     allVersions: UCloud.compute.ApplicationSummaryWithFavorite[];
     flavors: UCloud.compute.ApplicationSummaryWithFavorite[];
+    title: string;
 }> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "64px" : "128px";
@@ -37,28 +38,25 @@ export const AppHeader: React.FunctionComponent<{
                     <>
                         <Box>
                             <Flex>
-                                <Text verticalAlign="center" alignItems="center" fontSize={30}>
-                                    {props.application.metadata.title}
+                                <Text verticalAlign="center" alignItems="center" fontSize={30} mr="15px">
+                                    {props.title}
                                 </Text>
                                 <Flex style={{alignSelf: "center"}}>
-                                    {props.flavors.length === 0 ? null :
+                                    {props.flavors.length <= 1 ? null :
                                         <ClickableDropdown
-                                            colorOnHover={false}
                                             trigger={
-                                                <Flex my="auto" height="30px" ml="12px" borderRadius="16px" px="8px" fontSize={"var(--secondaryText)"} alignItems={"center"} backgroundColor="var(--blue)" color="white">
-                                                    {props.application.metadata.name} <Icon ml="8px" name="chevronDownLight" size={12} />
+                                                <Flex className={FlavorSelectorClass}>
+                                                    {props.application.metadata.flavorName ?? props.application.metadata.title} <Icon ml="8px" name="chevronDownLight" size={12} />
                                                 </Flex>
                                             }>
-                                            <Text bold>Select flavor</Text>
                                             {props.flavors.map(f =>
                                                 <Box
                                                     cursor="pointer"
                                                     width="auto"
-                                                    color="white"
                                                     key={f.metadata.name}
                                                     onClick={() => navigate(Pages.runApplication(f.metadata))}
                                                 >
-                                                    {f.metadata.name}
+                                                    {f.metadata.flavorName ?? f.metadata.title}
                                                 </Box>
                                             )}
                                         </ClickableDropdown>
@@ -112,6 +110,23 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     background-color: var(--blue);
     border-radius: 20px;
     cursor: pointer;
+`);
+
+const FlavorSelectorClass = injectStyle("flavor-selector", k => `
+    ${k} {
+        height: 30px;
+        border-radius: 16px;
+        padding: 0px 15px;
+        font-size: var(--buttonText);
+        align-items: center;
+        background-color: var(--blue);
+        color: white;
+        margin: auto 0px;
+    }
+
+    ${k}:hover {
+        filter: brightness(115%);
+    }
 `);
 
 function Tags({tags}: {tags: string[]}): JSX.Element | null {

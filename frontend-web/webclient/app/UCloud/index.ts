@@ -2,6 +2,7 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
+import {ApplicationGroup} from "@/Applications/api";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 
 /**
@@ -1570,6 +1571,8 @@ export interface ApplicationMetadata {
     description: string,
     website?: string,
     public: boolean,
+    flavorName?: string,
+    group?: ApplicationGroup
 }
 export interface ApplicationInvocationDescription {
     tool: ToolReference,
@@ -2613,7 +2616,7 @@ export interface FetchLogoRequest {
 }
 export interface CreateTagsRequest {
     tags: string[],
-    applicationName: string,
+    groupId: number,
 }
 export interface TagSearchRequest {
     query: string,
@@ -2622,16 +2625,17 @@ export interface TagSearchRequest {
     page?: number /* int32 */,
 }
 export interface ListTagsRequest {}
-export interface AppStoreOverviewRequest {}
-export interface AppStoreOverview {
+export interface AppStoreSectionsRequest {
+    page: string,
+}
+export interface AppStoreSections {
     sections: AppStoreSection[],
 }
 export interface AppStoreSection {
+    id: number,
     name: string,
-    type: AppStoreSectionType,
-    applications: ApplicationSummaryWithFavorite[],
-    columns: number,
-    rows: number
+    featured: ApplicationGroup[],
+    items: ApplicationGroup[],
 }
 export enum AppStoreSectionType {
     TAG = "tag",
@@ -3182,12 +3186,14 @@ export function listTags(
         reloadId: Math.random(),
     }
 }
-export function appStoreOverview(): APICallParameters<AppStoreOverviewRequest, AppStoreOverview> {
+export function appStoreSections(
+    request: AppStoreSectionsRequest
+): APICallParameters<AppStoreSectionsRequest, AppStoreSections> {
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/hpc/apps/overview", {}),
-        parameters: requestAnimationFrame,
+        path: buildQueryString("/api/hpc/apps/store", {page: request.page}),
+        parameters: request,
         reloadId: Math.random(),
     }
 }

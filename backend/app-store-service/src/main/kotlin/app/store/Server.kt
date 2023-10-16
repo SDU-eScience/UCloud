@@ -52,30 +52,25 @@ class Server(override val micro: Micro) : CommonServer {
         val elasticDAO = if (elasticClientOrNull != null) ElasticDao(elasticClientOrNull) else null
         val toolDAO = ToolAsyncDao()
         val aclDao = AclAsyncDao()
-        val publicDAO = ApplicationPublicAsyncDao()
-        val applicationDAO = AppStoreAsyncDao(toolDAO, aclDao, publicDAO)
-        val appLogoDAO = ApplicationLogoAsyncDao(applicationDAO)
-        val tagDAO = ApplicationTagsAsyncDao()
-        val searchDAO = ApplicationSearchAsyncDao(applicationDAO)
-        val favoriteDAO = FavoriteAsyncDao(publicDAO, aclDao)
 
         val db = AsyncDBSessionFactory(micro)
+        val publicService = ApplicationPublicService(db)
+
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val appStoreService = AppStoreService(
             db,
             authenticatedClient,
-            applicationDAO,
-            publicDAO,
+            publicService,
             toolDAO,
             aclDao,
             elasticDAO,
             micro.eventStreamServiceOrNull?.createProducer(AppStoreStreams.AppDeletedStream)
         )
-        val logoService = LogoService(db, applicationDAO, appLogoDAO, toolDAO)
-        val tagService = ApplicationTagsService(db, tagDAO, elasticDAO)
-        val publicService = ApplicationPublicService(db, publicDAO)
-        val searchService = ApplicationSearchService(db, searchDAO, elasticDAO, applicationDAO, authenticatedClient)
-        val favoriteService = FavoriteService(db, favoriteDAO, authenticatedClient)
+
+        val logoService = LogoService(db, appStoreService, toolDAO)
+        val tagService = ApplicationTagsService(db, elasticDAO)
+        val searchService = ApplicationSearchService(db, elasticDAO, appStoreService, authenticatedClient)
+        val favoriteService = FavoriteService(db, publicService, aclDao, authenticatedClient)
         val importer = if (micro.developmentModeEnabled) {
             Importer(db, logoService, tagService, toolDAO, appStoreService)
         } else {
@@ -98,9 +93,12 @@ class Server(override val micro: Micro) : CommonServer {
 
         if (micro.developmentModeEnabled) {
             runBlocking {
-                val listOfApps = db.withTransaction {
-                    applicationDAO.listLatestVersion(it, null, null, emptyList(), NormalizedPaginationRequest(null, null))
-                }
+                val listOfApps = appStoreService.listLatestVersion(
+                    null,
+                    null,
+                    emptyList(),
+                    NormalizedPaginationRequest(null, null)
+                )
 
                 if (listOfApps.itemsInTotal == 0) {
                     val systemUser = ActorAndProject(Actor.System, null)
@@ -121,7 +119,7 @@ class Server(override val micro: Micro) : CommonServer {
                         apps.listFiles()?.forEach {
                             try {
                                 val description = yamlMapper.readValue<ApplicationDescription>(it)
-                                applicationDAO.create(session, systemUser, description.normalize(), "original")
+                                appStoreService.create(systemUser, description.normalize(), "original")
                             } catch (ex: Exception) {
                                 log.info("Could not create app: $it")
                                 log.info(ex.stackTraceToString())
@@ -138,20 +136,20 @@ class Server(override val micro: Micro) : CommonServer {
                 val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin")
                 runBlocking {
                     db.withSession { session ->
-                        val apps = applicationDAO.getAllApps(session, dummyUser)
+                        val apps = appStoreService.getAllApps(dummyUser)
                         apps.forEach { app ->
-                            val name = app.getField(ApplicationTable.idName).toLowerCase()
-                            val version = app.getField(ApplicationTable.idVersion).toLowerCase()
-                            val description = app.getField(ApplicationTable.description).toLowerCase()
-                            val title = app.getField(ApplicationTable.title).toLowerCase()
-                            val tags = tagDAO.findTagsForApp(
+                            val name = app.getString("name")!!.lowercase()
+                            val version = app.getString("version")!!.lowercase()
+                            val description = app.getString("description")!!.lowercase()
+                            val title = app.getString("title")!!.lowercase()
+                            val tags = tagService.findTagsForApp(
                                 session,
-                                app.getField(ApplicationTable.idName)
+                                app.getString("name")!!
                             )
 
                             elasticDAO?.createApplicationInElastic(name, version, description, title, tags)
-                            log.info("created: ${app.getField(ApplicationTable.idName)}" +
-                                    ":${app.getField(ApplicationTable.idVersion)}"
+                            log.info("created: ${app.getString("name")!!}" +
+                                    ":${app.getString("version")!!}"
                             )
                         }
                         log.info("DONE Migrating")

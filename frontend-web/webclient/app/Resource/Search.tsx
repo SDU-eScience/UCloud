@@ -12,12 +12,7 @@ export function useResourceSearch(api: ReducedApiInterface) {
     const navigate = useNavigate();
     const onSearch = useCallback((q) => {
         if (q === "") {
-            // NOTE(Dan): Workaround for #3064
-            if (api.routingNamespace === "applications") {
-                navigate(`/${api.routingNamespace}/overview`);
-            } else {
-                navigate(`/${api.routingNamespace}`);
-            }
+            navigate(`/${api.routingNamespace}`);
         } else {
             navigate(buildQueryString(`/${api.routingNamespace}/search`, {q}));
         }

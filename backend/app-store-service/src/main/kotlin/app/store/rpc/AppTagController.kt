@@ -13,7 +13,7 @@ class AppTagController (
         implement(AppStore.createTag) {
             tagsService.createTags(
                 request.tags,
-                request.applicationName
+                request.groupId
             )
             ok(Unit)
         }
@@ -21,7 +21,7 @@ class AppTagController (
         implement(AppStore.removeTag) {
             tagsService.deleteTags(
                 request.tags,
-                request.applicationName
+                request.groupId
             )
             ok(Unit)
         }

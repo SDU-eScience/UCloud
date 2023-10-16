@@ -53,13 +53,16 @@ const syncthing = {
 }
 
 const apps = {
-    applications: () => "/applications",
-    overview: () => "/applications/overview",
+    landing: () => "/applications",
+    overview: () => "/applications/full",
+    group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     byTag: (tag: string) => buildQueryString("applications", {tag, itemsPerPage: 25, page: 0}),
     studio: () => "/applications/studio",
+    studioGroups: () => "/applications/studio/groups",
     studioTool: (tool: string) => `/applications/studio/t/${tool}`,
     studioApp: (app: string) => `/applications/studio/a/${app}`,
+    studioGroup: (group: string) => `/applications/studio/g/${group}`,
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
     vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,

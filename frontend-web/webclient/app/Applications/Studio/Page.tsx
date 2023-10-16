@@ -1,4 +1,4 @@
-import {uploadDocument} from "@/Applications/api";
+import {updateLanding, updateOverview, uploadDocument} from "@/Applications/api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
@@ -10,7 +10,7 @@ import * as React from "react";
 import {useCallback} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import Box from "@/ui-components/Box";
-import {ButtonClass} from "@/ui-components/Button";
+import Button, {ButtonClass} from "@/ui-components/Button";
 import Flex from "@/ui-components/Flex";
 import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";
@@ -20,10 +20,13 @@ import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import * as UCloud from "@/UCloud";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Link} from "@/ui-components";
+import {useNavigate} from "react-router";
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");
     usePrioritizedSearch("applications");
+    
+    const navigate = useNavigate();
 
     const [tools, setToolParameters, toolParameters] = useCloudAPI(
         UCloud.compute.tools.listAll({page: 0, itemsPerPage: 50}),
@@ -44,46 +47,94 @@ export const Studio: React.FunctionComponent = () => {
         <MainContainer
             header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Studio</Heading.h2>}
             main={(<>
-                <label className={ButtonClass}>
-                    Upload Application
-                    <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 1024 * 5) {
-                                    snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
-                                } else {
-                                    await uploadDocument({document: file, type: "APPLICATION"});
-                                    refresh();
+                <Flex justifyContent="right">
+                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                        Upload application
+                        <HiddenInputField
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 1024 * 5) {
+                                        snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
+                                    } else {
+                                        await uploadDocument({document: file, type: "APPLICATION"});
+                                        refresh();
+                                    }
+                                    dialogStore.success();
                                 }
-                                dialogStore.success();
-                            }
-                        }} />
-                </label>
+                            }} />
+                    </label>
 
-                <label className={ButtonClass}>
-                    Upload Tool
-                    <HiddenInputField
-                        type="file"
-                        onChange={async e => {
-                            const target = e.target;
-                            if (target.files) {
-                                const file = target.files[0];
-                                target.value = "";
-                                if (file.size > 1024 * 512) {
-                                    snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                } else {
-                                    await uploadDocument({document: file, type: "TOOL"});
-                                    refresh();
+                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                        Upload tool
+                        <HiddenInputField
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                    } else {
+                                        await uploadDocument({document: file, type: "TOOL"});
+                                        refresh();
+                                    }
+                                    dialogStore.success();
                                 }
-                                dialogStore.success();
-                            }
-                        }}
-                    />
-                </label>
+                            }}
+                        />
+                    </label>
+
+                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                        Update landing page
+                        <HiddenInputField
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                    } else {
+                                        await updateLanding({document: file});
+                                        refresh();
+                                    }
+                                    dialogStore.success();
+                                }
+                            }}
+                        />
+                    </label>
+
+                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                        Update overview page
+                        <HiddenInputField
+                            type="file"
+                            onChange={async e => {
+                                const target = e.target;
+                                if (target.files) {
+                                    const file = target.files[0];
+                                    target.value = "";
+                                    if (file.size > 1024 * 512) {
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                    } else {
+                                        await updateOverview({document: file});
+                                        refresh();
+                                    }
+                                    dialogStore.success();
+                                }
+                            }}
+                        />
+                    </label>
+
+
+
+                    <Button onClick={() => navigate(`/applications/studio/groups`)}>Manage groups</Button>
+                </Flex>
 
                 <Pagination.List
                     loading={tools.loading}

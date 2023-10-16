@@ -95,7 +95,6 @@ export const Machines: React.FunctionComponent<{
                 selected={selected}
                 loading={props.loading}
                 onSelect={setMachineReservation}
-                omitBorder
                 support={props.support}
             />
         </>

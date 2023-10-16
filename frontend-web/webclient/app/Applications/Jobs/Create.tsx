@@ -5,7 +5,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, Card, ContainerForText, ExternalLink, Grid, Icon, Link, Markdown, Tooltip} from "@/ui-components";
+import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Grid, Icon, Link, Markdown, Tooltip} from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
@@ -25,11 +25,11 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf} from "@/DefaultObjects";
-import {getQueryParam} from "@/Utilities/URIUtilities";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {Product} from "@/Accounting";
+import {Product, usageExplainer} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -40,11 +40,18 @@ import {validateMachineReservation} from "./Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {Spacer} from "@/ui-components/Spacer";
 import {UtilityBar} from "@/Playground/Playground";
+import {injectStyleSimple} from "@/Unstyled";
+import {RetrieveGroupResponse, retrieveGroup} from "../api";
 
 interface InsufficientFunds {
     why?: string;
     errorCode?: string;
 }
+
+const EstimatesContainerClass = injectStyleSimple("estimates-container", `
+    padding-bottom: 20px;
+    text-align: right;
+`);
 
 const PARAMETER_TYPE_FILTER = ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"];
 
@@ -63,6 +70,11 @@ export const Create: React.FunctionComponent = () => {
 
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
+        {noop: true},
+        null
+    );
+
+    const [appGroup, fetchAppGroup] = useCloudAPI<RetrieveGroupResponse | null>(
         {noop: true},
         null
     );
@@ -111,9 +123,13 @@ export const Create: React.FunctionComponent = () => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
-        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
+        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}));
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);
+
+    useEffect(() => {
+        fetchAppGroup(retrieveGroup({name: appName}));
+    }, [appName]);
 
     const application = applicationResp.data;
 
@@ -306,13 +322,42 @@ export const Create: React.FunctionComponent = () => {
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
 
-    const appFlavors = [];
-
     return <MainContainer
         main={
             <>
                 <Box mx="50px" mt="32px">
-                    <Spacer left={<AppHeader slim application={application} flavors={appFlavors} allVersions={previousResp.data?.items ?? []} />} right={<>
+                    {/*
+<<<<<<< HEAD
+                    <Spacer
+                        left={
+                            <AppHeader
+                                slim
+                                title={appGroup?.data?.group.title ?? application.metadata.title}
+                                application={application}
+                                flavors={appGroup?.data?.applications ?? []}
+                                allVersions={previousResp.data?.items ?? []}
+                            />
+                        }
+                        right={
+                            <>
+                                {!application.metadata.website ? null : (
+                                    <ExternalLink title="Documentation" href={application.metadata.website}>
+                                        <Icon name="documentation" color="blue" />
+                                    </ExternalLink>
+                                )}
+                                <UtilityBar searchEnabled={false} />
+                            </>
+                        }
+                    />
+=======
+                    */}
+                    <Spacer left={
+                        <AppHeader
+                            title={appGroup?.data?.group.title ?? application.metadata.title}
+                            slim application={application}
+                            flavors={appGroup?.data?.applications ?? []}
+                            allVersions={previousResp.data?.items ?? []}
+                            />} right={<>
                         {!application.metadata.website ? null : (
                             <Tooltip
                                 trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
@@ -323,19 +368,10 @@ export const Create: React.FunctionComponent = () => {
                         )}
                         <UtilityBar searchEnabled={false} />
                     </>} />
+                    {/*
+>>>>>>> 48630d4b552660cfe93ea268bc2d8f2a6af52639
+                        */}
                 </Box>
-                <ContainerForText left>
-                    <Markdown
-                        unwrapDisallowed
-                        disallowedElements={[
-                            "image",
-                            "heading"
-                        ]}
-                    >
-                        {application.metadata.description}
-                    </Markdown>
-                    <Information simple application={application} />
-                </ContainerForText>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
@@ -347,29 +383,57 @@ export const Create: React.FunctionComponent = () => {
                                 </Link>
                             </Box> :
                             <Spacer
-                                left={
-                                    <ImportParameters application={application} onImport={onLoadParameters}
-                                        importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
-                                        onImportDialogClose={() => setImportDialogOpen(false)} />
-                                }
-                                right={anyError ?
-                                    <Tooltip trigger={
-                                        <Button type="button" color="green" disabled>
-                                            Submit
-                                        </Button>
-                                    }>
-                                        {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
-                                    </Tooltip> : <Button
-                                        type={"button"}
-                                        color={"green"}
-                                        disabled={isLoading || !sshValid || isMissingConnection}
-                                        onClick={() => submitJob(false)}
+                                left={<>
+                                    <Markdown
+                                        unwrapDisallowed
+                                        disallowedElements={[
+                                            "image",
+                                            "heading"
+                                        ]}
                                     >
-                                        Submit
-                                    </Button>}
+                                        {application.metadata.description}
+                                    </Markdown>
+                                    <Information simple application={application} />
+                                </>}
+                                right={
+                                    <div>
+                                        {estimatedCost.product ? <div className={EstimatesContainerClass}>
+                                            Estimated cost: {usageExplainer(estimatedCost.cost, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
+                                            Current balance: {usageExplainer(estimatedCost.balance, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
+                                        </div> : <></>}
+
+                                        <Flex>
+                                            <ImportParameters application={application} onImport={onLoadParameters}
+                                                importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
+                                                onImportDialogClose={() => setImportDialogOpen(false)} />
+
+                                            {anyError ?
+                                                <Tooltip trigger={
+                                                    <Button ml={"10px"} type="button" color={"green"} disabled>
+                                                        <Icon name="play" />
+                                                        Submit
+                                                    </Button>
+                                                }>
+                                                    {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
+                                                </Tooltip>
+                                            :
+                                                <Button
+                                                    color={"green"}
+                                                    type={"button"}
+                                                    ml={"10px"}
+                                                    disabled={isLoading || !sshValid || isMissingConnection}
+                                                    onClick={() => submitJob(false)}
+                                                >
+                                                    <Icon name="play" />
+                                                    Submit
+                                                </Button>
+                                            }
+                                        </Flex>
+                                    </div>
+                                }
                             />
                         }
-                        <Card>
+                        <Card pt="25px">
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}

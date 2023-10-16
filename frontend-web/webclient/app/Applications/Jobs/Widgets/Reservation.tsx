@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {Box, Flex, Input, Label} from "@/ui-components";
+import {Flex, Input, Label} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
     findRelevantMachinesForApplication, Machines, setMachineReservationFromRef, validateMachineReservation
@@ -101,8 +101,6 @@ export const ReservationParameter: React.FunctionComponent<{
             </Label>
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
                 <>
-                    <Box ml="4px" />
-
                     <Label>
                         Hours<MandatoryField />
                         <Input
@@ -125,7 +123,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
         {!application.invocation.allowMultiNode ? null : (
             <>
-                <Flex mb={"1em"}>
+                <Flex pt={"20px"}>
                     <Label>
                         Number of nodes
                         <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost} defaultValue={"1"} />

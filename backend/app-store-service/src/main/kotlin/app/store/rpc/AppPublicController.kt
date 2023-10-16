@@ -14,7 +14,7 @@ class AppPublicController (
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.isPublic) {
-            ok(IsPublicResponse(publicService.isPublic(ctx.securityPrincipal, request.applications)))
+            ok(IsPublicResponse(publicService.isPublic(actorAndProject, request.applications)))
         }
 
         implement(AppStore.setPublic) {

@@ -18,6 +18,7 @@ function Link({active, ...props}: LinkProps): JSX.Element {
         children={props.children}
         to={props.to}
         target={props.target}
+        title={props.title}
         {...extractEventHandlers(props)}
     />
 }

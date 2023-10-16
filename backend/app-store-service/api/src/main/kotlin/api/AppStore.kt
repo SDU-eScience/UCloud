@@ -109,6 +109,12 @@ data class ACLEntryRequest(
 )
 
 @Serializable
+data class UpdateFlavorRequest(
+    val applicationName: String,
+    val flavorName: String
+)
+
+@Serializable
 data class SetPublicRequest(
     val appName: String,
     val appVersion: String,
@@ -135,7 +141,7 @@ data class AppSearchRequest(
 @Serializable
 data class CreateTagsRequest(
     val tags: List<String>,
-    val applicationName: String
+    val groupId: Int
 )
 
 typealias DeleteTagsRequest = CreateTagsRequest
@@ -180,45 +186,99 @@ typealias FindLatestByToolResponse = Page<Application>
 data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
 
-typealias AppStoreOverviewRequest = Unit
+@Serializable
+data class RetrieveGroupResponse(
+    val group: ApplicationGroup,
+    val applications: List<ApplicationSummary>
+)
 
 @Serializable
-data class AppStoreOverviewResponse(
+data class UpdatePageRequest(
+    val page: AppStorePageType
+)
+
+@Serializable
+enum class AppStorePageType {
+    LANDING,
+    FULL
+}
+
+@Serializable
+data class SetGroupRequest(
+    val groupId: Int? = null,
+    val applicationName: String
+)
+
+typealias SetGroupResponse = Unit
+
+@Serializable
+data class CreateGroupRequest(
+    val title: String
+)
+
+@Serializable
+data class CreateGroupResponse(
+    val id: Int
+)
+
+@Serializable
+data class DeleteGroupRequest(
+    val id: Int
+)
+
+typealias DeleteGroupResponse = Unit
+
+@Serializable
+data class UpdateGroupRequest(
+    val id: Int,
+    val title: String,
+    val logo: ByteArray? = null,
+    val description: String? = null,
+    val defaultApplication: NameAndVersion? = null
+)
+
+typealias UpdateGroupResponse = Unit
+typealias ListGroupsRequest = Unit
+
+@Serializable
+data class RetrieveGroupRequest(
+    val id: Int? = null,
+    val name: String? = null
+)
+
+@Serializable
+data class AppStoreSectionsRequest(
+    val page: AppStorePageType
+)
+
+@Serializable
+data class AppStoreSectionsResponse(
     val sections: List<AppStoreSection>
 )
 
 @Serializable
-sealed class AppStoreSection {
-    abstract val name: String
-    @Serializable
-    @SerialName("tag")
-    data class Tag(
-        override val name: String,
-        val applications: MutableList<ApplicationSummaryWithFavorite>,
-        override val columns: Int,
-        override val rows: Int
-    ) : AppStoreSection(), WithDimensions
-
-    @Serializable
-    @SerialName("tool")
-    data class Tool(
-        override val name: String,
-        val applications: MutableList<ApplicationSummaryWithFavorite>,
-        override val columns: Int,
-        override val rows: Int
-    ) : AppStoreSection(), WithDimensions
-}
-
-interface WithDimensions {
-    val rows: Int
-    val columns: Int
-}
+data class ApplicationGroup (
+    val id: Int,
+    val title: String,
+    val description: String? = null,
+    val defaultApplication: NameAndVersion? = null,
+    val tags: List<String> = emptyList()
+)
 
 @Serializable
-enum class AppStoreSectionType {
-    TAG,
-    TOOL
-}
+data class AppStoreSection (
+    val id: Int,
+    val name: String,
+    val featured: List<ApplicationGroup>,
+    val items: List<ApplicationGroup>
+)
+
+@Serializable
+data class PageSection(
+    val title: String? = null,
+    val featured: List<String>,
+    val tags: List<String> = emptyList()
+)
 
 @UCloudApiExampleValue
 fun exampleApplication(
@@ -239,7 +299,11 @@ fun exampleApplication(
             listOf("UCloud"),
             title,
             "An example application",
-            public = true
+            public = true,
+            group = ApplicationGroup(
+                0,
+                "Test Group"
+            )
         ),
         ApplicationInvocationDescription(
             ToolReference(
@@ -908,7 +972,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val overview = call("overview", AppStoreOverviewRequest.serializer(), AppStoreOverviewResponse.serializer(), CommonErrorMessage.serializer()) {
+    val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreSectionsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -919,12 +983,139 @@ ${ApiConventions.nonConformingApiWarning}
 
             path {
                 using(baseContext)
-                +"overview"
+                +"store"
+            }
+
+            params {
+                +boundTo(AppStoreSectionsRequest::page)
             }
 
             documentation {
-                summary = "Returns the application catalog overview"
+                summary = "Returns the application catalog sections"
             }
+        }
+    }
+
+    val setGroup = call("setGroup", SetGroupRequest.serializer(), SetGroupResponse.serializer(), CommonErrorMessage.serializer())  {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"group/"
+                +"set"
+            }
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val createGroup = call("createGroup", CreateGroupRequest.serializer(), CreateGroupResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"group"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val deleteGroup = call("deleteGroup", DeleteGroupRequest.serializer(), DeleteGroupResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+            path {
+                using(baseContext)
+                +"group"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val updateGroup = call("updateGroup", UpdateGroupRequest.serializer(), UpdateGroupResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"group/"
+                +"update"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val listGroups = call("listGroups", ListGroupsRequest.serializer(), ListSerializer(ApplicationGroup.serializer()), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"groups"
+            }
+        }
+    }
+
+    val retrieveGroup = call("retrieveGroup", RetrieveGroupRequest.serializer(), RetrieveGroupResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.END_USER
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"group"
+            }
+            params {
+                +boundTo(RetrieveGroupRequest::id)
+                +boundTo(RetrieveGroupRequest::name)
+            }
+        }
+    }
+
+    val updateFlavor = call("updateFlavor", UpdateFlavorRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"updateFlavor"
+            }
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Updates the flavor name for a set of applications"
         }
     }
 
@@ -944,6 +1135,49 @@ ${ApiConventions.nonConformingApiWarning}
             summary = "Creates a new Application and inserts it into the catalog"
         }
     }
+
+    val updateLanding = call("updateLanding", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = setOf(Role.ADMIN, Role.SERVICE)
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Put
+            path {
+                using(baseContext)
+                +"updateLanding"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Updates the landing page of the application store"
+        }
+    }
+
+    val updateOverview = call("updateOverview", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = setOf(Role.ADMIN, Role.SERVICE)
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Put
+            path {
+                using(baseContext)
+                +"updateOverview"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Updates the overview page of the application store"
+        }
+    }
+
 
     val delete = call("delete", DeleteAppRequest.serializer(), DeleteAppResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
@@ -1027,6 +1261,80 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "List all application tags"
+        }
+    }
+
+    val uploadGroupLogo = call("uploadGroupLogo", UploadApplicationLogoRequest.serializer(), UploadApplicationLogoResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"group/"
+                +"uploadLogo"
+            }
+
+            headers {
+                +boundTo("Upload-Name", UploadApplicationLogoRequest::name)
+            }
+        }
+
+        documentation {
+            summary = "Uploads a logo and associates it with a group"
+        }
+    }
+
+    val clearGroupLogo = call("clearGroupLogo", ClearLogoRequest.serializer(), ClearLogoResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +"group/"
+                +"clearLogo"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Removes a logo associated with a group"
+        }
+    }
+
+
+    val fetchGroupLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PUBLIC
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"group/"
+                +"logo"
+            }
+
+            params {
+                +boundTo(FetchLogoRequest::name)
+            }
+        }
+
+        documentation {
+            summary = "Retrieves a logo associated with a group"
         }
     }
 

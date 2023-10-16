@@ -1,24 +1,25 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Button, Flex, Icon, Relative} from "@/ui-components";
+import {Flex, Icon, Relative} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
 import {EllipsedText, TextClass} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Pages from "./Pages";
-import {compute} from "@/UCloud";
-import ApplicationWithFavoriteAndTags = compute.ApplicationWithFavoriteAndTags;
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {LogoType} from "./api";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
-    app: Pick<ApplicationWithFavoriteAndTags, "tags" | "metadata">;
+    title: string;
+    description?: string;
+    logo: string;
+    logoType: LogoType;
     isFavorite?: boolean;
     linkToRun?: boolean;
     colorBySpecificTag?: string;
-    tags: string[];
 }
 
 const AppCardBase = injectStyle("app-card-base", k => `
@@ -39,7 +40,7 @@ const AppCardBase = injectStyle("app-card-base", k => `
 
     ${k} > strong {
         margin-right: 16px;
-        font-weight: bold;
+        font-weight: 700;
         flex-shrink: 0;
     }
 
@@ -77,13 +78,12 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
 `);
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const {metadata} = props.app;
     return (
-        <Link className={AppCardBase} to={Pages.runApplication(metadata)}>
+        <Box className={AppCardBase}>
             <Box mr={16}>
-                <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
+                <AppToolLogo name={props.logo} type={"APPLICATION"} size={"32px"} />
             </Box>
-            <b>{metadata.title}</b>
+            <b>{props.title}</b>
             <EllipsedText>
                 <Markdown
                     disallowedElements={[
@@ -110,11 +110,11 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                         "html"]}
                     unwrapDisallowed
                 >
-                    {metadata.description}
+                    {props.description ?? ""}
                 </Markdown>
             </EllipsedText>
             <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
-        </Link>
+        </Box>
     );
 };
 
@@ -252,7 +252,6 @@ const SmallCardClass = injectStyle("small-card", k => `
 
     ${k}:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        transform: translateY(-2px);
         color: var(--white, #f00);
     }
 `);
@@ -262,21 +261,20 @@ const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-align: left;
-    font-size: var(--secondaryText);
+    font-size: 13px;
 `);
 
 const TallApplicationCard = injectStyle("tall-application-card", k => `
     ${k} {
-        width: 156px;
-        height: 240px;
+        width: 166px;
+        height: 225px;
         cursor: pointer;
     }
 
     ${k} > div.image {
         width: 75px;
         height: 75px;
-        margin-top: 25px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
     }
     
     ${k} > div.image > * {
@@ -294,21 +292,23 @@ const TitleAndDescriptionClass = injectStyleSimple("title-and-description", "");
 const WideApplicationCard = injectStyle("wide-application-card", k => `
     ${k} {
         display: flex;
-        width: 322px;
+        width: 312px;
         height: 142px;
     }
 
     ${k} > div.image {
-        width: 84px;
-        height: 84px;
+        width: 75px;
+        height: 75px;
         margin-top: auto;
         margin-bottom: auto;
         text-align: center;
     }
 
     ${k} > div.${TitleAndDescriptionClass} {
-        margin-top: 8px;
+        text-align: left;
         width: calc(322px - 100px);
+        padding-left: 15px;
+        margin-top: 5px;
     }
 
     ${k}[data-xl="true"] {
@@ -328,10 +328,26 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
 
 const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
+        user-select: none;
         border-radius: 16px;
         box-shadow: ${theme.shadows.sm};
+        border: 1px solid var(--midGray);
         background-color: var(--lightGray);
         color: var(--text);
+        padding: 10px 15px;
+    }
+
+    html.dark ${k} {
+        border: 1px solid var(--lightGray);
+    }
+
+    html.dark ${k}:hover, ${k}:hover {
+        border-color: var(--blue);
+        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+    }
+
+    ${k} > div.${TitleAndDescriptionClass} {
+        font-size: var(--buttonText);
     }
 
     ${k} > div > span {
@@ -351,17 +367,25 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     }
 
     ${k} > div > .${MultiLineTruncateClass} {
-        margin-left: 10px;
-        margin-right: 10px;
         color: var(--text);
+        padding-top: 8px;
+    }
+
+    ${k} > .${TitleAndDescriptionClass} > div:first-child {
+        text-overflow: ellipsis;
+        overflow: hidden;
     }
 
     ${k} > div.image {
-        background-color: white;
+        background-color: var(--lightGray);
         border-radius: 12px;
         margin-left: auto;
         margin-right: auto;
         display: flex;
+    }
+
+    html.dark ${k} > div.image {
+        background-color: white;
     }
 
     ${k} > div {
@@ -376,14 +400,14 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
     }} {...p} />;
 }
 
-const FAV_ICON_SIZE = "24px";
+const FAV_ICON_SIZE = "20px";
 const FavIcon = injectStyleSimple("app-fav-icon", `
     position: relative; 
     cursor: pointer;
     height: 0;
     width: 0;
-    top: 4px;
-    left: calc(100% - ${FAV_ICON_SIZE} - 4px);
+    top: -5px;
+    left: calc(100% - ${FAV_ICON_SIZE} + 5px);
 `);
 
 export enum ApplicationCardType {
@@ -397,41 +421,42 @@ export interface AppCardProps extends React.PropsWithChildren<ApplicationCardPro
     type: ApplicationCardType;
 }
 
-function lineCountFromType(t: ApplicationCardType): number {
-    switch (t) {
-        case ApplicationCardType.TALL:
-            return 5;
-        case ApplicationCardType.EXTRA_TALL:
-            return 4;
-        case ApplicationCardType.WIDE:
-            return 5;
-        case ApplicationCardType.EXTRA_WIDE:
-            return 9;
-    }
+const typeLineCount = {
+    [ApplicationCardType.TALL]: 5,
+    [ApplicationCardType.EXTRA_TALL]: 4,
+    [ApplicationCardType.WIDE]: 4,
+    [ApplicationCardType.EXTRA_WIDE]: 9
 }
 
 const FavoriteAppClass = injectStyle("favorite-app", k => `
     ${k} {
-        width: 76px;
-        height: 76px;
+        width: 64px;
+        height: 64px;
         border-radius: 99999px;
-        box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 5px -1px inset, rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
+        box-shadow: rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
         display: flex;
         background-color: var(--fixedWhite);
         padding-left: 13px;
         align-items: center;
+        border: 1px solid var(--midGray);
     }
     
     html.dark ${k} {
+        border: 1px solid var(--lightGray);
         box-shadow: rgba(255, 255, 255, 0.2) 0px 3px 5px -1px, rgba(255, 255, 255, 0.14) 0px 6px 10px 0px;
+    }
+
+    html.dark ${k}:hover, ${k}:hover {
+        border: 1px solid var(--blue);
+        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     }
 `);
 
-export function FavoriteApp(props: {name: string, version: string, onFavorite(name: string, version: string): void;}): JSX.Element {
-    return <Flex mx="12px">
-        <Link to={Pages.run(props.name, props.version)}>
+export function FavoriteApp(props: {name: string, version: string, title: string, onFavorite(name: string, version: string): void;}): JSX.Element {
+    return <Flex mx="12px" py="20px">
+        <Link to={Pages.run(props.name, props.version)} title={props.title}>
             <div className={FavoriteAppClass}>
-                <AppToolLogo size="48px" name={props.name} type="APPLICATION" />
+                <AppToolLogo size="36px" name={props.name} type="APPLICATION" />
             </div>
         </Link>
         <Relative top="50px" right="24px" width="0px" height="0px">
@@ -441,52 +466,39 @@ export function FavoriteApp(props: {name: string, version: string, onFavorite(na
 }
 
 export function AppCard(props: AppCardProps): JSX.Element {
-    const [favorite, setFavorite] = React.useState(props.isFavorite) 
-
-    const onFavorite = React.useCallback((e: React.SyntheticEvent) => {
-        stopPropagationAndPreventDefault(e);
-        props.onFavorite?.(props.app.metadata.name, props.app.metadata.version);
-        setFavorite(f => !f);
-    }, [props.app.metadata]);
-
     return React.useMemo(() => {
-        let lineCount = lineCountFromType(props.type);
-        const app = props.app;
-        const {metadata} = app;
-        const favoriteDiv =
-            <div className={FavIcon} onClick={onFavorite}>
-                <Icon color="var(--blue)" hoverColor="blue" size={FAV_ICON_SIZE} name={favorite ? "starFilled" : "starEmpty"} />
-            </div>
+        let lineCount = typeLineCount[props.type];
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
-                <div><b>{metadata.title}</b></div>
-                <MultiLineTruncate lines={lineCount}>{metadata.description}</MultiLineTruncate>
+                <div><b>{props.title}</b></div>
+                <MultiLineTruncate lines={lineCount}>
+                    <Markdown
+                        disallowedElements={['br', 'a', 'p', 'strong', 'b', 'i']}
+                        unwrapDisallowed={true}
+                    >
+                        {props.description ?? ""}
+                    </Markdown>
+                </MultiLineTruncate>
             </div>;
         switch (props.type) {
             case ApplicationCardType.EXTRA_TALL:
             case ApplicationCardType.TALL:
                 const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
                 return <Flex flexDirection="column" className={ApplicationCardClass + " " + TallApplicationCard} data-xl={isExtraTall}>
-                    {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={"52px"} name={app.metadata.name} type="APPLICATION" />
+                        <AppToolLogo size={"52px"} name={props.logo} type={props.logoType} />
                     </div>
                     {titleAndDescription}
-                    {isExtraTall ?
-                        <Flex mb="4px" mx="4px" mt={"auto"}>
-                            <Button height="26px" width="100%">Try</Button>
-                        </Flex> : null}
                 </Flex>
             case ApplicationCardType.WIDE:
             case ApplicationCardType.EXTRA_WIDE:
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
                 return <div className={ApplicationCardClass + " " + WideApplicationCard} data-xl={isExtraWide}>
-                    {favoriteDiv}
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={app.metadata.name} type="APPLICATION" />
+                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={props.logo} type={props.logoType} />
                     </div>
                     {titleAndDescription}
                 </div>
         }
-    }, [props, favorite]);
+    }, [props]);
 }

@@ -36,7 +36,13 @@ data class ApplicationMetadata(
     val website: String? = null,
 
     @UCloudApiDoc("A flag which describes if this Application is publicly accessible")
-    val public: Boolean
+    val public: Boolean,
+
+    @UCloudApiDoc("Name of the Application within the ApplicationGroup. If not defined, the title will be used.")
+    val flavorName: String? = null,
+
+    @UCloudApiDoc("The ApplicationGroup of the Application")
+    val group: ApplicationGroup? = null
 ) : WithNameAndVersion {
     @Deprecated("Replaced with public") @Transient val isPublic = public
 }

@@ -1,10 +1,11 @@
 package app.store.services
 
+import com.fasterxml.jackson.databind.JsonMappingException
+import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.app.store.api.ApplicationDescription
-import dk.sdu.cloud.app.store.api.ToolDescription
+import dk.sdu.cloud.*
+import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.rpc.AppStoreController
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.ApplicationTagsService
 import dk.sdu.cloud.app.store.services.LogoService
@@ -13,12 +14,10 @@ import dk.sdu.cloud.app.store.services.ToolAsyncDao
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
@@ -27,10 +26,12 @@ import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import io.ktor.utils.io.jvm.javaio.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
+import org.yaml.snakeyaml.reader.ReaderException
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.file.FileSystems
@@ -144,82 +145,71 @@ class Importer(
             }
         }
 
-        val overview = defaultMapper.decodeFromString(
-            MapSerializer(String.serializer(), ListSerializer(String.serializer())),
-            Files.newInputStream(fs.getPath("/tags.json")).readBytes().decodeToString()
+        @Serializable
+        data class AppGroupData(
+            val title: String,
+            val description: String,
+            val default: NameAndVersion? = null,
+            val applications: List<String>,
+            val tags: List<String>
         )
 
-        val appToTags = HashMap<String, HashSet<String>>()
-        for ((tag, apps) in overview) {
-            for (app in apps) {
-                appToTags.getOrPut(app) { HashSet() }.add(tag)
+        val appGroups = defaultMapper.decodeFromString(
+            ListSerializer(AppGroupData.serializer()),
+            Files.newInputStream(fs.getPath("/application-groups.json")).readBytes().decodeToString()
+        )
+
+        val systemActor = ActorAndProject(Actor.System, null)
+        appGroups.forEach { group ->
+            val created = appStore.createGroup(systemActor, group.title)
+
+            appStore.updateGroup(
+                systemActor,
+                created.id,
+                group.title,
+                description = group.description,
+                defaultApplication = group.default
+            )
+
+            tagService.createTags(group.tags, created.id)
+
+            group.applications.forEach { app ->
+                appStore.setGroup(systemActor, app, created.id)
             }
         }
 
-        for ((app, tags) in appToTags) {
-            try {
-                tagService.createTags(tags.toList(), app)
-            } catch (ex: Throwable) {
-                log.info("Failed creating tags for $app $tags")
-                log.info(ex.toReadableStacktrace().toString())
+        try {
+            val landingInput = Files.newInputStream(fs.getPath("/app-store-landing.yml")).readBytes().decodeToString()
+            val landingYaml = yamlMapper.readValue<List<PageSection>>(landingInput)
+            appStore.updatePage(AppStorePageType.LANDING, landingYaml)
+        } catch (ex: Throwable) {
+            when {
+                ex is RPCException && ex.httpStatusCode == HttpStatusCode.Conflict -> {
+                    // Ignored
+                }
+                else -> {
+                    log.info("Failed at updating landing page for App Store")
+                    log.info(ex.toReadableStacktrace().toString())
+                }
             }
         }
 
-        val orderedTags = defaultMapper.decodeFromString(
-            JsonObject.serializer(),
-            Files.newInputStream(fs.getPath("/tags.json")).readBytes().decodeToString()
-        ).toList().map { it.first }
-
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                {},
-                """
-                    update app_store.applications
-                    set is_public = true
-                    where true
-                """
-            )
-            session.sendPreparedStatement(
-                {},
-                """
-                    delete from app_store.overview
-                    where reference_type = 'TAG'
-                """
-            )
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("tags", orderedTags)
-                    setParameter("order_id", orderedTags.indices.toList())
-                },
-                """
-                    with
-                        tags as (
-                            select unnest(:tags::text[]) tag, unnest(:order_id::int[]) id
-                        ),
-                        resolved_tags as (
-                            select rt.id as tag, t.id as order_id
-                            from
-                                tags t join
-                                app_store.tags rt on t.tag = rt.tag
-                        )
-                    insert into app_store.overview (reference_type, reference_id, order_id) 
-                    select 'TAG', rt.tag, rt.order_id
-                    from resolved_tags rt
-                """
-            )
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("last", orderedTags.lastIndex + 1)
-                },
-                """
-                    update app_store.overview
-                    set order_id = :last
-                    where reference_type = 'TOOL'
-                """
-            )
+        try {
+            val overviewInput = Files.newInputStream(fs.getPath("/app-store-overview.yml")).readBytes().decodeToString()
+            val overviewYaml = yamlMapper.readValue<List<PageSection>>(overviewInput)
+            appStore.updatePage(AppStorePageType.FULL, overviewYaml)
+        } catch (ex: Throwable) {
+            when {
+                ex is RPCException && ex.httpStatusCode == HttpStatusCode.Conflict -> {
+                    // Ignored
+                }
+                else -> {
+                    log.info("Failed at updating overview page for App Store")
+                    log.info(ex.toReadableStacktrace().toString())
+                }
+            }
         }
+
 
         fs.close()
         outputFile.delete()

@@ -88,10 +88,12 @@ export const Applications: React.FunctionComponent = () => {
                                     <AppCard
                                         type={ApplicationCardType.TALL}
                                         onFavorite={toggleFavorite}
-                                        app={it}
+                                        title={it.metadata.title}
+                                        description={it.metadata.description}
+                                        logo={it.metadata.name}
+                                        logoType="APPLICATION"
                                         key={it.metadata.name + "-" + it.metadata.version}
                                         isFavorite={it.favorite}
-                                        tags={it.tags}
                                     />
                                 </Link>
                             ))}
