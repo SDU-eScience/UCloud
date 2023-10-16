@@ -100,6 +100,14 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
 
 };
 
+export function TooltipV2(props: {
+    tooltip?: React.ReactNode;
+    children: React.ReactNode;
+}): React.ReactElement {
+    if (props.tooltip === undefined) return <>{props.children}</>;
+    return <Tooltip trigger={props.children} noDelay>{props.tooltip ?? null}</Tooltip>;
+}
+
 const tooltipPortalId = "tooltip-portal";
 
 export default Tooltip;

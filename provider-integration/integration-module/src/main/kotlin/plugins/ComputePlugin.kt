@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -116,7 +117,7 @@ interface SyncthingPlugin {
 abstract class EmptyComputePlugin : ComputePlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
 
     override suspend fun RequestContext.extendBulk(request: JobsProviderExtendRequest): JobsExtendResponse = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.extend(request: JobsProviderExtendRequestItem) = throw RPCException("Not supported", HttpStatusCode.BadRequest)

@@ -133,7 +133,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.1.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.3.0",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "backend",
@@ -406,7 +406,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2023.4.0-dev39",
                         "command": ["sleep", "inf"],
                         "hostname": "k8",
                         "volumes": [
@@ -498,62 +498,48 @@ sealed class ComposeService {
                 """
                     compute:
                       syncthing:
-                        - name: syncthing
+                        cost: { type: Free }
+                        syncthing:
                           description: A product for use in syncthing
                           cpu: 1
-                          memoryInGigs: 1
+                          memory: 1
                           gpu: 0
-                          cost:
-                            currency: FREE
                       cpu:
-                        - name: cpu-1
+                        cost: { type: Money }
+                        template: 
+                          cpu: [1, 2, 200]
+                          memory: 1
                           description: An example CPU machine with 1 vCPU.
-                          cpu: 1
-                          memoryInGigs: 1
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.001666
-                            
-                        - name: cpu-2
-                          description: An example CPU machine with 2 vCPU.
-                          cpu: 2
-                          memoryInGigs: 2
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.003332
-                            
+                          pricePerHour: 0.5
                     storage: 
                       storage:
-                        - name: storage
-                          description: An example storage system
                           cost:
-                            quota: true
-                        - name: share
-                          description: This drive type is used for shares only.
-                          cost:
-                            quota: true
-                        - name: project-home
-                          description: This drive type is used for member files of a project only.
-                          cost:
-                            quota: true
-                            
-                    ingress:
+                            type: Resource
+                            unit: GB
+                          storage:
+                            description: An example storage system
+                          share:
+                            description: This drive type is used for shares only.
+                          project-home:
+                            description: This drive type is used for member files of a project only.
+                    publicLinks:
                       public-link:
-                        - name: public-link 
+                        cost: { type: Free }
+                        public-link:
                           description: An example public link
-                          cost:
-                            currency: FREE
-                            
                     publicIps:
                       public-ip:
-                        - name: public-ip
+                        cost:
+                          type: Resource
+                          unit: IP
+                        public-ip:
                           description: A _fake_ public IP product
-                          cost:
-                            quota: true
+                    licenses:
+                      license:
+                        cost: { type: Resource }
+                        license:
+                          description: A _fake_ license
+                          tags: ["fake", "license"]
                 """.trimIndent()
             )
 
@@ -784,7 +770,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2023.4.0-dev39",
                         "command": ["sleep", "inf"],
                         "hostname": "slurm",
                         "volumes": [
@@ -985,33 +971,20 @@ sealed class ComposeService {
                 """
                     compute:
                       cpu:
-                        - name: cpu-1
+                        cost:
+                          type: Resource
+                          unit: Cpu
+                        template: 
+                          cpu: [1, 2, 200]
+                          memory: 1
                           description: An example CPU machine with 1 vCPU.
-                          cpu: 1
-                          memoryInGigs: 1
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.001666
-                            
-                        - name: cpu-2
-                          description: An example CPU machine with 2 vCPU.
-                          cpu: 2
-                          memoryInGigs: 2
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.003332
-                            
                     storage: 
                       storage:
-                        - name: storage
-                          description: An example storage system
                           cost:
-                            quota: true
-
+                            type: Resource
+                            unit: GB
+                          storage:
+                            description: An example storage system
                 """.trimIndent()
             )
 

@@ -4,49 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
-
-/**
- * A serialized avatar. Should be used whenever going over the wire.
- */
-@Serializable
-@UCloudApiInternal(InternalLevel.STABLE)
-data class SerializedAvatar(
-    val top: String,
-    val topAccessory: String,
-    val hairColor: String,
-    val facialHair: String,
-    val facialHairColor: String,
-    val clothes: String,
-    val colorFabric: String,
-    val eyes: String,
-    val eyebrows: String,
-    val mouthTypes: String,
-    val skinColors: String,
-    val clothesGraphic: String,
-    val hatColor: String
-)
-
-typealias UpdateRequest = SerializedAvatar
-
-typealias UpdateResponse = Unit
-
-typealias FindRequest = Unit
-
-typealias FindResponse = SerializedAvatar
-
-@Serializable
-@UCloudApiInternal(InternalLevel.STABLE)
-data class FindBulkRequest(
-    val usernames: List<String>
-)
-
-@Serializable
-@UCloudApiInternal(InternalLevel.STABLE)
-data class FindBulkResponse(
-    val avatars: Map<String, SerializedAvatar>
-)
 
 typealias Avatars = AvatarDescriptions
 
@@ -71,7 +29,7 @@ working in projects.
         """.trimIndent()
     }
 
-    val update = call("update", UpdateRequest.serializer(), UpdateResponse.serializer(), CommonErrorMessage.serializer()) {
+    val update = call("update", Avatar.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -92,7 +50,7 @@ working in projects.
         }
     }
 
-    val findAvatar = call("findAvatar", FindRequest.serializer(), FindResponse.serializer(), CommonErrorMessage.serializer()) {
+    val findAvatar = call("findAvatar", Unit.serializer(), Avatar.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }

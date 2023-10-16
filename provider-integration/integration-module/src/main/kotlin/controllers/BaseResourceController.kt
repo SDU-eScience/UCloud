@@ -14,10 +14,12 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.config.removeProvider
 import dk.sdu.cloud.ipc.IpcServer
+import dk.sdu.cloud.loadedConfig
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.ActivitySystem
 import dk.sdu.cloud.utils.MaintenanceSystem
 
 abstract class BaseResourceController<
@@ -108,10 +110,12 @@ abstract class BaseResourceController<
         items: List<T>,
         selector: suspend (T) -> Resource<*, *>,
     ): Map<Plugin, List<ReorderedItem<T>>> {
+        val shouldRunServerCode = loadedConfig.shouldRunServerCode()
         val result = HashMap<Plugin, ArrayList<ReorderedItem<T>>>()
         for ((index, item) in items.withIndex()) {
-            val job = selector(item)
-            val product = job.specification.product
+            val resource = selector(item)
+            if (shouldRunServerCode) ActivitySystem.trackUsageResourceOwner(resource.owner)
+            val product = resource.specification.product
             val plugin = lookupPluginOrNull(product) ?: continue
             val existing = result[plugin] ?: ArrayList()
             existing.add(ReorderedItem(index, item))

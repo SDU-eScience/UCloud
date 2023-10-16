@@ -11,6 +11,8 @@ const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
+const IngoingApplications = React.lazy(() => import("@/Grants/IngoingApplications"));
+const OutgoingApplications = React.lazy(() => import("@/Grants/OutgoingApplications"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
@@ -52,8 +54,8 @@ const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
+const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
 
-import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
 import Snackbars from "@/Snackbar/Snackbars";
@@ -216,38 +218,13 @@ const Core = (): React.JSX.Element => (
                             element={React.createElement(requireAuth(ProjectResources))} />
                         <Route path={AppRoutes.project.allocations()}
                             element={React.createElement(requireAuth(ProjectAllocations))} />
-                        <Route
-                            path="/project/grants/existing"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {
-                                key: RequestTarget.EXISTING_PROJECT,
-                                target: RequestTarget.EXISTING_PROJECT
-                            })}
-                        />
-                        <Route
-                            path="/project/grants/personal"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {
-                                key: RequestTarget.PERSONAL_PROJECT,
-                                target: RequestTarget.PERSONAL_PROJECT
-                            })}
-                        />
-                        <Route
-                            path="/project/grants/new"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {
-                                key: RequestTarget.NEW_PROJECT,
-                                target: RequestTarget.NEW_PROJECT
-                            })}
-                        />
-                        <Route
-                            path="/project/grants/view/:appId"
-                            element={React.createElement(requireAuth(GrantApplicationEditor), {
-                                key: RequestTarget.VIEW_APPLICATION,
-                                target: RequestTarget.VIEW_APPLICATION
-                            })}
-                        />
+
+                        <Route path="/grants" element={React.createElement(requireAuth(GrantEditor))} />
                         <Route path={AppRoutes.project.grantsIngoing()}
                             element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
                         <Route path={AppRoutes.project.grantsOutgoing()}
                             element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
+
                         <Route
                             path="/sla"
                             element={React.createElement(requireAuth(ServiceLicenseAgreement, {

@@ -22,6 +22,9 @@ data class ResourceInitializationRequest(
     val principal: ResourceOwner,
 )
 
+fun baseContextForResourceProvider(provider: String, namespace: String): String =
+    "/ucloud/$provider/${namespace.replace(".", "/")}"
+
 @OptIn(ExperimentalStdlibApi::class)
 @TSSkipCodegen
 abstract class ResourceProviderApi<
@@ -35,7 +38,7 @@ abstract class ResourceProviderApi<
     namespace: String,
     provider: String
 ) : CallDescriptionContainer("$namespace.provider.$provider") {
-    val baseContext = "/ucloud/$provider/${namespace.replace(".", "/")}"
+    val baseContext = baseContextForResourceProvider(provider, namespace)
 
     abstract val typeInfo: ResourceTypeInfo<Res, Spec, Update, Flags, Status, Prod, Support>
 

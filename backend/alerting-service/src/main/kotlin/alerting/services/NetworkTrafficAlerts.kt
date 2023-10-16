@@ -218,9 +218,7 @@ class NetworkTrafficAlerts(
                     )
                 ).size(500)
                 .build()
-            println(searchRequest.query())
             val results = elastic.search(searchRequest, ElasticAudit::class.java)
-            println(results.hits().total()?.value())
             val numberOfRequestsPerIP = hashMapOf<String, Int>()
             var numberOf5xx = 0
             results.hits().hits().forEach {

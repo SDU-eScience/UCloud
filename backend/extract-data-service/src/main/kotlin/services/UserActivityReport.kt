@@ -13,6 +13,6 @@ class UserActivityReport(val elasticDataService: ElasticDataService, val postgre
 
     fun activityPeriod() {
         val users = postgresDataService.getUsernames()
-        elasticDataService.activityPeriod(users)
+//        elasticDataService.activityPeriod(users)
     }
 }

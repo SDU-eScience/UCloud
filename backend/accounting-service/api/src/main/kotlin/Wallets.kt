@@ -1,12 +1,34 @@
+@file:Suppress("DEPRECATION")
+
 package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Time
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlin.random.Random
+
+@Serializable
+@UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
+data class RegisterWalletRequestItem(
+    val owner: WalletOwner,
+    val uniqueAllocationId: String,
+    val categoryId: String,
+    val balance: Long,
+    val providerGeneratedId: String? = null,
+)
+
+@Serializable
+data class WalletBrowseRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+    val filterEmptyAllocations: Boolean? = null,
+    val includeMaxUsableBalance: Boolean? = null,
+    val filterType: ProductType? = null
+) : WithPaginationRequestV2
 
 @Serializable
 @UCloudApiDoc(
@@ -18,6 +40,7 @@ import kotlin.random.Random
     """, importance = 1000
 )
 @UCloudApiInternal(InternalLevel.BETA)
+@Deprecated("Use WalletV2 instead")
 data class Wallet(
     val owner: WalletOwner,
     val paysFor: ProductCategoryId,
@@ -83,6 +106,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("GB days", 1.0)
                     }
                 }
+
                 ProductType.COMPUTE -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("Core minutes", 1.0)
@@ -95,6 +119,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("Core days", 1.0)
                     }
                 }
+
                 ProductType.INGRESS -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("Ingresses", 1.0)
@@ -107,6 +132,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("Ingress days", 1.0)
                     }
                 }
+
                 ProductType.LICENSE -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("Licenses", 1.0)
@@ -119,6 +145,7 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("License days", 1.0)
                     }
                 }
+
                 ProductType.NETWORK_IP -> {
                     when (unit) {
                         ProductPriceUnit.PER_UNIT -> Pair("IP addresses", 1.0)
@@ -138,6 +165,7 @@ data class Wallet(
     }
 }
 
+//TODO(HENRIK) IS THERE A NEED FOR THIS STILL?
 /*
  * EXPIRE_FIRST takes the wallet allocation with end date closes to now.
  * ORDERED takes the wallet allocation in a user specified order.
@@ -152,6 +180,11 @@ enum class AllocationSelectorPolicy {
 }
 
 @Serializable
+data class WalletsInternalRetrieveResponse(
+    val wallets: List<Wallet>
+)
+
+@Serializable
 @UCloudApiDoc(
     """
         An allocation grants access to resources
@@ -161,6 +194,7 @@ enum class AllocationSelectorPolicy {
     """, importance = 990
 )
 @UCloudApiInternal(InternalLevel.BETA)
+@Deprecated("Use WalletAllocationV2 instead")
 data class WalletAllocation(
     @UCloudApiDoc("A unique ID of this allocation")
     val id: String,
@@ -182,7 +216,7 @@ data class WalletAllocation(
     val startDate: Long,
     @UCloudApiDoc(
         "Timestamp for when this allocation becomes invalid, null indicates that this allocation does not " +
-            "expire automatically"
+                "expire automatically"
     )
     val endDate: Long?,
     @UCloudApiDoc(
@@ -203,6 +237,8 @@ data class PushWalletChangeRequestItem(
     val amount: Long,
 )
 
+//TODO(HENRIK)DELETE
+/*
 @Serializable
 @UCloudApiExperimental(UCloudApiMaturity.Experimental.Level.BETA)
 data class RegisterWalletRequestItem(
@@ -225,11 +261,6 @@ data class WalletBrowseRequest(
     val filterType: ProductType? = null
 ) : WithPaginationRequestV2, BrowseAllocationsFlags
 
-interface BrowseAllocationsFlags{
-    val includeMaxUsableBalance: Boolean?
-    val filterEmptyAllocations: Boolean?
-}
-
 @Serializable
 data class WalletsInternalRetrieveRequest(
     val owner: WalletOwner
@@ -238,11 +269,13 @@ data class WalletsInternalRetrieveRequest(
 data class WalletsInternalRetrieveResponse(
     val wallets: List<Wallet>
 )
+ */
 @Serializable
-data class WalletAllocationsInternalRetrieveRequest (
+data class WalletAllocationsInternalRetrieveRequest(
     val owner: WalletOwner,
     val categoryId: ProductCategoryId
 )
+
 @Serializable
 data class WalletAllocationsInternalRetrieveResponse(
     val allocations: List<WalletAllocation>
@@ -254,6 +287,7 @@ typealias PushWalletChangeResponse = Unit
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
 @UCloudApiInternal(InternalLevel.BETA)
+@Deprecated("Use SubAllocationV2 instead")
 data class SubAllocation(
     val id: String,
     val path: String,
@@ -275,10 +309,6 @@ data class SubAllocation(
 
     val grantedIn: Long?
 )
-
-interface SubAllocationQuery : WithPaginationRequestV2 {
-    val filterType: ProductType?
-}
 
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -303,73 +333,6 @@ data class WalletsBrowseSubAllocationsRequest(
 
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-data class WalletsRetrieveRecipientRequest(
-    val query: String,
-)
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-data class WalletsRetrieveRecipientResponse(
-    val id: String,
-    val isProject: Boolean,
-    val title: String,
-    val principalInvestigator: String,
-    val numberOfMembers: Int,
-)
-
-typealias ResetState = Unit
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-data class WalletsRetrieveProviderSummaryRequest(
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-
-    val filterOwnerId: String? = null,
-    val filterOwnerIsProject: Boolean? = null,
-
-    val filterCategory: String? = null,
-) : WithPaginationRequestV2
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-data class ProviderWalletSummary(
-    val id: String,
-    val owner: WalletOwner,
-    val categoryId: ProductCategoryId,
-    val productType: ProductType,
-    val chargeType: ChargeType,
-    val unitOfPrice: ProductPriceUnit,
-
-    @UCloudApiDoc("""
-        Maximum balance usable until a charge would fail
-        
-        This balance is calculated when the data is requested and thus can immediately become invalid due to changes
-        in the tree.
-    """)
-    val maxUsableBalance: Long,
-
-    @UCloudApiDoc("""
-        Maximum balance usable as promised by a top-level grant giver 
-        
-        This balance is calculated when the data is requested and thus can immediately become invalid due to changes
-        in the tree.
-    """)
-    val maxPromisedBalance: Long,
-
-    @UCloudApiDoc("The earliest timestamp which allows for the balance to be consumed")
-    val notBefore: Long,
-
-    @UCloudApiDoc("The earliest timestamp at which the reported balance is no longer fully usable")
-    val notAfter: Long?,
-
-    val allocationId: String,
-)
-
 @UCloudApiInternal(InternalLevel.BETA)
 object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
@@ -380,10 +343,8 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
         description = """
             Wallets hold allocations which grant access to a provider's resources.
-
             $TYPE_REF Wallet s are the core abstraction used in the accounting system of UCloud. This feature builds
             on top of various other features of UCloud. Here is a quick recap:
-
             - The users of UCloud are members of 
               [Workspaces and Projects](/docs/developer-guide/accounting-and-projects/projects/projects.md). These form 
               the foundation of all collaboration in UCloud.
@@ -396,21 +357,17 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
               payments and periodic payments (`ABSOLUTE`). All absolute payment models support paying in a 
               product-specific unit or in DKK.
             - All $TYPE_REF Product s in a category share the exact same payment model
-
             Allocators grant access to $Resource s via $TYPE_REF WalletAllocation s. In a simplified view, an 
             allocation is:
-
             - An initial balance, specified in the "unit of allocation" which the $TYPE_REF Product specifies. 
               For example: 1000 DKK or 500 Core Hours.
             - Start date and optional end date.
             - An optional parent allocation.
             - A current balance, the balance remaining for this allocation and all descendants.
             - A local balance, the balance remaining if it had no descendants
-
             UCloud combines allocations of the same category into a $TYPE_REF Wallet. Every $TYPE_REF Wallet has 
             exactly one owner, [a workspace](/docs/developer-guide/accounting-and-projects/projects/projects.md). 
             $TYPE_REF Wallet s create a natural hierarchical structure. Below we show an example of this:
-
             ![](/backend/accounting-service/wiki/allocations.png)
             
             __Figure:__ Allocations create a natural _allocation hierarchy_.
@@ -427,7 +384,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     @UCloudApiExperimental(ExperimentalLevel.BETA)
-    val push = call("push", BulkRequest.serializer(PushWalletChangeRequestItem.serializer()), PushWalletChangeResponse.serializer(), CommonErrorMessage.serializer()) {
+    val push = call(
+        "push",
+        BulkRequest.serializer(PushWalletChangeRequestItem.serializer()),
+        PushWalletChangeResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "push", roles = Roles.PROVIDER)
 
         documentation {
@@ -436,8 +398,8 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val resetState = call("resetState", ResetState.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve("resetState")
+    val resetState = call("resetState", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "resetState")
 
         auth {
             roles = Roles.SERVICE
@@ -446,7 +408,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     @UCloudApiExperimental(ExperimentalLevel.BETA)
-    val register = call("register", BulkRequest.serializer(RegisterWalletRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val register = call(
+        "register",
+        BulkRequest.serializer(RegisterWalletRequestItem.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "register", roles = Roles.PROVIDER)
 
         documentation {
@@ -455,7 +422,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val browse = call("browse", WalletBrowseRequest.serializer(), PageV2.serializer(Wallet.serializer()), CommonErrorMessage.serializer()) {
+    val browse = call(
+        "browse",
+        WalletBrowseRequest.serializer(),
+        PageV2.serializer(Wallet.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpBrowse(baseContext)
 
         documentation {
@@ -508,7 +480,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val searchSubAllocations = call("searchSubAllocations", WalletsSearchSubAllocationsRequest.serializer(), PageV2.serializer(SubAllocation.serializer()), CommonErrorMessage.serializer()) {
+    val searchSubAllocations = call(
+        "searchSubAllocations",
+        WalletsSearchSubAllocationsRequest.serializer(),
+        PageV2.serializer(SubAllocation.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpSearch(baseContext, "subAllocation")
         documentation {
             summary = "Searches the catalog of sub-allocations"
@@ -519,7 +496,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val browseSubAllocations = call("browseSubAllocations", WalletsBrowseSubAllocationsRequest.serializer(), PageV2.serializer(SubAllocation.serializer()), CommonErrorMessage.serializer()) {
+    val browseSubAllocations = call(
+        "browseSubAllocations",
+        WalletsBrowseSubAllocationsRequest.serializer(),
+        PageV2.serializer(SubAllocation.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpBrowse(baseContext, "subAllocation")
 
         documentation {
@@ -531,7 +513,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val retrieveRecipient = call("retrieveRecipient", WalletsRetrieveRecipientRequest.serializer(), WalletsRetrieveRecipientResponse.serializer(), CommonErrorMessage.serializer()) {
+    val retrieveRecipient = call(
+        "retrieveRecipient",
+        WalletsRetrieveRecipientRequest.serializer(),
+        WalletsRetrieveRecipientResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(baseContext, "recipient")
 
         documentation {
@@ -541,37 +528,6 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
                 sub-allocation.
             """.trimIndent()
         }
-    }
-
-    val retrieveProviderSummary = call("retrieveProviderSummary", WalletsRetrieveProviderSummaryRequest.serializer(), PageV2.serializer(ProviderWalletSummary.serializer()), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, "providerSummary", roles = Roles.PROVIDER)
-
-        documentation {
-            summary = "Retrieves a provider summary of relevant wallets"
-            description = """
-                This endpoint is only usable by providers. The endpoint will return a stable sorted summary of all
-                allocations that a provider currently has.
-            """.trimIndent()
-        }
-    }
-}
-
-@Serializable
-@UCloudApiInternal(InternalLevel.BETA)
-@UCloudApiOwnedBy(Wallets::class)
-sealed class WalletOwner : DocVisualizable {
-    @Serializable
-    @SerialName("user")
-    @UCloudApiInternal(InternalLevel.BETA)
-    data class User(val username: String) : WalletOwner() {
-        override fun visualize(): DocVisualization = DocVisualization.Inline("$username (User)")
-    }
-
-    @Serializable
-    @SerialName("project")
-    @UCloudApiInternal(InternalLevel.BETA)
-    data class Project(val projectId: String) : WalletOwner() {
-        override fun visualize(): DocVisualization = DocVisualization.Inline("$projectId (Project)")
     }
 }
 
@@ -705,17 +661,6 @@ data class UpdateAllocationRequestItem(
 
 typealias UpdateAllocationResponse = Unit
 
-@Serializable
-data class FindRelevantProvidersRequestItem(
-    val username: String,
-    val project: String? = null,
-    val useProject: Boolean
-)
-@Serializable
-data class FindRelevantProvidersResponse(
-    val providers: List<String>
-)
-
 @UCloudApiDoc("See `DepositToWalletRequestItem`")
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
@@ -736,27 +681,18 @@ object Accounting : CallDescriptionContainer("accounting") {
     const val baseContext = "/api/accounting"
 
     init {
-        serializerLookupTable = mapOf(
-            serializerEntry(WalletOwner.User.serializer()),
-            serializerEntry(WalletOwner.Project.serializer())
-        )
 
         description = """
             The accounting system of UCloud has three core operations.
-
             The three core operations of the UCloud accounting system are:
-
             - $CALL_REF accounting.charge: Records usage in the system. For absolute payment models, this will deduct 
               the balance and local balance of an allocation. All ancestor allocations have their balance deducted by 
               the same amount. The local balances of an ancestor remains unchanged. 
             - $CALL_REF accounting.deposit: Creates a new _sub-allocation_ from a parent allocation. The new allocation
               will have the current allocation as a parent. The balance of the parent allocation is not changed.
-
             ---
-
             __📝 NOTE:__ We recommend that you first read and understand the 
             [Wallet system](/docs/developer-guide/accounting-and-projects/accounting/wallets.md) of UCloud.
-
             ---
             
             __📝 Provider Note:__ This API is invoked by internal UCloud/Core services. As a 
@@ -769,9 +705,7 @@ object Accounting : CallDescriptionContainer("accounting") {
             understand the accounting system of UCloud.
             
             ## A note on the examples
-
             In the examples below, we will be using a consistent set of $TYPE_REF Product s:
-
             - `example-slim-1` / `example-slim` @ `example`
                - Type: Compute
                - `ChargeType.ABSOLUTE`
@@ -1011,7 +945,7 @@ object Accounting : CallDescriptionContainer("accounting") {
 
                 comment(
                     "The new charge reports that we are only using 50 GB, that is data was removed since last " +
-                        "period."
+                            "period."
                 )
 
                 success(
@@ -1071,7 +1005,7 @@ object Accounting : CallDescriptionContainer("accounting") {
 
                 comment(
                     "As we can see, in our initial state, the root has 1000 core hours remaining and the leaf has " +
-                        "500."
+                            "500."
                 )
 
                 comment("We now perform our charge of a single core hour.")
@@ -1721,7 +1655,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         )
     }
 
-    val charge = call("charge", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
+    val charge = call(
+        "charge",
+        BulkRequest.serializer(ChargeWalletRequestItem.serializer()),
+        BulkResponse.serializer(Boolean.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "charge", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -1731,55 +1670,40 @@ object Accounting : CallDescriptionContainer("accounting") {
                 indirectly to this API through the outgoing `Control` API. This endpoint causes changes in the balances 
                 of the targeted allocation and ancestors. UCloud will change the `balance` and `localBalance` property 
                 of the targeted allocation. Ancestors of the targeted allocation will only update their `balance`.
-
                 UCloud returns a boolean, for every request, indicating if the charge was successful. A charge is 
                 successful if no affected allocation went into a negative balance.
-
                 ---
                 
                 __📝 NOTE:__ Unsuccessful charges are still deducted in their balances.
                 
                 ---
-
                 The semantics of `charge` depends on the Product's payment model.
-
                 __Absolute:__
-
                 - UCloud calculates the change in balances by multiplying: the Product's pricePerUnit, the number of 
                   units, the number of periods
                 - UCloud subtracts this change from the balances
-
                 __Differential:__
-
                 - UCloud calculates the change in balances by comparing the units with the current `localBalance`
                 - UCloud subtracts this change from the balances
                 - Note: This change can cause the balance to go up, if the usage is lower than last period
-
                 #### Selecting Allocations
-
                 The charge operation targets a wallet (by combining the ProductCategoryId and WalletOwner). This means 
                 that the charge operation have multiple allocations to consider. We explain the approach for absolute 
                 payment models. The approach is similar for differential products.
-
                 UCloud first finds a set of leaf allocations which, when combined, can carry the full change. UCloud 
                 first finds a set of candidates. We do this by sorting allocations by the Wallet's `chargePolicy`. By 
                 default, this means that UCloud prioritizes allocations that expire soon. UCloud only considers 
                 allocations which are active and have a positive balance.
-
                 ---
-
                 __📝 NOTE:__ UCloud does not consider ancestors at this point in the process.
                 
                 ---
-
                 UCloud now creates the list of allocations which it will use. We do this by performing a rolling sum of 
                 the balances. UCloud adds an allocation to the set if the rolling sum has not yet reached the total 
                 amount.
-
                 UCloud will use the full balance of each selected allocation. The only exception is the last element, 
                 which might use less. If the change in balance is never reached, then UCloud will further charge the 
                 first selected allocation. In this case, the priority allocation will have to pay the difference.
-
                 Finally, the system updates the balances of each selected leaf, and all of their ancestors.
             """.trimIndent()
 
@@ -1798,7 +1722,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val deposit = call("deposit", BulkRequest.serializer(DepositToWalletRequestItem.serializer()), DepositToWalletResponse.serializer(), CommonErrorMessage.serializer()) {
+    val deposit = call(
+        "deposit",
+        BulkRequest.serializer(DepositToWalletRequestItem.serializer()),
+        DepositToWalletResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "deposit")
 
         documentation {
@@ -1812,7 +1741,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val updateAllocation = call("updateAllocation", BulkRequest.serializer(UpdateAllocationRequestItem.serializer()), UpdateAllocationResponse.serializer(), CommonErrorMessage.serializer()) {
+    val updateAllocation = call(
+        "updateAllocation",
+        BulkRequest.serializer(UpdateAllocationRequestItem.serializer()),
+        UpdateAllocationResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "allocation")
 
         documentation {
@@ -1830,7 +1764,12 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val check = call("check", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
+    val check = call(
+        "check",
+        BulkRequest.serializer(ChargeWalletRequestItem.serializer()),
+        BulkResponse.serializer(Boolean.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "check", roles = Roles.SERVICE)
 
         documentation {
@@ -1842,11 +1781,21 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val rootDeposit = call("rootDeposit", BulkRequest.serializer(RootDepositRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val rootDeposit = call(
+        "rootDeposit",
+        BulkRequest.serializer(RootDepositRequestItem.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
     }
 
-    val findRelevantProviders = call("findRelevantProviders", BulkRequest.serializer(FindRelevantProvidersRequestItem.serializer()), BulkResponse.serializer(FindRelevantProvidersResponse.serializer()), CommonErrorMessage.serializer()) {
+    val findRelevantProviders = call(
+        "findRelevantProviders",
+        BulkRequest.serializer(FindRelevantProvidersRequestItem.serializer()),
+        BulkResponse.serializer(FindRelevantProvidersResponse.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "findRelevantProviders", Roles.PRIVILEGED)
     }
 }

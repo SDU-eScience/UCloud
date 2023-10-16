@@ -88,7 +88,7 @@ class EnvoyConfigurationService(
         installErrorPages()
         writeConfigurationFile(listenAddress ?: "0.0.0.0", port ?: 8889)
 
-        val logFile = "/${logDirectory}/envoy.log"
+        val logFile = "/${logDirectory}/envoy-$providerId.log"
 
         val envoyProcess = if (!envoyIsManagedExternally) {
             startProcess(

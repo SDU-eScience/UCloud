@@ -27,6 +27,7 @@ data class ApplicationInvocationDescription(
     val allowPublicLink: Boolean?,
     val fileExtensions: List<String>?,
     val licenseServers: List<String>?,
+    val modules: ModulesSection?,
     val shouldAllowAdditionalMounts: Boolean,
     val shouldAllowAdditionalPeers: Boolean,
 )
@@ -240,6 +241,17 @@ This list used as a suffix filter. As a result, this list should typically inclu
 <details>
 <summary>
 <code>licenseServers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> Hint used by the frontend to find appropriate license servers
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>modules</code>: <code><code><a href='#modulessection'>ModulesSection</a>?</code></code> A section describing integration with a module system. Currently only valid for `CONTAINER` based applications.
 </summary>
 
 

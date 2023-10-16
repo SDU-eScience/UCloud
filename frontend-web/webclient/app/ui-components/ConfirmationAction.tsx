@@ -89,7 +89,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     }
 
     ${k} .icons > svg.tick {
-        left: 0;
+        left: -5px;
         top: 0;
         position: absolute;
         stroke-width: 3;
@@ -164,7 +164,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         --progress-array: 52;
     }
 
-    ${k}.process > .ucloud-native-icons, ${k}.success > .ucloud-native-icons {
+    ${k}.process > .ucloud-native-icons, ${k}.success > .ucloud-native-icons, ${k}.success .progress {
         opacity: 0;
     }
 
@@ -359,6 +359,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         onClick={doNothing}
         btnRef={buttonRef}
         className={ConfirmButtonClass}
+        data-tag={"confirm-button"}
     >
         {!props.icon ? null : <div className={"ucloud-native-icons"}>
             <Icon name={props.icon} size={"20"} mb="3px" />

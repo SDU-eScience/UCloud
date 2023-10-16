@@ -2,15 +2,7 @@ package dk.sdu.cloud.cli
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.accounting.api.DepositNotifications
-import dk.sdu.cloud.accounting.api.DepositNotificationsMarkAsReadRequestItem
-import dk.sdu.cloud.accounting.api.ProductPriceUnit
-import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.ProviderWalletSummary
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletOwner
-import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.accounting.api.WalletsRetrieveProviderSummaryRequest
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -72,14 +64,14 @@ fun GrantCli(controllerContext: ControllerContext) {
 
                             sendTerminalTable {
                                 header("Category", 30)
-                                header("Balance", 30)
+                                header("Quota", 30)
                                 header("Not before", 30)
                                 header("Not after", 30)
 
                                 for (alloc in grant.allocations) {
                                     nextRow()
                                     cell(alloc.category)
-                                    cell(Wallet.explainBalance(alloc.balance, alloc.type, alloc.unitOfPrice))
+                                    cell(alloc.balance)
                                     cell(gmtTime(alloc.notBefore).simpleString(includeTimeOfDay = false))
                                     cell(
                                         if (alloc.notAfter == null) "Never"
@@ -167,9 +159,9 @@ private suspend fun retrieveSimpleGrants(rpcClient: AuthenticatedClient): List<S
     val batch = DepositNotifications.retrieve.call(Unit, rpcClient).orThrow()
     if (batch.responses.isEmpty()) return emptyList()
 
-    val walletSummaryByOwner = HashMap<WalletOwner, ArrayList<ProviderWalletSummary>>()
+    val walletSummaryByOwner = HashMap<WalletOwner, ArrayList<ProviderWalletSummaryV2>>()
     for (notification in batch.responses) {
-        val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
+        val combinedProviderSummary = AccountingV2.browseProviderAllocations.call(
             WalletsRetrieveProviderSummaryRequest(
                 filterOwnerId = when (val owner = notification.owner) {
                     is WalletOwner.User -> owner.username
@@ -207,9 +199,8 @@ private suspend fun retrieveSimpleGrants(rpcClient: AuthenticatedClient): List<S
                 allocations.map { alloc ->
                     SimplifiedGrant.Allocation(
                         alloc.categoryId.name,
-                        alloc.maxUsableBalance,
-                        alloc.productType,
-                        alloc.unitOfPrice,
+                        alloc.quota,
+                        alloc.categoryId.productType,
                         alloc.notBefore,
                         alloc.notAfter,
                     )
@@ -235,7 +226,6 @@ private data class SimplifiedGrant(
         val category: String,
         val balance: Long,
         val type: ProductType,
-        val unitOfPrice: ProductPriceUnit,
         val notBefore: Long,
         val notAfter: Long?
     )

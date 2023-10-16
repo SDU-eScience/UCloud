@@ -2,7 +2,7 @@ application: v1
 
 title: All Optional
 name: all-opt
-version: 4
+version: 5
 
 applicationType: WEB
 
@@ -29,6 +29,11 @@ invocation:
 
 outputFileGlobs:
   - "*"
+
+allowPublicIp: true
+allowPublicLink: true
+allowAdditionalMounts: true
+allowAdditionalPeers: true
 
 parameters:
   file_opt:

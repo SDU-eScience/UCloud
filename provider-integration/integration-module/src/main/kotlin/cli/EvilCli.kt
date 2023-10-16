@@ -64,7 +64,7 @@ fun EvilCli(controllerContext: ControllerContext) {
                         ProviderRegisteredResource(
                             FileCollection.Spec(
                                 "Evil",
-                                config.products.storage!!.values.first().first().let { p ->
+                                config.products.storage.first().coreProducts.first().let { p ->
                                     ProductReference(p.name, p.category.name, p.category.provider)
                                 }
                             ),

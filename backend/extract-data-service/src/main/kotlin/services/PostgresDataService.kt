@@ -7,6 +7,8 @@ import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
 import java.time.LocalDateTime
 
 class PostgresDataService(val db: AsyncDBSessionFactory) {

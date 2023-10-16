@@ -17,7 +17,7 @@ import kotlinx.serialization.builtins.serializer
 data class DepositNotification(
     val id: String,
     val owner: WalletOwner,
-    val category: ProductCategoryId,
+    val category: ProductCategoryIdV2,
     val balance: Long,
 )
 
@@ -32,7 +32,12 @@ data class DepositNotificationsMarkAsReadRequestItem(
 object DepositNotifications : CallDescriptionContainer("accounting.depositnotifications") {
     const val baseContext = "/api/accounting/depositNotifications"
 
-    val retrieve = call("retrieve", Unit.serializer(), BulkResponse.serializer(DepositNotification.serializer()), CommonErrorMessage.serializer()) {
+    val retrieve = call(
+        "retrieve",
+        Unit.serializer(),
+        BulkResponse.serializer(DepositNotification.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(baseContext, roles = Roles.PROVIDER)
 
         documentation {
@@ -48,7 +53,12 @@ object DepositNotifications : CallDescriptionContainer("accounting.depositnotifi
         }
     }
 
-    val markAsRead = call("markAsRead", BulkRequest.serializer(DepositNotificationsMarkAsReadRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val markAsRead = call(
+        "markAsRead",
+        BulkRequest.serializer(DepositNotificationsMarkAsReadRequestItem.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpUpdate(baseContext, "markAsRead", roles = Roles.PROVIDER)
 
         documentation {

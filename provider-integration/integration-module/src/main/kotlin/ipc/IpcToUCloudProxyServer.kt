@@ -86,9 +86,9 @@ class IpcToUCloudProxyServer(private val client: AuthenticatedClient) {
                     FileCollectionsControl.browse
                 }
 
-                Products.retrieve.fullName -> {
+                ProductsV2.retrieve.fullName -> {
                     // NOTE(Dan): This is public
-                    Products.retrieve
+                    ProductsV2.retrieve
                 }
 
                 // NOTE(DAN): PLEASE MAKE SURE YOU UNDERSTAND WHAT YOU ARE DOING BEFORE ADDING A NEW ENTRY

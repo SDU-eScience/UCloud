@@ -564,8 +564,7 @@ export function randomUUID(): string {
 }
 
 export function grantsLink(client: {hasActiveProject: boolean}): string {
-    if (client.hasActiveProject) return "/project/grants/existing";
-    return "/project/grants/personal";
+    return "/grants";
 }
 
 export function clamp(val: number, lower: number, upper: number): number {

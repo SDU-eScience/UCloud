@@ -73,6 +73,7 @@ ApplicationWithFavoriteAndTags(
             variableNames = listOf("value"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Bool(
             defaultValue = null, 
@@ -284,7 +285,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [

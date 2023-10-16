@@ -122,7 +122,7 @@ class Server(override val micro: Micro) : CommonServer {
                     }
                     args.contains("--usersActive") -> {
                         val currentMonth = LocalDate.now().withDayOfMonth(1)
-                        var startDate = LocalDate.parse("2022-07-01")
+                        var startDate = LocalDate.parse("2023-01-01")
                         var endDate = startDate.plusMonths(4)
                         while (startDate != currentMonth) {
                             val start = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()

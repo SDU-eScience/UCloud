@@ -37,8 +37,8 @@ import {AllocationViewer, resultAsPercent, SubAllocation, allocationText, percen
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
-import ProjectAPI, {useProjectId} from "@/Project/Api";
-import {isAllocationSuitableForSubAllocation} from "@/Project/Grant";
+import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
+import {isAllocationSuitableForSubAllocation} from "@/Grants";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {FlexClass} from "@/ui-components/Flex";
 import {injectStyle} from "@/Unstyled";

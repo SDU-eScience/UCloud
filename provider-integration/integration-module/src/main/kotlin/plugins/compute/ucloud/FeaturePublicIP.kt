@@ -1,6 +1,7 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
-import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
+import dk.sdu.cloud.accounting.api.ErrorCode
+import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
@@ -9,18 +10,23 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.plugins.compute.ucloud.IpUtils.formatIpAddress
 import dk.sdu.cloud.plugins.compute.ucloud.IpUtils.validateCidr
 import dk.sdu.cloud.plugins.compute.ucloud.IpUtils.isSafeToUse
 import dk.sdu.cloud.plugins.compute.ucloud.IpUtils.remapAddress
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.providerId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.reportConcurrentUse
+import dk.sdu.cloud.utils.walletOwnerFromOwnerString
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.serialization.Serializable
 import kotlin.math.log2
@@ -35,7 +41,59 @@ class FeaturePublicIP(
     private val db: DBContext,
     private val k8: K8Dependencies,
     private val networkInterface: String,
+    private val category: String,
 ) : JobFeature {
+    private var nextScan = 0L
+    override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {
+        val now = Time.now()
+        if (now >= nextScan) {
+            val owners = ArrayList<String>()
+            db.withSession { session ->
+                try {
+                    session.prepareStatement(
+                        """
+                            select distinct owner
+                            from ucloud_compute_network_ips
+                        """
+                    ).useAndInvoke(readRow = { row -> owners.add(row.getString(0)!!) })
+
+                    val containers = runtime.list()
+                    val resolvedJobs = containers.mapNotNull { jobCache.findJob(it.jobId) }
+                    owners.forEachGraal { owner ->
+                        if (!accountNow(owner, session)) {
+                            val ipsToTerminateBecauseOf = ArrayList<String>()
+                            session.prepareStatement(
+                                """
+                                    select id
+                                    from ucloud_compute_network_ips
+                                    where owner = :owner
+                                """
+                            ).useAndInvoke(
+                                prepare = { bindString("owner", owner) },
+                                readRow = { row -> ipsToTerminateBecauseOf.add(row.getString(0)!!) },
+                            )
+
+                            val jobsToTerminate = resolvedJobs
+                                .asSequence()
+                                .filter { (it.owner.project ?: it.owner.createdBy) == owner }
+                                .filter { j -> j.networks.any { it.id in ipsToTerminateBecauseOf } }
+                                .toList()
+
+                            jobsToTerminate.forEachGraal { job ->
+                                k8.addStatus(job.id, "Terminating job because of insufficient funds (IP address)")
+                                containers.filter { it.jobId == job.id }.forEach { it.cancel() }
+                            }
+                        }
+                    }
+                } catch (ex: Throwable) {
+                    log.warn("Caught exception while accounting public IPs: ${ex.toReadableStacktrace()}")
+                }
+            }
+
+            nextScan = now + (1000L * 60 * 60)
+        }
+    }
+
     suspend fun create(networks: BulkRequest<NetworkIP>) {
         data class IdAndIp(val id: String, val ipAddress: String)
 
@@ -49,6 +107,15 @@ class FeaturePublicIP(
                     HttpStatusCode.BadRequest
                 )
             }
+
+            val owners = networks.items.map { it.owner.project ?: it.owner.createdBy }.toSet()
+            if (owners.size != 1) {
+                throw RPCException(
+                    "Unexpected request from UCloud/Core. Multiple owners in a single request?",
+                    HttpStatusCode.InternalServerError
+                )
+            }
+            val owner = owners.single()
 
             for (network in networks.items) {
                 val ipAddress: Address = findAddressFromPool(session)
@@ -78,7 +145,13 @@ class FeaturePublicIP(
                 allocatedAddresses.add(IdAndIp(network.id, formatIpAddress(ipAddress.externalAddress)))
             }
 
-            account(networks, session)
+            if (!accountNow(owner, session)) {
+                throw RPCException(
+                    "Unable to allocate an IP address. Please make sure you have sufficient funds!",
+                    HttpStatusCode.PaymentRequired,
+                    ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                )
+            }
         }
 
         NetworkIPControl.update.call(
@@ -99,44 +172,26 @@ class FeaturePublicIP(
         ).orThrow()
     }
 
-    private suspend fun account(
-        networks: BulkRequest<NetworkIP>,
-        ctx: DBContext,
-        allowFailures: Boolean = false
-    ) {
-        ctx.withSession { session ->
-            val ownersAndResources = HashMap<String, String>()
-            networks.items.forEachGraal { network ->
-                ownersAndResources[network.owner.project ?: network.owner.createdBy] = network.id
-            }
-
-            val now = Time.now()
-            ownersAndResources.forEachGraal { owner, resourceId ->
-                val rows = ArrayList<Long>()
-                session.prepareStatement(
-                    //language=postgresql
-                    "select count(*)::bigint from ucloud_compute_network_ips where owner = :owner"
-                ).useAndInvoke(
+    private suspend fun accountNow(
+        owner: String,
+        ctx: DBContext = dbConnection,
+    ): Boolean {
+        val currentUsage = ctx.withSession { session ->
+            val rows = ArrayList<Long>()
+            session
+                .prepareStatement("select count(*)::bigint from ucloud_compute_network_ips where owner = :owner")
+                .useAndInvoke(
                     prepare = { bindString("owner", owner) },
-                    readRow = { row -> row.getLong(0)!! }
+                    readRow = { row -> rows.add(row.getLong(0)!!) }
                 )
-                val currentUsage = rows.singleOrNull() ?: 1L
-
-                try {
-                    // Immediately charge the user before we do any IP allocation
-                    val request =
-                        bulkRequestOf(ResourceChargeCredits(resourceId, resourceId + now.toString(), currentUsage))
-                    val results = NetworkIPControl.checkCredits.call(request, k8.serviceClient).orThrow()
-                    if (results.insufficientFunds.isNotEmpty()) {
-                        throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired, "Missing resources")
-                    } else {
-                        NetworkIPControl.chargeCredits.call(request, k8.serviceClient)
-                    }
-                } catch (ex: Throwable) {
-                    if (!allowFailures) throw ex
-                }
-            }
+            rows.singleOrNull() ?: 1L
         }
+
+        return reportConcurrentUse(
+            walletOwnerFromOwnerString(owner),
+            ProductCategoryIdV2(category, providerId),
+            currentUsage
+        )
     }
 
     suspend fun delete(networks: BulkRequest<NetworkIP>) {
@@ -155,8 +210,11 @@ class FeaturePublicIP(
                 ).useAndInvokeAndDiscard(
                     prepare = { bindString("id", ingress.id) }
                 )
+            }
 
-                account(networks, session, allowFailures = true)
+            val owners = networks.items.map { it.owner.project ?: it.owner.createdBy }.toSet()
+            for (owner in owners) {
+                accountNow(owner, session)
             }
         }
     }
@@ -308,7 +366,6 @@ class FeaturePublicIP(
             }
         }
     }
-
 
     private suspend fun retrieveStatus(ctx: DBContext): K8NetworkStatus {
         return ctx.withSession { session ->

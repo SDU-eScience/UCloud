@@ -238,7 +238,7 @@ Shares.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     bob
 ).orThrow()
@@ -322,7 +322,7 @@ Shares.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     bob
 ).orThrow()
@@ -412,7 +412,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # This returns a new ID of the Share resource. Bob can now view this when browsing the ingoing shares.
 
 # Authenticated as bob
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterIngoing=true&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterIngoing=true" 
 
 # {
 #     "itemsPerPage": 50,
@@ -471,7 +471,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 # And the file is now shared and available at the path /6412
 
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterIngoing=true&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterIngoing=true" 
 
 # {
 #     "itemsPerPage": 50,

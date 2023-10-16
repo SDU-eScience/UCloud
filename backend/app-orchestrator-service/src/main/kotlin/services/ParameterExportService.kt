@@ -4,61 +4,21 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.publicLinks
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.SimpleCache
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 
-class ParameterExportService(
-    private val db: DBContext,
-    private val ingresses: IngressService,
-) {
-    private val productCache = SimpleCache<ProductReference, Product.Compute>(
-        maxAge = 60_000 * 15L,
-        lookup = { reference ->
-            db.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("provider", reference.provider)
-                        setParameter("category", reference.category)
-                        setParameter("name", reference.id)
-                    },
-                    """
-                        select accounting.product_to_json(p, pc, null)
-                        from
-                            accounting.products p join
-                            accounting.product_categories pc on p.category = pc.id
-                        where
-                            pc.provider = :provider and
-                            pc.category = :category and
-                            p.name = :name
-                        order by p.version desc
-                        limit 1
-                    """
-                )
-            }.rows.singleOrNull()?.let {
-                runCatching {
-                    defaultMapper.decodeFromString<Product.Compute>(it.getString(0)!!)
-                }.getOrNull()
-            }
-        }
-    )
-
+class ParameterExportService {
     suspend fun exportParameters(parameters: JobSpecification): ExportedParameters {
-        val resolvedProduct = productCache.get(parameters.product)
+        val resolvedProduct = productCache.referenceToProduct(parameters.product) as? Product.Compute?
             ?: throw RPCException("Unknown machine reservation", HttpStatusCode.BadRequest)
 
         return ExportedParameters(
@@ -90,7 +50,7 @@ class ParameterExportService(
                         allIngress.add(param.id)
                     }
 
-                    val resolvedIngress = ingresses.retrieveBulk(
+                    val resolvedIngress = publicLinks.retrieveBulk(
                         // NOTE(Dan): Permissions have already been checked by the verification service. Skip the
                         // check for performance reasons.
                         ActorAndProject(Actor.System, null),

@@ -55,12 +55,15 @@ ApplicationWithFavoriteAndTags(
             variableNames = listOf("variable"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = JsonObject(mapOf("type" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "text", 
                 isString = true, 
             )),"value" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "hello", 
                 isString = true, 
             )),)), 
@@ -239,7 +242,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [

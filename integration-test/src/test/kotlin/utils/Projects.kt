@@ -8,12 +8,11 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.grant.api.BrowseProjectsRequest
-import dk.sdu.cloud.grant.api.Grants
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.adminUsername
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.project.api.v2.*
+import dk.sdu.cloud.service.Time
 import kotlin.random.Random
 
 data class GroupInitialization(
@@ -75,7 +74,9 @@ suspend fun initializeRootProject(
                     category,
                     WalletOwner.Project(rootProject),
                     10_000_000_000L,
-                    "Root deposit"
+                    "Root deposit",
+                    startDate = 1685609520000,
+                    endDate = 4115523120000
                 )
             }
         ),
@@ -137,7 +138,9 @@ suspend fun initializeNormalProject(
                         alloc.id,
                         amount,
                         "wallet init",
-                        grantedIn = null
+                        grantedIn = null,
+                        startDate = Time.now(),
+                        endDate = 4086579120000
                     )
                 }
             ),
@@ -145,7 +148,7 @@ suspend fun initializeNormalProject(
         ).orThrow()
     }
 
-    return NormalProjectInitialization(piClient, piUsername, projectId)
+    return NormalProjectInitialization(piClient.withProject(projectId), piUsername, projectId)
 }
 
 suspend fun addMemberToProject(
@@ -174,39 +177,5 @@ suspend fun addMemberToProject(
             ),
             adminClient.withProject(projectId)
         ).orThrow()
-    }
-}
-
-suspend fun projectExistsForUser(
-    client: AuthenticatedClient,
-    projectId: String,
-    next: String? = null,
-    firstPage: Boolean = true
-): Boolean {
-    if (firstPage) {
-        val page = Grants.browseProjects.call(
-            BrowseProjectsRequest(),
-            client
-        ).orThrow()
-        return if (page.items.find { it.projectId == projectId } != null) {
-            true
-        } else {
-            projectExistsForUser(client, projectId, page.next, false)
-        }
-    } else {
-        if (next == null) {
-            return false
-        }
-        val page = Grants.browseProjects.call(
-            BrowseProjectsRequest(
-                next = next
-            ),
-            client
-        ).orThrow()
-        return if (page.items.find { it.projectId == projectId } != null) {
-            true
-        } else {
-            projectExistsForUser(client, projectId, page.next, false)
-        }
     }
 }

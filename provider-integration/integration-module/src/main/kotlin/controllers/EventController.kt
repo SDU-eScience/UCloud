@@ -1,40 +1,30 @@
 package dk.sdu.cloud.controllers
 
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.ProcessingScope
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.ConfigSchema
-import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.ipc.handler
-import dk.sdu.cloud.plugins.AllocationPlugin
 import dk.sdu.cloud.plugins.rpcClient
-import dk.sdu.cloud.project.api.v2.ProjectNotification
-import dk.sdu.cloud.project.api.v2.ProjectNotifications
-import dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider
-import dk.sdu.cloud.project.api.v2.Projects
-import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
+import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
-import dk.sdu.cloud.utils.forEachGraal
-import dk.sdu.cloud.utils.whileGraal
-import kotlin.math.min
-import kotlinx.coroutines.currentCoroutineContext
+import dk.sdu.cloud.utils.toSimpleString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -245,7 +235,7 @@ class EventController(
                         scanAllocations()
                     }
                 )
-                nextRescan = now + (1000L * 60 * 60 * 3)
+                nextRescan = now + (1000L * 60 * 60)
             }
             delay(1000)
         } catch (ex: Throwable) {
@@ -262,7 +252,7 @@ class EventController(
     private suspend fun processProjects() {
         // NOTE(Dan): If we don't have a project plugin, then let's just assume that we don't care about
         // projects in our system.
-        val projectPlugin = controllerContext.configuration.plugins.projects ?: return
+        controllerContext.configuration.plugins.projects ?: return
 
         // NOTE(Dan): Fetch another batch of notifications from the server
         val batch = ProjectNotifications.retrieve.call(
@@ -271,29 +261,61 @@ class EventController(
         ).orThrow()
         if (batch.responses.isEmpty()) return
 
-        // Handle notifications by dispatching to the plugin.
-        val acknowlegedEvents = ArrayList<FindByStringId>()
-        val projectsToIgnore = HashSet<String>()
-        for (item in batch.responses) {
-            if (!item.project.specification.canConsumeResources) {
-                projectsToIgnore.add(item.project.id)
-                acknowlegedEvents.add(FindByStringId(item.id))
-                continue
-            }
+        val projectWasSynchronized = synchronizeProjects(batch.responses.map { it.project })
+        val toAcknowledge = batch.responses.zip(projectWasSynchronized).mapNotNull { (req, resp) ->
+            if (resp) FindByStringId(req.id)
+            else null
+        }
 
-            with(controllerContext.pluginContext) {
-                with(projectPlugin) {
-                    try {
-                        onProjectUpdated(item.project)
-                        acknowlegedEvents.add(FindByStringId(item.id))
-                    } catch (ex: Throwable) {
-                        log.warn(
-                            "Caught an exception while handling project update: ${item.project}\n" +
-                                    ex.stackTraceToString()
-                        )
+        // Notify UCloud/Core about the notifications we handled successfully
+        if (toAcknowledge.isNotEmpty()) {
+            ProjectNotifications.markAsRead.call(
+                BulkRequest(toAcknowledge),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        }
+
+        debug.normal("Handled ${toAcknowledge.size} project notifications")
+    }
+
+    private suspend fun synchronizeProject(id: String): Boolean {
+        val project = Projects.retrieve.call(
+            ProjectsRetrieveRequest(id, includeMembers = true, includeGroups = true, includeSettings = true,
+                includePath = true),
+            controllerContext.pluginContext.rpcClient
+        ).orNull() ?: return false
+
+        return synchronizeProjects(listOf(project)).single()
+    }
+
+    private suspend fun synchronizeProjects(projects: List<Project>): List<Boolean> {
+        val projectPlugin = controllerContext.configuration.plugins.projects ?: return emptyList()
+
+        val projectsToIgnore = HashSet<String>()
+        val acknowledgedEvents = ArrayList<Boolean>()
+
+        for (project in projects) {
+            val success = try {
+                if (!project.specification.canConsumeResources) {
+                    projectsToIgnore.add(project.id)
+                } else {
+                    with(controllerContext.pluginContext) {
+                        with(projectPlugin) {
+                            onProjectUpdated(project)
+                        }
                     }
                 }
+
+                true
+            } catch (ex: Throwable) {
+                log.warn(
+                    "Caught an exception while handling project update: ${project}\n" +
+                            ex.toReadableStacktrace().toString()
+                )
+                false
             }
+
+            acknowledgedEvents.add(success)
         }
 
         if (projectsToIgnore.isNotEmpty()) {
@@ -311,15 +333,7 @@ class EventController(
             }
         }
 
-        // Notify UCloud/Core about the notifications we handled successfully
-        if (acknowlegedEvents.isNotEmpty()) {
-            ProjectNotifications.markAsRead.call(
-                BulkRequest(acknowlegedEvents),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow()
-        }
-
-        debug.normal("Handled ${acknowlegedEvents.size} project notifications")
+        return acknowledgedEvents
     }
 
     // Allocations
@@ -369,8 +383,9 @@ class EventController(
             }
         }
 
-        processAllocationsSingles(notifications)
-        processAllocationsTotals(notifications)
+        for (notification in notifications) {
+            notifyAllocationForWorkspace(notification.owner, notification.category.name)
+        }
 
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
         for (notification in notifications) {
@@ -387,227 +402,118 @@ class EventController(
         debug.normal("Processed ${items.size} allocations")
     }
 
-    private suspend fun processAllocationsSingles(notifications: List<DepositNotification>) {
-        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationSingle>>>()
-
-        outer@ for ((idx, notification) in notifications.withIndex()) {
-            val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
-                WalletsRetrieveProviderSummaryRequest(
-                    filterOwnerId = when (val owner = notification.owner) {
-                        is WalletOwner.User -> owner.username
-                        is WalletOwner.Project -> owner.projectId
-                    },
-                    filterOwnerIsProject = notification.owner is WalletOwner.Project,
-                    filterCategory = notification.category.name
-                ),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow().items
-
-            for (providerSummary in combinedProviderSummary) {
-                val productType = providerSummary.productType
-
-                val list = notificationsByType[productType] ?: ArrayList()
-                notificationsByType[productType] = list
-
-                list.add(Pair(idx, prepareAllocationNotificationSingle(providerSummary) ?: continue))
-            }
-        }
-
-        for ((type, list) in notificationsByType) {
-            val plugins = controllerContext.configuration.plugins
-            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == type }?.value
-
-            with(controllerContext.pluginContext) {
-                if (allocationPlugin != null) {
-                    val response = with(allocationPlugin) {
-                        onResourceAllocationSingle(list.map { it.second })
-                    }
-                }
-            }
-
-            for ((_, notification) in list) {
-                notifyPlugins(notification)
-            }
-        }
-
-        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
-            t == ConfigSchema.Plugins.AllocationsProductType.ALL
-        }?.value
-
-        allPlugin?.run {
-            with(controllerContext.pluginContext) {
-                onResourceAllocationSingle(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
-            }
-        }
-    }
-
-    private suspend fun processAllocationsTotals(notifications: List<DepositNotification>) {
-        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotificationTotal>>>()
-        outer@ for ((idx, notification) in notifications.withIndex()) {
-            val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
-                WalletsRetrieveProviderSummaryRequest(
-                    filterOwnerId = when (val owner = notification.owner) {
-                        is WalletOwner.User -> owner.username
-                        is WalletOwner.Project -> owner.projectId
-                    },
-                    filterOwnerIsProject = notification.owner is WalletOwner.Project,
-                    filterCategory = notification.category.name
-                ),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow().items
-            for (providerSummary in combinedProviderSummary) {
-                val productType = providerSummary.productType
-
-                val list = notificationsByType[productType] ?: ArrayList()
-                val newPair = Pair(idx, prepareAllocationNotificationTotal(providerSummary) ?: continue)
-                val existing =
-                    list.find { it.first == newPair.first && it.second.owner == newPair.second.owner && it.second.productCategory == newPair.second.productCategory }
-
-                if (existing != null) {
-                    existing.second.balance += newPair.second.balance
-                } else {
-                    list.add(newPair)
-                }
-
-                notificationsByType[productType] = list
-            }
-        }
-
-        for ((type, list) in notificationsByType) {
-            val plugins = controllerContext.configuration.plugins
-            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == type }?.value
-
-            with(controllerContext.pluginContext) {
-                if (allocationPlugin != null) {
-                    with(allocationPlugin) {
-                        onResourceAllocationTotal(list.map { it.second })
-                    }
-                }
-            }
-
-            for ((_, notification) in list) {
-                notifyPlugins(notification)
-            }
-        }
-
-        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
-            t == ConfigSchema.Plugins.AllocationsProductType.ALL
-        }?.value
-
-        allPlugin?.run {
-            with(controllerContext.pluginContext) {
-                onResourceAllocationTotal(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
-            }
-        }
-    }
-
-    private suspend fun notifyPlugins(notification: AllocationNotificationTotal) {
-        val plugins = controllerContext.configuration.plugins
-        plugins.resourcePlugins().asSequence()
-            .filter { plugin ->
-                plugin.productAllocation.any { it.category == notification.productCategory }
-            }
-            .forEach { plugin ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        onAllocationCompleteInServerModeTotal(notification)
-                    }
-                }
-            }
-    }
-
-    private suspend fun notifyPlugins(notification: AllocationNotificationSingle) {
-        val plugins = controllerContext.configuration.plugins
-        plugins.resourcePlugins().asSequence()
-            .filter { plugin ->
-                plugin.productAllocation.any { it.category == notification.productCategory }
-            }
-            .forEach { plugin ->
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        onAllocationCompleteInServerModeSingle(notification)
-                    }
-                }
-            }
-    }
-
-    private suspend fun onConnectionComplete(ucloudId: String, localId: Int) {
-        val notificationsTotal = HashMap<String, AllocationNotificationTotal>()
-        val notificationsSingle = ArrayList<AllocationNotificationSingle>()
+    private suspend fun notifyAllocationForWorkspace(
+        owner: WalletOwner?,
+        filterByCategory: String?,
+    ) {
+        val combinedAllocations = HashMap<Pair<WalletOwner, String>, AllocationNotification.Combined>()
+        val singleAllocations = ArrayList<AllocationNotification.Single>()
 
         var next: String? = null
         while (true) {
-            val providerSummary = Wallets.retrieveProviderSummary.call(
+            val page = AccountingV2.browseProviderAllocations.call(
                 WalletsRetrieveProviderSummaryRequest(
-                    filterOwnerId = ucloudId,
-                    filterOwnerIsProject = false,
-                    itemsPerPage = 250,
+                    filterOwnerId = when (owner) {
+                        is WalletOwner.User -> owner.username
+                        is WalletOwner.Project -> owner.projectId
+                        else -> null
+                    },
+                    filterOwnerIsProject = when (owner) {
+                        is WalletOwner.Project -> true
+                        is WalletOwner.User -> false
+                        null -> null
+                    },
+                    filterCategory = filterByCategory,
                     next = next,
                 ),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
 
-            for (summary in providerSummary.items) {
-                notificationsSingle.add(
-                    AllocationNotificationSingle(
-                        min(summary.maxUsableBalance, summary.maxPromisedBalance),
-                        ResourceOwnerWithId.User(ucloudId, localId),
-                        summary.id,
-                        summary.categoryId.name,
-                        summary.productType,
-                    )
-                )
-
-                if (notificationsTotal[summary.id] != null) {
-                    val newBalance = notificationsTotal[summary.id]?.balance?.plus(
-                        min(
-                            summary.maxUsableBalance,
-                            summary.maxPromisedBalance
-                        )
-                    )
-
-                    notificationsTotal[summary.id]?.balance =
-                        (newBalance ?: notificationsTotal[summary.id]?.balance) as Long
-                } else {
-                    notificationsTotal[summary.id] = AllocationNotificationTotal(
-                        min(summary.maxUsableBalance, summary.maxPromisedBalance),
-                        ResourceOwnerWithId.User(ucloudId, localId),
-                        summary.categoryId.name,
-                        summary.productType,
-                    )
+            val observedOwners = HashSet<WalletOwner>()
+            val now = Time.now()
+            for (alloc in page.items) {
+                val allocOwner = alloc.owner
+                if (allocOwner !in observedOwners) {
+                    observedOwners.add(allocOwner)
+                    if (allocOwner is WalletOwner.Project) {
+                        synchronizeProject(allocOwner.projectId)
+                    }
                 }
 
+                val allocRange = alloc.notBefore..(alloc.notAfter ?: Long.MAX_VALUE)
+                if (now !in allocRange) continue
 
+                val key = allocOwner to alloc.categoryId.name
+                val resolvedOwner = ResourceOwnerWithId.load(allocOwner, controllerContext.pluginContext) ?: continue
+
+                val combined = combinedAllocations.getOrPut(key) {
+                    AllocationNotification.Combined(0L, resolvedOwner, alloc.categoryId.name,
+                        alloc.categoryId.productType)
+                }
+
+                combined.quota += alloc.quota
+
+                val single = AllocationNotification.Single(alloc.quota, resolvedOwner, alloc.categoryId.name,
+                    alloc.categoryId.productType, alloc.id)
+
+                singleAllocations.add(single)
             }
 
-            next = providerSummary.next
-            if (next == null) break
+            next = page.next ?: break
+        }
+
+        for (single in singleAllocations) {
+            notifyPlugins(single)
+        }
+
+        for (combined in combinedAllocations.values) {
+            notifyPlugins(combined)
+        }
+    }
+
+    private suspend fun notifyPlugins(notification: AllocationNotification) {
+        var hasPreviouslyBeenHandled = true
+        dbConnection.withSession { session ->
+            when (notification) {
+                is AllocationNotification.Combined -> {
+                    session.prepareStatement(
+                        """
+                            insert into events.wallets_handled(workspace, category)
+                            values (:workspace, :category)
+                            on conflict do nothing
+                            returning workspace
+                        """
+                    ).useAndInvoke(
+                        prepare = {
+                            bindString("workspace", notification.owner.toResourceOwner().toSimpleString())
+                            bindString("category", notification.productCategory)
+                        },
+                        readRow = { hasPreviouslyBeenHandled = false }
+                    )
+                }
+                is AllocationNotification.Single -> {
+                    session.prepareStatement(
+                        """
+                            insert into events.allocations_handled(id)
+                            values (:id)
+                            on conflict (id) do nothing
+                            returning id
+                        """
+                    ).useAndInvoke(
+                        prepare = { bindString("id", notification.allocationId) },
+                        readRow = { hasPreviouslyBeenHandled = false }
+                    )
+                }
+            }
         }
 
         val plugins = controllerContext.configuration.plugins
-        for (notification in notificationsTotal.values) {
-            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
-                ?.value
-            if (allocationPlugin != null) {
-                with(controllerContext.pluginContext) {
-                    with(allocationPlugin) {
-                        onResourceAllocationTotal(listOf(notification))
-                    }
-                }
-            }
 
-            notifyPlugins(notification)
-        }
-
-        for (notification in notificationsSingle) {
-            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
-                ?.value
-
-            if (allocationPlugin != null) {
-                with(controllerContext.pluginContext) {
-                    with(allocationPlugin) {
-                        onResourceAllocationSingle(listOf(notification))
-                    }
+        val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }?.value
+        if (allocationPlugin != null) {
+            with(controllerContext.pluginContext) {
+                with(allocationPlugin) {
+                    notify(listOf(notification), !hasPreviouslyBeenHandled)
                 }
             }
         }
@@ -616,165 +522,33 @@ class EventController(
             t == ConfigSchema.Plugins.AllocationsProductType.ALL
         }?.value
 
-        if (allPlugin != null) {
+        allPlugin?.run {
             with(controllerContext.pluginContext) {
-                with(allPlugin) {
-                    onResourceAllocationTotal(notificationsTotal.values.toList())
-                    onResourceAllocationSingle(notificationsSingle)
-                }
+                notify(listOf(notification), !hasPreviouslyBeenHandled)
             }
+        }
+
+        if (!hasPreviouslyBeenHandled) {
+            plugins.resourcePlugins().asSequence()
+                .filter { plugin ->
+                    plugin.productAllocation.any { it.category == notification.productCategory }
+                }
+                .forEach { plugin ->
+                    with(controllerContext.pluginContext) {
+                        with(plugin) {
+                            notifyAllocationCompleteInServerMode(notification)
+                        }
+                    }
+                }
         }
     }
 
-    private suspend fun prepareAllocationNotificationSingle(summary: ProviderWalletSummary): AllocationNotificationSingle? {
-        return AllocationNotificationSingle(
-            min(summary.maxUsableBalance, summary.maxPromisedBalance),
-            ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
-                log.info("Could not find UID/GID for ${summary.owner}")
-                return null
-            },
-            summary.allocationId,
-            summary.categoryId.name,
-            summary.productType
-        )
-    }
-
-    private suspend fun prepareAllocationNotificationTotal(summary: ProviderWalletSummary): AllocationNotificationTotal? {
-        return AllocationNotificationTotal(
-            min(summary.maxUsableBalance, summary.maxPromisedBalance),
-            ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
-                log.info("Could not find UID/GID for ${summary.owner}")
-                return null
-            },
-            summary.categoryId.name,
-            summary.productType
-        )
+    private suspend fun onConnectionComplete(ucloudId: String, localId: Int) {
+        notifyAllocationForWorkspace(WalletOwner.User(ucloudId), null)
     }
 
     private suspend fun scanAllocations() {
-        var allocationsScanned = 0
-        var next: String? = null
-
-        val trackedProjects = HashSet<String>()
-        var isActive = true
-        whileGraal({ currentCoroutineContext().isActive && isActive }) {
-            val providerSummaryResponse = Wallets.retrieveProviderSummary.call(
-                WalletsRetrieveProviderSummaryRequest(next = next),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow()
-
-            next = providerSummaryResponse.next
-
-            val providerSummary = providerSummaryResponse.items
-            allocationsScanned += providerSummaryResponse.items.size
-            if (providerSummary.isEmpty()) {
-                isActive = false
-                return@whileGraal
-            }
-            if (next == null) {
-                isActive = false
-                // Don't break yet
-            }
-
-            // NOTE(Dan): Before we synchronize the allocations, attempt to synchronize the project. This will solve
-            // issues when the project has failed the synchronization earlier.
-            val ignoredProjects = HashSet<String>()
-            val projectPlugin = controllerContext.configuration.plugins.projects
-            if (projectPlugin != null) {
-                providerSummary
-                    .asSequence()
-                    .mapNotNull {
-                        (it.owner as? WalletOwner.Project)?.projectId
-                    }
-                    .toList()
-                    .forEachGraal { projectId ->
-                        if (projectId in trackedProjects) return@forEachGraal
-                        trackedProjects.add(projectId)
-                        try {
-                            val project = Projects.retrieve.call(
-                                ProjectsRetrieveRequest(
-                                    projectId,
-                                    includeMembers = true,
-                                    includeGroups = true,
-                                    includePath = true
-                                ),
-                                controllerContext.pluginContext.rpcClient
-                            ).orThrow()
-
-                            if (project.specification.canConsumeResources) {
-                                with(controllerContext.pluginContext) {
-                                    with(projectPlugin) {
-                                        onProjectUpdated(project)
-                                    }
-                                }
-                            } else {
-                                ignoredProjects.add(project.id)
-                            }
-                        } catch (ex: Throwable) {
-                            log.warn(
-                                "Caught an exception while handling project update: ${projectId}\n" +
-                                        ex.stackTraceToString()
-                            )
-                        }
-                    }
-            }
-
-            dbConnection.withSession { session ->
-                session.prepareStatement(
-                    """
-                        select project_id
-                        from events.projects_to_ignore
-                        where project_id = some(:project_ids::text[])
-                    """
-                ).useAndInvoke(
-                    prepare = {
-                        bindList(
-                            "project_ids",
-                            providerSummary.mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }.toSet()
-                                .toList()
-                        )
-                    },
-                    readRow = { row ->
-                        ignoredProjects.add(row.getString(0)!!)
-                    }
-                )
-            }
-
-            val filteredSummary = providerSummary.filter {
-                val owner = it.owner
-                owner !is WalletOwner.Project || owner.projectId !in ignoredProjects
-            }
-
-            val notificationsByType = filteredSummary.groupBy { it.productType }
-
-            for ((type, list) in notificationsByType) {
-                val plugin = controllerContext.configuration.plugins.allocations.entries.find { (pluginType) ->
-                    pluginType.type == type
-                }?.value ?: continue
-
-                dispatchSyncToPlugin(plugin, list)
-            }
-
-            val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (pluginType) ->
-                pluginType == ConfigSchema.Plugins.AllocationsProductType.ALL
-            }?.value
-
-            if (allPlugin != null) dispatchSyncToPlugin(allPlugin, filteredSummary)
-
-        }
-
-        debug.normal("Scanned $allocationsScanned allocations")
-    }
-
-    private suspend fun dispatchSyncToPlugin(plugin: AllocationPlugin, list: List<ProviderWalletSummary>) {
-        with(controllerContext.pluginContext) {
-            with(plugin) {
-                val items = list.mapNotNull { prepareAllocationNotificationTotal(it) }
-                val singleItems = list.mapNotNull { prepareAllocationNotificationSingle(it) }
-                if (items.isNotEmpty()) onResourceSynchronizationTotal(items)
-                if (items.isNotEmpty()) onResourceSynchronizationSingle(singleItems)
-            }
-        }
+        notifyAllocationForWorkspace(null, null)
     }
 
     companion object : Loggable {

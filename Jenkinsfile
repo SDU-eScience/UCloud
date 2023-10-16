@@ -80,7 +80,6 @@ node {
     """
 
     //run test
-
     try {
         sh script: """
             export UCLOUD_LAUNCHER=\$PWD/launcher
@@ -88,8 +87,7 @@ node {
             cd integration-test 
             ./gradlew integrationtest
         """        
-    }
-    catch(Exception e) {
+    } catch(Throwable e) {
         def log = getLog()
         def startIndex = log.indexOf("FAILURE: Build failed with an exception")
         def endIndex = log.indexOf("* Try:")
@@ -113,8 +111,7 @@ node {
         } else {
             testFail = true
         }
-    }
-    finally {
+    } finally {
         junit '**/build/test-results/**/*.xml'
 
         env.WORKSPACE = pwd()

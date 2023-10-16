@@ -11,7 +11,6 @@ _Settings for grant Applications_
 ```kotlin
 data class ProjectApplicationSettings(
     val projectId: String,
-    val automaticApproval: AutomaticApprovalSettings,
     val allowRequestsFrom: List<UserCriteria>,
     val excludeRequestsFrom: List<UserCriteria>,
 )
@@ -27,17 +26,6 @@ A user will be allowed to apply for grants to this project if they match any of 
 <details>
 <summary>
 <code>projectId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>automaticApproval</code>: <code><code><a href='#automaticapprovalsettings'>AutomaticApprovalSettings</a></code></code>
 </summary>
 
 

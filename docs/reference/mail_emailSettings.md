@@ -33,7 +33,6 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
-        grantAutoApprove = true, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -54,7 +53,6 @@ MailDescriptions.toggleEmailSettings.call(
             grantApplicationRejected = true, 
             grantApplicationUpdated = true, 
             grantApplicationWithdrawn = true, 
-            grantAutoApprove = true, 
             lowFunds = true, 
             newCommentOnApplication = true, 
             newGrantApplication = true, 
@@ -88,7 +86,6 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
-        grantAutoApprove = true, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -122,7 +119,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 # {
 #     "settings": {
 #         "newGrantApplication": true,
-#         "grantAutoApprove": true,
 #         "grantApplicationUpdated": true,
 #         "grantApplicationApproved": true,
 #         "grantApplicationRejected": true,
@@ -145,7 +141,6 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "username": null,
             "settings": {
                 "newGrantApplication": true,
-                "grantAutoApprove": true,
                 "grantApplicationUpdated": true,
                 "grantApplicationApproved": true,
                 "grantApplicationRejected": true,
@@ -173,7 +168,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 # {
 #     "settings": {
 #         "newGrantApplication": true,
-#         "grantAutoApprove": true,
 #         "grantApplicationUpdated": true,
 #         "grantApplicationApproved": true,
 #         "grantApplicationRejected": true,

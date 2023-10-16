@@ -1,0 +1,91 @@
+package app.orchestrator.scratch
+
+record ResourceOwner {
+    createdBy: Int,
+    project: Int,
+}
+
+enum Permission {
+    READ = 1,
+    EDIT = 2,
+    ADMIN = 3,
+    PROVIDER = 4,
+}
+
+record AclEntry {
+    entityIsUser: Boolean,
+    entityId: Int,
+    permissions: Permission[]
+}
+
+record Permissions {
+    myself: Permission[],
+    others: AclEntry[],
+}
+
+record ResourceMetadata {
+    id: Long,
+    owner: ResourceOwner,
+    createdAt: Long,
+    permissions: Permissions,
+    providerGeneratedId: String?,
+}
+
+enum JobState {
+    IN_QUEUE = 1,
+    RUNNING = 2,
+    SUSPENDED = 3,
+    SUCCESS = 4,
+    FAILURE = 5,
+}
+
+record JobUpdate {
+    timestamp: Long,
+    status: String?,
+    state: JobState?,
+    outputFolder: String?,
+    expectedState: JobState?,
+    expectedDifferentState: Boolean,
+    newTimeAllocation: Long?,
+    allowRestart: Boolean?,
+    newMounts: String[]?,
+}
+
+// a custom JSON serializer which will be invoked in Kotlin to transform the object according to backwards compatibility
+// encode function: (instance: Job) -> JsonElement
+// decode function: (allocator: BinaryAllocator, json: JsonElement) -> Job
+@JsonSerializer(encode = "encodeJobToJson", decode = "decodeJobFromJson")
+record Job {
+    metadata: ResourceMetadata,
+    specification: JobSpecification,
+    output: JobOutput,
+    updates: JobUpdate[],
+    status: JobStatus,
+}
+
+record JobStatus {
+    state: JobState,
+    jobParametersJson: String?,
+    startedAt: Long?,
+    allowRestart: Boolean,
+    // resolvedApplication
+    // resolvedSupport
+    // resolvedProduct
+}
+
+record JobSpecification {
+    applicationId: Int,
+    product: Int,
+    name: String?,
+    replicas: Int,
+    parameters: AppParameterValue{},
+    resources: AppParameterValue[],
+    timeAllocation: SimpleDuration?,
+    openedFile: String?,
+    restartOnExit: Boolean,
+    sshEnabled: Boolean,
+}
+
+record JobOutput {
+    outputFolder: String?,
+}

@@ -13,7 +13,7 @@ _Users form the basis of all authentication in UCloud._
 
 ## Rationale
 
-Users in UCloud are authenticated in one of two ways:
+Users in UCloud are authenticated in one of several:
 
 1. `WAYF`: The user is created on first login by using their login credentials from WAYF (Where Are You From) 
 which is a identity federation allowing the reuse of logins from most danish and north atlantic 
@@ -22,6 +22,9 @@ research and education centers on external sites.
 2. `PASSWORD`: The users is created by an ADMIN of the system. This is mainly used to give access to people 
 outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
 first login.
+
+3. Alternatively, users can also be authenticated using one of the configured OpenIdConnect providers. None are
+currently configured for the production system.
 
 Each user has a role defining their privileges on the UCloud system. See [`Role`](/docs/reference/dk.sdu.cloud.Role.md)  for more details.
 
@@ -66,8 +69,12 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#retrieveprincipal'><code>retrievePrincipal</code></a></td>
+<td><a href='#retrieveoptionaluserinfo'><code>retrieveOptionalUserInfo</code></a></td>
 <td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#verifyuserinfo'><code>verifyUserInfo</code></a></td>
+<td>Verifies a change in user info (typically accessed through an email)</td>
 </tr>
 <tr>
 <td><a href='#changepassword'><code>changePassword</code></a></td>
@@ -78,19 +85,11 @@ changes are expected:
 <td>Request reset of password of a [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user.</td>
 </tr>
 <tr>
-<td><a href='#closeiterator'><code>closeIterator</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#createnewuser'><code>createNewUser</code></a></td>
 <td>Request creation of a new [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PASSWORD.md)  user.</td>
 </tr>
 <tr>
-<td><a href='#fetchnextiterator'><code>fetchNextIterator</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#openuseriterator'><code>openUserIterator</code></a></td>
+<td><a href='#updateoptionaluserinfo'><code>updateOptionalUserInfo</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -117,27 +116,7 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#person'><code>Person</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#person.bypassword'><code>Person.ByPassword</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#person.bywayf'><code>Person.ByWAYF</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#principal'><code>Principal</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#providerprincipal'><code>ProviderPrincipal</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#serviceprincipal'><code>ServicePrincipal</code></a></td>
+<td><a href='#optionaluserinformation'><code>OptionalUserInformation</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -154,10 +133,6 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#createsingleuserrequest'><code>CreateSingleUserRequest</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#getprincipalrequest'><code>GetPrincipalRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -254,16 +229,30 @@ _Request the email of a user._
 
 
 
-### `retrievePrincipal`
+### `retrieveOptionalUserInfo`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#getprincipalrequest'>GetPrincipalRequest</a></code>|<code><a href='#principal'>Principal</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#optionaluserinformation'>OptionalUserInformation</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `verifyUserInfo`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Verifies a change in user info (typically accessed through an email)_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -297,19 +286,6 @@ This request can only be called by other services, and is used by the `PasswordR
 user's password in case they are unable to log in. Read more in [Password Reset](authentication/password-reset.md).
 
 
-### `closeIterator`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
 ### `createNewUser`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -324,29 +300,16 @@ _Request creation of a new [`PASSWORD`](/docs/reference/dk.sdu.cloud.auth.api.PA
 
 
 
-### `fetchNextIterator`
+### `updateOptionalUserInfo`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#principal'>Principal</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `openUserIterator`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#optionaluserinformation'>OptionalUserInformation</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -427,188 +390,18 @@ data class AuthenticationTokens(
 
 ---
 
-### `Person`
+### `OptionalUserInformation`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-sealed class Person {
-    abstract val displayName: String
-    abstract val email: String?
-    abstract val firstNames: String
-    abstract val lastName: String
-    abstract val orcId: String?
-    abstract val phoneNumber: String?
-    abstract val serviceLicenseAgreement: Int
-    abstract val title: String?
-    abstract val twoFactorAuthentication: Boolean
-    abstract val id: String
-    abstract val role: Role
-
-    class ByPassword : Person()
-    class ByWAYF : Person()
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>displayName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>firstNames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>orcId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>phoneNumber</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>serviceLicenseAgreement</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>twoFactorAuthentication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `Person.ByPassword`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ByPassword(
-    val id: String,
-    val role: Role,
-    val title: String?,
-    val firstNames: String,
-    val lastName: String,
-    val phoneNumber: String?,
-    val orcId: String?,
-    val email: String?,
-    val twoFactorAuthentication: Boolean,
-    val serviceLicenseAgreement: Int,
-    val organizationId: String?,
-    val password: List<Byte>?,
-    val salt: List<Byte>?,
-    val displayName: String,
-    val type: String /* "password" */,
+data class OptionalUserInformation(
+    val organizationFullName: String?,
+    val department: String?,
+    val researchField: String?,
+    val position: String?,
 )
 ```
 
@@ -619,7 +412,7 @@ data class ByPassword(
 
 <details>
 <summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>organizationFullName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -630,7 +423,7 @@ data class ByPassword(
 
 <details>
 <summary>
-<code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
+<code>department</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -641,7 +434,7 @@ data class ByPassword(
 
 <details>
 <summary>
-<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>researchField</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -652,498 +445,9 @@ data class ByPassword(
 
 <details>
 <summary>
-<code>firstNames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>position</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>phoneNumber</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>orcId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>twoFactorAuthentication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>serviceLicenseAgreement</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>organizationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>password</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/'>Byte</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>salt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/'>Byte</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>displayName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "password" */</code></code> The type discriminator
-</summary>
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `Person.ByWAYF`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ByWAYF(
-    val id: String,
-    val role: Role,
-    val title: String?,
-    val firstNames: String,
-    val lastName: String,
-    val phoneNumber: String?,
-    val orcId: String?,
-    val email: String?,
-    val serviceLicenseAgreement: Int,
-    val organizationId: String,
-    val wayfId: String,
-    val displayName: String,
-    val twoFactorAuthentication: Boolean,
-    val type: String /* "wayf" */,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>firstNames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>phoneNumber</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>orcId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>serviceLicenseAgreement</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>organizationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>wayfId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>displayName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>twoFactorAuthentication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "wayf" */</code></code> The type discriminator
-</summary>
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `Principal`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-sealed class Principal {
-    abstract val id: String
-    abstract val role: Role
-
-    class Person : Principal()
-    class ProviderPrincipal : Principal()
-    class ServicePrincipal : Principal()
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ProviderPrincipal`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ProviderPrincipal(
-    val id: String,
-    val role: Role,
-    val type: String /* "provider" */,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "provider" */</code></code> The type discriminator
-</summary>
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ServicePrincipal`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ServicePrincipal(
-    val id: String,
-    val role: Role,
-    val type: String /* "service" */,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>role</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.Role.md'>Role</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "service" */</code></code> The type discriminator
-</summary>
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1410,42 +714,6 @@ data class CreateSingleUserRequest(
 
 ---
 
-### `GetPrincipalRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class GetPrincipalRequest(
-    val username: String,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `LookupEmailRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1625,6 +893,7 @@ data class GetUserInfoResponse(
     val email: String?,
     val firstNames: String?,
     val lastName: String?,
+    val organization: String?,
 )
 ```
 
@@ -1658,6 +927,17 @@ data class GetUserInfoResponse(
 <details>
 <summary>
 <code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>organization</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

@@ -82,7 +82,7 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
         case "GRANT_APPLICATION_RESPONSE":
         case "GRANT_APPLICATION_UPDATED": {
             const {meta} = notification;
-            navigate(`/project/grants/view/${meta.appId}`);
+            navigate(`/grants?id=${meta.appId}`);
             break;
         }
         case "PROJECT_ROLE_CHANGE": {

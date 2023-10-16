@@ -1,10 +1,10 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Wallets](/docs/developer-guide/accounting-and-projects/accounting/wallets.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/README.md) / [Accounting](/docs/developer-guide/accounting-and-projects/accounting/allocations.md)
 
 # `WalletAllocation`
 
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _An allocation grants access to resources_
 
@@ -18,6 +18,7 @@ data class WalletAllocation(
     val startDate: Long,
     val endDate: Long?,
     val grantedIn: Long?,
+    val maxUsableBalance: Long?,
     val canAllocate: Boolean?,
     val allowSubAllocationsToAllocate: Boolean?,
 )
@@ -111,6 +112,17 @@ Note that this allocation path will always include, as its last element, this al
 <details>
 <summary>
 <code>grantedIn</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> ID reference to which grant application this allocation was granted in
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
 </summary>
 
 

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.cli
 
 import dk.sdu.cloud.controllers.ControllerContext
+import dk.sdu.cloud.plugins.storage.ucloud.StorageScanIpc
 
 fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
     ConnectionCli(controllerContext)
@@ -14,4 +15,5 @@ fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
     UDockerCli(controllerContext)
     ExtensionsCli(controllerContext)
     EventsCli(controllerContext)
+    StorageScanCli(controllerContext)
 }

@@ -1,17 +1,16 @@
 package dk.sdu.cloud.integration.backend.accounting
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.projects.UserCriteria
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.utils.*
+import dk.sdu.cloud.service.Time
 import java.util.*
 
 class GiftTest : IntegrationTest() {
-
 
     override fun defineTests() {
         run {
@@ -49,11 +48,13 @@ class GiftTest : IntegrationTest() {
                                     sampleCompute.category.name,
                                     sampleCompute.category.provider,
                                     createdProject.projectId,
-                                    1000.DKK,
+                                    1000,
                                     null,
                                     GrantApplication.Period(
-                                        System.currentTimeMillis()+1000,
-                                        System.currentTimeMillis()+1000000
+                                        //Is ignored by backend. Backend sets period to start now and end 1 year later. Works til year 2100
+                                        //Data is never saved to DB. Requires migration
+                                        Time.now()+1000,
+                                        Time.now()+1000000
                                     )
                                 )
                             ),
@@ -95,7 +96,7 @@ class GiftTest : IntegrationTest() {
                         assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") {
                             it.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } == 1000.DKK
+                                ?.sumOf { it.balance } == 1000L
                         }
                     }
                 }
@@ -114,7 +115,7 @@ class GiftTest : IntegrationTest() {
                         assertThatInstance(output.availableGifts, "has no gifts") { it.gifts.isEmpty() }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") { wallets ->
                             (wallets.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } ?: 0L) == 0.DKK
+                                ?.sumOf { it.balance } ?: 0L) == 0L
                         }
                     }
                 }
@@ -133,7 +134,7 @@ class GiftTest : IntegrationTest() {
                         assertThatInstance(output.availableGifts, "has no gifts") { it.gifts.isEmpty() }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") { wallets ->
                             (wallets.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } ?: 0L) == 0.DKK
+                                ?.sumOf { it.balance } ?: 0L) == 0L
                         }
                     }
                 }
@@ -152,7 +153,7 @@ class GiftTest : IntegrationTest() {
                         assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") {
                             it.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } == 1000.DKK
+                                ?.sumOf { it.balance } == 1000L
                         }
                     }
                 }
@@ -171,7 +172,7 @@ class GiftTest : IntegrationTest() {
                         assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") {
                             it.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } == 1000.DKK
+                                ?.sumOf { it.balance } == 1000L
                         }
                     }
                 }

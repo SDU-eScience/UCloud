@@ -390,6 +390,10 @@ changes are expected:
 <td>The base type for requesting paginated content.</td>
 </tr>
 <tr>
+<td><a href='#modulessection'><code>ModulesSection</code></a></td>
+<td>Section describing the module capabilities of an application</td>
+</tr>
+<tr>
 <td><a href='#project'><code>Project</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -546,6 +550,7 @@ ApplicationWithFavoriteAndTags(
             variableNames = listOf("value"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Bool(
             defaultValue = null, 
@@ -757,7 +762,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -822,6 +828,7 @@ ApplicationWithFavoriteAndTags(
         fileExtensions = emptyList(), 
         invocation = emptyList(), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = false, 
@@ -962,7 +969,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1029,6 +1037,7 @@ ApplicationWithFavoriteAndTags(
             word = "web-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -1177,7 +1186,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1244,6 +1254,7 @@ ApplicationWithFavoriteAndTags(
             word = "vnc-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -1394,7 +1405,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1466,6 +1478,7 @@ ApplicationWithFavoriteAndTags(
             word = "web-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -1619,7 +1632,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #             ".c"
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1695,12 +1709,15 @@ ApplicationWithFavoriteAndTags(
             variableNames = listOf("variable"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = JsonObject(mapOf("type" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "text", 
                 isString = true, 
             )),"value" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "hello", 
                 isString = true, 
             )),)), 
@@ -1879,7 +1896,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -2457,6 +2475,7 @@ data class ApplicationInvocationDescription(
     val allowPublicLink: Boolean?,
     val fileExtensions: List<String>?,
     val licenseServers: List<String>?,
+    val modules: ModulesSection?,
     val shouldAllowAdditionalMounts: Boolean,
     val shouldAllowAdditionalPeers: Boolean,
 )
@@ -2670,6 +2689,17 @@ This list used as a suffix filter. As a result, this list should typically inclu
 <details>
 <summary>
 <code>licenseServers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> Hint used by the frontend to find appropriate license servers
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>modules</code>: <code><code><a href='#modulessection'>ModulesSection</a>?</code></code> A section describing integration with a module system. Currently only valid for `CONTAINER` based applications.
 </summary>
 
 
@@ -6377,6 +6407,55 @@ paginate through the results.
 <details>
 <summary>
 <code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ModulesSection`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Section describing the module capabilities of an application_
+
+```kotlin
+data class ModulesSection(
+    val mountPath: String,
+    val optional: List<String>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>mountPath</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>optional</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
 </summary>
 
 

@@ -18,3 +18,16 @@ fun V1__GenericLicenses() = MigrationScript("V1__GenericLicenses") { session ->
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V2__GenericLicenses() = MigrationScript("V2__GenericLicenses") { session ->
+    session.prepareStatement(
+        //language=postgresql
+        """
+            create table generic_license_instances(
+                id text not null primary key,
+                category text not null,
+                owner text not null
+            );
+        """
+    ).useAndInvokeAndDiscard()
+}

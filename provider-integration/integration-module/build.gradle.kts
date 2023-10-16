@@ -1,14 +1,14 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.7.20"
+    kotlin("jvm") version "1.9.10"
     application
     id("org.graalvm.buildtools.native") version "0.9.13"
-    kotlin("plugin.serialization") version "1.7.20"
+    kotlin("plugin.serialization") version "1.9.10"
 }
 
 group = "dk.sdu.cloud"
-version = "2022.3.1"
+version = "2023.3.7-accounting2-1"
 
 repositories {
     mavenCentral()
@@ -18,12 +18,15 @@ repositories {
 
 dependencies {
     run {
-        val version = "2023.3.8"
+        val version = "2023.4.0-dev40"
+
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
         ucloud("app-orchestrator-service-api")
         ucloud("service-lib-lib")
+
+        implementation("org.cliffc.high_scale_lib:cliff-utils:$version")
     }
 
     run {
@@ -63,9 +66,9 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "11"
-    kotlinOptions.freeCompilerArgs += "-Xcontext-receivers"
+kotlin {
+    jvmToolchain(20)
+    compilerOptions.freeCompilerArgs.add("-Xcontext-receivers")
 }
 
 application {

@@ -415,7 +415,7 @@ class PuhuriPlugin : ProjectPlugin {
         }
     }
 
-    suspend fun onAllocations(allocations: List<AllocationNotificationSingle>) {
+    suspend fun onAllocations(allocations: List<AllocationNotification.Single>) {
         // NOTE(Dan): This function is invoked both when new allocations arrive and when we are synchronizing
         // allocations. This function starts by throwing away a lot of information which are not used. That is because
         // we currently support Puhuri in a very limited fashion. We assume we can only allocate one type of CPU, one
@@ -436,7 +436,7 @@ class PuhuriPlugin : ProjectPlugin {
                 ).useAndInvoke(
                     prepare = {
                         bindString("id", alloc.allocationId)
-                        bindLong("balance", alloc.balance)
+                        bindLong("balance", alloc.quota)
                         bindString("product_type", alloc.productType.name)
                     },
                     readRow = { row -> alreadySynchronized[row.getString(0)!!] = row.getBoolean(1)!! }
@@ -467,9 +467,9 @@ class PuhuriPlugin : ProjectPlugin {
                 puhuri.createOrder(
                     puhuriProjectId,
                     PuhuriAllocation(
-                        cpuKHours = ceil((cpuAllocation?.balance ?: 0) / 1000.0).toInt(),
-                        gpuHours = ceil(((gpuAllocation?.balance ?: 0).toDouble())).toInt(),
-                        gbKHours = ceil((storageAllocation?.balance ?: 0) / 1000.0).toInt(),
+                        cpuKHours = ceil((cpuAllocation?.quota ?: 0) / 1000.0).toInt(),
+                        gpuHours = ceil(((gpuAllocation?.quota ?: 0).toDouble())).toInt(),
+                        gbKHours = ceil((storageAllocation?.quota ?: 0) / 1000.0).toInt(),
                     )
                 )
 
@@ -516,12 +516,12 @@ class PuhuriAllocationPlugin : AllocationPlugin {
     }
 
     override suspend fun PluginContext.onResourceAllocationSingle(
-        notifications: List<AllocationNotificationSingle>
+        notifications: List<AllocationNotification.Single>
     ) {
         puhuriPlugin.onAllocations(notifications)
     }
 
-    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {
+    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotification.Single>) {
         puhuriPlugin.onAllocations(notifications)
     }
 }

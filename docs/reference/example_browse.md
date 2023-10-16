@@ -49,7 +49,7 @@ Resources.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -126,7 +126,7 @@ current status through the updates. */
 # operation.
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false" 
 
 # {
 #     "itemsPerPage": 50,

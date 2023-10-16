@@ -67,7 +67,7 @@ class JobManagement(
     val pluginName: String,
     val k8: K8Dependencies,
     val runtime: ContainerRuntime,
-    private val jobCache: VerifiedJobCache,
+    val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
     val pluginConfig: ConfigSchema.Plugins.Jobs.UCloud,

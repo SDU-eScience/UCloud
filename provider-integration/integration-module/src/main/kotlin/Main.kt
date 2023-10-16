@@ -2,9 +2,7 @@ package dk.sdu.cloud
 
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.joran.JoranConfigurator
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
@@ -155,6 +153,7 @@ fun main(args: Array<String>) {
 
                 verifyConfiguration(serverMode, configSchema)
             }
+            _loadedConfig = config
 
             val logDir = config.core.logs.directory
 
@@ -489,19 +488,19 @@ fun main(args: Array<String>) {
             // NOTE(Dan): This will only work for server and user mode. User mode will use a proxy to the server mode
             // to resolve the products.
             if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
-                val unknownProducts = HashSet<Product>()
+                val unknownProducts = HashSet<ProductV2>()
 
                 for (plugin in allResourcePlugins) {
-                    val allConfiguredProducts: List<Product> = config.products.allProducts
+                    val allConfiguredProducts: List<ProductV2> = config.products.allProducts
 
-                    val resolvedProducts = ArrayList<Product>()
+                    val resolvedProducts = ArrayList<ProductV2>()
                     for (product in plugin.productAllocation) {
                         val configuredProduct = allConfiguredProducts
                             .find { it.name == product.id && it.category.name == product.category }
                             ?: error("Internal error $product was not in $allConfiguredProducts")
 
-                        val resolvedProduct = Products.retrieve.call(
-                            ProductsRetrieveRequest(
+                        val resolvedProduct = ProductsV2.retrieve.call(
+                            ProductsV2RetrieveRequest(
                                 filterName = product.id,
                                 filterCategory = product.category,
                                 filterProvider = config.core.providerId
@@ -517,22 +516,22 @@ fun main(args: Array<String>) {
                                 val b = resolvedProduct
 
                                 val areInternalEqual = when (a) {
-                                    is Product.Compute -> {
-                                        b is Product.Compute && a.cpu == b.cpu && a.gpu == b.gpu
+                                    is ProductV2.Compute -> {
+                                        b is ProductV2.Compute && a.cpu == b.cpu && a.gpu == b.gpu
                                                 && a.memoryInGigs == b.memoryInGigs
                                                 && a.cpuModel == b.cpuModel
                                                 && a.gpuModel == b.gpuModel
                                                 && a.memoryModel == b.memoryModel
                                     }
 
-                                    is Product.Ingress -> b is Product.Ingress
-                                    is Product.License -> b is Product.License
-                                    is Product.NetworkIP -> b is Product.NetworkIP
-                                    is Product.Storage -> b is Product.Storage
+                                    is ProductV2.Ingress -> b is ProductV2.Ingress
+                                    is ProductV2.License -> b is ProductV2.License
+                                    is ProductV2.NetworkIP -> b is ProductV2.NetworkIP
+                                    is ProductV2.Storage -> b is ProductV2.Storage
                                 }
 
-                                a.pricePerUnit == b.pricePerUnit && areInternalEqual && a.description == b.description
-                                    && a.allowAllocationRequestsFrom == b.allowAllocationRequestsFrom
+                                a.category == b.category && areInternalEqual && a.description == b.description &&
+                                        a.price == b.price
                             }
 
                             if (areEqual) {
@@ -606,6 +605,11 @@ fun main(args: Array<String>) {
                 debugSystem.start(ProcessingScope)
             }
 
+            // Other service commonly used by plugins
+            // -------------------------------------------------------------------------------------------------------
+            initAccountingSystem()
+            ActivitySystem.init()
+
             // Configuration debug (before initializing any plugins, which might crash because of config)
             // -------------------------------------------------------------------------------------------------------
             if (config.core.developmentMode) {
@@ -621,15 +625,15 @@ fun main(args: Array<String>) {
                 debugSystem.detail(
                     "Compute products loaded",
                     defaultMapper.encodeToJsonElement(
-                        ListSerializer(Product.serializer()),
-                        config.products.compute?.values?.flatten() ?: emptyList()
+                        ListSerializer(ProductV2.serializer()),
+                        config.products.compute.flatMap { it.coreProducts } ?: emptyList()
                     )
                 )
                 debugSystem.detail(
                     "Storage products loaded",
                     defaultMapper.encodeToJsonElement(
-                        ListSerializer(Product.serializer()),
-                        config.products.storage?.values?.flatten() ?: emptyList()
+                        ListSerializer(ProductV2.serializer()),
+                        config.products.storage.flatMap { it.coreProducts } ?: emptyList()
                     )
                 )
             }
@@ -637,6 +641,7 @@ fun main(args: Array<String>) {
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
             val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli, debugSystem)
+            serviceContext = pluginContext
             val controllerContext = ControllerContext(ownExecutable, config, pluginContext)
 
             if (config.pluginsOrNull != null) {
@@ -864,6 +869,10 @@ val debugSystem: DebugSystem
     get() = debugSystemAtomic.get() ?: disabledDebugSystem
 
 private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
+private var _loadedConfig: VerifiedConfig? = null
+val loadedConfig: VerifiedConfig get() = _loadedConfig!!
+lateinit var serviceContext: SimplePluginContext
+var providerId: String = ""
 
 val dbConnection: DBContext by lazy {
     val config = dbConfig.get().takeIf { it != null }

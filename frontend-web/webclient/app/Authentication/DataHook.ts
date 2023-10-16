@@ -156,7 +156,7 @@ export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Pro
 }
 
 export async function callAPIWithErrorHandler<T>(
-    parameters: APICallParameters
+    parameters: APICallParameters<unknown, T>
 ): Promise<T | null> {
     try {
         return await callAPI<T>(parameters);

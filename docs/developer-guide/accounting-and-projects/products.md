@@ -1,6 +1,6 @@
 <p align='center'>
 <a href='/docs/developer-guide/accounting-and-projects/providers.md'>« Previous section</a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/accounting/wallets.md'>Next section »</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/accounting/allocations.md'>Next section »</a>
 </p>
 
 
@@ -243,6 +243,10 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
 <td>A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)</td>
 </tr>
 <tr>
+<td><a href='#allocationrequestsgroup'><code>AllocationRequestsGroup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#productsbrowserequest'><code>ProductsBrowseRequest</code></a></td>
 <td>The base type for requesting paginated content.</td>
 </tr>
@@ -280,6 +284,7 @@ Products.browse.call(
         filterProvider = null, 
         filterVersion = null, 
         includeBalance = null, 
+        includeMaxBalance = null, 
         itemsPerPage = 50, 
         itemsToSkip = null, 
         next = null, 
@@ -291,6 +296,7 @@ Products.browse.call(
 /*
 PageV2(
     items = listOf(Product.Compute(
+        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
         category = ProductCategoryId(
             id = "example-compute", 
             name = "example-compute", 
@@ -314,7 +320,9 @@ PageV2(
         version = 1, 
         balance = null, 
         id = "example-compute", 
+        maxUsableBalance = null, 
     ), Product.Storage(
+        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
         category = ProductCategoryId(
             id = "example-storage", 
             name = "example-storage", 
@@ -332,6 +340,7 @@ PageV2(
         version = 1, 
         balance = null, 
         id = "example-storage", 
+        maxUsableBalance = null, 
     )), 
     itemsPerPage = 50, 
     next = null, 
@@ -362,6 +371,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #         {
 #             "type": "compute",
 #             "balance": null,
+#             "maxUsableBalance": null,
 #             "name": "example-compute",
 #             "pricePerUnit": 1000000,
 #             "category": {
@@ -378,6 +388,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
+#             "allowAllocationRequestsFrom": "ALL",
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
 #             "chargeType": "ABSOLUTE",
 #             "hiddenInGrantApplications": false,
@@ -386,6 +397,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #         {
 #             "type": "storage",
 #             "balance": null,
+#             "maxUsableBalance": null,
 #             "name": "example-storage",
 #             "pricePerUnit": 1,
 #             "category": {
@@ -396,6 +408,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "priority": 0,
 #             "version": 1,
 #             "freeToUse": false,
+#             "allowAllocationRequestsFrom": "ALL",
 #             "unitOfPrice": "PER_UNIT",
 #             "chargeType": "DIFFERENTIAL_QUOTA",
 #             "hiddenInGrantApplications": false,
@@ -445,6 +458,7 @@ Products.browse.call(
         filterProvider = null, 
         filterVersion = null, 
         includeBalance = null, 
+        includeMaxBalance = null, 
         itemsPerPage = 50, 
         itemsToSkip = null, 
         next = null, 
@@ -456,6 +470,7 @@ Products.browse.call(
 /*
 PageV2(
     items = listOf(Product.Compute(
+        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
         category = ProductCategoryId(
             id = "example-compute", 
             name = "example-compute", 
@@ -479,6 +494,7 @@ PageV2(
         version = 1, 
         balance = null, 
         id = "example-compute", 
+        maxUsableBalance = null, 
     )), 
     itemsPerPage = 50, 
     next = null, 
@@ -509,6 +525,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #         {
 #             "type": "compute",
 #             "balance": null,
+#             "maxUsableBalance": null,
 #             "name": "example-compute",
 #             "pricePerUnit": 1000000,
 #             "category": {
@@ -525,6 +542,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
+#             "allowAllocationRequestsFrom": "ALL",
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
 #             "chargeType": "ABSOLUTE",
 #             "hiddenInGrantApplications": false,
@@ -573,12 +591,14 @@ Products.retrieve.call(
         filterProvider = "example", 
         filterVersion = null, 
         includeBalance = null, 
+        includeMaxBalance = null, 
     ),
     user
 ).orThrow()
 
 /*
 Product.Compute(
+    allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
     category = ProductCategoryId(
         id = "example-compute", 
         name = "example-compute", 
@@ -602,6 +622,7 @@ Product.Compute(
     version = 1, 
     balance = null, 
     id = "example-compute", 
+    maxUsableBalance = null, 
 )
 */
 ```
@@ -626,6 +647,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 # {
 #     "type": "compute",
 #     "balance": null,
+#     "maxUsableBalance": null,
 #     "name": "example-compute",
 #     "pricePerUnit": 1000000,
 #     "category": {
@@ -642,6 +664,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?
 #     "gpuModel": null,
 #     "version": 1,
 #     "freeToUse": false,
+#     "allowAllocationRequestsFrom": "ALL",
 #     "unitOfPrice": "CREDITS_PER_MINUTE",
 #     "chargeType": "ABSOLUTE",
 #     "hiddenInGrantApplications": false,
@@ -743,7 +766,7 @@ always sequential and the incoming version number is always ignored by UCloud.
 ### `ChargeType`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ```kotlin
@@ -791,12 +814,13 @@ enum class ChargeType {
 ### `Product`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Products define the services exposed by a Provider._
 
 ```kotlin
 sealed class Product {
+    abstract val allowAllocationRequestsFrom: AllocationRequestsGroup
     abstract val balance: Long?
     abstract val category: ProductCategoryId
     abstract val chargeType: ChargeType
@@ -804,6 +828,7 @@ sealed class Product {
     abstract val freeToUse: Boolean
     abstract val hiddenInGrantApplications: Boolean
     abstract val id: String
+    abstract val maxUsableBalance: Long?
     abstract val name: String
     abstract val pricePerUnit: Long
     abstract val priority: Int
@@ -824,6 +849,24 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a></code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
 
 <details>
 <summary>
@@ -915,6 +958,18 @@ system's UI.
 
 <details>
 <summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique name associated with this Product
 </summary>
 
@@ -998,7 +1053,7 @@ For more information go
 ### `Product.Compute`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _A compute Product_
 
@@ -1017,12 +1072,14 @@ data class Compute(
     val gpuModel: String?,
     val version: Int?,
     val freeToUse: Boolean?,
+    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
     val unitOfPrice: ProductPriceUnit?,
     val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
     val balance: Long?,
     val id: String,
+    val maxUsableBalance: Long?,
     val type: String /* "compute" */,
 )
 ```
@@ -1184,6 +1241,23 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 
 <details>
 <summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
+
+<details>
+<summary>
 <code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
@@ -1255,6 +1329,18 @@ system's UI.
 
 <details>
 <summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "compute" */</code></code> The type discriminator
 </summary>
 
@@ -1275,7 +1361,7 @@ system's UI.
 ### `Product.Ingress`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _An ingress Product_
 
@@ -1288,12 +1374,14 @@ data class Ingress(
     val priority: Int?,
     val version: Int?,
     val freeToUse: Boolean?,
+    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
     val unitOfPrice: ProductPriceUnit?,
     val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
     val balance: Long?,
     val id: String,
+    val maxUsableBalance: Long?,
     val type: String /* "ingress" */,
 )
 ```
@@ -1389,6 +1477,23 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 
 <details>
 <summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
+
+<details>
+<summary>
 <code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
@@ -1460,6 +1565,18 @@ system's UI.
 
 <details>
 <summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "ingress" */</code></code> The type discriminator
 </summary>
 
@@ -1480,7 +1597,7 @@ system's UI.
 ### `Product.License`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _A license Product_
 
@@ -1494,12 +1611,14 @@ data class License(
     val tags: List<String>?,
     val version: Int?,
     val freeToUse: Boolean?,
+    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
     val unitOfPrice: ProductPriceUnit?,
     val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
     val balance: Long?,
     val id: String,
+    val maxUsableBalance: Long?,
     val type: String /* "license" */,
 )
 ```
@@ -1606,6 +1725,23 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 
 <details>
 <summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
+
+<details>
+<summary>
 <code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
@@ -1677,6 +1813,18 @@ system's UI.
 
 <details>
 <summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "license" */</code></code> The type discriminator
 </summary>
 
@@ -1697,7 +1845,7 @@ system's UI.
 ### `Product.NetworkIP`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _An IP address Product_
 
@@ -1710,12 +1858,14 @@ data class NetworkIP(
     val priority: Int?,
     val version: Int?,
     val freeToUse: Boolean?,
+    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
     val unitOfPrice: ProductPriceUnit?,
     val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
     val balance: Long?,
     val id: String,
+    val maxUsableBalance: Long?,
     val type: String /* "network_ip" */,
 )
 ```
@@ -1811,6 +1961,23 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 
 <details>
 <summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
+
+<details>
+<summary>
 <code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
@@ -1882,6 +2049,18 @@ system's UI.
 
 <details>
 <summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "network_ip" */</code></code> The type discriminator
 </summary>
 
@@ -1902,7 +2081,7 @@ system's UI.
 ### `Product.Storage`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _A storage Product_
 
@@ -1915,12 +2094,14 @@ data class Storage(
     val priority: Int?,
     val version: Int?,
     val freeToUse: Boolean?,
+    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
     val unitOfPrice: ProductPriceUnit?,
     val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
     val balance: Long?,
     val id: String,
+    val maxUsableBalance: Long?,
     val type: String /* "storage" */,
 )
 ```
@@ -2016,6 +2197,23 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 
 <details>
 <summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
+
+<details>
+<summary>
 <code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
 </summary>
 
@@ -2087,6 +2285,18 @@ system's UI.
 
 <details>
 <summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>type</code>: <code><code>String /* "storage" */</code></code> The type discriminator
 </summary>
 
@@ -2107,7 +2317,7 @@ system's UI.
 ### `ProductCategoryId`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ```kotlin
@@ -2168,7 +2378,7 @@ data class ProductCategoryId(
 ### `ProductPriceUnit`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ```kotlin
@@ -2288,7 +2498,7 @@ enum class ProductPriceUnit {
 ### `ProductReference`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Contains a unique reference to a Product_
 
@@ -2438,6 +2648,66 @@ For more information, see the individual [`Product`](/docs/reference/dk.sdu.clou
 
 ---
 
+### `AllocationRequestsGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+enum class AllocationRequestsGroup {
+    ALL,
+    PERSONAL,
+    PROJECT,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>ALL</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>PERSONAL</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>PROJECT</code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ProductsBrowseRequest`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2458,6 +2728,7 @@ data class ProductsBrowseRequest(
     val filterVersion: Int?,
     val showAllVersions: Boolean?,
     val includeBalance: Boolean?,
+    val includeMaxBalance: Boolean?,
 )
 ```
 Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
@@ -2616,6 +2887,17 @@ paginate through the results.
 
 </details>
 
+<details>
+<summary>
+<code>includeMaxBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -2638,6 +2920,7 @@ data class ProductsRetrieveRequest(
     val filterArea: ProductType?,
     val filterVersion: Int?,
     val includeBalance: Boolean?,
+    val includeMaxBalance: Boolean?,
 )
 ```
 
@@ -2704,6 +2987,17 @@ data class ProductsRetrieveRequest(
 <details>
 <summary>
 <code>includeBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeMaxBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

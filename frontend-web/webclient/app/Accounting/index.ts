@@ -1,11 +1,14 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {IconName} from "@/ui-components/Icon";
 import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
-import {BulkRequest, PaginationRequestV2} from "@/UCloud";
+import { BulkRequest, PageV2, PaginationRequestV2 } from "@/UCloud";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 export const UCLOUD_PROVIDER = "ucloud";
 
 export type AccountType = "USER" | "PROJECT";
+/* @deprecated */
+export type ProductArea = ProductType;
 
 export interface ProductCategoryId {
     name: string;
@@ -13,7 +16,7 @@ export interface ProductCategoryId {
     title?: string;
 }
 
-export function productToArea(product: Product): ProductType {
+export function productToArea(product: Product): ProductArea {
     switch (product.type) {
         case "compute": return "COMPUTE";
         case "ingress": return "INGRESS";
@@ -23,7 +26,7 @@ export function productToArea(product: Product): ProductType {
     }
 }
 
-export function productAreaTitle(area: ProductType): string {
+export function productAreaTitle(area: ProductArea): string {
     switch (area) {
         case "COMPUTE":
             return "Compute";
@@ -324,15 +327,15 @@ export function productTypeToTitle(type: ProductType): string {
 export function productTypeToIcon(type: ProductType): IconName {
     switch (type) {
         case "INGRESS":
-            return "globeEuropeSolid"
+            return "heroLink"
         case "COMPUTE":
-            return "cpu";
+            return "heroCpuChip";
         case "STORAGE":
-            return "hdd";
+            return "heroCircleStack";
         case "NETWORK_IP":
-            return "networkWiredSolid";
+            return "heroGlobeEuropeAfrica";
         case "LICENSE":
-            return "apps";
+            return "heroDocumentCheck";
     }
 }
 
@@ -381,7 +384,7 @@ export function explainAllocation(type: ProductType, unit: ProductPriceUnit): st
     }
 }
 
-export function explainUsage(type: ProductType, unit: ProductPriceUnit): string {
+export function explainUsage(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
     // NOTE(Dan): I think this is generally the case, but I am leaving a separate function just in case we need to
     // change it.
     return explainAllocation(type, unit);
@@ -559,11 +562,11 @@ export function normalizeBalanceForFrontend(
     }
 }
 
-export function currencyFormatter(credits: number, precision = 2, forceInteger: boolean): string {
+function currencyFormatter(credits: number, precision = 2, forceInteger: boolean): string {
     if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
 
     if (forceInteger) {
-        return (Math.floor(credits / 1000000)).toString();
+        return ((credits / 1000000) | 0).toString();
     }
 
     // Edge-case handling
@@ -614,15 +617,23 @@ export function currencyFormatter(credits: number, precision = 2, forceInteger: 
 
 function addThousandSeparators(numberOrString: string | number): string {
     const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
+    const dotIndex = numberAsString.indexOf(".");
+    const substring = dotIndex === -1 ? numberAsString : numberAsString.substring(0, dotIndex);
+
     let result = "";
     let i = 0;
-    const len = numberAsString.length;
-    for (const char of numberAsString) {
+    const len = substring.length;
+    for (const char of substring) {
         result += char;
         i += 1;
         if ((i - len) % 3 === 0 && i !== len) {
             result += ".";
         }
+    }
+
+    if (dotIndex !== -1) {
+        result += ",";
+        result += numberAsString.substring(dotIndex + 1);
     }
 
     return result;
@@ -665,7 +676,7 @@ export function costOfDuration(minutes: number, numberOfProducts: number, produc
             break;
     }
 
-    return unitsToBuy * product.pricePerUnit * cpuFactor;
+    return unitsToBuy * product.pricePerUnit * numberOfProducts;
 }
 
 export function usageExplainer(
@@ -675,7 +686,336 @@ export function usageExplainer(
     unitOfPrice: ProductPriceUnit
 ): string {
     const amount = normalizeBalanceForFrontend(usage, productType, unitOfPrice);
-    const suffix = explainUsage(productType, unitOfPrice);
+    const suffix = explainUsage(productType, chargeType, unitOfPrice);
     return `${amount} ${suffix}`;
 }
 
+// Version 2 API
+// =====================================================================================================================
+const baseContextV2 = "/api/accounting/v2";
+
+export interface AccountingUnit {
+    name: string;
+    namePlural: string;
+    floatingPoint: boolean;
+    displayFrequencySuffix: boolean;
+}
+
+export type AccountingFrequency = "ONCE" | "PERIODIC_MINUTE" | "PERIODIC_HOUR" | "PERIODIC_DAY";
+export function frequencyToMillis(frequency: AccountingFrequency): number {
+    switch (frequency) {
+        case "ONCE":
+            return 1;
+        case "PERIODIC_MINUTE":
+            return 1000 * 60;
+        case "PERIODIC_HOUR":
+            return 1000 * 60 * 60;
+        case "PERIODIC_DAY":
+            return 1000 * 60 * 60 * 24;
+    }
+}
+
+export function frequencyToSuffix(frequency: AccountingFrequency, plural: boolean): string | null {
+    const pluralize = (text: string) => plural ? text + "s" : text;
+    switch (frequency) {
+        case "ONCE":
+            return null;
+        case "PERIODIC_MINUTE":
+            return pluralize("minute");
+        case "PERIODIC_HOUR":
+            return pluralize("hour");
+        case "PERIODIC_DAY":
+            return pluralize("day");
+    }
+}
+
+export interface ProductCategoryV2 {
+    name: string;
+    provider: string;
+    productType: ProductType;
+    accountingUnit: AccountingUnit;
+    accountingFrequency: AccountingFrequency;
+    freeToUse: boolean;
+}
+
+export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): number {
+    function typeToOrdinal(type: ProductType): number {
+        switch (type) {
+            case "COMPUTE": return 0;
+            case "STORAGE": return 1;
+            case "NETWORK_IP": return 2;
+            case "INGRESS": return 3;
+            case "LICENSE": return 4;
+        }
+    }
+
+    const aProvider = getProviderTitle(a.provider);
+    const bProvider = getProviderTitle(b.provider);
+    const providerCmp = aProvider.localeCompare(bProvider);
+    if (providerCmp !== 0) return providerCmp;
+
+    const aType = typeToOrdinal(a.productType);
+    const bType = typeToOrdinal(b.productType);
+    if (aType < bType) return -1;
+    if (aType > bType) return 1;
+
+    const aName = a.name;
+    const bName = b.name;
+    const nameCmp = aName.localeCompare(bName);
+    return nameCmp;
+}
+
+export type ProductV2 =
+    ProductV2Storage
+    | ProductV2Compute
+    | ProductV2Ingress
+    | ProductV2License
+    | ProductV2NetworkIP
+    ;
+
+interface ProductV2Base {
+    category: ProductCategoryV2;
+    name: string;
+    description: string;
+    productType: ProductType;
+    price: number;
+    hiddenInGrantApplications: boolean;
+}
+
+interface ProductV2Storage extends ProductV2Base {
+    type: "storage";
+}
+
+interface ProductV2Compute extends ProductV2Base {
+    type: "compute";
+    cpu?: number | null;
+    memoryInGigs?: number | null;
+    gpu?: number | null;
+    cpuModel?: string | null;
+    memoryModel?: string | null;
+    gpuModel?: string | null;
+}
+
+interface ProductV2Ingress extends ProductV2Base {
+    type: "ingress";
+}
+
+interface ProductV2License extends ProductV2Base {
+    type: "license";
+}
+
+interface ProductV2NetworkIP extends ProductV2Base {
+    type: "network_ip";
+}
+
+const hardcodedProductCategoryDescriptions: Record<string, Record<string, string>> = {
+    "k8": {
+        "cpu": `A compute node used for demonstration purposes. The node probably doesn't contain a lot of resources.`,
+        "storage": `Storage for the compute nodes. If you are applying for k8 based compute, then you must also apply for storage.`,
+        "public-ip": "A generic IP address used for demonstration purposes.",
+        "license": "A generic license used for demonstration purposes."
+    },
+
+    "slurm": {
+        "cpu": `A compute node used for demonstration purposes. The node probably doesn't contain a lot of resources.`,
+        "storage": `Storage for the compute nodes. If you are applying for slurm based compute, then you must also apply for storage.`,
+    },
+
+    "ucloud": {
+        "cephfs": `The storage system for DeiC Interactive HPC at SDU. If you are applying for compute from the same location then you must also apply for storage.`,
+        "public-ip": `A publicly accessible IP address. You should apply for these only if you are running an application which explicitly requires this.`,
+        "u1-fat": `2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 768 GB of memory.`,
+        "u1-standard": `2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 384 GB of memory.`,
+        "u2-gpu": `96 vCPU, 2TB of memory and 8x NVIDIA Tesla A100 GPUs Accelerators 40GB (PCIe).`,
+        "u1-gpu": `80 vCPU, 182 GB of memory and 4x NVIDIA Tesla V100 SXM2 Volta GPUs Accelerators 32GB (NVLink).`,
+    },
+
+    "hippo": {
+        "hippo-ess": `Hippo storage uses an IBM Elastic Storage System (ESS). If you applying for Hippo based compute then you must also apply for storage.`,
+        "hippo-fat": `Hippo machines are high memory machines. Each machine has 2x AMD EPYC 64-Core and between 1TB and 4TB of memory.`
+    },
+
+    "aau": {
+        "uc-t4": `Virtual machine with NVIDIA T4 GPUs.`,
+        "uc-a10": `Virtual machine with NVIDIA A10 GPUs.`,
+        "uc-general": `Virtual machine with no GPUs.`,
+        "uc-a40": `Virtual machine with NVIDIA A40 GPUs.`,
+        "uc-a100": `Virtual machine with NVIDIA A100 GPUs.`,
+    },
+
+    "spohia": {
+        "sophia-storage": ``,
+        "sophia-slim": ``,
+    },
+
+    "lumi-sdu": {
+        "lumi-cpu": ``,
+        "lumi-gpu": ``,
+        "lumi-parallel": ``,
+    },
+}
+
+function removeSuffix(text: string, suffix: string): string {
+    if (text.endsWith(suffix)) return text.substring(0, text.length - suffix.length);
+    return text;
+}
+
+export function guestimateProductCategoryDescription(
+    category: string,
+    provider: string
+): string {
+    const normalizedCategory = removeSuffix(category, "-h");
+    return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
+}
+
+export function explainUnit(category: ProductCategoryV2): { name: string, priceFactor: number, invPriceFactor: number } {
+    const unit = category.accountingUnit;
+    let priceFactor = 1;
+    let unitName = unit.namePlural;
+    let suffix = "";
+
+    if (unit.displayFrequencySuffix && category.accountingFrequency !== "ONCE") {
+        let desiredFrequency: AccountingFrequency;
+        switch (category.productType) {
+            case "COMPUTE":
+                desiredFrequency = "PERIODIC_HOUR";
+                break;
+
+            default:
+                desiredFrequency = "PERIODIC_DAY";
+                break
+        }
+
+        const actualFrequency = category.accountingFrequency;
+        priceFactor = frequencyToMillis(desiredFrequency) / frequencyToMillis(actualFrequency);
+        suffix = "-" + frequencyToSuffix(desiredFrequency, true);
+        unitName = unit.name;
+    }
+
+    if (unit.floatingPoint) priceFactor *= 1 / 1000000;
+
+    return { name: unitName + suffix, priceFactor, invPriceFactor: 1 / priceFactor };
+}
+
+const standardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
+const standardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
+const defaultUnits = ["K", "M", "B", "T"];
+const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
+
+export function balanceToString(category: ProductCategoryV2, balance: number): string {
+    const unit = explainUnit(category);
+
+    const normalizedBalance = balance * unit.priceFactor;
+    let balanceToDisplay = normalizedBalance;
+    let unitToDisplay = unit.name;
+    let attachedSuffix: string | null = null;
+
+    const storageUnitSiIdx = standardStorageUnitsSi.indexOf(unit.name);
+    const storageUnitIdx = standardStorageUnits.indexOf(unit.name);
+    if (category.productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
+        const base = storageUnitIdx !== -1 ? 1024 : 1000;
+        const array = storageUnitIdx !== -1 ? standardStorageUnits : standardStorageUnitsSi;
+        let idx = storageUnitIdx !== -1 ? storageUnitIdx : storageUnitSiIdx;
+
+        while (balanceToDisplay > base && idx < array.length - 1) {
+            balanceToDisplay /= base;
+            idx++;
+        }
+
+        unitToDisplay = array[idx];
+    } else {
+        let threshold = 1000;
+        if (probablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
+
+        if (normalizedBalance >= threshold) {
+            let idx = -1;
+            while (balanceToDisplay >= 1000 && idx < defaultUnits.length - 1) {
+                balanceToDisplay /= 1000;
+                idx++;
+            }
+
+            attachedSuffix = defaultUnits[idx];
+        }
+    }
+
+    let builder = "";
+    builder += addThousandSeparators(removeSuffix(balanceToDisplay.toFixed(2), ".00"));
+    if (attachedSuffix) builder += attachedSuffix;
+    builder += " ";
+    builder += unitToDisplay;
+    return builder;
+}
+
+export interface WalletV2 {
+    owner: WalletOwner;
+    paysFor: ProductCategoryV2;
+    allocations: WalletAllocationV2[];
+}
+
+export interface WalletAllocationV2 {
+    id: string;
+    allocationPath: string[];
+
+    localUsage: number;
+    quota: number;
+    treeUsage?: number | null;
+
+    startDate: number;
+    endDate: number;
+
+    grantedIn?: number | null;
+    deicAllocationId?: string | null;
+
+    canAllocate: boolean;
+    allowSubAllocationsToAllocate: boolean;
+}
+
+export interface SubAllocationV2 {
+    id: string;
+    path: string;
+
+    startDate: number;
+    endDate?: number;
+
+    productCategory: ProductCategoryV2;
+
+    workspaceId: string;
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+    projectPI?: string | null;
+
+    usage: number;
+    quota: number;
+
+    grantedIn?: number | null;
+}
+
+export function browseWalletsV2(
+    request: PaginationRequestV2 & { filterType?: ProductType }
+): APICallParameters<unknown, PageV2<WalletV2>> {
+    return apiBrowse(request, baseContextV2, "wallets");
+}
+
+export function utcDate(ts: number): string {
+    const d = new Date(ts);
+    if (ts >= Number.MAX_SAFE_INTEGER) return "31/12/9999";
+
+    return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
+}
+
+export function utcDateAndTime(ts: number): string {
+    const d = new Date(ts);
+    if (ts >= Number.MAX_SAFE_INTEGER) return "31/12/9999";
+
+    let message = "";
+    message += d.getUTCDate().toString().padStart(2, '0');
+    message += "/";
+    message += (d.getUTCMonth() + 1).toString().padStart(2, '0');
+    message += "/";
+    message += d.getUTCFullYear();
+    message += " ";
+    message += d.getUTCHours().toString().padStart(2, '0');
+    message += ":";
+    message += d.getUTCMinutes().toString().padStart(2, '0');
+    return message;
+}

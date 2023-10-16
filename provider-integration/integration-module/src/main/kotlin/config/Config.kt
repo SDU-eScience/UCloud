@@ -9,6 +9,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonNames
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -28,7 +29,7 @@ data class ConfigSchema(
     val core: Core?,
     val server: Server?,
     val plugins: Plugins?,
-    val products: Products?,
+    val products: ConfigProductSchema?,
     val frontendProxy: FrontendProxy?,
 ) {
     @Serializable
@@ -342,6 +343,7 @@ data class ConfigSchema(
                 val terminal: Terminal = Terminal.Ssh(),
                 val ssh: Ssh? = null,
                 val constraints: List<Constraint> = emptyList(),
+                val extensions: Extensions = Extensions(),
             ) : Jobs() {
                 @Serializable
                 sealed class AccountMapper {
@@ -417,6 +419,11 @@ data class ConfigSchema(
                 data class Constraint(
                     val matches: String,
                     val constraint: String,
+                )
+
+                @Serializable
+                data class Extensions(
+                    val reportComputeUsage: String? = null,
                 )
             }
 
@@ -538,6 +545,7 @@ data class ConfigSchema(
                 val mountLocation: String? = null,
                 @Deprecated("Use systems instead")
                 val useCephStats: Boolean = false,
+                val trash: Trash = Trash(),
             ) : Files() {
                 @Serializable
                 data class System(
@@ -550,6 +558,18 @@ data class ConfigSchema(
                     // the configuration. See normalize() for details.
                     var name: String = "systemplaceholder"
                 )
+
+                @Serializable
+                data class Trash(
+                    val useStagingFolder: Boolean = false,
+                    val stagingFolder: String? = null,
+                ) {
+                    init {
+                        require(!useStagingFolder || stagingFolder != null) {
+                            "if useStagingFolder is true, then the path must be set"
+                        }
+                    }
+                }
 
                 enum class FsType {
                     CephFS,
@@ -598,15 +618,17 @@ data class ConfigSchema(
             data class Posix(
                 override val matches: String,
                 val extensions: Extensions = Extensions(),
-                @Deprecated("replace with extensions.accounting")
-                val accounting: String? = null,
             ) : ConfigSchema.Plugins.FileCollections() {
                 @Serializable
                 data class Extensions(
                     val driveLocator: String? = null,
-                    val accounting: String? = null,
-                    @Deprecated("replace with driveLocator")
+                    val reportStorageUsage: String? = null,
+
+                    @Deprecated("Replace with driveLocator")
                     val additionalCollections: String? = null,
+
+                    @Deprecated("Replace with reportStorageUsage")
+                    val accounting: String? = null,
                 )
             }
 
@@ -663,15 +685,6 @@ data class ConfigSchema(
             val matches: String
         }
     }
-
-    @Serializable
-    data class Products(
-        val compute: Map<String, List<ConfigProduct.Compute>>? = null,
-        val storage: Map<String, List<ConfigProduct.Storage>>? = null,
-        val ingress: Map<String, List<ConfigProduct.Ingress>>? = null,
-        val publicIps: Map<String, List<ConfigProduct.NetworkIP>>? = null,
-        val licenses: Map<String, List<ConfigProduct.License>>? = null,
-    )
 
     @Serializable
     data class FrontendProxy(
@@ -821,8 +834,10 @@ fun loadConfiguration(): ConfigSchema {
 
     val server = parse(ConfigSchema.FILE_SERVER, ConfigSchema.Server.serializer())
     val plugins = parse(ConfigSchema.FILE_PLUGINS, ConfigSchema.Plugins.serializer())
-    val products = parse(ConfigSchema.FILE_PRODUCTS, ConfigSchema.Products.serializer())
     val frontendProxy = parse(ConfigSchema.FILE_FRONTEND_PROXY, ConfigSchema.FrontendProxy.serializer())
+    val products = runCatching {
+        NativeFile.open("$configDir/${ConfigSchema.FILE_PRODUCTS}", readOnly = true).readText()
+    }.getOrNull()?.let { text -> parseProductConfiguration(text) }
 
     return ConfigSchema(configDir, core, server, plugins, products, frontendProxy)
 }

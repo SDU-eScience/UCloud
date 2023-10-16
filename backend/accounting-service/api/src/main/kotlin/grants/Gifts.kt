@@ -3,7 +3,6 @@ package dk.sdu.cloud.grant.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.accounting.api.projects.UserCriteria
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable

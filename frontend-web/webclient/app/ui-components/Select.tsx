@@ -42,6 +42,12 @@ const SelectClass = injectStyle("select", k => `
         outline: none;
         border-color: var(--blue, #f00);
     }
+
+    ${k}:disabled {
+        background: var(--lightGray);
+        opacity: 1;
+        color: var(--black);
+    }
     
     ${k} + .${IconClass} {
         pointer-events: none;
