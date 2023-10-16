@@ -46,7 +46,7 @@ import {StandardButtonSize} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/ExperimentalJobs";
-import {ExperimentalGrantApplications} from "@/Project/Grant/ExperimentalGrantApplications";
+import {ExperimentalGrantApplications} from "@/Grants/ExperimentalGrantApplications";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
 function Dashboard(props: DashboardProps): JSX.Element {
@@ -384,7 +384,7 @@ function DashboardResources({products}: {
         return (a.balance < b.balance) ? 1 : -1;
     });
 
-    const applyLinkButton = <Link to={Client.hasActiveProject ? "/project/grants/existing" : "/project/grants/personal"} mt={8}>
+    const applyLinkButton = <Link to={AppRoutes.grants.editor()} mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 
@@ -435,7 +435,7 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
     if (!canApply) return null;
 
     return <HighlightedCard
-        title={<Link to={AppRoutes.project.grantsOutgoing()}><Heading.h3>Grant Applications</Heading.h3></Link>}
+        title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>Grant Applications</Heading.h3></Link>}
         color="green"
         icon="heroDocumentCheck"
     >

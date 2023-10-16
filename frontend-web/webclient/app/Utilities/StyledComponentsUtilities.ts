@@ -8,6 +8,6 @@ export const cursor = style({
 });
 
 
-export function getCssColorVar(name: ThemeColor): string {
+export function getCssPropertyValue(name: ThemeColor | string): string {
     return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`);
 }

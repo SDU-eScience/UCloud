@@ -42,6 +42,10 @@ export const InputClass = injectStyle("input", k => `
         border: 1px solid var(--midGray);
     }
     
+    ${k}:disabled:hover {
+        border: 1px solid var(--midGray);
+    }
+    
     ${k}:hover {
         border-color: var(--gray);
     }

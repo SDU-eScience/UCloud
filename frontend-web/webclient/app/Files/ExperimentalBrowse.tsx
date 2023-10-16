@@ -35,7 +35,7 @@ import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import {accounting, compute, PageV2} from "@/UCloud";
@@ -660,8 +660,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
 
                     return browser.icons.renderSvg(
                         "file-" + extension,
-                        () => <SvgFt color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")} hasExt={hasExt}
-                            ext={extension} type={type} width={width} height={height} />,
+                        () => <SvgFt color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")} hasExt={hasExt}
+                                     ext={extension} type={type} width={width} height={height} />,
                         width,
                         height
                     );

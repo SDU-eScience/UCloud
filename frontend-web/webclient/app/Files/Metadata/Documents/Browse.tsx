@@ -13,7 +13,7 @@ import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Bro
 import {SvgFt} from "@/ui-components/FtIcon";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
 
 export const entityName = "Metadata (BETA)";
 
@@ -100,8 +100,8 @@ interface MetadataRow {
 const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
     Icon({size}) {
         return <SvgFt width={size} height={size} type={"text"} ext={"meta"}
-            color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
-            hasExt />
+                      color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")}
+                      hasExt />
     },
     MainTitle({resource}) {return !resource ? null : <>{resource.template.title}</>},
     Stats({resource}) {

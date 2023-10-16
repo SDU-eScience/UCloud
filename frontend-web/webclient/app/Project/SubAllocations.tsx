@@ -37,7 +37,7 @@ import {AllocationViewer, resultAsPercent, SubAllocation, allocationText, percen
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
-import ProjectAPI, {useProjectIdFromParams} from "@/Project/Api";
+import ProjectAPI, {useProjectId} from "@/Project/Api";
 import {isAllocationSuitableForSubAllocation} from "@/Grants";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {FlexClass} from "@/ui-components/Flex";
@@ -56,7 +56,7 @@ function rawAllocationTitleInRow(category: string, provider: string) {
 }
 
 
-// FIXME(Jonas): A lot of this file has duplication, due to differences big enough to make it easier to repeat 
+// FIXME(Jonas): A lot of this file has duplication, due to differences big enough to make it easier to repeat
 // instead of generalizing. Generalizing of part of it would be a big improvement to the code.
 
 export const SubAllocationViewer: React.FunctionComponent<{

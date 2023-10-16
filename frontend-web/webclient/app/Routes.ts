@@ -39,13 +39,8 @@ const project = {
     members: () => `/projects/members`,
     usage: () => `/project/resources/`,
     allocations: () => `/project/allocations/`,
-    grantsIngoing: () => `/project/grants/ingoing/`,
-    grantsOutgoing: () => `/project/grants/outgoing/`,
-    grant: (id: string) => `/project/grants/view/${id}`,
     settings: (page: string) => `/project/settings/${page}`,
     subprojects: () => "/subprojects/",
-    grantExisting: () => "/project/grants/existing",
-    grantPersonal: () => "/project/grants/personal"
 }
 
 const syncthing = {
@@ -90,6 +85,12 @@ const resource = {
     properties: (namespace: string, id: string) => `/${namespace}/properties/${encodeURIComponent(id)}`
 }
 
+const grants = {
+    editor: (id?: string) => buildQueryString("/grants", {id}),
+    ingoing: () => "/grants/ingoing",
+    outgoing: () => "/grants/outgoing",
+}
+
 const AppRoutes = {
     apps,
     news,
@@ -102,7 +103,8 @@ const AppRoutes = {
     resources,
     login,
     jobs,
-    syncthing
+    syncthing,
+    grants
 };
 
 export default AppRoutes;

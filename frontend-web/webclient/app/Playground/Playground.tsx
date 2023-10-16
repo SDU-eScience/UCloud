@@ -1,10 +1,9 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {EveryIcon} from "@/ui-components/Icon";
-import {Grid, Box, Button} from "@/ui-components";
+import Icon, {EveryIcon} from "@/ui-components/Icon";
+import {Grid, Box, Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -21,6 +20,9 @@ import {
     FindBulkRequestCompanion,
     Wrapper
 } from "@/UCloud/Scratch";
+import { ContextSwitcher } from "@/Project/ContextSwitcher";
+import {useSelector} from "react-redux";
+import { getCssPropertyValue } from "@/Utilities/StyledComponentsUtilities";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -100,21 +102,23 @@ export const Playground: React.FunctionComponent = () => {
             <Grid gridTemplateColumns={"repeat(5, 1fr)"} mb={"32px"}>
                 <EveryIcon />
             </Grid>
+
             <Grid
                 gridTemplateColumns="repeat(10, 1fr)"
                 style={{overflowY: "scroll"}}
                 mb={"32px"}
             >
                 {colors.map((c: ThemeColor) => (
-                    <Box
-                        title={`${c}, ${getCssVar(c)}`}
+                    <div
+                        title={`${c}, var(${c})`}
                         key={c}
-                        backgroundColor={c}
-                        height={"100px"}
-                        width={"100%"}
-                    />
+                        style={{color: "black", backgroundColor: `var(--${c})`, height: "100%", width: "100%"}}
+                    >
+                        {c} {getCssPropertyValue(c)}
+                    </div>
                 ))}
             </Grid>
+
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
         </>
     );
@@ -177,5 +181,27 @@ const colors: ThemeColor[] = [
     "appCard",
     "wayfGreen",
 ];
+
+export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
+    return (<Flex zIndex={"1"}>
+        <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
+        <Box width="32px"><RefreshThing /></Box>
+        <Box width="200px"><ContextSwitcher /></Box>
+    </Flex>);
+}
+
+function SearchThing({enabled}): JSX.Element | null {
+    if (!enabled) return null;
+    return <Icon size={20} color="var(--blue)" name="heroMagnifyingGlass" />
+}
+
+function RefreshThing(): JSX.Element | null {
+    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
+    const spin = useSelector((it: ReduxObject) => it.loading);
+    const loading = useSelector((it: ReduxObject) => it.status.loading);
+    if (!refresh) return null;
+    return <Icon cursor="pointer" size={24} onClick={refresh} spin={spin || loading} hoverColor="blue"
+                 color="var(--blue)" name="heroArrowPath" />
+}
 
 export default Playground;

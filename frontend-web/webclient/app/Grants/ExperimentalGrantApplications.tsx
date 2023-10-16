@@ -1,17 +1,16 @@
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {GrantApplication, browseGrantApplications} from "./GrantApplicationTypes";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {callAPI} from "@/Authentication/DataHook";
-import {GrantApplicationFilter} from ".";
 import MainContainer from "@/MainContainer/MainContainer";
 import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
-import {STATE_ICON_AND_COLOR} from "./GrantApplications";
 import {dateToString} from "@/Utilities/DateUtilities";
+import * as Grants from ".";
+import {stateToIconAndColor} from ".";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -27,7 +26,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean; omitFilters?: boolean; disabledKeyhandlers?: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
-    const browserRef = React.useRef<ResourceBrowser<GrantApplication>>(null);
+    const browserRef = React.useRef<ResourceBrowser<Grants.Application>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
@@ -51,15 +50,15 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<GrantApplication>(mount, "Grant Application", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Grants.Application>(mount, "Grant Application", opts).init(browserRef, features, "", browser => {
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        navigate(AppRoutes.project.grant(resource.id));
+                        navigate(AppRoutes.grants.editor(resource.id));
                         return;
                     }
 
-                    callAPI(browseGrantApplications({
-                        filter: GrantApplicationFilter.SHOW_ALL,
+                    callAPI(Grants.browse({
+                        filter: Grants.ApplicationFilter.SHOW_ALL,
                         includeIngoingApplications: isIngoing,
                         includeOutgoingApplications: !isIngoing,
                         ...defaultRetrieveFlags
@@ -74,11 +73,11 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                 browser.on("wantToFetchNextPage", async path => {
                     /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
-                        browseGrantApplications({
+                        Grants.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
-                            filter: GrantApplicationFilter.SHOW_ALL,
+                            filter: Grants.ApplicationFilter.SHOW_ALL,
                             includeIngoingApplications: isIngoing,
                             includeOutgoingApplications: !isIngoing
                         })
@@ -101,7 +100,10 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                     }).then(setIcon);
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims));
-                    const [statusIconName, statusIconColor] = STATE_ICON_AND_COLOR[key.status.overallState];
+                    const stateIconAndColor = stateToIconAndColor(key.status.overallState);
+                    const statusIconName = stateIconAndColor.icon;
+                    const statusIconColor = stateIconAndColor.color;
+
                     const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                     browser.icons.renderIcon({
                         name: statusIconName,
@@ -157,15 +159,15 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                     const selected = browser.findSelectedEntries();
                     const ops = [{
                         icon: "fileSignatureSolid" as IconName,
-                        enabled(selected: GrantApplication[]) {
+                        enabled(selected: Grants.Application[]) {
                             return selected.length === 0 && isIngoing;
                         },
-                        onClick() {navigate(AppRoutes.project.grantsOutgoing())},
+                        onClick() {navigate(AppRoutes.grants.outgoing())},
                         text: "Show outgoing applications",
                     }, {
                         icon: "fileSignatureSolid" as IconName,
-                        enabled(selected: GrantApplication[]) {return selected.length === 0 && !isIngoing},
-                        onClick() {navigate(AppRoutes.project.grantsIngoing())},
+                        enabled(selected: Grants.Application[]) {return selected.length === 0 && !isIngoing},
+                        onClick() {navigate(AppRoutes.grants.ingoing())},
                         text: "Show ingoing applications",
                     }];
                     return ops.filter(it => it.enabled(selected));

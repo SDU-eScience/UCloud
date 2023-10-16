@@ -24,7 +24,7 @@ import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
 import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
@@ -95,8 +95,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     templateRenderer: ItemRenderer<FileMetadataTemplate, TemplateCallbacks> = {
         Icon({resource, size}) {
             return <SvgFt width={size} height={size} type={"text"} ext={""}
-                color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
-                hasExt={false} />
+                          color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")}
+                          hasExt={false} />
         },
         MainTitle({resource}) {return !resource ? null : <>{resource.title}</>},
         Stats({resource}) {

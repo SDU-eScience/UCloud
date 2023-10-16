@@ -11,8 +11,6 @@ const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
-const IngoingApplications = React.lazy(() => import("@/Grants/IngoingApplications"));
-const OutgoingApplications = React.lazy(() => import("@/Grants/OutgoingApplications"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
@@ -81,7 +79,7 @@ import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
 import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
-import {ExperimentalGrantApplications} from "./Project/Grant/ExperimentalGrantApplications";
+import {ExperimentalGrantApplications} from "./Grants/ExperimentalGrantApplications";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {JobsRouter} from "./Applications/Jobs/Router";
 import {DrivesRouter, FilesRouter} from "./Files/Router";
@@ -219,10 +217,10 @@ const Core = (): React.JSX.Element => (
                         <Route path={AppRoutes.project.allocations()}
                             element={React.createElement(requireAuth(ProjectAllocations))} />
 
-                        <Route path="/grants" element={React.createElement(requireAuth(GrantEditor))} />
-                        <Route path={AppRoutes.project.grantsIngoing()}
+                        <Route path={AppRoutes.grants.editor()} element={React.createElement(requireAuth(GrantEditor))} />
+                        <Route path={AppRoutes.grants.ingoing()}
                             element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
-                        <Route path={AppRoutes.project.grantsOutgoing()}
+                        <Route path={AppRoutes.grants.outgoing()}
                             element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
 
                         <Route

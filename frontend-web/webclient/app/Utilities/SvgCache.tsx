@@ -2,7 +2,7 @@ import {AsyncCache} from "./AsyncCache";
 import {useLayoutEffect, useRef} from "react";
 import {createRoot} from "react-dom/client";
 import * as React from "react";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 
@@ -70,8 +70,8 @@ export class SvgCache {
         width: number,
         height: number
     }): Promise<string> {
-        const c1 = getCssColorVar(color);
-        const c2 = color2 ? getCssColorVar(color) : undefined;
+        const c1 = getCssPropertyValue(color);
+        const c2 = color2 ? getCssPropertyValue(color) : undefined;
         return await this.renderSvg(
             `${name}-${c1}-${c2}-${width}-${height}`,
             () => <Icon name={name} color={c1} color2={c2} width={width} height={height} />,

@@ -29,6 +29,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import formatDistance from "date-fns/formatDistance";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 // State model
 // =====================================================================================================================
@@ -1008,8 +1009,8 @@ const style = injectStyle("grant-editor", k => `
     /* -------------------------------------------------------------------------------------------------------------- */
     ${k} header {
         position: fixed;
-        top: var(--headerHeight);
-        left: var(--sidebarWidth);
+        top: 0;
+        left: var(--currentSidebarWidth);
         
         background: var(--white);
         
@@ -1019,7 +1020,7 @@ const style = injectStyle("grant-editor", k => `
         gap: 8px;
         
         height: 50px;
-        width: calc(100vw - var(--sidebarWidth));
+        width: calc(100vw - var(--currentSidebarWidth));
         
         padding: 0 16px;
         z-index: 10;
@@ -1062,6 +1063,10 @@ const style = injectStyle("grant-editor", k => `
     
     /* typography tweaks */
     /* -------------------------------------------------------------------------------------------------------------- */
+    ${k} h1, ${k} h2, ${k} h3, ${k} h4 {
+        margin: 19px 0;
+    }
+    
     ${k} h4 {
         display: flex;
         align-items: center;
@@ -1595,6 +1600,9 @@ export const Editor: React.FunctionComponent = () => {
     const validateThenUpdate = useCallback(async () => {
         if (await onUpdate(true)) {
             await onUpdate(false);
+        } else {
+            // TODO FIXME
+            snackbarStore.addFailure("Validation error, see the form for details", false);
         }
     }, [onUpdate]);
 
@@ -1660,15 +1668,17 @@ export const Editor: React.FunctionComponent = () => {
         const scrollListener = () => {
             const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>(`.${style} h3`));
             let scrollOffsetY = scrollingElement.scrollTop;
+            const header = document.querySelector<HTMLElement>(`.${style} header`);
+            if (!header) return;
 
             if (scrollOffsetY === 0) {
-                document.querySelector<HTMLElement>(`.${style} header`)!.classList.add("at-top");
+                header.classList.add("at-top");
             } else {
-                document.querySelector<HTMLElement>(`.${style} header`)!.classList.remove("at-top");
+                header.classList.remove("at-top");
             }
 
             const stickyHeader = document.querySelector<HTMLHeadingElement>(`.${style} header h3`)!;
-            scrollOffsetY += 95; // NOTE(Dan): Fragile magic number which makes it feel correct
+            scrollOffsetY += 30; // NOTE(Dan): Fragile magic number which makes it feel correct
 
             let headingToUse = "";
             for (let i = 1; i < headings.length; i++) {
@@ -2187,7 +2197,7 @@ const TransferPrompt: React.FunctionComponent<{
     onTransfer: (targetId: string, comment: string) => void;
 }> = ({allocators, onTransfer}) => {
     const selectRef = useRef<HTMLSelectElement>(null);
-    const commentRef = useRef<HTMLTextAreaElement>(null);
+    const commentRef = useRef<HTMLInputElement>(null);
 
     const onSubmit = useCallback((ev: React.SyntheticEvent) => {
         ev.preventDefault();
@@ -2214,7 +2224,7 @@ const TransferPrompt: React.FunctionComponent<{
             id={"project-transfer-comment"}
             placeholder={"Please describe the reason for transferring this application."}
             rows={9}
-            ref={commentRef}
+            inputRef={commentRef}
         />
 
         <Button fullWidth type={"submit"}>Transfer application</Button>
@@ -2255,7 +2265,7 @@ const CommentSection: React.FunctionComponent<{
     onRevisionSelected: (revisionNumber: number) => void;
 }> = props => {
     const avatars = useAvatars();
-    const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const textAreaRef = useRef<HTMLInputElement>(null);
     const scrollingRef = useRef<HTMLDivElement>(null);
 
     const onFormSubmit = useCallback(() => {
@@ -2374,7 +2384,7 @@ const CommentSection: React.FunctionComponent<{
         <div className={"create-comment"}>
             <div className="wrapper">
                 <UserAvatar avatar={avatars.avatar(Client.username!)} width={"48px"} />
-                <TextArea ref={textAreaRef} rows={3} disabled={props.disabled}
+                <TextArea inputRef={textAreaRef} rows={3} disabled={props.disabled}
                           placeholder={"Your comment"} onKeyDown={onKeyDown} />
             </div>
 
@@ -2466,6 +2476,8 @@ const GrantGiver: React.FunctionComponent<{
         }
     }, [props.projectId, props.allAllocators, props.onTransfer]);
 
+    const stateIconAndColor = Grants.stateToIconAndColor(props.state ?? Grants.State.IN_PROGRESS);
+
     return <div className={"grant-giver"}>
         <div className={"grow"}>
             <label htmlFor={checkboxId}>
@@ -2517,10 +2529,7 @@ const GrantGiver: React.FunctionComponent<{
             </>}
         </>}
         {props.isEditing && (!isAdmin || props.state !== Grants.State.IN_PROGRESS) && props.state && <>
-            {props.state === Grants.State.APPROVED && <Icon name={"heroCheck"} color={"green"} />}
-            {props.state === Grants.State.REJECTED && <Icon name={"heroXMark"} color={"red"} />}
-            {props.state === Grants.State.CLOSED && <Icon name={"heroXMark"} color={"red"} />}
-            {props.state === Grants.State.IN_PROGRESS && <Icon name={"heroMinus"} color={"gray"} />}
+            <Icon name={stateIconAndColor.icon} color={stateIconAndColor.color} />
         </>}
     </div>
 }
@@ -2872,30 +2881,35 @@ class TimeTracker {
         const e = Math.floor(end / 1000);
 
         if (!this.isContiguous()) {
-            let reason = "Missing allocation between "
-            reason += Accounting.utcDateAndTime(this.periods[0].end * 1000);
-            reason += " and ";
-            reason += Accounting.utcDateAndTime(this.periods[1].start * 1000);
-            reason += "!"
-
-            return reason;
+            return this.explainMissingAlloc(
+                this.periods[0].end * 1000,
+                this.periods[1].start * 1000,
+            );
         } else {
             if (s < this.periods[0].start) {
-                let reason = "Missing allocation between "
-                reason += Accounting.utcDateAndTime(this.periods[0].start * 1000);
-                reason += " and ";
-                reason += Accounting.utcDateAndTime(start);
-                reason += "!"
-                return reason;
+                return this.explainMissingAlloc(
+                    this.periods[0].start * 1000,
+                    start,
+                );
             } else {
-                let reason = "Missing allocation between "
-                reason += Accounting.utcDateAndTime(this.periods[0].end * 1000);
-                reason += " and ";
-                reason += Accounting.utcDateAndTime(end);
-                reason += "!"
-                return reason;
+                return this.explainMissingAlloc(
+                    this.periods[0].end * 1000,
+                    end,
+                );
             }
         }
+    }
+
+    private explainMissingAlloc(ts1: number, ts2: number) {
+        const start = Math.min(ts1, ts2);
+        const end = Math.max(ts1, ts2);
+
+        let reason = "Missing allocation between "
+        reason += Accounting.utcDateAndTime(start);
+        reason += " and ";
+        reason += Accounting.utcDateAndTime(end);
+        reason += "!";
+        return reason;
     }
 
     private collapseAdjacentPeriods() {

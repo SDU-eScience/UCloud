@@ -3,6 +3,8 @@ import * as Accounting from "@/Accounting";
 import {FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
 import {WalletAllocation} from "@/Accounting";
 import {timestampUnixMs} from "@/UtilityFunctions";
+import {IconName} from "@/ui-components/Icon";
+import {ThemeColor} from "@/ui-components/theme";
 
 const baseContext = "/api/grants/v2";
 
@@ -94,7 +96,7 @@ export function updateRequestSettings(
     return apiUpdate(request, baseContext, "updateRequestSettings");
 }
 
-export function readRequestSettings(): APICallParameters<unknown, RequestSettings> {
+export function retrieveRequestSettings(): APICallParameters<unknown, RequestSettings> {
     return apiRetrieve({}, baseContext, "requestSettings");
 }
 
@@ -315,4 +317,18 @@ export function isAllocationSuitableForSubAllocation(alloc: WalletAllocation): b
     return (alloc.endDate == null || now < alloc.endDate) &&
         alloc.localBalance > 0 &&
         alloc.canAllocate;
+}
+
+
+export function stateToIconAndColor(state: State): { icon: IconName, color: ThemeColor } {
+    switch (state) {
+        case State.APPROVED:
+            return { icon: "heroCheck", color: "green" };
+        case State.REJECTED:
+            return { icon: "heroXMark", color: "red" };
+        case State.CLOSED:
+            return { icon: "heroXMark", color: "red" };
+        case State.IN_PROGRESS:
+            return { icon: "heroMinus", color: "gray" };
+    }
 }

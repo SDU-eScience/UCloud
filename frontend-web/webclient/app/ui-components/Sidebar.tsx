@@ -15,7 +15,7 @@ import Link from "./Link";
 import Text, {EllipsedText, TextSpan} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
-import {useCallback} from "react";
+import {useCallback, useEffect} from "react";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
@@ -54,6 +54,7 @@ import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -486,6 +487,17 @@ function SecondarySidebar({
     const isOpen = clicked !== "" || hovered !== "";
     const active = hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
+
+    useEffect(() => {
+        const firstLevel = parseInt(getCssPropertyValue("sidebarWidth").replace("px", ""));
+        const secondLevel = parseInt(getCssPropertyValue("secondarySidebarWidth").replace("px", ""));
+
+        let sum = firstLevel;
+        if (isOpen) sum += secondLevel;
+
+        document.body.style.setProperty("--currentSidebarWidth", `${sum}px`);
+    }, [isOpen]);
+
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {

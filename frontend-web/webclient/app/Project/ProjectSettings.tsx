@@ -97,24 +97,24 @@ export const ProjectSettings: React.FunctionComponent = () => {
         }
     });
 
-    const templatePersonal = useRef<HTMLTextAreaElement>(null);
-    const templateExisting = useRef<HTMLTextAreaElement>(null);
-    const templateNew = useRef<HTMLTextAreaElement>(null);
-    const description = useRef<HTMLTextAreaElement>(null);
+    const templatePersonal = useRef<HTMLInputElement>(null);
+    const templateExisting = useRef<HTMLInputElement>(null);
+    const templateNew = useRef<HTMLInputElement>(null);
+    const description = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         (async () => {
             const res = await callAPIWithErrorHandler<Grants.RequestSettings>(
                 {
-                    ...Grants.readRequestSettings(),
-                    projectOverride: project.id
+                    ...Grants.retrieveRequestSettings(),
+                    projectOverride: projectId
                 }
             );
 
             if (!res) return;
             if (!didUnmount.current) setSettings(res);
         })()
-    }, [project.id]);
+    }, [projectId]);
 
     useEffect(() => {
         const p = templatePersonal.current;
@@ -235,22 +235,22 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 <form onSubmit={onSave}>
                     <label>
                         Project description <br/>
-                        <TextArea width={"100%"} rows={5} ref={description} />
+                        <TextArea width={"100%"} rows={5} inputRef={description} />
                     </label>
 
                     <label>
                         Template for personal projects <br/>
-                        <TextArea width={"100%"} rows={5} ref={templatePersonal} />
+                        <TextArea width={"100%"} rows={5} inputRef={templatePersonal} />
                     </label>
 
                     <label>
                         Template for existing projects <br/>
-                        <TextArea width={"100%"} rows={5} ref={templateExisting} />
+                        <TextArea width={"100%"} rows={5} inputRef={templateExisting} />
                     </label>
 
                     <label>
                         Template for new projects <br/>
-                        <TextArea width={"100%"} rows={5} ref={templateNew} />
+                        <TextArea width={"100%"} rows={5} inputRef={templateNew} />
                     </label>
 
                     {settings.enabled && <>
@@ -370,7 +370,7 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): JSX.Element 
                                 required
                                 ml="2px"
                                 type="text"
-                                ref={newProjectTitle}
+                                inputRef={newProjectTitle}
                                 placeholder="New project title"
                                 autoComplete="off"
                                 onChange={() => {
@@ -811,7 +811,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                 <Flex height={47}>
                     {type.type !== "anyone" ? null : null}
                     {type.type !== "email" ? null : <>
-                        <Input ref={inputRef} placeholder={"Email domain"} />
+                        <Input inputRef={inputRef} placeholder={"Email domain"} />
                     </>}
                     {type.type !== "wayf" ? null : <>
                         {/* WAYF idps extracted from https://metadata.wayf.dk/idps.js*/}

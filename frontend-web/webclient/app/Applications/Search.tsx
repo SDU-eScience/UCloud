@@ -10,10 +10,9 @@ import {GridCardGroup} from "@/ui-components/Grid";
 import {AppCard, ApplicationCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
 import {Box, Flex, Input} from "@/ui-components";
-import AppRoutes from "@/Routes";
 import {Link} from "react-router-dom";
 import * as Pages from "./Pages";
-import {FavoriteAppRow, LargeSearchBox} from "./Overview";
+import {LargeSearchBox} from "./Overview";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 interface SearchQuery {
@@ -87,7 +86,7 @@ export const SearchResults: React.FunctionComponent = () => {
                             <AppCard
                                 title={app.metadata.title}
                                 description={app.metadata.description}
-                                logo={app.metadata.name} 
+                                logo={app.metadata.name}
                                 logoType="APPLICATION"
                                 type={ApplicationCardType.WIDE}
                                 onFavorite={toggleFavorite}

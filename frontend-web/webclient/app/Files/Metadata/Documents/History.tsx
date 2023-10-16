@@ -19,7 +19,7 @@ import {UFile} from "@/UCloud/FilesApi";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {Operation} from "@/ui-components/Operation";
 import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
 import {injectStyle} from "@/Unstyled";
 
 export const History: React.FunctionComponent<{
@@ -228,8 +228,8 @@ const entryRenderer: ItemRenderer<DocumentRow> = {
         else if (status.type === "pending") return <Icon name={"warning"} color={"orange"} size={props.size} />;
         else if (status.type === "rejected") return <Icon name={"trash"} color={"red"} size={props.size} />;
         return <SvgFt width={props.size} height={props.size} type={"text"} ext={"meta"}
-            color={getCssColorVar("FtIconColor")} color2={getCssColorVar("FtIconColor2")}
-            hasExt={true} />
+                      color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")}
+                      hasExt={true} />
     },
     MainTitle: props => {
         if (!props.resource) return null;

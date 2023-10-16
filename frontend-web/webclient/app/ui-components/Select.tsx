@@ -13,34 +13,46 @@ const SelectClass = injectStyle("select", k => `
     ${k} {
         appearance: none;
         display: block;
-        width: 100%;
-        cursor: pointer;
         font-family: inherit;
-        color: inherit;
-        background-color: transparent;
-        border-radius: 5px;
-        border-width: 2px;
-        border-style: solid;
-        border-color: var(--borderGray, #f00);
-        
+        color: var(--black);
+        background-color: var(--inputColor);
         margin: 0;
+        border-width: 0px;
+        width: 100%;
+        border-radius: 5px;
+        height: 42px;
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
+        border: 1px solid var(--midGray);
         padding-left: 12px;
         padding-right: 32px;
         padding-top: 7px;
         padding-bottom: 7px;
     }
     
+    ${k}:disabled:hover {
+        border: 1px solid var(--midGray);
+    }
+    
+    ${k}:hover {
+        border-color: var(--gray);
+    }
+    
+    ${k}::placeholder {
+        color: var(--gray);
+    }
+    
     ${k} > option {
         color: black;
     }
 
-    ${k}:invalid, ${k}[data-error="true"] {
+    ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
         border-color: var(--red, #f00);
     }
 
     ${k}:focus {
-        outline: none;
-        border-color: var(--blue, #f00);
+        outline: 0;
+        border-color: var(--blue);
+        box-shadow: 0 0 3px -1px var(--blue);
     }
 
     ${k}:disabled {

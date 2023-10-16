@@ -1,11 +1,13 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useEffect, useReducer, useRef, useState} from "react";
-import {capitalized, defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "@/UtilityFunctions";
+import {defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "@/UtilityFunctions";
 import {useGlobal, ValueOrSetter} from "@/Utilities/ReduxHooks";
 import {HookStore} from "@/DefaultObjects";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as React from "react";
+
+const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1);
 
 function dataFetchReducer<T>(state: APICallState<T>, action): APICallState<T> {
     switch (action.type) {

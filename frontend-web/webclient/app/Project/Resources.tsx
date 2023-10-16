@@ -31,7 +31,7 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Spacer} from "@/ui-components/Spacer";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
 import {injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import {ProjectPageTitle} from "./Allocations";
@@ -306,8 +306,8 @@ const UsageChartViewer: React.FunctionComponent<{
                         dataKey={it}
                         animationDuration={ANIMATION_DURATION}
                         strokeWidth={"2px"}
-                        stroke={getCssColorVar(("dark" + capitalized(COLORS[index % COLORS.length]) as ThemeColor))}
-                        fill={getCssColorVar(COLORS[index % COLORS.length])}
+                        stroke={getCssPropertyValue(("dark" + capitalized(COLORS[index % COLORS.length]) as ThemeColor))}
+                        fill={getCssPropertyValue(COLORS[index % COLORS.length])}
                     />
                 )}
             </AreaChart>
