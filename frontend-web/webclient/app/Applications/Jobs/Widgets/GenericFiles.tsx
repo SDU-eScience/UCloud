@@ -57,6 +57,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                 opts={{
                     additionalFilters: additionalFilters,
                     embedded: true,
+                    isModal: true,
                     initialPath: "",
                     selection: {
                         onSelect: async res => {

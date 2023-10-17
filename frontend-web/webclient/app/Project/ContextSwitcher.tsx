@@ -42,12 +42,17 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     return result;
 }
 
-export function ContextSwitcher(): JSX.Element {
-    const activeProject = useSelector((it: ReduxObject) => it.project.project);
+export function ContextSwitcher({managed}: {
+    managed?: {
+        setLocalProject: (project?: string) => void;
+    }
+}): JSX.Element {
     const refresh = useSelector((it: ReduxObject) => it.header.refresh);
 
     const project = useProject();
     const projectId = useProjectId();
+    // Note(Jonas): Only for use if the context switcher data is managed elsewhere.
+    const [controlledProject, setControlledProject] = React.useState(projectId);
     const [error, setError] = React.useState("");
 
     const [projectList, setProjectList] = React.useState<PageV2<Project>>(emptyPageV2);
@@ -69,12 +74,12 @@ export function ContextSwitcher(): JSX.Element {
         dispatchSetProjectAction(dispatch, id);
     }, [dispatch]);
 
-    let activeContext = "My Workspace";
+    let activeContext = "My workspace";
+    const activeProject = managed ? controlledProject : projectId;
     if (activeProject) {
-        const title =
-            projectId === project.fetch().id ?
-                project.fetch().specification.title :
-                projectList.items.find(it => it.id === projectId)?.specification.title ?? "";
+        const title = activeProject === project.fetch().id ?
+            project.fetch().specification.title :
+            projectList.items.find(it => it.id === activeProject)?.specification.title ?? "";
         if (title) {
             activeContext = title;
         } else {
@@ -105,6 +110,14 @@ export function ContextSwitcher(): JSX.Element {
 
     const divRef = React.useRef<HTMLDivElement>(null);
 
+    const setActiveProject = React.useCallback((id?: string) => {
+        if (managed?.setLocalProject) {
+            managed.setLocalProject(id);
+            setControlledProject(id);
+        } else {
+            onProjectUpdated(navigate, () => setProject(id), refresh, id ?? "")
+        }
+    }, []);
 
     return (
         <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
@@ -120,7 +133,7 @@ export function ContextSwitcher(): JSX.Element {
                 arrowkeyNavigationKey="data-active"
                 onSelect={el => {
                     const id = el?.getAttribute("data-project") ?? undefined;
-                    onProjectUpdated(navigate, () => setProject(id), refresh, id)
+                    setActiveProject(id)
                 }}
                 onClose={() => {
                     arrowKeyIndex.current = -1;
@@ -142,18 +155,16 @@ export function ContextSwitcher(): JSX.Element {
                         }} onKeyUp={e => setTitleFilter("value" in e.target ? e.target.value as string : "")} type="text" />
                         <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
-                        {projectId !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
-                            <div key={"My Workspace"} style={{width: "100%"}} data-active={projectId === undefined} className={BottomBorderedRow} onClick={() => {
-                                onProjectUpdated(navigate, () => setProject(), refresh, "")
+                        {activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
+                            <div key={"My Workspace"} style={{width: "100%"}} data-active={activeProject === undefined} className={BottomBorderedRow} onClick={() => {
+                                setActiveProject();
                             }}>
                                 <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={"starFilled"} />
                                 <Text fontSize="var(--breadText)">My Workspace</Text>
                             </div>
                         ) : null}
                         {filteredProjects.map(it =>
-                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === projectId} data-project={it.id} className={BottomBorderedRow} onClick={() => {
-                                onProjectUpdated(navigate, () => setProject(it.id), refresh, it.id)
-                            }}>
+                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === activeProject} data-project={it.id} className={BottomBorderedRow} onClick={() => setActiveProject(it.id)}>
                                 <Favorite project={it} />
                                 <Text fontSize="var(--breadText)">{it.specification.title}</Text>
                             </div>

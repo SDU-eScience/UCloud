@@ -459,13 +459,16 @@ export function getUserThemePreference(): "light" | "dark" {
     return "light";
 }
 
-function b64DecodeUnicode(str) {
+function b64DecodeUnicode(str: string) {
     // Going backwards: from bytestream, to percent-encoding, to original string.
     return decodeURIComponent(atob(str).split('').map(function (c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
 }
 
+export function merge<T>(a: T, b: T): T {
+    return {...a, ...b};
+}
 
 /**
  * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as

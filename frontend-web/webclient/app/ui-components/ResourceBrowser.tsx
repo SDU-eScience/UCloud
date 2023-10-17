@@ -33,7 +33,7 @@ const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
-    embedded?: boolean;
+    embedded?: boolean; // TODO(Jonas): Rename to something like 'simple' or similar.
     omitFilters?: boolean;
     disabledKeyhandlers?: boolean;
     isModal?: boolean;
@@ -568,14 +568,13 @@ export class ResourceBrowser<T> {
         if (this.features.filters) {
             this.renderSessionFilters();
         }
-        if (!this.opts.embedded) {
-            if (this.features.contextSwitcher) {
-                const div = document.createElement("div");
-                div.style.marginLeft = "20px";
-                div.className = "context-switcher";
-                const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
-                headerThing.appendChild(div);
-            }
+        
+        if (this.features.contextSwitcher) {
+            const div = document.createElement("div");
+            div.style.marginLeft = "20px";
+            div.className = "context-switcher";
+            const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
+            headerThing.appendChild(div);
         }
 
         if (this.features.rowTitles) {
@@ -3428,12 +3427,17 @@ export function clearFilterStorageValue(namespace: string, key: string) {
     localStorage.removeItem(`${namespace}:${key}`);
 }
 
-export function addContextSwitcherInPortal<T>(browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: JSX.Element) => void) {
+export function addContextSwitcherInPortal<T>(
+    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: JSX.Element) => void,
+    managed?: {
+        setLocalProject: (project: string | undefined) => void
+    }
+) {
     const browser = browserRef.current;
     if (browser != null) {
         const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
         if (contextSwitcher) {
-            setPortal(createPortal(<ContextSwitcher />, contextSwitcher));
+            setPortal(createPortal(<ContextSwitcher managed={managed} />, contextSwitcher));
         }
     }
 }

@@ -37,7 +37,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssColorVar} from "@/Utilities/StyledComponentsUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {accounting, compute, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
@@ -110,11 +110,16 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
 
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
-    const didUnmount = useDidUnmount();
+    const activeProject = useRef(opts?.isModal ? Client.projectId : undefined);
 
-    const features = {
-        ...FEATURES
-    };
+    function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
+        return baseCallAPI({
+            ...parameters,
+            projectOverride: activeProject.current
+        });
+    }
+
+    const didUnmount = useDidUnmount();
 
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
@@ -122,7 +127,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
                 browser.setRowTitles(rowTitles);
 
                 // Syncthing data
@@ -865,13 +870,10 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
 
                     if (browser.opts.embedded) {
                         collectionCacheForCompletion.retrieve("", () =>
-                            callAPI(
-                                FileCollectionsApi.browse({
-                                    itemsPerPage: 250,
-                                    filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                                    ...opts?.additionalFilters
-                                })
-                            ).then(res => res.items)
+                            callAPI(FileCollectionsApi.browse({
+                                itemsPerPage: 250,
+                                filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                            })).then(res => res.items)
                         ).then(doNothing);
                         if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
                             const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
@@ -1079,12 +1081,14 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
                         .then(() => browser.renderOperations());
 
                     collectionCache
-                        .retrieve(collectionId, () => callAPI(FileCollectionsApi.retrieve({
-                            id: collectionId,
-                            includeOthers: true,
-                            includeSupport: true,
-                            ...opts?.additionalFilters
-                        }))).then(() => {
+                        .retrieve(collectionId, () => callAPI(
+                            FileCollectionsApi.retrieve({
+                                id: collectionId,
+                                includeOthers: true,
+                                includeSupport: true,
+                                ...opts?.additionalFilters
+                            })
+                        )).then(() => {
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
                                 if (!collection?.specification.product.provider) return;
@@ -1098,8 +1102,7 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
                                                 syncthingConfig = config
                                                 browser.renderRows();
                                                 browser.renderOperations();
-                                            })
-                                            .catch(doNothing);
+                                            }).catch(doNothing);
                                     }
                                 });
                             }
@@ -1126,8 +1129,8 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
                             ...opts?.additionalFilters
-                        })
-                    );
+                        }
+                        ));
 
                     if (path !== browser.currentPath) return;
 
@@ -1289,8 +1292,32 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
                 browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
             });
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
     }, []);
+
+    const setLocalProject = opts?.isModal ? (projectId?: string) => {
+        activeProject.current = projectId;
+
+        // WARNING(Jonas): DUPLICATION!
+        const b = browserRef.current;
+        if (!b) return;
+
+        collectionCacheForCompletion.invalidateAll();
+        collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
+            FileCollectionsApi.browse({
+                itemsPerPage: 10,
+                filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                ...opts.additionalFilters,
+            })
+        ).then(res => {
+            const [first] = res.items;
+            if (first) {
+                selectorPathRef.current = first.id;
+                b.open(selectorPathRef.current);
+            }
+            return res.items;
+        }))
+    } : undefined;
 
     useLayoutEffect(() => {
         const b = browserRef.current;
@@ -1298,19 +1325,21 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initia
 
         if (opts?.initialPath !== undefined) {
             if (selectorPathRef.current === "") {
-                callAPI(
+                // WARNING(Jonas): DUPLICATION!
+                collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
                     FileCollectionsApi.browse({
                         itemsPerPage: 10,
                         filterMemberFiles: "DONT_FILTER_COLLECTIONS",
                         ...opts.additionalFilters,
                     })
-                ).then(res => {
+                ).then((res: PageV2<FileCollection>) => {
                     const [first] = res.items;
                     if (first) {
                         selectorPathRef.current = first.id;
                         b.open(selectorPathRef.current);
                     }
-                })
+                    return res.items;
+                }))
             } else {
                 b.open(selectorPathRef.current);
             }
@@ -1346,8 +1375,7 @@ export default ExperimentalBrowse;
 
 function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
     const collections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
-    const activeDrive = browser.currentPath.split("/").filter(it => it)[0] ?? "";
-    const filteredCollections = collections.filter(it => it.id !== activeDrive);
+    const filteredCollections = collections;
 
     const elements: HTMLElement[] = filteredCollections.map((collection, index) => {
         const wrapper = document.createElement("li");
@@ -1365,7 +1393,9 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
 
     const handlers: (() => void)[] = filteredCollections.map(collection => {
         return () => {
-            browser.open(`/${collection.id}`);
+            if (collection.id !== browser.currentPath.split("/").filter(it => it)[0]) {
+                browser.open(`/${collection.id}`);
+            }
             browser.closeContextMenu();
         }
     });
