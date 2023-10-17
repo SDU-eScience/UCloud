@@ -135,14 +135,18 @@ declare global {
         LegacyReduxObject;
 }
 
-export const initHeader = (): HeaderSearchReduxObject => ({
-    prioritizedSearch: "files"
-});
+export function initHeader(): HeaderSearchReduxObject {
+    return ({
+        prioritizedSearch: "files"
+    });
+}
 
-export const initStatus = (): StatusReduxObject => ({
-    title: "",
-    loading: false
-});
+export function initStatus(): StatusReduxObject {
+    return ({
+        title: "",
+        loading: false
+    });
+}
 
 export const initDashboard = (): DashboardStateProps => ({
     notifications: {items: []},
@@ -167,7 +171,9 @@ function getThemeOrDefaultValue(): "light" | "dark" {
 }
 
 export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
-export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
+export function initAvatar(): AvatarReduxObject {
+    return {...defaultAvatar, error: undefined};
+}
 
 export const defaultSearchPlaceholder = "Search files and applications..."
 

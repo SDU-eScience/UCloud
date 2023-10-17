@@ -50,4 +50,10 @@ export class AsyncCache<V> {
     retrieve(name: string, fn: () => Promise<V>, ttl?: number): Promise<V> {
         return this.retrieveWithInvalidCache(name, fn, ttl)[1];
     }
+
+    invalidateAll() {
+        this.expiration = {};
+        this.cache = {};
+        this.inflight = {};
+    }
 }

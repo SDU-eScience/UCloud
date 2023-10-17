@@ -135,8 +135,6 @@ function ClickableDropdown<T>({
             _onKeyDown(event, divRef, counter, navigationKey, props.onSelect)
         }
 
-        console.log(event)
-
         if (event.key === "Escape" && open) {
             close();
         } else {
