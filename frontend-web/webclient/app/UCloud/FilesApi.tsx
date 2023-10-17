@@ -58,7 +58,7 @@ import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ShareModal} from "@/Files/Shares";
-import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
+import FileBrowse from "@/Files/FileBrowse";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -530,7 +530,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
-                        <ExperimentalBrowse opts={{
+                        <FileBrowse opts={{
                             embedded: true, isModal: true, selection: {
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {
@@ -581,7 +581,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(<>
-                        <ExperimentalBrowse opts={{
+                        <FileBrowse opts={{
                             embedded: true, isModal: true, selection: {
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {

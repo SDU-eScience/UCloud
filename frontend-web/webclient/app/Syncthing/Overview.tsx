@@ -37,7 +37,7 @@ import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
+import FileBrowse from "@/Files/FileBrowse";
 
 // UI state management
 // ================================================================================
@@ -355,7 +355,7 @@ export const Overview: React.FunctionComponent = () => {
     const openFileSelector = useCallback(() => {
         const pathRef = {current: ""};
         dialogStore.addDialog(
-            <ExperimentalBrowse
+            <FileBrowse
                 opts={{
                     embedded: true,
                     initialPath: "",

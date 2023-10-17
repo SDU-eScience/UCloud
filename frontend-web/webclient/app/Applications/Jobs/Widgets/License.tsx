@@ -10,7 +10,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {License} from "@/UCloud/LicenseApi";
 import {checkProviderMismatch} from "../Create";
 import {Input} from "@/ui-components";
-import {ExperimentalLicenses} from "@/Applications/ExperimentalLicenses";
+import {LicenseBrowse} from "@/Applications/LicenseBrowse";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -46,7 +46,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             ariaHideApp={false}
             shouldCloseOnEsc
         >
-            <ExperimentalLicenses
+            <LicenseBrowse
                 opts={{
                     isModal: true,
                     embedded: true,

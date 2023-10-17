@@ -23,7 +23,7 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
 };
 
-export function ExperimentalSSHKey(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.Element {
+export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<SSHKey> | null>(null);
     const dispatch = useDispatch();

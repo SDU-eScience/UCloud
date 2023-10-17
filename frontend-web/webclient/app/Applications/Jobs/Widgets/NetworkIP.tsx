@@ -11,7 +11,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {checkProviderMismatch} from "../Create";
-import {ExperimentalNetworkIP} from "@/Applications/NetworkIP/ExperimentalBrowse";
+import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -85,7 +85,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <ExperimentalNetworkIP
+            <NetworkIPBrowse
                 opts={{
                     additionalFilters: filters,
                     embedded: true,

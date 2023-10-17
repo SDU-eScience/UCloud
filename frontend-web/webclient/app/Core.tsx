@@ -78,8 +78,8 @@ import {LOGIN_REDIRECT_KEY} from "@/Login/Login";
 import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyle, injectStyleSimple} from "./Unstyled";
-import {ExperimentalSSHKey} from "./Applications/SshKeys/ExperimentalBrowse";
-import {ExperimentalGrantApplications} from "./Grants/ExperimentalGrantApplications";
+import {SSHKeyBrowse} from "./Applications/SshKeys/SSHKeyBrowse";
+import {GrantApplicationBrowse} from "./Grants/GrantApplicationBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {JobsRouter} from "./Applications/Jobs/Router";
 import {DrivesRouter, FilesRouter} from "./Files/Router";
@@ -147,7 +147,7 @@ const Core = (): React.JSX.Element => (
                         <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
                         <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
 
-                        <Route path={"/ssh-keys"} element={React.createElement(requireAuth(ExperimentalSSHKey))} />
+                        <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SSHKeyBrowse))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
                         <Route path={AppRoutes.apps.studio()} element={React.createElement(requireAuth(Studio))} />
@@ -219,9 +219,9 @@ const Core = (): React.JSX.Element => (
 
                         <Route path={AppRoutes.grants.editor()} element={React.createElement(requireAuth(GrantEditor))} />
                         <Route path={AppRoutes.grants.ingoing()}
-                            element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
+                            element={React.createElement(requireAuth(GrantApplicationBrowse))} />
                         <Route path={AppRoutes.grants.outgoing()}
-                            element={React.createElement(requireAuth(ExperimentalGrantApplications))} />
+                            element={React.createElement(requireAuth(GrantApplicationBrowse))} />
 
                         <Route
                             path="/sla"

@@ -11,7 +11,7 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
-import {ExperimentalPublicLinks} from "@/Applications/PublicLinks/ExperimentalBrowse";
+import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -96,7 +96,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <ExperimentalPublicLinks
+            <PublicLinkBrowse
                 opts={{
                     selection: {
                         onSelect: onUse,

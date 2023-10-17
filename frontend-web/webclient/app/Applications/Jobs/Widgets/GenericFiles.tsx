@@ -12,7 +12,7 @@ import {prettyFilePath} from "@/Files/FilePath";
 import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
-import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
+import FileBrowse from "@/Files/FileBrowse";
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -53,7 +53,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const provider = getProviderField();
         const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};
         dialogStore.addDialog(
-            <ExperimentalBrowse
+            <FileBrowse
                 opts={{
                     additionalFilters: additionalFilters,
                     embedded: true,

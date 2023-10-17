@@ -29,7 +29,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const rowTitles: [RowTitle, RowTitle, RowTitle, RowTitle] = [{name: "Provider name"}, {name: ""}, {name: ""}, {name: ""}];
 console.log("Provider Browse Not meaningfully tested at all");
-function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Element {
+function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Provider> | null>(null);
     const navigate = useNavigate();
@@ -56,8 +56,6 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Provider>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
-                // Removed stored filters that shouldn't persist.
-
                 browser.setRowTitles(rowTitles);
 
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -185,4 +183,4 @@ function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX
     return <MainContainer main={main} />;
 }
 
-export default ExperimentalBrowse;
+export default ProviderBrowse;

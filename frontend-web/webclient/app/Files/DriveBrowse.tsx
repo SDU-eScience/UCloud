@@ -54,7 +54,7 @@ const FEATURES: ResourceBrowseFeatures = {
     rowTitles: true,
 };
 
-const ExperimentalBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
+const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
@@ -424,4 +424,4 @@ const ExperimentalBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<Fi
     />;
 };
 
-export default ExperimentalBrowse;
+export default DriveBrowse;

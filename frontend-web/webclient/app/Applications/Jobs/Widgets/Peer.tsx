@@ -12,7 +12,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {checkProviderMismatch} from "../Create";
-import JobBrowse from "../ExperimentalJobs";
+import JobBrowse from "../JobsBrowse";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;

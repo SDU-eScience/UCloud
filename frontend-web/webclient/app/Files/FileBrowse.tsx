@@ -93,7 +93,7 @@ const FEATURES: ResourceBrowseFeatures = {
 }
 
 const rowTitles: RowTitleList = [{name: "Name", filterName: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", filterName: "MODIFIED_AT"}, {name: "Size", filterName: "SIZE"}];
-function ExperimentalBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
+function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -1371,7 +1371,7 @@ function isReadonly(entries: Permission[]): boolean {
     return isRead && !isEdit;
 }
 
-export default ExperimentalBrowse;
+export default FileBrowse;
 
 function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
     const collections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];

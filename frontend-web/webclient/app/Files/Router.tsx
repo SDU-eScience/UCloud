@@ -1,20 +1,20 @@
 import {ResourceRouter} from "@/Resource/Router";
 import FilesApi from "@/UCloud/FilesApi";
 import FileCollectionsApi from "@/UCloud/FileCollectionsApi";
-import ExperimentalFileBrowse from "@/Files/ExperimentalBrowse";
+import FileBrowse from "@/Files/FileBrowse";
 import React from "react";
-import ExperimentalDriveBrowse from "./ExperimentalDriveBrowse";
+import DriveBrowse from "./DriveBrowse";
 
-export function DrivesRouter() {
+export function DrivesRouter(): React.ReactNode {
     return <ResourceRouter
-        Browser={ExperimentalDriveBrowse}
+        Browser={DriveBrowse}
         api={FileCollectionsApi}
     />
 }
 
-export function FilesRouter() {
+export function FilesRouter(): React.ReactNode {
     return <ResourceRouter
-        Browser={ExperimentalFileBrowse}
+        Browser={FileBrowse}
         api={FilesApi}
     />
 }

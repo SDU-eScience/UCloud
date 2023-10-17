@@ -45,8 +45,8 @@ import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
-import JobsBrowse from "@/Applications/Jobs/ExperimentalJobs";
-import {ExperimentalGrantApplications} from "@/Grants/ExperimentalGrantApplications";
+import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
+import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 
 function Dashboard(props: DashboardProps): JSX.Element {
@@ -439,7 +439,7 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
         color="green"
         icon="heroDocumentCheck"
     >
-        <ExperimentalGrantApplications opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true}} />
+        <GrantApplicationBrowse opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true}} />
     </HighlightedCard>;
 };
 

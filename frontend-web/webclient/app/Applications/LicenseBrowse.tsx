@@ -1,24 +1,26 @@
-import {Product, ProductNetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import AppRoutes from "@/Routes";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {FindByStringId} from "@/UCloud";
-import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
-import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
-import {AsyncCache} from "@/Utilities/AsyncCache";
-import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
+import LicenseApi, {License, LicenseSupport} from "@/UCloud/LicenseApi";
+import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
+import AppRoutes from "@/Routes";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {Product, ProductLicense} from "@/Accounting";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {FindByStringId} from "@/UCloud";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
-}
+};
+
+const DUMMY_ENTRY_ID = "dummy";
 
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
@@ -30,51 +32,43 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
 };
 
-const DUMMY_ENTRY_ID = "dummy";
-
-const supportByProvider = new AsyncCache<SupportByProvider<ProductNetworkIP, NetworkIPSupport>>({
+const supportByProvider = new AsyncCache<SupportByProvider<ProductLicense, LicenseSupport>>({
     globalTtl: 60_000
 });
 
-export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<NetworkIP>}): JSX.Element {
-    console.log("Unused so far!", props.opts)
+export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
-    const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    useTitle("Public IPs");
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState<JSX.Element>(<></>);
+    useTitle("Licenses");
 
     const dateRanges = dateRangeFilters("Date created");
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "Public IPs", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles([{name: "IP address"}, {name: ""}, {name: ""}, {name: ""}]);
-
+            new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
                 var startCreation = function () { };
 
+                browser.setRowTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);
+
                 supportByProvider.retrieve("", () =>
-                    callAPI(NetworkIPApi.retrieveProducts())
+                    callAPI(LicenseApi.retrieveProducts())
                 ).then(res => {
                     const creatableProducts: Product[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
-                        for (const {product, support} of provider) {
+                        for (const {product} of provider) {
                             creatableProducts.push(product);
                         }
                     }
 
-                    const dummyEntry: NetworkIP = {
+                    const dummyEntry = {
                         id: DUMMY_ENTRY_ID,
-                        specification: {product: {category: "", id: "", provider: ""}},
-                        createdAt: new Date().getTime(),
-                        owner: {createdBy: ""},
-                        status: {boundTo: [], state: "PREPARING"},
-                        permissions: {myself: []},
-                        updates: [],
-                    };
+                        specification: {product: {id: "string"}}
+                    } as License;
 
                     const resourceCreator = resourceCreationWithProductSelector(
                         browser,
@@ -94,7 +88,7 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
                                     product: productReference
                                 },
                                 owner: {createdBy: "", },
-                            } as NetworkIP;
+                            } as License;
 
                             browser.insertEntryIntoCurrentPage(activatedLicense);
                             browser.renderRows();
@@ -102,7 +96,7 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
 
                             try {
                                 const response = (await callAPI(
-                                    NetworkIPApi.create(
+                                    LicenseApi.create(
                                         bulkRequestOf({
                                             product: productReference,
                                             domain: "",
@@ -113,12 +107,12 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
                                 activatedLicense.id = response.id;
                                 browser.renderRows();
                             } catch (e) {
-                                snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
+                                snackbarStore.addFailure("Failed to activate license. " + extractErrorMessage(e), false);
                                 browser.refresh();
                                 return;
                             }
                         },
-                        "NETWORK_IP"
+                        "LICENSE"
                     )
 
                     startCreation = resourceCreator.startCreation;
@@ -127,12 +121,13 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        // TODO(Jonas): Handle properties
+                        navigate(AppRoutes.resource.properties("licenses", resource.id));
                     }
 
-                    callAPI(NetworkIPApi.browse({
+                    callAPI(LicenseApi.browse({
                         ...defaultRetrieveFlags,
-                        ...browser.browseFilters
+                        ...browser.browseFilters,
+                        ...opts?.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -144,10 +139,11 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
                 browser.on("wantToFetchNextPage", async path => {
                     /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
-                        NetworkIPApi.browse({
+                        LicenseApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters
                         })
                     )
 
@@ -156,10 +152,8 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
                     browser.registerPage(result, path, false);
                 });
 
-                browser.setEmptyIcon("networkWiredSolid");
-
                 browser.on("fetchFilters", () => [dateRanges, {
-                    key: "filterState",
+                    key: "status",
                     type: "options",
                     clearable: true,
                     icon: "radioEmpty",
@@ -188,12 +182,29 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
                     }
                 ]);
 
-                browser.on("renderRow", (ip, row, dims) => {
-                    if (ip.id !== DUMMY_ENTRY_ID) {
-                        const icon = providerIcon(ip.specification.product.provider);
+                if (!getFilterStorageValue(browser.resourceName, "status")) {
+                    setFilterStorageValue(browser.resourceName, "status", "READY");
+                }
+
+                browser.on("renderRow", (license, row, dims) => {
+                    const {provider} = license.specification.product;
+                    if (provider) {
+                        const icon = providerIcon(license.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
+                    }
+
+                    if (license.id !== DUMMY_ENTRY_ID) {
+                        const {product} = license.specification;
+                        const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
+                    }
+
+                    if (opts?.selection) {
+                        const button = browser.defaultButtonRenderer(opts.selection, license);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
+                        }
                     }
                 });
 
@@ -202,66 +213,68 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
                         case EmptyReasonTag.LOADING: {
-                            e.reason.append("We are fetching your public IPs...");
+                            e.reason.append("We are fetching your licenses...");
                             break;
                         }
 
                         case EmptyReasonTag.EMPTY: {
                             if (Object.values(browser.browseFilters).length !== 0)
-                                e.reason.append("No network IP found with active filters.")
-                            else e.reason.append("This workspace has no public IPs.");
+                                e.reason.append("No license found with active filters.")
+                            else e.reason.append("This workspace has no licenses.");
                             break;
                         }
 
                         case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
-                            e.reason.append("We could not find any data related to your public IPs.");
+                            e.reason.append("We could not find any data related to your licenses.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
 
                         case EmptyReasonTag.UNABLE_TO_FULFILL: {
-                            e.reason.append("We are currently unable to show your public IPs. Try again later.");
+                            e.reason.append("We are currently unable to show your licenses. Try again later.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
                     }
                 });
 
+                browser.setEmptyIcon("license");
+
                 browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
-                    const callbacks: ResourceBrowseCallbacks<NetworkIP> = {
+                    const callbacks: ResourceBrowseCallbacks<License> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
                         embedded: false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
-                        startCreation(): void {
+                        startCreation: opts?.isModal ? undefined : function(): void {
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: NetworkIP): void {
-                            // TODO
-                        },
-                        viewProperties(res: NetworkIP): void {
-                            navigate(AppRoutes.resource.properties("public-ips", res.id));
+                        viewProperties(res: License): void {
+                            navigate(AppRoutes.resource.properties(browser.resourceName, res.id));
                         },
                         commandLoading: false,
-                        invokeCommand: call => callAPI(call),
-                        api: NetworkIPApi,
+                        invokeCommand: callAPI,
+                        api: LicenseApi,
                         isCreating: false
                     };
+
                     return callbacks;
                 });
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP>;
-                    return NetworkIPApi.retrieveOperations().filter(it => it.enabled(entries, callbacks, entries));
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
+                    return LicenseApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
                 });
+                browser.on("pathToEntry", f => f.id);
+                browser.on("nameOfEntry", f => f.specification.product.id);
+                browser.on("sort", page => page.sort((a, b) => a.specification.product.id.localeCompare(b.specification.product.id)));
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
-        // TODO(Jonas): Creation
     }, []);
 
     useRefreshFunction(() => {

@@ -37,7 +37,7 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, Publi
     globalTtl: 60_000
 });
 
-export function ExperimentalPublicLinks({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): JSX.Element {
+export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();

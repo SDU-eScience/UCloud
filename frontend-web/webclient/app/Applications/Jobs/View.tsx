@@ -45,7 +45,7 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {injectStyle, injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
-import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
+import FileBrowse from "@/Files/FileBrowse";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -1354,7 +1354,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
         return null;
     }
     return <div style={{width: "100%", marginTop: "18px"}}>
-        <ExperimentalBrowse
+        <FileBrowse
             opts={{initialPath: pathRef.current, embedded: true}}
         />
     </div>;

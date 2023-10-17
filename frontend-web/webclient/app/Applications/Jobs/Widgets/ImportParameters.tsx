@@ -20,8 +20,8 @@ import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {ButtonClass} from "@/ui-components/Button";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import JobBrowse from "../ExperimentalJobs";
-import ExperimentalBrowse from "@/Files/ExperimentalBrowse";
+import JobBrowse from "../JobsBrowse";
+import FileBrowse from "@/Files/FileBrowse";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -167,7 +167,7 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-                            <ExperimentalBrowse
+                            <FileBrowse
                                 opts={{
                                     embedded: true, initialPath: "", selection: {
                                         onSelect: res => {

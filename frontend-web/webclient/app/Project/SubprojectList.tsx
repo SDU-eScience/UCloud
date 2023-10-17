@@ -56,7 +56,7 @@ const UserRoleIconCache: Record<OldProjectRole, ReactStaticRenderer | null> = {
     [OldProjectRole.USER]: null
 };
 
-export default function ExperimentalSubprojectList({opts}: {opts?: ResourceBrowserOpts<MemberInProject>}) {
+export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<MemberInProject>}) {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<MemberInProject> | null>(null);
     const dispatch = useDispatch();
