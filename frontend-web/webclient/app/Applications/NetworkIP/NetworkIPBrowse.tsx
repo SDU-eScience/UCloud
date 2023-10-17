@@ -51,7 +51,7 @@ export function NetworkIPBrowse(props: {opts?: ResourceBrowserOpts<NetworkIP>}):
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles([{name: "IP address"}, {name: ""}, {name: ""}, {name: ""}]);
+                browser.setRowTitles([{name: "IP address"}, {name: "In use with"}, {name: ""}, {name: ""}]);
 
                 var startCreation = function () { };
 
@@ -193,6 +193,11 @@ export function NetworkIPBrowse(props: {opts?: ResourceBrowserOpts<NetworkIP>}):
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
                         row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims));
+                    }
+
+                    if (ip.status.boundTo.length === 1) {
+                        const [boundTo] = ip.status.boundTo;
+                        row.stat1.innerText = boundTo;
                     }
                 });
 
