@@ -49,6 +49,7 @@ import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -307,8 +308,8 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
                     {props.charts.data.charts.map((it, idx) => (
                         <TableRow key={idx} height="49px">
                             <TableCell fontSize={FONT_SIZE}>
-                                    <Icon name={productTypeToIcon(it.type)} mr={8} />
-                                    {productTypeToTitle(it.type)}
+                                <Icon name={productTypeToIcon(it.type)} mr={8} />
+                                {productTypeToTitle(it.type)}
                             </TableCell>
                             <TableCell fontSize={FONT_SIZE} textAlign={"right"}>
                                 {usageExplainer(it.periodUsage, it.type, it.chargeType, it.unit)}
@@ -428,12 +429,16 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
 
     if (!canApply) return null;
 
+    const canConsume = checkCanConsumeResources(project.fetch().id, {api: {isCoreResource: false}});
+
     return <HighlightedCard
-        title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>Grant Applications</Heading.h3></Link>}
+        title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>{canConsume ? "Grant applications": "Ingoing grant applications"}</Heading.h3></Link>}
         color="green"
         icon="heroDocumentCheck"
     >
-        <GrantApplicationBrowse opts={{embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true}} />
+        {!canConsume ?
+            <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, asIngoing: true}} /> :
+            <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true}} />}
     </HighlightedCard>;
 };
 

@@ -1,4 +1,4 @@
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
@@ -24,7 +24,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function GrantApplicationBrowse({opts}: {opts?: {embedded: boolean; omitBreadcrumbs?: boolean; omitFilters?: boolean; disabledKeyhandlers?: boolean}}): JSX.Element {
+export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {asIngoing?: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Grants.Application>>(null);
     const dispatch = useDispatch();
@@ -36,7 +36,7 @@ export function GrantApplicationBrowse({opts}: {opts?: {embedded: boolean; omitB
     }
 
     const location = useLocation();
-    let isIngoing = location.pathname.endsWith("/ingoing/");
+    let isIngoing = location.pathname.endsWith("/ingoing/") || !!opts?.asIngoing;
 
     const omitsFilters = !!opts?.omitFilters;
 
@@ -119,7 +119,7 @@ export function GrantApplicationBrowse({opts}: {opts?: {embedded: boolean; omitB
                 browser.setEmptyIcon("heroDocument");
 
                 browser.on("generateBreadcrumbs", () => {
-                    if (opts?.omitBreadcrumbs) return [];
+                    if (opts?.embedded) return [];
                     return [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}];
                 });
                 browser.on("renderEmptyPage", reason => {
@@ -188,5 +188,5 @@ export function GrantApplicationBrowse({opts}: {opts?: {embedded: boolean; omitB
         {switcher}
     </>;
     if (opts?.embedded === true) return <div>{main}</div>;
-    return <MainContainer main={main}/>
+    return <MainContainer main={main} />
 }

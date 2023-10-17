@@ -372,8 +372,6 @@ export class ResourceBrowser<T> {
         rowTitles: false,
     };
 
-    // Modal handling:
-    // When multiple
     public static isAnyModalOpen = false;
     private isModal: boolean;
     private allowEventListenerAction(): boolean {
