@@ -220,7 +220,7 @@ export default function ExperimentalSubprojectList({opts}: {opts?: ResourceBrows
                     }
                 });
 
-                browser.setEmptyIcon("projects");
+                browser.setEmptyIcon("heroUserGroup");
 
                 browser.on("fetchOperationsCallback", (): {} => ({}));
 

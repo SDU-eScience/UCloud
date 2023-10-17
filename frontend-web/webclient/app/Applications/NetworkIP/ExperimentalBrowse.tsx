@@ -1,4 +1,4 @@
-import {Product, ProductNetworkIP} from "@/Accounting";
+import {Product, ProductNetworkIP, productTypeToIcon} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -156,7 +156,7 @@ export function ExperimentalNetworkIP(props: {opts?: ResourceBrowserOpts<Network
                     browser.registerPage(result, path, false);
                 });
 
-                browser.setEmptyIcon("networkWiredSolid");
+                browser.setEmptyIcon(productTypeToIcon("NETWORK_IP"));
 
                 browser.on("fetchFilters", () => [dateRanges, {
                     key: "filterState",

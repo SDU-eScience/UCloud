@@ -116,7 +116,7 @@ export function ExperimentalGrantApplications({opts}: {opts?: {embedded: boolean
                     row.stat3.append(status);
                 });
 
-                browser.setEmptyIcon("fileSignatureSolid");
+                browser.setEmptyIcon("heroDocument");
 
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.omitBreadcrumbs) return [];

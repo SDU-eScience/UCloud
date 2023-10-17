@@ -1,4 +1,4 @@
-import {Product, ProductIngress} from "@/Accounting";
+import {Product, ProductIngress, productTypeToIcon} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -140,7 +140,7 @@ export function ExperimentalPublicLinks({opts}: {opts?: ResourceBrowserOpts<Publ
                     setProductSelectorPortal(resourceCreator.portal);
                 });
 
-                browser.setEmptyIcon("globeEuropeSolid");
+                browser.setEmptyIcon(productTypeToIcon("INGRESS"));
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {

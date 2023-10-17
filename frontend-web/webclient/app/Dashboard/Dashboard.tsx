@@ -48,6 +48,7 @@ import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/ExperimentalJobs";
 import {ExperimentalGrantApplications} from "@/Grants/ExperimentalGrantApplications";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
+import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -112,7 +113,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
     </Box>);
 
     return (
-        <div className={Gradient}>
+        <div className={GradientWithPolygons}>
             <MainContainer main={main} />
         </div>
     );
@@ -140,13 +141,6 @@ const GridClass = injectStyle("grid", k => `
         margin-top: 24px;
     }
 }
-`);
-
-export const Gradient = injectStyleSimple("gradient", `
-    background: linear-gradient(var(--gradientStart), var(--gradientEnd));
-    background-size: 100%;
-	background-repeat: no-repeat;
-    min-height: 100vh;
 `);
 
 interface DashboardFavoriteFilesProps {
@@ -331,7 +325,7 @@ function DashboardRuns(): JSX.Element {
     return <HighlightedCard
         color="gray"
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
-        icon="heroBeaker"
+        icon="heroServer"
     >
         <JobsBrowse opts={{
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,

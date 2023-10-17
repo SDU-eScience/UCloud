@@ -17,6 +17,7 @@ import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {PageV2} from "@/UCloud";
 import AppRoutes from "@/Routes";
+import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -41,6 +42,27 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
 
     return result;
 }
+
+const triggerClass = injectStyle("context-switcher-trigger", k => `
+    ${k} {
+        border: 1px solid var(--midGray);
+        border-radius: 6px;
+        padding: 6px 12px;
+        display: flex;
+    }
+    
+    ${k}:hover {
+        border: 1px solid var(--gray);
+    }
+    
+    .${GradientWithPolygons} ${k} {
+        border: 1px solid var(--gray);
+    }
+    
+    .${GradientWithPolygons} ${k}:hover {
+        border: 1px solid var(--darkGray);
+    }
+`);
 
 export function ContextSwitcher({managed}: {
     managed?: {
@@ -120,17 +142,18 @@ export function ContextSwitcher({managed}: {
     }, []);
 
     return (
-        <Flex key={activeContext} pr="12px" alignItems={"center"} data-component={"project-switcher"}>
+        <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
             <ClickableDropdown
                 trigger={
-                    <Flex>
+                    <div className={triggerClass}>
                         <Truncate title={activeContext} fontSize={14} width="180px"><b>{activeContext}</b></Truncate>
                         <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
-                    </Flex>
+                    </div>
                 }
                 rightAligned
                 paddingControlledByContent
                 arrowkeyNavigationKey="data-active"
+                hoverColor={"midGray"}
                 onSelect={el => {
                     const id = el?.getAttribute("data-project") ?? undefined;
                     setActiveProject(id)
@@ -144,7 +167,7 @@ export function ContextSwitcher({managed}: {
                 width="500px"
             >
                 <div style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
-                    <TextH3 bold mt="0" mb="8px">Select workspace</TextH3>
+                    <TextH3 bold mt="0" mb="16px">Select workspace</TextH3>
                     <Flex>
                         <Input autoFocus className={"filter-input"} placeholder="Search..." defaultValue={filter} onKeyDown={e => {
                             if (["Escape"].includes(e.key) && e.target["value"]) {
@@ -156,15 +179,26 @@ export function ContextSwitcher({managed}: {
                         <Relative right="30px" top="8px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
                     <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
                         {activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
-                            <div key={"My Workspace"} style={{width: "100%"}} data-active={activeProject === undefined} className={BottomBorderedRow} onClick={() => {
-                                setActiveProject();
-                            }}>
+                            <div
+                                key={"My Workspace"}
+                                style={{width: "100%"}}
+                                data-active={activeProject == null}
+                                className={BottomBorderedRow}
+                                onClick={() => {setActiveProject();}}
+                            >
                                 <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={"starFilled"} />
                                 <Text fontSize="var(--breadText)">My Workspace</Text>
                             </div>
                         ) : null}
                         {filteredProjects.map(it =>
-                            <div key={it.id + it.status.isFavorite} style={{width: "100%"}} data-active={it.id === activeProject} data-project={it.id} className={BottomBorderedRow} onClick={() => setActiveProject(it.id)}>
+                            <div
+                                key={it.id + it.status.isFavorite}
+                                style={{width: "100%"}}
+                                data-active={it.id === activeProject}
+                                data-project={it.id}
+                                className={BottomBorderedRow}
+                                onClick={() => setActiveProject(it.id)}
+                            >
                                 <Favorite project={it} />
                                 <Text fontSize="var(--breadText)">{it.specification.title}</Text>
                             </div>
@@ -226,7 +260,11 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
 }
 
 const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
-    ${k}:hover, ${k}[data-active="true"] {
+    ${k}:hover {
+        background-color: var(--midGray);
+    }
+    
+    ${k}[data-active="true"] {
         background-color: var(--lightBlue);
     }
 
