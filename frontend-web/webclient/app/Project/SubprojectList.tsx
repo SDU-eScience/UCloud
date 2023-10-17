@@ -220,7 +220,7 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
                     }
                 });
 
-                browser.setEmptyIcon("projects");
+                browser.setEmptyIcon("heroUserGroup");
 
                 browser.on("fetchOperationsCallback", (): {} => ({}));
 

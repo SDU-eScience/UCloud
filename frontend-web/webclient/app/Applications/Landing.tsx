@@ -24,6 +24,7 @@ import bgImage from "@/Assets/Images/background_polygons.png";
 import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
+import { GradientWithPolygons } from "@/ui-components/GradientBackground";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -116,7 +117,7 @@ const LandingDivider = injectStyle("landing-divider", k => `
 
 export const LargeSearchBox: React.FunctionComponent<{value?: string}> = props => {
     const navigate = useNavigate();
-  
+
     return <div className={LargeSearchBoxClass}>
         <Flex justifyContent="space-evenly">
             <Input
@@ -186,7 +187,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
 
     return (
         <div className={AppOverviewMarginPaddingHack}>
-            <div className={PolygonBackgroundClass}>
+            <div className={GradientWithPolygons}>
                 <MainContainer main={
                     <Box mx="auto" maxWidth="1340px">
                         <Flex width="100%">
@@ -259,13 +260,6 @@ const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
 /* HACK */
 `);
 
-const PolygonBackgroundClass = injectStyleSimple("polygon-background", `
-    background-image: url(${bgImage}), linear-gradient(var(--appStoreBackground), var(--white));
-    background-position: 0% 35%;
-    background-repeat: repeat;
-    padding-bottom: 75px;
-`);
-
 interface FavoriteAppRowProps {
     favoriteStatus: React.MutableRefObject<FavoriteStatus>;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
@@ -276,7 +270,7 @@ function filterAppsByFavorite(
     items: compute.ApplicationSummaryWithFavorite[],
     favoriteStatus: React.MutableRefObject<FavoriteStatus>
 ): compute.ApplicationSummaryWithFavorite[] {
-    let filteredItems = items.filter(item => 
+    let filteredItems = items.filter(item =>
         favoriteStatus.current[favoriteStatusKey(item.metadata)]?.override ?? item.favorite
     );
 

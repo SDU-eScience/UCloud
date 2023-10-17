@@ -373,7 +373,7 @@ export class ResourceBrowser<T> {
     };
 
     // Modal handling:
-    // When multiple 
+    // When multiple
     public static isAnyModalOpen = false;
     private isModal: boolean;
     private allowEventListenerAction(): boolean {
@@ -568,7 +568,7 @@ export class ResourceBrowser<T> {
         if (this.features.filters) {
             this.renderSessionFilters();
         }
-        
+
         if (this.features.contextSwitcher) {
             const div = document.createElement("div");
             div.style.marginLeft = "20px";
@@ -3331,14 +3331,15 @@ export class ResourceBrowser<T> {
     public setEmptyIcon(icon: IconName) {
         this.icons.renderIcon({
             name: icon,
-            color: "black",
-            color2: "black",
+            color: "white",
+            color2: "white",
             height: 256,
             width: 256
         }).then(icon => {
             const fragment = document.createDocumentFragment();
             fragment.append(image(icon, {height: 60, width: 60}));
             this.defaultEmptyGraphic = fragment;
+            this.rerender();
         });
     }
 

@@ -34,7 +34,6 @@ class AppStoreService(
     private val elasticDao: ElasticDao?,
     private val appEventProducer: AppEventProducer?
 ) {
-
     suspend fun findByNameAndVersion(
         actorAndProject: ActorAndProject,
         appName: String,
@@ -582,65 +581,37 @@ class AppStoreService(
 
                 session.sendPreparedStatement(
                     {
-                        setParameter("user", actorAndProject.actor.username)
-                        setParameter("is_admin", Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role))
-                        setParameter("project", actorAndProject.project)
-                        setParameter("groups", groups)
                         setParameter("page", pageType.name)
                     },
                     """
-                        with cte as (
-                            select
-                                g.id,
-                                s.id as section_id,
-                                s.title as section_title,
-                                g.title as title,
-                                g.logo,
-                                g.description,
-                                g.default_name,
-                                g.default_version,
-                                s.order_index as s_index
-                            from app_store.sections s
-                            join app_store.application_groups g on g.id in (
-                                select gt.group_id from app_store.group_tags gt
-                                join app_store.applications a on a.group_id = g.id
-                                where tag_id in (
-                                    select tag_id from app_store.section_tags where section_id = s.id
-                                ) and (
-                                    :is_admin or (
-                                        a.is_public or (
-                                            cast(:project as text) is null and :user in (
-                                                select p.username from app_store.permissions p where p.application_name = a.name
-                                            )
-                                        ) or (
-                                            cast(:project as text) is not null and exists (
-                                                select p.project_group from app_store.permissions p where
-                                                    p.application_name = a.name and
-                                                    p.project = cast(:project as text) and
-                                                    p.project_group in (select unnest(:groups::text[]))
-                                             )
-                                        )
-                                    )
-                                )
-                            )
-                            where page = :page
-                        )
-                        select * from cte order by s_index;
+                        select
+                            g.id,
+                            g.title as title,
+                            g.description,
+                            s.id as section_id,
+                            s.title as section_title,
+                            g.default_name,
+                            g.default_version
+                        from
+                            app_store.sections s
+                            left join app_store.section_tags st on s.id = st.section_id
+                            left join app_store.group_tags gt on gt.tag_id = st.tag_id
+                            left join app_store.application_groups g on gt.group_id = g.id
+                        where
+                            page = :page
+                        order by s.order_index
                     """
                 ).rows.forEach { row ->
-                    val sectionId = row.getInt("section_id")!!
-                    val sectionTitle = row.getString("section_title")!!
-                    val groupId = row.getInt("id")!!
-                    val groupTitle = row.getString("title")!!
-                    val description = row.getString("description")
+                    val groupId = row.getInt(0) ?: return@forEach
+                    val groupTitle = row.getString(1) ?: return@forEach
+                    val description = row.getString(2)
+                    val sectionId = row.getInt(3) ?: return@forEach
+                    val sectionTitle = row.getString(4) ?: return@forEach
 
                     sections[sectionId] = sectionTitle
-
-                    if (items[sectionId].isNullOrEmpty()) {
-                        items[sectionId] = ArrayList()
-                    }
-
-                    items[sectionId]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                    items
+                        .getOrPut(sectionId) { ArrayList() }
+                        .add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
                 }
 
                 session.sendPreparedStatement(
@@ -658,7 +629,6 @@ class AppStoreService(
                                 s.id as section_id,
                                 s.title as section_title,
                                 g.title as title,
-                                g.logo,
                                 g.description,
                                 g.default_name,
                                 g.default_version,
@@ -698,12 +668,11 @@ class AppStoreService(
                     val description = row.getString("description")
 
                     sections[sectionId] = sectionTitle
+                    featured
+                        .getOrPut(sectionId) { ArrayList() }
+                        .add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
 
-                    if (featured[sectionId].isNullOrEmpty()) {
-                        featured[sectionId] = ArrayList()
-                    }
-
-                    featured[sectionId]?.add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                    items[sectionId]?.removeIf { it.id == groupId }
                 }
 
                 sections.map { section ->
@@ -834,54 +803,45 @@ class AppStoreService(
 
     suspend fun retrieveGroup(actorAndProject: ActorAndProject, id: Int? = null, applicationName: String? = null): RetrieveGroupResponse {
         return db.withSession { session ->
-            val group = if (id != null) {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("id", id)
-                    },
-                    """
-                    select id, title, description, default_name, default_version,
-                        (select json_agg(tag) from tags t where t.id in (select gt.tag_id from group_tags gt where gt.group_id = g.id)) tags
-                    from app_store.application_groups g
-                    where g.id = :id
+            val group = session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                    setParameter("name", applicationName)
+                },
                 """
-                ).rows.first().let {row ->
-                    ApplicationGroup(
-                        row.getInt("id")!!,
-                        row.getString("title")!!,
-                        row.getString("description"),
-                        row.defaultApplication(),
-                        defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
-                    )
-                }
-            } else if (applicationName != null) {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("appName", applicationName)
-                    },
-                    """
-                        select id, title, description, default_name, default_version,
-                            (select json_agg(tag) from tags t where t.id in (select gt.tag_id from group_tags gt where gt.group_id = g.id)) tags
-                        from app_store.application_groups g
-                        where
-                            id in (select group_id from app_store.applications where name = :appName)
-                    """
-                ).rows.first().let { row ->
-                    ApplicationGroup(
-                        row.getInt("id")!!,
-                        row.getString("title")!!,
-                        row.getString("description"),
-                        row.defaultApplication(),
-                        defaultMapper.decodeFromString<List<String>>(row.getString("tags") ?: "[]")
-                    )
-                }
-            } else {
-                null
-            }
-
-            if (group == null) {
-                throw RPCException("Group not found", HttpStatusCode.NotFound)
-            }
+                    select
+                        g.id,
+                        g.title,
+                        g.description,
+                        g.default_name,
+                        g.default_version,
+                        jsonb_agg(t.tag) as tags
+                    from
+                        app_store.application_groups g
+                        left join app_store.group_tags gt on g.id = gt.group_id
+                        left join app_store.tags t on t.id = gt.tag_id
+                    where
+                        (:id::int is not null and g.id = :id)
+                        or (
+                            :name::text is not null
+                            and g.id in (
+                                select a.group_id
+                                from app_store.applications a
+                                where a.name = :name::text
+                            )
+                        )
+                    group by
+                        g.id, g.title, g.description, g.default_name, g.default_version                    
+                """
+            ).rows.firstOrNull()?.let { row ->
+                ApplicationGroup(
+                    row.getInt("id")!!,
+                    row.getString("title")!!,
+                    row.getString("description"),
+                    row.defaultApplication(),
+                    defaultMapper.decodeFromString<List<String?>>(row.getString("tags") ?: "[]").filterNotNull()
+                )
+            } ?: throw RPCException("Group not found", HttpStatusCode.NotFound)
 
             val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
                 emptyList()
@@ -898,22 +858,34 @@ class AppStoreService(
                     setParameter("is_admin", Roles.PRIVILEGED.contains((actorAndProject.actor as? Actor.User)?.principal?.role))
                 },
                 """
-                    select * from app_store.applications a
-                    where a.group_id = :id and (
-                        :is_admin or
-                        a.is_public or (
-                            cast(:project as text) is null and :user in (
-                                select p.username from app_store.permissions p where p.application_name = a.name
+                    with
+                        candidates as (
+                            select a.name, max(a.created_at) most_recent
+                            from app_store.applications a
+                            where a.group_id = :id and (
+                                :is_admin or
+                                a.is_public or (
+                                    cast(:project as text) is null and :user in (
+                                        select p.username from app_store.permissions p where p.application_name = a.name
+                                    )
+                                ) or (
+                                    cast(:project as text) is not null and exists (
+                                        select p.project_group from app_store.permissions p where
+                                            p.application_name = a.name and
+                                            p.project = cast(:project as text) and
+                                            p.project_group in (select unnest(:project_groups::text[]))
+                                     )
+                                )
                             )
-                        ) or (
-                            cast(:project as text) is not null and exists (
-                                select p.project_group from app_store.permissions p where
-                                    p.application_name = a.name and
-                                    p.project = cast(:project as text) and
-                                    p.project_group in (select unnest(:project_groups::text[]))
-                             )
+                            group by a.name
+                        ),
+                        most_recent as (
+                            select a.*
+                            from
+                                candidates c
+                                join app_store.applications a on a.name = c.name and a.created_at = c.most_recent
                         )
-                    )
+                    select * from most_recent;
                 """
             ).rows.map {
                 it.toApplicationSummary()
@@ -1529,6 +1501,7 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
 }
 
 internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
+    // TODO This shouldn't be crashing like this. Make sure we actually get all of the data needed.
     val group = try {
         ApplicationGroup(
             this.getInt("group_id")!!,
@@ -1558,6 +1531,7 @@ internal fun RowData.toApplicationSummary(): ApplicationSummary {
 }
 
 internal fun RowData.defaultApplication(): NameAndVersion? {
+    // TODO This shouldn't be crashing like this. Make sure we actually get all of the data needed.
     return try {
         val defaultName = this.getString("default_name")
         val defaultVersion = this.getString("default_version")

@@ -116,7 +116,7 @@ export function GrantApplicationBrowse({opts}: {opts?: {embedded: boolean; omitB
                     row.stat3.append(status);
                 });
 
-                browser.setEmptyIcon("fileSignatureSolid");
+                browser.setEmptyIcon("heroDocument");
 
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.omitBreadcrumbs) return [];

@@ -7,6 +7,7 @@ import {Dropdown, DropdownContent} from "./Dropdown";
 import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {FlexClass} from "./Flex";
 import {clamp} from "@/UtilityFunctions";
+import {ThemeColor} from "@/ui-components/theme";
 
 export interface ClickableDropdownProps<T> {
     trigger: React.ReactNode;
@@ -34,13 +35,14 @@ export interface ClickableDropdownProps<T> {
 
     /**
      *   Intended usage is that either:
-     *       
+     *
      *       - User (programmer) adds the `arrowkeyNavigationKey` to the passed `children`, that the dropdown renders
-     *   
+     *
      *   With the above in mind, the `onSelect` function will be called on pressing "Enter", but unless the key is provided,
      *   nothing will happen, so adding `onSelect` without `arrowkeyNavigationKey` has no effect.
      **/
     arrowkeyNavigationKey?: string; // e.g. "data-entry";
+    hoverColor?: ThemeColor;
     /**
      * Requires `arrowkeyNavigationKey` to be set or that `props.children` are provided.
      **/
@@ -132,7 +134,7 @@ function ClickableDropdown<T>({
     const handleKeyPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
         if (props.arrowkeyNavigationKey) {
             const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
-            _onKeyDown(event, divRef, counter, navigationKey, props.onSelect)
+            _onKeyDown(event, divRef, counter, navigationKey, props.onSelect, props.hoverColor ?? "lightBlue")
         }
 
         if (event.key === "Escape" && open) {
@@ -256,7 +258,8 @@ function _onKeyDown(
     wrapper: React.RefObject<HTMLDivElement>,
     index: React.MutableRefObject<number>,
     entryKey: string,
-    onSelect: ((el: Element | undefined) => void) | undefined
+    onSelect: ((el: Element | undefined) => void) | undefined,
+    hoverColor: ThemeColor,
 ) {
     if (!wrapper.current) return;
     const isUp = e.key === "ArrowUp";
@@ -292,7 +295,7 @@ function _onKeyDown(
 
     if (isUp || isDown) {
         if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
-        listEntries.item(index.current)["style"].backgroundColor = "var(--lightBlue)";
+        listEntries.item(index.current)["style"].backgroundColor = `var(--${hoverColor})`;
         listEntries.item(index.current).scrollIntoView({behavior, block: "nearest"});
     } else if (isEnter && index.current !== -1) {
         onSelect?.(listEntries.item(index.current));

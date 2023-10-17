@@ -416,7 +416,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                             } else if (anyRejected) {
                                 text.textContent = `${rejected.length} pending`;
                                 state = "REJECTED";
-                            } else { // All must be approved in none are rejected or pending. 
+                            } else { // All must be approved in none are rejected or pending.
                                 text.textContent = `All accepted`;
                                 state = "APPROVED";
                             }
@@ -447,7 +447,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     // Note(Jonas): To any future reader (as opposed to past reader?) the avatarWrapper is to ensure that
                     // the re-render doesn't happen multiple times, when re-rendering. The avatarWrapper can be dead,
                     // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
-                    // causing multiple avatars to be shown.            
+                    // causing multiple avatars to be shown.
                     if (!isViewingShareGroupPreview(share)) {
                         row.stat3.append(avatarWrapper);
                         const sharedWithAvatars = share.sharePreview.map(it => avatars.avatar(it.sharedWith));
@@ -469,7 +469,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     }
                 });
 
-                browser.setEmptyIcon("share");
+                browser.setEmptyIcon("heroShare");
 
                 browser.on("unhandledShortcut", () => void 0);
 

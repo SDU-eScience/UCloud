@@ -11,7 +11,9 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.ActivitySystem
+import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.reportConcurrentUseStorage
+import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.builtins.serializer
@@ -28,56 +30,22 @@ class UsageScan(
     fun init() {
         ProcessingScope.launch {
             val taskName = "storage-scan-ucloud"
-            while (isActive) {
+            whileGraal({ isActive }) {
                 val start = Time.now()
                 Prometheus.countBackgroundTask(taskName)
                 try {
                     var next: String? = null
-                    while (true) {
+                    var innerActive = true
+                    whileGraal({ innerActive }) {
                         val page = pathConverter.locator.enumerateDrives(next = next)
                         val driveIds = page.items.map { it.drive.ucloudId }
                         val lastScans = HashMap<Long, Long>()
                         val now = Time.now()
-                        if (driveIds.isNotEmpty()) {
-                            dbConnection.withSession { session ->
-                                session.prepareStatement(
-                                    """
-                                        select drive_id, last_scan
-                                        from ucloud_storage_scans
-                                        where drive_id = some(:drive_ids)
-                                    """
-                                ).useAndInvoke(
-                                    prepare = {
-                                        bindList("drive_ids", driveIds, SQL_TYPE_HINT_INT8)
-                                    },
-                                    readRow = { row ->
-                                        lastScans[row.getLong(0)!!] = row.getLong(1)!!
-                                    }
-                                )
+                        usageScanFetchDriveIdsForScanGraal(driveIds, lastScans, now)
 
-                                session.prepareStatement(
-                                    """
-                                        with data as (
-                                            select unnest(:drive_ids) drive_id, :now now
-                                        )
-                                        insert into ucloud_storage_scans(drive_id, last_scan)
-                                        select drive_id, now
-                                        from data
-                                        on conflict (drive_id) do update set
-                                            last_scan = excluded.last_scan
-                                    """
-                                ).useAndInvokeAndDiscard(
-                                    prepare = {
-                                        bindList("drive_ids", driveIds, SQL_TYPE_HINT_INT8)
-                                        bindLong("now", now)
-                                    }
-                                )
-                            }
-                        }
-
-                        for (item in page.items) {
+                        page.items.forEachGraal { item ->
                             val timeSinceLastScan = now - (lastScans[item.drive.ucloudId] ?: 0L)
-                            val metadata = pathConverter.locator.fetchMetadataForDrive(item.drive.ucloudId) ?: continue
+                            val metadata = pathConverter.locator.fetchMetadataForDrive(item.drive.ucloudId) ?: return@forEachGraal
                             val timeSinceOwnerActive = now - ActivitySystem.queryLastActiveWalletOwner(metadata.workspace)
 
                             if (timeSinceLastScan >= 1000L * 60 * 60 * 12) {
@@ -85,7 +53,12 @@ class UsageScan(
                             }
                         }
 
-                        next = page.next ?: break
+                        val nextToken = page.next
+                        if (nextToken == null) {
+                            innerActive = false
+                        } else {
+                            next = nextToken
+                        }
                     }
                 } catch (ex: Throwable) {
                     log.warn("Caught exception while scanning usage for $pluginName: ${ex.toReadableStacktrace()}")
@@ -99,19 +72,23 @@ class UsageScan(
 
         repeat(Runtime.getRuntime().availableProcessors()) { taskId ->
             ScanningScope.launch {
-                while (isActive) {
+                var loopActive = true
+                whileGraal({ isActive && loopActive }) {
                     try {
-                        val task = scanQueue.receiveCatching().getOrNull() ?: break
+                        val task = scanQueue.receiveCatching().getOrNull() ?: run {
+                            loopActive = false
+                            return@whileGraal
+                        }
                         val driveInfo = task.driveInfo
-                        val driveRoot = driveInfo.driveRoot ?: continue
-                        if (driveInfo.inMaintenanceMode) continue
+                        val driveRoot = driveInfo.driveRoot ?: return@whileGraal
+                        if (driveInfo.inMaintenanceMode) return@whileGraal
                         // TODO This blocks the thread while we are collecting the size.
-                        val size = fastDirectoryStats.getRecursiveSize(driveRoot, allowSlowPath = true) ?: continue
+                        val size = fastDirectoryStats.getRecursiveSize(driveRoot, allowSlowPath = true) ?: return@whileGraal
 
                         pathConverter.locator.updateDriveSize(driveInfo.drive.ucloudId, size)
 
                         val ucloudMetadata = pathConverter.locator.fetchMetadataForDrive(driveInfo.drive.ucloudId)
-                            ?: continue
+                            ?: return@whileGraal
 
                         val allDrives = pathConverter.locator.listDrivesByWorkspace(ucloudMetadata.workspace)
                             .filter {
@@ -170,6 +147,49 @@ class UsageScan(
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             requestScan(request.id)
         })
+    }
+
+    private suspend fun usageScanFetchDriveIdsForScanGraal(
+        driveIds: List<Long>,
+        lastScans: HashMap<Long, Long>,
+        now: Long
+    ) {
+        if (driveIds.isNotEmpty()) {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select drive_id, last_scan
+                        from ucloud_storage_scans
+                        where drive_id = some(:drive_ids)
+                    """
+                ).useAndInvokeGraal(
+                    prepare = {
+                        bindList("drive_ids", driveIds, SQL_TYPE_HINT_INT8)
+                    },
+                    readRow = { row ->
+                        lastScans[row.getLong(0)!!] = row.getLong(1)!!
+                    }
+                )
+
+                session.prepareStatement(
+                    """
+                        with data as (
+                            select unnest(:drive_ids) drive_id, :now now
+                        )
+                        insert into ucloud_storage_scans(drive_id, last_scan)
+                        select drive_id, now
+                        from data
+                        on conflict (drive_id) do update set
+                            last_scan = excluded.last_scan
+                    """
+                ).useAndInvokeAndDiscardGraal(
+                    prepare = {
+                        bindList("drive_ids", driveIds, SQL_TYPE_HINT_INT8)
+                        bindLong("now", now)
+                    }
+                )
+            }
+        }
     }
 
     suspend fun requestScan(driveId: Long) {

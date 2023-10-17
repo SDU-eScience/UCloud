@@ -404,7 +404,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                     });
                 });
 
-                browser.setEmptyIcon("share");
+                browser.setEmptyIcon("heroShare");
 
                 browser.on("unhandledShortcut", () => void 0);
 

@@ -179,7 +179,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
                 });
 
-                browser.setEmptyIcon("play");
+                browser.setEmptyIcon("heroServer");
 
                 browser.on("unhandledShortcut", () => void 0);
 

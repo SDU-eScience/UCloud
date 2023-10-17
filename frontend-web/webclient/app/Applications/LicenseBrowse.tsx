@@ -11,7 +11,7 @@ import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {Product, ProductLicense} from "@/Accounting";
+import {Product, ProductLicense, productTypeToIcon} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
@@ -238,7 +238,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
                     }
                 });
 
-                browser.setEmptyIcon("license");
+                browser.setEmptyIcon(productTypeToIcon("LICENSE"));
 
                 browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
                     const callbacks: ResourceBrowseCallbacks<License> = {
