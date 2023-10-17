@@ -2,10 +2,6 @@ import deepcopy from "deepcopy";
 
 type PrimitiveDataTypes = string | number | boolean;
 
-/**
- * @param set
- * @param entry
- */
 export function addEntryIfNotPresent(set: Set<PrimitiveDataTypes>, entry: PrimitiveDataTypes): boolean {
     const size = set.size;
     set.add(entry);

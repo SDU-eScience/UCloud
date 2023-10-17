@@ -26,6 +26,7 @@ export const AppHeader: React.FunctionComponent<{
     /* Results of `findByName` are ordered by apps `createdAt` field in descending order, so this should be correct. */
     const newest: UCloud.compute.ApplicationSummaryWithFavorite | undefined = props.allVersions[0];
     const navigate = useNavigate();
+    const close = React.useRef(() => void 0);
 
     return (
         <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
@@ -44,6 +45,7 @@ export const AppHeader: React.FunctionComponent<{
                                 <Flex style={{alignSelf: "center"}}>
                                     {props.flavors.length <= 1 ? null :
                                         <ClickableDropdown
+                                            closeFnRef={close}
                                             trigger={
                                                 <Flex className={FlavorSelectorClass}>
                                                     {props.application.metadata.flavorName ?? props.application.metadata.title} <Icon ml="8px" name="chevronDownLight" size={12} />
@@ -54,7 +56,10 @@ export const AppHeader: React.FunctionComponent<{
                                                     cursor="pointer"
                                                     width="auto"
                                                     key={f.metadata.name}
-                                                    onClick={() => navigate(Pages.runApplication(f.metadata))}
+                                                    onClick={() => {
+                                                        close.current();
+                                                        navigate(Pages.runApplication(f.metadata));
+                                                    }}
                                                 >
                                                     {f.metadata.flavorName ?? f.metadata.title}
                                                 </Box>
