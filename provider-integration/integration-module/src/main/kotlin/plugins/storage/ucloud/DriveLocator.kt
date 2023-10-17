@@ -27,15 +27,11 @@ import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.providerId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.sql.DBContext
-import dk.sdu.cloud.sql.SQL_TYPE_HINT_BOOL
-import dk.sdu.cloud.sql.SQL_TYPE_HINT_INT8
-import dk.sdu.cloud.sql.SQL_TYPE_HINT_TEXT
-import dk.sdu.cloud.sql.useAndInvoke
-import dk.sdu.cloud.sql.useAndInvokeAndDiscard
-import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.toReadableStacktrace
+import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.toV2
+import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -169,85 +165,106 @@ private object DriveAndSystemStore {
                     """
                 ).useAndInvoke(
                     readRow = { row ->
-                        val driveId = row.getLong(0)!!
-                        val localReference = row.getString(1)
-                        val project = row.getString(2)
-                        val type = UCloudDrive.Type.valueOf(row.getString(3)!!)
-                        val system = row.getString(4)!!
-                        val maintenanceMode = row.getBoolean(5)!!
-                        val sizeInBytes = row.getLong(6)!!
-                        val driveOwner = row.getString(7)
-                        val driveOwnerIsUser = row.getBoolean(8)
-                        val productName = row.getString(9)
-                        val productCategory = row.getString(10)
-                        val resolvedSystem = allSystems.find { it.name == system }
-                            ?: error("Unknown system: $system")
-
-                        val drive = when (type) {
-                            UCloudDrive.Type.PERSONAL_WORKSPACE -> {
-                                UCloudDrive.PersonalWorkspace(driveId, localReference!!)
-                            }
-
-                            UCloudDrive.Type.PROJECT_REPOSITORY -> {
-                                UCloudDrive.ProjectRepository(driveId, project!!, localReference!!)
-                            }
-
-                            UCloudDrive.Type.PROJECT_MEMBER_FILES -> {
-                                UCloudDrive.ProjectMemberFiles(driveId, project!!, localReference!!)
-                            }
-
-                            UCloudDrive.Type.COLLECTION -> {
-                                UCloudDrive.Collection(driveId)
-                            }
-
-                            UCloudDrive.Type.SHARE -> {
-                                UCloudDrive.Share(driveId, localReference!!)
-                            }
-                        }
-
-                        val productRef = if (productName != null && productCategory != null) {
-                            ProductReferenceV2(productName, productCategory, providerId)
-                        } else {
-                            null
-                        }
-
-                        entries.add(DriveAndSystem(drive, resolvedSystem, maintenanceMode, null, sizeInBytes,
-                            driveOwner, driveOwnerIsUser, productRef))
+                        readRowForFillGraal(row, allSystems)
                     }
                 )
             }
         }
 
         if (!skipUCloudSynchronization) {
-            val drives = ArrayList<FileCollection>()
+            doUCloudInitSync(serviceClient, legacySystem)
+        }
+    }
 
-            var next: String? = null
-            while (true) {
-                val page = FileCollectionsControl.browse.call(
-                    ResourceBrowseRequest(
-                        FileCollectionIncludeFlags(MemberFilesFilter.DONT_FILTER_COLLECTIONS),
-                        itemsPerPage = 250,
-                        next = next
-                    ),
-                    serviceClient
-                ).orThrow()
-                drives.addAll(page.items)
-                next = page.next ?: break
+    private suspend fun readRowForFillGraal(
+        row: ResultCursor,
+        allSystems: List<FsSystem>
+    ) {
+        val driveId = row.getLong(0)!!
+        val localReference = row.getString(1)
+        val project = row.getString(2)
+        val type = UCloudDrive.Type.valueOf(row.getString(3)!!)
+        val system = row.getString(4)!!
+        val maintenanceMode = row.getBoolean(5)!!
+        val sizeInBytes = row.getLong(6)!!
+        val driveOwner = row.getString(7)
+        val driveOwnerIsUser = row.getBoolean(8)
+        val productName = row.getString(9)
+        val productCategory = row.getString(10)
+        val resolvedSystem = allSystems.find { it.name == system }
+            ?: error("Unknown system: $system")
+
+        val drive = when (type) {
+            UCloudDrive.Type.PERSONAL_WORKSPACE -> {
+                UCloudDrive.PersonalWorkspace(driveId, localReference!!)
             }
 
-            drives
-                .mapNotNull { drive ->
-                    runCatching {
-                        UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
-                            if (drive.providerGeneratedId != null) it.project = drive.owner.project
-                        }
-                    }.getOrNull()
-                }
-                .chunked(100)
-                .forEach { chunk ->
-                    insert(chunk.map { DriveAndSystem(it, legacySystem, false, null) }, allowUpsert = false)
-                }
+            UCloudDrive.Type.PROJECT_REPOSITORY -> {
+                UCloudDrive.ProjectRepository(driveId, project!!, localReference!!)
+            }
+
+            UCloudDrive.Type.PROJECT_MEMBER_FILES -> {
+                UCloudDrive.ProjectMemberFiles(driveId, project!!, localReference!!)
+            }
+
+            UCloudDrive.Type.COLLECTION -> {
+                UCloudDrive.Collection(driveId)
+            }
+
+            UCloudDrive.Type.SHARE -> {
+                UCloudDrive.Share(driveId, localReference!!)
+            }
         }
+
+        val productRef = if (productName != null && productCategory != null) {
+            ProductReferenceV2(productName, productCategory, providerId)
+        } else {
+            null
+        }
+
+        entries.add(
+            DriveAndSystem(
+                drive, resolvedSystem, maintenanceMode, null, sizeInBytes,
+                driveOwner, driveOwnerIsUser, productRef
+            )
+        )
+    }
+
+    private suspend fun doUCloudInitSync(serviceClient: AuthenticatedClient, legacySystem: FsSystem) {
+        val drives = ArrayList<FileCollection>()
+
+        var next: String? = null
+        var isActive = true
+        whileGraal({ isActive }) {
+            val page = FileCollectionsControl.browse.call(
+                ResourceBrowseRequest(
+                    FileCollectionIncludeFlags(MemberFilesFilter.DONT_FILTER_COLLECTIONS),
+                    itemsPerPage = 250,
+                    next = next
+                ),
+                serviceClient
+            ).orThrow()
+            drives.addAll(page.items)
+            val nextToken = page.next
+            if (nextToken == null) {
+                isActive = false
+            } else {
+                next = nextToken
+            }
+        }
+
+        drives
+            .mapNotNull { drive ->
+                runCatching {
+                    UCloudDrive.parse(drive.id.toLong(), drive.providerGeneratedId).also {
+                        if (drive.providerGeneratedId != null) it.project = drive.owner.project
+                    }
+                }.getOrNull()
+            }
+            .chunked(100)
+            .forEachGraal { chunk ->
+                insert(chunk.map { DriveAndSystem(it, legacySystem, false, null) }, allowUpsert = false)
+            }
     }
 
     suspend fun insert(items: List<DriveAndSystem>, allowUpsert: Boolean, ctx: DBContext = dbConnection) {

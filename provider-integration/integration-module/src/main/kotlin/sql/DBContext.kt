@@ -92,6 +92,24 @@ suspend inline fun PreparedStatement.useAndInvokeAndDiscard(
     }
 }
 
+suspend fun PreparedStatement.useAndInvokeAndDiscardGraal(
+    prepare: suspend PreparedStatement.() -> Unit = {},
+) {
+    useAndInvokeAndDiscard {
+        prepare()
+    }
+}
+
+suspend fun PreparedStatement.useAndInvokeGraal(
+    prepare: suspend PreparedStatement.() -> Unit = {},
+    readRow: suspend (ResultCursor) -> Unit
+) {
+    useAndInvoke(
+        prepare = { prepare() },
+        readRow = { readRow(it) }
+    )
+}
+
 suspend inline fun PreparedStatement.useAndInvoke(
     prepare: PreparedStatement.() -> Unit = {},
     readRow: (ResultCursor) -> Unit
