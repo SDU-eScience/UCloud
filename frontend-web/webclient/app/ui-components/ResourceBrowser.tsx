@@ -513,6 +513,7 @@ export class ResourceBrowser<T> {
         if (this.features.locationBar) {
             // Render edit button for the location bar
             const editIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .location-bar-edit")!;
+            editIcon.setAttribute("data-shown", "");
             editIcon.src = placeholderImage;
             this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => editIcon.src = url);
@@ -523,6 +524,7 @@ export class ResourceBrowser<T> {
 
         if (this.features.search) {
             const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
+            icon.setAttribute("data-shown", "");
             icon.src = placeholderImage;
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
@@ -2858,7 +2860,7 @@ export class ResourceBrowser<T> {
                 flex-grow: 1;
             }
 
-            .header-first-row .location-bar-edit, .header-first-row .search-icon {
+            .header-first-row .location-bar-edit[data-shown], .header-first-row .search-icon[data-shown] {
                 width: 24px;
                 height: 24px;
             }

@@ -184,7 +184,7 @@ function SidebarElement({icon}: SidebarElement): JSX.Element {
 interface MenuElement {
     icon: IconName;
     label: string;
-    to?: string | (() => string);
+    to: string | (() => string);
     show?: () => boolean;
 }
 
@@ -200,13 +200,13 @@ export const sideBarMenuElements: [
         {
             items: [
                 {icon: "heroFolder", label: "Files", to: "/drives/"},
-                {icon: "heroUserGroup", label: "Workspace"},
-                {icon: "heroSquaresPlus", label: "Resources"},
+                {icon: "heroUserGroup", label: "Workspace", to: AppRoutes.project.usage()},
+                {icon: "heroSquaresPlus", label: "Resources", to: AppRoutes.resources.publicIps()},
                 {icon: "heroShoppingBag", label: "Applications", to: AppRoutes.apps.landing()},
                 {icon: "heroServer", label: "Runs", to: "/jobs/"}
             ], predicate: () => Client.isLoggedIn
         },
-        {items: [{icon: "heroBolt", label: "Admin"}], predicate: () => Client.userIsAdmin}
+        {items: [{icon: "heroBolt", label: "Admin", to: AppRoutes.admin.userCreation()}], predicate: () => Client.userIsAdmin}
     ];
 
 interface SidebarStateProps {
