@@ -429,16 +429,13 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
 
     if (!canApply) return null;
 
-    const canConsume = checkCanConsumeResources(project.fetch().id, {api: {isCoreResource: false}});
 
     return <HighlightedCard
-        title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>{canConsume ? "Grant applications": "Ingoing grant applications"}</Heading.h3></Link>}
+        title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>Grant applications</Heading.h3></Link>}
         color="green"
         icon="heroDocumentCheck"
     >
-        {!canConsume ?
-            <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, asIngoing: true}} /> :
-            <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true}} />}
+            <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
     </HighlightedCard>;
 };
 

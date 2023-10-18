@@ -11,6 +11,8 @@ import {IconName} from "@/ui-components/Icon";
 import {dateToString} from "@/Utilities/DateUtilities";
 import * as Grants from ".";
 import {stateToIconAndColor} from ".";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {addTrailingSlash, createHTMLElements} from "@/UtilityFunctions";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -24,7 +26,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {asIngoing?: boolean}}): JSX.Element {
+export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {both?: boolean}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Grants.Application>>(null);
     const dispatch = useDispatch();
@@ -36,7 +38,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     }
 
     const location = useLocation();
-    let isIngoing = location.pathname.endsWith("/ingoing/") || !!opts?.asIngoing;
+    let isIngoing = addTrailingSlash(location.pathname).endsWith("/ingoing/");
 
     const omitsFilters = !!opts?.omitFilters;
 
@@ -59,9 +61,11 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                     callAPI(Grants.browse({
                         filter: Grants.ApplicationFilter.SHOW_ALL,
-                        includeIngoingApplications: isIngoing,
-                        includeOutgoingApplications: !isIngoing,
-                        ...defaultRetrieveFlags
+                        includeIngoingApplications: isIngoing || opts?.both,
+                        includeOutgoingApplications: !isIngoing || opts?.both,
+                        ...defaultRetrieveFlags,
+                        ...browser.browseFilters,
+                        ...opts?.additionalFilters,
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -77,9 +81,10 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...browser.browseFilters,
+                            ...opts?.additionalFilters,
                             filter: Grants.ApplicationFilter.SHOW_ALL,
-                            includeIngoingApplications: isIngoing,
-                            includeOutgoingApplications: !isIngoing
+                            includeIngoingApplications: isIngoing || opts?.both,
+                            includeOutgoingApplications: !isIngoing || opts?.both
                         })
                     )
 
@@ -100,6 +105,20 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     }).then(setIcon);
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims));
+                    if (opts?.both) {
+                        const currentRevision = key.status.revisions.at(0);
+                        if (currentRevision) {
+                            let isIngoing = currentRevision.document.allocationRequests.find(it => it.grantGiver === Client.projectId);
+                            if (isIngoing) {
+                                const text = createHTMLElements({
+                                    tagType: "span",
+                                    style: {color: "var(--midGray)"},
+                                });
+                                text.innerText = " (ingoing)";
+                                row.title.append(text);
+                            }
+                        }
+                    }
                     const stateIconAndColor = stateToIconAndColor(key.status.overallState);
                     const statusIconName = stateIconAndColor.icon;
                     const statusIconColor = stateIconAndColor.color;
