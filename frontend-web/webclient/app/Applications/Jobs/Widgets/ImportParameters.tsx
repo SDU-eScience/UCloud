@@ -169,7 +169,10 @@ export const ImportParameters: React.FunctionComponent<{
                         dialogStore.addDialog(
                             <FileBrowse
                                 opts={{
-                                    embedded: true, initialPath: "", selection: {
+                                    embedded: true,
+                                    isModal: true,
+                                    initialPath: "",
+                                    selection: {
                                         onSelect: res => {
                                             fetchAndImportParameters(res);
                                             dialogStore.success();
@@ -189,6 +192,8 @@ export const ImportParameters: React.FunctionComponent<{
                         onImportDialogClose();
                         dialogStore.addDialog(
                             <JobBrowse opts={{
+                                embedded: true,
+                                isModal: true,
                                 selection: {
                                     onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here
                                     onSelect: res => {

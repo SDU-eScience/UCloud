@@ -10,6 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import AppRoutes from "@/Routes";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -55,12 +56,12 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Provider>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Provider>(mount, "Providers", opts).init(browserRef, features, "", browser => {
                 browser.setRowTitles(rowTitles);
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        //navigate(AppRoutes.jobs.view(resource.id));
+                        navigate(AppRoutes.resource.properties("providers", resource.id));
                         return;
                     }
 
@@ -145,7 +146,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
                         reload: () => browser.refresh(),
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         viewProperties: provider => {
-                            console.log("todo");
+                            navigate(AppRoutes.resource.properties("provider", provider.id));
                         }
                     };
                     return callbacks;

@@ -161,7 +161,6 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                 browser.on("unhandledShortcut", () => { });
 
                 browser.on("wantToFetchNextPage", async path => {
-                    /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
                         PublicLinkApi.browse({
                             next: browser.cachedNext[path] ?? undefined,

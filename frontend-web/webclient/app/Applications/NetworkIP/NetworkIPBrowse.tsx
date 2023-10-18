@@ -36,7 +36,7 @@ const supportByProvider = new AsyncCache<SupportByProvider<ProductNetworkIP, Net
     globalTtl: 60_000
 });
 
-export function NetworkIPBrowse(props: {opts?: ResourceBrowserOpts<NetworkIP>}): JSX.Element {
+export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
     const dispatch = useDispatch();
@@ -50,7 +50,7 @@ export function NetworkIPBrowse(props: {opts?: ResourceBrowserOpts<NetworkIP>}):
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<NetworkIP>(mount, "Public IPs", props.opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setRowTitles([{name: "IP address"}, {name: "In use with"}, {name: ""}, {name: ""}]);
 
                 var startCreation = function () { };
@@ -126,12 +126,14 @@ export function NetworkIPBrowse(props: {opts?: ResourceBrowserOpts<NetworkIP>}):
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        // TODO(Jonas): Handle properties
+                        navigate(AppRoutes.resource.properties("public-ips", resource.id));
+                        return;
                     }
 
                     callAPI(NetworkIPApi.browse({
                         ...defaultRetrieveFlags,
-                        ...browser.browseFilters
+                        ...browser.browseFilters,
+                        ...opts?.additionalFilters,
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -141,12 +143,12 @@ export function NetworkIPBrowse(props: {opts?: ResourceBrowserOpts<NetworkIP>}):
                 browser.on("unhandledShortcut", () => { });
 
                 browser.on("wantToFetchNextPage", async path => {
-                    /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
                         NetworkIPApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters,
                         })
                     )
 
@@ -265,7 +267,6 @@ export function NetworkIPBrowse(props: {opts?: ResourceBrowserOpts<NetworkIP>}):
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
-        // TODO(Jonas): Creation
     }, []);
 
     useRefreshFunction(() => {

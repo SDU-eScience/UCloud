@@ -33,9 +33,11 @@ const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
-    embedded?: boolean; // TODO(Jonas): Rename to something like 'simple' or similar.
     omitFilters?: boolean;
     disabledKeyhandlers?: boolean;
+    // TODO(Jonas): Document what this actually does and what it does different from isModal.
+    embedded?: boolean; // TODO(Jonas): Rename to something like 'simple' or similar.
+    // TODO(Jonas): Document what this actually does and what it does diffently from embedded.
     isModal?: boolean;
     selection?: {
         onSelect(res: T): void;
@@ -512,11 +514,6 @@ export class ResourceBrowser<T> {
             // Render edit button for the location bar
             const editIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .location-bar-edit")!;
             editIcon.src = placeholderImage;
-            editIcon.width = 24;
-            editIcon.height = 24;
-
-            // TODO(Jonas): This should be handlded in CSS.
-            editIcon.style.marginLeft = editIcon.style.marginRight = "14px";
             this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => editIcon.src = url);
             editIcon.addEventListener("click", () => {
@@ -527,10 +524,6 @@ export class ResourceBrowser<T> {
         if (this.features.search) {
             const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
             icon.src = placeholderImage;
-            icon.width = 24;
-            icon.height = 24;
-
-            // TODO(Jonas): This should be handlded in CSS.
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
                 .then(url => icon.src = url);
 
@@ -862,7 +855,6 @@ export class ResourceBrowser<T> {
     }
 
     private rerenderSessionFilterIcons() {
-        // TODO(Jonas): This doesn't take into account if sessionFilters have been cleared, so this can crash.
         const filters = this.dispatchMessage("fetchFilters", fn => fn()).filter(it => it.type === "input");
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
@@ -1165,8 +1157,6 @@ export class ResourceBrowser<T> {
         }
     }
 
-    // TODO(Jonas): This might be a stupid solution, but some filters should not exist beyond the lifetime of the component,
-    // referred to `session` here.
     renderSessionFilters() {
         const filters = this.dispatchMessage("fetchFilters", k => k());
 
@@ -2866,6 +2856,16 @@ export class ResourceBrowser<T> {
 
             .file-browser header .header-first-row .location-bar {
                 flex-grow: 1;
+            }
+
+            .header-first-row .location-bar-edit, .header-first-row .search-icon {
+                width: 24px;
+                height: 24px;
+            }
+
+            .header-first-row .location-bar-edit {
+                margin-left: 14px;
+                margin-right: 14px;
             }
 
             .file-browser header ul {

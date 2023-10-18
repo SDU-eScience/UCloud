@@ -49,6 +49,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     }, []);
 
     const onActivate = useCallback(() => {
+        // Note(Jonas): Not meaningfully in use?
         const pathRef = {current: ""};
         const provider = getProviderField();
         const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};

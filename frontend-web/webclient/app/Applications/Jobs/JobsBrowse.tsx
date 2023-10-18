@@ -42,7 +42,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const dispatch = useDispatch();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
-    if (!opts?.embedded) {
+    if (!opts?.embedded && !opts?.isModal) {
         useTitle("Jobs");
     }
 

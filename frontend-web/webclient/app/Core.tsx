@@ -1,7 +1,6 @@
 import * as React from "react";
 
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
-const Applications = React.lazy(() => import("@/Applications/Browse"));
 const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
 const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
 const ApplicationsGroup = React.lazy(() => import("./Applications/Group"));

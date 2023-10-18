@@ -666,7 +666,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     return browser.icons.renderSvg(
                         "file-" + extension,
                         () => <SvgFt color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")} hasExt={hasExt}
-                                     ext={extension} type={type} width={width} height={height} />,
+                            ext={extension} type={type} width={width} height={height} />,
                         width,
                         height
                     );
@@ -1058,7 +1058,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         if (!isInitialMount.current) navigate("/files?path=" + encodeURIComponent(newPath));
                     }
 
-
                     if (newPath == SEARCH) {
                         browser.emptyReasons[SEARCH] = {
                             tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
@@ -1297,26 +1296,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
     const setLocalProject = opts?.isModal ? (projectId?: string) => {
         activeProject.current = projectId;
-
-        // WARNING(Jonas): DUPLICATION!
-        const b = browserRef.current;
-        if (!b) return;
-
-        collectionCacheForCompletion.invalidateAll();
-        collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
-            FileCollectionsApi.browse({
-                itemsPerPage: 10,
-                filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                ...opts.additionalFilters,
-            })
-        ).then(res => {
-            const [first] = res.items;
-            if (first) {
-                selectorPathRef.current = first.id;
-                b.open(selectorPathRef.current);
-            }
-            return res.items;
-        }))
+        clearAndFetchCollections();
     } : undefined;
 
     useLayoutEffect(() => {
@@ -1325,21 +1305,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
         if (opts?.initialPath !== undefined) {
             if (selectorPathRef.current === "") {
-                // WARNING(Jonas): DUPLICATION!
-                collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
-                    FileCollectionsApi.browse({
-                        itemsPerPage: 10,
-                        filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                        ...opts.additionalFilters,
-                    })
-                ).then((res: PageV2<FileCollection>) => {
-                    const [first] = res.items;
-                    if (first) {
-                        selectorPathRef.current = first.id;
-                        b.open(selectorPathRef.current);
-                    }
-                    return res.items;
-                }))
+                clearAndFetchCollections();
             } else {
                 b.open(selectorPathRef.current);
             }
@@ -1362,7 +1328,29 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
             {switcher}
         </>}
     />;
-};
+
+
+    function clearAndFetchCollections() {
+        const b = browserRef.current;
+        if (!b) return;
+
+        collectionCacheForCompletion.invalidateAll();
+        collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
+            FileCollectionsApi.browse({
+                itemsPerPage: 10,
+                filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                ...opts?.additionalFilters,
+            })
+        ).then(res => {
+            const [first] = res.items;
+            if (first) {
+                selectorPathRef.current = first.id;
+                b.open(selectorPathRef.current);
+            }
+            return res.items;
+        }))
+    }
+}
 
 function isReadonly(entries: Permission[]): boolean {
     const isAdmin = entries.includes("ADMIN");
