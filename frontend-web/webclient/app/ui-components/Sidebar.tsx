@@ -13,7 +13,6 @@ import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
 import Text, {EllipsedText, TextSpan} from "./Text";
-import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
 import {useProjectId} from "@/Project/Api";
@@ -265,7 +264,7 @@ const UserMenu: React.FunctionComponent<{
     return <ClickableDropdown
         width="230px"
         paddingControlledByContent
-        left="var(--sidebarWidth)"
+        left="calc(var(--sidebarWidth) + 5px)"
         bottom="0"
         closeFnRef={close}
         colorOnHover={false}

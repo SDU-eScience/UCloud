@@ -409,7 +409,7 @@ export const Notifications: React.FunctionComponent = () => {
 const ContentWrapper = injectStyle("content-wrapper", k => `
     ${k} {
         position: fixed;
-        bottom: 8px;
+        bottom: 12px;
         left: calc(8px + var(--sidebarWidth));
         width: 450px;
         height: 600px;
