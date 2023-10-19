@@ -10,6 +10,7 @@ import {
 } from "styled-system";
 import {BoxProps} from "./Box";
 import {classConcat, injectStyle, unbox} from "@/Unstyled";
+import theme from "./theme";
 
 export interface CardProps extends HeightProps,
     BoxProps,
@@ -28,16 +29,21 @@ export interface CardProps extends HeightProps,
 
 export const CardClass = injectStyle("card", k => `
     ${k} {
-        border-radius: 25px;
-        background: var(--appCard);
-        border: 1px solid #E2DDDD;
-        padding: 25px 25px 25px 25px;
-        box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
+        border-radius: 10px;
+        box-shadow: ${theme.shadows.sm};
+        border: 1px solid var(--midGray);
+        background-color: var(--lightGray);
+        color: var(--text);
+        padding: 10px 15px;
     }
-    
+
     html.dark ${k} {
-        box-shadow: 0px 3px 6px rgba(255, 255, 255, 16%);
-        border: 1px solid transparent;
+        border: 1px solid var(--lightGray);
+    }
+
+    a ${k}:hover {
+        border-color: var(--blue);
+        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     }
 `);
 

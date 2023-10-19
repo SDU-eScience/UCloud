@@ -7,6 +7,7 @@ import {injectStyle, unbox} from "@/Unstyled";
 interface SelectProps extends SpaceProps, WidthProps, React.SelectHTMLAttributes<HTMLSelectElement> {
     error?: boolean;
     selectRef?: React.RefObject<HTMLSelectElement>;
+    slim?: boolean;
 }
 
 const SelectClass = injectStyle("select", k => `
@@ -27,6 +28,12 @@ const SelectClass = injectStyle("select", k => `
         padding-right: 32px;
         padding-top: 7px;
         padding-bottom: 7px;
+    }
+
+    ${k}[data-slim=true] {
+        height: 35px;
+        padding-top: 0;
+        padding-bottom: 0;
     }
     
     ${k}:disabled:hover {
@@ -63,14 +70,18 @@ const SelectClass = injectStyle("select", k => `
     
     ${k} + .${IconClass} {
         pointer-events: none;
-        margin-left: -32px;
+        margin-left: -25px;
     }
 `);
 
 const Select: React.FunctionComponent<SelectProps> = props => {
+    const cleanProps = {...props};
+    delete cleanProps["slim"];
+
     return <Flex width={1} alignItems="center" style={unbox(props)}>
-        <select className={SelectClass} {...props} ref={props.selectRef}/>
-        <Icon name="chevronDown" color="gray" size="0.7em"/>
+        <select className={SelectClass} {...cleanProps} ref={props.selectRef}
+                data-slim={(props.slim === true).toString()}/>
+        <Icon name="heroChevronDown" size="14px" />
     </Flex>;
 };
 

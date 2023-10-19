@@ -13,6 +13,7 @@ const style = injectStyle("highlightedCard", k => `
         align-items: center;
         gap: 8px;
         margin-bottom: 25px;
+        margin-top: 10px;
     }
     
     ${k} {

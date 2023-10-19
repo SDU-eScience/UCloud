@@ -113,7 +113,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         cursor: pointer;
     }
     
-    ${k} h2, h3 {
+    ${k} h2, ${k} h3 {
         margin: 0;
         font-weight: bold;
     }

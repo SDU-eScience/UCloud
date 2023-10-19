@@ -91,6 +91,10 @@ const grants = {
     outgoing: () => "/grants/outgoing",
 }
 
+const accounting = {
+    visualization: () => "/usage/visualize",
+}
+
 const AppRoutes = {
     apps,
     news,
@@ -104,7 +108,8 @@ const AppRoutes = {
     login,
     jobs,
     syncthing,
-    grants
+    grants,
+    accounting
 };
 
 export default AppRoutes;

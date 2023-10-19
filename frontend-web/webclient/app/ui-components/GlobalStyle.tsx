@@ -126,6 +126,8 @@ html {
     --interactiveElementsSize: 20px;
     font-size: 14px;
     /* FONT-SIZES end */
+
+    --monospace: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
     
 
     /* REWRITE-VARS end */

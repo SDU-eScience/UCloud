@@ -9,12 +9,12 @@ export function extractSize(size: ResponsiveValue<any>): string {
     return `${size}px`;
 }
 
-export function classConcat(baseClass: string, extra: string | undefined): string {
-    return baseClass + (extra ? " " + extra : "");
+export function classConcat(baseClass: string, ...extra: (string | undefined)[]): string {
+    return baseClass + " " + extra.filter(it => it).join(" ");
 }
 
 export function classConcatMult(baseClass: string, ...extra: (string | undefined)[]): string {
-    return baseClass + " " + extra.filter(it => it).join(" ");
+    return classConcat(baseClass, ...extra);
 }
 
 export function classConcatArray(baseClass: string, extra: string[]): string {

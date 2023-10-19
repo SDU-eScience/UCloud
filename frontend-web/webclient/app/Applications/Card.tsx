@@ -7,9 +7,10 @@ import Markdown from "@/ui-components/Markdown";
 import {EllipsedText, TextClass} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Pages from "./Pages";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {LogoType} from "./api";
+import { CardClass } from "@/ui-components/Card";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
@@ -329,21 +330,6 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
 const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
         user-select: none;
-        border-radius: 16px;
-        box-shadow: ${theme.shadows.sm};
-        border: 1px solid var(--midGray);
-        background-color: var(--lightGray);
-        color: var(--text);
-        padding: 10px 15px;
-    }
-
-    html.dark ${k} {
-        border: 1px solid var(--lightGray);
-    }
-
-    html.dark ${k}:hover, ${k}:hover {
-        border-color: var(--blue);
-        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     }
 
     ${k} > div.${TitleAndDescriptionClass} {
@@ -484,16 +470,24 @@ export function AppCard(props: AppCardProps): JSX.Element {
             case ApplicationCardType.EXTRA_TALL:
             case ApplicationCardType.TALL:
                 const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
-                return <Flex flexDirection="column" className={ApplicationCardClass + " " + TallApplicationCard} data-xl={isExtraTall}>
+                return <Flex 
+                    flexDirection="column" 
+                    className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)} 
+                    data-xl={isExtraTall}
+                >
                     <div className="image">
                         <AppToolLogo size={"52px"} name={props.logo} type={props.logoType} />
                     </div>
                     {titleAndDescription}
-                </Flex>
+                </Flex>;
+
             case ApplicationCardType.WIDE:
             case ApplicationCardType.EXTRA_WIDE:
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
-                return <div className={ApplicationCardClass + " " + WideApplicationCard} data-xl={isExtraWide}>
+                return <div 
+                    className={classConcat(CardClass, ApplicationCardClass, WideApplicationCard)} 
+                    data-xl={isExtraWide}
+                >
                     <div className="image">
                         <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={props.logo} type={props.logoType} />
                     </div>

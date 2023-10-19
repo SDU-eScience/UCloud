@@ -52,6 +52,7 @@ const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTestin
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
 const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
+const AccountingVisualization = React.lazy(() => import("@/Accounting/Visualization"));
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -221,6 +222,9 @@ const Core = (): React.JSX.Element => (
                             element={React.createElement(requireAuth(GrantApplicationBrowse))} />
                         <Route path={AppRoutes.grants.outgoing()}
                             element={React.createElement(requireAuth(GrantApplicationBrowse))} />
+
+                        <Route path={AppRoutes.accounting.visualization()} 
+                               element={React.createElement(requireAuth(AccountingVisualization))} />
 
                         <Route
                             path="/sla"
