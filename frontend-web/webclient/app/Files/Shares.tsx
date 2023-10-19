@@ -251,6 +251,8 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
 
     const dateRanges = dateRangeFilters("Created after");
 
+    avatars.subscribe(() => browserRef.current?.renderRows());
+
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
@@ -303,7 +305,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                 let fetchedAvatars = new Set<string>();
                 browser.on("endRenderPage", () => {
                     if (currentAvatars.size > 0) {
-                        avatars.updateCache([...currentAvatars]).then(() => browser.rerender());
+                        avatars.updateCache([...currentAvatars]);
                         currentAvatars.forEach(it => fetchedAvatars.add(it));
                         currentAvatars.clear();
                     }
