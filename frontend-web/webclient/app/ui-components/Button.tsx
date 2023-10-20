@@ -27,8 +27,8 @@ export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, 
 export enum StandardButtonSize {
     LARGE = 0,
     STANDARD = 1,
-    SMALL = 2,
-    EXTRA_SMALL = 3,
+    SMALL = 2, // UNUSED
+    EXTRA_SMALL = 3, // UNUSED
 }
 
 export const ButtonClass = injectStyle("button", k => `

@@ -1,13 +1,5 @@
 import deepcopy from "deepcopy";
 
-type PrimitiveDataTypes = string | number | boolean;
-
-export function addEntryIfNotPresent(set: Set<PrimitiveDataTypes>, entry: PrimitiveDataTypes): boolean {
-    const size = set.size;
-    set.add(entry);
-    return size !== set.size;
-}
-
 export function groupBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T[]> {
     const result: Record<string, T[]> = {};
     items.forEach(item => {

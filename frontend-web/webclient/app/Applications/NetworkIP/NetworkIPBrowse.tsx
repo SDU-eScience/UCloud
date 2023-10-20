@@ -245,9 +245,6 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: NetworkIP): void {
-                            // TODO
-                        },
                         viewProperties(res: NetworkIP): void {
                             navigate(AppRoutes.resource.properties("public-ips", res.id));
                         },

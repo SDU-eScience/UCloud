@@ -57,7 +57,7 @@ const AppCardBase = injectStyle("app-card-base", k => `
     }
 `);
 
-export const ApplicationCardContainer = injectStyle("application-card-container", k => `
+const ApplicationCardContainer = injectStyle("application-card-container", k => `
     ${k} {
         display: flex;
         flex-direction: column;
@@ -78,7 +78,7 @@ export const ApplicationCardContainer = injectStyle("application-card-container"
     }
 `);
 
-export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
+const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
     return (
         <Box className={AppCardBase}>
             <Box mr={16}>
@@ -219,7 +219,7 @@ export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
 
-export function CardToolContainer({children}: React.PropsWithChildren): JSX.Element {
+function CardToolContainer({children}: React.PropsWithChildren): JSX.Element {
     return <div className={CardToolContainerClass} children={children} />
 }
 
@@ -232,7 +232,7 @@ const CardToolContainerClass = injectStyleSimple("card-tool-container", `
     width: 100%;
 `);
 
-export function SmallCard(props: LinkProps) {
+function SmallCard(props: LinkProps) {
     return <Link className={SmallCardClass} {...props} />
 }
 

@@ -46,10 +46,6 @@ export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T>
     };
 }
 
-export interface ClearRefresh {
-    clearRefresh: () => void;
-}
-
 export type SetLoadingAction<T> = PayloadAction<T, {loading: boolean}>;
 export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>;
 declare global {

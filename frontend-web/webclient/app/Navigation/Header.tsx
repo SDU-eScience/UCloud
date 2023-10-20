@@ -9,29 +9,14 @@ import {injectStyleSimple} from "@/Unstyled";
 export function NonAuthenticatedHeader(): JSX.Element {
     return (
         <ui.Flex background={"var(--headerBg)"} className={HeaderContainerClass}>
-            <Logo />
-            <ui.Box ml="auto" />
+            <Logo/>
+            <ui.Box ml="auto"/>
             <ui.Link to="/login">
                 <ui.Button color="green" textColor="fixedWhite" mr="12px">Log in</ui.Button>
             </ui.Link>
         </ui.Flex>
     );
 }
-
-export const Refresh = ({
-    onClick,
-    spin,
-    headerLoading
-}: {onClick?: () => void; spin: boolean; headerLoading?: boolean}): JSX.Element => !!onClick || headerLoading ? (
-    <ui.Icon
-        data-component="refresh"
-        data-loading={spin}
-        cursor="pointer"
-        name="refresh"
-        spin={spin || headerLoading}
-        onClick={onClick}
-    />
-) : <ui.Box width="24px" />;
 
 const HeaderContainerClass = injectStyleSimple("header-container", `
     height: 48px;
@@ -43,7 +28,7 @@ const HeaderContainerClass = injectStyleSimple("header-container", `
     box-shadow: ${ui.theme.shadows.sm};
 `);
 
-const Logo = (): JSX.Element => (
+const Logo = (): React.JSX.Element => (
     <Link
         data-component={"logo"}
         to="/"

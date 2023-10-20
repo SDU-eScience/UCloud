@@ -16,16 +16,6 @@ export interface ProductCategoryId {
     title?: string;
 }
 
-export function productToArea(product: Product): ProductArea {
-    switch (product.type) {
-        case "compute": return "COMPUTE";
-        case "ingress": return "INGRESS";
-        case "license": return "LICENSE";
-        case "storage": return "STORAGE";
-        case "network_ip": return "NETWORK_IP";
-    }
-}
-
 export function productAreaTitle(area: ProductArea): string {
     switch (area) {
         case "COMPUTE":

@@ -35,7 +35,7 @@ export const defaultEmailSettings: EmailSettings = {
 
 export enum MailType {
     NEW_GRANT_APPLICATION,
-    GRANT_AUTO_APPROVE,
+    GRANT_AUTO_APPROVE, // UNUSED?
     GRANT_APPLICATION_UPDATED,
     GRANT_APPLICATION_APPROVED,
     GRANT_APPLICATION_REJECTED,

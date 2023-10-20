@@ -23,8 +23,6 @@ export interface ClaimGiftRequest {
     giftId: number;
 }
 
-export type ClaimGiftResponse = any;
-
 export function claimGift(request: ClaimGiftRequest): APICallParameters<ClaimGiftRequest> {
     return {
         method: "POST",

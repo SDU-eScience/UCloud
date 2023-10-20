@@ -52,8 +52,6 @@ export enum SensitivityLevel {
     "SENSITIVE" = "Sensitive"
 }
 
-export type Sensitivity = keyof typeof SensitivityLevel;
-
 export enum SensitivityLevelMap {
     INHERIT = "INHERIT",
     PRIVATE = "PRIVATE",
@@ -66,19 +64,9 @@ export interface ComponentWithLoadingState {
     error?: string;
 }
 
-export interface ComponentWithPage<T> extends ComponentWithLoadingState {
-    page: Page<T>;
-}
-
 export interface StatusReduxObject {
     title: string;
     loading: boolean;
-}
-
-export interface SidebarReduxObject {
-    pp: boolean;
-    options: SidebarOption[];
-    kcCount: number;
 }
 
 export interface HeaderSearchReduxObject {
@@ -87,15 +75,6 @@ export interface HeaderSearchReduxObject {
 }
 
 export type HeaderSearchType = "files" | "applications" | "projects";
-
-export interface UploaderReduxObject {
-    visible: boolean;
-    path: string;
-    allowMultiple: boolean;
-    onFilesUploaded: () => void;
-    error?: string;
-    loading: boolean;
-}
 
 /**
  * Global state created via useGlobal() similar to ReduxObject

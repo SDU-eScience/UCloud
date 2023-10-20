@@ -129,6 +129,7 @@ export interface APICallStateWithParams<T, Params = any> {
     parameters: APICallParameters<Params>;
 }
 
+// Unused
 export function mapCallState<InputType, OutputType>(
     state: APICallState<InputType>, mapper: (t: InputType) => OutputType
 ): APICallState<OutputType> {
@@ -271,6 +272,7 @@ export function useCloudCommand(): [boolean, InvokeCommand, React.RefObject<bool
 
 export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
 
+// unused
 export function useAsyncWork(): AsyncWorker {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
@@ -312,6 +314,7 @@ export interface CloudCacheHook {
     removePrefix(pathPrefix: string): void;
 }
 
+// unused
 export function useCloudCache(): CloudCacheHook {
     const [cache, setCache, mergeCache] = useGlobal("cloudApiCache", {});
 

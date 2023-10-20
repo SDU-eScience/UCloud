@@ -137,7 +137,6 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
                 browser.on("unhandledShortcut", () => { });
 
                 browser.on("wantToFetchNextPage", async path => {
-                    /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
                         LicenseApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
