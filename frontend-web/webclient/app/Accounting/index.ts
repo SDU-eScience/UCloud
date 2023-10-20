@@ -833,7 +833,7 @@ const hardcodedProductCategoryDescriptions: Record<string, Record<string, string
         "uc-a100": `Virtual machine with NVIDIA A100 GPUs.`,
     },
 
-    "spohia": {
+    "sophia": {
         "sophia-storage": ``,
         "sophia-slim": ``,
     },
