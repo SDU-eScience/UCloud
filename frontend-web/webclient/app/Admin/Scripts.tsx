@@ -1,18 +1,17 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo} from "react";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {apiBrowse, apiUpdate, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
 import {PageV2} from "@/UCloud";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Flex, Icon, List} from "@/ui-components";
-import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
-import {BrowseType} from "@/Resource/BrowseType";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation} from "@/ui-components/Operation";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {formatDistanceToNow} from "date-fns";
+import {format} from "date-fns";
+import {ResourceBrowseFeatures, ResourceBrowser, RowTitleList} from "@/ui-components/ResourceBrowser";
+import {DATE_FORMAT} from "./NewsManagement";
+import {ButtonClass} from "@/ui-components/Button";
+import {createHTMLElements} from "@/UtilityFunctions";
 
 const baseContext = "/api/scripts";
 
@@ -47,87 +46,106 @@ interface ScriptInfo {
     lastRun: number;
 }
 
-/* TODO(Jonas): Use new Browse-component */
+const FEATURES: ResourceBrowseFeatures = {
+    breadcrumbsSeparatedBySlashes: false,
+    rowTitles: true,
+    dragToSelect: true,
+    renderSpinnerWhenLoading: true,
+};
+
+const ROW_TITLES: RowTitleList = [{name: "Script"}, {name: ""}, {name: "Last run"}, {name: ""}];
 const Scripts: React.FunctionComponent = () => {
-    const [scripts, fetchScripts] = useCloudAPI<PageV2<ScriptInfo>>({noop: true}, emptyPageV2);
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<ScriptInfo> | null>(null);
+    useTitle("Scripts");
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<ScriptInfo>(mount, "Scripts", {}).init(browserRef, FEATURES, "", browser => {
+                browser.setRowTitles(ROW_TITLES);
+                browser.on("open", (oldPath, newPath, res) => {
+                    if (res) return;
+                    callAPI(apiBrowse({itemsPerPage: 250}, baseContext)).then((it: PageV2<ScriptInfo>) => {
+                        browser.registerPage(it, newPath, true);
+                        browser.renderRows()
+                    });
+                })
 
-    const toggleSet = useToggleSet(scripts.data.items);
-    const [, invokeCommand] = useCloudCommand();
+                browser.on("wantToFetchNextPage", async path => {
+                    const result = await callAPI(apiBrowse({
+                        next: browser.cachedNext[path] ?? undefined,
+                    }, baseContext));
+                    browser.registerPage(result, "", false);
+                });
 
-    const reload = useCallback(() => {
-        if (Client.userIsAdmin) fetchScripts(apiBrowse({itemsPerPage: 50}, baseContext));
-        toggleSet.uncheckAll();
+                browser.setEmptyIcon("play");
+                browser.on("pathToEntry", entry => entry.metadata.title);
+                browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
+                browser.on("fetchOperationsCallback", () => ({}));
+                browser.on("fetchOperations", () => {
+                    const entries = browser.findSelectedEntries();
+                    return operations.filter(it => it.enabled(entries, {}, entries))
+                });
+                browser.on("renderEmptyPage", reason => browser.defaultEmptyPage("scripts", reason, {}));
+                browser.on("unhandledShortcut", listener => void 0);
+
+                browser.on("renderRow", (script, row, dim) => {
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    row.title.append(icon);
+                    browser.icons.renderIcon({
+                        name: "play",
+                        color: "black",
+                        color2: "black",
+                        height: 32,
+                        width: 32,
+                    }).then(setIcon);
+
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, dim));
+
+                    const lastRun = script.lastRun === 0 ? "Never" : format(script.lastRun, DATE_FORMAT)
+                    const textNode = document.createTextNode(lastRun);
+                    row.stat2.append(textNode);
+
+                    row.stat3.append(createHTMLElements({
+                        tagType: "button",
+                        style: {height: "32px", width: "64px"},
+                        className: ButtonClass,
+                        handlers: {
+                            onClick(e) {
+                                e.stopImmediatePropagation();
+                                const [start] = operations;
+                                if (start.text !== "Start") {
+                                    console.warn("Something went wrong. This is the wrong operation.")
+                                    return;
+                                }
+                                start.onClick([script], {});
+                            }
+                        }
+                    }))
+                });
+            })
+        }
     }, []);
 
-    useTitle("Scripts");
-    useRefreshFunction(reload);
-    useEffect(() => reload(), [reload]);
-
-    const callbacks: Callbacks = useMemo(() => ({
-        invokeCommand,
-        reload
-    }), [reload]);
+    useRefreshFunction(() => {
+        browserRef.current?.refresh();
+    });
 
     if (!Client.userIsAdmin) return null;
 
-    return <MainContainer
-        main={
-            <>
-                <Operations location={"TOPBAR"} operations={operations} selected={toggleSet.checked.items}
-                    extra={callbacks} entityNameSingular={"Script"} />
-                <List>
-                    {scripts.data.items.map(it =>
-                        <ItemRow
-                            key={it.metadata.id}
-                            browseType={BrowseType.MainContent}
-                            renderer={scriptRenderer}
-                            toggleSet={toggleSet}
-                            operations={operations}
-                            callbacks={callbacks}
-                            itemTitle={"Script"}
-                            item={it}
-                        />
-                    )}
-                </List>
-            </>
-        }
-    />;
+    return <MainContainer main={<div ref={mountRef} />} />
 };
 
-const scriptRenderer: ItemRenderer<ScriptInfo> = {
-    Icon: props => {
-        return <Icon name={"play"} size={props.size} />
-    },
-
-    MainTitle: props => {
-        return <>{props.resource?.metadata?.title}</>
-    },
-
-    ImportantStats: props => {
-        if (props.resource == null) return null;
-        return <Flex alignItems={"center"} mx={32} flexShrink={0}>
-            Last run: {props.resource.lastRun === 0 ? "Never" : formatDistanceToNow(props.resource.lastRun)}
-            {" "}ago
-        </Flex>;
-    }
-};
-
-interface Callbacks {
-    invokeCommand: InvokeCommand;
-    reload: () => void;
-}
-
-const operations: Operation<ScriptInfo, Callbacks>[] = [
+const operations: Operation<ScriptInfo, Record<string, never>>[] = [
     {
         text: "Start",
         icon: "play",
         primary: true,
         enabled: (selected) => selected.length >= 1,
-        onClick: async (selected, cb) => {
-            await cb.invokeCommand(
+        onClick: async (selected) => {
+            await callAPI(
                 apiUpdate(bulkRequestOf(...selected.map(it => ({scriptId: it.metadata.id}))), baseContext, "start")
             );
-            cb.reload();
         }
     }
 ];

@@ -3369,6 +3369,35 @@ export class ResourceBrowser<T> {
         if (!this.opts.selector) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
     }
 
+    public defaultEmptyPage(resourceName: string, reason: EmptyReason, additionalFilters: Record<string, string> | undefined) {
+        const e = this.emptyPageElement;
+        switch (reason.tag) {
+            case EmptyReasonTag.LOADING: {
+                e.reason.append(`We are fetching your ${resourceName}...`);
+                break;
+            }
+
+            case EmptyReasonTag.EMPTY: {
+                if (Object.values({...this.browseFilters, ...(additionalFilters ?? {})}).length !== 0)
+                    e.reason.append(`No ${resourceName} found with active filters.`)
+                else e.reason.append(`This workspace has no ${resourceName} yet.`);
+                break;
+            }
+
+            case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
+                e.reason.append(`We could not find any data related to your ${resourceName}.`);
+                e.providerReason.append(reason.information ?? "");
+                break;
+            }
+
+            case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                e.reason.append(`We are currently unable to show your ${resourceName}. Try again later.`);
+                e.providerReason.append(reason.information ?? "");
+                break;
+            }
+        }
+    }
+
     private setTitleAndHandlers(el: HTMLElement, rowTitle: RowTitle, position: "left" | "right"): void {
         el.innerHTML = "";
         const wrapper = document.createElement("div");

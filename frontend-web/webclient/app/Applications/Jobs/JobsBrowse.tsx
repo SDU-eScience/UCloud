@@ -176,42 +176,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         row.stat3.append(status);
                     }
 
-
                 });
 
                 browser.setEmptyIcon("heroServer");
-
                 browser.on("unhandledShortcut", () => void 0);
-
-                browser.on("renderEmptyPage", reason => {
-                    const e = browser.emptyPageElement;
-                    switch (reason.tag) {
-                        case EmptyReasonTag.LOADING: {
-                            e.reason.append("We are fetching your jobs...");
-                            break;
-                        }
-
-                        case EmptyReasonTag.EMPTY: {
-                            if (Object.values({...browser.browseFilters, ...(opts?.additionalFilters ?? {})}).length !== 0)
-                                e.reason.append("No jobs found with active filters.")
-                            else e.reason.append("This workspace has not run any jobs yet.");
-                            break;
-                        }
-
-                        case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
-                            e.reason.append("We could not find any data related to your jobs.");
-                            e.providerReason.append(reason.information ?? "");
-                            break;
-                        }
-
-                        case EmptyReasonTag.UNABLE_TO_FULFILL: {
-                            e.reason.append("We are currently unable to show your jobs. Try again later.");
-                            e.providerReason.append(reason.information ?? "");
-                            break;
-                        }
-                    }
-                });
-
+                browser.on("renderEmptyPage", reason => browser.defaultEmptyPage("jobs", reason, opts?.additionalFilters));
                 browser.on("nameOfEntry", j => j.specification.name ?? j.id ?? "");
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
