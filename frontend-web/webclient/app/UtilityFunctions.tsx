@@ -292,6 +292,7 @@ export function timestampUnixMs(): number {
 }
 
 /**
+ * UNUSED
  * Used to format numbers to a more human readable number by dividing it up by thousands and using custom delimiters.
  * @param value numerical value to be formatted.
  * @param sectionDelim used for deliminate every thousand. Default: ,

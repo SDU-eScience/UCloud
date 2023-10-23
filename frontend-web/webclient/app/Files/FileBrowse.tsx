@@ -49,7 +49,6 @@ import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {setPopInChild} from "@/ui-components/PopIn";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";
@@ -1245,18 +1244,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const currentStatus = await findFavoriteStatus(entry);
                         await setFavoriteStatus(entry, !currentStatus);
                     })();
-                });
-
-                browser.on("beforeOpen", (oldPath, path, resource) => {
-                    if (resource?.status.type === "FILE") {
-                        const operations = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
-                        dispatch(setPopInChild({
-                            el: <FilesApi.Properties inPopIn embedded resource={resource} reload={operations.reload} />,
-                            onFullScreen: () => navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, resource.id))
-                        }));
-                        return true;
-                    }
-                    return false;
                 });
 
                 // Drag-and-drop
