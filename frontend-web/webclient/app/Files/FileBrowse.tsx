@@ -517,7 +517,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         let i = 0;
                         for (; i < ops.length && result.length < 4; i++) {
                             const op = ops[i];
-                            if (op === uploadOp || op === folderOp) continue;
+                            if (op === uploadOp) continue;
+                            if (op === folderOp && opts?.isModal != true && opts?.embedded != true) continue;
                             result.push(op);
                         }
 

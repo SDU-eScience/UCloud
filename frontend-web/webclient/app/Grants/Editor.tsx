@@ -542,7 +542,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                             sum += Math.floor(balanceRequested * proposedPercentage);
                         }
 
-                        if (category.category.accountingFrequency !== "ONCE" && proposedSplit) {
+                        if (category.category.accountingFrequency !== "ONCE" && proposedSplit && proposedSplit.length > 0) {
                             proposedSplit[0].balanceRequested =
                                 (proposedSplit[0].balanceRequested ?? 0) + balanceRequested - sum;
                         }
