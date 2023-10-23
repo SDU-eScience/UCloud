@@ -360,6 +360,7 @@ export const Overview: React.FunctionComponent = () => {
                     embedded: true,
                     initialPath: "",
                     selection: {
+                        text: "Sync",
                         onSelectRestriction(file) {
                             return file.status.type === "DIRECTORY" && file.specification.product.id !== "share";
                         },

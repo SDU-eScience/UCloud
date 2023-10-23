@@ -99,6 +99,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             <PublicLinkBrowse
                 opts={{
                     selection: {
+                        text: "Use",
                         onSelect: onUse,
                         onSelectRestriction(res) {
                             const errorMessage = checkProviderMismatch(res, "Public links");

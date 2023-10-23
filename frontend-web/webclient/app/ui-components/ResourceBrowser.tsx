@@ -42,6 +42,7 @@ export interface ResourceBrowserOpts<T> {
     selection?: {
         onSelect(res: T): void;
         onSelectRestriction(res: T): boolean | string;
+        text: string;
     }
 }
 
@@ -1030,10 +1031,10 @@ export class ResourceBrowser<T> {
         if (!selection) return;
         if (selection.onSelectRestriction(item) === true) {
             const button = document.createElement("button");
-            button.innerText = "Use";
+            button.innerText = selection.text;
             button.className = ButtonClass;
             button.style.height = "32px";
-            button.style.width = "64px";
+            button.style.width = "96px";
             button.onclick = e => {
                 e.stopImmediatePropagation();
                 selection?.onSelect(item);

@@ -91,6 +91,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
                     embedded: true,
                     isModal: true,
                     selection: {
+                        text: "Use",
                         onSelect: onUse,
                         onSelectRestriction(res) {
                             const errorMessage = checkProviderMismatch(res, "Public IPs");

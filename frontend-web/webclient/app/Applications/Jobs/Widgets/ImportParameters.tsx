@@ -173,6 +173,7 @@ export const ImportParameters: React.FunctionComponent<{
                                     isModal: true,
                                     initialPath: "",
                                     selection: {
+                                        text: "Use",
                                         onSelect: res => {
                                             fetchAndImportParameters(res);
                                             dialogStore.success();
@@ -195,6 +196,7 @@ export const ImportParameters: React.FunctionComponent<{
                                 embedded: true,
                                 isModal: true,
                                 selection: {
+                                    text: "Import",
                                     onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here
                                     onSelect: res => {
                                         readParsedJSON(res.status.jobParametersJson);

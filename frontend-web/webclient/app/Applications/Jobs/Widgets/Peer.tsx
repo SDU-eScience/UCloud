@@ -135,6 +135,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                     additionalFilters: filters,
                     embedded: true,
                     selection: {
+                        text: "Use",
                         onSelectRestriction(job) {
                             const errorMessage = checkProviderMismatch(job, "Jobs");
                             if (errorMessage) return errorMessage;

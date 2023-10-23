@@ -84,7 +84,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
         >
-            <MetadataNamespacesBrowse opts={{embedded: true, selection: {onSelect: selectTemplate as any, onSelectRestriction(res) {
+            <MetadataNamespacesBrowse opts={{embedded: true, selection: {text: "Use", onSelect: selectTemplate as any, onSelectRestriction(res) {
                 return true;
             },}}} />
         </ReactModal>

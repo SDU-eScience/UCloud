@@ -61,6 +61,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     isModal: true,
                     initialPath: "",
                     selection: {
+                        text: "Use",
                         onSelect: async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                             if (props.errors[props.parameter.name]) {

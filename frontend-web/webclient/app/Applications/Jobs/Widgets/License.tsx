@@ -52,6 +52,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
                     embedded: true,
                     additionalFilters: filters,
                     selection: {
+                        text: "Use",
                         onSelect: onUse,
                         onSelectRestriction(res) {
                             const errorMessage = checkProviderMismatch(res, "Licenses");
