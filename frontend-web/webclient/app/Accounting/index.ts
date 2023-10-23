@@ -813,6 +813,7 @@ const hardcodedProductCategoryDescriptions: Record<string, Record<string, string
 
     "ucloud": {
         "cephfs": `The storage system for DeiC Interactive HPC at SDU. If you are applying for compute from the same location then you must also apply for storage.`,
+        "u1-storage": `The storage system for DeiC Interactive HPC at SDU. If you are applying for compute from the same location then you must also apply for storage.`,
         "public-ip": `A publicly accessible IP address. You should apply for these only if you are running an application which explicitly requires this.`,
         "u1-fat": `2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 768 GB of memory.`,
         "u1-standard": `The u1-standard machines are equipped with 2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 384 GB of memory.`,
