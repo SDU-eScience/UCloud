@@ -85,6 +85,7 @@ import {JobsRouter} from "./Applications/Jobs/Router";
 import {DrivesRouter, FilesRouter} from "./Files/Router";
 import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "./Applications/PublicLinks/Router";
+import SharesApi from "./UCloud/SharesApi";
 
 const NotFound = (): React.JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -113,6 +114,7 @@ const Core = (): React.JSX.Element => (
                         <Route path={AppRoutes.users.verifyResult()} element={<VerifyResult />} />
                         <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse))} />
+                        <Route path={"/shares/properties/:id/"} element={<SharesApi.Properties api={SharesApi} />} />
                         <Route path="/shares/outgoing" element={React.createElement(requireAuth(OutgoingSharesBrowse))} />
                         <Route path={"/shares/invite/:id"}
                             element={React.createElement(requireAuth(SharesAcceptLink))} />

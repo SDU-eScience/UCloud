@@ -3622,8 +3622,9 @@ export function checkCanConsumeResources(projectId: string | null, callbacks: nu
     if (api.isCoreResource) return true;
 
     const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
-    if (!project) return true;
     // Don't consider yet-to-be-fetched projects as non-consumer
+    if (!project) return true;
+
     return project.specification.canConsumeResources !== false;
 }
 

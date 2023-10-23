@@ -29,6 +29,7 @@ import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
+import FilesApi from "@/UCloud/FilesApi";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -264,7 +265,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        navigate(buildQueryString("/files", {path: resource.specification.sourceFilePath}));
+                        navigate(buildQueryString("/files", {path: resource.status.shareAvailableAt}));
                         return;
                     }
 
@@ -277,8 +278,8 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                     ).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
+                        return result;
                     });
-
                 });
 
                 browser.on("wantToFetchNextPage", async (path) => {
