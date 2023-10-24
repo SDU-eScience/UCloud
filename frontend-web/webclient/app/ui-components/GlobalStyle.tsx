@@ -221,7 +221,7 @@ html.dark {
     --projectHighlight: #00c05a;
     --appStoreFavBg: #00204d;
     --activeSpreadsheet: #000;
-    --modalShadow: rgba(0, 0, 0, 0.75);
+    --modalShadow: rgba(32, 32, 32, 0.6);
     --gradientStart: #375BB1;
     --gradientEnd: #282C33;
     --sidebarColor: #141414;

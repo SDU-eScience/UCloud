@@ -1,35 +1,34 @@
-export const defaultModalStyle = {
+export const largeModalStyle = {
     content: {
         borderRadius: "6px",
-        top: "50%",
-        left: "50%",
-        right: "auto",
-        bottom: "auto",
-        marginRight: "-50%",
-        transform: "translate(-50%, -50%)",
-        background: "",
-        minWidth: "500px",
+        width: "900px",
+        minHeight: "400px",
+        height: "80vh",
+        maxHeight: "80vh",
         maxWidth: "calc(100vw - 10px)",
-        border: "solid 1px var(--black)"
+        position: "fixed",
+        top: "10vh",
+        left: "calc(50vw - 450px + var(--currentSidebarWidth))",
+        outline: "none",
     },
     overlay: {
         backgroundColor: "var(--modalShadow)"
     }
 };
 
-export const largeModalStyle = {
+export const defaultModalStyle = {
     content: {
         borderRadius: "6px",
-        margin: "auto auto auto auto",
-        background: "",
         width: "900px",
         minHeight: "400px",
-        height: "80vh",
         maxHeight: "80vh",
         maxWidth: "calc(100vw - 10px)",
-        border: "solid 1px var(--black)"
+        position: "fixed",
+        top: "10vh",
+        left: "calc(50vw - 450px + var(--currentSidebarWidth))",
+        outline: "none",
     },
     overlay: {
         backgroundColor: "var(--modalShadow)"
     }
-};
+}

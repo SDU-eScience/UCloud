@@ -3,13 +3,81 @@ import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle} from "@/Unstyled";
 import theme, {ThemeColor} from "@/ui-components/theme";
-import {Flex, Icon, Select} from "@/ui-components";
+import {Checkbox, Flex, Icon, Radio, Select} from "@/ui-components";
 import Card, {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {useLayoutEffect, useMemo} from "react";
+import {useCallback, useLayoutEffect, useMemo, useState} from "react";
 import {ProductType} from ".";
+import {IconName} from "@/ui-components/Icon";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {doNothing} from "@/UtilityFunctions";
+
+const PieChart: React.FunctionComponent<{
+    dataPoints: { key: string, value: number }[],
+    valueFormatter: (value: number) => string,
+    size?: number,
+}> = props => {
+    const filteredList = useMemo(() => {
+        const all = [...props.dataPoints];
+        all.sort((a, b) => {
+            if (a.value > b.value) return -1;
+            if (a.value < b.value) return 1;
+            return 0;
+        });
+
+        const result = all.slice(0, 4);
+        if (all.length > result.length) {
+            let othersSum = 0;
+            for (let i = result.length; i < all.length; i++) {
+                othersSum += all[i].value;
+            }
+            result.push({ key: "Other", value: othersSum });
+        }
+
+        return result;
+    }, [props.dataPoints]);
+    const series = useMemo(() => {
+        return filteredList.map(it => it.value);
+    }, [filteredList]);
+
+    const labels = useMemo(() => {
+        return filteredList.map(it => it.key);
+    }, [filteredList]);
+
+    return <Chart
+        type="pie"
+        series={series}
+        options={{
+            chart: {
+                animations: {
+                    enabled: false,
+                },
+            },
+            labels: labels,
+            dataLabels: {
+                enabled: false,
+            },
+            stroke: {
+                show: false,
+            },
+            legend: {
+                show: false,
+            },
+            tooltip: {
+                shared: false,
+                y: {
+                    formatter: function (val) {
+                        return props.valueFormatter(val);
+                    }
+                }
+            },
+        }}
+        height={props.size ?? 350}
+        width={props.size ?? 350}
+    />
+};
 
 interface UsageChart {
     dataPoints: { timestamp: number, usage: number }[];
@@ -136,10 +204,23 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
     ${k} {
         width: 300px;
     }
+    
+    ${k} .title-row {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: 10px;
+        align-items: center;
+        gap: 4px;
+        width: calc(100% + 4px); /* deal with bad SVG in checkbox */
+    }
+    
+    ${k} .title-row > *:last-child {
+        margin-right: 0;
+    }
+    
 
     ${k} strong {
-        display: block;
-        margin-bottom: 10px;
+        flex-grow: 1;
     }
 
     ${k} .body {
@@ -173,6 +254,8 @@ const SmallUsageCard: React.FunctionComponent<{
     change: number;
     changeText: string;
     chart: UsageChart;
+    active: boolean;
+    onActivate: (categoryName: string) => void;
 }> = props => {
     let themeColor: ThemeColor = "midGray";
     if (props.change < 0) themeColor = "red";
@@ -182,9 +265,17 @@ const SmallUsageCard: React.FunctionComponent<{
         return usageChartToChart(props.chart, {removeDetails: true});
     }, [props.chart]);
 
-    return <a href={`#${props.categoryName}`}>
+    const onClick = useCallback(() => {
+        props.onActivate(props.categoryName);
+    }, [props.categoryName, props.onActivate]);
+
+    return <a href={`#${props.categoryName}`} onClick={onClick}>
         <div className={classConcat(CardClass, SmallUsageCardStyle)}>
-            <strong><code>{props.categoryName}</code></strong>
+            <div className={"title-row"}>
+                <strong><code>{props.categoryName}</code></strong>
+                <Radio checked={props.active} onChange={doNothing} />
+            </div>
+
             <div className="body">
                 <Chart
                     {...chartProps}
@@ -241,23 +332,13 @@ const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
         gap: 12px;
         flex-direction: column;
     }
-
-    ${k} .stat , ${k} .substat {
-        display: flex;
-        flex-direction: row;
+    
+    ${k} .stat > *:first-child {
+        font-size: 14px;
     }
-
-    ${k} .stat {
-        font-size: 18px;
-    }
-
-    ${k} .substat {
-        font-size: 12px;
-    }
-
-    ${k} .stat > *:first-child,
-    ${k} .substat > *:first-child {
-        flex-grow: 1;
+    
+    ${k} .stat > *:nth-child(2) {
+        font-size: 16px;
     }
 `);
 
@@ -279,22 +360,22 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
 
         <div style={{flexGrow: 1}}/>
 
-        {props.productType === "COMPUTE" &&
-            <div className="stat-container">
-                {[0, 1, 2, 3].map(it =>
-                    <div key={it}>
-                        <div className="stat">
-                            <div>Number of jobs</div>
-                            <div>41</div>
-                        </div>
-                        <div className="substat">
-                            <div>Compared to last period</div>
-                            <div>+4</div>
-                        </div>
-                    </div>
-                )}
+        <div className="stat-container">
+            <div className="stat">
+                <div>Current allocation</div>
+                <div>51K/100K DKK</div>
             </div>
-        }
+
+            <div className="stat">
+                <div>Allocation expires in</div>
+                <div>4 months</div>
+            </div>
+
+            <div className="stat">
+                <div>Next allocation</div>
+                <div>None (<a href="#">apply</a>)</div>
+            </div>
+        </div>
     </div>;
 };
 
@@ -317,15 +398,16 @@ const PanelClass = injectStyle("panel", k => `
         flex-direction: row;
         align-items: center;
         gap: 8px;
+        margin: 10px 0;
     }
 
     ${k} .panel-title > *:nth-child(1) {
         font-size: 18px;
-        margin-top: 10px;
+        margin: 0;
     }
 
     ${k} .panel-title > *:nth-child(2) {
-        max-width: 180px;
+        flex-grow: 1;
     }
     
     ${k} .table-wrapper {
@@ -473,45 +555,45 @@ const MostUsedApplicationsPanel: React.FunctionComponent = () => {
         </div>
 
         <div className="table-wrapper">
-        <table>
-            <thead>
-            <tr>
-                <th>Application</th>
-                <th>Number of jobs</th>
-                <th>Change</th>
-            </tr>
-            </thead>
-            <tbody>
-            {Array(100).fill(undefined).map((_, i) =>
-                <React.Fragment key={i}>
-                    <tr>
-                        <td>Visual Studio Code</td>
-                        <td>42</td>
-                        <td className={"change positive"}>
-                            <span>+</span>
-                            <span>23,00%</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>RStudio</td>
-                        <td>32</td>
-                        <td className={"change negative"}>
-                            <span>-</span>
-                            <span>23,00%</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>RStudio</td>
-                        <td>32</td>
-                        <td className={"change unchanged"}>
-                            <span>+</span>
-                            <span>0,00%</span>
-                        </td>
-                    </tr>
-                </React.Fragment>
-            )}
-            </tbody>
-        </table>
+            <table>
+                <thead>
+                <tr>
+                    <th>Application</th>
+                    <th>Number of jobs</th>
+                    <th>Change</th>
+                </tr>
+                </thead>
+                <tbody>
+                {Array(100).fill(undefined).map((_, i) =>
+                    <React.Fragment key={i}>
+                        <tr>
+                            <td>Visual Studio Code</td>
+                            <td>42</td>
+                            <td className={"change positive"}>
+                                <span>+</span>
+                                <span>23,00%</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>RStudio</td>
+                            <td>32</td>
+                            <td className={"change negative"}>
+                                <span>-</span>
+                                <span>23,00%</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>RStudio</td>
+                            <td>32</td>
+                            <td className={"change unchanged"}>
+                                <span>+</span>
+                                <span>0,00%</span>
+                            </td>
+                        </tr>
+                    </React.Fragment>
+                )}
+                </tbody>
+            </table>
         </div>
     </div>;
 };
@@ -559,30 +641,30 @@ const JobSubmissionPanel: React.FunctionComponent = () => {
         </div>
 
         <div className="table-wrapper">
-        <table>
-            <thead>
-            <tr>
-                <th>Day</th>
-                <th>Time of day</th>
-                <th>Count</th>
-                <th>Avg duration</th>
-                <th>Avg queue</th>
-            </tr>
-            </thead>
-            <tbody>
-            {Array(4 * 7).fill(undefined).map((_, i) => {
-                const day = dayNames[Math.floor(i / 4)];
-                const period = periods[i % 4];
-                return <tr key={i}>
-                    <td>{day}</td>
-                    <td>{period}</td>
-                    <td>{Math.floor(Math.random() * 30)}</td>
-                    <td>{Math.floor(Math.random() * 12).toString().padStart(2, "0")}H {Math.floor(Math.random() * 60).toString().padStart(2, "0")}M</td>
-                    <td>{Math.floor(Math.random()).toString().padStart(2, "0")}H {Math.floor(Math.random() * 15).toString().padStart(2, "0")}M {Math.floor(Math.random() * 60).toString().padStart(2, "0")}S</td>
-                </tr>;
-            })}
-            </tbody>
-        </table>
+            <table>
+                <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Time of day</th>
+                    <th>Count</th>
+                    <th>Avg duration</th>
+                    <th>Avg queue</th>
+                </tr>
+                </thead>
+                <tbody>
+                {Array(4 * 7).fill(undefined).map((_, i) => {
+                    const day = dayNames[Math.floor(i / 4)];
+                    const period = periods[i % 4];
+                    return <tr key={i}>
+                        <td>{day}</td>
+                        <td>{period}</td>
+                        <td>{Math.floor(Math.random() * 30)}</td>
+                        <td>{Math.floor(Math.random() * 12).toString().padStart(2, "0")}H {Math.floor(Math.random() * 60).toString().padStart(2, "0")}M</td>
+                        <td>{Math.floor(Math.random()).toString().padStart(2, "0")}H {Math.floor(Math.random() * 15).toString().padStart(2, "0")}M {Math.floor(Math.random() * 60).toString().padStart(2, "0")}S</td>
+                    </tr>;
+                })}
+                </tbody>
+            </table>
         </div>
     </div>;
 }
@@ -638,89 +720,67 @@ const UsageOverTimePanel: React.FunctionComponent<{ productType?: ProductType }>
         <Chart {...chartProps} />
 
         <div className="table-wrapper">
-        <table className={type === "STORAGE" ? "has-change" : ""}>
-            <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>{type === "COMPUTE" ? "Usage" : "Change"}</th>
-                {type === "COMPUTE" && <th>Percent</th>}
-            </tr>
-            </thead>
-            <tbody>
-            {chart.dataPoints.map((point, idx) => {
-                if (idx == 0) return null;
-                const used = point.usage - chart.dataPoints[idx - 1].usage;
-                sum += used;
-                const percentage = ((used / totalUsed) * 100).toFixed(2);
-                return <tr key={idx}>
-                    <td>{dateToString(point.timestamp)}</td>
-                    {type === "STORAGE" ?
-                        <td className={"change " + (used === 0 ? "unchanged" : used > 0 ? "positive" : "negative")}>
-                            <span>{used >= 0 ? "+" : "-"}</span>
-                            <span>{Accounting.addThousandSeparators(Math.abs(used).toFixed(2))} {unit}</span>
-                        </td> :
-                        <td>{Accounting.addThousandSeparators(used.toFixed(2))} {unit}</td>
-                    }
-                    {type === "COMPUTE" && <td>{percentage}%</td>}
-                </tr>;
-            })}
-            </tbody>
-        </table>
+            <table className={type === "STORAGE" ? "has-change" : ""}>
+                <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>{type === "COMPUTE" ? "Usage" : "Change"}</th>
+                    {type === "COMPUTE" && <th>Percent</th>}
+                </tr>
+                </thead>
+                <tbody>
+                {chart.dataPoints.map((point, idx) => {
+                    if (idx == 0) return null;
+                    const used = point.usage - chart.dataPoints[idx - 1].usage;
+                    sum += used;
+                    const percentage = ((used / totalUsed) * 100).toFixed(2);
+                    return <tr key={idx}>
+                        <td>{dateToString(point.timestamp)}</td>
+                        {type === "STORAGE" ?
+                            <td className={"change " + (used === 0 ? "unchanged" : used > 0 ? "positive" : "negative")}>
+                                <span>{used >= 0 ? "+" : "-"}</span>
+                                <span>{Accounting.addThousandSeparators(Math.abs(used).toFixed(2))} {unit}</span>
+                            </td> :
+                            <td>{Accounting.addThousandSeparators(used.toFixed(2))} {unit}</td>
+                        }
+                        {type === "COMPUTE" && <td>{percentage}%</td>}
+                    </tr>;
+                })}
+                </tbody>
+            </table>
         </div>
     </div>;
 };
 
 const LargeJobsStyle = injectStyle("large-jobs", k => `
-    ${k} table tbody tr > td:nth-child(1),
-    ${k} table tbody tr > td:nth-child(2),
-    ${k} table tbody tr > td:nth-child(4) {
+    ${k} table tbody tr > td:nth-child(2) {
         font-family: var(--monospace);
-    }
-    
-    ${k} table tbody tr > td:nth-child(2),
-    ${k} table tbody tr > td:nth-child(4) {
         text-align: right;
     }
     
-    ${k} table tbody tr > td:nth-child(1) {
-        width: 160px;
+    ${k} table thead tr > th:nth-child(2) > div {
+        /* styling fix for the icon */
+        display: inline-block;
+        margin-left: 4px;
     }
     
     ${k} table tbody tr > td:nth-child(2) {
-        width: 80px;
-    }
-    
-    ${k} table tbody tr > td:nth-child(4) {
-        width: 160px;
-    }
-    
-    ${k} table tbody tr > td:nth-child(2) {
-        width: 160px;
+        width: 155px;
     }
 `);
 
 const LargeJobsPanel: React.FunctionComponent = () => {
-    const applications = [
-        "Visual Studio Code",
-        "RStudio",
-        "JupyterLab",
-        "MinIO",
-        "Shiny",
-        "Rsync",
-        "Terminal",
-        "MATLAB",
-        "Maple"
-    ];
+    const fakeJobs: {
+        usage: number,
+        username: string,
+    }[] = [];
 
-    const fakeJobs: {jobId: string, timestamp: number, usage: number, application: string}[] = [];
     for (let i = 0; i < 50; i++) {
         const d = new Date();
         d.setHours(d.getHours() - Math.floor(Math.random() * 7 * 24));
         fakeJobs.push({
-            jobId: Math.floor(Math.random() * 5000).toString(),
-            timestamp: d.getTime(),
             usage: Math.random() * 300,
-            application: applications[Math.floor(Math.random() * applications.length)],
+            username: `User${i}`
         });
     }
 
@@ -730,30 +790,138 @@ const LargeJobsPanel: React.FunctionComponent = () => {
         return 0;
     });
 
+    const dataPoints = fakeJobs.map(it => ({ key: it.username, value: it.usage }));
+    const formatter = useCallback((val: number) => {
+        return Accounting.addThousandSeparators(val.toFixed(2)) + " DKK";
+    }, []);
+
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <div className="panel-title">
             <h4>Jobs by usage</h4>
+        </div>
+
+        <div style={{display: "flex", justifyContent: "center"}}>
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
         </div>
 
         <div className="table-wrapper">
             <table>
                 <thead>
                 <tr>
-                    <th>Timestamp</th>
-                    <th>Job ID</th>
-                    <th>Application</th>
-                    <th>Usage</th>
+                    <th>Username</th>
+                    <th>
+                        Estimated usage
+                        {" "}
+                        <TooltipV2 tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
+                            <Icon name={"heroQuestionMarkCircle"} />
+                        </TooltipV2>
+                    </th>
                 </tr>
                 </thead>
                 <tbody>
-                {fakeJobs.map(it => <tr key={it.jobId}>
-                    <td>{dateToString(it.timestamp)}</td>
-                    <td>{it.jobId}</td>
-                    <td>{it.application}</td>
+                {fakeJobs.map(it => <tr key={it.username}>
+                    <td>{it.username}</td>
                     <td>{Accounting.addThousandSeparators(it.usage.toFixed(2))} DKK</td>
                 </tr>)}
                 </tbody>
             </table>
+        </div>
+    </div>;
+};
+
+const StorageUsageExplorerStyle = injectStyle("storage-usage-explorer", k => `
+    ${k} .entry:first-child {
+        margin-left: 0;
+    }
+    
+    ${k} .entry {
+        margin-left: 27px;
+        user-select: none;
+    }
+    
+    ${k} .entry .row {
+        cursor: pointer;
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    
+    ${k} .bar {
+        width: 150px;
+        height: 25px;
+        border-radius: 5px;
+        border: 1px solid var(--midGray);
+    }
+    
+    ${k} .bar-fill {
+        background: var(--green);
+        height: 100%;
+    }
+`);
+
+const UsageEntry: React.FunctionComponent<{
+    icon: IconName;
+    title: string;
+    usage: string;
+    percentage: number;
+    depth: number;
+    children?: React.ReactNode;
+}> = props => {
+    const [open, setOpen] = useState(props.depth < 3);
+    const toggleOpen = useCallback(() => {
+        setOpen(prev => !prev);
+    }, []);
+    return <div className={"entry"}>
+        <div className="row" onClick={toggleOpen}>
+            {props.depth === 0 ? null : props.children === undefined ?
+                <div style={{width: "16px"}} /> :
+                <Icon name={open ? "heroMinusSmall" : "heroPlusSmall"} />
+            }
+            <Icon name={props.icon} color={"gray"}/>
+            <div style={{flexGrow: 1}}>{props.title}</div>
+            <div>{props.usage}</div>
+            <div className={"bar"} style={{width: `${150 - (10 * props.depth)}px`}}>
+                <div className="bar-fill" style={{width: `${props.percentage}%`}}/>
+            </div>
+        </div>
+
+        {open && props.children}
+    </div>;
+};
+
+const StorageUsageExplorerPanel: React.FunctionComponent = props => {
+    return <div className={classConcat(PanelClass, CardClass, StorageUsageExplorerStyle)}>
+        <div className="panel-title">
+            <h4>Usage breakdown</h4>
+        </div>
+
+        <div>
+            You are viewing an old snapshot from <code>23/11/2023 12:25</code>{" "}
+            (click <a href="#">here</a> to generate a new one). This breakdown can only show you usage from your own
+            drives. Usage from your sub-allocations are not shown here.
+        </div>
+
+        <div>
+            <UsageEntry icon={"heroBanknotes"} title={"Allocation"} usage={"340TB"} percentage={34} depth={0}>
+                <UsageEntry icon={"heroServer"} title={"Home/"} usage={"300TB"} percentage={88.23} depth={1}>
+                    <UsageEntry icon={"ftFolder"} title={"Folder 1/"} usage={"100TB"} percentage={33.33} depth={2}/>
+                    <UsageEntry icon={"ftFolder"} title={"Folder 2/"} usage={"200TB"} percentage={66.66} depth={2}>
+                        <UsageEntry icon={"ftFolder"} title={"A/B/C/D/"} usage={"200TB"} percentage={100} depth={3}>
+                            <UsageEntry icon={"ftFolder"} title={"1/"} usage={"50TB"} percentage={25} depth={4}/>
+                            <UsageEntry icon={"ftFolder"} title={"2/"} usage={"50TB"} percentage={25} depth={4}/>
+                            <UsageEntry icon={"ftFolder"} title={"3/"} usage={"50TB"} percentage={25} depth={4}/>
+                            <UsageEntry icon={"ftFolder"} title={"4/"} usage={"50TB"} percentage={25} depth={4}/>
+                        </UsageEntry>
+                    </UsageEntry>
+                </UsageEntry>
+
+                <UsageEntry icon={"heroServer"} title={"Code/"} usage={"40TB"} percentage={11.76} depth={1}>
+                    <UsageEntry icon={"ftFolder"} title={"Folder 1/"} usage={"10TB"} percentage={25} depth={2}/>
+                    <UsageEntry icon={"ftFolder"} title={"Folder 2/"} usage={"20TB"} percentage={50} depth={2}/>
+                    <UsageEntry icon={"ftFolder"} title={"Folder 3/"} usage={"10TB"} percentage={25} depth={2}/>
+                </UsageEntry>
+            </UsageEntry>
         </div>
     </div>;
 };
@@ -806,13 +974,9 @@ const VisualizationStyle = injectStyle("visualization", k => `
         flex-direction: row;
         width: 100%;
         padding: 16px 0;
-        height: calc(100vh - 60px);
+        height: calc(100vh - 195px);
     }
     
-    ${k} .panel-grid:first-child {
-        height: calc(100vh - 50px - 120px);
-    }
-
     ${k} .${CategoryDescriptorPanelStyle} {
         width: 300px;
         flex-shrink: 0;
@@ -903,6 +1067,8 @@ const VisualizationStyle = injectStyle("visualization", k => `
     }
 `);
 const Visualization: React.FunctionComponent = props => {
+    const [activeCard, setActiveCard] = useState("u1-standard");
+
     useLayoutEffect(() => {
         const wrappers = document.querySelectorAll(`.${VisualizationStyle} .table-wrapper`);
         const listeners: [Element, EventListener][] = [];
@@ -916,19 +1082,17 @@ const Visualization: React.FunctionComponent = props => {
             }
 
             const listener = () => {
-                if (wrapper.scrollTop === 0) {
+                if (wrapper.scrollTop < 1) {
                     wrapper.classList.add("at-top");
                 } else {
                     wrapper.classList.remove("at-top");
                 }
 
-                if (wrapper.scrollTop + wrapper.clientHeight >= wrapper.scrollHeight) {
+                if (Math.ceil(wrapper.scrollTop) + wrapper.clientHeight >= wrapper.scrollHeight) {
                     wrapper.classList.add("at-bottom");
                 } else {
                     wrapper.classList.remove("at-bottom");
                 }
-
-                console.log(wrapper.scrollTop, wrapper.scrollHeight, wrapper.clientHeight);
             };
 
             wrapper.addEventListener("scroll", listener);
@@ -941,13 +1105,13 @@ const Visualization: React.FunctionComponent = props => {
                 elem.removeEventListener("scroll", listener);
             }
         };
-    }, []);
+    });
 
     // NOTE(Dan): We are not using a <MainContainer/> here on purpose since
     // we want to use _all_ of the space.
     return <div className={VisualizationStyle}>
         <header className="at-top">
-            <h3>Usage at DeiC Interactive HPC (SDU) in the past</h3>
+            <h3>Resource usage in the past</h3>
             <div className="duration-select">
                 <Select slim>
                     <option>7 days</option>
@@ -961,7 +1125,7 @@ const Visualization: React.FunctionComponent = props => {
         </header>
 
         <div style={{padding: "13px 16px 16px 16px"}}>
-            <h3>Usage at DeiC Interactive HPC (SDU)</h3>
+            <h3>Resource usage</h3>
 
             <Flex flexDirection="row" gap="16px">
                 <SmallUsageCard
@@ -971,6 +1135,8 @@ const Visualization: React.FunctionComponent = props => {
                     change={0.3}
                     changeText="7d change"
                     chart={cpuChart1}
+                    active={activeCard === "u1-standard"}
+                    onActivate={setActiveCard}
                 />
                 <SmallUsageCard
                     categoryName="u1-gpu"
@@ -979,6 +1145,8 @@ const Visualization: React.FunctionComponent = props => {
                     change={1.2}
                     changeText="7d change"
                     chart={cpuChart2}
+                    active={activeCard === "u1-gpu"}
+                    onActivate={setActiveCard}
                 />
                 <SmallUsageCard
                     categoryName="u1-storage"
@@ -987,41 +1155,47 @@ const Visualization: React.FunctionComponent = props => {
                     change={-3.2}
                     changeText="7d change"
                     chart={storageChart1}
+                    active={activeCard === "u1-storage"}
+                    onActivate={setActiveCard}
                 />
             </Flex>
 
             <div className="panels">
-                <div className="panel-grid" id={"u1-standard"}>
-                    <CategoryDescriptorPanel
-                        productType="COMPUTE"
-                        categoryName="u1-standard"
-                        providerName="ucloud"
-                    />
+                {activeCard === "u1-standard" &&
+                    <div className="panel-grid">
+                        <CategoryDescriptorPanel
+                            productType="COMPUTE"
+                            categoryName="u1-standard"
+                            providerName="ucloud"
+                        />
 
-                    <BreakdownPanel/>
+                        <BreakdownPanel/>
 
-                    <div className="primary-grid-2-2">
-                        <UsageOverTimePanel/>
-                        <LargeJobsPanel/>
-                        <MostUsedApplicationsPanel/>
-                        <JobSubmissionPanel/>
+                        <div className="primary-grid-2-2">
+                            <UsageOverTimePanel/>
+                            <LargeJobsPanel/>
+                            <MostUsedApplicationsPanel/>
+                            <JobSubmissionPanel/>
+                        </div>
                     </div>
-                </div>
+                }
 
-                <div className="panel-grid" id={"u1-storage"}>
-                    <CategoryDescriptorPanel
-                        productType="STORAGE"
-                        categoryName="u1-storage"
-                        providerName="ucloud"
-                    />
+                {activeCard === "u1-storage" &&
+                    <div className="panel-grid">
+                        <CategoryDescriptorPanel
+                            productType="STORAGE"
+                            categoryName="u1-storage"
+                            providerName="ucloud"
+                        />
 
-                    <BreakdownPanel productType={"STORAGE"}/>
+                        <BreakdownPanel productType={"STORAGE"}/>
 
-                    <div className="primary-grid-2-1">
-                        <UsageOverTimePanel productType={"STORAGE"}/>
-                        <Card/>
+                        <div className="primary-grid-2-1">
+                            <UsageOverTimePanel productType={"STORAGE"}/>
+                            <StorageUsageExplorerPanel/>
+                        </div>
                     </div>
-                </div>
+                }
             </div>
         </div>
     </div>;
