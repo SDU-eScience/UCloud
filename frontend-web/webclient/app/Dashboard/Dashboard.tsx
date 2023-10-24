@@ -24,7 +24,7 @@ import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useNavigate} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router";
 import {
     Product,
     productCategoryEquals,
@@ -49,7 +49,6 @@ import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -214,11 +213,10 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
     }
 }
 
-export async function navigateByFileType(file: FileMetadataAttached, invokeCommand: InvokeCommand, navigate: ReturnType<typeof useNavigate>): Promise<void> {
+export async function navigateByFileType(file: FileMetadataAttached, invokeCommand: InvokeCommand, navigate: NavigateFunction): Promise<void> {
     const result = await invokeCommand<UFile>(FilesApi.retrieve({id: file.path}));
 
     if (!result) {
-        snackbarStore.addFailure("File was not found.", false);
         return;
     }
 

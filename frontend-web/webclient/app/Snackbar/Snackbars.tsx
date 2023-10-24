@@ -13,15 +13,10 @@ interface IconColorAndName {
     color2: ThemeColor;
 }
 
-const iconNameAndColorFromSnack = (type: Exclude<SnackType, SnackType.Custom>): IconColorAndName => {
-    switch (type) {
-        case SnackType.Success:
-            return {name: "check", color: "white", color2: "white"};
-        case SnackType.Information:
-            return {name: "info", color: "black", color2: "white"};
-        case SnackType.Failure:
-            return {name: "close", color: "white", color2: "white"};
-    }
+const iconNameAndColorFromSnack: Record<Exclude<SnackType, SnackType.Custom>, IconColorAndName> = {
+    [SnackType.Success]: {name: "check", color: "white", color2: "white"},
+    [SnackType.Information]: {name: "info", color: "black", color2: "white"},
+    [SnackType.Failure]: {name: "close", color: "white", color2: "white"},
 };
 
 interface SnackProps<SnackType> {
@@ -32,14 +27,14 @@ interface SnackProps<SnackType> {
 
 const CustomSnack: React.FC<SnackProps<CustomSnack>> = ({snack, onCancel}) => {
     return <SnackBody snack={snack} onCancel={onCancel}>
-        <Icon color="white" color2="white" name={snack.icon} pr="10px" />
+        <Icon mt="4px" mr="8px" size="14px" color="white" color2="white" name={snack.icon} />
     </SnackBody>;
 }
 
 const DefaultSnack: React.FC<SnackProps<DefaultSnack>> = ({snack, onCancel}) => {
-    const icon = iconNameAndColorFromSnack(snack.type);
+    const icon = iconNameAndColorFromSnack[snack.type];
     return <SnackBody snack={snack} onCancel={onCancel}>
-        <Icon pr="10px" {...icon} />
+        <Icon mt="4px" mr="8px" size="14px" {...icon} />
     </SnackBody>
 };
 
@@ -49,7 +44,7 @@ const SnackBody: React.FC<SnackProps<Exclude<Snack, "icon">> & {children: React.
     children
 }): JSX.Element => {
     const [didCopy, setDidCopy] = useState(false);
-    return <Flex mb="-12px" my="auto">
+    return <Flex mb="-12px">
         {children}
         <div>
             <div>{snack.message}</div>

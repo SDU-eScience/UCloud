@@ -31,8 +31,8 @@ const SnackbarClass = injectStyle("snackbar", k => `
     }
 `);
 
-export const /* Admiral */ Snackbar: React.FunctionComponent<{ children?: React.ReactNode; }> = props => {
-    return <div className={SnackbarClass}>{props.children}</div>;
+export function /* Admiral */ Snackbar({children}: React.PropsWithChildren) {
+    return <div className={SnackbarClass}>{children}</div>;
 };
 
 Snackbar.displayName = "Snackbar";

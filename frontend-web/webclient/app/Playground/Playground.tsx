@@ -1,7 +1,7 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import Icon, {EveryIcon} from "@/ui-components/Icon";
+import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Grid, Box, Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -10,19 +10,20 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import { ProductSelectorPlayground } from "@/Products/Selector";
-import {BinaryAllocator, BinaryTypeDictionary, BinaryTypeList, messageTest, UTextCompanion} from "@/UCloud/Messages";
+import {ProductSelectorPlayground} from "@/Products/Selector";
+import * as icons from "@/ui-components/icons";
+import {BinaryAllocator, messageTest} from "@/UCloud/Messages";
 import {
-    AppParameterCompanion,
     AppParameterFile,
-    AppParameterIntegerNumber,
-    FindBulkRequest,
-    FindBulkRequestCompanion,
     Wrapper
 } from "@/UCloud/Scratch";
-import { ContextSwitcher } from "@/Project/ContextSwitcher";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {useSelector} from "react-redux";
-import { getCssPropertyValue } from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {SnackType} from "@/Snackbar/Snackbars";
+
+const iconsNames = Object.keys(icons) as IconName[];
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -98,6 +99,16 @@ export const Playground: React.FunctionComponent = () => {
                     uniqueId: `playground-notification`,
                 });
             }}>Trigger pinned notification</Button>
+
+            <Button onClick={() => snackbarStore.addSuccess("Hello. This is a success.", false, 5000)}>Add success notification</Button>
+            <Button onClick={() => snackbarStore.addInformation("Hello. This is THE information.", false, 5000)}>Add info notification</Button>
+            <Button onClick={() => snackbarStore.addFailure("Hello. This is a failure.", false, 5000)}>Add failure notification</Button>
+            <Button onClick={() => snackbarStore.addSnack({
+                message: "Hello. This is a custom one with a text that's pretty long.",
+                addAsNotification: false,
+                icon: iconsNames.at(Math.floor(Math.random() * iconsNames.length))!,
+                type: SnackType.Custom
+            })}>Add custom notification</Button>
 
             <Grid gridTemplateColumns={"repeat(5, 1fr)"} mb={"32px"}>
                 <EveryIcon />
@@ -201,7 +212,7 @@ function RefreshThing(): JSX.Element | null {
     const loading = useSelector((it: ReduxObject) => it.status.loading);
     if (!refresh) return null;
     return <Icon cursor="pointer" size={24} onClick={refresh} spin={spin || loading} hoverColor="blue"
-                 color="var(--blue)" name="heroArrowPath" />
+        color="var(--blue)" name="heroArrowPath" />
 }
 
 export default Playground;

@@ -2,7 +2,7 @@ import {Operation} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalized, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, createHTMLElements, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -1015,15 +1015,18 @@ export class ResourceBrowser<T> {
     }
 
     static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
-        const icon = document.createElement("div");
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
         // image itself, which breaks the drag-and-drop functionality.
-        icon.style.width = "20px";
-        icon.style.height = "20px";
-        icon.style.backgroundSize = "contain";
-        icon.style.marginRight = "8px";
-        icon.style.display = "inline-block";
-        icon.style.backgroundPosition = "center";
+        const icon = createHTMLElements<HTMLDivElement>({
+            tagType: "div", style: {
+                width: "20px",
+                height: "20px",
+                backgroundSize: "contain",
+                marginRight: "8px",
+                display: "inline-block",
+                backgroundPosition: "center",
+            }
+        });
         return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
     }
 
