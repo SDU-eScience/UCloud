@@ -29,6 +29,7 @@ import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {CardClass} from "@/ui-components/Card";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const maxChunkSize = 16 * 1000 * 1000;
@@ -386,6 +387,7 @@ const Uploader: React.FunctionComponent = () => {
             shouldCloseOnEsc
             ariaHideApp={false}
             onRequestClose={closeModal}
+            className={CardClass}
         >
             <div style={{maxHeight: "calc(80vh - 40px - 2px)", height: "calc(80vh - 40px - 2px)", overflowY: "hidden"}} className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <div className="title" style={{height: "55px"}}>

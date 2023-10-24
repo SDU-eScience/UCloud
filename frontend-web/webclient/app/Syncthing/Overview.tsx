@@ -38,6 +38,7 @@ import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
+import {CardClass} from "@/ui-components/Card";
 
 // UI state management
 // ================================================================================
@@ -431,6 +432,7 @@ export const Overview: React.FunctionComponent = () => {
                     shouldCloseOnEsc
                     ariaHideApp={false}
                     onRequestClose={closeWizard}
+                    className={CardClass}
                 >
                     <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />
                 </ReactModal>

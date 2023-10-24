@@ -13,6 +13,7 @@ import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {checkProviderMismatch} from "../Create";
 import JobBrowse from "../JobsBrowse";
+import {CardClass} from "@/ui-components/Card";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -129,6 +130,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             shouldCloseOnEsc
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
+            className={CardClass}
         >
             <JobBrowse
                 opts={{

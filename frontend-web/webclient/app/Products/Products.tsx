@@ -23,6 +23,7 @@ import CONF from "../../site.config.json";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {CardClass} from "@/ui-components/Card";
 
 function Products(): JSX.Element {
     useTitle("SKUs");
@@ -156,6 +157,7 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
             onRequestClose={() => setActiveMachine(undefined)}
             isOpen={activeMachine !== undefined}
             style={defaultModalStyle}
+            className={CardClass}
         >
             <Spacer
                 left={null}

@@ -12,6 +12,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {checkProviderMismatch} from "../Create";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
+import {CardClass} from "@/ui-components/Card";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -84,6 +85,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnEsc
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
+            className={CardClass}
         >
             <NetworkIPBrowse
                 opts={{

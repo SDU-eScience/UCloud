@@ -252,7 +252,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
         allocations: WalletAllocation[];
     }[], recipientId: number, allocationId: number) => {
         dialogStore.addDialog(
-            <Box maxWidth={largeModalStyle.content.maxWidth} width="830px">
+            <Box maxWidth={largeModalStyle.content?.maxWidth} width="830px">
                 <Heading.h3>Available Allocations</Heading.h3>
                 <Grid gridTemplateColumns={`repeat(2, 1fr)`} gridGap="15px">
                     {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>

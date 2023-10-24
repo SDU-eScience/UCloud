@@ -12,6 +12,7 @@ import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
 import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
+import {CardClass} from "@/ui-components/Card";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -95,6 +96,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnEsc
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
+            className={CardClass}
         >
             <PublicLinkBrowse
                 opts={{

@@ -19,6 +19,7 @@ import {associateBy, takeLast} from "@/Utilities/CollectionUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {UploadState} from "@/Files/Upload";
+import {CardClass} from "@/ui-components/Card";
 
 function insertTimestamps(speeds: Speed[]): Speed[] {
     return speeds.map(it => {
@@ -184,6 +185,7 @@ const BackgroundTasks: React.FunctionComponent = () => {
                 isOpen={!!hasTaskInFocus}
                 onRequestClose={onDetailedClose}
                 ariaHideApp={false}
+                className={CardClass}
             >
                 {!hasTaskInFocus ? null : <DetailedTask task={tasks[taskInFocus!]!}/>}
             </ReactModal>

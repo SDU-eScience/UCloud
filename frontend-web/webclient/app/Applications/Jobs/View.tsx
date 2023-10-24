@@ -1061,7 +1061,7 @@ const RunningContent: React.FunctionComponent<{
                         }
                     </Box>
                     <Box flexGrow={1} />
-                    <Box>
+                    <Box mb="12px">
                         {!expiresAt || !supportsExtension ? null : <>
                             Extend allocation (hours):
                             <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
@@ -1436,7 +1436,7 @@ const CancelButton: React.FunctionComponent<{
     }, [loading]);
 
     return <ConfirmationButton
-        color={"red"} icon={"trash"} onAction={onCancel} fullWidth={fullWidth}
+        color={"red"} icon={"trash"} mb="12px" onAction={onCancel} fullWidth={fullWidth}
         actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     />;
 };

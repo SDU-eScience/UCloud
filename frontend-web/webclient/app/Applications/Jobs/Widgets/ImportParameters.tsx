@@ -22,6 +22,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import JobBrowse from "../JobsBrowse";
 import FileBrowse from "@/Files/FileBrowse";
+import {CardClass} from "@/ui-components/Card";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -143,6 +144,7 @@ export const ImportParameters: React.FunctionComponent<{
             onRequestClose={onImportDialogClose}
             style={defaultModalStyle}
             ariaHideApp={false}
+            className={CardClass}
         >
             <div>
                 <div>

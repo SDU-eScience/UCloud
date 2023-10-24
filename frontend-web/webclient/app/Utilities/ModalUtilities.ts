@@ -1,4 +1,6 @@
-export const largeModalStyle = {
+import ReactModal from "react-modal";
+
+export const largeModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",
         width: "900px",
@@ -16,7 +18,7 @@ export const largeModalStyle = {
     }
 };
 
-export const defaultModalStyle = {
+export const defaultModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",
         width: "900px",

@@ -19,6 +19,7 @@ import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {pageV2Of} from "@/DefaultObjects";
 import List, {ListRow} from "@/ui-components/List";
+import {CardClass} from "@/ui-components/Card";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = useParams<{id: string}>().id!;
@@ -80,6 +81,7 @@ export const AppGroup: React.FunctionComponent = () => {
                 shouldCloseOnEsc
                 shouldCloseOnOverlayClick
                 onRequestClose={() => setAddApplicationOpen(false)}
+                className={CardClass}
             >
                 <Flex mb="20px" justifyContent="center">
                     <form onSubmit={e => {

@@ -11,6 +11,7 @@ import {License} from "@/UCloud/LicenseApi";
 import {checkProviderMismatch} from "../Create";
 import {Input} from "@/ui-components";
 import {LicenseBrowse} from "@/Applications/LicenseBrowse";
+import {CardClass} from "@/ui-components/Card";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -44,6 +45,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             style={largeModalStyle}
             onRequestClose={doClose}
             ariaHideApp={false}
+            className={CardClass}
             shouldCloseOnEsc
         >
             <LicenseBrowse

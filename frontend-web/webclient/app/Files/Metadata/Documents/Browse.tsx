@@ -14,6 +14,7 @@ import {SvgFt} from "@/ui-components/FtIcon";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {CardClass} from "@/ui-components/Card";
 
 export const entityName = "Metadata (BETA)";
 
@@ -83,6 +84,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             shouldCloseOnEsc
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
+            className={CardClass}
         >
             <MetadataNamespacesBrowse opts={{embedded: true, selection: {text: "Use", onSelect: selectTemplate as any, onSelectRestriction(res) {
                 return true;
