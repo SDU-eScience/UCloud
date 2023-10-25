@@ -3,7 +3,6 @@ import {formatDistance} from "date-fns/esm";
 import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {ThemeProvider} from "styled-components";
 import {Absolute, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
@@ -367,23 +366,21 @@ export const Notifications: React.FunctionComponent = () => {
                     />
                 </Flex>
                 {unreadLength > 0 ? (
-                    <ThemeProvider theme={theme}>
-                        <Absolute top={-12} left={28}>
-                            <div
-                                style={{
-                                    borderRadius: "999999px",
-                                    background: "var(--red)",
-                                    color: "white",
-                                    letterSpacing: "0.025em",
-                                    fontSize: "10pt",
-                                    padding: "1px 5px"
-                                }}
-                                data-component={"notifications-unread"}
-                            >
-                                {unreadLength}
-                            </div>
-                        </Absolute>
-                    </ThemeProvider>
+                    <Absolute top={-12} left={28}>
+                        <div
+                            style={{
+                                borderRadius: "999999px",
+                                background: "var(--red)",
+                                color: "white",
+                                letterSpacing: "0.025em",
+                                fontSize: "10pt",
+                                padding: "1px 5px"
+                            }}
+                            data-component={"notifications-unread"}
+                        >
+                            {unreadLength}
+                        </div>
+                    </Absolute>
                 ) : null}
             </Relative>
         </Flex>

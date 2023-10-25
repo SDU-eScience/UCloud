@@ -9,7 +9,6 @@ import {
 import * as Heading from "@/ui-components/Heading";
 import Input from "@/ui-components/Input";
 import {useEffect, useRef} from "react";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ErrorWrapper} from "@/ui-components/Error";
 import {ThemeColor} from "@/ui-components/theme";
