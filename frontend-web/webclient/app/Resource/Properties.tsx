@@ -1,5 +1,4 @@
 import * as React from "react";
-import styled from "styled-components";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
     ProductSupport,
@@ -30,7 +29,7 @@ import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
-import {injectStyleSimple, makeKeyframe} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {Truncate} from "@/ui-components";
 
 const enterAnimation = makeKeyframe("enter-animation", `
@@ -45,108 +44,112 @@ const enterAnimation = makeKeyframe("enter-animation", `
   }
 `);
 
-const Container = styled.div`
-  --logoScale: 1;
-  --logoBaseSize: 200px;
-  --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
+const Container = injectStyle("container", k => `
+    ${k} {
+        --logoScale: 1;
+        --logoBaseSize: 200px;
+        --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
 
-  margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
-  max-width: 2200px;
-  
-  &[data-in-pop-in="true"] {
-    margin: 0;
-  }
-
-  ${device("xs")} {
-    margin-left: 0;
-    margin-right: 0;
-  }
-  
-  ${device("sm")} {
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-  & {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-
-  .logo-wrapper {
-    position: absolute;
-    left: 0;
-    top: 0;
-  }
-
-  .logo-scale {
-    transform: scale(var(--logoScale));
-    transform-origin: top left;
-  }
-
-  .fake-logo {
-    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
-       this basically fixes our document flow */
-    display: block;
-    width: var(--logoSize);
-    height: var(--logoSize);
-    content: '';
-  }
-
-  .data {
-    width: 100%; /* fix info card width */
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  .header-text {
-    margin-left: 32px;
-    margin-top: calc(var(--logoScale) * 16px);
-    width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
-    display: grid;
-    grid-template-columns: 1fr 400px;
-  }
-  
-  .operations {
-    display: flex;
-    justify-content: end;
-  }
-  
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    .fake-logo {
-      width: 100%; /* force the header to wrap */
+        margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
+        max-width: 2200px;
     }
 
-    .logo-wrapper {
-      left: calc(50% - var(--logoSize) / 2);
+    ${k}[data-in-pop-in="true"] {
+        margin: 0;
     }
 
-    .header {
-      text-align: center;
+    ${k} {
+        ${device("xs")} {
+            margin-left: 0;
+            margin-right: 0;
+        }
+    
+        ${device("sm")} {
+        margin-left: 0;
+        margin-right: 0;
+        }
     }
 
-    .header-text {
-      margin-left: 0;
-      margin-top: 0;
-      width: 100%;
-      grid-template-columns: 1fr;
-      justify-content: center;
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        position: relative;
     }
-  }
 
-  &.IN_QUEUE .logo {
-    animation: 2s ${enterAnimation} infinite;
-  }
+    ${k} .logo-wrapper {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
 
-  &.RUNNING {
-    --logoScale: 0.5;
-  }
+    ${k} .logo-scale {
+        transform: scale(var(--logoScale));
+        transform-origin: top left;
+    }
 
-  .top-buttons {
-    display: flex;
-    gap: 8px;
-  }
-`;
+    ${k} .fake-logo {
+        /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
+        this basically fixes our document flow */
+        display: block;
+        width: var(--logoSize);
+        height: var(--logoSize);
+        content: '';
+    }
+
+    ${k} .data {
+        width: 100%; /* fix info card width */
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+
+    ${k} .header-text {
+        margin-left: 32px;
+        margin-top: calc(var(--logoScale) * 16px);
+        width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
+        display: grid;
+        grid-template-columns: 1fr 400px;
+    }
+  
+    ${k} .operations {
+        display: flex;
+        justify-content: end;
+    }
+  
+    ${deviceBreakpoint({maxWidth: "1000px"})} {
+        ${k} .fake-logo {
+            width: 100%; /* force the header to wrap */
+        }
+
+        ${k} .logo-wrapper {
+            left: calc(50% - var(--logoSize) / 2);
+        }
+
+        ${k} .header {
+            text-align: center;
+        }
+
+        ${k} .header-text {
+            margin-left: 0;
+            margin-top: 0;
+            width: 100%;
+            grid-template-columns: 1fr;
+            justify-content: center;
+        }
+    }
+
+    ${k}.IN_QUEUE .logo {
+        animation: 2s ${enterAnimation} infinite;
+    }
+
+    ${k}.RUNNING {
+        --logoScale: 0.5;
+    }
+
+    ${k} .top-buttons {
+        display: flex;
+        gap: 8px;
+    }
+`);
 
 const InfoWrapper = injectStyleSimple("info-wrapper", `
     margin-top: 32px;
@@ -279,7 +282,7 @@ export function ResourceProperties<Res extends Resource>(
     const editPermissionsAllowed = canEditPermission(support, props.api.getNamespace());
 
     const main = resource ? <>
-        <Container data-in-pop-in={props.inPopIn} className={"RUNNING active"}>
+        <div data-in-pop-in={props.inPopIn} className={classConcat(Container, "RUNNING active")}>
             <div className={`logo-wrapper`}>
                 <div className="logo-scale">
                     <div className={"logo"}>
@@ -353,7 +356,7 @@ export function ResourceProperties<Res extends Resource>(
                     {childrenResolved}
                 </div>
             </div>
-        </Container>
+        </div>
     </> : null;
 
     if (props.embedded == true) {

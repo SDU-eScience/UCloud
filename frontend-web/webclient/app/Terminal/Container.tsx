@@ -1,73 +1,75 @@
 import * as React from "react";
 import {useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
-import styled from "styled-components";
 import {useCallback, useEffect, useRef, useMemo} from "react";
 import {Icon} from "@/ui-components";
 import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {Feature, hasFeature} from "@/Features";
+import {injectStyle} from "@/Unstyled";
 
-const Wrapper = styled.div`
-  --tc-pad: 16px;
-  width: calc(100vw - 190px);
-  height: var(--termsize, 0px);
-  background: var(--white);
-  color: var(--black);
-  position: fixed;
-  left: 190px;
-  padding-left: var(--tc-pad);
-  padding-right: var(--tc-pad);
-  user-select: none;
-  z-index: 9999999999;
-  font-family: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
+const Wrapper = injectStyle("wrapper", k => `
+    ${k} {
+        --tc-pad: 16px;
+        width: calc(100vw - 190px);
+        height: var(--termsize, 0px);
+        background: var(--white);
+        color: var(--black);
+        position: fixed;
+        left: 190px;
+        padding-left: var(--tc-pad);
+        padding-right: var(--tc-pad);
+        user-select: none;
+        z-index: 9999999999;
+        font-family: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
+    }
 
-  .resizer {
-    width: calc(100% + var(--tc-pad) * 2);
-    height: 2px;
-    background: black;
-    cursor: row-resize;
-    position: relative;
-    left: calc(var(--tc-pad) * -1);
-  }
+    ${k} .resizer {
+        width: calc(100% + var(--tc-pad) * 2);
+        height: 2px;
+        background: black;
+        cursor: row-resize;
+        position: relative;
+        left: calc(var(--tc-pad) * -1);
+    }
 
-  .controls {
-    width: 100%;
-    height: 32px;
-    display: flex;
-    align-items: center;
-  }
+    ${k} .controls {
+        width: 100%;
+        height: 32px;
+        display: flex;
+        align-items: center;
+    }
 
-  .controls .control {
-    margin-left: 16px;
-    cursor: pointer;
-  }
+    ${k} .controls, ${k} .control {
+        margin-left: 16px;
+        cursor: pointer;
+    }
 
-  .tab:first-child {
-    border-left: 1px solid black;
-  }
+    ${k} .tab:first-child {
+        border-left: 1px solid black;
+    }
 
-  .tab {
-    width: 150px;
-    text-overflow: ellipsis;
-    text-align: center;
-    border-right: 1px solid black;
-    cursor: pointer;
-  }
+    ${k} .tab {
+        width: 150px;
+        text-overflow: ellipsis;
+        text-align: center;
+        border-right: 1px solid black;
+        cursor: pointer;
+    }
 
-  .tab:hover {
-    background: var(--invertedThemeColor);
-    color: var(--white);
-  }
+    ${k} .tab:hover {
+        background: var(--invertedThemeColor);
+        color: var(--white);
+    }
 
-  .tab.active {
-    background: var(--invertedThemeColor);
-    color: var(--white);
-  }
+    ${k} .tab.active {
+        background: var(--invertedThemeColor);
+        color: var(--white);
+    }
 
-  .contents {
-    width: 100%;
-    height: calc(100% - 32px);
-  }
-`;
+    ${k} .contents {
+        width: 100%;
+        height: calc(100% - 32px);
+    }
+`);
 
 export const TerminalContainer: React.FunctionComponent = () => {
     if (!hasFeature(Feature.INLINE_TERMINAL)) return null;
@@ -167,7 +169,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
         </>
     ), [state.tabs, state.activeTab, state.open]);
 
-    return <Wrapper>
+    return <div className={Wrapper}>
         <div className={"resizer"} onMouseDown={onDragStart} />
         <div className="controls">
             {tabComponents}
@@ -186,5 +188,5 @@ export const TerminalContainer: React.FunctionComponent = () => {
         </div>
 
         <div className={"contents"} ref={termRef} />
-    </Wrapper>;
+    </div>;
 };
