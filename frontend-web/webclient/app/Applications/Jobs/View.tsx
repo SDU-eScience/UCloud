@@ -457,6 +457,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                     </div>
                 </CSSTransition>
             )}
+            {job ? <OutputFiles job={job} /> : null}
         </div>
     );
 
@@ -500,8 +501,6 @@ const CompletedContent: React.FunctionComponent<{
                 <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
             </HighlightedCard>
         </div>
-
-        <OutputFiles job={job} />
     </div>
 };
 
@@ -1359,12 +1358,36 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
-    return <div style={{width: "100%", marginTop: "18px"}}>
+    return <div className={FadeInDiv} style={{width: "100%", marginTop: "18px"}}>
         <FileBrowse
             opts={{initialPath: pathRef.current, embedded: true}}
         />
     </div>;
 };
+
+
+const fadeInAnimation = makeKeyframe("fade-in-animation", `
+  from {
+    opacity: 0%;
+  }
+  75% {
+    opacity: 0%;
+  }
+  80% {
+    opacity: 0%;
+  }
+  to {
+    opacity: 100%;
+  }
+`);
+
+const FadeInDiv = injectStyle("fade-in-div", k => `
+    ${k} {
+        width: 100%;
+        margin-top: 18px;
+        animation: 1.6s ${fadeInAnimation};
+    }
+`); 
 
 function getAppType(job: Job): string {
     return job.status.resolvedApplication!.invocation.applicationType;

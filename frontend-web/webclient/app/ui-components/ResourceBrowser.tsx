@@ -35,7 +35,8 @@ export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
     disabledKeyhandlers?: boolean;
-    // TODO(Jonas): Document what this actually does and what it does different from isModal.
+    // Note(Jonas): Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
+    // are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
     embedded?: boolean; // TODO(Jonas): Rename to something like 'simple' or similar.
     // TODO(Jonas): Document what this actually does and what it does diffently from embedded.
     isModal?: boolean;
