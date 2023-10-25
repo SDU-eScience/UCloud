@@ -41,9 +41,11 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                 browser.on("beforeOpen", (oldPath, path, resource) => resource != null);
                 browser.on("open", (oldPath, newPath, resource) => {
                     // For initial fetch.
+                    if (oldPath === newPath) return;
                     callAPI(SshKeyApi.browse({
                         ...defaultRetrieveFlags,
-                        ...browser.browseFilters
+                        ...browser.browseFilters,
+                        ...props.opts?.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -53,12 +55,12 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                 browser.on("unhandledShortcut", () => { });
 
                 browser.on("wantToFetchNextPage", async path => {
-                    /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
                         SshKeyApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...props.opts?.additionalFilters
                         })
                     )
 

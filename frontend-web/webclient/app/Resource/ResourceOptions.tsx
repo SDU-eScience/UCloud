@@ -1,4 +1,3 @@
-// TODO: RENAME ME
 import * as React from "react";
 
 import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";

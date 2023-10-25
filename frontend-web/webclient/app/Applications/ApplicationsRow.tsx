@@ -78,7 +78,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                     <Absolute height={0} width={0} top="110px">
                         <ScrollButton disabled={false} left onClick={() => {
                             if (scrollRef.current) {
-                                scrollRef.current.scrollBy({left: -SCROLL_SPEED});
+                                scrollRef.current.scrollBy({left: -SCROLL_SPEED, behavior: "smooth"});
                             }
                         }} />
                     </Absolute>
@@ -86,7 +86,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                 <Relative>
                     <Absolute height={0} width={0} right="0" top="110px">
                         <ScrollButton disabled={false} left={false} onClick={() => {
-                            if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED});
+                            if (scrollRef.current) scrollRef.current.scrollBy({left: SCROLL_SPEED, behavior: "smooth"});
                         }} />
                     </Absolute>
                 </Relative>

@@ -168,6 +168,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                     {sections.data.sections.map(section =>
                         <div key={section.name} id={"section"+section.id.toString()}>
                             <Spacer
+                                /* seeing as there's no `right`, can't this just be a normal heading with styling? */
                                 mt="15px" px="10px" alignItems={"center"}
                                 left={<Heading.h2>{section.name}</Heading.h2>}
                                 right={<></>}
@@ -199,14 +200,5 @@ const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
     margin-top: -12px;
 /* HACK */
 `);
-
-interface TagGridProps {
-    tag?: string;
-    items: ApplicationGroup[];
-    tagBanList?: string[];
-    favoriteStatus: React.MutableRefObject<FavoriteStatus>;
-    onFavorite: (app: ApplicationSummaryWithFavorite) => void;
-    refreshId: number;
-}
 
 export default ApplicationsOverview;

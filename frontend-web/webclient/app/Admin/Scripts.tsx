@@ -106,7 +106,7 @@ const Scripts: React.FunctionComponent = () => {
                     const textNode = document.createTextNode(lastRun);
                     row.stat2.append(textNode);
 
-                    row.stat3.append(createHTMLElements({
+                    const runButton = createHTMLElements({
                         tagType: "button",
                         style: {height: "32px", width: "64px"},
                         className: ButtonClass,
@@ -121,7 +121,9 @@ const Scripts: React.FunctionComponent = () => {
                                 start.onClick([script], {});
                             }
                         }
-                    }))
+                    });
+                    runButton.innerText = "Run";
+                    row.stat3.append(runButton);
                 });
             })
         }
