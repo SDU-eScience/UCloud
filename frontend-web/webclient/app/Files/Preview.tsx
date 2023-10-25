@@ -1,22 +1,21 @@
 import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
-import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported} from "@/UtilityFunctions";
+import {ExtensionType, extensionFromPath, extensionType, getUserThemePreference, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
-import {Box, Markdown} from "@/ui-components";
+import {Markdown, theme} from "@/ui-components";
 import {api as FilesApi, FilesCreateDownloadResponseItem, normalizeDownloadEndpoint, UFile} from "@/UCloud/FilesApi";
 import {useEffect, useState} from "react";
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {BulkResponse} from "@/UCloud";
-import SyntaxHighlighter from "react-syntax-highlighter";
 import {injectStyle} from "@/Unstyled";
+import fileType from "magic-bytes.js";
+import Editor from "@monaco-editor/react";
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = 50_000_000;
 
 export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
-    const extension = extensionFromPath(file.id);
-    const isValidExtension = isExtPreviewSupported(extension);
-    const type = extensionTypeFromPath(file.id);
+    const [type, setType] = useState<ExtensionType>(null);
     const [loading, invokeCommand] = useCloudCommand();
 
     const [data, setData] = useState("");
@@ -25,7 +24,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
     const fetchData = React.useCallback(async () => {
         const size = file.status.sizeInBytes;
         if (file.status.type !== "FILE") return;
-        if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
+        if (!loading && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
             try {
                 const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
                     FilesApi.createDownload(bulkRequestOf({id: file.id})),
@@ -37,24 +36,43 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
                     return;
                 }
                 const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
-                switch (type) {
-                    case "image":
-                    case "audio":
-                    case "video":
-                    case "pdf":
-                        setData(URL.createObjectURL(await content.blob()));
+                const contentBlob = await content.blob();
+                const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
+
+                const foundFileType = fileType(contentBuffer);
+                if (foundFileType.length === 0) {
+                    const text = tryDecodeText(contentBuffer);
+                    if (text !== null) {
+                        setType("text");
+                        setData(await contentBlob.text());
                         setError(null);
-                        break;
-                    case "code":
-                    case "text":
-                    case "application":
-                    case "markdown":
-                        setData(await content.text());
-                        setError(null);
-                        break;
-                    default:
-                        setError(`Preview not support for '${extensionFromPath(file.id)}'.`);
-                        break;
+                    } else {
+                        setError("Preview is not supported for this file.");
+                    }
+                } else {
+                    const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
+
+                    switch (typeFromFileType) {
+                        case "image":
+                        case "audio":
+                        case "video":
+                        case "pdf":
+                            setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime}))); 
+                            setError(null);
+                            break;
+                        case "code":
+                        case "text":
+                        case "application":
+                        case "markdown":
+                            setData(await content.text());
+                            setError(null);
+                            break;
+                        default:
+                            setError(`Preview not supported for '${foundFileType[0].typename}'.`);
+                            break;
+                    }
+
+                    setType(typeFromFileType);
                 }
             } catch (e) {
                 setError("Unable to display preview. Try again later or with a different file.");
@@ -80,12 +98,18 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
     switch (type) {
         case "text":
         case "code":
-            /* Even 100_000 tanks performance. Anything above stalls or kills the sandbox process. */
-            if (file.status.sizeInBytes == null || file.status.sizeInBytes > 100_000) {
-                node = <Box width="100%"><pre className="fullscreen text-preview">{data}</pre></Box>
-            } else {
-                node = <Box width="100%"><SyntaxHighlighter className="fullscreen text-preview">{data}</SyntaxHighlighter></Box>;
-            }
+            node = <Editor
+                height="500px"
+                width="100%"
+                options={{
+                    readOnly: true,
+                    minimap: {enabled: false},
+                }}
+                theme={isLightThemeStored() ? "light" : "vs-dark"}
+                language={languageFromExtension(extensionFromPath(file.id))}
+                className="fullscreen"
+                value={data}
+            />;
             break;
         case "image":
             node = <img alt={fileName(file.id)} src={data} />
@@ -97,7 +121,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
             node = <video src={data} controls />;
             break;
         case "pdf":
-            node = <embed style={{width: "100vw", height: "100vh"}} className="fullscreen" src={data} />;
+            node = <object type="application/pdf" style={{width: "100vw", height: "100vh"}} className="fullscreen" data={data} />;
             break;
         case "markdown":
             node = <div><Markdown>{data}</Markdown></div>;
@@ -127,3 +151,12 @@ const ItemWrapperClass = injectStyle("item-wrapper", k => `
       overflow-y: scroll;
     }
 `);
+
+function tryDecodeText(buf: Uint8Array): string | null {
+    try {
+        const d = new TextDecoder("utf-8", { fatal: true });
+        return d.decode(buf);
+    } catch (e) {
+        return null;
+    }
+}

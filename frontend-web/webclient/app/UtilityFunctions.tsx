@@ -78,6 +78,51 @@ export const commonFileExtensions = [
     "dat", "binary", "rs",
 ];
 
+export function languageFromExtension(ext: string): string {
+    const languages = {
+        "md": "markdown",
+        "kt": "kotlin",
+        "kts": "kotlin",
+        "js": "javascript",
+        "jsx": "javascript",
+        "ts": "typescript",
+        "tsx": "typescript",
+        "py": "python",
+        "h": "c",
+        "cc": "c++",
+        "hh": "c++",
+        "h++": "c++",
+        "hpp": "c++",
+        "cpp": "c++",
+        "cxx": "c++",
+        "hxx": "c++",
+        "htm": "html",
+        "lhs": "haskell",
+        "hs": "haskell",
+        "sh": "shell",
+        "bib": "tex",
+        "yml": "yaml",
+        "sbatch": "shell",
+        "rs": "rust"
+    };
+
+    return languages[ext.toLowerCase()] ?? ext.toLowerCase();
+}
+
+export function typeFromMime(mimeType: string): ExtensionType {
+    const mime = mimeType.toLowerCase();
+
+    if (mime.startsWith("video")) {
+        return "video";
+    } else if (mime.startsWith("audio")) {
+        return "audio";
+    } else if (mime.startsWith("image")) {
+        return "image";
+    } else {
+        return null;
+    }
+}
+
 export function extensionType(ext: string): ExtensionType {
     switch (ext.toLowerCase()) {
         case "app":
@@ -162,6 +207,7 @@ export function extensionType(ext: string): ExtensionType {
         case "avi":
         case "mov":
         case "wmv":
+        case "mkv":
             return "video";
         case "gz":
         case "zip":
