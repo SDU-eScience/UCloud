@@ -457,7 +457,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                     </div>
                 </CSSTransition>
             )}
-            {job ? <OutputFiles job={job} /> : null}
+            {status && isJobStateTerminal(status.state) && job ? <OutputFiles job={job} /> : null}
         </div>
     );
 
