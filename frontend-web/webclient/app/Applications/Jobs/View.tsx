@@ -8,7 +8,6 @@ import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import styled from "styled-components";
 import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {IconName} from "@/ui-components/Icon";
@@ -731,24 +730,26 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
     </div>;
 };
 
-const InfoCardContainer = styled.div`
-  margin: 15px 10px;
-  text-align: center;
+const InfoCardContainer = injectStyle("info-card-container", k => `
+    ${k} {
+        margin: 15px 10px;
+        text-align: center;
+    }
 
-  .stat {
-    font-size: 250%;
-    line-height: 150%;
-  }
+    ${k} .stat {
+        font-size: 250%;
+        line-height: 150%;
+    }
 
-  .stat-title {
-    font-size: 150%;
-  }
+    ${k} .stat-title {
+        font-size: 150%;
+    }
 
-  .content {
-    margin-top: 30px;
-    text-align: left;
-  }
-`;
+    ${k} .content {
+        margin-top: 30px;
+        text-align: left;
+    }
+`);
 
 const InfoCard: React.FunctionComponent<{
     stat: string,
@@ -757,14 +758,14 @@ const InfoCard: React.FunctionComponent<{
     children: React.ReactNode;
 }> = props => {
     return <HighlightedCard color={"purple"} isLoading={false}>
-        <InfoCardContainer>
+        <div className={InfoCardContainer}>
             <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
             <div className={"stat"}>{props.stat}</div>
             <div className={"stat-title"}>{props.statTitle}</div>
             <div className={"content"}>
                 {props.children}
             </div>
-        </InfoCardContainer>
+        </div>
     </HighlightedCard>;
 };
 
@@ -1172,69 +1173,73 @@ const RunningJobsWrapper = injectStyleSimple("running-jobs-wrapper", `
   grid-gap: 32px;
 `);
 
-const RunningJobRankWrapper = styled.div`
-  margin-top: 16px;
-  margin-bottom: 16px;
+const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
+    ${k} {
+        margin-top: 16px;
+        margin-bottom: 16px;
 
-  display: grid;
-  grid-template-columns: 80px 1fr 200px;
-  grid-template-rows: 1fr auto;
-  grid-gap: 16px;
-
-  .rank {
-    text-align: center;
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .term {
-    height: 100%;
-  }
-
-  .term .terminal {
-    /* NOTE(Dan): This fixes a feedback loop in the xtermjs fit function. Without this, the fit function is
-       unable to correctly determine the size of the terminal */
-    position: absolute;
-  }
-
-  .buttons {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .buttons .${ButtonClass} {
-    margin-top: 8px;
-    width: 100%;
-  }
-
-  ${deviceBreakpoint({minWidth: "1001px"})} {
-    &.expanded {
-      height: 80vh;
+        display: grid;
+        grid-template-columns: 80px 1fr 200px;
+        grid-template-rows: 1fr auto;
+        grid-gap: 16px;
     }
 
-    &.expanded .term {
-      grid-row: 1;
-      grid-column: 2 / 4;
+    ${k} .rank {
+        text-align: center;
+        width: 100%;
+        flex-direction: column;
     }
 
-    &.expanded .buttons {
-      grid-row: 2;
-      grid-column: 2 / 4;
-    }
-  }
-
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    grid-template-columns: 1fr !important;
-
-    .term {
-      height: 400px;
+    ${k} .term {
+        height: 100%;
     }
 
-    .expand-btn {
-      display: none;
+    ${k} .term .terminal {
+        /* NOTE(Dan): This fixes a feedback loop in the xtermjs fit function. Without this, the fit function is
+        unable to correctly determine the size of the terminal */
+        position: absolute;
     }
-  }
-`;
+
+    ${k} .buttons {
+        display: flex;
+        flex-direction: column;
+    }
+
+    ${k} .buttons .${ButtonClass} {
+        margin-top: 8px;
+        width: 100%;
+    }
+
+    ${deviceBreakpoint({minWidth: "1001px"})} {
+        ${k}.expanded {
+            height: 80vh;
+        }
+
+        ${k}.expanded .term {
+            grid-row: 1;
+            grid-column: 2 / 4;
+        }
+
+        ${k}.expanded .buttons {
+            grid-row: 2;
+            grid-column: 2 / 4;
+        }
+    }
+
+    ${deviceBreakpoint({maxWidth: "1000px"})} {
+        ${k}{
+            grid-template-columns: 1fr !important;
+        }
+
+        ${k} .term {
+            height: 400px;
+        }
+
+        ${k} .expand-btn {
+            display: none;
+        }
+    }
+`);
 
 const RunningJobRank: React.FunctionComponent<{
     job: Job,
@@ -1284,7 +1289,7 @@ const RunningJobRank: React.FunctionComponent<{
 
     return <>
         <HighlightedCard color={"purple"} isLoading={false}>
-            <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
+            <div className={classConcat(RunningJobRankWrapper, expanded ? "expanded" : undefined)}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
                     <Heading.h3>Node</Heading.h3>
@@ -1296,7 +1301,7 @@ const RunningJobRank: React.FunctionComponent<{
                     <RunningButtonGroup job={job} rank={rank} expanded={expanded}
                         toggleExpand={toggleExpand} />
                 )}
-            </RunningJobRankWrapper>
+            </div>
         </HighlightedCard>
     </>;
 };
@@ -1387,7 +1392,7 @@ const FadeInDiv = injectStyle("fade-in-div", k => `
         margin-top: 18px;
         animation: 1.6s ${fadeInAnimation};
     }
-`); 
+`);
 
 function getAppType(job: Job): string {
     return job.status.resolvedApplication!.invocation.applicationType;

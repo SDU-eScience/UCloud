@@ -30,7 +30,7 @@ const FormWrapper = styled.div`
   }
 
   & > form > .form-group > fieldset > legend {
-    font-size: ${() => theme.fontSizes[4]}px;
+    font-size: ${theme.fontSizes[4]}px;
   }
   
   & > form > .form-group > fieldset > * > fieldset {
@@ -50,7 +50,7 @@ const FormWrapper = styled.div`
   }
   
   & > form > .form-group > fieldset > * > fieldset > legend, & > form > .form-group > fieldset > *  legend {
-    font-size: ${() => theme.fontSizes[3]}px;
+    font-size: ${theme.fontSizes[3]}px;
   }
 
   legend {
@@ -92,7 +92,7 @@ const FormWrapper = styled.div`
       background-color: var(--lightGray, #f00);
     }
 
-    border-width: ${() => theme.borderWidth};
+    border-width: ${theme.borderWidth};
     border-color: var(--borderGray, #f00);
     border-style: solid;
     border-radius: 5px;
