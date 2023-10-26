@@ -11,8 +11,6 @@ import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
 import * as React from "react";
 import ReactDOM from "react-dom";
-import styled from "styled-components";
-import {boxShadow, BoxShadowProps} from "styled-system";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {injectStyle} from "@/Unstyled";
@@ -260,7 +258,7 @@ export const ProductSelector: React.FunctionComponent<{
 
         {!isOpen ? null :
             ReactDOM.createPortal(
-                <SelectorDialog style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
+                <div className={SelectorDialog} style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
                         <Flex mt={(dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
                             <HexSpin size={64} />
@@ -417,7 +415,7 @@ export const ProductSelector: React.FunctionComponent<{
                             </Table>
                         </>
                     }
-                </SelectorDialog>,
+                </div>,
                 portal
             )
         }
@@ -428,20 +426,21 @@ const ProductName: React.FunctionComponent<{product: Product}> = ({product}) => 
     return <>{product.name}</>;
 }
 
-const SelectorDialog = styled.div<BoxShadowProps>`
-    position: fixed;
-    cursor: default;
-    height: 500px;
-    overflow-y: auto;
-    border-radius: 5px;
-    ${boxShadow}
-    border: 1px solid var(--borderGray);
-    background: var(--white);
-    padding: 16px;
-    padding-top: 0;
-    z-index: 1000;
+const SelectorDialog = injectStyle("selector-dialog", k => `
+    ${k} {
+        position: fixed;
+        cursor: default;
+        height: 500px;
+        overflow-y: auto;
+        border-radius: 5px;
+        border: 1px solid var(--borderGray);
+        background: var(--white);
+        padding: 16px;
+        padding-top: 0;
+        z-index: 1000;
+    }
 
-    .input-wrapper {
+    ${k} .input-wrapper {
         padding-top: 16px;
         padding-bottom: 16px;
         position: sticky;
@@ -449,28 +448,28 @@ const SelectorDialog = styled.div<BoxShadowProps>`
         background: var(--white);
     }
 
-    thead > tr {
+    ${k} thead > tr {
         position: sticky;
         top: 74px;
         background: var(--white);
     }
 
-    th, td {
+    ${k} th, ${k} td {
         text-align: left;
         overflow: hidden;
         padding-left: 5px;
     }
 
-    table {
+    ${k} table {
         user-select: none;
     }
 
-    table > tbody > tr:hover {
+    ${k} table > tbody > tr:hover {
         cursor: pointer;
         background-color: var(--lightBlue);
     }
 
-    td[colspan] div.spacer {
+    ${k} td[colspan] div.spacer {
         content: " ";
         display: block;
         width: 45px;
@@ -478,7 +477,7 @@ const SelectorDialog = styled.div<BoxShadowProps>`
         background: var(--black);
     }
 
-    td[colspan] > div {
+    ${k} td[colspan] > div {
         display: flex;
         text-align: center;
         font-weight: bold;
@@ -488,19 +487,16 @@ const SelectorDialog = styled.div<BoxShadowProps>`
         gap: 8px;
     }
 
-    .table-info + .table-info > td > div {
+    ${k} .table-info + .table-info > td > div {
         margin-top: -16px;
     }
 
-    tr.disabled {
+    ${k} tr.disabled {
         background-color: var(--lightGray);
         color: var(--borderGray);
         cursor: not-allowed !important;
     }
-`;
-SelectorDialog.defaultProps = {
-    boxShadow: "md"
-};
+`);
 
 const ProductStats: React.FunctionComponent<{product: Product}> = ({product}) => {
     switch (product.productType) {
