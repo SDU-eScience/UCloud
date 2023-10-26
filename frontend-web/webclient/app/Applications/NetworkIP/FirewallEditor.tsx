@@ -9,6 +9,7 @@ import {blankOrUndefined} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {classConcat} from "@/Unstyled";
 
 export const FirewallEditor: React.FunctionComponent<{
     inspecting: NetworkIP;
@@ -86,9 +87,9 @@ export const FirewallEditor: React.FunctionComponent<{
                         <pre><code>Port (First) = 22, Port (Last) = 22, Protocol = TCP</code></pre>
                     </Box>
                 </> :
-                <ShakingBox shaking height={120}>
+                <Box className={classConcat(ShakingBox, "shaking")} height={120}>
                     <b>Note:</b> Your application must be <i>restarted</i> for the firewall to take effect.
-                </ShakingBox>
+                </Box>
             }
 
             <form onSubmit={onAddRow}>
@@ -101,33 +102,33 @@ export const FirewallEditor: React.FunctionComponent<{
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                    {(inspecting.specification.firewall?.openPorts ?? []).map((row, idx) => {
-                        return <TableRow key={idx}>
-                            <TableCell>{row.start}</TableCell>
-                            <TableCell>{row.end}</TableCell>
-                            <TableCell>{row.protocol}</TableCell>
+                        {(inspecting.specification.firewall?.openPorts ?? []).map((row, idx) => {
+                            return <TableRow key={idx}>
+                                <TableCell>{row.start}</TableCell>
+                                <TableCell>{row.end}</TableCell>
+                                <TableCell>{row.protocol}</TableCell>
+                                <TableCell>
+                                    <ConfirmationButton
+                                        color={"red"}
+                                        fullWidth
+                                        icon={"close"}
+                                        actionText={"Remove"}
+                                        onAction={() => onRemoveRow(idx)}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        })}
+                        <TableRow>
+                            <TableCell><Input inputRef={portFirstRef} /></TableCell>
+                            <TableCell><Input inputRef={portLastRef} /></TableCell>
                             <TableCell>
-                                <ConfirmationButton
-                                    color={"red"}
-                                    fullWidth
-                                    icon={"close"}
-                                    actionText={"Remove"}
-                                    onAction={() => onRemoveRow(idx)}
-                                />
+                                <Select selectRef={protocolRef}>
+                                    <option>TCP</option>
+                                    <option>UDP</option>
+                                </Select>
                             </TableCell>
+                            <TableCell><Button type={"submit"} fullWidth onClick={onAddRow}><Text fontSize={"18px"}>Add </Text></Button></TableCell>
                         </TableRow>
-                    })}
-                    <TableRow>
-                        <TableCell><Input inputRef={portFirstRef}/></TableCell>
-                        <TableCell><Input inputRef={portLastRef}/></TableCell>
-                        <TableCell>
-                            <Select selectRef={protocolRef}>
-                                <option>TCP</option>
-                                <option>UDP</option>
-                            </Select>
-                        </TableCell>
-                        <TableCell><Button type={"submit"} fullWidth onClick={onAddRow}><Text fontSize={"18px"}>Add </Text></Button></TableCell>
-                    </TableRow>
                     </tbody>
                 </Table>
             </form>

@@ -2,7 +2,6 @@ import {KeyCode} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled, {css} from "styled-components";
 import {
     Box, Button, Divider, Flex, ButtonGroup, Link, Text
 } from "@/ui-components";
@@ -321,21 +320,12 @@ const shakeKeyframes = makeKeyframe("shake", `
   }
 `);
 
-export const shakeAnimation = css<{shaking?: boolean}>`
-  &.shaking {
-    transform: translate3d(0, 0, 0);
-    animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
-  }
-
-  ${p => p.shaking ? css`& {
-    transform: translate3d(0, 0, 0);
-    animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
-  }` : null}
-`;
-
-export const ShakingBox = styled(Box) <{shaking?: boolean}>`
-  ${shakeAnimation}
-`;
+export const ShakingBox = injectStyle("shaking-box", k =>`
+    ${k}.shaking {
+        transform: translate3d(0, 0, 0);
+        animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
+    }
+`);
 
 const MISSING_COMPUTE_CREDITS = "NOT_ENOUGH_COMPUTE_CREDITS";
 const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
