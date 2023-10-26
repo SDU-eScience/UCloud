@@ -4,7 +4,6 @@ import DetailedTask from "@/Services/BackgroundTasks/DetailedTask";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {default as ReactModal} from "react-modal";
-import styled from "styled-components";
 import {Icon} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -20,6 +19,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {UploadState} from "@/Files/Upload";
 import {CardClass} from "@/ui-components/Card";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 function insertTimestamps(speeds: Speed[]): Speed[] {
     return speeds.map(it => {
@@ -88,14 +88,14 @@ const BackgroundTasks: React.FunctionComponent = () => {
     useEffect(() => {
         setTasks(associateBy(
             initialTasks.data.items.map(it => ({
-                    jobId: it.jobId,
-                    speeds: [],
-                    messageToAppend: null,
-                    progress: null,
-                    newTitle: it.title,
-                    complete: false,
-                    newStatus: it.status
-                }),
+                jobId: it.jobId,
+                speeds: [],
+                messageToAppend: null,
+                progress: null,
+                newTitle: it.title,
+                complete: false,
+                newStatus: it.status
+            }),
             ),
             it => it.jobId
         ));
@@ -159,12 +159,12 @@ const BackgroundTasks: React.FunctionComponent = () => {
                 width="600px"
                 left="-400px"
                 top="37px"
-                trigger={<Flex justifyContent="center"><TasksIcon/></Flex>}
+                trigger={<Flex justifyContent="center"><TasksIcon /></Flex>}
             >
                 {!tasks ? null :
                     <>
                         {uploads.length === 0 ? null :
-                            <TaskComponent title={"File uploads"} jobId={"uploads"} onClick={openUploader}/>
+                            <TaskComponent title={"File uploads"} jobId={"uploads"} onClick={openUploader} />
                         }
                         {Object.values(tasks).map(update => (
                             <TaskComponent
@@ -187,7 +187,7 @@ const BackgroundTasks: React.FunctionComponent = () => {
                 ariaHideApp={false}
                 className={CardClass}
             >
-                {!hasTaskInFocus ? null : <DetailedTask task={tasks[taskInFocus!]!}/>}
+                {!hasTaskInFocus ? null : <DetailedTask task={tasks[taskInFocus!]!} />}
             </ReactModal>
         </>
     );
@@ -213,14 +213,14 @@ const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
     );
 
     return (
-        <TaskContainer onClick={onClickHandler}>
+        <Flex className={TaskContainer} onClick={onClickHandler}>
             <Box mr={16}>
                 <b>{props.title}</b>
             </Box>
 
             <Box flexGrow={1}>
                 {!props.progress ?
-                    <IndeterminateProgressBar color="green" label={label}/> :
+                    <IndeterminateProgressBar color="green" label={label} /> :
 
                     (
                         <ProgressBar
@@ -231,34 +231,39 @@ const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
                         />
                     )
                 }
+                <Icon name="activity" className="foo" />
             </Box>
-        </TaskContainer>
+        </Flex>
     );
 };
 
-const TaskContainer = styled(Flex)`
-  padding: 16px;
-  cursor: pointer;
-
-  > * {
-    cursor: inherit;
-  }
-`;
-
-const TasksIconBase = styled(Icon)`
-  animation: spin 2s linear infinite;
-  margin-right: 8px;
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
+const TaskContainer = injectStyle("task-container", k => `
+    ${k} {
+        padding: 16px;
+        cursor: pointer;
     }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-`;
 
-const TasksIcon = (): JSX.Element => <TasksIconBase name="notchedCircle"/>;
+    ${k} > * {
+        cursor: inherit;
+    }
+`);
+
+const TasksIconBase = injectStyle("task-icon-base", k => `
+    @keyframes spin {
+        0% {
+           transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    ${k} {
+        animation: spin 2s linear infinite;
+        margin-right: 8px;
+    }
+`);
+
+const TasksIcon = (): React.JSX.Element => <Icon className={TasksIconBase} name="notchedCircle" />;
 
 export default BackgroundTasks;

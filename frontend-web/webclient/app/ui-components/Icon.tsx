@@ -4,7 +4,7 @@ import Bug from "./Bug";
 import * as icons from "./icons";
 import theme, {ThemeColor} from "./theme";
 import {Cursor} from "./Types";
-import {injectStyle, unbox} from "@/Unstyled";
+import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 
 const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
@@ -27,7 +27,7 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
         <Component
             data-component={`icon-${name}`}
             width={size}
-            height={squared ? size : undefined }
+            height={squared ? size : undefined}
             color2={color2 ? theme.colors[color2] : undefined}
             {...props}
             {...heroProps}
@@ -78,7 +78,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = props => {
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
 
-    return <IconBase {...props} className={IconClass} data-spin={props.spin === true} style={style} />
+    return <IconBase {...props} className={classConcat(IconClass, props.className)} data-spin={props.spin === true} style={style} />
 };
 
 Icon.displayName = "Icon";
