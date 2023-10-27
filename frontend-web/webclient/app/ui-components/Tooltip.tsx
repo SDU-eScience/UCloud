@@ -93,7 +93,7 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     }
 
     trigger.onmouseover = onHover;
-    trigger.onmouseleave = onLeave;
+    trigger.onmouseleave = tooltip.onmouseleave = onLeave;
 
     portal.innerHTML = "";
     portal.append(contentWrapper);
