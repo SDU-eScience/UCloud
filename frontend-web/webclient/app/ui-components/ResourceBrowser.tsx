@@ -822,7 +822,8 @@ export class ResourceBrowser<T> {
 
         // NOTE(Dan): We need to scroll to the position _after_ we have rendered the page.
         this.scrolling.parentElement!.scrollTo({top: scrollPositionElement ?? 0});
-
+        // NOTE(Jonas): Navigating using mouse buttons or keyboard keys can otherwise leave the context menu open.
+        this.closeContextMenu();
         this.dispatchMessage("open", fn => fn(oldPath, path, resource));
     }
 
