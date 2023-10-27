@@ -910,7 +910,7 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
         }
 
         const actualFrequency = category.accountingFrequency;
-        priceFactor = frequencyToMillis(desiredFrequency) / frequencyToMillis(actualFrequency);
+        priceFactor = frequencyToMillis(actualFrequency) / frequencyToMillis(desiredFrequency);
         suffix = "-" + frequencyToSuffix(desiredFrequency, true);
         unitName = unit.name;
     }
@@ -935,7 +935,7 @@ export function balanceToStringFromUnit(
     productType: ProductType,
     unit: string,
     normalizedBalance: number,
-    opts?: { removeUnitIfPossible: boolean }
+    opts?: { precision?: number, removeUnitIfPossible?: boolean }
 ): string {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = normalizedBalance;
@@ -972,7 +972,7 @@ export function balanceToStringFromUnit(
     }
 
     let builder = "";
-    builder += addThousandSeparators(removeSuffix(balanceToDisplay.toFixed(2), ".00"));
+    builder += addThousandSeparators(removeSuffix(balanceToDisplay.toFixed(opts?.precision ?? 2), ".00"));
     if (attachedSuffix) builder += attachedSuffix;
     builder += " ";
     if (!canRemoveUnit) builder += unitToDisplay;
@@ -1039,6 +1039,28 @@ export function searchSubAllocations(
     request: PaginationRequestV2 & { query: string, filterType?: ProductType }
 ): APICallParameters<unknown, PageV2<SubAllocationV2>> {
     return apiSearch(request, baseContextV2, "subAllocations");
+}
+
+export function walletOwnerEquals(a: WalletOwner, b: WalletOwner): boolean {
+    switch (a.type) {
+        case "project": {
+            if (b.type !== "project") return false
+            return a.projectId === b.projectId;
+        }
+
+        case "user": {
+            if (b.type !== "user") return false;
+            return a.username === b.username;
+        }
+    }
+}
+
+export function subAllocationOwner(alloc: SubAllocationV2): WalletOwner {
+    if (alloc.workspaceIsProject) {
+        return { type: "project", projectId: alloc.workspaceId };
+    } else {
+        return { type: "user", username: alloc.workspaceId };
+    }
 }
 
 export function utcDate(ts: number): string {

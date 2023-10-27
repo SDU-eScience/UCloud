@@ -140,8 +140,8 @@ const ListRowClass = injectStyle("list-item", k => `
     }
 
     ${k} .row-icon {
-        margin-right: 12px;
-        margin-left: 8px;
+        margin-right: 5px;
+        margin-left: 5px;
         flex-shrink: 0;
     }
 
@@ -168,13 +168,13 @@ const ListRowClass = injectStyle("list-item", k => `
   
     ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {
       ${k} .row-left{
-        max-width: calc(100vw - 435px);
+        max-width: calc(100vw - var(--currentSidebarWidth));
       }
     }
 
     ${deviceBreakpoint({maxWidth: "767px"})} {
         ${k} .row-left {
-            max-width: calc(100vw - 210px);
+            max-width: calc(100vw - var(--currentSidebarWidth));
         }
     }
 

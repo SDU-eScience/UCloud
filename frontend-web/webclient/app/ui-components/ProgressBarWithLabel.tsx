@@ -38,7 +38,7 @@ const BarClass = injectStyle("resources-bar", k => `
         padding-bottom: auto;
         position: absolute;
         display: block;
-        min-width: 200px;
+        min-width: var(--width);
         height: 100%;
         text-align: center;
     }
@@ -80,7 +80,7 @@ const ContainerClass = injectStyle("resource-progress-container", k => `
     ${k} {
         border-radius: 4px;
         position: relative;
-        min-width: 200px;
+        min-width: var(--width);
         line-height: 15px;
         vertical-align: middle;
         overflow: hidden;
@@ -107,6 +107,7 @@ export function ProgressBarWithLabel(
     const style: CSSProperties = {width, height};
     style["--barBackground"] = `var(--${getColorFromValue(props.value)})`
     style["--percentage"] = `${props.value}%`;
+    style["--width"] = width;
 
     return (
         <div className={ContainerClass} style={style}>

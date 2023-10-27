@@ -36,17 +36,19 @@ export function Accordion(props: React.PropsWithChildren<{
                     leftSub={props.titleSub}
                     icon={
                         props.icon ? <Icon color2={props.iconColor2} color={color} name={props.icon} /> :
-                           props.omitChevron ? null : <Icon data-chevron={"true"} color="text" size={15} mt="6px" name="chevronDown" rotation={open || props.forceOpen ? 0 : -90} />
+                           props.omitChevron ? null : <Icon data-chevron={"true"} color="text" size={15} name="heroChevronDown" rotation={open || props.forceOpen ? 0 : -90} />
                     }
 
                     right={<>{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</>}
                 />
             </div>
-            <div className={PanelClass} data-active={isOpen} data-no-border={props.noBorder ?? false}>
-                <Box {...props.panelProps}>
-                    {props.children}
-                </Box>
-            </div>
+            {props.children !== undefined &&
+                <div className={PanelClass} data-active={isOpen} data-no-border={props.noBorder ?? false}>
+                    <Box {...props.panelProps}>
+                        {props.children}
+                    </Box>
+                </div>
+            }
         </>
     );
 }
@@ -95,5 +97,3 @@ const PanelClass = injectStyle("accordion-panel", k => `
 `);
 
 export default Accordion;
-
-/* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */

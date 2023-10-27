@@ -1,19 +1,20 @@
-import {injectStyle} from "@/Unstyled";
+import { injectStyle } from "@/Unstyled";
 import * as React from "react";
-import {Accordion, Box, Flex, MainContainer, ProgressBarWithLabel, Select} from "@/ui-components";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import { Accordion, Box, Flex, Icon, Link, MainContainer, ProgressBarWithLabel, Select } from "@/ui-components";
+import { ContextSwitcher } from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import {doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
-import {ProductType} from "@/Accounting";
-import {groupBy} from "@/Utilities/CollectionUtilities";
-import {useCallback, useEffect, useReducer} from "react";
-import {useProjectId} from "@/Project/Api";
-import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import * as Grants from "@/Grants";
-import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
-import * as Projects from "@/Project/Api";
-import {fetchAll} from "@/Utilities/PageUtilities";
-import {PageV2} from "@/UCloud";
+import { ProductCategoryV2, ProductType } from "@/Accounting";
+import { groupBy } from "@/Utilities/CollectionUtilities";
+import { ChangeEvent, useCallback, useEffect, useReducer } from "react";
+import { useProjectId } from "@/Project/Api";
+import { useDidUnmount } from "@/Utilities/ReactUtilities";
+import { callAPI, callAPIWithErrorHandler } from "@/Authentication/DataHook";
+import { fetchAll } from "@/Utilities/PageUtilities";
+import AppRoutes from "@/Routes";
+import { ProviderLogo } from "@/Providers/ProviderLogo";
+import { Avatar } from "@/AvataaarLib";
+import { defaultAvatar } from "@/UserSettings/Avataaar";
+import { TooltipV2 } from "@/ui-components/Tooltip";
 
 // State
 // =====================================================================================================================
@@ -30,10 +31,8 @@ interface State {
 
     yourAllocations: {
         [P in ProductType]?: {
-            open?: boolean;
             usageAndQuota: UsageAndQuota[];
             wallets: {
-                open?: boolean;
                 category: Accounting.ProductCategoryV2;
                 usageAndQuota: UsageAndQuota;
 
@@ -49,6 +48,23 @@ interface State {
     subAllocations: {
         searchQuery: string;
 
+        recipients: {
+            owner: {
+                title: string;
+                primaryUsername: string;
+                reference: Accounting.WalletOwner;
+            };
+
+            usageAndQuota: (UsageAndQuota & { type: Accounting.ProductType })[];
+
+            allocations: {
+                // NOTE(Dan): If allocationId is undefined, then the allocation doesn't exist and the usage number
+                // from usageAndQuota should be ignored as a result.
+                allocationId?: string;
+                usageAndQuota: UsageAndQuota;
+                category: Accounting.ProductCategoryV2;
+            }[];
+        }[];
     };
 }
 
@@ -82,6 +98,9 @@ function periodToString(period: Period): string {
 // =====================================================================================================================
 type UIAction =
     { type: "WalletsLoaded", wallets: Accounting.WalletV2[]; }
+    | { type: "PeriodUpdated", selectedIndex: number }
+    | { type: "SubAllocationsLoaded", subAllocations: Accounting.SubAllocationV2[] }
+    | { type: "UpdateSearchQuery", newQuery: string }
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -97,6 +116,35 @@ function stateReducer(state: State, action: UIAction): State {
 
             return initializePeriods(newState);
         }
+
+        case "SubAllocationsLoaded": {
+            const newState = {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    subAllocations: action.subAllocations,
+                }
+            };
+
+            return initializePeriods(newState);
+        }
+
+        case "PeriodUpdated": {
+            return selectPeriod(state, action.selectedIndex);
+        }
+
+        case "UpdateSearchQuery": {
+            const newState = {
+                ...state,
+                subAllocations: {
+                    ...state.subAllocations,
+                    searchQuery: action.newQuery
+                },
+            };
+
+            // TODO Do a bit of filtering here.
+            return newState;
+        }
     }
 
     // Utility functions for mutating state
@@ -110,18 +158,36 @@ function stateReducer(state: State, action: UIAction): State {
         const periods: Period[] = [];
         for (const wallet of state.remoteData.wallets) {
             for (const alloc of wallet.allocations) {
-                const p: Period = { start: alloc.startDate, end: alloc.endDate ?? Number.MAX_SAFE_INTEGER };
+                const p: Period = {start: alloc.startDate, end: alloc.endDate ?? Number.MAX_SAFE_INTEGER};
                 if (!periods.some(it => it.start === p.start && it.end === p.end)) {
                     periods.push(p);
                 }
             }
         }
 
+        // Sort the periods just in case they don't come ordered from the backend
+        periods.sort((a, b) => {
+            if (a.start < b.start) return -1;
+            if (a.start > b.start) return 1;
+            if (a.end < b.end) return -1;
+            if (a.end > b.end) return 1;
+            return 0;
+        });
+
         const oldPeriod = getOrNull(state.periodSelection.availablePeriods, state.periodSelection.currentPeriodIdx);
 
         let selectedIndex = -1;
         if (oldPeriod) selectedIndex = periods.findIndex(it => it.start === oldPeriod.start && it.end === oldPeriod.end);
-        if (selectedIndex === -1 && periods.length > 0) selectedIndex = 0;
+        if (selectedIndex === -1 && periods.length > 0) {
+            const thisYear = new Date().getUTCFullYear();
+            selectedIndex = periods.findIndex(it => new Date(it.start).getUTCFullYear() === thisYear)
+            if (selectedIndex === -1) {
+                selectedIndex = periods.findIndex(it => new Date(it.end).getUTCFullYear() === thisYear)
+                if (selectedIndex === -1) {
+                    selectedIndex = 0;
+                }
+            }
+        }
 
         return selectPeriod(
             {
@@ -147,6 +213,7 @@ function stateReducer(state: State, action: UIAction): State {
                 yourAllocations: {},
                 subAllocations: {
                     searchQuery: state.subAllocations.searchQuery,
+                    recipients: [],
                 },
             };
         }
@@ -157,7 +224,7 @@ function stateReducer(state: State, action: UIAction): State {
                 alloc.startDate >= period.start &&
                 (alloc.endDate ?? Number.MAX_SAFE_INTEGER) <= period.end);
 
-            return { ...wallet, allocations: newAllocations };
+            return {...wallet, allocations: newAllocations};
         }).filter(it => it.allocations.length > 0);
 
         const subAllocationsInPeriod = state.remoteData.subAllocations.filter(alloc =>
@@ -178,7 +245,7 @@ function stateReducer(state: State, action: UIAction): State {
                 const entry = yourAllocations[type as ProductType]!;
 
                 const quotaBalances = wallets.flatMap(wallet =>
-                    wallet.allocations.map(alloc => ({ balance: alloc.quota, category: wallet.paysFor }))
+                    wallet.allocations.map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
                 );
                 const usageBalances = wallets.flatMap(wallet =>
                     wallet.allocations.map(alloc => ({
@@ -234,9 +301,86 @@ function stateReducer(state: State, action: UIAction): State {
             }
         }
 
+        // Start building the sub-allocations UI
+        const subAllocations: State["subAllocations"] = {
+            searchQuery: state.subAllocations.searchQuery,
+            recipients: []
+        };
+
+        {
+            for (const alloc of subAllocationsInPeriod) {
+                const allocOwner = Accounting.subAllocationOwner(alloc);
+                const productUnit = Accounting.explainUnit(alloc.productCategory);
+
+                let recipient = subAllocations.recipients
+                    .find(it => Accounting.walletOwnerEquals(it.owner.reference, allocOwner));
+                if (!recipient) {
+                    recipient = {
+                        owner: {
+                            reference: allocOwner,
+                            primaryUsername: alloc.projectPI!,
+                            title: alloc.workspaceTitle,
+                        },
+                        allocations: [],
+                        usageAndQuota: []
+                    };
+
+                    subAllocations.recipients.push(recipient);
+                }
+
+                recipient.allocations.push({
+                    allocationId: alloc.id,
+                    category: alloc.productCategory,
+                    usageAndQuota: {
+                        usage: alloc.usage * productUnit.priceFactor,
+                        quota: alloc.quota * productUnit.priceFactor,
+                        unit: productUnit.name
+                    }
+                });
+            }
+
+            for (const recipient of subAllocations.recipients) {
+                const uqBuilder: { type: Accounting.ProductType, unit: string, usage: number, quota: number }[] = [];
+                for (const alloc of recipient.allocations) {
+                    const existing = uqBuilder.find(it =>
+                        it.type === alloc.category.productType && it.unit === alloc.usageAndQuota.unit);
+
+                    if (existing) {
+                        existing.usage += alloc.usageAndQuota.usage;
+                        existing.quota += alloc.usageAndQuota.quota;
+                    } else {
+                        uqBuilder.push({
+                            type: alloc.category.productType,
+                            usage: alloc.usageAndQuota.usage,
+                            quota: alloc.usageAndQuota.quota,
+                            unit: alloc.usageAndQuota.unit
+                        });
+                    }
+                }
+
+                const defaultAllocId = "ZZZZZZZZ";
+                recipient.allocations.sort((a, b) => {
+                    const providerCmp = a.category.provider.localeCompare(b.category.provider);
+                    if (providerCmp !== 0) return providerCmp;
+                    const categoryCmp = a.category.name.localeCompare(b.category.name);
+                    if (categoryCmp !== 0) return categoryCmp;
+                    const allocCmp = (a.allocationId ?? defaultAllocId).localeCompare(b.allocationId ?? defaultAllocId);
+                    if (allocCmp !== 0) return allocCmp;
+                    return 0;
+                });
+
+                recipient.usageAndQuota = uqBuilder;
+            }
+        }
+
         return {
             ...state,
+            periodSelection: {
+                ...state.periodSelection,
+                currentPeriodIdx: periodIndex,
+            },
             yourAllocations,
+            subAllocations,
         };
     }
 }
@@ -258,14 +402,21 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 
         switch (event.type) {
             case "Init": {
-                const wallets = await fetchAll(next =>
+                fetchAll(next =>
                     callAPI(Accounting.browseWalletsV2({
                         itemsPerPage: 250,
                         next
                     }))
-                );
+                ).then(wallets => {
+                    dispatch({type: "WalletsLoaded", wallets});
+                });
 
-                dispatch({ type: "WalletsLoaded", wallets });
+                fetchAll(next =>
+                    callAPI(Accounting.browseSubAllocations({itemsPerPage: 250, next}))
+                ).then(subAllocations => {
+                    dispatch({type: "SubAllocationsLoaded", subAllocations});
+                });
+
                 break;
             }
 
@@ -309,7 +460,7 @@ const Allocations: React.FunctionComponent = () => {
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
 
     useEffect(() => {
-        dispatchEvent({ type: "Init" });
+        dispatchEvent({type: "Init"});
     }, [projectId]);
 
     // Event handlers
@@ -317,9 +468,16 @@ const Allocations: React.FunctionComponent = () => {
     // These event handlers translate, primarily DOM, events to higher-level UIEvents which are sent to
     // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. When you are writing
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
+    const onPeriodSelect = useCallback((ev: ChangeEvent) => {
+        const target = ev.target as HTMLSelectElement;
+        dispatchEvent({type: "PeriodUpdated", selectedIndex: target.selectedIndex});
+    }, [dispatchEvent]);
 
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
+    const indent = 16;
+    const baseProgress = 250;
+
     const sortedAllocations = Object.entries(state.yourAllocations).sort((a, b) => {
         const aPriority = productTypesByPriority.indexOf(a[0] as ProductType);
         const bPriority = productTypesByPriority.indexOf(b[0] as ProductType);
@@ -332,7 +490,7 @@ const Allocations: React.FunctionComponent = () => {
         return 0;
     });
 
-    console.log(state.yourAllocations);
+    console.log(state);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -343,7 +501,7 @@ const Allocations: React.FunctionComponent = () => {
                 <h2>Resource allocations for</h2>
 
                 <Box width={"120px"}>
-                    <Select slim value={state.periodSelection.currentPeriodIdx}>
+                    <Select slim value={state.periodSelection.currentPeriodIdx} onChange={onPeriodSelect}>
                         {state.periodSelection.availablePeriods.length === 0 &&
                             <option>{new Date().getUTCFullYear()}</option>}
 
@@ -361,54 +519,67 @@ const Allocations: React.FunctionComponent = () => {
             <h3>Your allocations</h3>
             {sortedAllocations.map(([rawType, tree]) => {
                 const type = rawType as ProductType;
-                function progressText(uq: UsageAndQuota): string {
-                    let text = "";
-                    text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.usage, { removeUnitIfPossible: true });
-                    text += " / ";
-                    text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.quota);
 
-                    text += " (";
-                    text += Math.round(uq.usage / uq.quota);
-                    text += "%)";
-                    return text;
-                }
 
                 return <Accordion
                     key={rawType}
-                    title={Accounting.productAreaTitle(type)}
-                    icon={Accounting.productTypeToIcon(type)}
-                    titleContent={<div>
+                    noBorder
+                    title={<Flex gap={"4px"}>
+                        <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                        {Accounting.productAreaTitle(type)}
+                    </Flex>}
+                    titleContent={<Flex gap={"8px"}>
                         {tree.usageAndQuota.map((uq, idx) =>
                             <ProgressBarWithLabel
                                 key={idx}
-                                value={uq.usage / uq.quota}
-                                text={progressText(uq)}
+                                value={(uq.usage / uq.quota) * 100}
+                                text={progressText(type, uq)}
+                                width={`${baseProgress}px`}
                             />
                         )}
-                    </div>}
+                    </Flex>}
                 >
-                    <Box ml={"32px"}>
+                    <Box ml={`${indent}px`}>
                         {tree.wallets.map((wallet, idx) =>
                             <Accordion
                                 key={idx}
-                                title={wallet.category.name}
-                                titleContent={<>
+                                noBorder
+                                title={<Flex gap={"4px"}>
+                                    <ProviderLogo providerId={wallet.category.provider} size={20}/>
+                                    <code>{wallet.category.name}</code>
+                                </Flex>}
+                                titleContent={<Box ml={"32px"}>
                                     <ProgressBarWithLabel
-                                        value={wallet.usageAndQuota.usage / wallet.usageAndQuota.quota}
-                                        text={progressText(wallet.usageAndQuota)}
+                                        value={(wallet.usageAndQuota.usage / wallet.usageAndQuota.quota) * 100}
+                                        text={progressText(type, wallet.usageAndQuota)}
+                                        width={`${baseProgress}px`}
                                     />
-                                </>}
+                                </Box>}
                             >
-                                <Box ml={"32px"}>
+                                <Box ml={`${indent * 2}px`}>
                                     {wallet.allocations.map(alloc =>
                                         <Accordion
                                             key={alloc.id}
-                                            omitChevron
-                                            title={`${alloc.id}`}
+                                            noBorder
+                                            icon={"heroBanknotes"}
+                                            title={<>
+                                                <b>Allocation ID:</b> {alloc.id}
+                                                {alloc.grantedIn && <>
+                                                    {" "}
+                                                    (
+                                                    <Link target={"_blank"}
+                                                          to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                        View grant application{" "}
+                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                    </Link>
+                                                    )
+                                                </>}
+                                            </>}
                                             titleContent={<>
                                                 <ProgressBarWithLabel
-                                                    value={alloc.usageAndQuota.usage / alloc.usageAndQuota.quota}
-                                                    text={progressText(alloc.usageAndQuota)}
+                                                    value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
+                                                    text={progressText(type, alloc.usageAndQuota)}
+                                                    width={`${baseProgress}px`}
                                                 />
                                             </>}
                                         />
@@ -419,6 +590,57 @@ const Allocations: React.FunctionComponent = () => {
                     </Box>
                 </Accordion>;
             })}
+
+            <h3>Sub-allocations</h3>
+            {state.subAllocations.recipients.map((recipient, idx) =>
+                <Accordion
+                    key={idx}
+                    noBorder
+                    title={<Flex gap={"4px"} alignItems={"center"}>
+                        <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
+                            <Avatar {...defaultAvatar} style={{height: "28px", width: "auto"}} avatarStyle={"Transparent"} />
+                        </TooltipV2>
+                        {recipient.owner.title}
+                    </Flex>}
+                    titleContent={<Flex gap={"8px"}>
+                        {recipient.usageAndQuota.map((uq, idx) =>
+                            <ProgressBarWithLabel
+                                key={idx}
+                                value={(uq.usage / uq.quota) * 100}
+                                text={progressText(uq.type, uq)}
+                                width={`${baseProgress}px`}
+                            />
+                        )}
+                    </Flex>}
+                >
+                    <Box ml={32}>
+                        {recipient.allocations.map((alloc, idx) =>
+                            <Accordion
+                                key={idx}
+                                omitChevron
+                                noBorder
+                                title={<Flex gap={"4px"}>
+                                    <Flex gap={"4px"} width={"200px"}>
+                                        <ProviderLogo providerId={alloc.category.provider} size={20}/>
+                                        <Icon name={Accounting.productTypeToIcon(alloc.category.productType)} size={20} />
+                                        <code>{alloc.category.name}</code>
+                                    </Flex>
+
+                                    {alloc.allocationId && <span> <b>Allocation ID:</b> {alloc.allocationId}</span>}
+                                </Flex>}
+                                titleContent={
+                                    <ProgressBarWithLabel
+                                        value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
+                                        text={progressText(alloc.category.productType, alloc.usageAndQuota)}
+                                        width={`${baseProgress}px`}
+                                    />
+                                }
+                            />
+                        )}
+                    </Box>
+
+                </Accordion>
+            )}
         </div>}
     />;
 };
@@ -434,13 +656,27 @@ const productTypesByPriority: ProductType[] = [
     "LICENSE",
 ];
 
+function progressText(type: ProductType, uq: UsageAndQuota): string {
+    let text = "";
+    text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.usage, {
+        precision: 0,
+        removeUnitIfPossible: true
+    });
+    text += " / ";
+    text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.quota, {precision: 0});
+
+    text += " (";
+    text += Math.round((uq.usage / uq.quota) * 100);
+    text += "%)";
+    return text;
+}
 
 // Initial state
 // =====================================================================================================================
 const initialState: State = {
     periodSelection: {availablePeriods: [], currentPeriodIdx: 0},
     remoteData: {subAllocations: [], wallets: []},
-    subAllocations: {searchQuery: ""},
+    subAllocations: {searchQuery: "", recipients: []},
     yourAllocations: {}
 };
 
