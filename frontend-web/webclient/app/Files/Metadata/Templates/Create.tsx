@@ -17,6 +17,7 @@ import {JsonSchemaForm} from "../JsonSchemaForm";
 import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import styled from "styled-components";
+import {injectStyle} from "@/Unstyled";
 
 enum Stage {
     INFO,
@@ -340,12 +341,12 @@ const Create: React.FunctionComponent = () => {
                         </Section>
                         <Section>
                             <Heading.h3>Form preview</Heading.h3>
-                            <JsonSchemaFormBootstrapReplacement>
+                            <div className={JsonSchemaFormBootstrapReplacement}>
                                 <JsonSchemaForm
                                     schema={JSON.parse(schema)}
                                     uiSchema={JSON.parse(uiSchema)}
                                 />
-                            </JsonSchemaFormBootstrapReplacement>
+                            </div>
                         </Section>
                     </Grid>
                 }
@@ -567,8 +568,8 @@ const BootstrapReplacement = styled.div`
     }
 `;
 
-const JsonSchemaFormBootstrapReplacement = styled.div`
-    & button {
+const JsonSchemaFormBootstrapReplacement = injectStyle("json-schema-form-bootstrap-replacement", k => `
+    ${k} button {
         /* Non-standard */
         font-smoothing: antialiased;
         display: inline-flex;
@@ -589,68 +590,68 @@ const JsonSchemaFormBootstrapReplacement = styled.div`
         height: 40px;
     }
 
-    & form.rjsf > div > button:hover {
+    ${k} form.rjsf > div > button:hover {
         transform: translateY(-2px);
     }
 
-    & form.rjsf > div > fieldset > div > input {
+    ${k} form.rjsf > div > fieldset > div > input {
         margin-top: 2px;
         margin-bottom: 4px;
     }
 
-    & button:hover {
+    ${k} button:hover {
         transform: translateY(-2px);
     }
 
-    & i.glyphicon.glyphicon-remove::before {
+    ${k} i.glyphicon.glyphicon-remove::before {
         content: "❌";
     }
 
-    & button.btn-add {
+    ${k} button.btn-add {
         width: 45px;
         color: var(--white, #f00);
         background-color: var(--green, #f00);
     }
 
-    & i {
+    ${k} i {
         font-style: normal;
     }
 
 
 
-    & .glyphicon-arrow-up::before {
+    ${k} .glyphicon-arrow-up::before {
         content: '↑';
     }
 
-    & .glyphicon-arrow-down::before {
+    ${k} .glyphicon-arrow-down::before {
         content: '↓';
     }
 
-    & button.btn-danger {
+    ${k} button.btn-danger {
         width: 45px;
         color: var(--white, #f00);
         background-color: var(--red, #f00);
     }
 
-    & div.array-item > div.col.xs-9 { 
+    ${k} div.array-item > div.col.xs-9 { 
         width: 100%;
     }
     
-    & div.array-item {
+    ${k} div.array-item {
         display: flex;
     }
 
-    & button.btn.btn-default.array-item-move-up, & button.btn.btn-default.array-item-move-down, & button.btn.btn-default.array-item-remove { 
+    ${k} button.btn.btn-default.array-item-move-up, & button.btn.btn-default.array-item-move-down, & button.btn.btn-default.array-item-remove { 
         width: 45px;
     }
 
-    & i.glyphicon.glyphicon-plus::before {
+    ${k} i.glyphicon.glyphicon-plus::before {
         content: "+";
     }
 
-    & div.array-item > div.col.xs-9 {
+    ${k} div.array-item > div.col.xs-9 {
         width: 100%;
     }
-`;
+`);
 
 export default Create;

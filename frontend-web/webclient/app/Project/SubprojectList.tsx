@@ -47,7 +47,7 @@ interface MemberInProject {
 const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
-    rowTitles: true,
+    showColumnTitles: true,
 };
 
 const UserRoleIconCache: Record<OldProjectRole, ReactStaticRenderer | null> = {
@@ -94,7 +94,7 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
 
             new ResourceBrowser<MemberInProject>(mount, "Subprojects", opts).init(browserRef, FEATURES, "", browser => {
 
-                browser.setRowTitles([{name: "Project name"}, {name: ""}, {name: ""}, {name: "Archival status"}]);
+                browser.setColumnTitles([{name: "Project name"}, {name: ""}, {name: ""}, {name: "Archival status"}]);
 
                 const startRenaming = (path: string) => {
                     const page = browser.cachedData["/"] ?? [];
