@@ -1,6 +1,6 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {IconName} from "@/ui-components/Icon";
-import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import { BulkRequest, PageV2, PaginationRequestV2 } from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 
@@ -859,7 +859,39 @@ export function guestimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
-export function explainUnit(category: ProductCategoryV2): { name: string, priceFactor: number, invPriceFactor: number } {
+export function combineBalances(
+    balances: {
+        balance: number,
+        category: ProductCategoryV2
+    }[]
+): { productType: ProductType, normalizedBalance: number, unit: string }[] {
+    const result: ReturnType<typeof combineBalances> = [];
+
+    // This function combines many balances from (potentially) different categories and combines them into a unified
+    // view. This is useful when we want to give a unified view of how many resources you have available.
+    for (const it of balances) {
+        const unit = explainUnit(it.category);
+        const normalizedBalance = unit.priceFactor * it.balance;
+
+        const existing = result.find(it => it.unit === unit.name && it.productType === unit.productType);
+        if (existing) {
+            existing.normalizedBalance += normalizedBalance;
+        } else {
+            result.push({ unit: unit.name, normalizedBalance, productType: it.category.productType });
+        }
+    }
+
+    return result;
+}
+
+export interface FrontendAccountingUnit {
+    name: string;
+    priceFactor: number;
+    invPriceFactor: number;
+    productType: ProductType;
+}
+
+export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit {
     const unit = category.accountingUnit;
     let priceFactor = 1;
     let unitName = unit.namePlural;
@@ -885,7 +917,7 @@ export function explainUnit(category: ProductCategoryV2): { name: string, priceF
 
     if (unit.floatingPoint) priceFactor *= 1 / 1000000;
 
-    return { name: unitName + suffix, priceFactor, invPriceFactor: 1 / priceFactor };
+    return { name: unitName + suffix, priceFactor, invPriceFactor: 1 / priceFactor, productType: category.productType };
 }
 
 const standardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
@@ -895,15 +927,25 @@ const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
 
 export function balanceToString(category: ProductCategoryV2, balance: number): string {
     const unit = explainUnit(category);
-
     const normalizedBalance = balance * unit.priceFactor;
+    return balanceToStringFromUnit(unit.productType, unit.name, normalizedBalance)
+}
+
+export function balanceToStringFromUnit(
+    productType: ProductType,
+    unit: string,
+    normalizedBalance: number,
+    opts?: { removeUnitIfPossible: boolean }
+): string {
+    let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = normalizedBalance;
-    let unitToDisplay = unit.name;
+    let unitToDisplay = unit;
     let attachedSuffix: string | null = null;
 
-    const storageUnitSiIdx = standardStorageUnitsSi.indexOf(unit.name);
-    const storageUnitIdx = standardStorageUnits.indexOf(unit.name);
-    if (category.productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
+    const storageUnitSiIdx = standardStorageUnitsSi.indexOf(unit);
+    const storageUnitIdx = standardStorageUnits.indexOf(unit);
+    if (productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
+        canRemoveUnit = false;
         const base = storageUnitIdx !== -1 ? 1024 : 1000;
         const array = storageUnitIdx !== -1 ? standardStorageUnits : standardStorageUnitsSi;
         let idx = storageUnitIdx !== -1 ? storageUnitIdx : storageUnitSiIdx;
@@ -933,7 +975,7 @@ export function balanceToString(category: ProductCategoryV2, balance: number): s
     builder += addThousandSeparators(removeSuffix(balanceToDisplay.toFixed(2), ".00"));
     if (attachedSuffix) builder += attachedSuffix;
     builder += " ";
-    builder += unitToDisplay;
+    if (!canRemoveUnit) builder += unitToDisplay;
     return builder;
 }
 
@@ -985,6 +1027,18 @@ export function browseWalletsV2(
     request: PaginationRequestV2 & { filterType?: ProductType }
 ): APICallParameters<unknown, PageV2<WalletV2>> {
     return apiBrowse(request, baseContextV2, "wallets");
+}
+
+export function browseSubAllocations(
+    request: PaginationRequestV2 & { filterType?: ProductType }
+): APICallParameters<unknown, PageV2<SubAllocationV2>> {
+    return apiBrowse(request, baseContextV2, "subAllocations");
+}
+
+export function searchSubAllocations(
+    request: PaginationRequestV2 & { query: string, filterType?: ProductType }
+): APICallParameters<unknown, PageV2<SubAllocationV2>> {
+    return apiSearch(request, baseContextV2, "subAllocations");
 }
 
 export function utcDate(ts: number): string {

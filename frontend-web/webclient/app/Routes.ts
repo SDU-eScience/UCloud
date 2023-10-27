@@ -92,7 +92,8 @@ const grants = {
 }
 
 const accounting = {
-    visualization: () => "/usage/visualize",
+    usage: () => "/usage",
+    allocations: () => "/allocations",
 }
 
 const AppRoutes = {

@@ -49,9 +49,9 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: true,
     search: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     contextSwitcher: true,
-    rowTitles: true,
+    showColumnTitles: true,
 };
 
 const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
@@ -68,7 +68,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
-                browser.setRowTitles([{name: "Drive name", filterName: "title"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: ""}])
+                browser.setColumnTitles([{name: "Drive name", sortById: "title"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: ""}])
 
                 // Load products and initialize dependencies
                 // =========================================================================================================

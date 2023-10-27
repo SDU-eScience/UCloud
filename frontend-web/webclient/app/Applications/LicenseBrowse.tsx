@@ -25,10 +25,10 @@ const DUMMY_ENTRY_ID = "dummy";
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
-    rowTitles: true,
+    showColumnTitles: true,
     dragToSelect: true,
 };
 
@@ -53,7 +53,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
             new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
                 var startCreation = function () { };
 
-                browser.setRowTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);
+                browser.setColumnTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);
 
                 supportByProvider.retrieve("", () =>
                     callAPI(LicenseApi.retrieveProducts())

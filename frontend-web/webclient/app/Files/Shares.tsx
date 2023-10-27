@@ -227,9 +227,9 @@ export const ShareModal: React.FunctionComponent<{
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
-    rowTitles: true,
+    showColumnTitles: true,
     dragToSelect: true,
 };
 
@@ -261,7 +261,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setRowTitles([{name: "Filename"}, {name: "Share state"}, {name: "Last updated"}, {name: "Shared by"}]);
+                browser.setColumnTitles([{name: "Filename"}, {name: "Share state"}, {name: "Last updated"}, {name: "Shared by"}]);
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {

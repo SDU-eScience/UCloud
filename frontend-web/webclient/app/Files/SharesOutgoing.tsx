@@ -40,9 +40,9 @@ enum ShareValidateState {
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
-    rowTitles: true,
+    showColumnTitles: true,
     dragToSelect: true,
 };
 
@@ -138,9 +138,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (newPath !== "/") {
-                        browser.setRowTitles([{name: "Shared with"}, {name: "Share rights"}, {name: "State"}, {name: ""}]);
+                        browser.setColumnTitles([{name: "Shared with"}, {name: "Share rights"}, {name: "State"}, {name: ""}]);
                     } else {
-                        browser.setRowTitles([{name: "Filename"}, {name: ""}, {name: "Permissions"}, {name: "Shared with"}])
+                        browser.setColumnTitles([{name: "Filename"}, {name: ""}, {name: "Permissions"}, {name: "Shared with"}])
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share

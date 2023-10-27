@@ -14,7 +14,7 @@ import {mapToBalancesWithExplanation, SubAllocationViewer} from "./SubAllocation
 import format from "date-fns/format";
 import {Accordion} from "@/ui-components/Accordion";
 import {prettierString, timestampUnixMs} from "@/UtilityFunctions";
-import {ResourceProgress} from "@/ui-components/ResourcesProgress";
+import {ProgressBarWithLabel} from "@/ui-components/ProgressBarWithLabel";
 import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
@@ -244,7 +244,7 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const {unit, productType} = wallets[it][0];
         const mapped = mapToBalancesWithExplanation({initialBalance: total.initialBalance, remaining: Math.min(total.initialBalance, total.balance)}, productType, unit)
         return <div className={ResourceProgressWrapper} key={unit + productType}>
-            <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
+            <ProgressBarWithLabel width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
         </div>
     })}</>
 }
@@ -280,7 +280,7 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
                     title={<Text color="text">{wallet.paysFor.name} @ <ProviderTitle providerId={wallet.paysFor.provider} /></Text>}
                     titleContent={<>
                         <Text color="text" mt="-2px" mr="12px">{expirationText}</Text>
-                        <ResourceProgress width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
+                        <ProgressBarWithLabel width={mapped.resourceText.length * 7.3 + "px"} value={mapped.asPercent} text={mapped.resourceText} />
                     </>}
                 >
                     <div className={VisualizationSection}><WalletViewer wallet={wallet} /></div>

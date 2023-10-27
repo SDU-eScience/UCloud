@@ -2,7 +2,7 @@ import * as React from "react";
 import {default as Api, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {ResourceRouter} from "@/Resource/Router";
 import Create from "@/Files/Metadata/Templates/Create";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, RowTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -20,15 +20,15 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
     dragToSelect: true,
     contextSwitcher: true,
     search: true,
-    rowTitles: true,
+    showColumnTitles: true,
 };
 
-const rowTitles: [RowTitle, RowTitle, RowTitle, RowTitle] = [{name: "Metadata namespace"}, {name: ""}, {name: ""}, {name: ""}];
+const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Metadata namespace"}, {name: ""}, {name: ""}, {name: ""}];
 export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<FileMetadataTemplateNamespace>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<FileMetadataTemplateNamespace> | null>(null);
@@ -44,10 +44,10 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
         ...FEATURES,
         filters: !omitFilters,
         showHeaderInEmbedded: !!opts?.selection,
-        sortDirection: !omitFilters,
+        sorting: !omitFilters,
         dragToSelect: !opts?.embedded,
         search: !opts?.embedded,
-        rowTitles: !opts?.embedded,
+        showColumnTitles: !opts?.embedded,
     };
 
     const simpleView = !!(opts?.embedded && !opts.isModal);
@@ -58,7 +58,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
             new ResourceBrowser<FileMetadataTemplateNamespace>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
 
-                browser.setRowTitles(rowTitles);
+                browser.setColumnTitles(rowTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,

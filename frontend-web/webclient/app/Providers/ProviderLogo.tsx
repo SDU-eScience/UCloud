@@ -7,6 +7,7 @@ import {injectStyle} from "@/Unstyled";
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number; className?: string;}> = ({providerId, size, className}) => {
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const style: React.CSSProperties = {};
+    style["--border-radius"] = size > 20 ? "8px" : "5px";
     style["--wrapper-size"] = size + "px";
     return <div className={classConcat(LogoWrapper, className)} style={style}>
         {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} />}
@@ -17,8 +18,6 @@ export const ProviderLogo: React.FunctionComponent<{providerId: string; size: nu
 
 const LogoWrapper = injectStyle("logo-wrapper", k => `
     ${k} {
-        --border-radius: 8px;
-        
         display: flex;
         align-items: center;
         justify-content: center;

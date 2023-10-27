@@ -216,7 +216,7 @@ interface ResourceBrowserListenerMap<T> {
     "validDropTarget": (entry: T) => boolean;
     "renderDropIndicator": (selectedEntries: T[], currentTarget: string | null) => void;
 
-    "generateBreadcrumbs": (path: string) => {title: string, absolutePath: string}[];
+    "generateBreadcrumbs": (path: string) => ({ title: string, absolutePath: string }[]) | "custom-rendering";
     "locationBarVisibilityUpdated": (visible: boolean) => void;
 
     "generateTabCompletionEntries": (prompt: string, shouldFetch: boolean, lastSelectedIndex: number) => string[] | Promise<void>;
@@ -253,17 +253,21 @@ export interface ResourceBrowseFeatures {
     breadcrumbsSeparatedBySlashes?: boolean;
     search?: boolean;
     filters?: boolean;
-    sortDirection?: boolean;
+
+    // Enables sorting. Only works if `showColumnTitles = true`.
+    // In addition, you must also set `sortById` on the appropriate columns.
+    sorting?: boolean;
+
     contextSwitcher?: boolean;
-    rowTitles?: boolean;
+    showColumnTitles?: boolean;
 }
 
-export interface RowTitle {
+export interface ColumnTitle {
     name: string;
-    filterName?: string;
+    sortById?: string;
 }
 
-export type RowTitleList = [RowTitle, RowTitle, RowTitle, RowTitle];
+export type ColumnTitleList = [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle];
 
 export class ResourceBrowser<T> {
     // DOM component references
@@ -273,7 +277,7 @@ export class ResourceBrowser<T> {
     /* private */ rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
     public header: HTMLElement;
-    private breadcrumbs: HTMLUListElement;
+    public breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
     private entryDragIndicator: HTMLDivElement;
     /* private */ entryDragIndicatorContent: HTMLDivElement;
@@ -371,9 +375,9 @@ export class ResourceBrowser<T> {
         search: true,
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
         filters: false,
-        sortDirection: false,
+        sorting: false,
         contextSwitcher: false,
-        rowTitles: false,
+        showColumnTitles: false,
     };
 
     public static isAnyModalOpen = false;
@@ -389,7 +393,7 @@ export class ResourceBrowser<T> {
         embedded: boolean;
         selector: boolean;
         disabledKeyhandlers: boolean;
-        rowTitles: RowTitleList;
+        columnTitles: ColumnTitleList;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -402,7 +406,7 @@ export class ResourceBrowser<T> {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
             disabledKeyhandlers: !!opts?.disabledKeyhandlers,
-            rowTitles: [{name: ""}, {name: ""}, {name: ""}, {name: ""}]
+            columnTitles: [{name: ""}, {name: ""}, {name: ""}, {name: ""}]
         }
     };
 
@@ -572,12 +576,12 @@ export class ResourceBrowser<T> {
             headerThing.appendChild(div);
         }
 
-        if (this.features.rowTitles) {
+        if (this.features.showColumnTitles) {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
             titleRow["style"].height = titleRow["style"].maxHeight = "28px";
             titleRow["style"].paddingBottom = "6px";
-            this.setRowTitles(this.opts.rowTitles);
+            this.setColumnTitles(this.opts.columnTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             this.root.removeChild(titleRow);
@@ -855,7 +859,7 @@ export class ResourceBrowser<T> {
             this.renderFilters();
             this.rerenderSessionFilterIcons();
         }
-        this.renderRowTitles();
+        this.renderColumnTitles();
     }
 
     private rerenderSessionFilterIcons() {
@@ -1075,6 +1079,7 @@ export class ResourceBrowser<T> {
         if (!this.canConsumeResources) return;
 
         const crumbs = this.dispatchMessage("generateBreadcrumbs", fn => fn(this.currentPath));
+        if (crumbs === "custom-rendering") return;
         // NOTE(Dan): The next section computes which crumbs should be shown and what the content of them should be.
         // We start out by truncating all components down to a maximum length. This truncation takes place regardless
         // of how much screen estate we have. Following this, we determine a target size of our breadcrumbs based on
@@ -2442,6 +2447,7 @@ export class ResourceBrowser<T> {
                 case "Backspace": {
                     if (this.contextMenuHandlers.length) return;
                     const crumbs = this.dispatchMessage("generateBreadcrumbs", fn => fn(this.currentPath));
+                    if (crumbs === "custom-rendering") return;
                     const parent = crumbs[crumbs.length - 2];
                     this.open(parent.absolutePath);
                     break;
@@ -2951,9 +2957,9 @@ export class ResourceBrowser<T> {
             }
             
             .file-browser .rows-title {
-                max-height: 0px;
+                max-height: 0;
                 color: var(--textColor);
-                display: hidden;
+                display: none;
             }
             
             body[data-cursor=grabbing] .file-browser .row:hover {
@@ -3348,20 +3354,20 @@ export class ResourceBrowser<T> {
         });
     }
 
-    public setRowTitles(titles: RowTitleList) {
-        this.opts.rowTitles = titles;
-        this.renderRowTitles();
+    public setColumnTitles(titles: ColumnTitleList) {
+        this.opts.columnTitles = titles;
+        this.renderColumnTitles();
     }
 
-    public renderRowTitles() {
-        const titles = this.opts.rowTitles;
+    public renderColumnTitles() {
+        const titles = this.opts.columnTitles;
         for (const title of titles) {
-            if (title.filterName) {
+            if (title.sortById) {
                 const value = getFilterStorageValue(this.resourceName, SORT_BY);
                 if (value) this.browseFilters["sortBy"] = value;
             }
         }
-        if (this.features.sortDirection) {
+        if (this.features.sorting) {
             const value = getFilterStorageValue(this.resourceName, SORT_DIRECTION);
             if (value) this.browseFilters[SORT_DIRECTION] = value;
         }
@@ -3403,21 +3409,21 @@ export class ResourceBrowser<T> {
         }
     }
 
-    private setTitleAndHandlers(el: HTMLElement, rowTitle: RowTitle, position: "left" | "right"): void {
+    private setTitleAndHandlers(el: HTMLElement, rowTitle: ColumnTitle, position: "left" | "right"): void {
         el.innerHTML = "";
         const wrapper = document.createElement("div");
         el.append(wrapper);
         const rowTitleName = document.createElement("span");
         rowTitleName.innerText = rowTitle.name;
         wrapper.append(rowTitleName);
-        const filter = rowTitle.filterName;
+        const filter = rowTitle.sortById;
         if (!filter) return;
         wrapper.style.cursor = "pointer";
         wrapper.onclick = e => {
             e.stopPropagation();
             if (this.browseFilters[SORT_BY] !== filter) {
                 setFilterStorageValue(this.resourceName, SORT_BY, filter);
-            } else if (this.features.sortDirection) {
+            } else if (this.features.sorting) {
                 if (this.browseFilters[SORT_DIRECTION] === ASC) {
                     setFilterStorageValue(this.resourceName, SORT_DIRECTION, DESC);
                 } else {

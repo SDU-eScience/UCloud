@@ -20,7 +20,7 @@ const defaultRetrieveFlags = {
 
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
-    sortDirection: true,
+    sorting: true,
     filters: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
@@ -45,7 +45,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         filters: !omitsFilters,
-        sortDirection: !omitsFilters,
+        sorting: !omitsFilters,
         dragToSelect: !opts?.embedded,
     };
 

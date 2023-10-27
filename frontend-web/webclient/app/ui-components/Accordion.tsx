@@ -61,7 +61,8 @@ const AccordionStyleClass = injectStyle("accordion", k => `
         outline: none;
         font-size: 15px;
         cursor: pointer;
-        border-bottom: 1px solid var(--separatorColor);
+        border-bottom: 1px solid var(--midGray);
+        user-select: none;
     }
     
     ${k}[data-no-border="true"] {
@@ -93,5 +94,6 @@ const PanelClass = injectStyle("accordion-panel", k => `
     }
 `);
 
+export default Accordion;
 
 /* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */

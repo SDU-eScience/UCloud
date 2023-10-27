@@ -15,7 +15,7 @@ import {
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
-    RowTitleList,
+    ColumnTitleList,
     SelectionMode
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -84,14 +84,14 @@ const FEATURES: ResourceBrowseFeatures = {
     showStar: true,
     renderSpinnerWhenLoading: true,
     search: true,
-    sortDirection: true,
+    sorting: true,
     filters: true,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
-    rowTitles: true,
+    showColumnTitles: true,
 }
 
-const rowTitles: RowTitleList = [{name: "Name", filterName: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", filterName: "MODIFIED_AT"}, {name: "Size", filterName: "SIZE"}];
+const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", sortById: "MODIFIED_AT"}, {name: "Size", sortById: "SIZE"}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -127,7 +127,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         let searching = "";
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
-                browser.setRowTitles(rowTitles);
+                browser.setColumnTitles(rowTitles);
 
                 // Syncthing data
                 // =========================================================================================================

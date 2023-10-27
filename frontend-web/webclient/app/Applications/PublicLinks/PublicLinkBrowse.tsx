@@ -25,10 +25,10 @@ const defaultRetrieveFlags = {
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
-    rowTitles: true,
+    showColumnTitles: true,
     dragToSelect: true,
 };
 
@@ -52,7 +52,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<PublicLink>(mount, "Public Links", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles([{name: "Domain"}, {name: "In use with"}, {name: ""}, {name: ""}]);
+                browser.setColumnTitles([{name: "Domain"}, {name: "In use with"}, {name: ""}, {name: ""}]);
 
                 let startCreation: () => void = doNothing;
                 const ingressBeingCreated = "collectionBeingCreated$$___$$";

@@ -3,7 +3,7 @@ import {ThemeColor} from "./theme";
 import {injectStyle} from "@/Unstyled";
 import {CSSProperties} from "react";
 
-const thresholds: {maxValue: number, color: ThemeColor}[] = [
+const thresholds: { maxValue: number, color: ThemeColor }[] = [
     {
         maxValue: 79,
         color: "green"
@@ -85,10 +85,11 @@ const ContainerClass = injectStyle("resource-progress-container", k => `
         vertical-align: middle;
         overflow: hidden;
         font-size: 12px;
+        border: 1px solid var(--midGray);
     }
 `);
 
-interface ResourceProgressProps {
+interface Props {
     text?: string;
     value: number;
     width?: string;
@@ -96,14 +97,14 @@ interface ResourceProgressProps {
 }
 
 /* https://codepen.io/valiooo/pen/ALXodB */
-export function ResourceProgress(
-    props: React.PropsWithChildren<ResourceProgressProps>
+export function ProgressBarWithLabel(
+    props: React.PropsWithChildren<Props>
 ): JSX.Element | null {
     if (isNaN(props.value)) return null;
     const width = props.width ?? "200px";
     const height = props.height ?? "20px";
 
-    const style: CSSProperties = { width, height };
+    const style: CSSProperties = {width, height};
     style["--barBackground"] = `var(--${getColorFromValue(props.value)})`
     style["--percentage"] = `${props.value}%`;
 
@@ -118,3 +119,5 @@ export function ResourceProgress(
         </div>
     );
 }
+
+export default ProgressBarWithLabel;

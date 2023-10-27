@@ -1,7 +1,7 @@
 import deepcopy from "deepcopy";
 
-export function groupBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T[]> {
-    const result: Record<string, T[]> = {};
+export function groupBy<K extends keyof any, T>(items: T[], keySelector: (t: T) => K): Record<K, T[]> {
+    let result = {} as Record<K, T[]>;
     items.forEach(item => {
         const key = keySelector(item);
         const newList = result[key] ?? [];

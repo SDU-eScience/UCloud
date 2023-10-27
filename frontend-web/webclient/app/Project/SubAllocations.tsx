@@ -34,7 +34,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
 import {AllocationViewer, resultAsPercent, SubAllocation, allocationText, percentageString} from "./Allocations";
-import {ResourceProgress} from "@/ui-components/ResourcesProgress";
+import {ProgressBarWithLabel} from "@/ui-components/ProgressBarWithLabel";
 import {TextSpan} from "@/ui-components/Text";
 import startOfDay from "date-fns/esm/startOfDay";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
@@ -658,7 +658,7 @@ function ResourceBarByProductType(props: {rows: SubAllocation[]; productType: Pr
         {Object.keys(storages).flatMap((s: ChargeType) =>
             storages[s].map(e =>
                 <React.Fragment key={`${e.initialBalance}-${e.remaining}`}>
-                    <ResourceProgress
+                    <ProgressBarWithLabel
                         width={e.resourceText.length * 7.2 + "px"}
                         value={e.asPercent}
                         text={e.resourceText}
@@ -1047,7 +1047,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
 function UsageBar(props: {suballocation: SubAllocation}) {
     const {unit, productType} = props.suballocation;
     const mapped = mapToBalancesWithExplanation(props.suballocation, productType, unit);
-    return <ResourceProgress value={Math.round(mapped.asPercent)} text={mapped.resourceText} />;
+    return <ProgressBarWithLabel value={Math.round(mapped.asPercent)} text={mapped.resourceText} />;
 }
 
 function explainSubAllocation(suballocation: {productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {

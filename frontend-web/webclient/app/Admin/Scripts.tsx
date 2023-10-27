@@ -8,7 +8,7 @@ import {Operation} from "@/ui-components/Operation";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {format} from "date-fns";
-import {ResourceBrowseFeatures, ResourceBrowser, RowTitleList} from "@/ui-components/ResourceBrowser";
+import {ResourceBrowseFeatures, ResourceBrowser, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {DATE_FORMAT} from "./NewsManagement";
 import {ButtonClass} from "@/ui-components/Button";
 import {createHTMLElements} from "@/UtilityFunctions";
@@ -48,12 +48,12 @@ interface ScriptInfo {
 
 const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
-    rowTitles: true,
+    showColumnTitles: true,
     dragToSelect: true,
     renderSpinnerWhenLoading: true,
 };
 
-const ROW_TITLES: RowTitleList = [{name: "Script"}, {name: ""}, {name: "Last run"}, {name: ""}];
+const ROW_TITLES: ColumnTitleList = [{name: "Script"}, {name: ""}, {name: "Last run"}, {name: ""}];
 const Scripts: React.FunctionComponent = () => {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ScriptInfo> | null>(null);
@@ -62,7 +62,7 @@ const Scripts: React.FunctionComponent = () => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<ScriptInfo>(mount, "Scripts", {}).init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles(ROW_TITLES);
+                browser.setColumnTitles(ROW_TITLES);
                 browser.on("open", (oldPath, newPath, res) => {
                     if (res) return;
                     callAPI(apiBrowse({itemsPerPage: 250}, baseContext)).then((it: PageV2<ScriptInfo>) => {

@@ -5,7 +5,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, RowTitle} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -24,17 +24,17 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
     dragToSelect: true,
     contextSwitcher: true,
     search: true,
-    rowTitles: true,
+    showColumnTitles: true,
 };
 
 const logoDataUrls = new AsyncCache<string>();
 
-const rowTitles: [RowTitle, RowTitle, RowTitle, RowTitle] = [{name: "Job name"}, {name: "Created by", filterName: "createdBy"}, {name: "Created at", filterName: "createdAt"}, {name: "State"}];
+const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Job name"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: "State"}];
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
@@ -52,10 +52,10 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         ...FEATURES,
         filters: !omitFilters,
         showHeaderInEmbedded: !!opts?.selection,
-        sortDirection: !omitFilters,
+        sorting: !omitFilters,
         dragToSelect: !opts?.embedded,
         search: !opts?.embedded,
-        rowTitles: !opts?.embedded,
+        showColumnTitles: !opts?.embedded,
     };
 
     const dateRanges = dateRangeFilters("Created");
@@ -69,7 +69,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                if (!simpleView) browser.setRowTitles(rowTitles);
+                if (!simpleView) browser.setColumnTitles(rowTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,

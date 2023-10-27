@@ -23,10 +23,10 @@ const defaultRetrieveFlags = {
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
-    rowTitles: true,
+    showColumnTitles: true,
     dragToSelect: true,
 };
 
@@ -51,7 +51,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setRowTitles([{name: "IP address"}, {name: "In use with"}, {name: ""}, {name: ""}]);
+                browser.setColumnTitles([{name: "IP address"}, {name: "In use with"}, {name: ""}, {name: ""}]);
 
                 var startCreation = function () { };
 

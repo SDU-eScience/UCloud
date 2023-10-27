@@ -2,7 +2,7 @@ import * as React from "react";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useNavigate} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, RowTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {callAPI} from "@/Authentication/DataHook";
@@ -19,16 +19,16 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     filters: true,
-    sortDirection: true,
+    sorting: true,
     breadcrumbsSeparatedBySlashes: false,
     dragToSelect: true,
     contextSwitcher: true,
     search: true,
-    rowTitles: true,
+    showColumnTitles: true,
 };
 
 
-const rowTitles: [RowTitle, RowTitle, RowTitle, RowTitle] = [{name: "Provider name"}, {name: ""}, {name: ""}, {name: ""}];
+const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Provider name"}, {name: ""}, {name: ""}, {name: ""}];
 console.log("Provider Browse Not meaningfully tested at all");
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
@@ -47,17 +47,17 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
         ...FEATURES,
         filters: !omitFilters,
         showHeaderInEmbedded: !!opts?.selection,
-        sortDirection: !omitFilters,
+        sorting: !omitFilters,
         dragToSelect: !opts?.embedded,
         search: !opts?.embedded,
-        rowTitles: !opts?.embedded,
+        showColumnTitles: !opts?.embedded,
     };
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Provider>(mount, "Providers", opts).init(browserRef, features, "", browser => {
-                browser.setRowTitles(rowTitles);
+                browser.setColumnTitles(rowTitles);
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {

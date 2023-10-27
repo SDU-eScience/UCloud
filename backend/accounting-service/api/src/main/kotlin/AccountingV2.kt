@@ -203,7 +203,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             PageV2.serializer(SubAllocationV2.serializer()),
             CommonErrorMessage.serializer()
         ) {
-            httpBrowse(baseContext, "subAllocation")
+            httpBrowse(baseContext, "subAllocations")
 
             documentation {
                 summary = "Browses the catalog of sub-allocations"
@@ -233,7 +233,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             PageV2.serializer(SubAllocationV2.serializer()),
             CommonErrorMessage.serializer()
         ) {
-            httpSearch(baseContext, "subAllocation")
+            httpSearch(baseContext, "subAllocations")
             documentation {
                 summary = "Searches the catalog of sub-allocations"
                 description = """
