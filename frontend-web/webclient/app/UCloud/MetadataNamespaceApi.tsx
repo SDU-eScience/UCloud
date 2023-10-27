@@ -24,7 +24,7 @@ import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
 import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 

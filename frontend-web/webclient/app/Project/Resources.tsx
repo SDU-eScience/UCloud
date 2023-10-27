@@ -8,7 +8,6 @@ import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilte
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {Box, Flex, Grid, Heading, Icon, Text} from "@/ui-components";
-import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -31,8 +30,8 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Spacer} from "@/ui-components/Spacer";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
-import {injectStyleSimple} from "@/Unstyled";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import {ProjectPageTitle} from "./Allocations";
 
@@ -210,13 +209,13 @@ export const VisualizationSection = injectStyleSimple("visualization-section", `
     grid-template-columns: repeat(auto-fill, 400px);
 `);
 
-const UsageChartStyle = styled.div`
-    .usage-chart {
+const UsageChartStyle = injectStyle("usage-chart-style", k => `
+    ${k} > .usage-chart {
         width: calc(100% + 32px) !important;
         margin: -16px;
         margin-bottom: -4px;
     }
-`;
+`);
 
 function fillOnePointResults(results: Record<string, any>[], names: string[], dateRange: {start: number; end: number;}): void {
     let dirty = false;
@@ -276,7 +275,7 @@ const UsageChartViewer: React.FunctionComponent<{
     const formatter = useCallback((amount: number) =>
         usageExplainer(amount, c.type, c.chargeType, c.unit), [c.type, c.chargeType, c.unit]);
 
-    return <UsageChartStyle>
+    return <div className={UsageChartStyle}>
         <Flex alignItems={"center"}>
             <div>
                 <Text my="-6px"
@@ -312,7 +311,7 @@ const UsageChartViewer: React.FunctionComponent<{
                 )}
             </AreaChart>
         </ResponsiveContainer>
-    </UsageChartStyle>
+    </div>
 };
 
 const COLORS: [ThemeColor, ThemeColor, ThemeColor, ThemeColor, ThemeColor] = ["green", "red", "blue", "orange", "yellow"];

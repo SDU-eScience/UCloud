@@ -19,7 +19,7 @@ import {
 } from "@/UCloud/Scratch";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {useSelector} from "react-redux";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
 

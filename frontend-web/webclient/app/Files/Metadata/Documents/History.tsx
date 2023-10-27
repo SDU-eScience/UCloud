@@ -19,7 +19,7 @@ import {UFile} from "@/UCloud/FilesApi";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {Operation} from "@/ui-components/Operation";
 import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {injectStyle} from "@/Unstyled";
 
 export const History: React.FunctionComponent<{

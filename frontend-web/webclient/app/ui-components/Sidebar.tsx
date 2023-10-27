@@ -53,7 +53,7 @@ import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {

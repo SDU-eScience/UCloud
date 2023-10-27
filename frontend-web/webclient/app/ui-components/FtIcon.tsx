@@ -2,7 +2,7 @@ import * as React from "react";
 import {extensionType} from "@/UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {FileIconHint} from "@/Files";
 import {injectStyle} from "@/Unstyled";
 

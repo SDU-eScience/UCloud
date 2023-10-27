@@ -6,7 +6,7 @@ import {Button, Divider, ExternalLink, Flex, Input} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
 import {TwoFactorSetupState} from ".";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 import googlePlay from "@/Assets/Images/google-play-badge.png";
 import appStore from "@/Assets/Images/app-store-badge.png";

@@ -13,7 +13,7 @@ import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Bro
 import {SvgFt} from "@/ui-components/FtIcon";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {CardClass} from "@/ui-components/Card";
 
 export const entityName = "Metadata (BETA)";

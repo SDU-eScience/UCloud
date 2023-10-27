@@ -2,7 +2,7 @@ import {AsyncCache} from "./AsyncCache";
 import {useLayoutEffect, useRef} from "react";
 import {createRoot} from "react-dom/client";
 import * as React from "react";
-import {getCssPropertyValue} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 
