@@ -449,7 +449,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "uploadFolder",
                 primary: true,
                 color: "black",
-                canAppearInLocation: loc => loc === "SIDEBAR",
+                canAppearInLocation: loc => loc === "SIDEBAR" || loc === "TOPBAR",
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
