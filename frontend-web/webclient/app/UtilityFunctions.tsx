@@ -207,7 +207,6 @@ export function extensionType(ext: string): ExtensionType {
         case "avi":
         case "mov":
         case "wmv":
-        case "mkv":
             return "video";
         case "gz":
         case "zip":
