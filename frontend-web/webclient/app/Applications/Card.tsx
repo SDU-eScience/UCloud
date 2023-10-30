@@ -441,9 +441,7 @@ const FavoriteAppClass = injectStyle("favorite-app", k => `
 export function FavoriteApp(props: {name: string, version: string, title: string, onFavorite(name: string, version: string): void;}): JSX.Element {
     return <Flex mx="12px" py="20px">
         <Link to={Pages.run(props.name, props.version)} title={props.title}>
-            <div className={FavoriteAppClass}>
-                <AppToolLogo size="36px" name={props.name} type="APPLICATION" />
-            </div>
+            <AppCard type={ApplicationCardType.TALL} title={props.title} logo={props.name} logoType="APPLICATION" />
         </Link>
         <Relative top="50px" right="24px" width="0px" height="0px">
             <Icon cursor="pointer" name="starFilled" color="blue" hoverColor="blue" size={FAV_ICON_SIZE} onClick={() => props.onFavorite(props.name, props.version)} />

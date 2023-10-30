@@ -3,7 +3,7 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box, Button, Flex, Icon, Input, Link, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {ApplicationCardType, FavoriteApp} from "./Card";
+import {AppCard, ApplicationCardType, FavoriteApp} from "./Card";
 import * as Pages from "./Pages";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -21,9 +21,8 @@ import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import ApplicationRow from "./ApplicationsRow";
+import ApplicationRow, {ApplicationRowContainerClass} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
-import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/Sidebar";
 import {AppSearchBox} from "./Search";
 
 export const ApiLike: ReducedApiInterface = {
@@ -241,7 +240,7 @@ function filterAppsByFavorite(
     }
 }
 
-export function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
+function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
     const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const filteredItems = React.useMemo(() =>
         filterAppsByFavorite(items, favoriteStatus),
@@ -249,11 +248,19 @@ export function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps
     );
 
     return <Flex overflowX="auto" width="100%">
-        <Flex mx="auto" mb="16px">
+        <div className={ApplicationRowContainerClass}>
             {filteredItems.map(app =>
-                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} title={app.metadata.title} onFavorite={() => onFavorite(app)} />
+                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                    <AppCard
+                        type={ApplicationCardType.TALL}
+                        title={app.metadata.title}
+                        logo={app.metadata.name}
+                        logoType="APPLICATION"
+                        description={app.metadata.description}
+                    />
+                </Link>
             )}
-        </Flex>
+        </div>
     </Flex>
 }
 

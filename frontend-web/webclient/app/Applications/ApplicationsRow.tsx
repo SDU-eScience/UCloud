@@ -5,7 +5,7 @@ import React, {useEffect, useState} from "react";
 import {Absolute, Flex, Grid, Icon, Link, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
 
-const ApplicationRowContainerClass = injectStyle("tag-grid-bottom-box", k => `
+export const ApplicationRowContainerClass = injectStyle("tag-grid-bottom-box", k => `
     ${k} {
         padding: 15px 10px 15px 10px;
         margin: 0 -10px;

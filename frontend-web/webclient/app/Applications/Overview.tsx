@@ -22,7 +22,6 @@ import AppRoutes from "@/Routes";
 import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
-import {FavoriteAppRow} from "./Landing";
 import {AppSearchBox} from "./Search";
 
 export const ApiLike: ReducedApiInterface = {
@@ -107,11 +106,6 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                         <ContextSwitcher />
                     </Flex>
                     <Box mt="12px" />
-                    <FavoriteAppRow
-                        favoriteStatus={favoriteStatus}
-                        onFavorite={onFavorite}
-                        refreshId={refreshId}
-                    />
 
                     {sections.data.sections.map(section =>
                         <div key={section.name} id={"section"+section.id.toString()}>
