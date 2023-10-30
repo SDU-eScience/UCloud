@@ -1,3 +1,3 @@
-FROM dreg.cloud.sdu.dk/ucloud/base:2023.1.0
+FROM eclipse-temurin:20-jdk-jammy
 COPY build/service /opt/service/
 CMD ["/opt/service/bin/service"]
