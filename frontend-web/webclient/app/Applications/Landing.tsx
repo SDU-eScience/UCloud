@@ -41,33 +41,32 @@ function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
-const FloatingButtonClass = injectStyle("floating-button", k => `
+const ViewAllButtonClass = injectStyle("view-all-button", k => `
     ${k} {
-        position: fixed;
-        bottom: 30px;
         width: 200px;
-        left: calc(50% - (100px + var(${CSSVarCurrentSidebarStickyWidth})/2) + var(${CSSVarCurrentSidebarStickyWidth}));
+        margin: 30px auto;
     }
 
     ${k} button {
         width: 200px;
         text-align: center;
-        box-shadow: ${theme.shadows.sm};
+    }
+
+    ${k} button svg {
     }
 `);
 
 export const SecondarySidebarStickyCSSVariable = "TODO"; 
 
-function FloatingButton(): JSX.Element {
+function ViewAllButton(): JSX.Element {
     const navigate = useNavigate();
 
-    return <div className={FloatingButtonClass}>
+    return <div className={ViewAllButtonClass}>
         <Button
             onClick={() => navigate(AppRoutes.apps.overview())}
-            borderRadius="99px"
         >
             <TextSpan pr="15px">View all</TextSpan>
-            <Icon name="chevronDownLight" size="18px" />
+            <Icon rotation={-90} name="chevronDownLight" size="18px" />
         </Button>
     </div>;
 }
@@ -196,7 +195,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                             </>
                         : <></>}
 
-                        <FloatingButton />
+                        <ViewAllButton />
                     </Box>
                 } />
             </div>
