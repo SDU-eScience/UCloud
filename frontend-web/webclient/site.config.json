@@ -10,7 +10,7 @@
     "STATUS_PAGE": "https://status.cloud.sdu.dk",
     "DATA_PROTECTION_TEXT": "SDU Data Protection",
     "DATA_PROTECTION_LINK": "https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse",
-    "PREVIEW_MAX_SIZE": 5000000,
+    "PREVIEW_MAX_SIZE": 50000000,
     "SUPPORT_EMAIL": "support@escience.sdu.dk",
     "SITE_DOCUMENTATION_URL": "https://docs.cloud.sdu.dk/",
     "SITE_FAQ_URL": "https://docs.cloud.sdu.dk/help/faq.html",

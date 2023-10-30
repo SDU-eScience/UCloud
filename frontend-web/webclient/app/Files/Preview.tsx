@@ -1,8 +1,8 @@
 import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
-import {ExtensionType, extensionFromPath, extensionType, getUserThemePreference, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
+import {ExtensionType, extensionFromPath, extensionType, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
-import {Markdown, theme} from "@/ui-components";
+import {Markdown} from "@/ui-components";
 import {api as FilesApi, FilesCreateDownloadResponseItem, normalizeDownloadEndpoint, UFile} from "@/UCloud/FilesApi";
 import {useEffect, useState} from "react";
 import {fileName} from "@/Utilities/FileUtilities";
@@ -11,8 +11,9 @@ import {BulkResponse} from "@/UCloud";
 import {injectStyle} from "@/Unstyled";
 import fileType from "magic-bytes.js";
 import Editor from "@monaco-editor/react";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 
-export const MAX_PREVIEW_SIZE_IN_BYTES = 50_000_000;
+export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 
 export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
     const [type, setType] = useState<ExtensionType>(null);
