@@ -267,11 +267,21 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
     </Flex>
 );
 
-const ResourceGridClass = injectStyleSimple("grid", `
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-    grid-auto-rows: minmax(450px, auto);
-    gap: 16px;
+const ResourceGridClass = injectStyle("resource-grid", k => `
+    ${k} {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+        grid-auto-rows: minmax(450px, auto);
+        gap: 16px;
+    }
+    
+    ${k} a {
+        color: var(--black);
+    }
+    
+    ${k} a:hover {
+        color: var(--blue);
+    }
 `);
 
 function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>; products: APICallState<PageV2<Product>>}): JSX.Element {

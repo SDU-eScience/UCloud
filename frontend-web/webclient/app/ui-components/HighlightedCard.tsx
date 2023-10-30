@@ -14,6 +14,15 @@ const style = injectStyle("highlightedCard", k => `
         gap: 8px;
         margin-bottom: 25px;
         margin-top: 10px;
+        color: var(--black);
+    }
+    
+    ${k} .title-row a {
+        color: var(--black);
+    }
+    
+    ${k} .title-row a:hover {
+        color: var(--blue);
     }
     
     ${k} {
