@@ -21,6 +21,7 @@ const AppSearchBoxClass = injectStyle("app-search-box", k => `
         width: 300px;
         position: relative;
         margin-right: 15px;
+        align-items: center;
     }
 
     ${k} input {
@@ -46,24 +47,22 @@ const AppSearchBoxClass = injectStyle("app-search-box", k => `
 export const AppSearchBox: React.FunctionComponent<{value?: string}> = props => {
     const navigate = useNavigate();
 
-    return <div className={AppSearchBoxClass}>
-        <Flex justifyContent="space-evenly">
-            <Input
-                defaultValue={props.value}
-                placeholder="Search for applications..."
-                onKeyUp={e => {
-                    console.log(e);
-                    if (e.key === "Enter") {
-                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
-                    }
-                }}
-                autoFocus
-            />
-            <button>
-                <Icon name="search" size={20} color="darkGray" my="auto" />
-            </button>
-        </Flex>
-    </div>;
+    return <Flex className={AppSearchBoxClass} justifyContent="space-evenly">
+        <Input
+            defaultValue={props.value}
+            placeholder="Search for applications..."
+            onKeyUp={e => {
+                console.log(e);
+                if (e.key === "Enter") {
+                    navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
+                }
+            }}
+            autoFocus
+        />
+        <button>
+            <Icon name="search" size={20} color="darkGray" my="auto" />
+        </button>
+    </Flex>;
 }
 
 
