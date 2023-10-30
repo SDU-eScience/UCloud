@@ -20,11 +20,10 @@ import {useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
-import bgImage from "@/Assets/Images/background_polygons.png";
-import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/Sidebar";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -45,8 +44,8 @@ const FloatingButtonClass = injectStyle("floating-button", k => `
     ${k} {
         position: fixed;
         bottom: 30px;
-        left: calc(50% - (100px + var(--currentSidebarWidth)/2) + var(--currentSidebarWidth));
         width: 200px;
+        left: calc(50% - (100px + var(${CSSVarCurrentSidebarStickyWidth})/2) + var(${CSSVarCurrentSidebarStickyWidth}));
     }
 
     ${k} button {
@@ -55,6 +54,8 @@ const FloatingButtonClass = injectStyle("floating-button", k => `
         box-shadow: ${theme.shadows.sm};
     }
 `);
+
+export const SecondarySidebarStickyCSSVariable = "TODO"; 
 
 function FloatingButton(): JSX.Element {
     const navigate = useNavigate();

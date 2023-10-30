@@ -30,6 +30,7 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import formatDistance from "date-fns/formatDistance";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {CSSVarCurrentSidebarWidth} from "@/ui-components/Sidebar";
 
 // State model
 // =====================================================================================================================
@@ -1010,7 +1011,7 @@ const style = injectStyle("grant-editor", k => `
     ${k} header {
         position: fixed;
         top: 0;
-        left: var(--currentSidebarWidth);
+        left: var(${CSSVarCurrentSidebarWidth});
         
         background: var(--white);
         
@@ -1020,7 +1021,7 @@ const style = injectStyle("grant-editor", k => `
         gap: 8px;
         
         height: 50px;
-        width: calc(100vw - var(--currentSidebarWidth));
+        width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
         
         padding: 0 16px;
         z-index: 10;

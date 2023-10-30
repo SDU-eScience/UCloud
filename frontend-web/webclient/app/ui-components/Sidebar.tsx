@@ -55,6 +55,9 @@ import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
+export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";
+export const CSSVarCurrentSidebarStickyWidth = "--currentSidebarStickyWidth";
+
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
         background-color: var(--sidebarSecondaryColor);
@@ -494,8 +497,9 @@ function SecondarySidebar({
         let sum = firstLevel;
         if (isOpen) sum += secondLevel;
 
-        document.body.style.setProperty("--currentSidebarWidth", `${sum}px`);
-    }, [isOpen]);
+        document.body.style.setProperty(CSSVarCurrentSidebarWidth, `${sum}px`);
+        document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
+    }, [isOpen, asPopOver]);
 
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
