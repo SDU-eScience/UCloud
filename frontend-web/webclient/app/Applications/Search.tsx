@@ -9,11 +9,63 @@ import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {AppCard, ApplicationCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
-import {Box, Flex, Input} from "@/ui-components";
+import {Box, Flex, Icon, Input} from "@/ui-components";
 import {Link} from "react-router-dom";
 import * as Pages from "./Pages";
-import {AppSearchBox} from "./Overview";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {injectStyle} from "@/Unstyled";
+import AppRoutes from "@/Routes";
+
+const AppSearchBoxClass = injectStyle("app-search-box", k => `
+    ${k} {
+        width: 300px;
+        position: relative;
+        margin-right: 15px;
+    }
+
+    ${k} input {
+        width: 100%;
+        border: 1px solid var(--midGray);
+        background: var(--white);
+        border-radius: 6px;
+        padding-left: 1.2em;
+        padding-right: 2.5rem;
+    }
+
+    ${k} button {
+        background: none;
+        border: 0;
+        padding: 0px 10px 1px 10px;
+        cursor: pointer;
+        position: absolute;
+        right: 0;
+        height: 2.4rem;
+    }
+`);
+
+export const AppSearchBox: React.FunctionComponent<{value?: string}> = props => {
+    const navigate = useNavigate();
+
+    return <div className={AppSearchBoxClass}>
+        <Flex justifyContent="space-evenly">
+            <Input
+                defaultValue={props.value}
+                placeholder="Search for applications..."
+                onKeyUp={e => {
+                    console.log(e);
+                    if (e.key === "Enter") {
+                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
+                    }
+                }}
+                autoFocus
+            />
+            <button>
+                <Icon name="search" size={20} color="darkGray" my="auto" />
+            </button>
+        </Flex>
+    </div>;
+}
+
 
 interface SearchQuery {
     tags: string[];
@@ -68,11 +120,9 @@ export const SearchResults: React.FunctionComponent = () => {
     }, [fetch]);
 
     return <Box mx="auto" maxWidth="1340px">
-        <Flex width="100%">
+        <Flex width="100%" mt="30px" justifyContent="right">
             <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} />
-            <Box ml="auto" mt="30px">
-                <ContextSwitcher />
-            </Box>
+            <ContextSwitcher />
         </Flex>
         <Box mt="12px" />
 

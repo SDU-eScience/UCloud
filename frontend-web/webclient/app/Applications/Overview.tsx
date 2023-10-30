@@ -23,6 +23,7 @@ import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
 import {FavoriteAppRow} from "./Landing";
+import {AppSearchBox} from "./Search";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -38,56 +39,6 @@ function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
 }
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
-
-const AppSearchBoxClass = injectStyle("large-search-box", k => `
-    ${k} {
-        width: 400px;
-        margin: 30px auto;
-        position: relative;
-    }
-
-    ${k} input {
-        width: 100%;
-        border: 1px solid var(--midGray);
-        background: var(--white);
-        border-radius: 99px;
-        padding-left: 1.2em;
-        padding-right: 2.5rem;
-    }
-
-    ${k} button {
-        background: none;
-        border: 0;
-        padding: 2px 10px 1px 10px;
-        cursor: pointer;
-        position: absolute;
-        right: 0;
-        height: 2.5rem;
-    }
-`);
-
-export const AppSearchBox: React.FunctionComponent<{value?: string}> = props => {
-    const navigate = useNavigate();
-  
-    return <div className={AppSearchBoxClass}>
-        <Flex justifyContent="space-evenly">
-            <Input
-                defaultValue={props.value}
-                placeholder="Search for applications..."
-                onKeyUp={e => {
-                    console.log(e);
-                    if (e.key === "Enter") {
-                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
-                    }
-                }}
-                autoFocus
-            />
-            <button>
-                <Icon name="search" size={20} color="darkGray" my="auto" />
-            </button>
-        </Flex>
-    </div>;
-}
 
 const ApplicationsOverview: React.FunctionComponent = () => {
     const [sections, fetchSections] = useCloudAPI<AppStoreSections>(
@@ -151,10 +102,9 @@ const ApplicationsOverview: React.FunctionComponent = () => {
         <div className={AppOverviewMarginPaddingHack}>
             <MainContainer main={
                 <Box mx="auto" maxWidth="1340px">
-                    <Flex width="100%">
-                        <Box ml="auto" mt="30px">
-                            <ContextSwitcher />
-                        </Box>
+                    <Flex width="100%" mt="30px" justifyContent="right">
+                        <AppSearchBox />
+                        <ContextSwitcher />
                     </Flex>
                     <Box mt="12px" />
                     <FavoriteAppRow
@@ -162,8 +112,6 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                         onFavorite={onFavorite}
                         refreshId={refreshId}
                     />
-
-                    <AppSearchBox />
 
                     {sections.data.sections.map(section =>
                         <div key={section.name} id={"section"+section.id.toString()}>
