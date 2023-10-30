@@ -1,39 +1,40 @@
 import * as React from "react";
 import Form, {FormProps} from "@rjsf/core";
-import styled from "styled-components";
 import {theme} from "@/ui-components";
+import {injectStyle} from "@/Unstyled";
 
 export const JsonSchemaForm: React.FunctionComponent<FormProps<any>> = (props) => {
-    return <FormWrapper><Form {...props}/></FormWrapper>;
+    return <div className={FormWrapper}><Form {...props} /></div>;
 };
 
-const FormWrapper = styled.div`
-  label {
+/* div */
+const FormWrapper = injectStyle("form-wrapper", k => `
+  ${k} label {
     display: block;
   }
 
-  .required {
+  ${k} .required {
     color: var(--red, #f00);
   }
   
-  fieldset {
+  ${k} fieldset {
     min-width: 0;
     margin: 0;
     padding: 0;
     border: 0;
   }
 
-  & > form > .form-group > fieldset {
+  ${k} > form > .form-group > fieldset {
     background-color: transparent;
     border: 0;
     padding: 16px 0 0;
   }
 
-  & > form > .form-group > fieldset > legend {
+  ${k} > form > .form-group > fieldset > legend {
     font-size: ${theme.fontSizes[4]}px;
   }
   
-  & > form > .form-group > fieldset > * > fieldset {
+  ${k} > form > .form-group > fieldset > * > fieldset {
     padding: 16px;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
@@ -43,55 +44,35 @@ const FormWrapper = styled.div`
     margin-bottom: 32px;
   }
   
-  & > form > .form-group > fieldset > * > fieldset fieldset {
+  ${k} > form > .form-group > fieldset > * > fieldset fieldset {
     display: grid;
     grid-gap: 16px;
     margin-bottom: 32px;
   }
   
-  & > form > .form-group > fieldset > * > fieldset > legend, & > form > .form-group > fieldset > *  legend {
+  ${k} > form > .form-group > fieldset > * > fieldset > legend, ${k} > form > .form-group > fieldset > *  legend {
     font-size: ${theme.fontSizes[3]}px;
   }
 
-  legend {
+  ${k} legend {
     float: left;
     width: 100%;
   }
   
-  label {
+  ${k} label {
     font-weight: bold;
   }
   
-  textarea {
+  ${k} textarea {
     min-height: 120px;
   }
 
-  input, textarea {
+  ${k} input, ${k} textarea {
     display: block;
     font-family: inherit;
     color: var(--black, #f00);
     background-color: transparent;
-
     margin: 0;
-
-    &:invalid {
-      border-color: var(--red, #f00);
-    }
-
-    ::placeholder {
-      color: var(--gray, #f00);
-    }
-
-    &:focus {
-      outline: none;
-      background-color: transparent;
-      border-color: var(--blue, #f00)
-    }
-
-    &:disabled {
-      background-color: var(--lightGray, #f00);
-    }
-
     border-width: ${theme.borderWidth};
     border-color: var(--borderGray, #f00);
     border-style: solid;
@@ -99,10 +80,28 @@ const FormWrapper = styled.div`
     padding: 7px 12px;
     width: 100%;
   }
+    ${k} input:invalid, ${k} textarea:invalid {
+        border-color: var(--red, #f00);
+    }
+      
+  
+    ${k} input::placeholder, ${k} textarea::placeholder {
+        color: var(--gray, #f00);
+    }
+  
+    ${k} input:focus, ${k} textarea:focus {
+        outline: none;
+        background-color: transparent;
+        border-color: var(--blue, #f00);
+    }
+  
+    ${k} input:disabled, ${k} textarea:focus {
+        background-color: var(--lightGray, #f00);
+    }
 
-  input[type="checkbox"] {
-    display: inline;
-    width: auto;
-    margin-right: 10px;
-  }
-`;
+    ${k} input[type="checkbox"]{
+        display: inline;
+        width: auto;
+        margin-right: 10px;
+    }
+`);
