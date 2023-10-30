@@ -12,7 +12,7 @@ import * as Pagination from "@/Pagination";
 import {Box, Flex, Input} from "@/ui-components";
 import {Link} from "react-router-dom";
 import * as Pages from "./Pages";
-import {LargeSearchBox} from "./Overview";
+import {AppSearchBox} from "./Overview";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 interface SearchQuery {
@@ -69,12 +69,12 @@ export const SearchResults: React.FunctionComponent = () => {
 
     return <Box mx="auto" maxWidth="1340px">
         <Flex width="100%">
+            <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} />
             <Box ml="auto" mt="30px">
                 <ContextSwitcher />
             </Box>
         </Flex>
         <Box mt="12px" />
-        <LargeSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} />
 
         <Pagination.List
             loading={results.loading}

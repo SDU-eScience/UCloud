@@ -8,7 +8,7 @@ import {AppToolLogo} from "./AppToolLogo";
 import {Absolute, Box, Flex, Grid, Link} from "@/ui-components";
 import {AppCard, ApplicationCardType} from "./Card";
 import * as Pages from "./Pages";
-import {LargeSearchBox} from "./Overview";
+import {AppSearchBox} from "./Overview";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 
 
@@ -40,7 +40,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                     </Box>
                 </Flex>
                 <Absolute top="0px" left="calc(50% - 200px)">
-                    <LargeSearchBox />
+                    <AppSearchBox />
                 </Absolute>
             </>
         }

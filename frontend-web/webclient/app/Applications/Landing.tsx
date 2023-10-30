@@ -89,18 +89,18 @@ const LandingDivider = injectStyle("landing-divider", k => `
     }
 `);
 
-  const LargeSearchBoxClass = injectStyle("large-search-box", k => `
+  const AppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
-        width: 400px;
-        margin: 30px auto;
+        width: 300px;
         position: relative;
+        margin-right: 15px;
     }
 
     ${k} input {
         width: 100%;
         border: 1px solid var(--midGray);
         background: var(--white);
-        border-radius: 99px;
+        border-radius: 6px;
         padding-left: 1.2em;
         padding-right: 2.5rem;
     }
@@ -108,18 +108,18 @@ const LandingDivider = injectStyle("landing-divider", k => `
     ${k} button {
         background: none;
         border: 0;
-        padding: 2px 10px 1px 10px;
+        padding: 0px 10px 1px 10px;
         cursor: pointer;
         position: absolute;
         right: 0;
-        height: 2.5rem;
+        height: 2.4rem;
     }
 `);
 
-export const LargeSearchBox: React.FunctionComponent<{value?: string}> = props => {
+export const AppSearchBox: React.FunctionComponent<{value?: string}> = props => {
     const navigate = useNavigate();
 
-    return <div className={LargeSearchBoxClass}>
+    return <div className={AppSearchBoxClass}>
         <Flex justifyContent="space-evenly">
             <Input
                 defaultValue={props.value}
@@ -191,19 +191,17 @@ const ApplicationsLanding: React.FunctionComponent = () => {
             <div className={GradientWithPolygons}>
                 <MainContainer main={
                     <Box mx="auto" maxWidth="1340px">
-                        <Flex width="100%">
-                            <Box ml="auto" mt="30px">
-                                <ContextSwitcher />
-                            </Box>
+                        <Flex justifyContent="right" mt="30px">
+                            <AppSearchBox />
+                            <ContextSwitcher />
                         </Flex>
                         <Box mt="12px" />
+
                         <FavoriteAppRow
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
                             refreshId={refreshId}
                         />
-
-                        <LargeSearchBox />
 
                         {sections.data.sections[0] ?
                             <>

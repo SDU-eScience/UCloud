@@ -310,7 +310,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                             setAddApplicationOpen(true);
                                         }}
                                         height="25px"
-                                        mt="20px"
                                         ml="25px"
                                     >
                                         Add

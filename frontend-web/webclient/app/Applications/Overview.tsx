@@ -39,7 +39,7 @@ function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
-const LargeSearchBoxClass = injectStyle("large-search-box", k => `
+const AppSearchBoxClass = injectStyle("large-search-box", k => `
     ${k} {
         width: 400px;
         margin: 30px auto;
@@ -66,10 +66,10 @@ const LargeSearchBoxClass = injectStyle("large-search-box", k => `
     }
 `);
 
-export const LargeSearchBox: React.FunctionComponent<{value?: string}> = props => {
+export const AppSearchBox: React.FunctionComponent<{value?: string}> = props => {
     const navigate = useNavigate();
   
-    return <div className={LargeSearchBoxClass}>
+    return <div className={AppSearchBoxClass}>
         <Flex justifyContent="space-evenly">
             <Input
                 defaultValue={props.value}
@@ -163,7 +163,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                         refreshId={refreshId}
                     />
 
-                    <LargeSearchBox />
+                    <AppSearchBox />
 
                     {sections.data.sections.map(section =>
                         <div key={section.name} id={"section"+section.id.toString()}>
