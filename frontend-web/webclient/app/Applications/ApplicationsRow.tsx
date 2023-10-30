@@ -95,7 +95,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
             {type === ApplicationCardType.WIDE ?
                 <div ref={scrollRef} className={ApplicationRowContainerClass}>
                     <Flex
-                        justifyContent={items.length < 3 ? "space-evenly" : "space-between"}
+                        justifyContent={items.length < 3 ? "left" : "space-between"}
                         gap="10px"
                         py="10px"
                     >
@@ -141,7 +141,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                 :
                     <div ref={scrollRef} className={ApplicationRowContainerClass}>
                         <Flex
-                            justifyContent="space-evenly"
+                            justifyContent="left"
                             gap="10px"
                             py="10px"
                         >
