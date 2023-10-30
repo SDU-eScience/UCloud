@@ -16,7 +16,6 @@ import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {JsonSchemaForm} from "../JsonSchemaForm";
 import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import styled from "styled-components";
 import {injectStyle} from "@/Unstyled";
 
 enum Stage {
