@@ -45,7 +45,7 @@ const FloatingButtonClass = injectStyle("floating-button", k => `
     ${k} {
         position: fixed;
         bottom: 30px;
-        left: calc(50% - 50px);
+        left: calc(50% - (100px + var(--currentSidebarWidth)/2) + var(--currentSidebarWidth));
         width: 200px;
     }
 
