@@ -89,7 +89,7 @@ export const ButtonClass = injectStyle("button", k => `
     
     ${k}[data-size=extra-small] {
         height: 25px;
-        border-radius: 14px;
+        border-radius: 6px;
         font-size: 12px;
     }
 
@@ -135,6 +135,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
 
         const match = standardButtonSizes[bestMatch];
         sizeName = match.name;
+        delete inlineStyles["height"];
         delete inlineStyles["padding"];
         delete inlineStyles["paddingLeft"];
         delete inlineStyles["paddingTop"];

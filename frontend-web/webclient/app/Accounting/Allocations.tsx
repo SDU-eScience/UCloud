@@ -1,20 +1,23 @@
-import { injectStyle } from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 import * as React from "react";
-import { Accordion, Box, Flex, Icon, Link, MainContainer, ProgressBarWithLabel, Select } from "@/ui-components";
-import { ContextSwitcher } from "@/Project/ContextSwitcher";
+import {Accordion, Box, Button, Flex, Icon, Link, MainContainer, ProgressBarWithLabel, Select} from "@/ui-components";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import { ProductCategoryV2, ProductType } from "@/Accounting";
-import { groupBy } from "@/Utilities/CollectionUtilities";
-import { ChangeEvent, useCallback, useEffect, useReducer } from "react";
-import { useProjectId } from "@/Project/Api";
-import { useDidUnmount } from "@/Utilities/ReactUtilities";
-import { callAPI, callAPIWithErrorHandler } from "@/Authentication/DataHook";
-import { fetchAll } from "@/Utilities/PageUtilities";
+import {ProductType} from "@/Accounting";
+import {groupBy} from "@/Utilities/CollectionUtilities";
+import {ChangeEvent, useCallback, useEffect, useReducer} from "react";
+import {useProjectId} from "@/Project/Api";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {callAPI} from "@/Authentication/DataHook";
+import {fetchAll} from "@/Utilities/PageUtilities";
 import AppRoutes from "@/Routes";
-import { ProviderLogo } from "@/Providers/ProviderLogo";
-import { Avatar } from "@/AvataaarLib";
-import { defaultAvatar } from "@/UserSettings/Avataaar";
-import { TooltipV2 } from "@/ui-components/Tooltip";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {Avatar} from "@/AvataaarLib";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {IconName} from "@/ui-components/Icon";
+import {timestampUnixMs} from "@/UtilityFunctions";
+import {ThemeColor} from "@/ui-components/theme";
 
 // State
 // =====================================================================================================================
@@ -27,6 +30,7 @@ interface State {
     periodSelection: {
         currentPeriodIdx: number;
         availablePeriods: Period[];
+        periodSize: PeriodSize;
     };
 
     yourAllocations: {
@@ -40,6 +44,7 @@ interface State {
                     id: string;
                     grantedIn?: string;
                     usageAndQuota: UsageAndQuota;
+                    note?: AllocationNote;
                 }[];
             }[];
         }
@@ -58,14 +63,28 @@ interface State {
             usageAndQuota: (UsageAndQuota & { type: Accounting.ProductType })[];
 
             allocations: {
-                // NOTE(Dan): If allocationId is undefined, then the allocation doesn't exist and the usage number
-                // from usageAndQuota should be ignored as a result.
-                allocationId?: string;
+                allocationId: string;
                 usageAndQuota: UsageAndQuota;
                 category: Accounting.ProductCategoryV2;
+                note?: AllocationNote;
             }[];
         }[];
     };
+}
+
+interface AllocationNote {
+    rowShouldBeGreyedOut: boolean;
+    hideIfZeroUsage?: boolean;
+    icon: IconName;
+    iconColor: ThemeColor;
+    text: string;
+}
+
+enum PeriodSize {
+    MONTHLY,
+    QUARTERLY,
+    HALF_YEARLY,
+    YEARLY
 }
 
 interface UsageAndQuota {
@@ -77,21 +96,7 @@ interface UsageAndQuota {
 interface Period {
     start: number;
     end: number;
-}
-
-function periodToString(period: Period): string {
-    const start = new Date(period.start);
-    const end = new Date(period.end);
-
-    if (start.getUTCMonth() === 0 && start.getUTCDate() === 1 && end.getUTCMonth() === 11 && end.getUTCDate() === 31) {
-        if (start.getUTCFullYear() === end.getUTCFullYear()) {
-            return start.getFullYear().toString();
-        } else {
-            return `${start.getUTCFullYear()}-${end.getUTCFullYear()}`;
-        }
-    }
-
-    return Accounting.utcDate(period.start) + "-" + Accounting.utcDate(period.end);
+    title?: string;
 }
 
 // State reducer
@@ -99,6 +104,7 @@ function periodToString(period: Period): string {
 type UIAction =
     { type: "WalletsLoaded", wallets: Accounting.WalletV2[]; }
     | { type: "PeriodUpdated", selectedIndex: number }
+    | { type: "PeriodSizeUpdated", selectedIndex: number }
     | { type: "SubAllocationsLoaded", subAllocations: Accounting.SubAllocationV2[] }
     | { type: "UpdateSearchQuery", newQuery: string }
     ;
@@ -133,6 +139,16 @@ function stateReducer(state: State, action: UIAction): State {
             return selectPeriod(state, action.selectedIndex);
         }
 
+        case "PeriodSizeUpdated": {
+            return initializePeriods({
+                ...state,
+                periodSelection: {
+                    ...state.periodSelection,
+                    periodSize: action.selectedIndex
+                }
+            });
+        }
+
         case "UpdateSearchQuery": {
             const newState = {
                 ...state,
@@ -154,24 +170,90 @@ function stateReducer(state: State, action: UIAction): State {
         return null;
     }
 
-    function initializePeriods(state: State): State {
-        const periods: Period[] = [];
-        for (const wallet of state.remoteData.wallets) {
-            for (const alloc of wallet.allocations) {
-                const p: Period = {start: alloc.startDate, end: alloc.endDate ?? Number.MAX_SAFE_INTEGER};
-                if (!periods.some(it => it.start === p.start && it.end === p.end)) {
-                    periods.push(p);
+    function calculateIdealPeriods(size: PeriodSize, until: number): Period[] {
+        console.log(size, until);
+        const result: Period[] = [];
+
+        const now = new Date();
+        now.setUTCHours(0, 0, 0, 0); // Always reset to start of day
+
+        switch (size) {
+            case PeriodSize.MONTHLY: {
+                now.setUTCDate(1); // Go to the start of this month before we change anything
+
+                while (now.getTime() < until && result.length < 120) {
+                    const title = `${now.getUTCFullYear()} ${monthNames[now.getUTCMonth()]}`;
+                    const start = now.getTime();
+                    now.setUTCMonth(now.getUTCMonth() + 1);
+                    const end = now.getTime() - 1;
+
+                    result.push({start, end, title});
                 }
+                break;
+            }
+
+            case PeriodSize.QUARTERLY: {
+                now.setUTCMonth(((now.getUTCMonth() / 3) | 0) * 3);
+                now.setUTCDate(1);
+
+                while (now.getTime() < until && result.length < 40) {
+                    const quarter = ((now.getUTCMonth() / 3) | 0) + 1;
+                    const title = `${now.getUTCFullYear()} Q${quarter}`;
+                    const start = now.getTime();
+                    now.setUTCMonth(now.getUTCMonth() + 3);
+                    const end = now.getTime() - 1;
+
+                    result.push({start, end, title});
+                }
+
+                break;
+            }
+
+            case PeriodSize.HALF_YEARLY: {
+                now.setUTCMonth(((now.getUTCMonth() / 6) | 0) * 6);
+                now.setUTCDate(1);
+
+                while (now.getTime() < until && result.length < 20) {
+                    const half = ((now.getUTCMonth() / 6) | 0) + 1;
+                    const title = `${now.getUTCFullYear()} H${half}`;
+                    const start = now.getTime();
+                    now.setUTCMonth(now.getUTCMonth() + 6);
+                    const end = now.getTime() - 1;
+
+                    result.push({start, end, title});
+                }
+                break;
+            }
+
+            case PeriodSize.YEARLY: {
+                now.setUTCMonth(0);
+                now.setUTCDate(1);
+
+                while (now.getTime() < until && result.length < 10) {
+                    const title = `${now.getUTCFullYear()}`;
+                    const start = now.getTime();
+                    now.setUTCFullYear(now.getUTCFullYear() + 1);
+                    const end = now.getTime() - 1;
+
+                    result.push({start, end, title});
+                }
+                break;
             }
         }
 
-        // Sort the periods just in case they don't come ordered from the backend
-        periods.sort((a, b) => {
-            if (a.start < b.start) return -1;
-            if (a.start > b.start) return 1;
-            if (a.end < b.end) return -1;
-            if (a.end > b.end) return 1;
-            return 0;
+        return result;
+    }
+
+    function initializePeriods(state: State): State {
+        const maxEndDate = state.remoteData.wallets
+            .flatMap(w => w.allocations.map(a => a.endDate ?? Number.MAX_SAFE_INTEGER))
+            .reduce((p, a) => Math.max(p, a), Number.MIN_SAFE_INTEGER);
+
+        const idealPeriods = calculateIdealPeriods(state.periodSelection.periodSize, maxEndDate);
+        const periods = idealPeriods.filter(p => {
+            return state.remoteData.wallets.some(w => w.allocations.some(a => {
+                return periodsOverlap(p, allocationToPeriod(a));
+            }));
         });
 
         const oldPeriod = getOrNull(state.periodSelection.availablePeriods, state.periodSelection.currentPeriodIdx);
@@ -203,6 +285,46 @@ function stateReducer(state: State, action: UIAction): State {
 
     function selectPeriod(state: State, periodIndex: number): State {
         const period = getOrNull(state.periodSelection.availablePeriods, periodIndex);
+
+        function allocationNote(
+            alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2
+        ): AllocationNote | undefined {
+            if (!period) return undefined;
+            const p = normalizePeriodForComparison(period);
+
+            const now = timestampUnixMs();
+            const allocPeriod = normalizePeriodForComparison(allocationToPeriod(alloc));
+            if (now > allocPeriod.end) {
+                return {
+                    rowShouldBeGreyedOut: true,
+                    icon: "heroCalendarDays",
+                    iconColor: "red",
+                    text: `Already expired (${Accounting.utcDate(allocPeriod.end)})`,
+                    hideIfZeroUsage: true,
+                };
+            }
+
+            if (allocPeriod.start > now) {
+                return {
+                    rowShouldBeGreyedOut: true,
+                    icon: "heroCalendarDays",
+                    iconColor: "blue",
+                    text: `Starts in the future (${Accounting.utcDate(allocPeriod.start)})`,
+                };
+            }
+
+            if (allocPeriod.end < p.end) {
+                return {
+                    rowShouldBeGreyedOut: false,
+                    icon: "heroInformationCircle",
+                    iconColor: "blue",
+                    text: `Expires early (${Accounting.utcDate(allocPeriod.end)})`
+                };
+            }
+
+            return undefined;
+        }
+
         if (!period) {
             return {
                 ...state,
@@ -221,16 +343,15 @@ function stateReducer(state: State, action: UIAction): State {
         const walletsInPeriod = state.remoteData.wallets.map(wallet => {
             const newAllocations = wallet.allocations.filter(alloc =>
                 !wallet.paysFor.freeToUse &&
-                alloc.startDate >= period.start &&
-                (alloc.endDate ?? Number.MAX_SAFE_INTEGER) <= period.end);
+                periodsOverlap(period, allocationToPeriod(alloc))
+            );
 
             return {...wallet, allocations: newAllocations};
         }).filter(it => it.allocations.length > 0);
 
         const subAllocationsInPeriod = state.remoteData.subAllocations.filter(alloc =>
             !alloc.productCategory.freeToUse &&
-            alloc.startDate >= period.start &&
-            (alloc.endDate ?? Number.MAX_SAFE_INTEGER) <= period.end
+            periodsOverlap(period, allocationToPeriod(alloc))
         );
 
         // Build the "your allocations" tree
@@ -245,13 +366,17 @@ function stateReducer(state: State, action: UIAction): State {
                 const entry = yourAllocations[type as ProductType]!;
 
                 const quotaBalances = wallets.flatMap(wallet =>
-                    wallet.allocations.map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
+                    wallet.allocations
+                        .filter(alloc => allocationIsActive(alloc))
+                        .map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
                 );
                 const usageBalances = wallets.flatMap(wallet =>
-                    wallet.allocations.map(alloc => ({
-                        balance: alloc.treeUsage ?? 0,
-                        category: wallet.paysFor
-                    }))
+                    wallet.allocations
+                        .filter(alloc => allocationIsActive(alloc))
+                        .map(alloc => ({
+                            balance: alloc.treeUsage ?? 0,
+                            category: wallet.paysFor
+                        }))
                 );
 
                 const combinedQuotas = Accounting.combineBalances(quotaBalances);
@@ -270,9 +395,19 @@ function stateReducer(state: State, action: UIAction): State {
 
                 let allocBaseIdx = 0;
                 for (const wallet of wallets) {
-                    const usage = Accounting.combineBalances(usageBalances.slice(allocBaseIdx, allocBaseIdx + wallet.allocations.length));
-                    const quota = Accounting.combineBalances(quotaBalances.slice(allocBaseIdx, allocBaseIdx + wallet.allocations.length));
-                    if (usage.length !== quota.length || usage.length !== 1) throw `unexpected length of usage and quota ${JSON.stringify(usage)} ${JSON.stringify(quota)}`;
+                    const usage = Accounting.combineBalances(
+                        wallet.allocations
+                            .filter(alloc => allocationIsActive(alloc))
+                            .map(alloc => ({
+                                balance: alloc.treeUsage ?? 0,
+                                category: wallet.paysFor
+                            }))
+                    )
+                    const quota = Accounting.combineBalances(
+                        wallet.allocations
+                            .filter(alloc => allocationIsActive(alloc))
+                            .map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
+                    );
 
                     const unit = Accounting.explainUnit(wallet.paysFor);
 
@@ -280,18 +415,19 @@ function stateReducer(state: State, action: UIAction): State {
                         category: wallet.paysFor,
 
                         usageAndQuota: {
-                            usage: usage[0].normalizedBalance,
-                            quota: quota[0].normalizedBalance,
-                            unit: usage[0].unit
+                            usage: usage?.[0]?.normalizedBalance ?? 0,
+                            quota: quota?.[0]?.normalizedBalance ?? 0,
+                            unit: usage?.[0]?.unit ?? ""
                         },
 
                         allocations: wallet.allocations.map(alloc => ({
                             id: alloc.id,
                             grantedIn: alloc.grantedIn?.toString() ?? undefined,
+                            note: allocationNote(alloc),
                             usageAndQuota: {
                                 usage: (alloc.treeUsage ?? 0) * unit.priceFactor,
                                 quota: alloc.quota * unit.priceFactor,
-                                unit: usage[0].unit,
+                                unit: usage?.[0]?.unit ?? unit.name,
                             }
                         })),
                     });
@@ -308,10 +444,8 @@ function stateReducer(state: State, action: UIAction): State {
         };
 
         {
-            for (const alloc of subAllocationsInPeriod) {
+            for (const alloc of state.remoteData.subAllocations) {
                 const allocOwner = Accounting.subAllocationOwner(alloc);
-                const productUnit = Accounting.explainUnit(alloc.productCategory);
-
                 let recipient = subAllocations.recipients
                     .find(it => Accounting.walletOwnerEquals(it.owner.reference, allocOwner));
                 if (!recipient) {
@@ -327,6 +461,14 @@ function stateReducer(state: State, action: UIAction): State {
 
                     subAllocations.recipients.push(recipient);
                 }
+            }
+
+            for (const alloc of subAllocationsInPeriod) {
+                const allocOwner = Accounting.subAllocationOwner(alloc);
+                const productUnit = Accounting.explainUnit(alloc.productCategory);
+
+                const recipient = subAllocations.recipients
+                    .find(it => Accounting.walletOwnerEquals(it.owner.reference, allocOwner))!;
 
                 recipient.allocations.push({
                     allocationId: alloc.id,
@@ -335,13 +477,16 @@ function stateReducer(state: State, action: UIAction): State {
                         usage: alloc.usage * productUnit.priceFactor,
                         quota: alloc.quota * productUnit.priceFactor,
                         unit: productUnit.name
-                    }
+                    },
+                    note: allocationNote(alloc),
                 });
             }
 
             for (const recipient of subAllocations.recipients) {
                 const uqBuilder: { type: Accounting.ProductType, unit: string, usage: number, quota: number }[] = [];
                 for (const alloc of recipient.allocations) {
+                    if (alloc.note) continue;
+
                     const existing = uqBuilder.find(it =>
                         it.type === alloc.category.productType && it.unit === alloc.usageAndQuota.unit);
 
@@ -450,6 +595,26 @@ const AllocationsStyle = injectStyle("allocations", k => `
     ${k} h4 {
         margin: 15px 0;
     }
+    
+    ${k} .disabled-alloc {
+        filter: opacity(0.5);
+    }
+    
+    ${k} .sub-alloc {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    ${k} .sub-alloc button {
+        height: 25px;
+        width: 25px;
+        padding: 12px;
+    }
+    
+    ${k} .sub-alloc button svg {
+        margin: 0;
+    }
 `);
 
 // User-interface
@@ -471,6 +636,11 @@ const Allocations: React.FunctionComponent = () => {
     const onPeriodSelect = useCallback((ev: ChangeEvent) => {
         const target = ev.target as HTMLSelectElement;
         dispatchEvent({type: "PeriodUpdated", selectedIndex: target.selectedIndex});
+    }, [dispatchEvent]);
+
+    const onPeriodSizeSelect = useCallback((ev: ChangeEvent) => {
+        const target = ev.target as HTMLSelectElement;
+        dispatchEvent({type: "PeriodSizeUpdated", selectedIndex: target.selectedIndex});
     }, [dispatchEvent]);
 
     // Short-hands used in the user-interface
@@ -498,28 +668,37 @@ const Allocations: React.FunctionComponent = () => {
         headerSize={0}
         main={<div className={AllocationsStyle}>
             <header>
-                <h2>Resource allocations for</h2>
+                <h2>Resource allocations</h2>
+                <Box flexGrow={1}/>
+                <ContextSwitcher/>
+            </header>
 
-                <Box width={"120px"}>
+            <h3>Filters</h3>
+            <Flex alignItems={"center"} flexDirection={"row"} gap={"4px"}>
+                <Box width={"200px"}>
+                    <Select slim value={state.periodSelection.periodSize} onChange={onPeriodSizeSelect}>
+                        <option value={PeriodSize.MONTHLY}>Month</option>
+                        <option value={PeriodSize.QUARTERLY}>Quarter</option>
+                        <option value={PeriodSize.HALF_YEARLY}>Half-year</option>
+                        <option value={PeriodSize.YEARLY}>Year</option>
+                    </Select>
+                </Box>
+
+                <Box width={"200px"}>
                     <Select slim value={state.periodSelection.currentPeriodIdx} onChange={onPeriodSelect}>
                         {state.periodSelection.availablePeriods.length === 0 &&
                             <option>{new Date().getUTCFullYear()}</option>}
 
                         {state.periodSelection.availablePeriods.map((it, idx) =>
-                            <option key={idx} value={idx.toString()}>{periodToString(it)}</option>
+                            <option key={idx} value={idx.toString()}>{it.title}</option>
                         )}
                     </Select>
                 </Box>
-
-                <Box flexGrow={1}/>
-
-                <ContextSwitcher/>
-            </header>
+            </Flex>
 
             <h3>Your allocations</h3>
             {sortedAllocations.map(([rawType, tree]) => {
                 const type = rawType as ProductType;
-
 
                 return <Accordion
                     key={rawType}
@@ -557,33 +736,42 @@ const Allocations: React.FunctionComponent = () => {
                                 </Box>}
                             >
                                 <Box ml={`${indent * 2}px`}>
-                                    {wallet.allocations.map(alloc =>
-                                        <Accordion
-                                            key={alloc.id}
-                                            noBorder
-                                            icon={"heroBanknotes"}
-                                            title={<>
-                                                <b>Allocation ID:</b> {alloc.id}
-                                                {alloc.grantedIn && <>
-                                                    {" "}
-                                                    (
-                                                    <Link target={"_blank"}
-                                                          to={AppRoutes.grants.editor(alloc.grantedIn)}>
-                                                        View grant application{" "}
-                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                                    </Link>
-                                                    )
+                                    {wallet.allocations
+                                        .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage || alloc.usageAndQuota.usage > 0)
+                                        .map(alloc =>
+                                            <Accordion
+                                                key={alloc.id}
+                                                noBorder
+                                                icon={"heroBanknotes"}
+                                                className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                                title={<>
+                                                    <b>Allocation ID:</b> {alloc.id}
+                                                    {alloc.grantedIn && <>
+                                                        {" "}
+                                                        (
+                                                        <Link target={"_blank"}
+                                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                            View grant application{" "}
+                                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                        </Link>
+                                                        )
+                                                    </>}
                                                 </>}
-                                            </>}
-                                            titleContent={<>
-                                                <ProgressBarWithLabel
-                                                    value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
-                                                    text={progressText(type, alloc.usageAndQuota)}
-                                                    width={`${baseProgress}px`}
-                                                />
-                                            </>}
-                                        />
-                                    )}
+                                                titleContent={<Flex flexDirection={"row"} gap={"8px"}>
+                                                    {alloc.note && <>
+                                                        <TooltipV2 tooltip={alloc.note.text}>
+                                                            <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
+                                                        </TooltipV2>
+                                                    </>}
+                                                    <ProgressBarWithLabel
+                                                        value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
+                                                        text={progressText(type, alloc.usageAndQuota)}
+                                                        width={`${baseProgress}px`}
+                                                    />
+                                                </Flex>}
+                                            />
+                                        )
+                                    }
                                 </Box>
                             </Accordion>
                         )}
@@ -591,18 +779,28 @@ const Allocations: React.FunctionComponent = () => {
                 </Accordion>;
             })}
 
-            <h3>Sub-allocations</h3>
+            <Flex mt={32} mb={10} alignItems={"center"}>
+                <h3 style={{margin: 0}}>Sub-allocations</h3>
+                <Box flexGrow={1} />
+                <Button height={35}>
+                    <Icon name={"heroPlus"} mr={8} />
+                    New sub-project
+                </Button>
+            </Flex>
+
             {state.subAllocations.recipients.map((recipient, idx) =>
                 <Accordion
                     key={idx}
                     noBorder
                     title={<Flex gap={"4px"} alignItems={"center"}>
                         <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
-                            <Avatar {...defaultAvatar} style={{height: "28px", width: "auto"}} avatarStyle={"Transparent"} />
+                            <Avatar {...defaultAvatar} style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                    avatarStyle={"Circle"}/>
                         </TooltipV2>
                         {recipient.owner.title}
                     </Flex>}
-                    titleContent={<Flex gap={"8px"}>
+                    titleContent={<div className={"sub-alloc"}>
+                        <Button><Icon name={"heroPlus"} /></Button>
                         {recipient.usageAndQuota.map((uq, idx) =>
                             <ProgressBarWithLabel
                                 key={idx}
@@ -611,32 +809,43 @@ const Allocations: React.FunctionComponent = () => {
                                 width={`${baseProgress}px`}
                             />
                         )}
-                    </Flex>}
+                    </div>}
                 >
                     <Box ml={32}>
-                        {recipient.allocations.map((alloc, idx) =>
-                            <Accordion
-                                key={idx}
-                                omitChevron
-                                noBorder
-                                title={<Flex gap={"4px"}>
-                                    <Flex gap={"4px"} width={"200px"}>
-                                        <ProviderLogo providerId={alloc.category.provider} size={20}/>
-                                        <Icon name={Accounting.productTypeToIcon(alloc.category.productType)} size={20} />
-                                        <code>{alloc.category.name}</code>
-                                    </Flex>
+                        {recipient.allocations
+                            .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage || alloc.usageAndQuota.usage > 0)
+                            .map((alloc, idx) =>
+                                <Accordion
+                                    key={idx}
+                                    omitChevron
+                                    noBorder
+                                    className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                    title={<Flex gap={"4px"}>
+                                        <Flex gap={"4px"} width={"200px"}>
+                                            <ProviderLogo providerId={alloc.category.provider} size={20}/>
+                                            <Icon name={Accounting.productTypeToIcon(alloc.category.productType)}
+                                                  size={20}/>
+                                            <code>{alloc.category.name}</code>
+                                        </Flex>
 
-                                    {alloc.allocationId && <span> <b>Allocation ID:</b> {alloc.allocationId}</span>}
-                                </Flex>}
-                                titleContent={
-                                    <ProgressBarWithLabel
-                                        value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
-                                        text={progressText(alloc.category.productType, alloc.usageAndQuota)}
-                                        width={`${baseProgress}px`}
-                                    />
-                                }
-                            />
-                        )}
+                                        {alloc.allocationId && <span> <b>Allocation ID:</b> {alloc.allocationId}</span>}
+                                    </Flex>}
+                                    titleContent={<Flex flexDirection={"row"} gap={"8px"}>
+                                        {alloc.note && <>
+                                            <TooltipV2 tooltip={alloc.note.text}>
+                                                <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
+                                            </TooltipV2>
+                                        </>}
+
+                                        <ProgressBarWithLabel
+                                            value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
+                                            text={progressText(alloc.category.productType, alloc.usageAndQuota)}
+                                            width={`${baseProgress}px`}
+                                        />
+                                    </Flex>}
+                                />
+                            )
+                        }
                     </Box>
 
                 </Accordion>
@@ -648,6 +857,21 @@ const Allocations: React.FunctionComponent = () => {
 // Utility components
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
+const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+];
+
 const productTypesByPriority: ProductType[] = [
     "COMPUTE",
     "STORAGE",
@@ -671,10 +895,27 @@ function progressText(type: ProductType, uq: UsageAndQuota): string {
     return text;
 }
 
+function allocationIsActive(alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2): boolean {
+    const now = timestampUnixMs();
+    return periodsOverlap(allocationToPeriod(alloc), { start: now, end: now });
+}
+
+function allocationToPeriod(alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2): Period {
+    return { start: alloc.startDate, end: alloc.endDate ?? Number.MAX_SAFE_INTEGER };
+}
+
+function normalizePeriodForComparison(period: Period): Period {
+    return { start: ((period.start / 1000) | 0) * 1000, end: ((period.end / 1000) | 0) * 1000, title: period.title };
+}
+
+function periodsOverlap(a: Period, b: Period): boolean {
+    return a.start <= b.end && b.start <= a.end;
+}
+
 // Initial state
 // =====================================================================================================================
 const initialState: State = {
-    periodSelection: {availablePeriods: [], currentPeriodIdx: 0},
+    periodSelection: {availablePeriods: [], currentPeriodIdx: 0, periodSize: PeriodSize.YEARLY},
     remoteData: {subAllocations: [], wallets: []},
     subAllocations: {searchQuery: "", recipients: []},
     yourAllocations: {}
