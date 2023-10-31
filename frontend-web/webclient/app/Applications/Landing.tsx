@@ -141,7 +141,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                 <MainContainer main={
                     <Box mx="auto" maxWidth="1340px">
                         <Flex justifyContent="right" mt="30px">
-                            <AppSearchBox />
+                            <AppSearchBox hidden={false} />
                             <ContextSwitcher />
                         </Flex>
                         <Box mt="12px" />

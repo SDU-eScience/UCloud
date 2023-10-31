@@ -15,21 +15,24 @@ import * as Pages from "./Pages";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
+import {placeholderImage} from "@/ui-components/ResourceBrowser";
+import {SvgCache} from "@/Utilities/SvgCache";
+import {marginLeft} from "styled-system";
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
-        width: 300px;
-        position: relative;
-        margin-right: 15px;
         align-items: center;
     }
 
-    ${k} input {
+    ${k} div {
+        width: 300px;
+        position: relative;
+        align-items: center;
+        justify-content: space-evenly;
+    }
+
+    ${k} input.search-field {
         width: 100%;
-        border: 1px solid var(--midGray);
-        background: var(--white);
-        border-radius: 6px;
-        padding-left: 1.2em;
         padding-right: 2.5rem;
     }
 
@@ -42,26 +45,57 @@ const AppSearchBoxClass = injectStyle("app-search-box", k => `
         right: 0;
         height: 2.4rem;
     }
+
+    ${k} .search-icon {
+        margin-right: 15px;
+        margin-left: 15px;
+    }
 `);
 
-export const AppSearchBox: React.FunctionComponent<{value?: string}> = props => {
+export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boolean}> = props => {
     const navigate = useNavigate();
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const [isHidden, setHidden] = React.useState(props.hidden ?? true);
 
-    return <Flex className={AppSearchBoxClass} justifyContent="space-evenly">
-        <Input
-            defaultValue={props.value}
-            placeholder="Search for applications..."
-            onKeyUp={e => {
-                console.log(e);
-                if (e.key === "Enter") {
-                    navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
-                }
-            }}
-            autoFocus
-        />
-        <button>
-            <Icon name="search" size={20} color="darkGray" my="auto" />
-        </button>
+    return <Flex className={AppSearchBoxClass}>
+        {isHidden ? null : (
+            <Flex>
+                <Input
+                    className="search-field"
+                    defaultValue={props.value}
+                    inputRef={inputRef}
+                    placeholder="Search for applications..."
+                    onKeyUp={e => {
+                        if (e.key === "Enter") {
+                            const queryCurrent = inputRef.current;
+                            if (!queryCurrent) return;
+
+                            const queryValue = queryCurrent.value;
+
+                            if (queryValue === "") return;
+
+                            navigate(AppRoutes.apps.search(queryValue));
+                        }
+                    }}
+                    autoFocus
+                />
+                <button>
+                    <Icon name="search" size={20} color="darkGray" my="auto" onClick={e => {
+                        const queryCurrent = inputRef.current;
+                        if (!queryCurrent) return;
+
+                        const queryValue = queryCurrent.value;
+
+                        if (queryValue === "") return;
+
+                        navigate(AppRoutes.apps.search(queryValue));
+                    }} />
+                </button>
+            </Flex>
+        )}
+        <Icon name="heroMagnifyingGlass" cursor="pointer" size="24" color="blue" className="search-icon" onClick={() =>
+            setHidden(!isHidden)
+        } />
     </Flex>;
 }
 
@@ -120,7 +154,7 @@ export const SearchResults: React.FunctionComponent = () => {
 
     return <Box mx="auto" maxWidth="1340px">
         <Flex width="100%" mt="30px" justifyContent="right">
-            <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} />
+            <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} hidden={false} />
             <ContextSwitcher />
         </Flex>
         <Box mt="12px" />
