@@ -4,7 +4,7 @@ import Box from "./Box";
 import Icon, {IconName} from "./Icon";
 import {ListRow} from "./List";
 import {ThemeColor} from "./theme";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {CSSProperties} from "react";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
@@ -21,6 +21,7 @@ export function Accordion(props: React.PropsWithChildren<{
     omitChevron?: boolean;
     borderColor?: string;
     panelProps?: MarginProps & PaddingProps;
+    className?: string;
 }>): JSX.Element {
     const color = props.iconColor ?? "text";
     const [open, setOpen] = React.useState(false);
@@ -29,7 +30,7 @@ export function Accordion(props: React.PropsWithChildren<{
     if (props.borderColor) style["--separatorColor"] = `var(--${props.borderColor})`;
     return (
         <>
-            <div className={AccordionStyleClass} style={style} data-active={isOpen} data-no-order={props.noBorder ?? false} onClick={() => setOpen(!open)}>
+            <div className={classConcat(AccordionStyleClass, props.className)} style={style} data-active={isOpen} data-no-order={props.noBorder ?? false} onClick={() => setOpen(!open)}>
                 <ListRow
                     stopPropagation={false}
                     left={props.title}
