@@ -5,7 +5,7 @@ import React, {useEffect, useState} from "react";
 import {Absolute, Flex, Grid, Icon, Link, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
 
-export const ApplicationRowContainerClass = injectStyle("tag-grid-bottom-box", k => `
+export const ApplicationRowContainerClass = injectStyle("application-row-container", k => `
     ${k} {
         padding: 15px 10px 15px 10px;
         margin: 0 -10px;
@@ -114,8 +114,8 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                     </Flex>
                 </div>
             :
-                scrolling ?
-                    <div ref={scrollRef} className={ApplicationRowContainerClass}>
+                <div ref={scrollRef} className={ApplicationRowContainerClass}>
+                    {scrolling ?
                         <Grid
                             gridGap="25px"
                             gridTemplateRows={"repeat(1, 1fr)"}
@@ -137,12 +137,10 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                                 </>
                             )}
                         </Grid>
-                    </div>
-                :
-                    <div ref={scrollRef} className={ApplicationRowContainerClass}>
+                    :
                         <Flex
-                            justifyContent="left"
-                            gap="10px"
+                            justifyContent={items.length < 6 ? "left" : "space-between"}
+                            gap="25px"
                             py="10px"
                         >
                             {items.map(app =>
@@ -158,7 +156,8 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                                 </Link>
                             )}
                         </Flex>
-                    </div>
+                    }
+                </div>
             }
         </>
     )

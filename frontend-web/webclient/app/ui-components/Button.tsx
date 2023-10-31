@@ -76,7 +76,7 @@ export const ButtonClass = injectStyle("button", k => `
     }
     
     ${k}, ${k}[data-size=standard] {
-        height: 42px;
+        height: 35px;
         border-radius: 8px;
         font-size: 14px;
     }
@@ -105,7 +105,7 @@ export const ButtonClass = injectStyle("button", k => `
 
 const standardButtonSizes: {height: number; name: string;}[] = [
     {height: 55, name: "large"},
-    {height: 42, name: "standard"},
+    {height: 35, name: "standard"},
     {height: 35, name: "small"},
     {height: 25, name: "extra-small"},
 ];
@@ -121,7 +121,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
             bestMatch = props.standardSize ?? StandardButtonSize.STANDARD;
         } else {
             let height = parseInt(extractSize(props.height));
-            if (isNaN(height)) height = 42;
+            if (isNaN(height)) height = 35;
 
             let diff = 1000000000000000000;
             for (let i = 0; i < standardButtonSizes.length; i++) {

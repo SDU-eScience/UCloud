@@ -106,7 +106,7 @@ export const AppGroup: React.FunctionComponent = () => {
                 </Flex>
 
                 {!appList.data ? <>No apps found</> : (
-                    <List width="100%">
+                    <List width="100%" height="70vh" overflow="auto">
                         {appList.data.items.map(app => (
                             group.data!.applications.map(app => app.metadata.name).includes(app.metadata.name) ? null : (
                                 <ListRow

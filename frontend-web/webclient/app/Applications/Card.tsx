@@ -57,68 +57,6 @@ const AppCardBase = injectStyle("app-card-base", k => `
     }
 `);
 
-const ApplicationCardContainer = injectStyle("application-card-container", k => `
-    ${k} {
-        display: flex;
-        flex-direction: column;
-    }
-
-    ${k} > ${AppCardBase}:first-child {
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
-    }
-
-    ${k} > ${AppCardBase} {
-        border-top: 0;
-    }
-
-    ${k} > ${AppCardBase}:last-child {
-        border-bottom-left-radius: 5px;
-        border-bottom-right-radius: 5px;
-    }
-`);
-
-const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    return (
-        <Box className={AppCardBase}>
-            <Box mr={16}>
-                <AppToolLogo name={props.logo} type={"APPLICATION"} size={"32px"} />
-            </Box>
-            <b>{props.title}</b>
-            <EllipsedText>
-                <Markdown
-                    disallowedElements={[
-                        "break",
-                        "paragraph",
-                        "emphasis",
-                        "strong",
-                        "thematicBreak",
-                        "blockquote",
-                        "delete",
-                        "link",
-                        "image",
-                        "linkReference",
-                        "imageReference",
-                        "table",
-                        "tableRow",
-                        "tableCell",
-                        "list",
-                        "listItem",
-                        "definition",
-                        "heading",
-                        "inlineCode",
-                        "code",
-                        "html"]}
-                    unwrapDisallowed
-                >
-                    {props.description ?? ""}
-                </Markdown>
-            </EllipsedText>
-            <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
-        </Box>
-    );
-};
-
 export const Tag = ({label, bg = "black"}: {label: string; bg?: ThemeColor}): JSX.Element => (
     <div style={{
         marginRight: "3px",

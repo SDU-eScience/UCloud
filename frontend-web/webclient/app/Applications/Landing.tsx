@@ -19,7 +19,9 @@ import {toggleAppFavorite} from "./Redux/Actions";
 import {useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
-import ucloudImage from "@/Assets/Images/ucloud-2.png";
+import favoritesImage from "@/Assets/Images/ucloud-2.png";
+import featuredImage from "/Images/ucloud-1.png";
+import popularImage from "/Images/ucloud-9.svg";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationRowContainerClass} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
@@ -70,20 +72,21 @@ function ViewAllButton(): JSX.Element {
     </div>;
 }
 
-const LandingDivider = injectStyle("landing-divider", k => `
+const AppStoreVisualClass = injectStyle("app-store-visual", k => `
     ${k} {
-        margin-top: 50px;
-        margin-bottom: 50px;
+        margin-top: 60px;
+        margin-bottom: 40px;
+        justify-content: space-around;
+        align-items: center;
     }
 
     ${k} h1 {
         text-align: center;
-        margin-top: 50px;
         color: #5c89f4;
     }
 
     ${k} img {
-        max-height: 250px;
+        max-height: 200px;
         transform: scaleX(-1);
     }
 `);
@@ -146,11 +149,21 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         </Flex>
                         <Box mt="12px" />
 
+                        <Flex className={AppStoreVisualClass}>
+                            <Heading.h1>Favorite Applications</Heading.h1>
+                            <img src={favoritesImage} />
+                        </Flex>
+
                         <FavoriteAppRow
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
                             refreshId={refreshId}
                         />
+
+                        <Flex className={AppStoreVisualClass}>
+                            <img src={featuredImage} />
+                            <Heading.h1>Featured Applications</Heading.h1>
+                        </Flex>
 
                         {sections.data.sections[0] ?
                             <>
@@ -171,9 +184,9 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         : <></>}
 
 
-                        <Flex className={LandingDivider} justifyContent="space-around">
-                            <Heading.h1>Featured<br />Applications</Heading.h1>
-                            <img src={ucloudImage} />
+                        <Flex className={AppStoreVisualClass}>
+                            <Heading.h1>Popular Applications</Heading.h1>
+                            <img src={popularImage} />
                         </Flex>
 
                         {sections.data.sections[1] ?
@@ -240,6 +253,16 @@ function filterAppsByFavorite(
     }
 }
 
+const FavoriteRowContainerClass = injectStyle("favorite-row-container", k => `
+    ${k} {
+    }
+
+    ${k} h4 {
+    }
+`);
+
+
+
 function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
     const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const filteredItems = React.useMemo(() =>
@@ -247,21 +270,27 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.
         [items, favoriteStatus.current]
     );
 
-    return <Flex overflowX="auto" width="100%">
-        <div className={ApplicationRowContainerClass}>
-            {filteredItems.map(app =>
-                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                    <AppCard
-                        type={ApplicationCardType.TALL}
-                        title={app.metadata.title}
-                        logo={app.metadata.name}
-                        logoType="APPLICATION"
-                        description={app.metadata.description}
-                    />
-                </Link>
-            )}
-        </div>
-    </Flex>
+    return <div className={FavoriteRowContainerClass}>
+            <div className={ApplicationRowContainerClass}>
+                <Flex
+                    justifyContent="left"
+                    gap="25px"
+                    py="10px"
+                >
+                    {filteredItems.map(app =>
+                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                            <AppCard
+                                type={ApplicationCardType.TALL}
+                                title={app.metadata.title}
+                                logo={app.metadata.name}
+                                logoType="APPLICATION"
+                                description={app.metadata.description}
+                            />
+                        </Link>
+                    )}
+                </Flex>
+            </div>
+    </div>
 }
 
 export default ApplicationsLanding;
