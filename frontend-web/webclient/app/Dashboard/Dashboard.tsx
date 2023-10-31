@@ -47,7 +47,7 @@ import {injectStyle} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
-import ucloudImage from "@/Assets/Images/ucloud-2.png";
+import deicImage from "@/Assets/Images/deic-dashboard.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 
 function Dashboard(): JSX.Element {
@@ -497,7 +497,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                             right={<Link to="/news/list/">View more</Link>}
                         />)}
                 </div>
-                <img src={ucloudImage} />
+                <img src={deicImage} />
             </div>
         </HighlightedCard>
     );
