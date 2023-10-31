@@ -254,7 +254,7 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
                         text: "Archive",
                         icon: "tags",
                         enabled(entries) {
-                            return entries.length > 0 && entries.every(it => !it.project.archived);
+                            return entries.length > 0 && entries.every(it => !it.project.archived && isAdminOrPI(it.role));
                         },
                         onClick(entries) {
                             onSetArchivedStatus(entries.map(it => it.project.id), true);
@@ -263,7 +263,7 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
                         text: "Unarchive",
                         icon: "tags",
                         enabled(entries) {
-                            return entries.length > 0 && entries.every(it => it.project.archived);
+                            return entries.length > 0 && entries.every(it => it.project.archived && isAdminOrPI(it.role));
                         },
                         onClick(entries) {
                             onSetArchivedStatus(entries.map(it => it.project.id), false);
