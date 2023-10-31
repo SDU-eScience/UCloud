@@ -247,7 +247,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
-                        <Button mb="8px" className={BorderRadiusButton} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
+                        <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes disabled={loading} fullWidth color="wayfGreen">
                             <Image color="#fff" width="100px" src={wayfLogo} />
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
