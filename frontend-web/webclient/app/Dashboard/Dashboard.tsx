@@ -1,15 +1,15 @@
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {updatePageTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
-import {connect} from "react-redux";
+import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
 import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
-import {DashboardOperations, DashboardProps} from ".";
+import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
 import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -43,19 +43,23 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 
-function Dashboard(props: DashboardProps): JSX.Element {
+function Dashboard(): JSX.Element {
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
         withHidden: false,
     }), emptyPage);
+
+    const dispatch = useDispatch();
+
+    const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
@@ -64,16 +68,17 @@ function Dashboard(props: DashboardProps): JSX.Element {
         {noop: true},
         emptyPageV2
     );
+    
+    useTitle("Dashboard");
 
     React.useEffect(() => {
-        props.onInit();
-        reload(true);
-        props.setRefresh(() => reload(true));
-        return () => props.setRefresh();
+        reload();
+        reduxOps.setRefresh(() => reload());
+        return () => reduxOps.setRefresh();
     }, []);
 
-    function reload(loading: boolean): void {
-        props.setAllLoading(loading);
+    function reload(): void {
+        reduxOps.setAllLoading(true);
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
@@ -443,7 +448,7 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
         color="green"
         icon="heroDocumentCheck"
     >
-            <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
+        <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
     </HighlightedCard>;
 };
 
@@ -534,11 +539,12 @@ const NewsClass = injectStyle("with-graphic", k => `
 `);
 
 
-const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
-    onInit: () => dispatch(updatePageTitle("Dashboard")),
-    setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
-    setAllLoading: loading => dispatch(setAllLoading(loading)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
-});
+function reduxOperations(dispatch: Dispatch): DashboardOperations{
+    return {
+        setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
+        setAllLoading: loading => dispatch(setAllLoading(loading)),
+        setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    };
+}
 
-export default connect(null, mapDispatchToProps)(Dashboard);
+export default Dashboard;

@@ -37,7 +37,7 @@ export interface ResourceBrowserOpts<T> {
     disabledKeyhandlers?: boolean;
     // Note(Jonas): Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
     // are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
-    embedded?: boolean; // TODO(Jonas): Rename to something like 'simple' or similar.
+    embedded?: boolean;
     // Note(Jonas): Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
     // to ensure that some keyhandler are only done for the active modal, and not a potential parent ResBrowser-comp. 
     isModal?: boolean;

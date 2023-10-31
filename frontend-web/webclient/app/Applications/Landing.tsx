@@ -20,8 +20,6 @@ import {useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
-import bgImage from "@/Assets/Images/background_polygons.png";
-import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
