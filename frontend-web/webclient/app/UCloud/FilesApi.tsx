@@ -531,7 +531,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FileBrowse opts={{
-                            embedded: true, isModal: true, selection: {
+                            isModal: true, selection: {
                                 text: "Copy to",
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {
@@ -583,7 +583,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(<>
                         <FileBrowse opts={{
-                            embedded: true, isModal: true, selection: {
+                            isModal: true, selection: {
                                 text: "Move to",
                                 onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
                                 onSelect: async (res) => {

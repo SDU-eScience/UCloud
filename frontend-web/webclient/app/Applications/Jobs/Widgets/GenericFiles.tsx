@@ -57,7 +57,6 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             <FileBrowse
                 opts={{
                     additionalFilters: additionalFilters,
-                    embedded: true,
                     isModal: true,
                     initialPath: "",
                     selection: {

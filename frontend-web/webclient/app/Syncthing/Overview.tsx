@@ -358,7 +358,7 @@ export const Overview: React.FunctionComponent = () => {
         dialogStore.addDialog(
             <FileBrowse
                 opts={{
-                    embedded: true,
+                    isModal: true,
                     initialPath: "",
                     selection: {
                         text: "Sync",

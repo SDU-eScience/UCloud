@@ -135,7 +135,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             <JobBrowse
                 opts={{
                     additionalFilters: filters,
-                    embedded: true,
+                    isModal: true,
                     selection: {
                         text: "Use",
                         onSelectRestriction(job) {

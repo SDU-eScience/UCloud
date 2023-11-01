@@ -51,7 +51,6 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             <LicenseBrowse
                 opts={{
                     isModal: true,
-                    embedded: true,
                     additionalFilters: filters,
                     selection: {
                         text: "Use",

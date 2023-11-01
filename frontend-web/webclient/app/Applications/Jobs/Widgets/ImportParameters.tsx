@@ -171,7 +171,6 @@ export const ImportParameters: React.FunctionComponent<{
                         dialogStore.addDialog(
                             <FileBrowse
                                 opts={{
-                                    embedded: true,
                                     isModal: true,
                                     initialPath: "",
                                     selection: {
@@ -195,7 +194,6 @@ export const ImportParameters: React.FunctionComponent<{
                         onImportDialogClose();
                         dialogStore.addDialog(
                             <JobBrowse opts={{
-                                embedded: true,
                                 isModal: true,
                                 selection: {
                                     text: "Import",
