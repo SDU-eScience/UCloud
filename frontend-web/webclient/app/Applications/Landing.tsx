@@ -25,7 +25,6 @@ import popularImage from "/Images/ucloud-9.svg";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationRowContainerClass} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
-import {AppSearchBox} from "./Search";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -41,6 +40,71 @@ function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
 }
 
 type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
+
+const LandingAppSearchBoxClass = injectStyle("app-search-box", k => `
+    ${k} {
+        margin: -35px auto 0 auto;
+        width: 300px;
+        position: relative;
+        align-items: center;
+    }
+
+    ${k} input.search-field {
+        width: 100%;
+        padding-right: 2.5rem;
+    }
+
+    ${k} button {
+        background: none;
+        border: 0;
+        padding: 0px 10px 1px 10px;
+        cursor: pointer;
+        position: absolute;
+        right: 0;
+        height: 2.4rem;
+    }
+`);
+
+export const LandingAppSearchBox: React.FunctionComponent<{value?: string; hidden?: boolean}> = props => {
+    const navigate = useNavigate();
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    return <Flex className={LandingAppSearchBoxClass}>
+        <Input
+            className="search-field"
+            defaultValue={props.value}
+            inputRef={inputRef}
+            placeholder="Search for applications..."
+            onKeyUp={e => {
+                if (e.key === "Enter") {
+                    const queryCurrent = inputRef.current;
+                    if (!queryCurrent) return;
+
+                    const queryValue = queryCurrent.value;
+
+                    if (queryValue === "") return;
+
+                    navigate(AppRoutes.apps.search(queryValue));
+                }
+            }}
+            autoFocus
+        />
+        <button>
+            <Icon name="search" size={20} color="darkGray" my="auto" onClick={e => {
+                const queryCurrent = inputRef.current;
+                if (!queryCurrent) return;
+
+                const queryValue = queryCurrent.value;
+
+                if (queryValue === "") return;
+
+                navigate(AppRoutes.apps.search(queryValue));
+            }} />
+        </button>
+    </Flex>;
+}
+
+
 
 const ViewAllButtonClass = injectStyle("view-all-button", k => `
     ${k} {
@@ -74,19 +138,19 @@ function ViewAllButton(): JSX.Element {
 
 const AppStoreVisualClass = injectStyle("app-store-visual", k => `
     ${k} {
-        margin-top: 60px;
-        margin-bottom: 40px;
-        justify-content: space-around;
+        margin: 32px 0 20px 0;
+        justify-content: left;
         align-items: center;
+        gap: 15px;
     }
 
     ${k} h1 {
-        text-align: center;
         color: #5c89f4;
+        font-weight: 400;
     }
 
     ${k} img {
-        max-height: 200px;
+        max-height: 150px;
         transform: scaleX(-1);
     }
 `);
@@ -144,14 +208,14 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                 <MainContainer main={
                     <Box mx="auto" maxWidth="1340px">
                         <Flex justifyContent="right" mt="30px">
-                            <AppSearchBox hidden={false} />
                             <ContextSwitcher />
                         </Flex>
+                        <LandingAppSearchBox hidden={false} />
                         <Box mt="12px" />
 
                         <Flex className={AppStoreVisualClass}>
+                            {/* <img src={favoritesImage} /> */}
                             <Heading.h1>Favorite Applications</Heading.h1>
-                            <img src={favoritesImage} />
                         </Flex>
 
                         <FavoriteAppRow
@@ -161,7 +225,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         />
 
                         <Flex className={AppStoreVisualClass}>
-                            <img src={featuredImage} />
+                            {/* <img src={featuredImage} /> */}
                             <Heading.h1>Featured Applications</Heading.h1>
                         </Flex>
 
@@ -185,8 +249,8 @@ const ApplicationsLanding: React.FunctionComponent = () => {
 
 
                         <Flex className={AppStoreVisualClass}>
+                            {/* <img src={popularImage} /> */}
                             <Heading.h1>Popular Applications</Heading.h1>
-                            <img src={popularImage} />
                         </Flex>
 
                         {sections.data.sections[1] ?
@@ -271,25 +335,19 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.
     );
 
     return <div className={FavoriteRowContainerClass}>
-            <div className={ApplicationRowContainerClass}>
-                <Flex
-                    justifyContent="left"
-                    gap="25px"
-                    py="10px"
-                >
-                    {filteredItems.map(app =>
-                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                            <AppCard
-                                type={ApplicationCardType.TALL}
-                                title={app.metadata.title}
-                                logo={app.metadata.name}
-                                logoType="APPLICATION"
-                                description={app.metadata.description}
-                            />
-                        </Link>
-                    )}
-                </Flex>
-            </div>
+        <div className={ApplicationRowContainerClass}>
+            {filteredItems.map(app =>
+                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                    <AppCard
+                        type={ApplicationCardType.TALL}
+                        title={app.metadata.title}
+                        logo={app.metadata.name}
+                        logoType="APPLICATION"
+                        description={app.metadata.description}
+                    />
+                </Link>
+            )}
+        </div>
     </div>
 }
 

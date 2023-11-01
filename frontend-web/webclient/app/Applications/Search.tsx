@@ -15,9 +15,6 @@ import * as Pages from "./Pages";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
-import {placeholderImage} from "@/ui-components/ResourceBrowser";
-import {SvgCache} from "@/Utilities/SvgCache";
-import {marginLeft} from "styled-system";
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {

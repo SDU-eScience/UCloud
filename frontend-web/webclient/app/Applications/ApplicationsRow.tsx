@@ -7,9 +7,16 @@ import * as Pages from "./Pages";
 
 export const ApplicationRowContainerClass = injectStyle("application-row-container", k => `
     ${k} {
-        padding: 15px 10px 15px 10px;
+        display: flex;
+        justify-content: left;
+        gap: 25px;
+        padding: 12px 10px;
         margin: 0 -10px;
         overflow-x: auto;
+    }
+
+    ${k}[data-space-between=true] {
+        justify-content: space-between;
     }
 `);
 
@@ -93,56 +100,39 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
             </>}
 
             {type === ApplicationCardType.WIDE ?
-                <div ref={scrollRef} className={ApplicationRowContainerClass}>
-                    <Flex
-                        justifyContent={items.length < 3 ? "left" : "space-between"}
-                        gap="10px"
-                        py="10px"
-                    >
-                        {items.map(app =>
-                            <Link key={app.id} to={groupCardLink(app)}>
-                                <AppCard
-                                    type={ApplicationCardType.WIDE}
-                                    title={app.title}
-                                    description={app.description}
-                                    logo={app.id.toString()}
-                                    logoType="GROUP"
-                                    isFavorite={false}
-                                />
-                            </Link>
-                        )}
-                    </Flex>
+                <div ref={scrollRef} className={ApplicationRowContainerClass} data-space-between={items.length > 3}>
+                    {items.map(app =>
+                        <Link key={app.id} to={groupCardLink(app)}>
+                            <AppCard
+                                type={ApplicationCardType.WIDE}
+                                title={app.title}
+                                description={app.description}
+                                logo={app.id.toString()}
+                                logoType="GROUP"
+                                isFavorite={false}
+                            />
+                        </Link>
+                    )}
                 </div>
             :
-                <div ref={scrollRef} className={ApplicationRowContainerClass}>
+                <div ref={scrollRef} className={ApplicationRowContainerClass} data-space-between={items.length > 6}>
                     {scrolling ?
-                        <Grid
-                            gridGap="25px"
-                            gridTemplateRows={"repeat(1, 1fr)"}
-                            gridTemplateColumns={"repeat(auto-fill, 166px)"}
-                            style={{gridAutoFlow: "column"}}
-                        >
-                            {items.map(app =>
-                                <>
-                                    <Link key={app.id} to={groupCardLink(app)}>
-                                        <AppCard
-                                            type={ApplicationCardType.TALL}
-                                            title={app.title}
-                                            description={app.description}
-                                            logo={app.id.toString()}
-                                            logoType="GROUP"
-                                            isFavorite={false}
-                                        />
-                                    </Link>
-                                </>
-                            )}
-                        </Grid>
+                        items.map(app =>
+                            <>
+                                <Link key={app.id} to={groupCardLink(app)}>
+                                    <AppCard
+                                        type={ApplicationCardType.TALL}
+                                        title={app.title}
+                                        description={app.description}
+                                        logo={app.id.toString()}
+                                        logoType="GROUP"
+                                        isFavorite={false}
+                                    />
+                                </Link>
+                            </>
+                        )
                     :
-                        <Flex
-                            justifyContent={items.length < 6 ? "left" : "space-between"}
-                            gap="25px"
-                            py="10px"
-                        >
+                        <>
                             {items.map(app =>
                                 <Link key={app.id} to={groupCardLink(app)}>
                                     <AppCard
@@ -155,7 +145,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                                     />
                                 </Link>
                             )}
-                        </Flex>
+                        </>
                     }
                 </div>
             }

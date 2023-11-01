@@ -2,7 +2,7 @@ import * as React from "react";
 import {TextH1, TextH2, TextH3, TextH4, TextH5, TextH6} from "./Text";
 
 export const h1 = ({children, ...props}): JSX.Element =>
-    (<TextH1 bold={true} fontSize={"40px"} m={0} {...props}>{children}</TextH1>);
+    (<TextH1 bold={true} fontSize={"32px"} m={0} {...props}>{children}</TextH1>);
 export const h2 = ({children, ...props}): JSX.Element =>
     (<TextH2 bold={true} fontSize={"25px"} m={0} {...props}>{children}</TextH2>);
 export const h3 = ({children, ...props}): JSX.Element =>
