@@ -1460,30 +1460,21 @@ class AccountingProcessor(
                 println("price: $price")
                 return when (translateToChargeType(category)) {
                     ChargeType.ABSOLUTE -> {
-                        deltaCharge(
-                            requestWithNewUnit.toDelta(price)
-
-                        )
+                        deltaCharge(requestWithNewUnit.toDelta(price))
                     }
 
                     ChargeType.DIFFERENTIAL_QUOTA -> {
-                        totalCharge(
-                            requestWithNewUnit.toTotal(price)
-                        )
+                        totalCharge(requestWithNewUnit.toTotal(price))
                     }
                 }
             }
 
             is AccountingRequest.Charge.DeltaCharge -> {
-                return deltaCharge(
-                    request
-                )
+                return deltaCharge(request)
             }
 
             is AccountingRequest.Charge.TotalCharge -> {
-                return totalCharge(
-                    request
-                )
+                return totalCharge(request)
             }
             // Leaving redundant else in case we add more charge types
             else -> {
@@ -1692,9 +1683,9 @@ class AccountingProcessor(
             val difference = delta - amountCharged
             println("difference $difference")
             if (stillActiveAllocations.isEmpty()) {
-                // Have chosen the last allocation since it is most likely to change over time. Not like the
-                // first/oldest alloc
-                if (!chargeAllocation(walletAllocations.last().id.toInt(), difference)) {
+                // Will choose latest invalidated allocation to charge
+                val latest = walletAllocations.maxByOrNull { it.endDate }!!
+                if (!chargeAllocation(latest.id.toInt(), difference)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
                     )
