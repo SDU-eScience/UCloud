@@ -90,7 +90,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (provider, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.domain, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.domain, dims, row));
 
                     row.stat1.innerText = provider.owner.createdBy;
                     row.stat2.innerText = dateToString(provider.createdAt ?? timestampUnixMs());

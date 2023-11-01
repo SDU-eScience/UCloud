@@ -171,7 +171,7 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
                 browser.on("renderRow", (project, row, dims) => {
                     const title = project.project.title;
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims, row));
                     if (project.project.fullPath) row.title.title = project.project.fullPath;
 
                     if (project.project.archived) {

@@ -713,9 +713,9 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         browser.icons.renderIcon({name: "check", color: "white", color2: "white", width: 24, height: 24}).then(setSyncthingIcon);
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth)
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
                     row.title.append(title);
-                    row.title.title = title;                    // Disabled for now.
+                                                            // Disabled for now.
                     if (isReadonly(file.permissions.myself) && Math.random() > 2) {
                         row.title.appendChild(div(
                             `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`

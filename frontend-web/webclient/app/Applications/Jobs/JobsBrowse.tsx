@@ -129,7 +129,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     icon.style.minHeight = "20px"
                     row.title.append(icon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims, row));
                     if (!simpleView) {
                         row.stat1.innerText = job.owner.createdBy;
                         row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());

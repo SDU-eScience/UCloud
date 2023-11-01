@@ -100,7 +100,7 @@ const Scripts: React.FunctionComponent = () => {
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, dim));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, dim, row));
 
                     const lastRun = script.lastRun === 0 ? "Never" : format(script.lastRun, DATE_FORMAT)
                     const textNode = document.createTextNode(lastRun);

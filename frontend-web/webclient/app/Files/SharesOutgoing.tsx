@@ -294,12 +294,13 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
 
                     // Row title
                     if (isViewingShareGroupPreview(share)) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, dims));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, dims, row));
                     } else {
-                        const node = document.createTextNode(share.sourceFilePath);
+                        const node = ResourceBrowser.defaultTitleRenderer(share.sourceFilePath, dims, row);
                         row.title.append(node);
                         prettyFilePath(share.sourceFilePath).then(title => {
-                            node.textContent = ResourceBrowser.defaultTitleRenderer(title, dims);
+                            node.innerText = title;
+                            node.title = title;
                         });
                     }
 

@@ -332,7 +332,8 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                             share.owner.createdBy !== Client.username ?
                                 fileName(share.specification.sourceFilePath) :
                                 share.specification.sharedWith ?? share.id,
-                            dims
+                            dims,
+                            row
                         )
                     );
 

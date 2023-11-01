@@ -96,7 +96,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (provider, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.name, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.name, dims, row));
 
                     row.stat1.innerText = provider.owner.createdBy;
                     row.stat2.innerText = dateToString(provider.createdAt ?? timestampUnixMs());

@@ -27,6 +27,7 @@ import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
 import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
+import {TruncateClass} from "./Truncate";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
@@ -217,7 +218,7 @@ interface ResourceBrowserListenerMap<T> {
     "validDropTarget": (entry: T) => boolean;
     "renderDropIndicator": (selectedEntries: T[], currentTarget: string | null) => void;
 
-    "generateBreadcrumbs": (path: string) => ({ title: string, absolutePath: string }[]) | "custom-rendering";
+    "generateBreadcrumbs": (path: string) => ({title: string, absolutePath: string}[]) | "custom-rendering";
     "locationBarVisibilityUpdated": (visible: boolean) => void;
 
     "generateTabCompletionEntries": (prompt: string, shouldFetch: boolean, lastSelectedIndex: number) => string[] | Promise<void>;
@@ -1011,15 +1012,38 @@ export class ResourceBrowser<T> {
         }
     }
 
-    static defaultTitleRenderer(title: string, dimensions: RenderDimensions): string {
-        const approximateSizeForTitle = dimensions.width * (ResourceBrowser.rowTitleSizePercentage / 100);
-        const approximateSizePerCharacter = 7.1;
-        if (title.length * approximateSizePerCharacter > approximateSizeForTitle) {
-            title = title.substring(0, (approximateSizeForTitle / approximateSizePerCharacter) - 3) + "...";
-        }
+    static defaultTitleRenderer(title: string, dimensions: RenderDimensions, row: ResourceBrowserRow): HTMLDivElement {
+        const div = createHTMLElements<HTMLDivElement>({
+            tagType: "div",
+            className: TruncateClass,
+            style: {
+                userSelect: "none",
+                webkitUserSelect: "none" // This is deprecated, but this is the only one accepted in Safari.
+            }
+        });
+        div.innerText = title;
+        div.onclick = mockDoubleClick();
+        return div;
 
-        return visualizeWhitespaces(title);
+        function mockDoubleClick() {
+            const ALLOWED_CLICK_DELAY = 300;
+            return (e: MouseEvent) => {
+                const now = new Date().getTime();
+                const idx = row.container.getAttribute("data-idx")!;
+                var lastClick = ResourceBrowser.lastClickCache[idx];
+                if (lastClick + ALLOWED_CLICK_DELAY > now) {
+                    row.container.dispatchEvent(new Event("dblclick"))
+                    e.stopPropagation();
+                    lastClick = -1;
+                } else {
+                    lastClick = now;
+                }
+                ResourceBrowser.lastClickCache[idx] = lastClick;
+            }
+        }
     }
+
+    static lastClickCache: Record<string, number> = {};
 
     static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
@@ -2850,6 +2874,7 @@ export class ResourceBrowser<T> {
             }
 
             .file-browser {
+                container-type: inline-size;
                 width: 100%;
                 height: calc(100vh - 32px);
                 display: flex;
@@ -2988,10 +3013,14 @@ export class ResourceBrowser<T> {
                 align-items: center;
                 width: 85%;
                 white-space: pre;
-            }
-            @media screen and (min-width: 860px) {
-                .file-browser .row .title {
-                    width: ${ResourceBrowser.rowTitleSizePercentage}%;
+
+
+                @container (max-width: 600px) {
+                    max-width: 45%;
+                }
+
+                @container (min-width: 600px) {
+                        width: ${ResourceBrowser.rowTitleSizePercentage}%;
                 }
             }
 

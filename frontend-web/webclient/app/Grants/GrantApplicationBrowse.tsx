@@ -104,7 +104,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims, row));
                     if (opts?.both) {
                         const currentRevision = key.status.revisions.at(0);
                         if (currentRevision) {
