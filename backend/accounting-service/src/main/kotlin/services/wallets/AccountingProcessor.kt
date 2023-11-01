@@ -1725,10 +1725,20 @@ class AccountingProcessor(
         description: ChargeDescription
     ): AccountingResponse {
         println("applying: $totalUsage")
+        if (walletAllocations.isEmpty()) {
+            return AccountingResponse.Error("No allocations to charge from", 400)
+        }
         var activeQuota = 0L
         val activeAllocations = walletAllocations.mapNotNull {
             if (it.isActive()) {
                 activeQuota += it.quota
+                it.id
+            } else {
+                null
+            }
+        }
+        val allocationsUsedBeforeChange = walletAllocations.mapNotNull {
+            if (it.localUsage > 0) {
                 it.id
             } else {
                 null
@@ -1785,22 +1795,47 @@ class AccountingProcessor(
 
         if (totalCharged != totalUsage) {
             val difference = totalUsage - totalCharged
-            val amountPerAllocation = difference / activeAllocations.size
-            var isFirst = true
-
-            for (allocation in activeAllocations) {
-                if (isFirst) {
-                    if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+            if (activeAllocations.isEmpty()) {
+                if (allocationsUsedBeforeChange.isEmpty()) {
+                    return AccountingResponse.Error("No old allocations to charge from", 400)
+                }
+                val amountPerAllocation = difference / allocationsUsedBeforeChange.size
+                var isFirst = true
+                //If we do not have any active allocations to choose from we should charge does that was in use before
+                //the charge
+                for (allocation in allocationsUsedBeforeChange) {
+                    if (isFirst) {
+                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+                            return AccountingResponse.Error(
+                                "Internal Error in charging remainder of non-periodic", 500
+                            )
+                        }
+                        isFirst = false
+                    }
+                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
                         return AccountingResponse.Error(
-                            "Internal Error in charging remainder of non-periodic", 500
+                            "Internal Error in charging remaining of non-periodic", 500
                         )
                     }
-                    isFirst = false
                 }
-                if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
-                    return AccountingResponse.Error(
-                        "Internal Error in charging remaining of non-periodic", 500
-                    )
+            } else {
+                // If we have any active allocations then we want to use does and keep the reset of the old ones.
+                val amountPerAllocation = difference / activeAllocations.size
+                var isFirst = true
+                for (allocation in activeAllocations) {
+                    if (isFirst) {
+                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+                            return AccountingResponse.Error(
+                                "Internal Error in charging remainder of non-periodic", 500
+                            )
+                        }
+                        isFirst = false
+                    }
+                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
+                        return AccountingResponse.Error(
+                            "Internal Error in charging remaining of non-periodic", 500
+                        )
+                    }
                 }
             }
             if (activeQuota < totalUsage) {
