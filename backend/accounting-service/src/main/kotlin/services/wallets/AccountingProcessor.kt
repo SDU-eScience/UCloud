@@ -1684,7 +1684,7 @@ class AccountingProcessor(
             println("difference $difference")
             if (stillActiveAllocations.isEmpty()) {
                 // Will choose latest invalidated allocation to charge
-                val latest = walletAllocations.maxByOrNull { it.endDate }!!
+                val latest = walletAllocations.filter{ it.endDate <= Time.now() }.maxByOrNull { it.endDate }!!
                 if (!chargeAllocation(latest.id.toInt(), difference)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
