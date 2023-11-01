@@ -78,34 +78,34 @@ export const commonFileExtensions = [
     "dat", "binary", "rs",
 ];
 
-export function languageFromExtension(ext: string): string {
-    const languages = {
-        "md": "markdown",
-        "kt": "kotlin",
-        "kts": "kotlin",
-        "js": "javascript",
-        "jsx": "javascript",
-        "ts": "typescript",
-        "tsx": "typescript",
-        "py": "python",
-        "h": "c",
-        "cc": "c++",
-        "hh": "c++",
-        "h++": "c++",
-        "hpp": "c++",
-        "cpp": "c++",
-        "cxx": "c++",
-        "hxx": "c++",
-        "htm": "html",
-        "lhs": "haskell",
-        "hs": "haskell",
-        "sh": "shell",
-        "bib": "tex",
-        "yml": "yaml",
-        "sbatch": "shell",
-        "rs": "rust"
-    };
+const languages = {
+    "md": "markdown",
+    "kt": "kotlin",
+    "kts": "kotlin",
+    "js": "javascript",
+    "jsx": "javascript",
+    "ts": "typescript",
+    "tsx": "typescript",
+    "py": "python",
+    "h": "c",
+    "cc": "c++",
+    "hh": "c++",
+    "h++": "c++",
+    "hpp": "c++",
+    "cpp": "c++",
+    "cxx": "c++",
+    "hxx": "c++",
+    "htm": "html",
+    "lhs": "haskell",
+    "hs": "haskell",
+    "sh": "shell",
+    "bib": "tex",
+    "yml": "yaml",
+    "sbatch": "shell",
+    "rs": "rust",
+};
 
+export function languageFromExtension(ext: string): string {
     return languages[ext.toLowerCase()] ?? ext.toLowerCase();
 }
 
