@@ -27,3 +27,12 @@ export function takeLast<T>(items: T[], numberOfItems: number): T[] {
 export function deepCopy<T>(item: T): T {
     return deepcopy(item);
 }
+
+export function createRecordFromArray<T, V>(array: T[], keyValueMapper: (value: T) => [string, V]): Record<string, V> {
+    const result: Record<string, V> = {};
+    for (const elem of array) {
+        const [k, v] = keyValueMapper(elem);
+        result[k] = v;
+    }
+    return result;
+}
