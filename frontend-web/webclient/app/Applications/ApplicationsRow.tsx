@@ -9,7 +9,7 @@ export const ApplicationRowContainerClass = injectStyle("application-row-contain
     ${k} {
         display: flex;
         justify-content: left;
-        gap: 25px;
+        gap: 20px;
         padding: 12px 10px;
         margin: 0 -10px;
         overflow-x: auto;
@@ -99,56 +99,24 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                 </Relative>
             </>}
 
-            {type === ApplicationCardType.WIDE ?
-                <div ref={scrollRef} className={ApplicationRowContainerClass} data-space-between={items.length > 3}>
-                    {items.map(app =>
-                        <Link key={app.id} to={groupCardLink(app)}>
-                            <AppCard
-                                type={ApplicationCardType.WIDE}
-                                title={app.title}
-                                description={app.description}
-                                logo={app.id.toString()}
-                                logoType="GROUP"
-                                isFavorite={false}
-                            />
-                        </Link>
-                    )}
-                </div>
-            :
-                <div ref={scrollRef} className={ApplicationRowContainerClass} data-space-between={items.length > 6}>
-                    {scrolling ?
-                        items.map(app =>
-                            <>
-                                <Link key={app.id} to={groupCardLink(app)}>
-                                    <AppCard
-                                        type={ApplicationCardType.TALL}
-                                        title={app.title}
-                                        description={app.description}
-                                        logo={app.id.toString()}
-                                        logoType="GROUP"
-                                        isFavorite={false}
-                                    />
-                                </Link>
-                            </>
-                        )
-                    :
-                        <>
-                            {items.map(app =>
-                                <Link key={app.id} to={groupCardLink(app)}>
-                                    <AppCard
-                                        type={ApplicationCardType.TALL}
-                                        title={app.title}
-                                        description={app.description}
-                                        logo={app.id.toString()}
-                                        logoType="GROUP"
-                                        isFavorite={false}
-                                    />
-                                </Link>
-                            )}
-                        </>
-                    }
-                </div>
-            }
+            <div
+                ref={scrollRef}
+                className={ApplicationRowContainerClass}
+                data-space-between={type === ApplicationCardType.WIDE ? (items.length > 3) : (items.length > 6)}
+            >
+                {items.map(app =>
+                    <Link key={app.id} to={groupCardLink(app)}>
+                        <AppCard
+                            type={type}
+                            title={app.title}
+                            description={app.description}
+                            logo={app.id.toString()}
+                            logoType="GROUP"
+                            isFavorite={false}
+                        />
+                    </Link>
+                )}
+            </div>
         </>
     )
 

@@ -109,26 +109,22 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
                     {sections.data.sections.map(section =>
                         <div key={section.name} id={"section"+section.id.toString()}>
-                            <Spacer
-                                /* seeing as there's no `right`, can't this just be a normal heading with styling? */
-                                mt="15px" px="10px" alignItems={"center"}
-                                left={<Heading.h2>{section.name}</Heading.h2>}
-                                right={<></>}
-                            />
+                            <Box mb="30px">
+                                <Heading.h2>{section.name}</Heading.h2>
+                                <ApplicationRow
+                                    items={section.featured}
+                                    type={ApplicationCardType.WIDE}
+                                    refreshId={refreshId}
+                                    scrolling={false}
+                                />
 
-                            <ApplicationRow
-                                items={section.featured}
-                                type={ApplicationCardType.WIDE}
-                                refreshId={refreshId}
-                                scrolling={false}
-                            />
-
-                            <ApplicationRow
-                                items={section.items}
-                                type={ApplicationCardType.TALL}
-                                refreshId={refreshId}
-                                scrolling={true}
-                            />
+                                <ApplicationRow
+                                    items={section.items}
+                                    type={ApplicationCardType.TALL}
+                                    refreshId={refreshId}
+                                    scrolling={true}
+                                />
+                            </Box>
                         </div>
                     )}
                 </Box>
