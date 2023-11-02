@@ -1001,7 +1001,7 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invok
         }
     }, []);
 
-    return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
+    return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "100%"}}>
         <Text fontSize={24} mb="12px">Change sensitivity</Text>
         <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection}>
             {Object.keys(SensitivityLevelMap).map(it =>
