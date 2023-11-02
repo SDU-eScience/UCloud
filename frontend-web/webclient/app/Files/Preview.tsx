@@ -105,7 +105,7 @@ export function FilePreview({file}: {file: UFile}): React.ReactNode {
                         case "text":
                         case "application":
                         case "markdown":
-                            setData(await content.text());
+                            setData(new TextDecoder().decode(contentBuffer));
                             setError(null);
                             break;
                         default:
