@@ -173,20 +173,15 @@ export interface Doc {
     parentProjectId?: string | null;
 }
 
-type Form = PersonalWorkspaceForm | NewProjectForm | ExistingProjectForm;
+type Form = PlainTextForm | GrantGiverInitiatedForm;
 
-interface PersonalWorkspaceForm {
+interface PlainTextForm {
     type: "plain_text";
     text: string;
 }
 
-interface NewProjectForm {
-    type: "plain_text";
-    text: string;
-}
-
-interface ExistingProjectForm {
-    type: "plain_text";
+interface GrantGiverInitiatedForm {
+    type: "grant_giver_initiated";
     text: string;
 }
 

@@ -22,8 +22,6 @@ const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
 const Products = React.lazy(() => import("@/Products/Products"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
-const ProjectResources = React.lazy(() => import("@/Project/Resources"));
-const ProjectAllocations = React.lazy(() => import("@/Project/Allocations"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members2"));
 const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteLink"));
 const Search = React.lazy(() => import("@/Search/Search"));
@@ -215,10 +213,6 @@ const Core = (): React.JSX.Element => (
                             element={React.createElement(requireAuth(ProjectSettings))} />
                         <Route path={AppRoutes.project.settings(":page")}
                             element={React.createElement(requireAuth(ProjectSettings))} />
-                        <Route path={AppRoutes.project.usage()}
-                            element={React.createElement(requireAuth(ProjectResources))} />
-                        <Route path={AppRoutes.project.allocations()}
-                            element={React.createElement(requireAuth(ProjectAllocations))} />
 
                         <Route path={AppRoutes.grants.editor()} element={React.createElement(requireAuth(GrantEditor))} />
                         <Route path={AppRoutes.grants.ingoing()}

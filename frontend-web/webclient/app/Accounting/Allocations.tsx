@@ -18,6 +18,9 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
+import {addStandardInputDialog} from "@/UtilityComponents";
+import {useNavigate} from "react-router";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 // State
 // =====================================================================================================================
@@ -286,13 +289,19 @@ function stateReducer(state: State, action: UIAction): State {
     function selectPeriod(state: State, periodIndex: number): State {
         const period = getOrNull(state.periodSelection.availablePeriods, periodIndex);
 
+        let now = timestampUnixMs();
+        if (period && period.start > now) {
+            // Assume that 'now' is at the start of the period, if the period itself is in the future.
+            // This means that we do not grey out rows which start when the period starts.
+            now = period.start;
+        }
+
         function allocationNote(
             alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2
         ): AllocationNote | undefined {
             if (!period) return undefined;
             const p = normalizePeriodForComparison(period);
 
-            const now = timestampUnixMs();
             const allocPeriod = normalizePeriodForComparison(allocationToPeriod(alloc));
             if (now > allocPeriod.end) {
                 return {
@@ -354,6 +363,8 @@ function stateReducer(state: State, action: UIAction): State {
             periodsOverlap(period, allocationToPeriod(alloc))
         );
 
+        console.log(subAllocationsInPeriod);
+
         // Build the "your allocations" tree
         const yourAllocations: State["yourAllocations"] = {};
         {
@@ -367,12 +378,12 @@ function stateReducer(state: State, action: UIAction): State {
 
                 const quotaBalances = wallets.flatMap(wallet =>
                     wallet.allocations
-                        .filter(alloc => allocationIsActive(alloc))
+                        .filter(alloc => allocationIsActive(alloc, now))
                         .map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
                 );
                 const usageBalances = wallets.flatMap(wallet =>
                     wallet.allocations
-                        .filter(alloc => allocationIsActive(alloc))
+                        .filter(alloc => allocationIsActive(alloc, now))
                         .map(alloc => ({
                             balance: alloc.treeUsage ?? 0,
                             category: wallet.paysFor
@@ -393,11 +404,10 @@ function stateReducer(state: State, action: UIAction): State {
                     });
                 }
 
-                let allocBaseIdx = 0;
                 for (const wallet of wallets) {
                     const usage = Accounting.combineBalances(
                         wallet.allocations
-                            .filter(alloc => allocationIsActive(alloc))
+                            .filter(alloc => allocationIsActive(alloc, now))
                             .map(alloc => ({
                                 balance: alloc.treeUsage ?? 0,
                                 category: wallet.paysFor
@@ -405,9 +415,11 @@ function stateReducer(state: State, action: UIAction): State {
                     )
                     const quota = Accounting.combineBalances(
                         wallet.allocations
-                            .filter(alloc => allocationIsActive(alloc))
+                            .filter(alloc => allocationIsActive(alloc, now))
                             .map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
                     );
+
+                    console.log(usage, quota, wallet.allocations.map(it => it.id));
 
                     const unit = Accounting.explainUnit(wallet.paysFor);
 
@@ -431,8 +443,6 @@ function stateReducer(state: State, action: UIAction): State {
                             }
                         })),
                     });
-
-                    allocBaseIdx += wallet.allocations.length;
                 }
             }
         }
@@ -605,24 +615,19 @@ const AllocationsStyle = injectStyle("allocations", k => `
         align-items: center;
         gap: 8px;
     }
-    
-    ${k} .sub-alloc button {
-        height: 25px;
-        width: 25px;
-        padding: 12px;
-    }
-    
-    ${k} .sub-alloc button svg {
-        margin: 0;
-    }
 `);
 
 // User-interface
 // =====================================================================================================================
 const Allocations: React.FunctionComponent = () => {
     const projectId = useProjectId();
+    const navigate = useNavigate();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
+
+    const currentPeriod = state.periodSelection.availablePeriods[state.periodSelection.currentPeriodIdx];
+    const currentPeriodStart = currentPeriod?.start ?? timestampUnixMs();
+    const currentPeriodEnd = currentPeriod?.end ?? timestampUnixMs();
 
     useEffect(() => {
         dispatchEvent({type: "Init"});
@@ -642,6 +647,20 @@ const Allocations: React.FunctionComponent = () => {
         const target = ev.target as HTMLSelectElement;
         dispatchEvent({type: "PeriodSizeUpdated", selectedIndex: target.selectedIndex});
     }, [dispatchEvent]);
+
+    const onNewSubProject = useCallback(async () => {
+        const title = (await addStandardInputDialog({
+            title: "What should we call your new sub-project?",
+            confirmText: "Create sub-project"
+        })).result;
+
+        navigate(AppRoutes.grants.grantGiverInitiatedEditor({
+            title,
+            start: currentPeriodStart,
+            end: currentPeriodEnd,
+            piUsernameHint: Client.username ?? "?",
+        }));
+    }, [currentPeriodStart, currentPeriodEnd]);
 
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -782,7 +801,7 @@ const Allocations: React.FunctionComponent = () => {
             <Flex mt={32} mb={10} alignItems={"center"}>
                 <h3 style={{margin: 0}}>Sub-allocations</h3>
                 <Box flexGrow={1} />
-                <Button height={35}>
+                <Button height={35} onClick={onNewSubProject}>
                     <Icon name={"heroPlus"} mr={8} />
                     New sub-project
                 </Button>
@@ -800,7 +819,20 @@ const Allocations: React.FunctionComponent = () => {
                         {recipient.owner.title}
                     </Flex>}
                     titleContent={<div className={"sub-alloc"}>
-                        <Button><Icon name={"heroPlus"} /></Button>
+                        {recipient.owner.reference.type === "project" &&
+                            <Link
+                                to={AppRoutes.grants.grantGiverInitiatedEditor({
+                                    title: recipient.owner.title,
+                                    piUsernameHint: recipient.owner.primaryUsername,
+                                    projectId: recipient.owner.reference.projectId,
+                                    start: currentPeriodStart,
+                                    end: currentPeriodEnd,
+                                })}
+                            >
+                                <SmallIconButton icon={"heroPlus"} />
+                            </Link>
+                        }
+
                         {recipient.usageAndQuota.map((uq, idx) =>
                             <ProgressBarWithLabel
                                 key={idx}
@@ -811,7 +843,7 @@ const Allocations: React.FunctionComponent = () => {
                         )}
                     </div>}
                 >
-                    <Box ml={32}>
+                    <Box ml={43}>
                         {recipient.allocations
                             .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage || alloc.usageAndQuota.usage > 0)
                             .map((alloc, idx) =>
@@ -895,8 +927,10 @@ function progressText(type: ProductType, uq: UsageAndQuota): string {
     return text;
 }
 
-function allocationIsActive(alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2): boolean {
-    const now = timestampUnixMs();
+function allocationIsActive(
+    alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2,
+    now: number,
+): boolean {
     return periodsOverlap(allocationToPeriod(alloc), { start: now, end: now });
 }
 
@@ -911,6 +945,33 @@ function normalizePeriodForComparison(period: Period): Period {
 function periodsOverlap(a: Period, b: Period): boolean {
     return a.start <= b.end && b.start <= a.end;
 }
+
+const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
+    ${k},
+    ${k}:hover {
+        color: var(--white) !important;
+    }
+        
+    ${k} {
+        height: 25px !important;
+        width: 25px !important;
+        padding: 12px !important;
+    }
+    
+    ${k} svg {
+        margin: 0;
+    }
+`);
+
+const SmallIconButton: React.FunctionComponent<{
+    icon: IconName;
+    color?: ThemeColor;
+    onClick?: () => void;
+}> = props => {
+    return <Button className={SmallIconButtonStyle} onClick={props.onClick} color={props.color}>
+        <Icon name={props.icon} hoverColor={"white"} />
+    </Button>;
+};
 
 // Initial state
 // =====================================================================================================================
