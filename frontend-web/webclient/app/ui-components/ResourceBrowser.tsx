@@ -28,6 +28,7 @@ import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
 import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
@@ -431,9 +432,6 @@ export class ResourceBrowser<T> {
         ResourceBrowser.injectStyle();
 
         this.root.classList.add("file-browser");
-        if (this.opts.embedded || this.opts.selector) {
-            this.root.style.height = "auto";
-        }
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -499,8 +497,15 @@ export class ResourceBrowser<T> {
         };
 
         if (this.opts.embedded) {
+            this.root.style.height = "auto";
             this.emptyPageElement.container.style.marginTop = "80px";
             if (this.features.showHeaderInEmbedded !== true) this.header.style.display = "none";
+        }
+
+        if (this.isModal) {
+            this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
+            this.root.style.overflowY = "hidden";
+            this.scrolling.style.overflowY = "scroll";
         }
 
         const unmountInterval = window.setInterval(() => {
