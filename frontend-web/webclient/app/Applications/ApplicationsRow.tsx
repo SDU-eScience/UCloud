@@ -2,7 +2,7 @@ import {injectStyle} from "@/Unstyled";
 import {ApplicationGroup} from "./api";
 import {AppCard, ApplicationCardType} from "./Card";
 import React, {useEffect, useState} from "react";
-import {Absolute, Flex, Grid, Icon, Link, Relative} from "@/ui-components";
+import {Absolute, Icon, Link, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
 
 export const ApplicationRowContainerClass = injectStyle("application-row-container", k => `

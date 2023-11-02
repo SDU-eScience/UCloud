@@ -1,7 +1,7 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Button, Flex, Icon, Input, Link, theme} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Link, Relative, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {AppCard, ApplicationCardType, FavoriteApp} from "./Card";
 import * as Pages from "./Pages";
@@ -213,11 +213,6 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         <LandingAppSearchBox hidden={false} />
                         <Box mt="12px" />
 
-                        <Flex className={AppStoreVisualClass}>
-                            {/* <img src={favoritesImage} /> */}
-                            <Heading.h1>Favorite Applications</Heading.h1>
-                        </Flex>
-
                         <FavoriteAppRow
                             favoriteStatus={favoriteStatus}
                             onFavorite={onFavorite}
@@ -317,16 +312,6 @@ function filterAppsByFavorite(
     }
 }
 
-const FavoriteRowContainerClass = injectStyle("favorite-row-container", k => `
-    ${k} {
-    }
-
-    ${k} h4 {
-    }
-`);
-
-
-
 function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
     const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const filteredItems = React.useMemo(() =>
@@ -334,21 +319,31 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.
         [items, favoriteStatus.current]
     );
 
-    return <div className={FavoriteRowContainerClass}>
-        <div className={ApplicationRowContainerClass}>
+    return filteredItems.length < 1 ? <></> : <>
+        <Flex className={AppStoreVisualClass}>
+            {/* <img src={favoritesImage} /> */}
+            <Heading.h1>Favorite Applications</Heading.h1>
+        </Flex>
+        <div className={ApplicationRowContainerClass} data-space-between={items.length > 6}>
             {filteredItems.map(app =>
-                <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                    <AppCard
-                        type={ApplicationCardType.TALL}
-                        title={app.metadata.title}
-                        logo={app.metadata.name}
-                        logoType="APPLICATION"
-                        description={app.metadata.description}
-                    />
-                </Link>
+                <Flex>
+                    <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
+                        <AppCard
+                            type={ApplicationCardType.TALL}
+                            title={app.metadata.title}
+                            logo={app.metadata.name}
+                            logoType="APPLICATION"
+                            description={app.metadata.description}
+                            isFavorite={true}
+                        />
+                    </Link>
+                    <Relative top="6px" right="28px" width="0px" height="0px">
+                        <Icon cursor="pointer" name="starFilled" color="blue" hoverColor="blue" size="20px" onClick={() => onFavorite(app)} />
+                    </Relative>
+                </Flex>
             )}
         </div>
-    </div>
+    </>
 }
 
 export default ApplicationsLanding;
