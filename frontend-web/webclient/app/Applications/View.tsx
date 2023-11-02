@@ -78,7 +78,7 @@ export const AppHeader: React.FunctionComponent<{
                                 {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => navigate(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
                             </ClickableDropdown>
                             {newest && newest.metadata.version !== props.application.metadata.version ?
-                                <Tooltip trigger={
+                                <Tooltip tooltipContentWidth={390} trigger={
                                     <div className={TriggerDiv} onClick={e => {
                                         e.preventDefault();
                                         navigate(Pages.runApplication(newest.metadata));
@@ -111,7 +111,7 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     padding-left: 12px;
     padding-right: 12px;
     text-align: center;
-    color: var(--white);
+    color: var(--fixedWhite);
     background-color: var(--blue);
     border-radius: 20px;
     cursor: pointer;
