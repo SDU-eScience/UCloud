@@ -2972,6 +2972,7 @@ export class ResourceBrowser<T> {
             .file-browser .row {
                 display: flex;
                 flex-direction: row;
+                container-type: inline-size;
                 height: ${ResourceBrowser.rowSize}px;
                 width: 100%;
                 align-items: center;
