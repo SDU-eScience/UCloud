@@ -1,10 +1,9 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Flex, Icon, Input, Link} from "@/ui-components";
+import {Box, Flex, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {Spacer} from "@/ui-components/Spacer";
-import {ApplicationCardType, FavoriteApp} from "./Card";
+import {ApplicationCardType} from "./Card";
 import * as Pages from "./Pages";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -14,12 +13,10 @@ import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreSections = compute.AppStoreSections;
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useLocation, useNavigate} from "react-router";
-import AppRoutes from "@/Routes";
-import {ApplicationGroup} from "./api";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
 import {AppSearchBox} from "./Search";
@@ -28,10 +25,6 @@ export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
     titlePlural: "Applications"
 };
-
-export const ShowAllTagItem: React.FunctionComponent<{tag?: string; children: React.ReactNode;}> = props => (
-    <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
-);
 
 function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
     return `${metadata.name}/${metadata.version}`;

@@ -167,7 +167,7 @@ export const SearchResults: React.FunctionComponent = () => {
                                 title={app.metadata.title}
                                 description={app.metadata.description}
                                 logo={app.metadata.name}
-                                logoType="APPLICATION"
+                                contentType="APPLICATION"
                                 type={ApplicationCardType.WIDE}
                                 onFavorite={toggleFavorite}
                                 isFavorite={app.favorite}

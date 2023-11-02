@@ -18,7 +18,7 @@ interface ApplicationCardProps {
     title: string;
     description?: string;
     logo: string;
-    logoType: LogoType;
+    contentType: LogoType;
     isFavorite?: boolean;
     linkToRun?: boolean;
     colorBySpecificTag?: string;
@@ -353,37 +353,6 @@ const typeLineCount = {
     [ApplicationCardType.EXTRA_WIDE]: 9
 }
 
-const FavoriteAppClass = injectStyle("favorite-app", k => `
-    ${k} {
-        width: 64px;
-        height: 64px;
-        border-radius: 99999px;
-        box-shadow: rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
-        display: flex;
-        background-color: var(--fixedWhite);
-        padding-left: 13px;
-        align-items: center;
-        border: 1px solid var(--midGray);
-    }
-    
-    html.dark ${k} {
-        border: 1px solid var(--lightGray);
-        box-shadow: rgba(255, 255, 255, 0.2) 0px 3px 5px -1px, rgba(255, 255, 255, 0.14) 0px 6px 10px 0px;
-    }
-
-    html.dark ${k}:hover, ${k}:hover {
-        border: 1px solid var(--blue);
-        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-    }
-`);
-
-export function FavoriteApp(props: {name: string, version: string, title: string, onFavorite(name: compute.ApplicationSummaryWithFavorite): void;}): JSX.Element {
-    return <Flex mx="12px" py="20px">
-        <Link to={Pages.run(props.name, props.version)}>
-        </Link>
-    </Flex>
-}
-
 export function AppCard(props: AppCardProps): JSX.Element {
     return React.useMemo(() => {
         let lineCount = typeLineCount[props.type];
@@ -409,7 +378,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
                     data-xl={isExtraTall}
                 >
                     <div className="image">
-                        <AppToolLogo size={"52px"} name={props.logo} type={props.logoType} />
+                        <AppToolLogo size={"52px"} name={props.logo} type={props.contentType} />
                     </div>
                     {titleAndDescription}
                 </Flex>;
@@ -422,7 +391,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
                     data-xl={isExtraWide}
                 >
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={props.logo} type={props.logoType} />
+                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={props.logo} type={props.contentType} />
                     </div>
                     {titleAndDescription}
                 </div>

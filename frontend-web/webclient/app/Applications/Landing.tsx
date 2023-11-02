@@ -3,7 +3,7 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box, Button, Flex, Icon, Input, Link, Relative, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {AppCard, ApplicationCardType, FavoriteApp} from "./Card";
+import {AppCard, ApplicationCardType} from "./Card";
 import * as Pages from "./Pages";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -30,10 +30,6 @@ export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
     titlePlural: "Applications"
 };
-
-export const ShowAllTagItem: React.FunctionComponent<{tag?: string; children: React.ReactNode;}> = props => (
-    <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
-);
 
 function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
     return `${metadata.name}/${metadata.version}`;
@@ -332,7 +328,7 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.
                             type={ApplicationCardType.TALL}
                             title={app.metadata.title}
                             logo={app.metadata.name}
-                            logoType="APPLICATION"
+                            contentType="APPLICATION"
                             description={app.metadata.description}
                             isFavorite={true}
                         />

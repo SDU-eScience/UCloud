@@ -111,7 +111,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                             title={app.title}
                             description={app.description}
                             logo={app.id.toString()}
-                            logoType="GROUP"
+                            contentType="GROUP"
                             isFavorite={false}
                         />
                     </Link>
