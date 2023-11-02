@@ -85,7 +85,7 @@ export function FilePreview({file}: {file: UFile}): React.ReactNode {
                     const text = tryDecodeText(contentBuffer);
                     if (text !== null) {
                         setType("text");
-                        setData(await contentBlob.text());
+                        setData(text);
                         setError(null);
                     } else {
                         setError("Preview is not supported for this file.");
@@ -105,11 +105,15 @@ export function FilePreview({file}: {file: UFile}): React.ReactNode {
                         case "text":
                         case "application":
                         case "markdown":
-                            setData(new TextDecoder().decode(contentBuffer));
-                            setError(null);
-                            break;
                         default:
-                            setError(`Preview not supported for '${foundFileType[0].typename}'.`);
+                            const text = tryDecodeText(contentBuffer);
+                            if (text !== null) {
+                                setType("text");
+                                setData(text);
+                                setError(null);
+                            } else {
+                                setError("Preview is not supported for this file.");
+                            }
                             break;
                     }
 
