@@ -2874,7 +2874,6 @@ export class ResourceBrowser<T> {
             }
 
             .file-browser {
-                container-type: inline-size;
                 width: 100%;
                 height: calc(100vh - 32px);
                 display: flex;

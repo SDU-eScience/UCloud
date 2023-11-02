@@ -118,6 +118,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         });
     }
 
+    const features: ResourceBrowseFeatures = {
+        ...FEATURES,
+        search: !opts?.isModal
+    }
+
     const didUnmount = useDidUnmount();
 
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
@@ -126,7 +131,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
                 browser.setColumnTitles(rowTitles);
 
                 // Syncthing data
@@ -715,7 +720,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
                     row.title.append(title);
-                                                            // Disabled for now.
+                    // Disabled for now.
                     if (isReadonly(file.permissions.myself) && Math.random() > 2) {
                         row.title.appendChild(div(
                             `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
@@ -871,7 +876,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         pIcon.replaceChildren(icon);
                     }
 
-                    if (browser.opts.embedded) {
+                    if (browser.opts.embedded || browser.opts.selector) {
                         collectionCacheForCompletion.retrieve("", () =>
                             callAPI(FileCollectionsApi.browse({
                                 itemsPerPage: 250,

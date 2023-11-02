@@ -46,15 +46,15 @@
         "recharts": "2.1.13",
         "redux": "4.2.1",
         "svgi": "1.1.2",
-        "ua-parser-js": "1.0.36",
-        "xterm": "5.2.1",
-        "xterm-addon-fit": "0.7.0"
+        "ua-parser-js": "1.0.37",
+        "xterm": "5.3.0",
+        "xterm-addon-fit": "0.8.0"
     },
     "devDependencies": {
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.14",
         "@types/jsrsasign": "10.5.11",
-        "@types/react": "18.2.33",
+        "@types/react": "18.2.34",
         "@types/react-datepicker": "4.19.1",
         "@types/react-dom": "18.2.14",
         "@types/react-dropzone": "5.1.0",
