@@ -114,7 +114,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
         return baseCallAPI({
             ...parameters,
-            projectOverride: activeProject.current
+            projectOverride: activeProject.current ?? ""
         });
     }
 
