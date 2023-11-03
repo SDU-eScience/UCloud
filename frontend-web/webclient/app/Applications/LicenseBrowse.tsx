@@ -239,9 +239,9 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
 
                 browser.setEmptyIcon(productTypeToIcon("LICENSE"));
 
-                browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
+                browser.on("fetchOperationsCallback", () => {
                     const callbacks: ResourceBrowseCallbacks<License> = {
-                        supportByProvider: {productsByProvider: {}},
+                        supportByProvider: supportByProvider.retrieveFromCacheOnly("") ?? {productsByProvider: {}},
                         dispatch,
                         embedded: false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
