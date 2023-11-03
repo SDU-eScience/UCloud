@@ -2214,6 +2214,7 @@ export class ResourceBrowser<T> {
             this.renderRows();
         }
 
+        if (this.contextMenuHandlers.length) this.closeContextMenu();
         this.renderOperationsIn(true, {x: event.clientX, y: event.clientY});
     }
 
