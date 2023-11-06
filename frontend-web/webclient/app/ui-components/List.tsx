@@ -6,7 +6,7 @@ import {ThemeColor} from "./theme";
 import {Cursor} from "@/ui-components/Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
 import {deviceBreakpoint} from "@/ui-components/Hide";
-import {extractSize, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractSize, injectStyle, unbox} from "@/Unstyled";
 
 export const ListClass = injectStyle("list", k => `
     ${k} {
@@ -58,6 +58,7 @@ interface ListRowProps {
     stopPropagation?: boolean;
     onContextMenu?: EventHandler<MouseEvent<never>>;
     disableSelection?: boolean;
+    className?: string;
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
@@ -73,7 +74,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     }, [props.select, stopPropagation]);
 
     return <div
-        className={ListRowClass}
+        className={classConcat(ListRowClass, props.className)}
         data-component={"list-row"}
         data-highlighted={props.highlight === true}
         data-selected={props.isSelected === true}

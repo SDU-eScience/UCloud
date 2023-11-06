@@ -1041,6 +1041,16 @@ export function searchSubAllocations(
     return apiSearch(request, baseContextV2, "subAllocations");
 }
 
+export function updateAllocationV2(request: BulkRequest<{
+    allocationId: string,
+    newQuota?: number | null,
+    newStart?: number | null,
+    newEnd?: number | null,
+    reason: string
+}>): APICallParameters {
+    return apiUpdate(request, baseContextV2, "updateAllocation");
+}
+
 export function walletOwnerEquals(a: WalletOwner, b: WalletOwner): boolean {
     switch (a.type) {
         case "project": {

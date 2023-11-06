@@ -1893,7 +1893,7 @@ class AccountingProcessor(
         }
 
         if (parent != null) {
-            val error = checkOverlapAncestors(parent, notBefore ?: 0, request.notAfter)
+            val error = checkOverlapAncestors(parent, notBefore ?: 0, request.notAfter ?: allocation.notAfter)
             if (error != null) return error
         }
 

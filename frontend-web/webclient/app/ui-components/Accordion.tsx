@@ -22,11 +22,12 @@ export function Accordion(props: React.PropsWithChildren<{
     borderColor?: string;
     panelProps?: MarginProps & PaddingProps;
     className?: string;
+    style?: Partial<CSSProperties>;
 }>): JSX.Element {
     const color = props.iconColor ?? "text";
     const [open, setOpen] = React.useState(false);
     const isOpen = props.forceOpen || open;
-    const style: CSSProperties = {};
+    const style: CSSProperties = {...(props.style ?? {})};
     if (props.borderColor) style["--separatorColor"] = `var(--${props.borderColor})`;
     return (
         <>
