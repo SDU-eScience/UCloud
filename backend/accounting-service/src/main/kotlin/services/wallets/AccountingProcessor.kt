@@ -1354,6 +1354,9 @@ class AccountingProcessor(
                 transactionId
             )
         )
+
+        resetLowFundsNotification(existingWallet.id.toLong())
+
         if (request.forcedSync) {
             attemptSynchronize(forced = true)
         }
@@ -1436,7 +1439,24 @@ class AccountingProcessor(
             )
         )
 
+        resetLowFundsNotification(existingWallet.id.toLong())
+
         return AccountingResponse.Deposit(created)
+    }
+
+    private suspend fun resetLowFundsNotification(walletId: Long) {
+        db.withSession {session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("walletid", walletId)
+                },
+                """
+                    update accounting.wallets
+                    set low_funds_notifications_send = true
+                    where id = :walletid
+                """.trimIndent()
+            )
+        }
     }
 
     // Charge
