@@ -48,7 +48,7 @@
         <doc-prop name="refreshToken" type="string" required>
             <p>
                 The refresh token that you have been allocated by the UCloud/Core operators. During development and 
-                evaluation, you should be able to read this property of the provider details
+                evaluation, you should be able to read this property of the provider details.
             </p>
         </doc-prop>
         <doc-prop name="network" type="section">
@@ -57,11 +57,6 @@
                     <p>
                         The address to bind on. Note: This only affects the internal L7 balancer (Envoy). 
                         Sub-module always bind to the loopback interface and no other interface.
-                    </p>
-                    <p>
-                        <b>NOTE (24/10/2022):</b> Due to a bug this property is currently not used. See this 
-                        <a href="https://github.com/SDU-eScience/UCloud/issues/3730" target="_blank">issue</a>
-                        for more details.
                     </p>
                 </doc-prop>
                 <doc-prop name="listenPort" type="int" default="8889">
@@ -97,12 +92,7 @@
                 </doc-prop-container>
                 <doc-prop-container collapsed>
                     <doc-prop name="type" type='"External"'>
-                        <p>Uses a provider specified Postgres database.</p>
-                        <p>
-                            <b>NOTE (24/10/2022):</b> We have not yet determined the minimum version of Postgres 
-                            required. But we currently recommend that you run Postgres 12 or newer. Internally we use 
-                            Postgres 14 for development and production use.
-                        </p>
+                        <p>Uses a provider specified Postgres database. We recommend that you run Postgres 14 or newer.</p>
                     </doc-prop>
                     <doc-prop name="hostname" type="string"></doc-prop>
                     <doc-prop name="port" type="int" default="5432"></doc-prop>
@@ -128,16 +118,27 @@
                     </p>
                 </doc-prop>
 
-                <doc-prop name="downstreamTls" type="boolean" default="false">
+                <doc-prop name="envoyIsManagedExternally" type="boolean" default="false">
                     <p>
-                        Enables experimental TLS. This will automatically generate a certificate for the
-                        L7 balancer. The certificate will be self-signed. It is not currently possible to force TLS
-                        for the IM server/user instances. It is not possible to configure the certificate used by Envoy.
+                        A boolean flag indicating if Envoy should not be embedded.
                     </p>
                     <p>
-                        <b>NOTE (24/10/2022):</b> We currently recommend that you always deploy UCloud/IM behind a
-                        reverse-proxy. The UCloud/IM server should only be accessible behind a private network. 
-                        The reverse proxy should implement the TLS for the integration module server.
+                        A value of <code>false</code> indicates that the IM/Server instance should automatically 
+                        start an Envoy instance. 
+                    </p>
+                    <p>
+                        A value of <code>true</code> indicates that IM/Server should not start an Envoy instance. 
+                        In this case, you must manually deploy an Envoy instance which uses the configuration from 
+                        <code>directory</code>. If you are running in this mode, you might consider setting the
+                        <code>internalAddressToProvider</code> property.
+                    </p>
+                </doc-prop>
+
+                <doc-prop name="internalAddressToProvider" type="string" default="127.0.0.1">
+                    <p>
+                        Allows you to change the internal address which Envoy will use to contact the Integration 
+                        Module. This property is only useful if <code>envoyIsManagedExternally</code> is
+                        <code>true</code>.
                     </p>
                 </doc-prop>
             </section>
