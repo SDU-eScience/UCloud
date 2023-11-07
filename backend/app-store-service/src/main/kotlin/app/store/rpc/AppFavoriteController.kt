@@ -14,7 +14,7 @@ class AppFavoriteController (
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.toggleFavorite) {
-            ok(favoriteService.toggleFavorite(actorAndProject, request.appName, request.appVersion))
+            ok(favoriteService.toggleFavorite(actorAndProject, request.appName))
         }
 
         implement(AppStore.retrieveFavorites) {

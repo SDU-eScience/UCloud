@@ -61,7 +61,7 @@ export const Create: React.FunctionComponent = () => {
     const appName = getQueryParam(location.search, "app");
     const appVersion = getQueryParam(location.search, "version");
 
-    if (!appName || !appVersion) {
+    if (!appName) {
         navigate("/");
         return null;
     }
@@ -123,7 +123,7 @@ export const Create: React.FunctionComponent = () => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
-        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}));
+        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion: appVersion ?? undefined}));
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);
 

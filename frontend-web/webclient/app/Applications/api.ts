@@ -11,10 +11,7 @@ export interface ApplicationGroup {
     id: number,
     title: string,
     description?: string,
-    defaultApplication?: {
-        name: string,
-        version: string
-    },
+    defaultApplication?: string,
     tags: string[]
 }
 
@@ -56,7 +53,7 @@ export interface UpdateGroupRequest {
     title: string,
     description?: string,
     logo?: Blob,
-    defaultApplication?: {name: string, version: string},
+    defaultApplication?: string,
     tags: string[]
 }
 

@@ -31,7 +31,7 @@ const SCROLL_SPEED = 156 * 4;
 
 function groupCardLink(app: ApplicationGroup): string {
     return app.defaultApplication ? 
-        Pages.run(app.defaultApplication.name, app.defaultApplication.version)
+        Pages.run(app.defaultApplication)
     :
         Pages.browseGroup(app.id.toString())
 

@@ -37,7 +37,7 @@ class AppStoreService(
     suspend fun findByNameAndVersion(
         actorAndProject: ActorAndProject,
         appName: String,
-        appVersion: String
+        appVersion: String? = null
     ): ApplicationWithFavoriteAndTags {
         val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
@@ -590,8 +590,7 @@ class AppStoreService(
                             g.description,
                             s.id as section_id,
                             s.title as section_title,
-                            g.default_name,
-                            g.default_version
+                            g.default_name
                         from
                             app_store.sections s
                             left join app_store.section_tags st on s.id = st.section_id
@@ -607,11 +606,12 @@ class AppStoreService(
                     val description = row.getString(2)
                     val sectionId = row.getInt(3) ?: return@forEach
                     val sectionTitle = row.getString(4) ?: return@forEach
+                    val defaultApplication = row.getString(5)
 
                     sections[sectionId] = sectionTitle
                     items
                         .getOrPut(sectionId) { ArrayList() }
-                        .add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                        .add(ApplicationGroup(groupId, groupTitle, description, defaultApplication))
                 }
 
                 session.sendPreparedStatement(
@@ -631,7 +631,6 @@ class AppStoreService(
                                 g.title as title,
                                 g.description,
                                 g.default_name,
-                                g.default_version,
                                 s.order_index as s_index,
                                 f.order_index as f_index
                             from app_store.sections s
@@ -666,11 +665,12 @@ class AppStoreService(
                     val groupId = row.getInt("id")!!
                     val groupTitle = row.getString("title")!!
                     val description = row.getString("description")
+                    val defaultApplication = row.getString("default_name")
 
                     sections[sectionId] = sectionTitle
                     featured
                         .getOrPut(sectionId) { ArrayList() }
-                        .add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                        .add(ApplicationGroup(groupId, groupTitle, description, defaultApplication))
 
                     items[sectionId]?.removeIf { it.id == groupId }
                 }
@@ -740,7 +740,7 @@ class AppStoreService(
         title: String,
         logo: ByteArray? = null,
         description: String? = null,
-        defaultApplication: NameAndVersion? = null
+        defaultApplication: String? = null
     ) {
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -749,8 +749,7 @@ class AppStoreService(
                     setParameter("title", title)
                     setParameter("logo", logo)
                     setParameter("description", description)
-                    setParameter("default_name", defaultApplication?.name)
-                    setParameter("default_version", defaultApplication?.version)
+                    setParameter("default_name", defaultApplication)
                 },
                 """
                     update app_store.application_groups
@@ -758,8 +757,7 @@ class AppStoreService(
                         title = :title,
                         logo = :logo,
                         description = :description,
-                        default_name = :default_name,
-                        default_version = :default_version 
+                        default_name = :default_name
                     where id = :id 
                 """
             )
@@ -786,7 +784,7 @@ class AppStoreService(
         return db.withSession { session ->
             session.sendPreparedStatement(
                 """
-                    select id, title, description, default_name, default_version
+                    select id, title, description, default_name
                     from application_groups
                     order by title
                 """
@@ -795,7 +793,7 @@ class AppStoreService(
                     row.getInt("id")!!,
                     row.getString("title")!!,
                     row.getString("description"),
-                    row.defaultApplication()
+                    row.getString("default_name")
                 )
             }
         }
@@ -814,7 +812,6 @@ class AppStoreService(
                         g.title,
                         g.description,
                         g.default_name,
-                        g.default_version,
                         jsonb_agg(t.tag) as tags
                     from
                         app_store.application_groups g
@@ -831,14 +828,14 @@ class AppStoreService(
                             )
                         )
                     group by
-                        g.id, g.title, g.description, g.default_name, g.default_version                    
+                        g.id, g.title, g.description, g.default_name
                 """
             ).rows.firstOrNull()?.let { row ->
                 ApplicationGroup(
                     row.getInt("id")!!,
                     row.getString("title")!!,
                     row.getString("description"),
-                    row.defaultApplication(),
+                    row.getString("default_name"),
                     defaultMapper.decodeFromString<List<String?>>(row.getString("tags") ?: "[]").filterNotNull()
                 )
             } ?: throw RPCException("Group not found", HttpStatusCode.NotFound)
@@ -1507,7 +1504,7 @@ internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
             this.getInt("group_id")!!,
             this.getString("group_title")!!,
             this.getString("group_description"),
-            this.defaultApplication()
+            this.getString("default_name")
         )
     } catch (e: Exception) {
         null
@@ -1528,22 +1525,6 @@ internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
 
 internal fun RowData.toApplicationSummary(): ApplicationSummary {
     return ApplicationSummary(toApplicationMetadata())
-}
-
-internal fun RowData.defaultApplication(): NameAndVersion? {
-    // TODO This shouldn't be crashing like this. Make sure we actually get all of the data needed.
-    return try {
-        val defaultName = this.getString("default_name")
-        val defaultVersion = this.getString("default_version")
-
-        if (defaultName != null && defaultVersion != null) {
-            NameAndVersion(defaultName, defaultVersion)
-        } else {
-            null
-        }
-    } catch (e: Exception) {
-        null
-    }
 }
 
 internal fun RowData.toApplicationWithInvocation(): Application {

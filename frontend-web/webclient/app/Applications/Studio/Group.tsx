@@ -39,7 +39,7 @@ export const AppGroup: React.FunctionComponent = () => {
     const groupDescriptionField = React.useRef<HTMLInputElement>(null);
     const appSearchField = React.useRef<HTMLInputElement>(null);
 
-    const [defaultApplication, setDefaultApplication] = useState<{name: string; version: string;}|undefined>(undefined);
+    const [defaultApplication, setDefaultApplication] = useState<string|undefined>(undefined);
     const [tags, setTags] = useState<string[]>([]);
     const [selectedTag, setSelectedTag] = useState<string>("");
     const [allTags, fetchAllTags] = useCloudAPI<string[]>(
@@ -332,14 +332,14 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 <Box>
                                                     <Label>
                                                         <Checkbox
-                                                            checked={app.metadata.name === defaultApplication?.name}
+                                                            checked={app.metadata.name === defaultApplication}
                                                             onChange={() => {
                                                                 stopPropagation;
 
-                                                                if (app.metadata.name === defaultApplication?.name) {
+                                                                if (app.metadata.name === defaultApplication) {
                                                                     setDefaultApplication(undefined);
                                                                 } else {
-                                                                    setDefaultApplication({name: app.metadata.name, version: app.metadata.version});
+                                                                    setDefaultApplication(app.metadata.name);
                                                                 }
                                                             }}
                                                         />

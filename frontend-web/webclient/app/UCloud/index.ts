@@ -2541,7 +2541,7 @@ export interface ApplicationWithFavoriteAndTags {
 }
 export interface FindApplicationAndOptionalDependencies {
     appName: string,
-    appVersion: string,
+    appVersion?: string,
 }
 export interface HasPermissionRequest {
     appName: string,
@@ -2584,6 +2584,9 @@ export interface ApplicationWithExtension {
 }
 export interface FindBySupportedFileExtension {
     files: string[],
+}
+export interface FindNewestByName {
+    appName: string
 }
 export interface ApplicationSummaryWithFavorite {
     metadata: ApplicationMetadata,
