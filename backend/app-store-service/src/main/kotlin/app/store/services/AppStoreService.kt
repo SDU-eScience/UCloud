@@ -1147,7 +1147,6 @@ class AppStoreService(
             cleanupBeforeDelete(
                 session,
                 existingApp.getString("name")!!,
-                existingApp.getString("version")!!
             )
 
             session.sendPreparedStatement(
@@ -1425,8 +1424,7 @@ class AppStoreService(
             }
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
-                    fav.getString("application_name") == item.metadata.name &&
-                        fav.getString("application_version") == item.metadata.version
+                    fav.getString("application_name") == item.metadata.name
                 }
 
                 val allTagsForApplication = allTagsForApplicationsOnPage
@@ -1465,18 +1463,17 @@ class AppStoreService(
         }
     }
 
-    private suspend fun cleanupBeforeDelete(ctx: DBContext, appName: String, appVersion: String) {
+    private suspend fun cleanupBeforeDelete(ctx: DBContext, appName: String) {
         ctx.withSession { session ->
             //DELETE FROM FAVORITES
             session
                 .sendPreparedStatement(
                     {
                         setParameter("appname", appName)
-                        setParameter("appversion", appVersion)
                     },
                     """
                         DELETE FROM favorited_by
-                        WHERE (application_name = :appname) AND (application_version = :appversion)
+                        WHERE (application_name = :appname)
                     """
                 )
                 .rows

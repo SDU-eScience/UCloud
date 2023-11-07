@@ -145,8 +145,8 @@ export const SearchResults: React.FunctionComponent = () => {
         );
     }, [queryParams]);
 
-    const toggleFavorite = React.useCallback(async (appName: string, appVersion: string) => {
-        await invokeCommand(UCloud.compute.apps.toggleFavorite({appName, appVersion}));
+    const toggleFavorite = React.useCallback(async (appName: string) => {
+        await invokeCommand(UCloud.compute.apps.toggleFavorite({appName}));
     }, [fetch]);
 
     return <Box mx="auto" maxWidth="1340px">

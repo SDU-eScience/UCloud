@@ -189,8 +189,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
         dispatch(toggleAppFavorite(app, !isFavorite));
         try {
             await invokeCommand(UCloud.compute.apps.toggleFavorite({
-                appName: app.metadata.name,
-                appVersion: app.metadata.version
+                appName: app.metadata.name
             }));
         } catch (e) {
             favoriteStatus.current[key].override = !favoriteStatus.current[key].override;

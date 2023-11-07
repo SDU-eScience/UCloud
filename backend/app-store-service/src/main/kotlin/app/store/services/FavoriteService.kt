@@ -76,18 +76,16 @@ class FavoriteService (
                     aclDao
                 )
                 if (userHasPermission) {
-                    val id = session.allocateId()
                     session.sendPreparedStatement(
                         {
                             setParameter("name", appName)
                             setParameter("user", actorAndProject.actor.username)
-                            setParameter("id", id)
                         },
                         """
                             insert into app_store.favorited_by
-                                (id, the_user, application_name)
+                                (the_user, application_name)
                             values
-                                (:id, :user, :name)
+                                (:user, :name)
                         """
                     )
                 } else {

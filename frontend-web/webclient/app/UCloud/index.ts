@@ -2668,8 +2668,7 @@ export interface SetPublicRequest {
     public: boolean,
 }
 export interface FavoriteRequest {
-    appName: string,
-    appVersion: string,
+    appName: string
 }
 export interface JobsProviderExtendRequestItem {
     job: Job,
