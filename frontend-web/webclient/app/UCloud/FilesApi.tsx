@@ -713,7 +713,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             await cb.invokeCommand(
                                 this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
                             );
-                            cb.navigate("/drives")
+                            cb.navigate("/drives");
                         },
                         onCancel: doNothing,
                     });

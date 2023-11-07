@@ -68,7 +68,7 @@ function Dashboard(): JSX.Element {
         {noop: true},
         emptyPageV2
     );
-    
+
     useTitle("Dashboard");
 
     React.useEffect(() => {
@@ -539,9 +539,8 @@ const NewsClass = injectStyle("with-graphic", k => `
 `);
 
 
-function reduxOperations(dispatch: Dispatch): DashboardOperations{
+function reduxOperations(dispatch: Dispatch): DashboardOperations {
     return {
-        setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
         setAllLoading: loading => dispatch(setAllLoading(loading)),
         setRefresh: refresh => dispatch(setRefreshFunction(refresh))
     };

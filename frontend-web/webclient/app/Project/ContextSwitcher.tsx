@@ -139,7 +139,7 @@ export function ContextSwitcher({managed}: {
         } else {
             onProjectUpdated(navigate, () => setProject(id), refresh, id ?? "")
         }
-    }, []);
+    }, [refresh]);
 
     return (
         <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
