@@ -24,7 +24,7 @@ import {
     prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -414,7 +414,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         createdAt: 0,
                         updates: []
                     })
-                }
+                },
+                shortcut: ShortcutKey.F
             },
             {
                 text: "Upload files",
@@ -443,6 +444,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         defaultValue: false
                     });
                 },
+                shortcut: ShortcutKey.U
             },
             {
                 text: "Create folder",
@@ -464,6 +466,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
+                shortcut: ShortcutKey.N
             },
             {
                 text: "Open with...",
@@ -478,7 +481,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             this.fileSelectorModalStyle
                         );
                     }
-                }
+                },
+                shortcut: ShortcutKey.O
             },
             {
                 text: "Rename",
@@ -495,7 +499,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
-                }
+                },
+                shortcut: ShortcutKey.F
             },
             {
                 text: "Download",
@@ -518,7 +523,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     for (const {endpoint} of responses) {
                         downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
                     }
-                }
+                },
+                shortcut: ShortcutKey.D
             },
             {
                 icon: "copy",
@@ -563,7 +569,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         true,
                         this.fileSelectorModalStyle
                     );
-                }
+                },
+                shortcut: ShortcutKey.C
             },
             {
                 icon: "move",
@@ -615,7 +622,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         true,
                         this.fileSelectorModalStyle
                     );
-                }
+                },
+                shortcut: ShortcutKey.M
             },
             {
                 icon: "share",
@@ -655,7 +663,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         />,
                         doNothing, true
                     );
-                }
+                },
+                shortcut: ShortcutKey.S
             },
             {
                 text: "Change sensitivity",
@@ -671,7 +680,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick(selected, extra) {
                     addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
-                }
+                },
+                shortcut: ShortcutKey.H
             },
             {
                 // Empty trash of current directory
@@ -708,13 +718,15 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         onCancel: doNothing,
                     });
                 },
+                shortcut: ShortcutKey.R
             },
             {
                 icon: "refresh",
                 text: "Manage synchronization",
                 enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig,
                 onClick: (selected, extra) =>
-                    extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`)
+                    extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`),
+                shortcut: ShortcutKey.M
             },
             {
                 // Item row synchronization
@@ -723,7 +735,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
                     synchronizationOpOnClick(selected, cb)
-                }
+                },
+                shortcut: ShortcutKey.Y
             },
             {
                 text: "Open terminal",
@@ -734,7 +747,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     cb.dispatch({type: "TerminalOpen"});
                     cb.dispatch({type: "TerminalOpenTab", tab: {title: "Hippo"}});
-                }
+                },
+                shortcut: ShortcutKey.O
             },
             {
                 icon: "trash",
@@ -760,7 +774,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
                     );
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.R
             },
             {
                 icon: "trash",
@@ -777,7 +792,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
                     );
                     cb.reload()
-                }
+                },
+                shortcut: ShortcutKey.R
             },
         ];
 

@@ -7,7 +7,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Pagination from "@/Pagination";
 import {PageRenderer} from "@/Pagination/PaginationV2";
 import {ToggleSetHook, useToggleSet} from "@/Utilities/ToggleSet";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {NamingField} from "@/UtilityComponents";
 import {ListRow, ListStatContainer} from "@/ui-components/List";
 import {doNothing, EmptyObject, errorMessageOrDefault} from "@/UtilityFunctions";
@@ -307,7 +307,8 @@ export function StandardList<T, CB = EmptyObject>(
             enabled: (selected, cb) => cb.onSelect !== undefined && selected.length === 1,
             onClick: (selected, cb) => {
                 cb.onSelect?.(selected[0]);
-            }
+            },
+            shortcut: ShortcutKey.Enter,
         });
         return ops;
     }, [props.operations]);

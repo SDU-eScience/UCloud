@@ -6,7 +6,7 @@ import ApplicationWithExtension = compute.ApplicationWithExtension;
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {FileCollection} from "@/UCloud/FileCollectionsApi";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
@@ -41,7 +41,8 @@ const operations: Operation<ApplicationWithExtension, StandardCallbacks<Applicat
         enabled: selected => selected.length === 1,
         onClick: (selected, cb) => {
             cb.setSelectedApplication(selected[0]);
-        }
+        },
+        shortcut: ShortcutKey.L
     }
 ];
 

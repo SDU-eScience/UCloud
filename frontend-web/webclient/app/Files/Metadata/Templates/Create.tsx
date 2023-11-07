@@ -9,7 +9,7 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
 import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {Section} from "@/ui-components/Section";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
@@ -377,7 +377,8 @@ const operations: Operation<void, Callbacks>[] = [
             } else if (cb.stage === Stage.SCHEMA) {
                 cb.setStage(Stage.INFO);
             }
-        }
+        },
+        shortcut: ShortcutKey.Backspace
     },
     {
         text: "Next",
@@ -390,7 +391,8 @@ const operations: Operation<void, Callbacks>[] = [
             } else if (cb.stage === Stage.SCHEMA) {
                 cb.setStage(Stage.PREVIEW);
             }
-        }
+        },
+        shortcut: ShortcutKey.N
     },
     {
         text: "Save",
@@ -401,7 +403,8 @@ const operations: Operation<void, Callbacks>[] = [
         enabled: (_, cb) => cb.stage === Stage.PREVIEW,
         onClick: (_, cb) => {
             cb.saveVersion();
-        }
+        },
+        shortcut: ShortcutKey.S
     }
 ];
 

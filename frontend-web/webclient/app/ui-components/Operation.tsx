@@ -26,10 +26,43 @@ export type OperationLocation = "SIDEBAR" | "IN_ROW" | "TOPBAR";
  */
 export type OperationEnabled = boolean | string;
 
+// Note(Jonas): The closes I could get to typesafe keys, as `KeyboardEvent["code"]` is just a string
+export enum ShortcutKey {
+    A = "KeyA",
+    B = "KeyB",
+    C = "KeyC",
+    D = "KeyD",
+    E = "KeyE",
+    F = "KeyF",
+    G = "KeyG",
+    H = "KeyH",
+    I = "KeyI",
+    J = "KeyJ",
+    K = "KeyK",
+    L = "KeyL",
+    M = "KeyM",
+    N = "KeyN",
+    O = "KeyO",
+    P = "KeyP",
+    Q = "KeyQ",
+    R = "KeyR",
+    S = "KeyS",
+    T = "KeyT",
+    U = "KeyU",
+    V = "KeyV",
+    W = "KeyW",
+    X = "KeyX",
+    Y = "KeyY",
+    Z = "KeyZ",
+    Backspace = "Backspace",
+    Enter = "Enter"
+}; 
+
 export interface Operation<T, R = undefined> {
     text: string | ((selected: T[], extra: R) => string);
     onClick: (selected: T[], extra: R, all?: T[]) => void;
     enabled: (selected: T[], extra: R, all?: T[]) => OperationEnabled;
+    shortcut: ShortcutKey;
     icon?: IconName;
     iconRotation?: number;
     color?: ThemeColor;
@@ -37,7 +70,7 @@ export interface Operation<T, R = undefined> {
     outline?: boolean;
     operationType?: (location: OperationLocation, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
-    // Deprecated(Jonas)?
+    // Deprecated(Jonas): ?
     canAppearInLocation?: (location: OperationLocation) => boolean;
     confirm?: boolean;
     tag?: string;

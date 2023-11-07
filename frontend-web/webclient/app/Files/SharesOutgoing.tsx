@@ -23,7 +23,7 @@ import {Avatar} from "@/AvataaarLib";
 import {ShareModal, StateIconAndColor} from "./Shares";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import AppRoutes from "@/Routes";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -554,7 +554,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                 await extra.invokeCommand(extra.api.remove(bulkRequestOf(...previews.map(it => ({id: it.shareId})))));
                                 extra.reload();
                             }
-                        }
+                        },
+                        shortcut: ShortcutKey.R
                     },
                     {
                         text: "Delete share",
@@ -571,6 +572,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                 extra.reload();
                             }
                         },
+                        shortcut: ShortcutKey.R
                     }, {
                         icon: "share",
                         text: "Invite",
@@ -585,7 +587,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                                     />,
                                     doNothing, true
                                 );
-                        }
+                        },
+                        shortcut: ShortcutKey.I // Note(Jonas): Or S?
                     }, {
                         icon: "share",
                         text: "Invite",
@@ -595,7 +598,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         },
                         onClick() {
                             showShareInput();
-                        }
+                        },
+                        shortcut: ShortcutKey.I
                     }, {
                         icon: "properties",
                         text: "Properties",
@@ -604,7 +608,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         },
                         onClick([selection]: [OutgoingShareGroupPreview]) {
                             navigate(AppRoutes.resource.properties("shares", selection.shareId));
-                        }
+                        },
+                        shortcut: ShortcutKey.P
                     }];
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
                 });

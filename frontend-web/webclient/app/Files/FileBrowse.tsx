@@ -46,7 +46,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
@@ -515,7 +515,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 text: "Create...",
                                 backgroundColor: "blue",
                                 iconRotation: 45,
-                                operations: [uploadOp, folderOp]
+                                operations: [uploadOp, folderOp],
+                                shortcut: ShortcutKey.N
                             });
                         }
                         let i = 0;

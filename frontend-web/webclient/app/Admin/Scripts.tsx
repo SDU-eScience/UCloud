@@ -4,7 +4,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PageV2} from "@/UCloud";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {format} from "date-fns";
@@ -148,7 +148,8 @@ const operations: Operation<ScriptInfo, Record<string, never>>[] = [
             await callAPI(
                 apiUpdate(bulkRequestOf(...selected.map(it => ({scriptId: it.metadata.id}))), baseContext, "start")
             );
-        }
+        },
+        shortcut: ShortcutKey.S
     }
 ];
 

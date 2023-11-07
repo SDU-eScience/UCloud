@@ -1,8 +1,8 @@
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalized, createHTMLElements, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, createHTMLElements, doNothing, inDevEnvironment, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -31,6 +31,7 @@ import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
+const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
@@ -150,6 +151,7 @@ export interface OperationGroup<T, R> {
     icon: IconName;
     text: string;
     color: ThemeColor;
+    shortcut?: ShortcutKey;
     backgroundColor?: ThemeColor,
     operations: Operation<T, R>[];
     iconRotation?: number;
@@ -310,8 +312,9 @@ export class ResourceBrowser<T> {
     private ignoreRowClicksUntil: number = 0;
 
     // alt shortcuts
-    private altKeys = ["KeyQ", "KeyW", "KeyE", "KeyR", "KeyT"];
-    private altShortcuts: (() => void)[] = [doNothing, doNothing, doNothing, doNothing, doNothing];
+    private shortCuts: Record<ShortcutKey, () => void> = {} as Record<ShortcutKey, () => void>;
+    //private altKeys = ["KeyQ", "KeyW", "KeyE", "KeyR", "KeyT"];
+    //private altShortcuts: (() => void)[] = [doNothing, doNothing, doNothing, doNothing, doNothing];
 
     // Context menu
     private contextMenu: HTMLDivElement;
@@ -1369,9 +1372,27 @@ export class ResourceBrowser<T> {
         }
 
         if (!useContextMenu) {
-            for (let i = 0; i < this.altShortcuts.length; i++) {
-                this.altShortcuts[i] = doNothing;
+            this.shortCuts = {} as Record<ShortcutKey, () => void>;
+
+            {
+                if (inDevEnvironment()) {
+                    const shortCuts = operations.map(it => {
+                        if (isOperation(it)) {
+                            return ({shortcut: it.shortcut, text: it.text.toString()})
+                        } else {
+                            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({shortcut: it.shortcut, text: it.text.toString()}))]
+                        }
+                    }).flat(5);
+                    const entries: Record<string, string> = {};
+                    for (const short of shortCuts) {
+                        if (entries[short.shortcut ?? ""]) {
+                            console.log(`Shortcut: ${short.shortcut} already reserved for ${entries[short.shortcut ?? ""]}, attempted to use for ${short.text}`);
+                        }
+                        entries[short.shortcut ?? ""] = short.text;
+                    }
+                }
             }
+
         }
 
         const selected = this.findSelectedEntries();
@@ -1398,13 +1419,7 @@ export class ResourceBrowser<T> {
             }
 
             // ...and the text
-            let operationText = "";
-            if (typeof op.text === "string") {
-                operationText = op.text;
-            } else {
-                operationText = op.text(selected, callbacks);
-            }
-
+            let operationText = typeof op.text === "string" ?  op.text : op.text(selected, callbacks);
 
             if (isConfirmButton) {
                 const opEnabled = op.enabled(selected, callbacks, page) === true;
@@ -1572,6 +1587,7 @@ export class ResourceBrowser<T> {
         };
 
         let opCount = 0;
+
         const renderOperation = (
             op: OperationOrGroup<T, unknown>
         ): HTMLElement => {
@@ -1590,9 +1606,7 @@ export class ResourceBrowser<T> {
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
-
-            const altKey = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
-            renderOpIconAndText(op, element, useShortcuts ? `[${altKey}${this.altKeys[opCount].replace("Key", "")}]` : undefined);
+            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY}${op.shortcut.replace("Key", "")}]` : undefined);
 
             {
                 // ...and the handlers
@@ -1612,7 +1626,9 @@ export class ResourceBrowser<T> {
 
                 element.addEventListener("click", handler);
                 if (!useContextMenu) {
-                    this.altShortcuts[opCount] = handler;
+                    if (op.shortcut) {
+                        this.shortCuts[op.shortcut] = handler;
+                    }
                     opCount++;
                 }
             }
@@ -2412,12 +2428,10 @@ export class ResourceBrowser<T> {
                 this.dispatchMessage("unhandledShortcut", fn => fn(ev));
             }
         } else if (ev.altKey) {
-            const altCodeIndex = this.altKeys.indexOf(ev.code);
-            if (altCodeIndex >= 0 && altCodeIndex < this.altShortcuts.length) {
+            if (this.shortCuts[ev.code]) {
                 ev.preventDefault();
                 ev.stopPropagation();
-
-                this.altShortcuts[altCodeIndex]();
+                this.shortCuts[ev.code]();
             } else {
                 this.dispatchMessage("unhandledShortcut", fn => fn(ev));
             }

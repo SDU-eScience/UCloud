@@ -34,7 +34,7 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import BaseLink from "@/ui-components/BaseLink";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useTitle, useLoading} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
@@ -877,7 +877,8 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
                 type: "ChangeRole",
                 changes: members.map(m => ({username: m.username, role: OldProjectRole.ADMIN}))
             });
-        }
+        },
+        shortcut: ShortcutKey.A
     },
     {
         text: "Demote to user",
@@ -889,8 +890,8 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
                 type: "ChangeRole",
                 changes: members.map(m => ({username: m.username, role: OldProjectRole.USER}))
             });
-
-        }
+        },
+        shortcut: ShortcutKey.U
     },
     {
         text: "Remove",
@@ -901,7 +902,8 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
             members.every(m => m.role !== OldProjectRole.PI && m.username !== Client.username),
         onClick: (members, cb) => {
             cb.dispatch({type: "RemoveMember", members: members.map(it => it.username)});
-        }
+        },
+        shortcut: ShortcutKey.R
     },
     {
         text: "Add to group",
@@ -912,7 +914,8 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
             for (const member of members) {
                 cb.dispatch({type: "AddToGroup", group: cb.inspectingGroup!.id, member: member.username});
             }
-        }
+        },
+        shortcut: ShortcutKey.G
     }
 ];
 
@@ -943,7 +946,8 @@ const inviteOperations: Operation<ProjectInvite, Callbacks>[] = [
         enabled: (invites, cb) => invites.length > 0 && cb.isAdmin,
         onClick: (invites, cb) => {
             cb.dispatch({type: "RemoveInvite", members: invites.map(it => it.recipient)});
-        }
+        },
+        shortcut: ShortcutKey.R
     }
 ];
 
@@ -979,7 +983,8 @@ const groupOperations: Operation<ProjectGroup, GroupCallbacks>[] = [
         },
         onClick: ([group], cb) => {
             cb.setRenaming(group);
-        }
+        },
+        shortcut: ShortcutKey.R
     },
     {
         text: "Delete",
@@ -989,7 +994,8 @@ const groupOperations: Operation<ProjectGroup, GroupCallbacks>[] = [
         enabled: (groups, cb) => groups.length >= 1 && cb.isAdmin,
         onClick: (groups, cb) => {
             cb.dispatch({type: "RemoveGroup", ids: groups.map(it => it.id)});
-        }
+        },
+        shortcut: ShortcutKey.D
     },
     {
         text: "Properties",
@@ -997,8 +1003,9 @@ const groupOperations: Operation<ProjectGroup, GroupCallbacks>[] = [
         enabled: (groups) => groups.length === 1,
         onClick: ([group], cb) => {
             cb.dispatch({type: "InspectGroup", group: group.id});
-        }
-    }
+        },
+        shortcut: ShortcutKey.P
+    },
 ];
 
 const GroupMemberRenderer: ItemRenderer<string> = {
@@ -1022,7 +1029,8 @@ const groupMemberOperations: Operation<string, Callbacks>[] = [
             members.forEach(member => {
                 cb.dispatch({type: "RemoveFromGroup", member, group: cb.inspectingGroup!.id});
             });
-        }
+        },
+        shortcut: ShortcutKey.D
     }
 ];
 

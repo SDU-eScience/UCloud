@@ -12,7 +12,7 @@ import {
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product} from "@/Accounting";
 import {PrettyFilePath} from "@/Files/FilePath";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
@@ -178,7 +178,8 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.A
             },
             {
                 text: "Decline",
@@ -197,7 +198,8 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.X
             },
             {
                 text: "Remove",
@@ -216,7 +218,8 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.R
             },
             ...baseOperations
         ];

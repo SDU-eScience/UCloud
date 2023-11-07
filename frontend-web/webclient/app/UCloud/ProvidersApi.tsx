@@ -33,7 +33,7 @@ import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {ProductCreationForm} from "@/Admin/Providers/View";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -111,14 +111,16 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                     return !(Client.userIsAdmin && (selected.length !== 0 || cb.startCreation == null || cb.isCreating));
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
-                tag: CREATE_TAG
+                tag: CREATE_TAG,
+                shortcut: ShortcutKey.N
             },
             {
                 text: "Edit",
                 icon: "edit",
                 enabled: (selected, cb) =>
                     selected.length === 1 && (selected[0].permissions.myself.some(it => it === "EDIT") || Client.userIsAdmin),
-                onClick: (selected, cb) => cb.navigate("/providers/edit/" + selected[0].id)
+                onClick: (selected, cb) => cb.navigate("/providers/edit/" + selected[0].id),
+                shortcut: ShortcutKey.E
             },
             {
                 text: "Permissions",
@@ -140,7 +142,8 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                         cb.viewProperties!(selected[0]);
                     }
                 },
-                tag: PERMISSIONS_TAG
+                tag: PERMISSIONS_TAG,
+                shortcut: ShortcutKey.W 
             },
             {
                 text: "Properties",
@@ -149,7 +152,8 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 onClick: (selected, cb) => {
                     cb.viewProperties!(selected[0]);
                 },
-                tag: PROPERTIES_TAG
+                tag: PROPERTIES_TAG,
+                shortcut: ShortcutKey.P
             }
         ];
     }
@@ -285,14 +289,16 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             text: "Create product",
             enabled: (selected, cb) => selected.length === 0 && !cb.isCreatingProduct,
             onClick: (selected, cb) => cb.createProduct(),
-            primary: true
+            primary: true,
+            shortcut: ShortcutKey.N
         },
         {
             text: "Go back",
             enabled: (selected, cb) => selected.length === 0 && cb.isCreatingProduct,
             onClick: (selected, cb) => cb.stopProductCreation(),
             primary: true,
-            icon: "backward"
+            icon: "backward",
+            shortcut: ShortcutKey.Backspace
         },
         {
             text: "Grant credits",
@@ -309,7 +315,8 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                     description: "Root deposit",
                     recipient
                 })))));
-            }
+            },
+            shortcut: ShortcutKey.G
         }
     ];
 
