@@ -34,7 +34,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
 
-    if (!opts?.embedded) {
+    if (!opts?.embedded && !opts?.isModal) {
         useTitle("Grant Applications");
     }
 

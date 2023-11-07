@@ -37,7 +37,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
     const dispatch = useDispatch();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
-    if (!opts?.embedded) {
+    if (!opts?.embedded && !opts?.isModal) {
         useTitle("Providers");
     }
 

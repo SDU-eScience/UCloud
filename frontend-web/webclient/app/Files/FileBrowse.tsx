@@ -40,7 +40,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {accounting, compute, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPageV2, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
 import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
@@ -99,7 +99,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
-    if (!opts?.embedded) {
+    if (!opts?.embedded && !opts?.isModal) {
         useTitle("Files");
     }
     const isInitialMount = useRef<boolean>(true);
