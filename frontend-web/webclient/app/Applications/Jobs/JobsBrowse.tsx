@@ -16,6 +16,7 @@ import {useNavigate} from "react-router";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
+import {sidebarJobCache} from "@/ui-components/Sidebar";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -88,6 +89,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
+                        sidebarJobCache.updateCache(result);
                     });
                 });
 
@@ -100,6 +102,8 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         })
                     );
                     browser.registerPage(result, path, false);
+                    browser.renderRows();
+                    sidebarJobCache.updateCache(result);
                 });
 
                 browser.on("fetchFilters", () => [{

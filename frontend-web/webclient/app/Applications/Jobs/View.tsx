@@ -20,7 +20,7 @@ import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {MarginProps} from "styled-system";
 import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf, pageV2Of} from "@/DefaultObjects";
 import {
     api as JobsApi,
     Job,
@@ -45,6 +45,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {classConcat, injectStyle, injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
+import {sidebarJobCache} from "@/ui-components/Sidebar";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -356,7 +357,15 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     const jobUpdateListener = useCallback((e: JobsFollowResponse) => {
         if (!e) return;
         if (e.updates) {
-            for (const update of e.updates) job?.updates?.push(update);
+            for (const update of e.updates) {
+                job?.updates?.push(update);
+
+                if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
+                    const j = {...job};
+                    j.status.state = update.state;
+                    sidebarJobCache.updateCache(pageV2Of(j));
+                }
+            }
         }
         jobUpdateCallbackHandlers.current.forEach(({handler}) => {
             handler(e);

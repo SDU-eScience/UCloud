@@ -23,7 +23,7 @@ import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {navigateByFileType, NewsPost} from "@/Dashboard/Dashboard";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
@@ -54,6 +54,7 @@ import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import {isJobStateTerminal} from "@/Applications/Jobs";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -431,16 +432,73 @@ function useSidebarFilesPage(): [
     ];
 }
 
-function useSidebarRunsPage(): APICallState<PageV2<Job>> {
-    /* TODO(Jonas): This should be fetched from the same source as the runs page. */
-    const [runs, fetchRuns] = useCloudAPI<PageV2<Job>>({noop: true}, emptyPageV2);
+export const sidebarJobCache = new class {
+    private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
+    private subscribers: (() => void)[] = [];
+    private isDirty = false;
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        };
+    }
+
+    public updateCache(page: PageV2<Job>, doClear = false) {
+        this.isDirty = true;
+        if (doClear) {
+            this.cache = {items: [], itemsPerPage: 100};
+        }
+
+        const runningJobs = page.items.filter(it => it.status.state === "RUNNING");
+        for (const job of runningJobs) {
+            const duplicate = this.cache.items.find(it => it.id === job.id);
+            if (duplicate) {
+                duplicate.status === job.status;
+            }
+            else {
+                this.cache.items.unshift(job);
+            }
+        }
+
+        const endedJobs = page.items.filter(it => isJobStateTerminal(it.status.state));
+        for (const endedJob of endedJobs) {
+            const job = this.cache.items.find(it => it.id === endedJob.id);
+            if (job) {
+                this.cache.items = this.cache.items.filter(it => it.id !== job.id);
+            }
+        }
+
+        this.emitChange();
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public getSnapshot(): Readonly<PageV2<Job>> {
+        if (this.isDirty) {
+            this.isDirty = false;
+            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
+        }
+        return this.cache;
+    }
+}();
+
+function useSidebarRunsPage(): PageV2<Job> {
     const projectId = useProjectId();
 
+    const cache = React.useSyncExternalStore(s => sidebarJobCache.subscribe(s), () => sidebarJobCache.getSnapshot());
+
     React.useEffect(() => {
-        fetchRuns(JobsApi.browse({itemsPerPage: 10, filterState: "RUNNING"}));
+        callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {
+            sidebarJobCache.updateCache(result, true);
+        });
     }, [projectId]);
 
-    return runs;
+    return cache;
 }
 
 interface SecondarySidebarProps {
@@ -583,7 +641,7 @@ function SecondarySidebar({
         {active !== "Runs" ? null : (
             <Flex flexDirection={"column"}>
                 <h3 className={"no-link"}>Running jobs</h3>
-                {recentRuns.data.items.map(it =>
+                {recentRuns.items.map(it =>
                     <AppTitleAndLogo
                         key={it.id}
                         to={AppRoutes.jobs.view(it.id)}
@@ -591,7 +649,7 @@ function SecondarySidebar({
                         title={`${it.specification.name ?? it.id} (${it.specification.application.name})`}
                     />
                 )}
-                {recentRuns.data.items.length !== 0 ? null : <div>No jobs running.</div>}
+                {recentRuns.items.length !== 0 ? null : <div>No jobs running.</div>}
             </Flex>
         )}
 

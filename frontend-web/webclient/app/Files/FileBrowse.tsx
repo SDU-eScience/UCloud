@@ -1081,7 +1081,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const collectionId = pathComponents(newPath)[0];
 
-                    console.log("newPath:", newPath)
                     folderCache
                         .retrieve(newPath, () => callAPI(FilesApi.retrieve({id: newPath})))
                         .then(() => browser.renderOperations());
