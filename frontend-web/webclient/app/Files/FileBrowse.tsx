@@ -689,9 +689,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
-                    // TODO(Jonas): I think this will be redundant when truncation is fixed.
-                    icon.style.minWidth = icon.style.minHeight = "20px"
-                    // TODO(Jonas): End
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
                         const iconWrapper = createHTMLElements({
@@ -1084,6 +1081,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const collectionId = pathComponents(newPath)[0];
 
+                    console.log("newPath:", newPath)
                     folderCache
                         .retrieve(newPath, () => callAPI(FilesApi.retrieve({id: newPath})))
                         .then(() => browser.renderOperations());

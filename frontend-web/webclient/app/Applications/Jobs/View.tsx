@@ -320,11 +320,10 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
         };
     }, [job, props.embedded]);
 
-    /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
     useEffect(() => {
+        /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
         if (job?.status != null) setStatus(s => s ?? job.status);
     }, [job]);
-    /* NOTE-END */
 
     useEffect(() => {
         // Used to fetch creditsCharged when job finishes.

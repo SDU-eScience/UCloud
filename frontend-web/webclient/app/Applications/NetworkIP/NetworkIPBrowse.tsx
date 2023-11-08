@@ -233,7 +233,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     }
                 });
 
-                browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
+                browser.on("fetchOperationsCallback", () => {
                     const callbacks: ResourceBrowseCallbacks<NetworkIP> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,

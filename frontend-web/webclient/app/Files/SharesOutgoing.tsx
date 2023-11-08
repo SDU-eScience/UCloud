@@ -519,7 +519,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 });
 
                 browser.on("fetchOperationsCallback", () => {
-                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): I assume that we need to do something different here.
+                    const support = {productsByProvider: {}};
                     const callbacks: ResourceBrowseCallbacks<Share> = {
                         api: SharesApi,
                         navigate: to => navigate(to),

@@ -406,7 +406,7 @@ export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE |
     || window.location.hostname === "127.0.0.1";
 
 // Note(Jonas): This code adds an event listener on localhost and the dev site. With my current setup, I get logged out on
-// retrieving a new JWT, so this solution will allow my to more quickly fetch the token values from `dev`, and copy them to my
+// retrieving a new JWT, so this solution will allow me to more quickly fetch the token values from `dev`, and copy them to my
 // localhost run on my machine.
 if (onDevSite()) {
     document.body.addEventListener("keydown", async e => {

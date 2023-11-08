@@ -126,9 +126,8 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     navigate: NavigateFunction;
-    supportByProvider: SupportByProvider;
+    supportByProvider: SupportByProvider; // As of today (Nov 8th, 2023) only FileCollectionsApi uses this in callbacks.
     isWorkspaceAdmin: boolean;
-    inPopIn?: boolean;
     creationDisabled?: boolean;
 }
 
