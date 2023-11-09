@@ -16,6 +16,7 @@ enum TreeAction {
 
 export interface TreeApi {
     activate: () => void;
+    isActive: () => boolean;
 }
 
 const TreeClass = injectStyle("tree", k => ``);
@@ -44,63 +45,21 @@ export const Tree: React.FunctionComponent<{
                 const rIdx = allResults.length - 1;
                 return [allResults[rIdx] as HTMLElement, rIdx];
             }
+            if (rowIdx < 0 && allResults.length > 0) {
+                return [allResults[0] as HTMLElement, 0];
+            }
+
             return [null, -1];
         }
 
-        const handler = (ev: KeyboardEvent) => {
-            if (!root.current) return;
-            if (!root.current.hasAttribute("data-active")) return;
+        const isActive = () => {
+            if (!root.current) return false;
+            return root.current.hasAttribute("data-active");
+        };
 
-            let action: TreeAction | null = null;
-            switch (ev.code) {
-                case "Space":
-                case "Enter": {
-                    action = TreeAction.TOGGLE;
-                    break;
-                }
-
-                case "ArrowRight": {
-                    action = TreeAction.OPEN;
-                    break
-                }
-
-                case "ArrowLeft": {
-                    action = TreeAction.CLOSE;
-                    break
-                }
-
-                case "ArrowUp": {
-                    action = TreeAction.GO_UP;
-                    break;
-                }
-
-                case "ArrowDown": {
-                    action = TreeAction.GO_DOWN;
-                    break;
-                }
-
-                case "Home": {
-                    action = TreeAction.GO_TO_TOP;
-                    break;
-                }
-
-                case "End": {
-                    action = TreeAction.GO_TO_BOTTOM;
-                    break;
-                }
-            }
-
-            if (action === null) {
-                if (props.unhandledShortcut) {
-                    const row = visibleRows().find(it => it.hasAttribute("data-selected"));
-                    if (row) props.unhandledShortcut(row, ev);
-                }
-                return;
-            }
+        const handleAction = (action: TreeAction) => {
             let rowIdx = visibleRows().findIndex(it => it.hasAttribute("data-selected"))
             let initialRowIdx = rowIdx;
-
-            ev.preventDefault();
 
             switch (action) {
                 case TreeAction.TOGGLE: {
@@ -169,21 +128,75 @@ export const Tree: React.FunctionComponent<{
             }
         };
 
+        const handler = (ev: KeyboardEvent) => {
+            if (!isActive()) return;
+
+            let action: TreeAction | null = null;
+            switch (ev.code) {
+                case "Space":
+                case "Enter": {
+                    action = TreeAction.TOGGLE;
+                    break;
+                }
+
+                case "ArrowRight": {
+                    action = TreeAction.OPEN;
+                    break
+                }
+
+                case "ArrowLeft": {
+                    action = TreeAction.CLOSE;
+                    break
+                }
+
+                case "ArrowUp": {
+                    action = TreeAction.GO_UP;
+                    break;
+                }
+
+                case "ArrowDown": {
+                    action = TreeAction.GO_DOWN;
+                    break;
+                }
+
+                case "Home": {
+                    action = TreeAction.GO_TO_TOP;
+                    break;
+                }
+
+                case "End": {
+                    action = TreeAction.GO_TO_BOTTOM;
+                    break;
+                }
+            }
+
+            if (action === null) {
+                if (props.unhandledShortcut) {
+                    const row = visibleRows().find(it => it.hasAttribute("data-selected"));
+                    if (row) props.unhandledShortcut(row, ev);
+                }
+            } else {
+                ev.preventDefault();
+                handleAction(action);
+            }
+        };
+
+        if (props.apiRef) {
+            props.apiRef.current = {
+                activate: () => {
+                    document.body.querySelectorAll(`.${TreeClass}[data-active]`)
+                        .forEach(tree => tree.removeAttribute("data-active"));
+
+                    root?.current?.setAttribute("data-active", "");
+                    handleAction(TreeAction.GO_TO_TOP);
+                },
+                isActive,
+            };
+        }
+
         document.body.addEventListener("keydown", handler);
         return () => {
             document.body.removeEventListener("keydown", handler);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!props.apiRef) return;
-        props.apiRef.current = {
-            activate: () => {
-                document.body.querySelectorAll(`.${TreeClass}[data-active]`)
-                    .forEach(tree => tree.removeAttribute("data-active"));
-
-                root?.current?.setAttribute("data-active", "");
-            }
         }
     }, [props.apiRef]);
 
@@ -201,8 +214,8 @@ const TreeNodeClass = injectStyle("tree-node", k => `
         background: unset;
     }
     
-    ${k}[data-selected] > [data-component=list-row]:hover,
-    ${k}[data-selected] > [data-component=list-row] {
+    [data-active] ${k}[data-selected] > [data-component=list-row]:hover,
+    [data-active] ${k}[data-selected] > [data-component=list-row] {
         background: var(--lightBlue);
     }
     

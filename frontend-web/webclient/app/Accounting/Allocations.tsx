@@ -746,7 +746,9 @@ const Allocations: React.FunctionComponent = () => {
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
     const avatars = useAvatars();
     const searchTimeout = useRef<number>(0);
+    const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
+    const searchBox = useRef<HTMLInputElement>(null);
 
     const currentPeriod = state.periodSelection.availablePeriods[state.periodSelection.currentPeriodIdx];
     const currentPeriodStart = currentPeriod?.start ?? timestampUnixMs();
@@ -767,6 +769,42 @@ const Allocations: React.FunctionComponent = () => {
     // These event handlers translate, primarily DOM, events to higher-level UIEvents which are sent to
     // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. When you are writing
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
+    useEffect(() => {
+        const handler = (ev: KeyboardEvent) => {
+            switch (ev.code) {
+                case "Tab": {
+                    ev.preventDefault();
+                    const allocTreeActive = allocationTree.current?.isActive() === true;
+                    const subAllocTreeActive = suballocationTree.current?.isActive() === true;
+
+                    if (allocTreeActive) {
+                        suballocationTree.current?.activate();
+                    } else if (subAllocTreeActive) {
+                        allocationTree.current?.activate();
+                    } else {
+                        allocationTree.current?.activate();
+                    }
+                    break;
+                }
+
+                case "KeyK": {
+                    if (ev.ctrlKey || ev.metaKey) {
+                        ev.preventDefault();
+                        const box = searchBox.current;
+                        console.log(box);
+                        if (box) {
+                            box.scrollIntoView({ block: "nearest" });
+                            box.focus();
+                        }
+                    }
+                    break;
+                }
+            }
+        };
+
+        document.body.addEventListener("keydown", handler);
+        return () => document.body.removeEventListener("keydown", handler);
+    }, []);
     const onPeriodSelect = useCallback((ev: ChangeEvent) => {
         const target = ev.target as HTMLSelectElement;
         dispatchEvent({type: "PeriodUpdated", selectedIndex: target.selectedIndex});
@@ -934,7 +972,7 @@ const Allocations: React.FunctionComponent = () => {
             </Flex>
 
             <h3>Your allocations</h3>
-            <Tree>
+            <Tree apiRef={allocationTree}>
                 {sortedAllocations.map(([rawType, tree]) => {
                     const type = rawType as ProductType;
 
@@ -1029,6 +1067,7 @@ const Allocations: React.FunctionComponent = () => {
                         onInput={onSearchInput}
                         onKeyDown={onSearchKey}
                         disabled={state.editControlsDisabled}
+                        inputRef={searchBox}
                     />
                     <div style={{position: "relative"}}>
                         <div style={{position: "absolute", top: "-30px", right: "11px"}}>
@@ -1063,7 +1102,8 @@ const Allocations: React.FunctionComponent = () => {
                                         end: currentPeriodEnd,
                                     })}
                                 >
-                                    <SmallIconButton icon={"heroPlus"} />
+                                    <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
+                                                     subColor1={"white"} subColor2={"white"} />
                                 </Link>
                             }
 
@@ -1211,10 +1251,33 @@ const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
     ${k} svg {
         margin: 0;
     }
+    
+    ${k}[data-has-sub=true] svg {
+        width: 14px;
+        height: 14px;
+        position: relative;
+        left: -2px;
+        top: -1px;
+    }
+    
+    ${k} .sub {
+        position: absolute;
+    }
+    
+    ${k} .sub > svg {
+        width: 12px;
+        height: 12px;
+        position: relative;
+        left: 5px;
+        top: 3px;
+    }
 `);
 
 const SmallIconButton: React.FunctionComponent<{
     icon: IconName;
+    subIcon?: IconName;
+    subColor1?: ThemeColor;
+    subColor2?: ThemeColor;
     color?: ThemeColor;
     onClick?: (ev: HTMLButtonElement) => void;
     disabled?: boolean;
@@ -1230,9 +1293,16 @@ const SmallIconButton: React.FunctionComponent<{
         color={props.color}
         disabled={props.disabled}
         btnRef={ref}
+        data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
         <Icon name={props.icon} hoverColor={"white"} />
+        {props.subIcon &&
+            <div className={"sub"}>
+                <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
+                      color2={props.subColor2} />
+            </div>
+        }
     </Button>;
 };
 
