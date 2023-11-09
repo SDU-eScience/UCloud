@@ -138,7 +138,7 @@ class FavoriteService (
                             setParameter("offset", request.offset)
                         },
                         """
-                        SELECT A.*
+                        SELECT DISTINCT ON (A.name) name, A.*
                         FROM favorited_by as F, applications as A
                         WHERE 
                             (F.the_user = :user) AND
@@ -162,7 +162,7 @@ class FavoriteService (
                                     :isAdmin
                                 )
                             )
-                        ORDER BY F.application_name
+                        ORDER BY A.name, A.created_at DESC
                         LIMIT :limit
                         OFFSET :offset
                     """
