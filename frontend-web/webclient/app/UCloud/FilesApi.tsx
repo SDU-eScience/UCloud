@@ -692,7 +692,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
-                    if ((support as FileCollectionSupport).files.trashSupported) return false;
+                    if (!(support as FileCollectionSupport).files.trashSupported) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }

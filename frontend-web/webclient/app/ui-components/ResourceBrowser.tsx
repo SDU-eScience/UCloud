@@ -3379,7 +3379,6 @@ export class ResourceBrowser<T> {
             e.container.style.position = "unset";
             e.container.style.marginLeft = "auto";
             e.container.style.marginRight = "auto";
-            e.container.style.height = "100px";
         }
     }
 
