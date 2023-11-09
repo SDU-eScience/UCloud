@@ -1,16 +1,14 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import {Flex, Icon, Relative} from "@/ui-components";
-import Box from "@/ui-components/Box";
 import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
-import {EllipsedText, TextClass} from "@/ui-components/Text";
+import {TextClass} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Pages from "./Pages";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
-import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {LogoType} from "./api";
-import { CardClass } from "@/ui-components/Card";
+import {CardClass} from "@/ui-components/Card";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void;
@@ -57,67 +55,6 @@ const AppCardBase = injectStyle("app-card-base", k => `
     }
 `);
 
-const ApplicationCardContainer = injectStyle("application-card-container", k => `
-    ${k} {
-        display: flex;
-        flex-direction: column;
-    }
-
-    ${k} > ${AppCardBase}:first-child {
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
-    }
-
-    ${k} > ${AppCardBase} {
-        border-top: 0;
-    }
-
-    ${k} > ${AppCardBase}:last-child {
-        border-bottom-left-radius: 5px;
-        border-bottom-right-radius: 5px;
-    }
-`);
-
-const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    return (
-        <Box className={AppCardBase}>
-            <Box mr={16}>
-                <AppToolLogo name={props.logo} type={"APPLICATION"} size={"32px"} />
-            </Box>
-            <b>{props.title}</b>
-            <EllipsedText>
-                <Markdown
-                    disallowedElements={[
-                        "break",
-                        "paragraph",
-                        "emphasis",
-                        "strong",
-                        "thematicBreak",
-                        "blockquote",
-                        "delete",
-                        "link",
-                        "image",
-                        "linkReference",
-                        "imageReference",
-                        "table",
-                        "tableRow",
-                        "tableCell",
-                        "list",
-                        "listItem",
-                        "definition",
-                        "heading",
-                        "inlineCode",
-                        "code",
-                        "html"]}
-                    unwrapDisallowed
-                >
-                    {props.description ?? ""}
-                </Markdown>
-            </EllipsedText>
-            <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
-        </Box>
-    );
-};
 
 export const Tag = ({label, bg = "black"}: {label: string; bg?: ThemeColor}): JSX.Element => (
     <div style={{
@@ -327,7 +264,7 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
     }
 `);
 
-const ApplicationCardClass = injectStyle("application-card", k => `
+export const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
         user-select: none;
     }
@@ -387,14 +324,6 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
 }
 
 const FAV_ICON_SIZE = "20px";
-const FavIcon = injectStyleSimple("app-fav-icon", `
-    position: relative; 
-    cursor: pointer;
-    height: 0;
-    width: 0;
-    top: -5px;
-    left: calc(100% - ${FAV_ICON_SIZE} + 5px);
-`);
 
 export enum ApplicationCardType {
     WIDE,
@@ -470,9 +399,9 @@ export function AppCard(props: AppCardProps): JSX.Element {
             case ApplicationCardType.EXTRA_TALL:
             case ApplicationCardType.TALL:
                 const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
-                return <Flex 
-                    flexDirection="column" 
-                    className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)} 
+                return <Flex
+                    flexDirection="column"
+                    className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)}
                     data-xl={isExtraTall}
                 >
                     <div className="image">
@@ -484,8 +413,8 @@ export function AppCard(props: AppCardProps): JSX.Element {
             case ApplicationCardType.WIDE:
             case ApplicationCardType.EXTRA_WIDE:
                 const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
-                return <div 
-                    className={classConcat(CardClass, ApplicationCardClass, WideApplicationCard)} 
+                return <div
+                    className={classConcat(CardClass, ApplicationCardClass, WideApplicationCard)}
                     data-xl={isExtraWide}
                 >
                     <div className="image">
