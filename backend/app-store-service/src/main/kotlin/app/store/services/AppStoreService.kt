@@ -311,9 +311,10 @@ class AppStoreService(
                                     ) apps_with_rno
                                     where rno <= 1
                                 )
-                            select a.*
+                            select a.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                             from
                                 most_recent_applications a
+                            left join application_groups ag on ag.id = a.group_id
                             where
                                 (a.application -> 'fileExtensions' ??| :ext::text[])
 
@@ -525,8 +526,10 @@ class AppStoreService(
                     setParameter("user", actorAndProject.actor.username)
                 },
                 """
-            SELECT A.*
-            FROM applications AS A WHERE (A.created_at) IN (
+            SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+            FROM applications AS A
+            LEFT JOIN app_store.application_groups ag ON ag.id = A.group_id
+            WHERE (A.created_at) IN (
                 SELECT MAX(created_at)
                 FROM applications as B
                 WHERE A.name = B.name AND (
@@ -1290,8 +1293,9 @@ class AppStoreService(
                     setParameter("groups", groups)
                 },
                 """
-                SELECT A.*
+                SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                 FROM applications AS A 
+                LEFT JOIN application_groups ag ON ag.id = A.group_id
                 WHERE 
                     (A.created_at) IN (
                         SELECT MAX(created_at)
@@ -1346,8 +1350,9 @@ class AppStoreService(
                         setParameter("exclude", excludeNormalized)
                     },
                     """
-                        SELECT DISTINCT ON (A.name) A.*
+                        SELECT DISTINCT ON (A.name) A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                         FROM applications as A
+                        LEFT JOIN application_groups on ag.id = A.group_id
                         WHERE (A.name) IN (select unnest(:applications::text[])) AND (
                             (
                                 A.is_public = TRUE

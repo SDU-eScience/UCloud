@@ -149,7 +149,7 @@ export interface InputLabelProps extends WidthProps, TextAlignProps, MarginProps
 
 const InputLabelClass = injectStyle("input-label", k => `
     ${k} {
-        height: 42px;
+        height: 35px;
         border-radius: 5px;
         padding: 7px 12px;
         font-size: 14px;

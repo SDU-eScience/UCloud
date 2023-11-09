@@ -67,7 +67,7 @@ const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
         width: 100%;
         border-radius: 5px;
         padding: 7px 12px;
-        height: 42px;
+        height: 35px;
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
 
         border: 1px solid var(--midGray);

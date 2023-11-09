@@ -279,8 +279,9 @@ class ApplicationSearchService (
                         setParameter("isAdmin", isAdmin)
                     },
                     """
-                        SELECT * 
+                        SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                         FROM app_store.applications AS A
+                        LEFT JOIN app_store.application_groups ag on ag.id = A.group_id
                         WHERE (A.created_at) in (
                             SELECT max(B.created_at)
                             FROM app_store.applications AS B
@@ -361,8 +362,9 @@ class ApplicationSearchService (
                         setParameter("isAdmin", isAdmin)
                     },
                     """
-                    SELECT *
+                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                     FROM applications AS A
+                    LEFT JOIN application_groups ag on ag.id = A.group_id
                     WHERE (A.created_at) IN (
                         SELECT MAX(created_at)
                         FROM applications as B
