@@ -7,7 +7,7 @@ import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
-import {AppCard, ApplicationCardType} from "@/Applications/Card";
+import {AppCard, AppCardStyle, AppCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
 import {Box, Flex, Icon, Input} from "@/ui-components";
 import {Link} from "react-router-dom";
@@ -15,6 +15,12 @@ import * as Pages from "./Pages";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
+import {compute} from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {FavoriteStatus} from "./Landing";
+import {useDispatch} from "react-redux";
+import {toggleAppFavorite} from "./Redux/Actions";
+
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
@@ -126,6 +132,7 @@ function readQuery(queryParams: string): SearchQuery {
 export const SearchResults: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const dispatch = useDispatch();
     const [, invokeCommand] = useCloudCommand();
     const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
         {noop: true},
@@ -145,9 +152,28 @@ export const SearchResults: React.FunctionComponent = () => {
         );
     }, [queryParams]);
 
-    const toggleFavorite = React.useCallback(async (appName: string) => {
-        await invokeCommand(UCloud.compute.apps.toggleFavorite({appName}));
-    }, [fetch]);
+    const favoriteStatus = React.useRef<FavoriteStatus>({});
+
+    const onFavorite = React.useCallback(async (app: ApplicationSummaryWithFavorite) => {
+        // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
+        const key = app.metadata.name;
+        const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
+        if (favoriteStatus.current[key]) {
+            delete favoriteStatus.current[key]
+        } else {
+            favoriteStatus.current[key] = {override: !isFavorite, app};
+        }
+        favoriteStatus.current = {...favoriteStatus.current};
+        dispatch(toggleAppFavorite(app, !isFavorite));
+        try {
+            await invokeCommand(UCloud.compute.apps.toggleFavorite({
+                appName: app.metadata.name
+            }));
+        } catch (e) {
+            favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
+            favoriteStatus.current = {...favoriteStatus.current};
+        }
+    }, [favoriteStatus]);
 
     return <Box mx="auto" maxWidth="1340px">
         <Flex width="100%" mt="30px" justifyContent="right">
@@ -162,18 +188,19 @@ export const SearchResults: React.FunctionComponent = () => {
             pageRenderer={page => (
                 <GridCardGroup minmax={322}>
                     {page.items.map(app => (
-                        <Link key={`${app.metadata.name}${app.metadata.version}`} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                            <AppCard
-                                title={app.metadata.title}
-                                description={app.metadata.description}
-                                logo={app.metadata.name}
-                                contentType="APPLICATION"
-                                type={ApplicationCardType.WIDE}
-                                onFavorite={toggleFavorite}
-                                isFavorite={app.favorite}
-                            />
-                        </Link>))
-                    }
+                        <AppCard
+                            key={app.metadata.name}
+                            title={app.metadata.title}
+                            description={app.metadata.description}
+                            logo={app.metadata.name}
+                            type={AppCardType.APPLICATION}
+                            style={AppCardStyle.WIDE}
+                            link={Pages.run(app.metadata.name)}
+                            onFavorite={onFavorite}
+                            isFavorite={favoriteStatus.current[app.metadata.name]?.override ?? app.favorite}
+                            application={app}
+                        />
+                    ))}
                 </GridCardGroup>
             )}
             onPageChanged={newPage => {

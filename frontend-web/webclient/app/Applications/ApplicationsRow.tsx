@@ -1,9 +1,12 @@
 import {injectStyle} from "@/Unstyled";
 import {ApplicationGroup} from "./api";
-import {AppCard, ApplicationCardType} from "./Card";
+import {AppCard, AppCardType, AppCardStyle} from "./Card";
 import React, {useEffect, useState} from "react";
 import {Absolute, Icon, Link, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
+import {compute} from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {toggleAppFavorite} from "./Redux/Actions";
 
 export const ApplicationRowContainerClass = injectStyle("application-row-container", k => `
     ${k} {
@@ -20,22 +23,50 @@ export const ApplicationRowContainerClass = injectStyle("application-row-contain
     }
 `);
 
+export interface ApplicationRowItem {
+    id: string,
+    type: AppCardType,
+    title: string,
+    description?: string,
+    defaultApplication?: string,
+    tags?: string[],
+    isFavorite?: boolean,
+    onFavorite?: (app: ApplicationSummaryWithFavorite) => void,
+    application?: ApplicationSummaryWithFavorite
+}
+
+export function ApplicationGroupToRowItem(group: ApplicationGroup): ApplicationRowItem {
+    return {
+        id: group.id.toString(),
+        type: AppCardType.GROUP,
+        title: group.title,
+        description: group.description,
+        defaultApplication: group.defaultApplication,
+        tags: group.tags
+    }
+}
+
+export function ApplicationSummaryToRowItem(app: ApplicationSummaryWithFavorite, onFavorite?: (app: ApplicationSummaryWithFavorite) => void): ApplicationRowItem {
+    return {
+        id: app.metadata.name,
+        type: AppCardType.APPLICATION,
+        title: app.metadata.title,
+        description: app.metadata.description,
+        isFavorite: app.favorite,
+        onFavorite: onFavorite,
+        application: app
+    }
+}
+
 interface ApplicationRowProps {
-    items: ApplicationGroup[];
-    type: ApplicationCardType;
+    items: ApplicationRowItem[];
+    style: AppCardStyle;
     refreshId: number;
-    scrolling: boolean;
 }
 
 const SCROLL_SPEED = 156 * 4;
 
-function groupCardLink(app: ApplicationGroup): string {
-    return app.defaultApplication ? 
-        Pages.run(app.defaultApplication)
-    :
-        Pages.browseGroup(app.id.toString())
 
-}
 
 const ScrollButtonClass = injectStyle("scroll-button", k => `
     ${k} {
@@ -68,7 +99,7 @@ function ScrollButton({disabled, left, onClick}: {disabled: boolean; left: boole
 }
 
 const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
-    items, type, scrolling
+    items, style 
 }: ApplicationRowProps) => {
     const [hasScroll, setHasScroll] = useState<boolean>(false);
     const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -102,19 +133,30 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
             <div
                 ref={scrollRef}
                 className={ApplicationRowContainerClass}
-                data-space-between={type === ApplicationCardType.WIDE ? (items.length > 3) : (items.length > 6)}
+                data-space-between={style === AppCardStyle.WIDE ? (items.length > 3) : (items.length > 6)}
             >
-                {items.map(app =>
-                    <Link key={app.id} to={groupCardLink(app)}>
-                        <AppCard
-                            type={type}
-                            title={app.title}
-                            description={app.description}
-                            logo={app.id.toString()}
-                            contentType="GROUP"
-                            isFavorite={false}
-                        />
-                    </Link>
+                {items.map(item =>
+                    <AppCard
+                        key={item.id}
+                        style={style}
+                        title={item.title}
+                        description={item.description}
+                        logo={item.id}
+                        type={item.type}
+                        isFavorite={item.isFavorite}
+                        onFavorite={item.onFavorite}
+                        application={item.application}
+                        link={
+                            item.type === AppCardType.APPLICATION ?
+                                Pages.run(item.id)
+                            :
+                                (item.defaultApplication ?
+                                    Pages.run(item.defaultApplication)
+                                :
+                                    Pages.browseGroup(item.id)
+                                )
+                        }
+                    />
                 )}
             </div>
         </>

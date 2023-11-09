@@ -3,7 +3,7 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box, Button, Flex, Icon, Input, Link, Relative, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {AppCard, ApplicationCardType} from "./Card";
+import {AppCard, AppCardStyle, AppCardType} from "./Card";
 import * as Pages from "./Pages";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -23,7 +23,7 @@ import favoritesImage from "@/Assets/Images/ucloud-2.png";
 import featuredImage from "/Images/ucloud-1.png";
 import popularImage from "/Images/ucloud-9.svg";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import ApplicationRow, {ApplicationRowContainerClass} from "./ApplicationsRow";
+import ApplicationRow, {ApplicationGroupToRowItem, ApplicationRowContainerClass, ApplicationSummaryToRowItem} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
 
 export const ApiLike: ReducedApiInterface = {
@@ -31,11 +31,7 @@ export const ApiLike: ReducedApiInterface = {
     titlePlural: "Applications"
 };
 
-function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
-    return `${metadata.name}/${metadata.version}`;
-}
-
-type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
+export type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
 const LandingAppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
@@ -178,7 +174,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
-        const key = favoriteStatusKey(app.metadata);
+        const key = app.metadata.name;
         const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
         if (favoriteStatus.current[key]) {
             delete favoriteStatus.current[key]
@@ -222,17 +218,17 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         {sections.data.sections[0] ?
                             <>
                                 <ApplicationRow
-                                    items={sections.data.sections[0].featured.slice(0, 4)}
-                                    type={ApplicationCardType.WIDE}
+                                    items={
+                                        sections.data.sections[0].featured.slice(0, 4).map(ApplicationGroupToRowItem)
+                                    }
+                                    style={AppCardStyle.WIDE}
                                     refreshId={refreshId}
-                                    scrolling={false}
                                 />
 
                                 <ApplicationRow
-                                    items={sections.data.sections[0].featured.slice(4)}
-                                    type={ApplicationCardType.TALL}
+                                    items={sections.data.sections[0].featured.slice(4).map(ApplicationGroupToRowItem)}
+                                    style={AppCardStyle.TALL}
                                     refreshId={refreshId}
-                                    scrolling={false}
                                 />
                             </>
                         : <></>}
@@ -246,17 +242,15 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         {sections.data.sections[1] ?
                             <>
                                 <ApplicationRow
-                                    items={sections.data.sections[1].featured.slice(0, 4)}
-                                    type={ApplicationCardType.WIDE}
+                                    items={sections.data.sections[1].featured.slice(0, 4).map(ApplicationGroupToRowItem)}
+                                    style={AppCardStyle.WIDE}
                                     refreshId={refreshId}
-                                    scrolling={false}
                                 />
 
                                 <ApplicationRow
-                                    items={sections.data.sections[1].featured.slice(4)}
-                                    type={ApplicationCardType.TALL}
+                                    items={sections.data.sections[1].featured.slice(4).map(ApplicationGroupToRowItem)}
+                                    style={AppCardStyle.TALL}
                                     refreshId={refreshId}
-                                    scrolling={false}
                                 />
                             </>
                         : <></>}
@@ -286,20 +280,19 @@ function filterAppsByFavorite(
     favoriteStatus: React.MutableRefObject<FavoriteStatus>
 ): compute.ApplicationSummaryWithFavorite[] {
     let filteredItems = items.filter(item =>
-        favoriteStatus.current[favoriteStatusKey(item.metadata)]?.override ?? item.favorite
+        favoriteStatus.current[item.metadata.name]?.override ?? item.favorite
     );
 
-    filteredItems = [...filteredItems, ...Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app)];
-    filteredItems = filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it.metadata)]?.override !== false);
+    //filteredItems = [...filteredItems, ...Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app)];
+    filteredItems = filteredItems.filter(it => favoriteStatus.current[it.metadata.name]?.override !== false);
 
     // Remove duplicates (This can happen due to favorite cache)
     {
         const observed = new Set<string>();
         const newList: ApplicationSummaryWithFavorite[] = [];
         for (const item of filteredItems) {
-            const key = favoriteStatusKey(item.metadata);
-            if (!observed.has(key)) {
-                observed.add(key);
+            if (!observed.has(item.metadata.name)) {
+                observed.add(item.metadata.name);
                 newList.push(item);
             }
         }
@@ -307,8 +300,8 @@ function filterAppsByFavorite(
     }
 }
 
-function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
-    const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+function FavoriteAppRow({favoriteStatus, onFavorite, refreshId}: FavoriteAppRowProps): JSX.Element {
+    const items = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const filteredItems = React.useMemo(() =>
         filterAppsByFavorite(items, favoriteStatus),
         [items, favoriteStatus.current]
@@ -319,15 +312,23 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.
             {/* <img src={favoritesImage} /> */}
             <Heading.h1>Favorite Applications</Heading.h1>
         </Flex>
+
+        <ApplicationRow
+            style={AppCardStyle.TALL}
+            items={filteredItems.map(app => ApplicationSummaryToRowItem(app, onFavorite))}
+            refreshId={refreshId}
+        />
+
+        {/*
         <div className={ApplicationRowContainerClass} data-space-between={items.length > 6}>
             {filteredItems.map(app =>
                 <Flex>
                     <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
                         <AppCard
-                            type={ApplicationCardType.TALL}
+                            style={AppCardStyle.TALL}
                             title={app.metadata.title}
                             logo={app.metadata.name}
-                            contentType="APPLICATION"
+                            type={AppCardType.APPLICATION}
                             description={app.metadata.description}
                             isFavorite={true}
                         />
@@ -338,6 +339,7 @@ function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.
                 </Flex>
             )}
         </div>
+        */}
     </>
 }
 

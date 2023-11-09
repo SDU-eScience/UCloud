@@ -1,27 +1,25 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import {Flex, Icon, Relative} from "@/ui-components";
-import Box from "@/ui-components/Box";
 import Link, {LinkProps} from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
-import {EllipsedText, TextClass} from "@/ui-components/Text";
+import {TextClass} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
-import * as Pages from "./Pages";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
-import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import {LogoType} from "./api";
 import { CardClass } from "@/ui-components/Card";
 import {compute} from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 
 interface ApplicationCardProps {
-    onFavorite?: (name: string, version: string) => void;
+    onFavorite?: (app: ApplicationSummaryWithFavorite) => void;
     title: string;
     description?: string;
     logo: string;
-    contentType: LogoType;
+    type: AppCardType;
     isFavorite?: boolean;
-    linkToRun?: boolean;
+    link?: string;
     colorBySpecificTag?: string;
+    application?: ApplicationSummaryWithFavorite
 }
 
 const AppCardBase = injectStyle("app-card-base", k => `
@@ -157,19 +155,6 @@ export function hashF(str: string): number {
 export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
-
-function CardToolContainer({children}: React.PropsWithChildren): JSX.Element {
-    return <div className={CardToolContainerClass} children={children} />
-}
-
-const CardToolContainerClass = injectStyleSimple("card-tool-container", `
-    display: grid;
-    flex-direction: column;
-    align-items: flex-start;
-    border-radius: 5px;
-    overflow: hidden;
-    width: 100%;
-`);
 
 function SmallCard(props: LinkProps) {
     return <Link className={SmallCardClass} {...props} />
@@ -335,27 +320,33 @@ const FavIcon = injectStyleSimple("app-fav-icon", `
     left: calc(100% - ${FAV_ICON_SIZE} + 5px);
 `);
 
-export enum ApplicationCardType {
+export enum AppCardStyle {
     WIDE,
     EXTRA_TALL,
     TALL,
     EXTRA_WIDE,
 }
 
+export enum AppCardType {
+    GROUP,
+    APPLICATION
+}
+
 export interface AppCardProps extends React.PropsWithChildren<ApplicationCardProps> {
-    type: ApplicationCardType;
+    style: AppCardStyle;
 }
 
 const typeLineCount = {
-    [ApplicationCardType.TALL]: 5,
-    [ApplicationCardType.EXTRA_TALL]: 4,
-    [ApplicationCardType.WIDE]: 4,
-    [ApplicationCardType.EXTRA_WIDE]: 9
+    [AppCardStyle.TALL]: 5,
+    [AppCardStyle.EXTRA_TALL]: 4,
+    [AppCardStyle.WIDE]: 4,
+    [AppCardStyle.EXTRA_WIDE]: 9
 }
 
 export function AppCard(props: AppCardProps): JSX.Element {
     return React.useMemo(() => {
-        let lineCount = typeLineCount[props.type];
+        let lineCount = typeLineCount[props.style];
+        let card: React.JSX.Element;
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
                 <div><b>{props.title}</b></div>
@@ -368,33 +359,71 @@ export function AppCard(props: AppCardProps): JSX.Element {
                     </Markdown>
                 </MultiLineTruncate>
             </div>;
-        switch (props.type) {
-            case ApplicationCardType.EXTRA_TALL:
-            case ApplicationCardType.TALL:
-                const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
-                return <Flex 
-                    flexDirection="column" 
-                    className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)} 
-                    data-xl={isExtraTall}
-                >
-                    <div className="image">
-                        <AppToolLogo size={"52px"} name={props.logo} type={props.contentType} />
-                    </div>
-                    {titleAndDescription}
-                </Flex>;
+        switch (props.style) {
+            case AppCardStyle.EXTRA_TALL:
+            case AppCardStyle.TALL:
+                const isExtraTall = props.style === AppCardStyle.EXTRA_TALL;
+                card = <Flex 
+                        flexDirection="column" 
+                        className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)} 
+                        data-xl={isExtraTall}
+                    >
+                        <div className="image">
+                            <AppToolLogo
+                                size={"52px"}
+                                name={props.logo}
+                                type={props.type === AppCardType.APPLICATION ?
+                                    "APPLICATION" : "GROUP"
+                                }
+                            />
+                        </div>
+                        {titleAndDescription}
+                    </Flex>;
+                break;
 
-            case ApplicationCardType.WIDE:
-            case ApplicationCardType.EXTRA_WIDE:
-                const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
-                return <div 
+            case AppCardStyle.WIDE:
+            case AppCardStyle.EXTRA_WIDE:
+                const isExtraWide = props.style === AppCardStyle.EXTRA_WIDE;
+                card = <div 
                     className={classConcat(CardClass, ApplicationCardClass, WideApplicationCard)} 
                     data-xl={isExtraWide}
                 >
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={props.logo} type={props.contentType} />
+                        <AppToolLogo
+                            size={isExtraWide ? "85px" : "65px"}
+                            name={props.logo}
+                            type={props.type === AppCardType.APPLICATION ?
+                                "APPLICATION" : "GROUP"
+                            }
+                        />
                     </div>
                     {titleAndDescription}
                 </div>
         }
+
+        return props.link ? 
+            props.type === AppCardType.APPLICATION ?
+                <Flex>
+                    <Link to={props.link}>
+                        {card}
+                    </Link>
+                    <Relative top="6px" right="28px" width="0px" height="0px">
+                        <Icon
+                            cursor="pointer"
+                            name={props.isFavorite ? "starFilled" : "starEmpty"}
+                            color="blue"
+                            hoverColor="blue"
+                            size="20px"
+                            onClick={() => props.onFavorite && props.application ?
+                                props.onFavorite(props.application) : {}
+                            }
+                        />
+                    </Relative>
+                </Flex>
+            :
+                <Link to={props.link}>
+                    {card}
+                </Link>
+        : <>{card}</>
     }, [props]);
 }

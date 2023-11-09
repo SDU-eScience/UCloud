@@ -3,7 +3,7 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box, Flex, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {ApplicationCardType} from "./Card";
+import {AppCardStyle} from "./Card";
 import * as Pages from "./Pages";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
@@ -18,19 +18,14 @@ import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useLocation, useNavigate} from "react-router";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import ApplicationRow from "./ApplicationsRow";
+import ApplicationRow, {ApplicationGroupToRowItem} from "./ApplicationsRow";
 import {AppSearchBox} from "./Search";
+import {FavoriteStatus} from "./Landing";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
     titlePlural: "Applications"
 };
-
-function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
-    return `${metadata.name}/${metadata.version}`;
-}
-
-type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
 const ApplicationsOverview: React.FunctionComponent = () => {
     const [sections, fetchSections] = useCloudAPI<AppStoreSections>(
@@ -70,7 +65,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
-        const key = favoriteStatusKey(app.metadata);
+        const key = app.metadata.name;
         const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
         if (favoriteStatus.current[key]) {
             delete favoriteStatus.current[key]
@@ -104,17 +99,15 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                             <Box mb="30px">
                                 <Heading.h2>{section.name}</Heading.h2>
                                 <ApplicationRow
-                                    items={section.featured}
-                                    type={ApplicationCardType.WIDE}
+                                    items={section.featured.map(ApplicationGroupToRowItem)}
+                                    style={AppCardStyle.WIDE}
                                     refreshId={refreshId}
-                                    scrolling={false}
                                 />
 
                                 <ApplicationRow
-                                    items={section.items}
-                                    type={ApplicationCardType.TALL}
+                                    items={section.items.map(ApplicationGroupToRowItem)}
+                                    style={AppCardStyle.TALL}
                                     refreshId={refreshId}
-                                    scrolling={true}
                                 />
                             </Box>
                         </div>

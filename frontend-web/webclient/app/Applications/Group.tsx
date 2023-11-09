@@ -5,8 +5,8 @@ import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
-import {Absolute, Box, Flex, Grid, Link} from "@/ui-components";
-import {AppCard, ApplicationCardType} from "./Card";
+import {Flex, Grid, Link} from "@/ui-components";
+import {AppCard, AppCardStyle, AppCardType} from "./Card";
 import * as Pages from "./Pages";
 import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
@@ -53,11 +53,11 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                     {appGroup.data.applications.map(app => (
                         <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
                             <AppCard
-                                type={ApplicationCardType.WIDE}
+                                style={AppCardStyle.WIDE}
                                 title={app.metadata.title} 
                                 description={app.metadata.description}
                                 logo={app.metadata.name}
-                                logoType="APPLICATION"
+                                type={AppCardType.APPLICATION}
                             />
                         </Link>
                     ))}
