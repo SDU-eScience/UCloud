@@ -138,8 +138,9 @@ class FavoriteService (
                             setParameter("offset", request.offset)
                         },
                         """
-                        SELECT DISTINCT ON (A.name) name, A.*
+                        SELECT DISTINCT ON (A.name) name, A.*,  ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                         FROM favorited_by as F, applications as A
+                        LEFT JOIN application_groups ag ON ag.id = A.group_id
                         WHERE 
                             (F.the_user = :user) AND
                             (F.application_name = A.name) AND

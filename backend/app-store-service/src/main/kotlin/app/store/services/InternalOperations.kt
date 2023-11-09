@@ -69,8 +69,9 @@ internal suspend fun internalByNameAndVersion(
                 setParameter("version", appVersion)
             },
             """
-                SELECT *
-                FROM app_store.applications
+                SELECT a.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                FROM app_store.applications a
+                LEFT JOIN app_store.application_groups ag ON ag.id = a.group_id
                 WHERE (name = :name) AND (version = :version or :version::text is null)
                 ORDER BY created_at DESC 
             """

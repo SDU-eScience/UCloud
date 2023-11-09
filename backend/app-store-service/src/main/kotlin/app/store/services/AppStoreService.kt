@@ -880,10 +880,10 @@ class AppStoreService(
                             group by a.name
                         ),
                         most_recent as (
-                            select a.*
-                            from
-                                candidates c
-                                join app_store.applications a on a.name = c.name and a.created_at = c.most_recent
+                            select a.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                            from candidates c
+                            join app_store.applications a on a.name = c.name and a.created_at = c.most_recent
+                            left join app_store.application_groups ag ON ag.id = a.group_id
                         )
                     select * from most_recent;
                 """
