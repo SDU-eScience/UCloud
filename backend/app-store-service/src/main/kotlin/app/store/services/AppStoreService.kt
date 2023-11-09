@@ -389,8 +389,10 @@ class AppStoreService(
                     setParameter("user", user?.username ?: "")
                 },
                 """
-                SELECT A.*
-                FROM applications AS A WHERE (A.created_at) IN (
+                SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                FROM applications AS A
+                LEFT JOIN application_groups ag on ag.id = A.group_id 
+                WHERE (A.created_at) IN (
                     SELECT MAX(created_at)
                     FROM applications as B
                     WHERE A.name = B.name AND (
@@ -465,8 +467,9 @@ class AppStoreService(
                     setParameter("user", actorAndProject.actor.username)
                 },
                 """
-                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description FROM applications AS A
-                    JOIN app_store.application_groups ag on A.group_id = ag.id
+                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                    FROM applications AS A
+                    LEFT JOIN app_store.application_groups ag on A.group_id = ag.id
                     WHERE A.name = :name AND (
                         (
                             A.is_public = TRUE
@@ -920,6 +923,11 @@ class AppStoreService(
             if (tool.description.supportedProviders != listOf(providerName)) throw ApplicationException.NotAllowed()
         }
 
+        val existingApplications = findByName(actorAndProject, application.metadata.name, NormalizedPaginationRequest(0,0)).items
+
+        val group = existingApplications.first().metadata.group?.id
+        val flavor = existingApplications.first().metadata.flavorName
+
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -937,12 +945,14 @@ class AppStoreService(
                     setParameter("id_version", application.metadata.version)
                     setParameter("application", defaultMapper.encodeToString(application.invocation))
                     setParameter("original_document", content)
+                    setParameter("group", group)
+                    setParameter("flavor", flavor)
                 },
                 """
                     insert into app_store.applications
-                        (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website) 
+                        (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website, group_id, flavor_name) 
                     values 
-                        (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website)
+                        (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website, :group, :flavor)
                 """
             )
 
@@ -1495,17 +1505,14 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
 }
 
 internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
-    // TODO This shouldn't be crashing like this. Make sure we actually get all of the data needed.
-    val group = try {
+    val group = if (this.getInt("group_id") != null && this.getString("group_title") != null) {
         ApplicationGroup(
             this.getInt("group_id")!!,
             this.getString("group_title")!!,
             this.getString("group_description"),
             this.getString("default_name")
         )
-    } catch (e: Exception) {
-        null
-    }
+    } else { null }
 
     return ApplicationMetadata(
         this.getString("name")!!,
