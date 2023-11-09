@@ -38,10 +38,10 @@ import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
-import {accounting, compute, PageV2} from "@/UCloud";
+import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import {bulkRequestOf, emptyPageV2, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
-import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
+import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
+import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
@@ -55,6 +55,7 @@ import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
+import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 
 // Cached network data
 // =====================================================================================================================
@@ -190,7 +191,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 const setFavoriteStatus = async (file: UFile, isFavorite: boolean, render: boolean = true) => {
                     const templateId = await findTemplateId(file, "favorite", "1.0.0");
                     if (!templateId) return;
-                    const currentMetadata: FileMetadataHistory = file.status.metadata ?? {metadata: {}, templates: {}}
+                    if (!file.status.metadata) file.status.metadata = {metadata: {}, templates: {}};
+                    const currentMetadata: FileMetadataHistory = file.status.metadata;
                     const favorites: FileMetadataDocumentOrDeleted[] = currentMetadata.metadata[templateId] ?? [];
                     let mostRecentStatusId = "";
                     for (let i = 0; i < favorites.length; i++) {
@@ -211,16 +213,17 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         specification: {
                             templateId: templateId!,
                             changeLog: "",
-                            document: {favorite: isFavorite} as Record<string, any>,
+                            document: {favorite: isFavorite},
                             version: "1.0.0",
                         },
                         id: "fake_entry",
-                    })
+                    });
 
                     currentMetadata.metadata[templateId] = favorites;
                     file.status.metadata = currentMetadata;
 
                     if (!isFavorite) {
+                        sidebarFavoriteCache.remove(file.id);
                         callAPI(
                             metadataDocumentApi.delete(
                                 bulkRequestOf({
@@ -239,9 +242,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                     changeLog: "New favorite status",
                                     templateId: templateId
                                 }
-                            })
-                            )
-                        ).then(doNothing);
+                            }))
+                        ).then(({responses}: BulkResponse<FindByStringId>) => {
+                            currentMetadata.metadata[templateId][0].id = responses[0].id;
+                            sidebarFavoriteCache.add({
+                                path: file.id,
+                                metadata: currentMetadata.metadata[templateId][0] as FileMetadataDocument
+                            });
+                        });
                     }
 
                     if (render) browser.renderRows();
@@ -1331,7 +1339,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         collectionCacheForCompletion.invalidateAll();
         collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
             FileCollectionsApi.browse({
-                itemsPerPage: 10,
+                itemsPerPage: 250,
                 filterMemberFiles: "DONT_FILTER_COLLECTIONS",
                 ...opts?.additionalFilters,
             })

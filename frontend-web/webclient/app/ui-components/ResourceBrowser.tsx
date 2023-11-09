@@ -1419,7 +1419,7 @@ export class ResourceBrowser<T> {
             }
 
             // ...and the text
-            let operationText = typeof op.text === "string" ?  op.text : op.text(selected, callbacks);
+            let operationText = typeof op.text === "string" ? op.text : op.text(selected, callbacks);
 
             if (isConfirmButton) {
                 const opEnabled = op.enabled(selected, callbacks, page) === true;
@@ -2815,6 +2815,8 @@ export class ResourceBrowser<T> {
         }
 
         menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
+        menu.style.maxHeight = (itemSize * 8.5) + "px";
+        menu.style.overflowY = "scroll";
         window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
         menu.style.display = "block";
         menu.style.opacity = "1";

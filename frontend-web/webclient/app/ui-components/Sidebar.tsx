@@ -3,6 +3,8 @@ import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {
     copyToClipboard,
+    displayErrorMessageOrDefault,
+    errorMessageOrDefault,
     joinToString,
     useFrameHidden
 } from "@/UtilityFunctions";
@@ -407,18 +409,20 @@ export function Sidebar(): JSX.Element | null {
 
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
-    APICallState<PageV2<FileMetadataAttached>>
+    FileMetadataAttached[]
 ] {
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, emptyPageV2);
 
-    const [favorites] = useCloudAPI<PageV2<FileMetadataAttached>>(
-        metadataApi.browse({
+    const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
+
+    React.useEffect(() => {
+        callAPI(metadataApi.browse({
             filterActive: true,
             filterTemplate: "Favorite",
             itemsPerPage: 10
-        }),
-        emptyPageV2
-    );
+        })).then(result => sidebarFavoriteCache.setCache(result))
+            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch favorites."));
+    }, []);
 
     const projectId = useProjectId();
 
@@ -428,14 +432,78 @@ function useSidebarFilesPage(): [
 
     return [
         drives,
-        favorites
+        favorites.items.slice(0, 10)
     ];
+}
+
+export const sidebarFavoriteCache = new class {
+    private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}
+    private subscribers: (() => void)[] = [];
+    private isDirty: boolean = false;
+    public loading = false;
+    public error = "";
+
+    public async fetch() {
+        this.loading = true;
+        try {
+            this.setCache(await callAPI(metadataApi.browse({
+                filterActive: true,
+                filterTemplate: "Favorite",
+                itemsPerPage: 10
+            })));
+        } catch (error) {
+            this.error = errorMessageOrDefault(error, "Failed to fetch favorite files.");
+        }
+        this.loading = false;
+    }
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public add(file: FileMetadataAttached) {
+        this.isDirty = true;
+        this.cache.items.unshift(file);
+
+        this.emitChange();
+    }
+
+    public remove(filePath: string) {
+        this.isDirty = true;
+        this.cache.items = this.cache.items.filter(it => it.path !== filePath);
+
+        this.emitChange();
+    }
+
+    public setCache(page: PageV2<FileMetadataAttached>) {
+        this.isDirty = true;
+        this.cache = page;
+
+        this.emitChange();
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public getSnapshot(): Readonly<PageV2<FileMetadataAttached>> {
+        if (this.isDirty) {
+            this.isDirty = false;
+            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
+        }
+        return this.cache;
+    }
 }
 
 export const sidebarJobCache = new class {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
     private subscribers: (() => void)[] = [];
-    private isDirty = false;
+    private isDirty: boolean = false;
 
     public subscribe(subscription: () => void) {
         this.subscribers = [...this.subscribers, subscription];
@@ -455,8 +523,7 @@ export const sidebarJobCache = new class {
             const duplicate = this.cache.items.find(it => it.id === job.id);
             if (duplicate) {
                 duplicate.status === job.status;
-            }
-            else {
+            } else {
                 this.cache.items.unshift(job);
             }
         }
@@ -487,7 +554,7 @@ export const sidebarJobCache = new class {
     }
 }();
 
-function useSidebarRunsPage(): PageV2<Job> {
+function useSidebarRunsPage(): Job[] {
     const projectId = useProjectId();
 
     const cache = React.useSyncExternalStore(s => sidebarJobCache.subscribe(s), () => sidebarJobCache.getSnapshot());
@@ -495,10 +562,10 @@ function useSidebarRunsPage(): PageV2<Job> {
     React.useEffect(() => {
         callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {
             sidebarJobCache.updateCache(result, true);
-        });
+        }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch running jobs."));
     }, [projectId]);
 
-    return cache;
+    return cache.items.slice(0, 10);
 }
 
 interface SecondarySidebarProps {
@@ -593,8 +660,8 @@ function SecondarySidebar({
 
                 <div>
                     <h3 className={"no-link"}>Favorite files</h3>
-                    {favoriteFiles.data.items.length === 0 ? <div>No favorite files</div> : null}
-                    {favoriteFiles.data.items.map(it =>
+                    {favoriteFiles.length === 0 ? <div>No favorite files</div> : null}
+                    {favoriteFiles.map(it =>
                         <a href={"#"} key={it.path} onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
                             <Flex alignItems={"center"}>
                                 <Icon name="heroStar" size={16} mr="4px" color="#fff" color2="#fff" />
@@ -641,7 +708,7 @@ function SecondarySidebar({
         {active !== "Runs" ? null : (
             <Flex flexDirection={"column"}>
                 <h3 className={"no-link"}>Running jobs</h3>
-                {recentRuns.items.map(it =>
+                {recentRuns.map(it =>
                     <AppTitleAndLogo
                         key={it.id}
                         to={AppRoutes.jobs.view(it.id)}
@@ -649,7 +716,7 @@ function SecondarySidebar({
                         title={`${it.specification.name ?? it.id} (${it.specification.application.name})`}
                     />
                 )}
-                {recentRuns.items.length !== 0 ? null : <div>No jobs running.</div>}
+                {recentRuns.length !== 0 ? null : <div>No jobs running.</div>}
             </Flex>
         )}
 
