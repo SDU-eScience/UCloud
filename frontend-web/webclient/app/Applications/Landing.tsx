@@ -210,50 +210,23 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                             refreshId={refreshId}
                         />
 
-                        <Flex className={AppStoreVisualClass}>
-                            {/* <img src={featuredImage} /> */}
-                            <Heading.h1>Featured Applications</Heading.h1>
-                        </Flex>
-
-                        {sections.data.sections[0] ?
+                        {sections.data.sections.map(section => (
                             <>
+                                <Flex className={AppStoreVisualClass}>
+                                    <Heading.h1>{section.name}</Heading.h1>
+                                </Flex>
                                 <ApplicationRow
-                                    items={
-                                        sections.data.sections[0].featured.slice(0, 4).map(ApplicationGroupToRowItem)
-                                    }
+                                    items={section.featured.slice(0, 4).map(ApplicationGroupToRowItem)}
                                     style={AppCardStyle.WIDE}
                                     refreshId={refreshId}
                                 />
-
                                 <ApplicationRow
-                                    items={sections.data.sections[0].featured.slice(4).map(ApplicationGroupToRowItem)}
+                                    items={section.featured.slice(4).map(ApplicationGroupToRowItem)}
                                     style={AppCardStyle.TALL}
                                     refreshId={refreshId}
                                 />
                             </>
-                        : <></>}
-
-
-                        <Flex className={AppStoreVisualClass}>
-                            {/* <img src={popularImage} /> */}
-                            <Heading.h1>Popular Applications</Heading.h1>
-                        </Flex>
-
-                        {sections.data.sections[1] ?
-                            <>
-                                <ApplicationRow
-                                    items={sections.data.sections[1].featured.slice(0, 4).map(ApplicationGroupToRowItem)}
-                                    style={AppCardStyle.WIDE}
-                                    refreshId={refreshId}
-                                />
-
-                                <ApplicationRow
-                                    items={sections.data.sections[1].featured.slice(4).map(ApplicationGroupToRowItem)}
-                                    style={AppCardStyle.TALL}
-                                    refreshId={refreshId}
-                                />
-                            </>
-                        : <></>}
+                        ))}
 
                         <ViewAllButton />
                     </Box>
