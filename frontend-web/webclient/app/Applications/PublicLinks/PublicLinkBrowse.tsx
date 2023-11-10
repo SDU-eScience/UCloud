@@ -260,7 +260,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                         const icon = providerIcon(link.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, dims));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, dims, row));
                     }
 
                     if (link.status.boundTo.length === 1) {

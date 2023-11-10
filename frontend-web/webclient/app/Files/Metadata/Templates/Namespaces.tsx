@@ -12,6 +12,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {timestampUnixMs} from "@/UtilityFunctions";
+import AppRoutes from "@/Routes";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -96,7 +97,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (provider, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.name, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.name, dims, row));
 
                     row.stat1.innerText = provider.owner.createdBy;
                     row.stat2.innerText = dateToString(provider.createdAt ?? timestampUnixMs());
@@ -138,7 +139,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
                 browser.on("nameOfEntry", j => j.specification.name ?? j.id ?? "");
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
-                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): I assume that we need to do something different here.
+                    const support = {productsByProvider: {}}; 
                     const callbacks: ResourceBrowseCallbacks<FileMetadataTemplateNamespace> = {
                         api: Api,
                         navigate: to => navigate(to),
@@ -152,7 +153,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
                         reload: () => browser.refresh(),
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         viewProperties: j => {
-                            console.log("todo");
+                            navigate(AppRoutes.resource.properties("metadata", j.id));
                         }
                     };
                     return callbacks;

@@ -37,8 +37,8 @@ const resources = {
 
 const project = {
     members: () => `/projects/members`,
-    usage: () => `/project/resources/`,
-    allocations: () => `/project/allocations/`,
+    usage: () => accounting.usage(),
+    allocations: () => accounting.allocations(),
     settings: (page: string) => `/project/settings/${page}`,
     subprojects: () => "/subprojects/",
 }
@@ -89,6 +89,13 @@ const grants = {
     editor: (id?: string) => buildQueryString("/grants", {id}),
     ingoing: () => "/grants/ingoing",
     outgoing: () => "/grants/outgoing",
+    grantGiverInitiatedEditor: (opts: {
+        title: string,
+        projectId?: string,
+        piUsernameHint: string,
+        start: number,
+        end: number,
+    }) => buildQueryString("/grants", { ...opts, type: "grantGiverInitiated" })
 }
 
 const accounting = {

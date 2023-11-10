@@ -3,6 +3,8 @@ import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {
     copyToClipboard,
+    displayErrorMessageOrDefault,
+    errorMessageOrDefault,
     joinToString,
     useFrameHidden
 } from "@/UtilityFunctions";
@@ -23,7 +25,7 @@ import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {navigateByFileType, NewsPost} from "@/Dashboard/Dashboard";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
@@ -54,6 +56,7 @@ import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import {isJobStateTerminal} from "@/Applications/Jobs";
 
 export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";
 export const CSSVarCurrentSidebarStickyWidth = "--currentSidebarStickyWidth";
@@ -409,18 +412,20 @@ export function Sidebar(): JSX.Element | null {
 
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
-    APICallState<PageV2<FileMetadataAttached>>
+    FileMetadataAttached[]
 ] {
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, emptyPageV2);
 
-    const [favorites] = useCloudAPI<PageV2<FileMetadataAttached>>(
-        metadataApi.browse({
+    const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
+
+    React.useEffect(() => {
+        callAPI(metadataApi.browse({
             filterActive: true,
             filterTemplate: "Favorite",
             itemsPerPage: 10
-        }),
-        emptyPageV2
-    );
+        })).then(result => sidebarFavoriteCache.setCache(result))
+            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch favorites."));
+    }, []);
 
     const projectId = useProjectId();
 
@@ -430,20 +435,149 @@ function useSidebarFilesPage(): [
 
     return [
         drives,
-        favorites
+        favorites.items.slice(0, 10)
     ];
 }
 
-function useSidebarRunsPage(): APICallState<PageV2<Job>> {
-    /* TODO(Jonas): This should be fetched from the same source as the runs page. */
-    const [runs, fetchRuns] = useCloudAPI<PageV2<Job>>({noop: true}, emptyPageV2);
+export const sidebarFavoriteCache = new class {
+    private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}
+    private subscribers: (() => void)[] = [];
+    private isDirty: boolean = false;
+    public loading = false;
+    public error = "";
+
+    public async fetch() {
+        this.loading = true;
+        try {
+            this.setCache(await callAPI(metadataApi.browse({
+                filterActive: true,
+                filterTemplate: "Favorite",
+                itemsPerPage: 10
+            })));
+        } catch (error) {
+            this.error = errorMessageOrDefault(error, "Failed to fetch favorite files.");
+        }
+        this.loading = false;
+    }
+
+    public renameInCached(oldPath: string, newPath: string): void {
+        const file = this.cache.items.find(it => it.path === oldPath);
+        if (!file) return;
+
+        file.path = newPath;
+        this.isDirty = true;
+        this.emitChange();
+    }
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public add(file: FileMetadataAttached) {
+        this.isDirty = true;
+        this.cache.items.unshift(file);
+
+        this.emitChange();
+    }
+
+    public remove(filePath: string) {
+        this.isDirty = true;
+        this.cache.items = this.cache.items.filter(it => it.path !== filePath);
+
+        this.emitChange();
+    }
+
+    public setCache(page: PageV2<FileMetadataAttached>) {
+        this.isDirty = true;
+        this.cache = page;
+
+        this.emitChange();
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public getSnapshot(): Readonly<PageV2<FileMetadataAttached>> {
+        if (this.isDirty) {
+            this.isDirty = false;
+            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
+        }
+        return this.cache;
+    }
+}
+
+export const sidebarJobCache = new class {
+    private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
+    private subscribers: (() => void)[] = [];
+    private isDirty: boolean = false;
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        };
+    }
+
+    public updateCache(page: PageV2<Job>, doClear = false) {
+        this.isDirty = true;
+        if (doClear) {
+            this.cache = {items: [], itemsPerPage: 100};
+        }
+
+        const runningJobs = page.items.filter(it => it.status.state === "RUNNING");
+        for (const job of runningJobs) {
+            const duplicate = this.cache.items.find(it => it.id === job.id);
+            if (duplicate) {
+                duplicate.status === job.status;
+            } else {
+                this.cache.items.unshift(job);
+            }
+        }
+
+        const endedJobs = page.items.filter(it => isJobStateTerminal(it.status.state));
+        for (const endedJob of endedJobs) {
+            const job = this.cache.items.find(it => it.id === endedJob.id);
+            if (job) {
+                this.cache.items = this.cache.items.filter(it => it.id !== job.id);
+            }
+        }
+
+        this.emitChange();
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public getSnapshot(): Readonly<PageV2<Job>> {
+        if (this.isDirty) {
+            this.isDirty = false;
+            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
+        }
+        return this.cache;
+    }
+}();
+
+function useSidebarRunsPage(): Job[] {
     const projectId = useProjectId();
 
+    const cache = React.useSyncExternalStore(s => sidebarJobCache.subscribe(s), () => sidebarJobCache.getSnapshot());
+
     React.useEffect(() => {
-        fetchRuns(JobsApi.browse({itemsPerPage: 10, filterState: "RUNNING"}));
+        callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {
+            sidebarJobCache.updateCache(result, true);
+        }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch running jobs."));
     }, [projectId]);
 
-    return runs;
+    return cache.items.slice(0, 10);
 }
 
 interface SecondarySidebarProps {
@@ -539,8 +673,8 @@ function SecondarySidebar({
 
                 <div>
                     <h3 className={"no-link"}>Favorite files</h3>
-                    {favoriteFiles.data.items.length === 0 ? <div>No favorite files</div> : null}
-                    {favoriteFiles.data.items.map(it =>
+                    {favoriteFiles.length === 0 ? <div>No favorite files</div> : null}
+                    {favoriteFiles.map(it =>
                         <a href={"#"} key={it.path} onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
                             <Flex alignItems={"center"}>
                                 <Icon name="heroStar" size={16} mr="4px" color="#fff" color2="#fff" />
@@ -587,7 +721,7 @@ function SecondarySidebar({
         {active !== "Runs" ? null : (
             <Flex flexDirection={"column"}>
                 <h3 className={"no-link"}>Running jobs</h3>
-                {recentRuns.data.items.map(it =>
+                {recentRuns.map(it =>
                     <AppTitleAndLogo
                         key={it.id}
                         to={AppRoutes.jobs.view(it.id)}
@@ -595,7 +729,7 @@ function SecondarySidebar({
                         title={`${it.specification.name ?? it.id} (${it.specification.application.name})`}
                     />
                 )}
-                {recentRuns.data.items.length !== 0 ? null : <div>No jobs running.</div>}
+                {recentRuns.length !== 0 ? null : <div>No jobs running.</div>}
             </Flex>
         )}
 

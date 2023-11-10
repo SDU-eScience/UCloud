@@ -968,88 +968,94 @@ class GrantsV2Service(
                 }
 
                 is Command.InsertRevision -> {
-                    val newRefIds = if (isGrantGiver()) command.doc.referenceIds else null
-                    if (newRefIds != null) {
-                        for (id in newRefIds) checkDeicReferenceFormat(id)
-                    }
+                    if (command.doc.form is GrantApplication.Form.GrantGiverInitiated) {
+                        if (application.id != "") genericForbidden()
+                        val grantGivers = command.doc.allocationRequests.map { it.grantGiver }.toSet()
+                        if (grantGivers.size != 1) genericForbidden()
+                        val grantGiver = grantGivers.single()
+                        if (!isGrantGiver(grantGiver)) genericForbidden()
+                        if (command.doc.allocationRequests.any { it.sourceAllocation == null }) {
+                            throw RPCException("Missing source allocation in request", HttpStatusCode.BadRequest)
+                        }
 
-                    if (application.status.overallState != GrantApplication.State.IN_PROGRESS) {
-                        // We only allow editing of the reference ID for closed applications.
                         insertRevision(
                             command.comment,
-                            application.currentRevision.document.copy(referenceIds = newRefIds)
+                            command.doc.copy(parentProjectId = grantGiver)
                         )
+
+                        application = application.copy(
+                            status = application.status.copy(
+                                overallState = GrantApplication.State.APPROVED,
+                                stateBreakdown = listOf(
+                                    GrantApplication.GrantGiverApprovalState(
+                                        grantGiver,
+                                        "",
+                                        GrantApplication.State.APPROVED
+                                    )
+                                )
+                            )
+                        )
+
+                        actionQueue.add(Action.UpdateApprovalState(grantGiver, GrantApplication.State.APPROVED))
+                        actionQueue.add(Action.UpdateOverallState(GrantApplication.State.APPROVED))
+                        actionQueue.add(Action.GrantResources)
                     } else {
-                        when (idCard) {
-                            is IdCard.Provider -> genericForbidden()
+                        val newRefIds = if (isGrantGiver()) command.doc.referenceIds else null
+                        if (newRefIds != null) {
+                            for (id in newRefIds) checkDeicReferenceFormat(id)
+                        }
 
-                            IdCard.System -> {
-                                // Do nothing
-                            }
+                        if (application.status.overallState != GrantApplication.State.IN_PROGRESS) {
+                            // We only allow editing of the reference ID for closed applications.
+                            insertRevision(
+                                command.comment,
+                                application.currentRevision.document.copy(referenceIds = newRefIds)
+                            )
+                        } else {
+                            when (idCard) {
+                                is IdCard.Provider -> genericForbidden()
 
-                            is IdCard.User -> {
-                                if (!isGrantGiver()) {
-                                    when (val recipient = command.doc.recipient) {
-                                        is GrantApplication.Recipient.ExistingProject -> {
-                                            val pid = ctx.idCardService.lookupPidFromProjectId(recipient.id)
-                                            if (idCard.adminOf.none { it == pid }) genericForbidden()
-                                        }
+                                IdCard.System -> {
+                                    // Do nothing
+                                }
 
-                                        is GrantApplication.Recipient.NewProject -> {
-                                            // OK
-                                        }
+                                is IdCard.User -> {
+                                    if (!isGrantGiver()) {
+                                        when (val recipient = command.doc.recipient) {
+                                            is GrantApplication.Recipient.ExistingProject -> {
+                                                val pid = ctx.idCardService.lookupPidFromProjectId(recipient.id)
+                                                if (idCard.adminOf.none { it == pid }) genericForbidden()
+                                            }
 
-                                        is GrantApplication.Recipient.PersonalWorkspace -> {
-                                            if (recipient.username != actorAndProject.actor.safeUsername()) genericForbidden()
+                                            is GrantApplication.Recipient.NewProject -> {
+                                                // OK
+                                            }
+
+                                            is GrantApplication.Recipient.PersonalWorkspace -> {
+                                                if (recipient.username != actorAndProject.actor.safeUsername()) genericForbidden()
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        if (command.doc.parentProjectId != null) {
-                            if (grantGivers.none { it.id == command.doc.parentProjectId }) {
-                                throw RPCException("Invalid primary affiliation supplied", HttpStatusCode.Forbidden)
+                            if (command.doc.parentProjectId != null) {
+                                if (grantGivers.none { it.id == command.doc.parentProjectId }) {
+                                    throw RPCException("Invalid primary affiliation supplied", HttpStatusCode.Forbidden)
+                                }
                             }
-                        }
 
-                        fun cannotBeRequested(category: String): Nothing = throw RPCException(
-                            "One or more of your requested resources can no longer be requested. " +
-                                    "Try to remove your request for '${category}' or reload the page.",
-                            HttpStatusCode.Forbidden
-                        )
-
-                        for (req in command.doc.allocationRequests) {
-                            if (!grantGivers.any { it.id == req.grantGiver }) {
-                                cannotBeRequested(req.category)
-                            }
-                        }
-
-                        val requestedFrom = command.doc.allocationRequests.map { it.grantGiver }.toSet()
-                        for (grantGiver in requestedFrom) {
-                            val wallets = ctx.accountingService.retrieveWalletsInternal(
-                                ActorAndProject.System,
-                                WalletOwner.Project(grantGiver)
-                            )
-
-                            // TODO We should probably use old values if they are not coming from a grantGiver admin,
-                            //  although this is probably close enough.
                             for (req in command.doc.allocationRequests) {
-                                if (req.grantGiver != grantGiver) continue
-                                val sourceAlloc = req.sourceAllocation ?: continue
-                                val wallet = wallets.find {
-                                    it.paysFor.name == req.category && it.paysFor.provider == req.provider
-                                } ?: cannotBeRequested(req.category)
-
-                                val hasAlloc = wallet.allocations.any { it.id.toLongOrNull() == sourceAlloc }
-                                if (!hasAlloc) cannotBeRequested(req.category)
+                                if (!grantGivers.any { it.id == req.grantGiver }) {
+                                    cannotBeRequested(req.category)
+                                }
                             }
-                        }
 
-                        insertRevision(
-                            command.comment,
-                            command.doc.copy(referenceIds = newRefIds)
-                        )
+                            insertRevision(
+                                command.comment,
+                                command.doc.copy(referenceIds = newRefIds)
+                            )
+                        }
                     }
                 }
 
@@ -1070,7 +1076,7 @@ class GrantsV2Service(
                             it.paysFor.provider == req.provider && it.paysFor.name == req.category
                         } ?: return@mapNotNull null
 
-                        req.copy(grantGiver = command.targetProjectId)
+                        req.copy(grantGiver = command.targetProjectId, sourceAllocation = null)
                     }
 
                     insertRevision(
@@ -1132,7 +1138,14 @@ class GrantsV2Service(
             }
         }
 
-        private fun insertRevision(comment: String, newDoc: GrantApplication.Document) {
+        private fun cannotBeRequested(category: String): Nothing = throw RPCException(
+            "One or more of your requested resources can no longer be requested. " +
+                    "Try to remove your request for '${category}' or reload the page.",
+            HttpStatusCode.Forbidden
+        )
+
+        private suspend fun insertRevision(comment: String, newDoc: GrantApplication.Document) {
+            verifySourceAllocationsAreValid(newDoc)
             val rev = GrantApplication.Revision(
                 Time.now(),
                 actorAndProject.actor.safeUsername(),
@@ -1148,6 +1161,30 @@ class GrantsV2Service(
             )
 
             actionQueue.add(Action.NewRevision(rev))
+        }
+
+        private suspend fun verifySourceAllocationsAreValid(doc: GrantApplication.Document) {
+            val requestedFrom = doc.allocationRequests.map { it.grantGiver }.toSet()
+
+            for (grantGiver in requestedFrom) {
+                val wallets = ctx.accountingService.retrieveWalletsInternal(
+                    ActorAndProject.System,
+                    WalletOwner.Project(grantGiver)
+                )
+
+                // TODO We should probably use old values if they are not coming from a grantGiver admin,
+                //  although this is probably close enough.
+                for (req in doc.allocationRequests) {
+                    if (req.grantGiver != grantGiver) continue
+                    val sourceAlloc = req.sourceAllocation ?: continue
+                    val wallet = wallets.find {
+                        it.paysFor.name == req.category && it.paysFor.provider == req.provider
+                    } ?: cannotBeRequested(req.category)
+
+                    val hasAlloc = wallet.allocations.any { it.id.toLongOrNull() == sourceAlloc }
+                    if (!hasAlloc) cannotBeRequested(req.category)
+                }
+            }
         }
 
         private fun GrantApplication.Recipient.reference(): String = when (this) {
@@ -1228,7 +1265,7 @@ class GrantsV2Service(
                                 setParameter("recipient_type", action.revision.document.recipient.type())
                                 setParameter(
                                     "form",
-                                    (action.revision.document.form as GrantApplication.Form.PlainText).text
+                                    (action.revision.document.form as GrantApplication.Form.WithText).text
                                 )
                                 setParameter("ref_id", action.revision.document.referenceIds)
                             },

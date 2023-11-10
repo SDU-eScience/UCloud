@@ -1243,4 +1243,86 @@ const cpuChart1 = dummyChart();
 const cpuChart2 = dummyChart();
 const storageChart1 = dummyChartQuota();
 
+const fieldOfResearch = {
+    "sections": [
+        {
+            "title": "Natural Sciences",
+            "children": [
+                "Mathematics",
+                "Computer and information sciences",
+                "Physical sciences",
+                "Chemical sciences",
+                "Earth and related environmental sciences",
+                "Biological sciences",
+                "Other natural sciences"
+            ]
+        },
+
+        {
+            "title": "Engineering and Technology",
+            "children": [
+                "Civil engineering",
+                "Electrical engineering, electronic engineering, information engineering",
+                "Mechanical engineering",
+                "Chemical engineering",
+                "Materials engineering",
+                "Medical engineering",
+                "Environmental engineering",
+                "Environmental biotechnology",
+                "Industrial Biotechnology",
+                "Nano-technology",
+                "Other engineering and technologies"
+            ]
+        },
+
+        {
+            "title": "Medical and Health Sciences",
+            "children": [
+                "Basic medicine",
+                "Clinical medicine",
+                "Health sciences",
+                "Health biotechnology",
+                "Other medical sciences"
+            ]
+        },
+
+        {
+            "title": "Agricultural Sciences",
+            "children": [
+                "Agriculture, forestry, and fisheries",
+                "Animal and dairy science",
+                "Veterinary science",
+                "Agricultural biotechnology",
+                "Other agricultural sciences"
+            ]
+        },
+
+        {
+            "title": "Social Sciences",
+            "children": [
+                "Psychology",
+                "Economics and business",
+                "Educational sciences",
+                "Sociology",
+                "Law",
+                "Political Science",
+                "Social and economic geography",
+                "Media and communications",
+                "Other social sciences"
+            ]
+        },
+
+        {
+            "title": "Humanities",
+            "children": [
+                "History and archaeology",
+                "Languages and literature",
+                "Philosophy, ethics and religion",
+                "Art (arts, history of arts, performing arts, music)",
+                "Other humanities"
+            ]
+        }
+    ]
+};
+
 export default Visualization;

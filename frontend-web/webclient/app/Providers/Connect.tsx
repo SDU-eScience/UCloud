@@ -11,7 +11,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {Operations} from "@/ui-components/Operation";
+import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "./ConnectionState";
 import {useUState} from "@/Utilities/UState";
@@ -80,7 +80,8 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                                                 );
 
                                                 reload();
-                                            }
+                                            },
+                                            shortcut: ShortcutKey.U
                                         }
                                     ]}
                                     selected={[]}

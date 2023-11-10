@@ -4,7 +4,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Icon} from "@/ui-components";
 import {createHTMLElements, doNothing, errorMessageOrDefault, extractErrorMessage} from "@/UtilityFunctions";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useDispatch} from "react-redux";
@@ -171,7 +171,7 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
                 browser.on("renderRow", (project, row, dims) => {
                     const title = project.project.title;
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims, row));
                     if (project.project.fullPath) row.title.title = project.project.fullPath;
 
                     if (project.project.archived) {
@@ -235,7 +235,8 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
                         },
                         onClick([entry]) {
                             dispatchSetProjectAction(dispatch, entry.project.id);
-                        }
+                        },
+                        shortcut: ShortcutKey.B
                     }, {
                         text: "Rename",
                         icon: "rename",
@@ -250,24 +251,27 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
                         onClick([selected]) {
                             startRenaming(selected.project.id);
                         },
+                        shortcut: ShortcutKey.R
                     }, {
                         text: "Archive",
                         icon: "tags",
                         enabled(entries) {
-                            return entries.length > 0 && entries.every(it => !it.project.archived);
+                            return entries.length > 0 && entries.every(it => !it.project.archived && isAdminOrPI(it.role));
                         },
                         onClick(entries) {
                             onSetArchivedStatus(entries.map(it => it.project.id), true);
-                        }
+                        },
+                        shortcut: ShortcutKey.A,
                     }, {
                         text: "Unarchive",
                         icon: "tags",
                         enabled(entries) {
-                            return entries.length > 0 && entries.every(it => it.project.archived);
+                            return entries.length > 0 && entries.every(it => it.project.archived && isAdminOrPI(it.role));
                         },
                         onClick(entries) {
                             onSetArchivedStatus(entries.map(it => it.project.id), false);
-                        }
+                        },
+                        shortcut: ShortcutKey.A
                     }];
 
                     const selected = browser.findSelectedEntries();

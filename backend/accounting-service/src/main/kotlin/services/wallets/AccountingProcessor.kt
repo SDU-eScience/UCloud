@@ -1460,30 +1460,21 @@ class AccountingProcessor(
                 println("price: $price")
                 return when (translateToChargeType(category)) {
                     ChargeType.ABSOLUTE -> {
-                        deltaCharge(
-                            requestWithNewUnit.toDelta(price)
-
-                        )
+                        deltaCharge(requestWithNewUnit.toDelta(price))
                     }
 
                     ChargeType.DIFFERENTIAL_QUOTA -> {
-                        totalCharge(
-                            requestWithNewUnit.toTotal(price)
-                        )
+                        totalCharge(requestWithNewUnit.toTotal(price))
                     }
                 }
             }
 
             is AccountingRequest.Charge.DeltaCharge -> {
-                return deltaCharge(
-                    request
-                )
+                return deltaCharge(request)
             }
 
             is AccountingRequest.Charge.TotalCharge -> {
-                return totalCharge(
-                    request
-                )
+                return totalCharge(request)
             }
             // Leaving redundant else in case we add more charge types
             else -> {
@@ -1692,9 +1683,9 @@ class AccountingProcessor(
             val difference = delta - amountCharged
             println("difference $difference")
             if (stillActiveAllocations.isEmpty()) {
-                // Have chosen the last allocation since it is most likely to change over time. Not like the
-                // first/oldest alloc
-                if (!chargeAllocation(walletAllocations.last().id.toInt(), difference)) {
+                // Will choose latest invalidated allocation to charge
+                val latest = walletAllocations.filter{ it.endDate <= Time.now() }.maxByOrNull { it.endDate }!!
+                if (!chargeAllocation(latest.id.toInt(), difference)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
                     )
@@ -1734,10 +1725,20 @@ class AccountingProcessor(
         description: ChargeDescription
     ): AccountingResponse {
         println("applying: $totalUsage")
+        if (walletAllocations.isEmpty()) {
+            return AccountingResponse.Error("No allocations to charge from", 400)
+        }
         var activeQuota = 0L
         val activeAllocations = walletAllocations.mapNotNull {
             if (it.isActive()) {
                 activeQuota += it.quota
+                it.id
+            } else {
+                null
+            }
+        }
+        val allocationsUsedBeforeChange = walletAllocations.mapNotNull {
+            if (it.localUsage > 0) {
                 it.id
             } else {
                 null
@@ -1794,22 +1795,47 @@ class AccountingProcessor(
 
         if (totalCharged != totalUsage) {
             val difference = totalUsage - totalCharged
-            val amountPerAllocation = difference / activeAllocations.size
-            var isFirst = true
-
-            for (allocation in activeAllocations) {
-                if (isFirst) {
-                    if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+            if (activeAllocations.isEmpty()) {
+                if (allocationsUsedBeforeChange.isEmpty()) {
+                    return AccountingResponse.Error("No old allocations to charge from", 400)
+                }
+                val amountPerAllocation = difference / allocationsUsedBeforeChange.size
+                var isFirst = true
+                //If we do not have any active allocations to choose from we should charge does that was in use before
+                //the charge
+                for (allocation in allocationsUsedBeforeChange) {
+                    if (isFirst) {
+                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+                            return AccountingResponse.Error(
+                                "Internal Error in charging remainder of non-periodic", 500
+                            )
+                        }
+                        isFirst = false
+                    }
+                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
                         return AccountingResponse.Error(
-                            "Internal Error in charging remainder of non-periodic", 500
+                            "Internal Error in charging remaining of non-periodic", 500
                         )
                     }
-                    isFirst = false
                 }
-                if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
-                    return AccountingResponse.Error(
-                        "Internal Error in charging remaining of non-periodic", 500
-                    )
+            } else {
+                // If we have any active allocations then we want to use does and keep the reset of the old ones.
+                val amountPerAllocation = difference / activeAllocations.size
+                var isFirst = true
+                for (allocation in activeAllocations) {
+                    if (isFirst) {
+                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+                            return AccountingResponse.Error(
+                                "Internal Error in charging remainder of non-periodic", 500
+                            )
+                        }
+                        isFirst = false
+                    }
+                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
+                        return AccountingResponse.Error(
+                            "Internal Error in charging remaining of non-periodic", 500
+                        )
+                    }
                 }
             }
             if (activeQuota < totalUsage) {
@@ -1867,7 +1893,7 @@ class AccountingProcessor(
         }
 
         if (parent != null) {
-            val error = checkOverlapAncestors(parent, notBefore ?: 0, request.notAfter)
+            val error = checkOverlapAncestors(parent, notBefore ?: 0, request.notAfter ?: allocation.notAfter)
             if (error != null) return error
         }
 

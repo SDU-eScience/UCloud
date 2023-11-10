@@ -19,11 +19,8 @@ import {toggleAppFavorite} from "./Redux/Actions";
 import {useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
-import favoritesImage from "@/Assets/Images/ucloud-2.png";
-import featuredImage from "/Images/ucloud-1.png";
-import popularImage from "/Images/ucloud-9.svg";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import ApplicationRow, {ApplicationGroupToRowItem, ApplicationRowContainerClass, ApplicationSummaryToRowItem} from "./ApplicationsRow";
+import ApplicationRow, {ApplicationGroupToRowItem, ApplicationSummaryToRowItem} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
 
 export const ApiLike: ReducedApiInterface = {

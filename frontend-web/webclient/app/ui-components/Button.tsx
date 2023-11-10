@@ -1,7 +1,7 @@
 import * as React from "react";
 import {ButtonStyleProps, HeightProps, SizeProps, SpaceProps, WidthProps} from "styled-system";
 import {ThemeColor} from "./theme";
-import {extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
+import {extractDataTags, extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
 
 // TODO(Dan): A lot of these are left in to not break existing code, many of them are not actually supposed
 //  to do anything anymore.
@@ -89,7 +89,7 @@ export const ButtonClass = injectStyle("button", k => `
     
     ${k}[data-size=extra-small] {
         height: 25px;
-        border-radius: 14px;
+        border-radius: 6px;
         font-size: 12px;
     }
 
@@ -135,6 +135,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
 
         const match = standardButtonSizes[bestMatch];
         sizeName = match.name;
+        delete inlineStyles["height"];
         delete inlineStyles["padding"];
         delete inlineStyles["paddingLeft"];
         delete inlineStyles["paddingTop"];
@@ -154,6 +155,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         disabled={props.disabled}
         type={props.type as any}
         {...extractEventHandlers(props)}
+        {...extractDataTags(props)}
         ref={props.btnRef}
     >
         {props.children}

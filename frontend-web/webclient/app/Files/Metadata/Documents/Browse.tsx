@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {ListRowStat} from "@/ui-components/List";
@@ -86,7 +86,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             style={largeModalStyle}
             className={CardClass}
         >
-            <MetadataNamespacesBrowse opts={{embedded: true, selection: {text: "Use", onSelect: selectTemplate as any, onSelectRestriction(res) {
+            <MetadataNamespacesBrowse opts={{isModal: true, selection: {text: "Use", onSelect: selectTemplate as any, onSelectRestriction(res) {
                 return true;
             },}}} />
         </ReactModal>
@@ -147,6 +147,6 @@ const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callba
     enabled: (selected) => selected.length === 1,
     onClick: (selected, cb) => {
         cb.setInspecting(selected[0].key);
-    }
-}
-];
+    },
+    shortcut: ShortcutKey.P
+}];

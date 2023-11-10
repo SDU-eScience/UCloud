@@ -10,7 +10,7 @@ import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
 import {Grid, Icon} from "@/ui-components";
 import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
@@ -115,7 +115,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             enabled: (selected, cb) => cb.previewing != null,
             onClick: (selected, cb) => {
                 cb.setPreviewing(null);
-            }
+            },
+            shortcut: ShortcutKey.Backspace
         },
         {
             icon: "upload",
@@ -124,7 +125,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             enabled: (selected, cb) => selected.length === 0 && cb.previewing == null,
             onClick: (selected, cb) => {
                 cb.navigate(buildQueryString("/" + this.routingNamespace + "/create", {namespace: cb.namespace.id}));
-            }
+            },
+            shortcut: ShortcutKey.U
         },
         {
             icon: "properties",
@@ -132,7 +134,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             enabled: (selected, cb) => selected.length === 1 && cb.previewing == null,
             onClick: (selected, cb) => {
                 cb.setPreviewing(selected[0]);
-            }
+            },
+            shortcut: ShortcutKey.P
         }
     ];
 

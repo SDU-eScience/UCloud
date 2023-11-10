@@ -168,9 +168,9 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         data class RequestItem(
             val allocationId: String,
 
-            val newQuota: Long?,
-            var newStart: Long?,
-            val newEnd: Long?,
+            val newQuota: Long? = null,
+            var newStart: Long? = null,
+            val newEnd: Long? = null,
 
             val reason: String
         )

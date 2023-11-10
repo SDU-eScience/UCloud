@@ -21,7 +21,7 @@ import {IconName} from "@/ui-components/Icon";
 import {View} from "@/Applications/Jobs/View";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductCompute} from "@/Accounting";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
 import {formatDistanceToNow} from "date-fns/esm";
@@ -303,7 +303,8 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             onClick: ([{specification, id}], cb) =>
                 cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
-            text: "Run application again"
+            text: "Run application again",
+            shortcut: ShortcutKey.P
         }];
 
         return ourOps.concat(baseOperations);

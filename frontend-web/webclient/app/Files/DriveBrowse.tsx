@@ -296,9 +296,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         row.title.append(pIcon);
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims)
+                    const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims, row)
                     row.title.append(title);
-                    row.title.title = title;
                     if (drive.owner.createdBy !== "_ucloud") {
                         row.stat1.innerText = drive.owner.createdBy;
                     }

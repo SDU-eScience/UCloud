@@ -507,7 +507,15 @@ data class GrantApplication(
     sealed class Form {
         @Serializable
         @SerialName("plain_text")
-        data class PlainText(val text: String) : Form()
+        data class PlainText(override val text: String) : Form(), WithText
+
+        @Serializable
+        @SerialName("grant_giver_initiated")
+        data class GrantGiverInitiated(override val text: String) : Form(), WithText
+
+        interface WithText {
+            val text: String
+        }
     }
 
     @Serializable

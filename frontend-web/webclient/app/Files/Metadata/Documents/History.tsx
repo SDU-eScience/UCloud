@@ -17,7 +17,7 @@ import {ListRowStat} from "@/ui-components/List";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {UFile} from "@/UCloud/FilesApi";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {injectStyle} from "@/Unstyled";
@@ -262,6 +262,7 @@ const entryRenderer: ItemRenderer<DocumentRow> = {
     }
 };
 
+// Note(Jonas): Any place using this?
 const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & ActivityCallbacks>[] = [
     {
         icon: "close",
@@ -270,7 +271,8 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         enabled: (selected, cb) => selected.length === 0 && cb.documentInspection === null,
         onClick: (selected, cb) => {
             cb.setEditingDocument(null);
-        }
+        },
+        shortcut: ShortcutKey.Backspace
     },
     {
         icon: "upload",
@@ -279,7 +281,8 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         enabled: (selected, cb) => selected.length === 0 && cb.documentInspection !== null,
         onClick: (selected, cb) => {
             cb.setDocumentInspection(null);
-        }
+        },
+        shortcut: ShortcutKey.U
     },
     {
         icon: "check",
@@ -294,7 +297,8 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         onClick: async (selected, cb) => {
             await cb.invokeCommand(metadataApi.approve(bulkRequestOf(...selected.map(it => ({id: it.doc.id})))));
             cb.reloadFile();
-        }
+        },
+        shortcut: ShortcutKey.A
     },
     {
         icon: "trash",
@@ -309,7 +313,8 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         onClick: async (selected, cb) => {
             await cb.invokeCommand(metadataApi.reject(bulkRequestOf(...selected.map(it => ({id: it.doc.id})))));
             cb.reloadFile();
-        }
+        },
+        shortcut: ShortcutKey.R
     },
     {
         icon: "copy",
@@ -321,7 +326,8 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
                 cb.setDocumentInspection(null);
                 cb.setEditingDocument(row.doc.specification.document);
             }
-        }
+        },
+        shortcut: ShortcutKey.C
     },
     {
         icon: "trash",
@@ -332,9 +338,11 @@ const entryOperations: Operation<DocumentRow, StandardCallbacks<DocumentRow> & A
         onClick: async (selected, cb) => {
             await cb.invokeCommand(metadataApi.delete(bulkRequestOf({id: selected[0].doc.id, changeLog: "Deleting document"})));
             cb.reloadFile();
-        }
+        },
+        shortcut: ShortcutKey.R
     },
     {
+        shortcut: ShortcutKey.P,
         icon: "properties",
         text: "Properties",
         enabled: (selected, cb) => selected.length === 1,

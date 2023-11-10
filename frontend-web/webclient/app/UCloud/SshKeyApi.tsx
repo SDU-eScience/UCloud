@@ -4,7 +4,7 @@ import {ListRowStat} from "@/ui-components/List";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
 import {apiBrowse, apiCreate, apiDelete, apiRetrieve} from "@/Authentication/DataHook";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Icon} from "@/ui-components";
 import {bulkRequestOf} from "@/DefaultObjects";
 
@@ -117,7 +117,8 @@ class SshKeyApi {
                 enabled: (selected) => selected.length === 0,
                 onClick: (selected, cb) => {
                     cb.navigate("/ssh-keys/create");
-                }
+                },
+                shortcut: ShortcutKey.N,
             },
             {
                 icon: "trash",
@@ -133,7 +134,8 @@ class SshKeyApi {
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.R
             }
         ];
     }

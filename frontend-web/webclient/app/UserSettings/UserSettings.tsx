@@ -1,10 +1,9 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {setLoading, SetStatusLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
+import {useDispatch, useSelector} from "react-redux";
 import {Box, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ChangePassword} from "@/UserSettings/ChangePassword";
@@ -13,13 +12,16 @@ import {TwoFactorSetup} from "./TwoFactorSetup";
 import {ChangeOptionalUserDetails, ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
 import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 
-interface UserSettingsState {
-    headerLoading: boolean;
-}
-
-function UserSettings(props: UserSettingsOperations & UserSettingsState) {
+function UserSettings(): React.ReactNode {
 
     useTitle("User Settings");
+
+    const headerLoading = useSelector(({status}: ReduxObject) => status.loading);
+    const dispatch = useDispatch();
+
+    const setHeaderLoading = React.useCallback((loading: boolean) => {
+        dispatch(setLoading(loading)); 
+    }, [dispatch]);
 
     const mustActivate2fa =
         Client.userInfo?.twoFactorAuthentication === false &&
@@ -34,26 +36,26 @@ function UserSettings(props: UserSettingsOperations & UserSettingsState) {
                         <>
                             <TwoFactorSetup
                                 mustActivate2fa={mustActivate2fa}
-                                loading={props.headerLoading}
-                                setLoading={props.setLoading}
+                                loading={headerLoading}
+                                setLoading={setHeaderLoading}
                             />
 
                             {mustActivate2fa ? null : (
                                 <>
                                     <ChangePassword
-                                        setLoading={props.setLoading}
+                                        setLoading={setHeaderLoading}
                                     />
 
                                     <ChangeUserDetails
-                                        setLoading={props.setLoading}
+                                        setLoading={setHeaderLoading}
                                     />
-                                    <ChangeOptionalUserDetails/>
+                                    <ChangeOptionalUserDetails />
                                     <ChangeEmailSettings
-                                        setLoading={props.setLoading}
+                                        setLoading={setHeaderLoading}
                                     />
                                     <Sessions
-                                        setLoading={props.setLoading}
-                                        setRefresh={props.setRefresh}
+                                        setLoading={setHeaderLoading}
+                                        setRefresh={fn => dispatch(setRefreshFunction(fn))}
                                     />
                                 </>
                             )}
@@ -66,17 +68,4 @@ function UserSettings(props: UserSettingsOperations & UserSettingsState) {
     );
 };
 
-interface UserSettingsOperations extends SetStatusLoading {
-    setRefresh: (fn?: () => void) => void;
-}
-
-const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
-    setLoading: loading => dispatch(setLoading(loading)),
-    setRefresh: fn => dispatch(setRefreshFunction(fn))
-});
-
-const mapStateToProps = ({status}: ReduxObject): UserSettingsState => ({
-    headerLoading: status.loading
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(UserSettings);
+export default UserSettings;

@@ -3,7 +3,7 @@ import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
 import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
@@ -126,9 +126,8 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     navigate: NavigateFunction;
-    supportByProvider: SupportByProvider;
+    supportByProvider: SupportByProvider; // As of today (Nov 8th, 2023) only FileCollectionsApi uses this in callbacks.
     isWorkspaceAdmin: boolean;
-    inPopIn?: boolean;
     creationDisabled?: boolean;
 }
 
@@ -216,7 +215,8 @@ export abstract class ResourceApi<Res extends Resource,
                 enabled: (selected, cb) => cb.closeProperties != null,
                 onClick: (selected, cb) => {
                     cb.closeProperties!();
-                }
+                },
+                shortcut: ShortcutKey.Backspace
             },
             {
                 text: "Use",
@@ -226,7 +226,8 @@ export abstract class ResourceApi<Res extends Resource,
                 canAppearInLocation: loc => loc === "IN_ROW",
                 onClick: (selected, cb) => {
                     cb.onSelect!(selected[0]);
-                }
+                },
+                shortcut: ShortcutKey.Enter
             },
             {
                 text: "Create " + this.title.toLowerCase(),
@@ -238,7 +239,8 @@ export abstract class ResourceApi<Res extends Resource,
 
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
-                tag: CREATE_TAG
+                tag: CREATE_TAG,
+                shortcut: ShortcutKey.Q
             },
             {
                 text: "Cancel",
@@ -250,6 +252,7 @@ export abstract class ResourceApi<Res extends Resource,
                     return cb.isCreating
                 },
                 onClick: (selected, cb) => cb.cancelCreation!(),
+                shortcut: ShortcutKey.Y
             },
             {
                 text: "Permissions",
@@ -271,7 +274,8 @@ export abstract class ResourceApi<Res extends Resource,
                         cb.viewProperties!(selected[0]);
                     }
                 },
-                tag: PERMISSIONS_TAG
+                tag: PERMISSIONS_TAG,
+                shortcut: ShortcutKey.W
             },
             {
                 text: "Delete",
@@ -288,7 +292,8 @@ export abstract class ResourceApi<Res extends Resource,
                         cb.navigate(`/${cb.api.routingNamespace}`)
                     }
                 },
-                tag: DELETE_TAG
+                tag: DELETE_TAG,
+                shortcut: ShortcutKey.R
             },
             {
                 text: "Properties",
@@ -297,7 +302,8 @@ export abstract class ResourceApi<Res extends Resource,
                 onClick: (selected, cb) => {
                     cb.viewProperties!(selected[0]);
                 },
-                tag: PROPERTIES_TAG
+                tag: PROPERTIES_TAG,
+                shortcut: ShortcutKey.E,
             }
         ];
     }

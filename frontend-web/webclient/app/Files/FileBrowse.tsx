@@ -38,15 +38,15 @@ import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
-import {accounting, compute, PageV2} from "@/UCloud";
+import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
-import metadataDocumentApi, {FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
+import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
@@ -55,6 +55,7 @@ import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
+import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 
 // Cached network data
 // =====================================================================================================================
@@ -99,7 +100,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
-    if (!opts?.embedded) {
+    if (!opts?.embedded && !opts?.isModal) {
         useTitle("Files");
     }
     const isInitialMount = useRef<boolean>(true);
@@ -114,8 +115,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
         return baseCallAPI({
             ...parameters,
-            projectOverride: activeProject.current
+            projectOverride: activeProject.current ?? ""
         });
+    }
+
+    const features: ResourceBrowseFeatures = {
+        ...FEATURES,
+        search: !opts?.isModal
     }
 
     const didUnmount = useDidUnmount();
@@ -126,7 +132,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, FEATURES, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
                 browser.setColumnTitles(rowTitles);
 
                 // Syncthing data
@@ -185,7 +191,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 const setFavoriteStatus = async (file: UFile, isFavorite: boolean, render: boolean = true) => {
                     const templateId = await findTemplateId(file, "favorite", "1.0.0");
                     if (!templateId) return;
-                    const currentMetadata: FileMetadataHistory = file.status.metadata ?? {metadata: {}, templates: {}}
+                    if (!file.status.metadata) file.status.metadata = {metadata: {}, templates: {}};
+                    const currentMetadata: FileMetadataHistory = file.status.metadata;
                     const favorites: FileMetadataDocumentOrDeleted[] = currentMetadata.metadata[templateId] ?? [];
                     let mostRecentStatusId = "";
                     for (let i = 0; i < favorites.length; i++) {
@@ -206,16 +213,17 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         specification: {
                             templateId: templateId!,
                             changeLog: "",
-                            document: {favorite: isFavorite} as Record<string, any>,
+                            document: {favorite: isFavorite},
                             version: "1.0.0",
                         },
                         id: "fake_entry",
-                    })
+                    });
 
                     currentMetadata.metadata[templateId] = favorites;
                     file.status.metadata = currentMetadata;
 
                     if (!isFavorite) {
+                        sidebarFavoriteCache.remove(file.id);
                         callAPI(
                             metadataDocumentApi.delete(
                                 bulkRequestOf({
@@ -234,9 +242,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                     changeLog: "New favorite status",
                                     templateId: templateId
                                 }
-                            })
-                            )
-                        ).then(doNothing);
+                            }))
+                        ).then(({responses}: BulkResponse<FindByStringId>) => {
+                            currentMetadata.metadata[templateId][0].id = responses[0].id;
+                            sidebarFavoriteCache.add({
+                                path: file.id,
+                                metadata: currentMetadata.metadata[templateId][0] as FileMetadataDocument
+                            });
+                        });
                     }
 
                     if (render) browser.renderRows();
@@ -470,12 +483,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                                 if (oldId === actualFile.id) return; // No change
 
+                                sidebarFavoriteCache.renameInCached(oldId, actualFile.id);
+
                                 callAPI(FilesApi.move(bulkRequestOf({
                                     oldId,
                                     newId: actualFile.id,
                                     conflictPolicy: "REJECT"
                                 }))).catch(err => {
                                     snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on failure
                                     browser.refresh();
                                 });
 
@@ -486,6 +502,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                         conflictPolicy: "REJECT"
                                     })));
 
+                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
                                     actualFile.id = oldId;
                                     browser.renderRows();
                                 });
@@ -510,7 +527,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 text: "Create...",
                                 backgroundColor: "blue",
                                 iconRotation: 45,
-                                operations: [uploadOp, folderOp]
+                                operations: [uploadOp, folderOp],
+                                shortcut: ShortcutKey.N
                             });
                         }
                         let i = 0;
@@ -683,9 +701,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
-                    // TODO(Jonas): I think this will be redundant when truncation is fixed.
-                    icon.style.minWidth = icon.style.minHeight = "20px"
-                    // TODO(Jonas): End
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
                         const iconWrapper = createHTMLElements({
@@ -713,9 +728,9 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         browser.icons.renderIcon({name: "check", color: "white", color2: "white", width: 24, height: 24}).then(setSyncthingIcon);
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth)
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
                     row.title.append(title);
-                    row.title.title = title;                    // Disabled for now.
+                    // Disabled for now.
                     if (isReadonly(file.permissions.myself) && Math.random() > 2) {
                         row.title.appendChild(div(
                             `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
@@ -739,6 +754,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     {
                         row.star.innerHTML = "";
                         row.star.append(favoriteIcon);
+                        row.star.style.marginBottom = "5px";
                         row.star.style.cursor = "pointer";
                     }
 
@@ -871,7 +887,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         pIcon.replaceChildren(icon);
                     }
 
-                    if (browser.opts.embedded) {
+                    if (browser.opts.embedded || browser.opts.selector) {
                         collectionCacheForCompletion.retrieve("", () =>
                             callAPI(FileCollectionsApi.browse({
                                 itemsPerPage: 250,
@@ -1328,7 +1344,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         collectionCacheForCompletion.invalidateAll();
         collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
             FileCollectionsApi.browse({
-                itemsPerPage: 10,
+                itemsPerPage: 250,
                 filterMemberFiles: "DONT_FILTER_COLLECTIONS",
                 ...opts?.additionalFilters,
             })

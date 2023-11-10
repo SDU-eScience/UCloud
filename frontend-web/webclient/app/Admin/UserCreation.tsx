@@ -1,14 +1,13 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {setLoading, SetStatusLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Button, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
+import {useDispatch} from "react-redux";
 
 const initialState: UserCreationState = {
     username: "",
@@ -53,8 +52,9 @@ const reducer = (state: UserCreationState, action: UserCreationActionType): User
     }
 };
 
-function UserCreation(props: SetStatusLoading): JSX.Element | null {
+function UserCreation(): JSX.Element | null {
     const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
+    const reduxDispatch = useDispatch();
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();
 
@@ -192,7 +192,7 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
 
         if (!hasUsernameError && !hasPasswordError && !hasEmailError && !hasFirstnamesError && !hasLastnameError) {
             try {
-                props.setLoading(true);
+                reduxDispatch(setLoading(true));
                 setSubmitted(true);
                 await promiseKeeper.makeCancelable(
                     Client.post("/auth/users/register", [{username, password, email, firstnames, lastname}], "")
@@ -206,15 +206,12 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                     payload: {usernameError: true, passwordError: false, emailError: false, firstnamesError: false, lastnameError: false}
                 });
             } finally {
-                props.setLoading(false);
+                reduxDispatch(setLoading(false));
                 setSubmitted(false);
             }
         }
     }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): SetStatusLoading => ({
-    setLoading: loading => dispatch(setLoading(loading))
-});
 
-export default connect(null, mapDispatchToProps)(UserCreation);
+export default UserCreation;

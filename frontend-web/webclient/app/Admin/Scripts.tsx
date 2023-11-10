@@ -4,7 +4,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PageV2} from "@/UCloud";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {format} from "date-fns";
@@ -100,7 +100,7 @@ const Scripts: React.FunctionComponent = () => {
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, dim));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, dim, row));
 
                     const lastRun = script.lastRun === 0 ? "Never" : format(script.lastRun, DATE_FORMAT)
                     const textNode = document.createTextNode(lastRun);
@@ -148,7 +148,8 @@ const operations: Operation<ScriptInfo, Record<string, never>>[] = [
             await callAPI(
                 apiUpdate(bulkRequestOf(...selected.map(it => ({scriptId: it.metadata.id}))), baseContext, "start")
             );
-        }
+        },
+        shortcut: ShortcutKey.S
     }
 ];
 

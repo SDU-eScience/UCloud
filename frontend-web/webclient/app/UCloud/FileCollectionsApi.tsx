@@ -15,7 +15,7 @@ import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage} from "@/Accounting";
 import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -234,7 +234,8 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming!(selected[0], selected[0].specification.title);
-                }
+                },
+                shortcut: ShortcutKey.F
             },
             ...baseOperations
         ]

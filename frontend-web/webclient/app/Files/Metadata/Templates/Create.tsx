@@ -9,14 +9,13 @@ import MainContainer from "@/MainContainer/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
 import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {Section} from "@/ui-components/Section";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {JsonSchemaForm} from "../JsonSchemaForm";
 import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import styled from "styled-components";
 import {injectStyle} from "@/Unstyled";
 
 enum Stage {
@@ -299,7 +298,7 @@ const Create: React.FunctionComponent = () => {
                     </Grid>
                 </div>
                 {stage !== Stage.SCHEMA ? null :
-                    <BootstrapReplacement>
+                    <div className={BootstrapReplacement}>
                         <FormBuilder
                             schema={schema}
                             uiSchema={uiSchema}
@@ -308,7 +307,7 @@ const Create: React.FunctionComponent = () => {
                                 setUiSchema(newUiSchema ?? uiSchema);
                             }}
                         />
-                    </BootstrapReplacement>
+                    </div>
                 }
                 {stage !== Stage.PREVIEW ? null :
                     <Grid gridGap={"32px"} width={"800px"} margin={"0 auto"}>
@@ -378,7 +377,8 @@ const operations: Operation<void, Callbacks>[] = [
             } else if (cb.stage === Stage.SCHEMA) {
                 cb.setStage(Stage.INFO);
             }
-        }
+        },
+        shortcut: ShortcutKey.Backspace
     },
     {
         text: "Next",
@@ -391,7 +391,8 @@ const operations: Operation<void, Callbacks>[] = [
             } else if (cb.stage === Stage.SCHEMA) {
                 cb.setStage(Stage.PREVIEW);
             }
-        }
+        },
+        shortcut: ShortcutKey.N
     },
     {
         text: "Save",
@@ -402,125 +403,119 @@ const operations: Operation<void, Callbacks>[] = [
         enabled: (_, cb) => cb.stage === Stage.PREVIEW,
         onClick: (_, cb) => {
             cb.saveVersion();
-        }
+        },
+        shortcut: ShortcutKey.S
     }
 ];
 
-const BootstrapReplacement = styled.div`
-    & > div.formBuilder-0-2-1 {
-        div.formHead-0-2-2 {
-            border: 1px solid transparent;
-            background-color: var(--lightGray, #f00);
+const BootstrapReplacement = injectStyle("bootstrap-replacement", k => `
+    ${k} > div.formBuilder-0-2-1 > div.formHead-0-2-2 {
+        border: 1px solid transparent;
+        background-color: var(--lightGray, #f00);
+    }
 
-            div > {
-                h5.form-name-label {
-                    color: var(--text, #f00);
-                }
+    ${k} > div.formBuilder-0-2-1 > div.formHead-0-2-2 > div > h5.form-name-label {
+        color: var(--text, #f00);
+    }
 
-                input.form-control:focus-visible {
-                    outline: none;
-                }
-            }
-        }
-        
-        div.card-select {
-            background-color: var(--lightGray, #f00);
-        }
+    ${k} > div.formBuilder-0-2-1 > div.formHead-0-2-2 > div > input.form-control:focus-visible {
+        outline: none;
+    }
+    
+    ${k} > div.formBuilder-0-2-1 > div.card-select {
+        background-color: var(--lightGray, #f00);
+    }
 
-        span.label {
-            color: var(--text);
-        }
+    ${k} > div.formBuilder-0-2-1 > span.label {
+        color: var(--text);
+    }
 
-        div.form-body {
+    ${k} > div.formBuilder-0-2-1 > div.form-body > div.collapse-element.card-container {
+        background-color: var(--lightGray, #f00);
+        border: 2px solid transparent;
+    }
 
-            div.collapse-element.card-container {
-                background-color: var(--lightGray, #f00);
-                border: 2px solid transparent;
-            }
+    ${k} > div.formBuilder-0-2-1 > div.form-body > div.collapse-element.card-container:hover {
+        border: 2px solid var(--blue, #f00);
+    }
 
-            div.collapse-element.card-container:hover {
-                border: 2px solid var(--blue, #f00);
-            }
+    ${k} > div.formBuilder-0-2-1 > div.form-body > div.section-container {
+        background-color: var(--lightGray, #f00);
+        border: 1px solid transparent;
+    }
 
-            div.section-container {
-                background-color: var(--lightGray, #f00);
-                border: 1px solid transparent;
-            }
+    ${k} > div.formBuilder-0-2-1 > div.form-body > div.section-container:hover {
+        border: 1px solid var(--blue, #f00);
+    }
 
-            div.section-container:hover {
-                border: 1px solid var(--blue, #f00);
-            }
-        }
+    ${k} > div.formBuilder-0-2-1 > div > span > svg.svg-inline--fa.fa-plus-square.fa-w-14.fa, ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa,
+    ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
+        color: var(--blue, #f00);
+    }
 
-        div > span > svg.svg-inline--fa.fa-plus-square.fa-w-14.fa, span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa,
-        span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
-            color: var(--blue, #f00);
-        }
+    ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa, ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
+        border: none;
+    }
+    
+    ${k} > div.formBuilder-0-2-1 > span > svg.svg-inline--fa.fa-pencil-alt.fa-w-16.fa {
+        color: var(--blue, #f00);
+        border: 2px solid var(--blue, #f00);
+    }
 
-        span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa, span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
-            border: none;
-        }
-        
-        span > svg.svg-inline--fa.fa-pencil-alt.fa-w-16.fa {
-            color: var(--blue, #f00);
-            border: 2px solid var(--blue, #f00);
-        }
+    ${k} > div.formBuilder-0-2-1 > span > svg.svg-inline--fa.fa-trash.fa-w-14.fa {
+        color: var(--red, #f00);
+        border: 2px solid var(--red, #f00);
+    }
 
-        span > svg.svg-inline--fa.fa-trash.fa-w-14.fa {
-            color: var(--red, #f00);
-            border: 2px solid var(--red, #f00);
-        }
+    ${k} > div.formBuilder-0-2-1 > input.form-control {
+        border: 2px solid var(--midGray);
+        display: block;
+        font-family: inherit;
+        width: 100%;
+        color: var(--black, #f00);
+        background-color: transparent;
+        border-radius: 5px;
+        padding: 7px 12px 7px 12px;
+        margin: 0;
+    }
 
-        input.form-control {
-            border: 2px solid var(--midGray);
-            display: block;
-            font-family: inherit;
-            width: 100%;
-            color: var(--black, #f00);
-            background-color: transparent;
-        
-            margin: 0;
-            &:invalid {
-                border-color: var(--red, #f00);
-            }
-        
-            border-radius: 5px;
-            padding: 7px 12px 7px 12px;
-        
-            ::placeholder {
-                color: var(--gray, #f00);
-            }
-        
-            &:focus {
-                outline: none;
-                background-color: transparent;
-            }
-        
-            &:disabled {
-                background-color: var(--lightGray, #f00);
-            }
-        }
+    ${k} > div.formBuilder-0-2-1 > input.form-control:invalid {
+        border-color: var(--red, #f00);
+    }
 
-        input.form-control:active, input.form-control:focus {
-            border: 2px solid var(--blue);            
-        }
+    ${k} > div.formBuilder-0-2-1 > input.form-control::placeholder {
+        color: var(--gray, #f00);
+    }
 
-        div[class*="-ValueContainer"], div[class*="-IndicatorsContainer"] {
-            background-color: var(--lightGray);
-        }
+    ${k} > div.formBuilder-0-2-1 > input.form-control:focus {
+        outline: none;
+        background-color: transparent;
+    }
 
-        div.delete-button {
-            color: var(--red);
-            margin-left: 6px;
-        }
+    ${k} > div.formBuilder-0-2-1 > input.form-control:disabled {
+        background-color: var(--lightGray, #f00);
+    }
 
-        svg.svg-inline--fa.fa-plus.fa-w-14.fa {
-            margin-left: auto;
-            margin-right: auto;
-            color: var(--blue);            
-        }
+    ${k} > div.formBuilder-0-2-1 > input.form-control:active, input.form-control:focus {
+        border: 2px solid var(--blue);            
+    }
 
-    & form > button {
+    ${k} > div.formBuilder-0-2-1 > div[class*="-ValueContainer"], div[class*="-IndicatorsContainer"] {
+        background-color: var(--lightGray);
+    }
+
+    ${k} > div.formBuilder-0-2-1 > div.delete-button {
+        color: var(--red);
+        margin-left: 6px;
+    }
+
+    ${k} > div.formBuilder-0-2-1 > svg.svg-inline--fa.fa-plus.fa-w-14.fa {
+        margin-left: auto;
+        margin-right: auto;
+        color: var(--blue);            
+    }
+
+    ${k} form > button {
         font-smooth: auto;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: auto;
@@ -542,31 +537,31 @@ const BootstrapReplacement = styled.div`
         height: 40px;
     }
 
-    & div.d-flex {
+    ${k} div.d-flex {
         display: flex;
         border-bottom: none;
     }
 
-    & div.collapse, & div.collapsing {
+    ${k} div.collapse, & div.collapsing {
         display: none;
     }
 
-    & div.collapse.show {
+    ${k} div.collapse.show {
         display: block;
     }
 
-    & div.cardEntries-0-2-7 {
+    ${k} div.cardEntries-0-2-7 {
         border-bottom: none;
     }
 
-    & div.section-interactions { 
+    ${k} div.section-interactions { 
         border-top: none; 
     }
 
-    & div.section-head { 
+    ${k} div.section-head { 
         border-bottom: none;
     }
-`;
+`);
 
 const JsonSchemaFormBootstrapReplacement = injectStyle("json-schema-form-bootstrap-replacement", k => `
     ${k} button {

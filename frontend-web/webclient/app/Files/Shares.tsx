@@ -332,7 +332,8 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                             share.owner.createdBy !== Client.username ?
                                 fileName(share.specification.sourceFilePath) :
                                 share.specification.sharedWith ?? share.id,
-                            dims
+                            dims,
+                            row
                         )
                     );
 
@@ -443,7 +444,7 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                 browser.on("nameOfEntry", s => s.id);
                 browser.on("pathToEntry", s => s.id);
                 browser.on("fetchOperationsCallback", () => {
-                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): I assume that we need to do something different here.
+                    const support = {productsByProvider: {}};
                     const callbacks: ResourceBrowseCallbacks<Share> = {
                         api: SharesApi,
                         navigate: to => navigate(to),

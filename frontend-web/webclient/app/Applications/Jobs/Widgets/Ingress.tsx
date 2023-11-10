@@ -110,7 +110,6 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                         }
                     },
                     isModal: true,
-                    embedded: true,
                     additionalFilters: filters
                 }}
             />

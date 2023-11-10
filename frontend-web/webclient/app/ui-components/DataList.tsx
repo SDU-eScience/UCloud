@@ -1,4 +1,4 @@
-import Fuse from "fuse.js";
+import Fuse, {IFuseOptions} from "fuse.js";
 import * as React from "react";
 import {Box, Icon, Input} from "@/ui-components";
 import ClickableDropdown from "./ClickableDropdown";
@@ -29,7 +29,7 @@ export class DataList extends React.PureComponent<DataListProps, {
         };
     }
 
-    static get options(): Fuse.IFuseOptions<ContentValuePair> {
+    static get options(): IFuseOptions<ContentValuePair> {
         return {
             shouldSort: true,
             threshold: 0.2,

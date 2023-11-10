@@ -1,4 +1,5 @@
 import deepcopy from "deepcopy";
+import Fuse from "fuse.js";
 
 export function groupBy<K extends keyof any, T>(items: T[], keySelector: (t: T) => K): Record<K, T[]> {
     let result = {} as Record<K, T[]>;
@@ -26,4 +27,29 @@ export function takeLast<T>(items: T[], numberOfItems: number): T[] {
 
 export function deepCopy<T>(item: T): T {
     return deepcopy(item);
+}
+
+export function createRecordFromArray<T, V>(array: T[], keyValueMapper: (value: T) => [string, V]): Record<string, V> {
+    const result: Record<string, V> = {};
+    for (const elem of array) {
+        const [k, v] = keyValueMapper(elem);
+        result[k] = v;
+    }
+    return result;
+}
+
+export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: string, opts?: { sort?: boolean }): T[] {
+    const fuse = new Fuse(
+        array,
+        {
+            threshold: 0.2,
+            location: 0,
+            distance: 100,
+            minMatchCharLength: 1,
+            shouldSort: opts?.sort,
+            keys: keys as string[]
+        }
+    );
+
+    return fuse.search(query).map(it => it.item);
 }

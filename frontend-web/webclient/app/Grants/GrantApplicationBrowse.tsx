@@ -13,6 +13,7 @@ import * as Grants from ".";
 import {stateToIconAndColor} from ".";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addTrailingSlash, createHTMLElements} from "@/UtilityFunctions";
+import {ShortcutKey} from "@/ui-components/Operation";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -33,7 +34,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
 
-    if (!opts?.embedded) {
+    if (!opts?.embedded && !opts?.isModal) {
         useTitle("Grant Applications");
     }
 
@@ -104,7 +105,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims, row));
                     if (opts?.both) {
                         const currentRevision = key.status.revisions.at(0);
                         if (currentRevision) {
@@ -183,11 +184,13 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         },
                         onClick() {navigate(AppRoutes.grants.outgoing())},
                         text: "Show outgoing applications",
+                        shortcut: ShortcutKey.U
                     }, {
                         icon: "fileSignatureSolid" as IconName,
                         enabled(selected: Grants.Application[]) {return selected.length === 0 && !isIngoing},
                         onClick() {navigate(AppRoutes.grants.ingoing())},
                         text: "Show ingoing applications",
+                        shortcut: ShortcutKey.I
                     }];
                     return ops.filter(it => it.enabled(selected));
                 });

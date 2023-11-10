@@ -4,7 +4,7 @@ import Box from "./Box";
 import Icon, {IconName} from "./Icon";
 import {ListRow} from "./List";
 import {ThemeColor} from "./theme";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {CSSProperties} from "react";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
@@ -21,32 +21,36 @@ export function Accordion(props: React.PropsWithChildren<{
     omitChevron?: boolean;
     borderColor?: string;
     panelProps?: MarginProps & PaddingProps;
+    className?: string;
+    style?: Partial<CSSProperties>;
 }>): JSX.Element {
     const color = props.iconColor ?? "text";
     const [open, setOpen] = React.useState(false);
     const isOpen = props.forceOpen || open;
-    const style: CSSProperties = {};
+    const style: CSSProperties = {...(props.style ?? {})};
     if (props.borderColor) style["--separatorColor"] = `var(--${props.borderColor})`;
     return (
         <>
-            <div className={AccordionStyleClass} style={style} data-active={isOpen} data-no-order={props.noBorder ?? false} onClick={() => setOpen(!open)}>
+            <div className={classConcat(AccordionStyleClass, props.className)} style={style} data-active={isOpen} data-no-order={props.noBorder ?? false} onClick={() => setOpen(!open)}>
                 <ListRow
                     stopPropagation={false}
                     left={props.title}
                     leftSub={props.titleSub}
                     icon={
                         props.icon ? <Icon color2={props.iconColor2} color={color} name={props.icon} /> :
-                           props.omitChevron ? null : <Icon data-chevron={"true"} color="text" size={15} mt="6px" name="chevronDown" rotation={open || props.forceOpen ? 0 : -90} />
+                           props.omitChevron ? null : <Icon data-chevron={"true"} color="text" size={15} name="heroChevronDown" rotation={open || props.forceOpen ? 0 : -90} />
                     }
 
                     right={<>{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</>}
                 />
             </div>
-            <div className={PanelClass} data-active={isOpen} data-no-border={props.noBorder ?? false}>
-                <Box {...props.panelProps}>
-                    {props.children}
-                </Box>
-            </div>
+            {props.children !== undefined &&
+                <div className={PanelClass} data-active={isOpen} data-no-border={props.noBorder ?? false}>
+                    <Box {...props.panelProps}>
+                        {props.children}
+                    </Box>
+                </div>
+            }
         </>
     );
 }
@@ -95,5 +99,3 @@ const PanelClass = injectStyle("accordion-panel", k => `
 `);
 
 export default Accordion;
-
-/* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */

@@ -128,7 +128,7 @@ export function initStatus(): StatusReduxObject {
 }
 
 export const initDashboard = (): DashboardStateProps => ({
-    notifications: {items: []},
+    loading: false,
 });
 
 export function initObject(): ReduxObject {

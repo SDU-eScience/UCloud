@@ -3,12 +3,10 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import {setPrioritizedSearch, setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
-import {connect} from "react-redux";
+import {useDispatch} from "react-redux";
 import {useLocation, useMatch, useNavigate} from "react-router";
-import {Dispatch} from "redux";
 import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse, RouterLocationProps} from "@/Utilities/URIUtilities";
-import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import * as Applications from "@/Applications";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 
@@ -17,25 +15,24 @@ export const ApiLike: ReducedApiInterface = {
     titlePlural: "Applications"
 };
 
-function Search(props: SearchProps): JSX.Element {
+function Search(): JSX.Element {
     const match = useMatch("/:priority/*");
     const priority = match?.params.priority!;
     const navigate = useNavigate();
     const location = useLocation();
+    const dispatch = useDispatch();
 
     const q = query({location, navigate});
 
     React.useEffect(() => {
-        props.setRefresh(fetchAll);
+        dispatch(setRefreshFunction(fetchAll));
         return () => {
-            props.clear();
-            props.setRefresh();
+            dispatch(setRefreshFunction());
         };
     }, []);
 
-
     React.useEffect(() => {
-        props.setPrioritizedSearch(priority as HeaderSearchType);
+        dispatch(setPrioritizedSearch(priority as HeaderSearchType))
     }, [priority]);
 
     useTitle("Search");
@@ -51,16 +48,7 @@ function Search(props: SearchProps): JSX.Element {
     );
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
-    clear: () => { },
-    setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-});
-
-const mapStateToProps = ({}: ReduxObject): SimpleSearchStateProps => ({
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(Search);
+export default Search;
 
 function query(props: RouterLocationProps): string {
     return queryFromProps(props);

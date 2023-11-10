@@ -90,7 +90,6 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             <NetworkIPBrowse
                 opts={{
                     additionalFilters: filters,
-                    embedded: true,
                     isModal: true,
                     selection: {
                         text: "Use",

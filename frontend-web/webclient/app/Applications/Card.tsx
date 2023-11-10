@@ -9,6 +9,7 @@ import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import { CardClass } from "@/ui-components/Card";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {LogoType} from "./api";
 
 interface ApplicationCardProps {
     onFavorite?: (app: ApplicationSummaryWithFavorite) => void;
@@ -251,7 +252,7 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
     }
 `);
 
-const ApplicationCardClass = injectStyle("application-card", k => `
+export const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
         user-select: none;
     }
@@ -311,14 +312,6 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
 }
 
 const FAV_ICON_SIZE = "20px";
-const FavIcon = injectStyleSimple("app-fav-icon", `
-    position: relative; 
-    cursor: pointer;
-    height: 0;
-    width: 0;
-    top: -5px;
-    left: calc(100% - ${FAV_ICON_SIZE} + 5px);
-`);
 
 export enum AppCardStyle {
     WIDE,

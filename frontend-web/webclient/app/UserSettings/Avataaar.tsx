@@ -4,8 +4,7 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
+import {useDispatch} from "react-redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Button, Flex, Label, Select} from "@/ui-components";
 import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
@@ -13,17 +12,13 @@ import {errorMessageOrDefault} from "@/UtilityFunctions";
 import * as Options from "./AvatarOptions";
 import {saveAvatar} from "./Redux/AvataaarActions";
 
-type AvataaarModificationStateProps = AvatarType;
-
-interface AvataaarModificationOperations {
-    save: (avatar: AvatarType) => void;
-}
-
-function Modification(props: AvataaarModificationOperations): JSX.Element {
+function Modification(): React.JSX.Element {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
     const [loading, setLoading] = React.useState(true);
 
     useTitle("Edit Avatar");
+
+    const dispatch = useDispatch();
 
     React.useEffect(() => {
         const promises = new PromiseKeeper();
@@ -46,7 +41,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
                 <Button
                     ml="auto"
                     mr="auto"
-                    onClick={() => props.save(avatar)}
+                    onClick={async () => dispatch(await saveAvatar(avatar))}
                     mt="5px"
                     mb="5px"
                     color="blue"
@@ -193,11 +188,6 @@ function AvatarSelect<T1 extends string, T2 extends Object>({
     );
 }
 
-const mapStateToProps = ({avatar}: ReduxObject): AvataaarModificationStateProps => avatar;
-const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
-    save: async avatar => dispatch(await saveAvatar(avatar)),
-});
-
 const defaultAvatar = ({
     top: Options.Top.NoHair,
     topAccessory: Options.TopAccessory.Blank,
@@ -215,5 +205,5 @@ const defaultAvatar = ({
 });
 
 type AvatarType = typeof defaultAvatar;
-export default connect(mapStateToProps, mapDispatchToProps)(Modification);
+export default Modification;
 export {defaultAvatar, AvatarType};

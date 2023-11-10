@@ -139,7 +139,7 @@ export function ContextSwitcher({managed}: {
         } else {
             onProjectUpdated(navigate, () => setProject(id), refresh, id ?? "")
         }
-    }, []);
+    }, [refresh]);
 
     return (
         <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
@@ -242,6 +242,7 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     const {pathname} = window.location;
     runThisFunction();
     let doRefresh = true;
+    
     if (["/app/files/", "/app/files"].includes(pathname)) {
         navigate("/drives")
         doRefresh = false;

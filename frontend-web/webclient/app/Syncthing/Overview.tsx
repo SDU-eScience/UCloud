@@ -20,7 +20,7 @@ import {usePrettyFilePath} from "@/Files/FilePath";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -358,7 +358,7 @@ export const Overview: React.FunctionComponent = () => {
         dialogStore.addDialog(
             <FileBrowse
                 opts={{
-                    embedded: true,
+                    isModal: true,
                     initialPath: "",
                     selection: {
                         text: "Sync",
@@ -581,6 +581,7 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         onClick: ([device]) => {
             copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
         },
+        shortcut: ShortcutKey.C
     },
     {
         text: "Remove",
@@ -593,6 +594,7 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
                 cb.dispatch({type: "RemoveDevice", deviceId: device.deviceId});
             }
         },
+        shortcut: ShortcutKey.R
     }
 ];
 
@@ -645,7 +647,8 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
             for (const file of selected) {
                 cb.dispatch({type: "RemoveFolder", folderPath: file.ucloudPath});
             }
-        }
+        },
+        shortcut: ShortcutKey.R
     }
 ];
 
@@ -707,7 +710,8 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
             document.body.appendChild(element);
             element.click();
             document.body.removeChild(element);
-        }
+        },
+        shortcut: ShortcutKey.O
     },
     {
         text: "Show device ID",
@@ -718,7 +722,8 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
             if (path && typeof path === "string") {
                 cb.navigate(`/files/properties/${encodeURIComponent(`${path}/ucloud_device_id.txt`)}`);
             }
-        }
+        },
+        shortcut: ShortcutKey.S
     },
     {
         text: "View logs",
@@ -726,7 +731,8 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: ([job], cb) => {
             cb.navigate(`/jobs/properties/${job.id}`);
-        }
+        },
+        shortcut: ShortcutKey.V
     },
     {
         text: "Restart",
@@ -735,7 +741,8 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
             callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, productId: cb.productId}));
-        }
+        },
+        shortcut: ShortcutKey.Q 
     },
     {
         text: "Factory reset",
@@ -764,7 +771,8 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
                         dialogStore.success();
                     }}>Confirm</Button>
                 </Box>, () => undefined, true);
-        }
+        },
+        shortcut: ShortcutKey.F
     },
 ];
 

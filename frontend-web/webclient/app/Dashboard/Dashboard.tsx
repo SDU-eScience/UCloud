@@ -1,17 +1,17 @@
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {updatePageTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
-import {connect} from "react-redux";
+import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
 import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
-import {DashboardOperations, DashboardProps} from ".";
+import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, InvokeCommand, callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
@@ -43,48 +43,46 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {StandardButtonSize} from "@/ui-components/Button";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 
-function Dashboard(props: DashboardProps): JSX.Element {
+function Dashboard(): JSX.Element {
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
         withHidden: false,
     }), emptyPage);
 
+    const dispatch = useDispatch();
+
+    const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
+
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
 
-    const [favoriteFiles, fetchFavoriteFiles] = useCloudAPI<PageV2<FileMetadataAttached>>(
-        {noop: true},
-        emptyPageV2
-    );
+
+    useTitle("Dashboard");
 
     React.useEffect(() => {
-        props.onInit();
-        reload(true);
-        props.setRefresh(() => reload(true));
-        return () => props.setRefresh();
+        reload();
+        reduxOps.setRefresh(() => reload());
+        return () => reduxOps.setRefresh();
     }, []);
 
-    function reload(loading: boolean): void {
-        props.setAllLoading(loading);
+    function reload(): void {
+        reduxOps.setAllLoading(true);
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
             includeBalance: true,
             includeMaxBalance: true
         }));
-        fetchFavoriteFiles(metadataApi.browse({
-            filterActive: true,
-            filterTemplate: "Favorite",
-            itemsPerPage: 10
-        }));
+        sidebarFavoriteCache.fetch();
         fetchUsage(retrieveUsage({}));
     }
 
@@ -94,14 +92,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
             <DashboardNews news={news} />
 
             <div className={GridClass}>
-                <DashboardFavoriteFiles
-                    favoriteFiles={favoriteFiles}
-                    onDeFavorite={() => fetchFavoriteFiles(metadataApi.browse({
-                        filterActive: true,
-                        filterTemplate: "Favorite",
-                        itemsPerPage: 10
-                    }))}
-                />
+                <DashboardFavoriteFiles />
                 <DashboardRuns />
             </div>
             <UsageAndResources charts={usage} products={products} />
@@ -143,13 +134,7 @@ const GridClass = injectStyle("grid", k => `
 }
 `);
 
-interface DashboardFavoriteFilesProps {
-    favoriteFiles: APICallState<PageV2<FileMetadataAttached>>;
-
-    onDeFavorite(): void;
-}
-
-const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element => {
+function DashboardFavoriteFiles(): JSX.Element {
     const [, invokeCommand] = useCloudCommand();
 
     const [favoriteTemplateId, setId] = React.useState("");
@@ -159,17 +144,17 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
 
     const navigate = useNavigate();
 
-    const favorites = props.favoriteFiles.data.items.filter(it => it.metadata.specification.document.favorite);
+    const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
     return (
         <HighlightedCard
             color="darkBlue"
-            isLoading={props.favoriteFiles.loading}
+            isLoading={sidebarFavoriteCache.loading}
             icon="heroStar"
             title="Favorites"
-            error={props.favoriteFiles.error?.why}
+            error={sidebarFavoriteCache.error}
         >
-            {favorites.length !== 0 ? null : (
+            {favorites.items.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
                     <Text textAlign="center" width="100%">
                         As you add favorites, they will appear here.
@@ -180,7 +165,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                 </NoResultsCardBody>
             )}
             <List>
-                {favorites.map(it => (<Flex key={it.path} height="55px">
+                {favorites.items.slice(0, 10).map(it => (<Flex key={it.path} height="55px">
                     <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="blue" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
@@ -191,7 +176,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
                                 })),
                                 {defaultErrorHandler: false}
                             );
-                            props.onDeFavorite();
+                            sidebarFavoriteCache.remove(it.path);
                         } catch (e) {
                             snackbarStore.addFailure("Failed to unfavorite", false);
                         }
@@ -267,11 +252,21 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
     </Flex>
 );
 
-const ResourceGridClass = injectStyleSimple("grid", `
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-    grid-auto-rows: minmax(450px, auto);
-    gap: 16px;
+const ResourceGridClass = injectStyle("resource-grid", k => `
+    ${k} {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+        grid-auto-rows: minmax(450px, auto);
+        gap: 16px;
+    }
+    
+    ${k} a {
+        color: var(--black);
+    }
+    
+    ${k} a:hover {
+        color: var(--blue);
+    }
 `);
 
 function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>; products: APICallState<PageV2<Product>>}): JSX.Element {
@@ -433,7 +428,7 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
         color="green"
         icon="heroDocumentCheck"
     >
-            <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
+        <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
     </HighlightedCard>;
 };
 
@@ -524,11 +519,11 @@ const NewsClass = injectStyle("with-graphic", k => `
 `);
 
 
-const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
-    onInit: () => dispatch(updatePageTitle("Dashboard")),
-    setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
-    setAllLoading: loading => dispatch(setAllLoading(loading)),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
-});
+function reduxOperations(dispatch: Dispatch): DashboardOperations {
+    return {
+        setAllLoading: loading => dispatch(setAllLoading(loading)),
+        setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    };
+}
 
-export default connect(null, mapDispatchToProps)(Dashboard);
+export default Dashboard;

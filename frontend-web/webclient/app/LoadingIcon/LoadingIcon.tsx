@@ -3,6 +3,7 @@ import * as React from "react";
 
 interface HexSpinProps {
     size?: number;
+    margin?: string;
 }
 
 const hexColors = ["#0057B8", "#82A", "#266D7F", "#F8A527", "#F11E4A"];
@@ -49,8 +50,8 @@ function createCSS(parentPath: string) {
 
 // NOTE(Dan): Before changing the component below, please be aware that the createSpinner() function of
 // ResourceBrowser has a hardcoded assumption about the DOM that this component renders.
-const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
-    <div className={HexSpinWrapper} data-tag="loading-spinner" style={{width: size, height: size}}>
+const HexSpin = ({size = 32, margin}: HexSpinProps): JSX.Element => (
+    <div className={HexSpinWrapper} data-tag="loading-spinner" style={{width: size, height: size, margin}}>
         <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlnsXlink="http://www.w3.org/1999/xlink"
