@@ -1,4 +1,5 @@
 import * as React from "react";
+import * as Heading from "@/ui-components/Heading";
 import {emptyPage} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";
@@ -6,11 +7,10 @@ import {useEffect} from "react";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
-import {GridCardGroup} from "@/ui-components/Grid";
+import Grid from "@/ui-components/Grid";
 import {AppCard, AppCardStyle, AppCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
 import {Box, Flex, Icon, Input} from "@/ui-components";
-import {Link} from "react-router-dom";
 import * as Pages from "./Pages";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {injectStyle} from "@/Unstyled";
@@ -176,17 +176,24 @@ export const SearchResults: React.FunctionComponent = () => {
     }, [favoriteStatus]);
 
     return <Box mx="auto" maxWidth="1340px">
-        <Flex width="100%" mt="30px" justifyContent="right">
-            <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} hidden={false} />
-            <ContextSwitcher />
+        <Flex width="100%" mt="30px" justifyContent="space-between">
+            <Heading.h2>Search results</Heading.h2>
+            <Flex justifyContent="right">
+                <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} hidden={false} />
+                <ContextSwitcher />
+            </Flex>
         </Flex>
-        <Box mt="12px" />
+        <Box mt="30px" />
 
         <Pagination.List
             loading={results.loading}
             page={results.data}
             pageRenderer={page => (
-                <GridCardGroup minmax={322}>
+                <Grid
+                    width="100%"
+                    gridTemplateColumns={`repeat(auto-fill, 312px)`}
+                    gridGap="30px"
+                >
                     {page.items.map(app => (
                         <AppCard
                             key={app.metadata.name}
@@ -201,7 +208,7 @@ export const SearchResults: React.FunctionComponent = () => {
                             application={app}
                         />
                     ))}
-                </GridCardGroup>
+                </Grid>
             )}
             onPageChanged={newPage => {
                 navigate(buildQueryString("/applications/search", {

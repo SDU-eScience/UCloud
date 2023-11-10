@@ -5,11 +5,16 @@ import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
-import {Flex, Grid, Link} from "@/ui-components";
+import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardStyle, AppCardType} from "./Card";
+import {compute} from "@/UCloud";
+import * as UCloud from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import * as Pages from "./Pages";
 import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {FavoriteStatus} from "./Landing";
+import {toggleAppFavorite} from "./Redux/Actions";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -24,47 +29,73 @@ const ApplicationsGroup: React.FunctionComponent = () => {
         fetchAppGroup(retrieveGroup({id: id}));
     }, [id]);
 
+    const favoriteStatus = React.useRef<FavoriteStatus>({});
+
+    const onFavorite = React.useCallback(async (app: ApplicationSummaryWithFavorite) => {
+        // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
+        const key = app.metadata.name;
+        const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
+        if (favoriteStatus.current[key]) {
+            delete favoriteStatus.current[key]
+        } else {
+            favoriteStatus.current[key] = {override: !isFavorite, app};
+        }
+        favoriteStatus.current = {...favoriteStatus.current};
+        dispatch(toggleAppFavorite(app, !isFavorite));
+        try {
+            await invokeCommand(UCloud.compute.apps.toggleFavorite({
+                appName: app.metadata.name
+            }));
+        } catch (e) {
+            favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
+            favoriteStatus.current = {...favoriteStatus.current};
+        }
+    }, [favoriteStatus]);
+
     if (!appGroup.data) return <>Not found</>;
 
-    return <MainContainer 
-        header={
-            <>
-                <Flex justifyContent="space-between" mt="30px">
-                    <Heading.h2>
-                        <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="45px" />
-                        {" "}
-                        {appGroup.data.group.title}
-                    </Heading.h2>
-                    <Flex justifyContent="right">
-                        <AppSearchBox />
-                        <ContextSwitcher />
-                    </Flex>
-                </Flex>
-            </>
-        }
-        headerSize={120}
-        main={
-            <>
-                <Grid
-                    mt="30px"
-                    gridGap="25px"
-                    gridTemplateColumns={"repeat(auto-fill, 312px)"}
-                >
-                    {appGroup.data.applications.map(app => (
-                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                            <AppCard
-                                style={AppCardStyle.WIDE}
-                                title={app.metadata.title} 
-                                description={app.metadata.description}
-                                logo={app.metadata.name}
-                                type={AppCardType.APPLICATION}
-                            />
-                        </Link>
-                    ))}
-                </Grid>
-            </>
-        } 
-    />;
+    return <Box mx="auto" maxWidth="1340px">
+        <Flex justifyContent="space-between" mt="30px">
+            <Heading.h2>
+                <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="45px" />
+                {" "}
+                {appGroup.data.group.title}
+            </Heading.h2>
+            <Flex justifyContent="right">
+                <AppSearchBox />
+                <ContextSwitcher />
+            </Flex>
+        </Flex>
+        <Box mt="30px" />
+        <Grid
+            width="100%"
+            gridTemplateColumns={`repeat(auto-fill, 312px)`}
+            gridGap="30px"
+        >
+            {appGroup.data.applications.map(app => (
+                <AppCard
+                    key={app.metadata.name}
+                    style={AppCardStyle.WIDE}
+                    title={app.metadata.title} 
+                    description={app.metadata.description}
+                    logo={app.metadata.name}
+                    type={AppCardType.APPLICATION}
+                    link={Pages.run(app.metadata.name)}
+                    onFavorite={onFavorite}
+                    isFavorite={favoriteStatus.current[app.metadata.name]?.override ?? app.favorite}
+                    application={app}
+                />
+            ))}
+        </Grid>
+    </Box>;
 }
 
 export default ApplicationsGroup;
+
+function dispatch(arg0: any) {
+    throw new Error("Function not implemented.");
+}
+function invokeCommand(arg0: any) {
+    throw new Error("Function not implemented.");
+}
+
