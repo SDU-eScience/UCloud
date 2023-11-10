@@ -233,6 +233,8 @@ export const AppGroup: React.FunctionComponent = () => {
                                     tags: [selectedTag]
                                 }));
 
+                                setSelectedTag("");
+
                                 refresh();
 
                             }}>
@@ -270,18 +272,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 options={allTags.data.map(tag => ({value: tag, content: tag}))}
                                                 onSelect={async item => {
                                                     setSelectedTag(item);
-
-                                                    if (commandLoading) return;
-                                                    if (selectedTag === null) return;
-                                                    if (selectedTag === "") return;
-                                                    if (!group.data) return;
-
-                                                    await invokeCommand(UCloud.compute.apps.createTag({
-                                                        groupId: group.data.group.id,
-                                                        tags: [selectedTag]
-                                                    }));
-
-                                                    refresh();
                                                 }}
                                                 onChange={item => setSelectedTag(item)}
                                                 placeholder={"Enter or choose a tag..."}
