@@ -132,7 +132,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
                 browser.on("nameOfEntry", j => j.specification.domain ?? j.id ?? "");
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
-                    const support = {productsByProvider: {}}; // TODO(Jonas), FIXME(Jonas): I assume that we need to do something different here.
+                    const support = {productsByProvider: {}};
                     const callbacks: ResourceBrowseCallbacks<Provider> = {
                         api: ProvidersApi,
                         navigate: to => navigate(to),

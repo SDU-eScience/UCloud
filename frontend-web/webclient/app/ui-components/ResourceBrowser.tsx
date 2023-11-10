@@ -2815,8 +2815,6 @@ export class ResourceBrowser<T> {
         }
 
         menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
-        menu.style.maxHeight = (itemSize * 8.5) + "px";
-        menu.style.overflowY = "scroll";
         window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
         menu.style.display = "block";
         menu.style.opacity = "1";

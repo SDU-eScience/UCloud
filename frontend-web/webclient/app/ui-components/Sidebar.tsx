@@ -457,6 +457,15 @@ export const sidebarFavoriteCache = new class {
         this.loading = false;
     }
 
+    public renameInCached(oldPath: string, newPath: string): void {
+        const file = this.cache.items.find(it => it.path === oldPath);
+        if (!file) return;
+
+        file.path = newPath;
+        this.isDirty = true;
+        this.emitChange();
+    }
+
     public subscribe(subscription: () => void) {
         this.subscribers = [...this.subscribers, subscription];
         return () => {

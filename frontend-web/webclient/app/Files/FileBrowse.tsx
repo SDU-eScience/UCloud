@@ -483,12 +483,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                                 if (oldId === actualFile.id) return; // No change
 
+                                sidebarFavoriteCache.renameInCached(oldId, actualFile.id);
+
                                 callAPI(FilesApi.move(bulkRequestOf({
                                     oldId,
                                     newId: actualFile.id,
                                     conflictPolicy: "REJECT"
                                 }))).catch(err => {
                                     snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on failure
                                     browser.refresh();
                                 });
 
@@ -499,6 +502,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                         conflictPolicy: "REJECT"
                                     })));
 
+                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
                                     actualFile.id = oldId;
                                     browser.renderRows();
                                 });

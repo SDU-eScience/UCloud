@@ -12,6 +12,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {timestampUnixMs} from "@/UtilityFunctions";
+import AppRoutes from "@/Routes";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -152,7 +153,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
                         reload: () => browser.refresh(),
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         viewProperties: j => {
-                            console.log("todo");
+                            navigate(AppRoutes.resource.properties("metadata", j.id));
                         }
                     };
                     return callbacks;
