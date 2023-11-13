@@ -9,7 +9,6 @@ import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import { CardClass } from "@/ui-components/Card";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {LogoType} from "./api";
 
 interface ApplicationCardProps {
     onFavorite?: (app: ApplicationSummaryWithFavorite) => void;
@@ -326,7 +325,7 @@ export enum AppCardType {
 }
 
 export interface AppCardProps extends React.PropsWithChildren<ApplicationCardProps> {
-    style: AppCardStyle;
+    cardStyle: AppCardStyle;
 }
 
 const typeLineCount = {
@@ -338,7 +337,7 @@ const typeLineCount = {
 
 export function AppCard(props: AppCardProps): JSX.Element {
     return React.useMemo(() => {
-        let lineCount = typeLineCount[props.style];
+        let lineCount = typeLineCount[props.cardStyle];
         let card: React.JSX.Element;
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
@@ -352,10 +351,10 @@ export function AppCard(props: AppCardProps): JSX.Element {
                     </Markdown>
                 </MultiLineTruncate>
             </div>;
-        switch (props.style) {
+        switch (props.cardStyle) {
             case AppCardStyle.EXTRA_TALL:
             case AppCardStyle.TALL:
-                const isExtraTall = props.style === AppCardStyle.EXTRA_TALL;
+                const isExtraTall = props.cardStyle === AppCardStyle.EXTRA_TALL;
                 card = <Flex 
                         flexDirection="column" 
                         className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)} 
@@ -376,7 +375,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
 
             case AppCardStyle.WIDE:
             case AppCardStyle.EXTRA_WIDE:
-                const isExtraWide = props.style === AppCardStyle.EXTRA_WIDE;
+                const isExtraWide = props.cardStyle === AppCardStyle.EXTRA_WIDE;
                 card = <div 
                     className={classConcat(CardClass, ApplicationCardClass, WideApplicationCard)} 
                     data-xl={isExtraWide}

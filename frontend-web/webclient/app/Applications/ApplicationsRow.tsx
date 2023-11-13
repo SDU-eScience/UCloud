@@ -138,7 +138,7 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                 {items.map(item =>
                     <AppCard
                         key={item.id}
-                        style={style}
+                        cardStyle={style}
                         title={item.title}
                         description={item.description}
                         logo={item.id}

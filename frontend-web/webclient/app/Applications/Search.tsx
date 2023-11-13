@@ -201,7 +201,7 @@ export const SearchResults: React.FunctionComponent = () => {
                             description={app.metadata.description}
                             logo={app.metadata.name}
                             type={AppCardType.APPLICATION}
-                            style={AppCardStyle.WIDE}
+                            cardStyle={AppCardStyle.WIDE}
                             link={Pages.run(app.metadata.name)}
                             onFavorite={onFavorite}
                             isFavorite={favoriteStatus.current[app.metadata.name]?.override ?? app.favorite}

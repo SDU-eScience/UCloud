@@ -1,10 +1,9 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Button, Flex, Icon, Input, Link, Relative, theme} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {AppCard, AppCardStyle, AppCardType} from "./Card";
-import * as Pages from "./Pages";
+import {AppCardStyle} from "./Card";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -58,6 +57,17 @@ export const LandingAppSearchBox: React.FunctionComponent<{value?: string; hidde
     const navigate = useNavigate();
     const inputRef = React.useRef<HTMLInputElement>(null);
 
+    const onSearch = useCallback(() => {
+        const queryCurrent = inputRef.current;
+        if (!queryCurrent) return;
+
+        const queryValue = queryCurrent.value;
+
+        if (queryValue === "") return;
+
+        navigate(AppRoutes.apps.search(queryValue));
+    }, [inputRef.current]);
+
     return <Flex className={LandingAppSearchBoxClass}>
         <Input
             className="search-field"
@@ -66,29 +76,13 @@ export const LandingAppSearchBox: React.FunctionComponent<{value?: string; hidde
             placeholder="Search for applications..."
             onKeyUp={e => {
                 if (e.key === "Enter") {
-                    const queryCurrent = inputRef.current;
-                    if (!queryCurrent) return;
-
-                    const queryValue = queryCurrent.value;
-
-                    if (queryValue === "") return;
-
-                    navigate(AppRoutes.apps.search(queryValue));
+                    onSearch()
                 }
             }}
             autoFocus
         />
         <button>
-            <Icon name="search" size={20} color="darkGray" my="auto" onClick={e => {
-                const queryCurrent = inputRef.current;
-                if (!queryCurrent) return;
-
-                const queryValue = queryCurrent.value;
-
-                if (queryValue === "") return;
-
-                navigate(AppRoutes.apps.search(queryValue));
-            }} />
+            <Icon name="search" size={20} color="darkGray" my="auto" onClick={() => onSearch()} />
         </button>
     </Flex>;
 }
@@ -253,7 +247,6 @@ function filterAppsByFavorite(
         favoriteStatus.current[item.metadata.name]?.override ?? item.favorite
     );
 
-    //filteredItems = [...filteredItems, ...Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app)];
     filteredItems = filteredItems.filter(it => favoriteStatus.current[it.metadata.name]?.override !== false);
 
     // Remove duplicates (This can happen due to favorite cache)
@@ -288,28 +281,6 @@ function FavoriteAppRow({favoriteStatus, onFavorite, refreshId}: FavoriteAppRowP
             items={filteredItems.map(app => ApplicationSummaryToRowItem(app, onFavorite))}
             refreshId={refreshId}
         />
-
-        {/*
-        <div className={ApplicationRowContainerClass} data-space-between={items.length > 6}>
-            {filteredItems.map(app =>
-                <Flex>
-                    <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                        <AppCard
-                            style={AppCardStyle.TALL}
-                            title={app.metadata.title}
-                            logo={app.metadata.name}
-                            type={AppCardType.APPLICATION}
-                            description={app.metadata.description}
-                            isFavorite={true}
-                        />
-                    </Link>
-                    <Relative top="6px" right="28px" width="0px" height="0px">
-                        <Icon cursor="pointer" name="starFilled" color="blue" hoverColor="blue" size="20px" onClick={() => onFavorite(app)} />
-                    </Relative>
-                </Flex>
-            )}
-        </div>
-        */}
     </>
 }
 

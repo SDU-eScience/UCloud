@@ -3,7 +3,7 @@ import * as Heading from "@/ui-components/Heading";
 import React, {useEffect} from "react";
 import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardStyle, AppCardType} from "./Card";
@@ -15,6 +15,7 @@ import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {FavoriteStatus} from "./Landing";
 import {toggleAppFavorite} from "./Redux/Actions";
+import {useDispatch} from "react-redux";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -24,6 +25,9 @@ const ApplicationsGroup: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+
+    const dispatch = useDispatch();
+    const [, invokeCommand] = useCloudCommand();
 
     useEffect(() => {
         fetchAppGroup(retrieveGroup({id: id}));
@@ -75,7 +79,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
             {appGroup.data.applications.map(app => (
                 <AppCard
                     key={app.metadata.name}
-                    style={AppCardStyle.WIDE}
+                    cardStyle={AppCardStyle.WIDE}
                     title={app.metadata.title} 
                     description={app.metadata.description}
                     logo={app.metadata.name}
@@ -91,11 +95,3 @@ const ApplicationsGroup: React.FunctionComponent = () => {
 }
 
 export default ApplicationsGroup;
-
-function dispatch(arg0: any) {
-    throw new Error("Function not implemented.");
-}
-function invokeCommand(arg0: any) {
-    throw new Error("Function not implemented.");
-}
-
