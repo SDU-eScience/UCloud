@@ -1,9 +1,8 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import {Flex, Icon, Relative} from "@/ui-components";
-import Link, {LinkProps} from "@/ui-components/Link";
+import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
-import {TextClass} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import { CardClass } from "@/ui-components/Card";
@@ -21,40 +20,6 @@ interface ApplicationCardProps {
     colorBySpecificTag?: string;
     application?: ApplicationSummaryWithFavorite
 }
-
-const AppCardBase = injectStyle("app-card-base", k => `
-    ${k} {
-        padding: 10px;
-        width: 100%;
-        display: flex;
-        align-items: center;
-    }
-
-    ${k} > img {
-        width: 32px;
-        height: 32px;
-        margin-right: 16px;
-        border-radius: 5px;
-        flex-shrink: 0;
-    }
-
-    ${k} > strong {
-        margin-right: 16px;
-        font-weight: 700;
-        flex-shrink: 0;
-    }
-
-    ${k} > .${TextClass} {
-        color: var(--gray, #f00);
-        flex-grow: 1;
-    }
-
-    ${k} > .${TextClass} > p {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-`);
 
 export const Tag = ({label, bg = "black"}: {label: string; bg?: ThemeColor}): JSX.Element => (
     <div style={{
@@ -155,31 +120,6 @@ export function hashF(str: string): number {
 export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
-
-function SmallCard(props: LinkProps) {
-    return <Link className={SmallCardClass} {...props} />
-}
-
-const SmallCardClass = injectStyle("small-card", k => `
-    ${k} {
-        display: flex;
-        padding: 16px;
-        width: 150px;
-        height: 50px;
-        border-radius: 10px;
-        font-size: ${theme.fontSizes[2]}px;
-        text-align: center;
-        align-items: center;
-        justify-content: center;
-        box-shadow: ${theme.shadows.sm};
-        transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-    }
-
-    ${k}:hover {
-        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        color: var(--white, #f00);
-    }
-`);
 
 const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
     display: -webkit-box;
@@ -309,8 +249,6 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
         WebkitLineClamp: props.lines,
     }} {...p} />;
 }
-
-const FAV_ICON_SIZE = "20px";
 
 export enum AppCardStyle {
     WIDE,

@@ -6,7 +6,6 @@ import {Absolute, Icon, Link, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {toggleAppFavorite} from "./Redux/Actions";
 
 export const ApplicationRowContainerClass = injectStyle("application-row-container", k => `
     ${k} {
@@ -31,7 +30,6 @@ export interface ApplicationRowItem {
     defaultApplication?: string,
     tags?: string[],
     isFavorite?: boolean,
-    onFavorite?: (app: ApplicationSummaryWithFavorite) => void,
     application?: ApplicationSummaryWithFavorite
 }
 
@@ -46,21 +44,21 @@ export function ApplicationGroupToRowItem(group: ApplicationGroup): ApplicationR
     }
 }
 
-export function ApplicationSummaryToRowItem(app: ApplicationSummaryWithFavorite, onFavorite?: (app: ApplicationSummaryWithFavorite) => void): ApplicationRowItem {
+export function ApplicationSummaryToRowItem(app: ApplicationSummaryWithFavorite): ApplicationRowItem {
     return {
         id: app.metadata.name,
         type: AppCardType.APPLICATION,
         title: app.metadata.title,
         description: app.metadata.description,
         isFavorite: app.favorite,
-        onFavorite: onFavorite,
         application: app
     }
 }
 
 interface ApplicationRowProps {
     items: ApplicationRowItem[];
-    style: AppCardStyle;
+    onFavorite: (app: ApplicationSummaryWithFavorite) => void;
+    cardStyle: AppCardStyle;
     refreshId: number;
 }
 
@@ -98,8 +96,18 @@ function ScrollButton({disabled, left, onClick}: {disabled: boolean; left: boole
     </div>
 }
 
+function linkFromApplicationRowItem(item: ApplicationRowItem): string {
+    if (item.type === AppCardType.APPLICATION) {
+        return Pages.run(item.id)
+    }
+    if (item.defaultApplication) {
+        return Pages.run(item.defaultApplication)
+    }
+    return Pages.browseGroup(item.id)
+}
+
 const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
-    items, style 
+    items, onFavorite, cardStyle 
 }: ApplicationRowProps) => {
     const [hasScroll, setHasScroll] = useState<boolean>(false);
     const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -133,29 +141,20 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
             <div
                 ref={scrollRef}
                 className={ApplicationRowContainerClass}
-                data-space-between={style === AppCardStyle.WIDE ? (items.length > 3) : (items.length > 6)}
+                data-space-between={cardStyle === AppCardStyle.WIDE ? (items.length > 3) : (items.length > 6)}
             >
                 {items.map(item =>
                     <AppCard
                         key={item.id}
-                        cardStyle={style}
+                        cardStyle={cardStyle}
                         title={item.title}
                         description={item.description}
                         logo={item.id}
                         type={item.type}
                         isFavorite={item.isFavorite}
-                        onFavorite={item.onFavorite}
+                        onFavorite={onFavorite}
                         application={item.application}
-                        link={
-                            item.type === AppCardType.APPLICATION ?
-                                Pages.run(item.id)
-                            :
-                                (item.defaultApplication ?
-                                    Pages.run(item.defaultApplication)
-                                :
-                                    Pages.browseGroup(item.id)
-                                )
-                        }
+                        link={linkFromApplicationRowItem(item)}
                     />
                 )}
             </div>

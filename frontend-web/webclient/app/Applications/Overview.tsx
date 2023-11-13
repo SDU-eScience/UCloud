@@ -4,7 +4,6 @@ import {useCallback, useEffect, useState} from "react";
 import {Box, Flex, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {AppCardStyle} from "./Card";
-import * as Pages from "./Pages";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -100,13 +99,15 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                                 <Heading.h2>{section.name}</Heading.h2>
                                 <ApplicationRow
                                     items={section.featured.map(ApplicationGroupToRowItem)}
-                                    style={AppCardStyle.WIDE}
+                                    cardStyle={AppCardStyle.WIDE}
+                                    onFavorite={onFavorite}
                                     refreshId={refreshId}
                                 />
 
                                 <ApplicationRow
                                     items={section.items.map(ApplicationGroupToRowItem)}
-                                    style={AppCardStyle.TALL}
+                                    cardStyle={AppCardStyle.TALL}
+                                    onFavorite={onFavorite}
                                     refreshId={refreshId}
                                 />
                             </Box>

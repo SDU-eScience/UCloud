@@ -202,21 +202,23 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         />
 
                         {sections.data.sections.map(section => (
-                            <>
+                            <div key={section.id}>
                                 <Flex className={AppStoreVisualClass}>
                                     <Heading.h1>{section.name}</Heading.h1>
                                 </Flex>
                                 <ApplicationRow
                                     items={section.featured.slice(0, 4).map(ApplicationGroupToRowItem)}
-                                    style={AppCardStyle.WIDE}
+                                    onFavorite={onFavorite}
+                                    cardStyle={AppCardStyle.WIDE}
                                     refreshId={refreshId}
                                 />
                                 <ApplicationRow
                                     items={section.featured.slice(4).map(ApplicationGroupToRowItem)}
-                                    style={AppCardStyle.TALL}
+                                    onFavorite={onFavorite}
+                                    cardStyle={AppCardStyle.TALL}
                                     refreshId={refreshId}
                                 />
-                            </>
+                            </div>
                         ))}
 
                         <ViewAllButton />
@@ -277,8 +279,9 @@ function FavoriteAppRow({favoriteStatus, onFavorite, refreshId}: FavoriteAppRowP
         </Flex>
 
         <ApplicationRow
-            style={AppCardStyle.TALL}
-            items={filteredItems.map(app => ApplicationSummaryToRowItem(app, onFavorite))}
+            cardStyle={AppCardStyle.TALL}
+            items={filteredItems.map(app => ApplicationSummaryToRowItem(app))}
+            onFavorite={onFavorite}
             refreshId={refreshId}
         />
     </>
