@@ -29,9 +29,9 @@ as $$
     declare
         found integer;
     begin
-        select count(*) into found from app_store.applications where name = new.default_version;
+        select count(*) into found from app_store.applications where name = new.default_name;
 
-        if (found < 1 and new.default_version is not null) then
+        if (found < 1 and new.default_name is not null) then
             raise exception 'Application with name does not exist';
         end if;
         return null;

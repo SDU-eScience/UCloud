@@ -926,10 +926,13 @@ class AppStoreService(
             if (tool.description.supportedProviders != listOf(providerName)) throw ApplicationException.NotAllowed()
         }
 
-        val existingApplications = findByName(actorAndProject, application.metadata.name, NormalizedPaginationRequest(0,0)).items
 
-        val group = existingApplications.first().metadata.group?.id
-        val flavor = existingApplications.first().metadata.flavorName
+        val existingWithName = db.withSession { session ->
+            internalByNameAndVersion(session, application.metadata.name, null)?.toApplicationSummary()
+        }
+
+        val group = existingWithName?.metadata?.group?.id
+        val flavor = existingWithName?.metadata?.flavorName
 
         db.withSession { session ->
             session.sendPreparedStatement(
