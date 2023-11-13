@@ -3164,7 +3164,7 @@ export class ResourceBrowser<T> {
                 border-radius: 5px;
                 border: 1px solid var(--black);
                 color: var(--text);
-                z-index: 10000;
+                z-index: 1;
                 top: 0;
                 left: 60px;
             }

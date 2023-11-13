@@ -94,7 +94,7 @@ export default function Support(): JSX.Element {
                                 <ExternalLink href={CONF.SITE_FAQ_URL}>
                                     <Flex>
                                         <b style={{fontSize: "24px", marginRight: ".5em"}}>?</b>
-                                        <Text mt="5px" mr="0.8em">FAQ</Text>
+                                        <Text mt="8px" mr="0.8em">FAQ</Text>
                                     </Flex>
                                 </ExternalLink>
                             )}
