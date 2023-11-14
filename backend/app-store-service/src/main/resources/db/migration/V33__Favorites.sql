@@ -1,5 +1,5 @@
 alter table app_store.favorited_by
-    drop constraint fkdr4vaq58mgr0nkk0xoq41ljgo;
+    drop constraint if exists fkdr4vaq58mgr0nkk0xoq41ljgo;
 
 create or replace function require_favorite_app_exists() returns trigger
     language plpgsql
@@ -21,7 +21,7 @@ create or replace trigger require_favorite_app_exists
     for each row execute procedure app_store.require_favorite_app_exists();
 
 alter table app_store.application_groups
-    drop constraint application_groups_default_name_default_version_fkey;
+    drop constraint if exists application_groups_default_name_default_version_fkey;
 
 create or replace function require_default_app_exists() returns trigger
     language plpgsql
