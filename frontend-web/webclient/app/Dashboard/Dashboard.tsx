@@ -155,7 +155,7 @@ function DashboardFavoriteFiles(): JSX.Element {
         >
             {favorites.items.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
-                    As you add favorites, they will appear here.
+                        As you add favorites, they will appear here.
                     <Link to={"/drives"} mt={8}>
                         <Button mt={8}>Explore files</Button>
                     </Link>
@@ -361,6 +361,7 @@ function DashboardResources({products}: {
         if (compare !== 0) return compare;
 
         compare = a.productType.localeCompare(b.productType);
+        if (compare !== 0) return compare;
 
         compare = a.category.name.localeCompare(b.category.name);
         if (compare !== 0) return compare;
