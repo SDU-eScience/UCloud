@@ -399,7 +399,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Use this folder",
                 primary: true,
                 icon: "check",
-                canAppearInLocation: (loc) => loc === "TOPBAR",
                 enabled: (selected, cb) => {
                     return selected.length === 0 && cb.onSelect !== undefined && cb.directory != null &&
                         (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory) === true);
@@ -422,7 +421,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "upload",
                 primary: true,
                 color: "black",
-                canAppearInLocation: location => location === "SIDEBAR",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -451,7 +449,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "uploadFolder",
                 primary: true,
                 color: "black",
-                canAppearInLocation: loc => loc === "SIDEBAR" || loc === "TOPBAR",
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
@@ -742,7 +739,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Open terminal",
                 primary: true,
                 icon: "terminalSolid",
-                canAppearInLocation: loc => loc === "SIDEBAR",
                 enabled: () => hasFeature(Feature.INLINE_TERMINAL),
                 onClick: (selected, cb) => {
                     cb.dispatch({type: "TerminalOpen"});

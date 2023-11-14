@@ -106,7 +106,6 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 icon: "upload",
                 color: "blue",
                 primary: true,
-                canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
                     return !(Client.userIsAdmin && (selected.length !== 0 || cb.startCreation == null || cb.isCreating));
                 },

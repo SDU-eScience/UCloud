@@ -70,8 +70,6 @@ export interface Operation<T, R = undefined> {
     outline?: boolean;
     operationType?: (location: OperationLocation, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
-    // Deprecated(Jonas): ?
-    canAppearInLocation?: (location: OperationLocation) => boolean;
     confirm?: boolean;
     tag?: string;
 }
@@ -206,7 +204,7 @@ export const Operations: OperationsType = props => {
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
     const operations: {elem: JSX.Element, priority: number, primary: boolean}[] = props.operations
-        .filter(op => op.enabled(selected, props.extra, props.all) !== false && op.canAppearInLocation?.(props.location) !== false)
+        .filter(op => op.enabled(selected, props.extra, props.all) !== false /* && op.canAppearInLocation?.(props.location) !== false */)
         .map(op => {
             const enabled = op.enabled(selected, props.extra, props.all);
             let reasonDisabled: string | undefined = undefined;

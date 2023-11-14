@@ -790,7 +790,7 @@ export class ResourceBrowser<T> {
         };
     }
 
-    private canConsumeResources = true;
+    public canConsumeResources = true;
 
     refresh() {
         this.open(this.currentPath, true);
@@ -864,7 +864,10 @@ export class ResourceBrowser<T> {
         this.renderRows();
         this.clearFilters();
 
-        if (!this.canConsumeResources) return;
+        if (!this.canConsumeResources) {
+            this.renderCantConsumeResources();
+            return;
+        }
 
         if (this.features.filters) {
             this.renderFilters();
@@ -987,6 +990,7 @@ export class ResourceBrowser<T> {
             const initialReason = this.emptyReasons[this.currentPath] ?? {tag: EmptyReasonTag.LOADING};
 
             const renderEmptyPage = async () => {
+                if (!this.canConsumeResources) return;
                 if (this.currentPath !== initialPage) return;
                 const page = this.cachedData[this.currentPath] ?? [];
                 if (page.length !== 0) return;
@@ -1011,7 +1015,9 @@ export class ResourceBrowser<T> {
 
             if (initialReason.tag === EmptyReasonTag.LOADING) {
                 // Delay rendering of the loading page a bit until we are sure the loading operation is actually "slow"
-                window.setTimeout(() => renderEmptyPage(), 300);
+                window.setTimeout(() => {
+                    renderEmptyPage()
+                }, 300);
             } else {
                 renderEmptyPage();
             }
@@ -1392,7 +1398,6 @@ export class ResourceBrowser<T> {
                     }
                 }
             }
-
         }
 
         const selected = this.findSelectedEntries();

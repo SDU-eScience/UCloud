@@ -16,7 +16,8 @@ import {
     ResourceBrowser,
     ResourceBrowserOpts,
     ColumnTitleList,
-    SelectionMode
+    SelectionMode,
+    checkCanConsumeResources
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -563,7 +564,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 });
 
                 browser.on("fetchOperationsCallback", () => {
-                    const path = browser.currentPath;
+                    const path = browser.currentPath ?? "";
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const folder = folderCache.retrieveFromCacheOnly(path);
@@ -1302,6 +1303,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     }, []);
 
     const setLocalProject = opts?.isModal ? (projectId?: string) => {
+        const b = browserRef.current;
+        if (b) {
+            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+        }
         activeProject.current = projectId;
         clearAndFetchCollections();
     } : undefined;
@@ -1311,6 +1316,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         if (!b) return;
 
         if (opts?.initialPath !== undefined) {
+            b.canConsumeResources = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+
             if (selectorPathRef.current === "") {
                 clearAndFetchCollections();
             } else {
