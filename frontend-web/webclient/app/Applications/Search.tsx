@@ -154,9 +154,7 @@ export const SearchResults: React.FunctionComponent = () => {
     const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
-        // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
-        const key = app.metadata.name;
-        const favoriteApp = favoriteStatus.find(it => it.metadata.name === key);
+        const favoriteApp = favoriteStatus.find(it => it.metadata.name === app.metadata.name);
         const isFavorite = favoriteApp !== undefined ? true : app.favorite;
 
         dispatch(toggleAppFavorite(app, !isFavorite));

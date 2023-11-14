@@ -127,11 +127,6 @@ const AppStoreVisualClass = injectStyle("app-store-visual", k => `
         color: #5c89f4;
         font-weight: 400;
     }
-
-    ${k} img {
-        max-height: 150px;
-        transform: scaleX(-1);
-    }
 `);
 
 const ApplicationsLanding: React.FunctionComponent = () => {
@@ -160,9 +155,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
     const favorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
-        // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
-        const key = app.metadata.name;
-        const favoriteApp = favorites.find(it => it.metadata.name === key);
+        const favoriteApp = favorites.find(it => it.metadata.name === app.metadata.name);
         const isFavorite = favoriteApp !== undefined ? true : app.favorite;
 
         dispatch(toggleAppFavorite(app, !isFavorite));
@@ -189,7 +182,6 @@ const ApplicationsLanding: React.FunctionComponent = () => {
 
                         {favorites.length < 1 ? <></> : <>
                             <Flex className={AppStoreVisualClass}>
-                                {/* <img src={favoritesImage} /> */}
                                 <Heading.h1>Favorite Applications</Heading.h1>
                             </Flex>
 
