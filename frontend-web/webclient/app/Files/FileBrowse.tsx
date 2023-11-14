@@ -1362,7 +1362,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 b.open(selectorPathRef.current);
             }
             return res.items;
-        }))
+        }));
     }
 }
 

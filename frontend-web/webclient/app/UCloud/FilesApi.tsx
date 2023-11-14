@@ -38,7 +38,7 @@ import {FileFavoriteToggle} from "@/Files/FavoriteToggle";
 import {PrettyFilePath} from "@/Files/FilePath";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {OpenWith} from "@/Applications/OpenWith";
+import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
 import {addStandardDialog, Sensitivity} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
@@ -470,14 +470,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "open",
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected, cb) => {
-                    if (cb.collection) {
-                        dialogStore.addDialog(
-                            <OpenWith file={selected[0]} collection={cb.collection} />,
-                            doNothing,
-                            true,
-                            this.fileSelectorModalStyle
-                        );
-                    }
+                    dialogStore.addDialog(
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
+                        doNothing,
+                        true,
+                        this.fileSelectorModalStyle,
+                    );
                 },
                 shortcut: ShortcutKey.O
             },

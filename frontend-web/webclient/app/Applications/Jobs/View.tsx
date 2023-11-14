@@ -944,6 +944,7 @@ const RunningContent: React.FunctionComponent<{
     const backendType = getBackend(job);
     const project = useProject().fetch();
     const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
+    // FIXME(Jonas): This isn't necessarily the correct project.
     const workspaceTitle = Client.hasActiveProject ? project.specification.title : "My workspace";
     const extendJob = useCallback(async (duration: number) => {
         if (!commandLoading && expiresAt) {
