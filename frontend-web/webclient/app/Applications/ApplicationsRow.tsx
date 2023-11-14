@@ -57,7 +57,7 @@ export function ApplicationSummaryToRowItem(app: ApplicationSummaryWithFavorite)
 
 interface ApplicationRowProps {
     items: ApplicationRowItem[];
-    onFavorite: (app: ApplicationSummaryWithFavorite) => void;
+    onFavorite?: (app: ApplicationSummaryWithFavorite) => void;
     cardStyle: AppCardStyle;
     refreshId: number;
 }

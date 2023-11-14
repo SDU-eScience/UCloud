@@ -19,7 +19,6 @@ import {useLocation, useNavigate} from "react-router";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationGroupToRowItem} from "./ApplicationsRow";
 import {AppSearchBox} from "./Search";
-import {FavoriteStatus} from "./Landing";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -59,30 +58,6 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     }, []);
     useRefreshFunction(refresh);
 
-    const [, invokeCommand] = useCloudCommand();
-    const favoriteStatus = React.useRef<FavoriteStatus>({});
-
-    const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
-        // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
-        const key = app.metadata.name;
-        const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
-        if (favoriteStatus.current[key]) {
-            delete favoriteStatus.current[key]
-        } else {
-            favoriteStatus.current[key] = {override: !isFavorite, app};
-        }
-        favoriteStatus.current = {...favoriteStatus.current};
-        dispatch(toggleAppFavorite(app, !isFavorite));
-        try {
-            await invokeCommand(UCloud.compute.apps.toggleFavorite({
-                appName: app.metadata.name
-            }));
-        } catch (e) {
-            favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
-            favoriteStatus.current = {...favoriteStatus.current};
-        }
-    }, [favoriteStatus]);
-
     return (
         <div className={AppOverviewMarginPaddingHack}>
             <MainContainer main={
@@ -100,14 +75,12 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                                 <ApplicationRow
                                     items={section.featured.map(ApplicationGroupToRowItem)}
                                     cardStyle={AppCardStyle.WIDE}
-                                    onFavorite={onFavorite}
                                     refreshId={refreshId}
                                 />
 
                                 <ApplicationRow
                                     items={section.items.map(ApplicationGroupToRowItem)}
                                     cardStyle={AppCardStyle.TALL}
-                                    onFavorite={onFavorite}
                                     refreshId={refreshId}
                                 />
                             </Box>

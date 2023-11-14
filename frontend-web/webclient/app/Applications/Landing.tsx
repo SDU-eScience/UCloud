@@ -27,8 +27,6 @@ export const ApiLike: ReducedApiInterface = {
     titlePlural: "Applications"
 };
 
-export type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
-
 const LandingAppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
         margin: -35px auto 0 auto;
@@ -86,8 +84,6 @@ export const LandingAppSearchBox: React.FunctionComponent<{value?: string; hidde
         </button>
     </Flex>;
 }
-
-
 
 const ViewAllButtonClass = injectStyle("view-all-button", k => `
     ${k} {
@@ -161,28 +157,24 @@ const ApplicationsLanding: React.FunctionComponent = () => {
     useRefreshFunction(refresh);
 
     const [, invokeCommand] = useCloudCommand();
-    const favoriteStatus = React.useRef<FavoriteStatus>({});
+    const favorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
         const key = app.metadata.name;
-        const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
-        if (favoriteStatus.current[key]) {
-            delete favoriteStatus.current[key]
-        } else {
-            favoriteStatus.current[key] = {override: !isFavorite, app};
-        }
-        favoriteStatus.current = {...favoriteStatus.current};
+        const favoriteApp = favorites.find(it => it.metadata.name === key);
+        const isFavorite = favoriteApp !== undefined ? true : app.favorite;
+
         dispatch(toggleAppFavorite(app, !isFavorite));
+
         try {
             await invokeCommand(UCloud.compute.apps.toggleFavorite({
                 appName: app.metadata.name
             }));
         } catch (e) {
-            favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
-            favoriteStatus.current = {...favoriteStatus.current};
+            dispatch(toggleAppFavorite(app, !isFavorite));
         }
-    }, [favoriteStatus]);
+    }, [favorites]);
 
     return (
         <div className={AppOverviewMarginPaddingHack}>
@@ -195,11 +187,19 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                         <LandingAppSearchBox hidden={false} />
                         <Box mt="12px" />
 
-                        <FavoriteAppRow
-                            favoriteStatus={favoriteStatus}
-                            onFavorite={onFavorite}
-                            refreshId={refreshId}
-                        />
+                        {favorites.length < 1 ? <></> : <>
+                            <Flex className={AppStoreVisualClass}>
+                                {/* <img src={favoritesImage} /> */}
+                                <Heading.h1>Favorite Applications</Heading.h1>
+                            </Flex>
+
+                            <ApplicationRow
+                                cardStyle={AppCardStyle.TALL}
+                                items={favorites.map(app => ApplicationSummaryToRowItem({metadata: app.metadata, favorite: true, tags: app.tags}))}
+                                onFavorite={onFavorite}
+                                refreshId={refreshId}
+                            />
+                        </>}
 
                         {sections.data.sections.map(section => (
                             <div key={section.id}>
@@ -234,57 +234,5 @@ const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
     margin-top: -12px;
 /* HACK */
 `);
-
-interface FavoriteAppRowProps {
-    favoriteStatus: React.MutableRefObject<FavoriteStatus>;
-    onFavorite: (app: ApplicationSummaryWithFavorite) => void;
-    refreshId: number;
-}
-
-function filterAppsByFavorite(
-    items: compute.ApplicationSummaryWithFavorite[],
-    favoriteStatus: React.MutableRefObject<FavoriteStatus>
-): compute.ApplicationSummaryWithFavorite[] {
-    let filteredItems = items.filter(item =>
-        favoriteStatus.current[item.metadata.name]?.override ?? item.favorite
-    );
-
-    filteredItems = filteredItems.filter(it => favoriteStatus.current[it.metadata.name]?.override !== false);
-
-    // Remove duplicates (This can happen due to favorite cache)
-    {
-        const observed = new Set<string>();
-        const newList: ApplicationSummaryWithFavorite[] = [];
-        for (const item of filteredItems) {
-            if (!observed.has(item.metadata.name)) {
-                observed.add(item.metadata.name);
-                newList.push(item);
-            }
-        }
-        return newList;
-    }
-}
-
-function FavoriteAppRow({favoriteStatus, onFavorite, refreshId}: FavoriteAppRowProps): JSX.Element {
-    const items = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
-    const filteredItems = React.useMemo(() =>
-        filterAppsByFavorite(items, favoriteStatus),
-        [items, favoriteStatus.current]
-    );
-
-    return filteredItems.length < 1 ? <></> : <>
-        <Flex className={AppStoreVisualClass}>
-            {/* <img src={favoritesImage} /> */}
-            <Heading.h1>Favorite Applications</Heading.h1>
-        </Flex>
-
-        <ApplicationRow
-            cardStyle={AppCardStyle.TALL}
-            items={filteredItems.map(app => ApplicationSummaryToRowItem(app))}
-            onFavorite={onFavorite}
-            refreshId={refreshId}
-        />
-    </>
-}
 
 export default ApplicationsLanding;

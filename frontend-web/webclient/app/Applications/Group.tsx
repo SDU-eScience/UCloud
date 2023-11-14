@@ -1,6 +1,6 @@
 import MainContainer from "@/MainContainer/MainContainer";
 import * as Heading from "@/ui-components/Heading";
-import React, {useEffect} from "react";
+import React, {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -13,9 +13,8 @@ import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import * as Pages from "./Pages";
 import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {FavoriteStatus} from "./Landing";
 import {toggleAppFavorite} from "./Redux/Actions";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -33,28 +32,25 @@ const ApplicationsGroup: React.FunctionComponent = () => {
         fetchAppGroup(retrieveGroup({id: id}));
     }, [id]);
 
-    const favoriteStatus = React.useRef<FavoriteStatus>({});
+    const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
-    const onFavorite = React.useCallback(async (app: ApplicationSummaryWithFavorite) => {
+    const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
         const key = app.metadata.name;
-        const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
-        if (favoriteStatus.current[key]) {
-            delete favoriteStatus.current[key]
-        } else {
-            favoriteStatus.current[key] = {override: !isFavorite, app};
-        }
-        favoriteStatus.current = {...favoriteStatus.current};
+        const favoriteApp = favoriteStatus.find(it => it.metadata.name === key);
+        const isFavorite = favoriteApp !== undefined ? true : app.favorite;
+
         dispatch(toggleAppFavorite(app, !isFavorite));
+
         try {
             await invokeCommand(UCloud.compute.apps.toggleFavorite({
                 appName: app.metadata.name
             }));
         } catch (e) {
-            favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
-            favoriteStatus.current = {...favoriteStatus.current};
+            dispatch(toggleAppFavorite(app, !isFavorite));
         }
     }, [favoriteStatus]);
+
 
     if (!appGroup.data) return <>Not found</>;
 
@@ -86,7 +82,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                     type={AppCardType.APPLICATION}
                     link={Pages.run(app.metadata.name)}
                     onFavorite={onFavorite}
-                    isFavorite={favoriteStatus.current[app.metadata.name]?.override ?? app.favorite}
+                    isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
                     application={app}
                 />
             ))}
