@@ -46,6 +46,7 @@ import {classConcat, injectStyle, injectStyleSimple, makeKeyframe, unbox} from "
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
+import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -243,11 +244,6 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     const delayInitialAnim = action === "start";
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
-
-    // const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
-    //     retrieveBalance({includeChildren: true}),
-    //     {wallets: []}
-    // );
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -672,9 +668,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
         }
     }
 
-    const project = useProject();
-    const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job.owner.project ? project.fetch().specification.title :
-        "My Workspace" : "My Workspace";
+    const workspaceTitle = projectTitleFromCache(job.owner.project);
 
     const machine = job.status.resolvedProduct! as unknown as ProductCompute;
     const pricePerUnit = machine?.pricePerUnit ?? 0;
@@ -942,10 +936,8 @@ const RunningContent: React.FunctionComponent<{
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
-    const project = useProject().fetch();
     const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
-    // FIXME(Jonas): This isn't necessarily the correct project.
-    const workspaceTitle = Client.hasActiveProject ? project.specification.title : "My workspace";
+    const workspaceTitle = projectTitleFromCache(job.owner.project);
     const extendJob = useCallback(async (duration: number) => {
         if (!commandLoading && expiresAt) {
             setExpiresAt(expiresAt + (3600 * 1000 * duration));

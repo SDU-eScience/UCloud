@@ -22,6 +22,7 @@ import {ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkC
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {logoDataUrls} from "./Jobs/JobsBrowse";
 import {AppLogo, hashF} from "./Card";
+import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 
 function findApplicationsByExtension(
     request: {files: string[]} & PaginationRequestV2
@@ -130,7 +131,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 });
 
                 browser.on("renderEmptyPage", reason => browser.defaultEmptyPage("applications", reason, {}));
-                browser.on("unhandledShortcut", e => void 0);
+                browser.on("unhandledShortcut", () => void 0);
                 browser.on("generateBreadcrumbs", path => browser.defaultBreadcrumbs());
                 browser.on("fetchOperationsCallback", () => ({}));
                 browser.on("fetchOperations", () => []);
@@ -216,7 +217,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 } catch (e) {
                     snackbarStore.addFailure("UCloud failed to submit the job", false);
                 }
-            }} disabled={!selectedProduct}>Launch</Button>
+            }} disabled={!selectedProduct}>Launch {isActiveProject(activeProject.current)}</Button>
         </> : null}
     </div>;
 
@@ -253,4 +254,9 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
             }
         }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch products."));
     }
+}
+
+function isActiveProject(projectId: string | undefined) {
+    if (projectId === undefined || projectId === Client.projectId) return "";
+    return "with " + projectTitleFromCache(projectId);
 }
