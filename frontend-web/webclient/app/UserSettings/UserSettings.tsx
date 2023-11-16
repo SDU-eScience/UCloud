@@ -4,13 +4,14 @@ import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {Box, Flex} from "@/ui-components";
+import {Box, Flex, Radio} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ChangePassword} from "@/UserSettings/ChangePassword";
 import {Sessions} from "@/UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
 import {ChangeOptionalUserDetails, ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
 import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
+import {CustomTheming} from "./CustomTheme";
 
 function UserSettings(): React.ReactNode {
 
@@ -20,7 +21,7 @@ function UserSettings(): React.ReactNode {
     const dispatch = useDispatch();
 
     const setHeaderLoading = React.useCallback((loading: boolean) => {
-        dispatch(setLoading(loading)); 
+        dispatch(setLoading(loading));
     }, [dispatch]);
 
     const mustActivate2fa =
@@ -57,6 +58,7 @@ function UserSettings(): React.ReactNode {
                                         setLoading={setHeaderLoading}
                                         setRefresh={fn => dispatch(setRefreshFunction(fn))}
                                     />
+                                    <CustomTheming />
                                 </>
                             )}
 
