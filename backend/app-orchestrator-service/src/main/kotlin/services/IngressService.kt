@@ -8,6 +8,8 @@ import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -51,6 +53,12 @@ class IngressService(
         allowDuplicates: Boolean
     ) {
         for ((id, spec) in idWithSpec) {
+            val prefix = support.retrieveProductSupport(spec.product).support.domainPrefix
+            val suffix = support.retrieveProductSupport(spec.product).support.domainSuffix
+            val userSpecificToken = spec.domain.substringAfter(prefix).substringBefore(suffix)
+            if (userSpecificToken.contains(".") || userSpecificToken.contains(" ")) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Link cannot contain '.' or whitespaces")
+            }
             session
                 .sendPreparedStatement(
                     {
