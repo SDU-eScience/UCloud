@@ -203,7 +203,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     }
                 });
 
-                browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
+                browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
                 browser.on("renderEmptyPage", reason => {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
