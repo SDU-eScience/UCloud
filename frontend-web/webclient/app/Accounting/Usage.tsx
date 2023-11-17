@@ -3,7 +3,7 @@ import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle} from "@/Unstyled";
 import theme, {ThemeColor} from "@/ui-components/theme";
-import {Flex, Icon, Radio, Select} from "@/ui-components";
+import {Flex, Icon, Input, Radio, Select} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -18,6 +18,8 @@ import {callAPI} from "@/Authentication/DataHook";
 import * as AccountingB from "./AccountingBinary";
 import {useProjectId} from "@/Project/Api";
 import {formatDistance} from "date-fns";
+import { GradientWithPolygons } from "@/ui-components/GradientBackground";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
 // State
 // =====================================================================================================================
@@ -52,7 +54,7 @@ interface State {
 }
 
 type Period =
-    { type: "relative", distance: number }
+    { type: "relative", distance: number, unit: "day" | "month" }
     | { type: "absolute", start: number, end: number }
     ;
 
@@ -61,6 +63,7 @@ type Period =
 type UIAction =
     { type: "LoadCharts", charts: AccountingB.Charts, }
     | { type: "SelectTab", tabIndex: number }
+    | { type: "UpdateSelectedPeriod", period: Period }
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -150,6 +153,13 @@ function stateReducer(state: State, action: UIAction): State {
         case "SelectTab": {
             return selectChart(state, action.tabIndex);
         }
+
+        case "UpdateSelectedPeriod": {
+            return {
+                ...state,
+                selectedPeriod: action.period
+            };
+        }
     }
 
     function selectChart(state: State, categoryIndex: number): State {
@@ -204,6 +214,7 @@ function stateReducer(state: State, action: UIAction): State {
                     quota: summary.quota,
                     expiresAt: earliestExpiration ?? timestampUnixMs(),
                 },
+                // TODO This doesn't actually work since we only get allocations for the selected period
                 nextAllocation: earliestNextAllocation === null ? undefined : {
                     startsAt: earliestNextAllocation,
                     quota: nextQuota,
@@ -443,20 +454,19 @@ const Visualization: React.FunctionComponent = props => {
         dispatchEvent({ type: "SelectTab", tabIndex: key });
     }, [dispatchEvent]);
 
+    const setPeriod = useCallback((period: Period) => {
+        dispatchEvent({ type: "UpdateSelectedPeriod", period });
+    }, [dispatchEvent]);
+
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
     // NOTE(Dan): We are not using a <MainContainer/> here on purpose since
     // we want to use _all_ of the space.
     return <div className={VisualizationStyle}>
         <header className="at-top">
-            <h3>Resource usage in the past</h3>
+            <h3>Resource usage</h3>
             <div className="duration-select">
-                <Select slim>
-                    <option>7 days</option>
-                    <option>30 days</option>
-                    <option>90 days</option>
-                    <option>365 days</option>
-                </Select>
+                <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
             </div>
             <div style={{flexGrow: "1"}}/>
             <ContextSwitcher/>
@@ -894,8 +904,8 @@ const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({cha
                     sum += change;
                     return <tr key={idx}>
                         <td>{dateToString(point.timestamp)}</td>
-                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))} {chart.unit}</td>
-                        <td>{change >= 0 ? "+" : ""}{change.toFixed(2)} {chart.unit}</td>
+                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))} {chart.unit}</td>
+                        <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))} {chart.unit}</td>
                     </tr>;
                 })}
                 </tbody>
@@ -1567,33 +1577,169 @@ const PanelClass = injectStyle("panel", k => `
 function usageToString(category: Accounting.ProductCategoryV2, usage: number, quota: number, asPercentage: boolean): string {
     if (asPercentage) {
         if (quota === 0) return "";
-        return `${Math.ceil(usage / quota)}% used`;
+        return `${Math.ceil((usage / quota) * 100)}% used`;
     } else {
         let builder = "";
         builder += Accounting.balanceToString(category, usage, { removeUnitIfPossible: true, precision: 0 })
         builder += " / ";
-        builder += Accounting.balanceToString(category, quota);
+        builder += Accounting.balanceToString(category, quota, { precision: 0 });
         return builder;
     }
 }
+
+const PeriodStyle = injectStyle("period-selector", k => `
+    ${k} {
+        border: 1px solid var(--midGray);
+        border-radius: 6px;
+        padding: 6px 12px;
+        display: flex;
+    }
+    
+    ${k}:hover {
+        border: 1px solid var(--gray);
+    }
+    
+    .${GradientWithPolygons} ${k} {
+        border: 1px solid var(--gray);
+    }
+    
+    .${GradientWithPolygons} ${k}:hover {
+        border: 1px solid var(--darkGray);
+    }
+`);
+
+const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
+    ${k} {
+        cursor: auto;
+        display: flex;
+        flex-direction: row;
+        width: 400px;
+        height: 300px;
+    }
+    
+    ${k} > div {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 8px;
+    }
+    
+    ${k} > div:first-child {
+        border-right: 1px solid var(--midGray);
+    }
+    
+    ${k} b {
+        display: block;
+        margin-bottom: 10px;
+    }
+    
+    ${k} .relative {
+        cursor: pointer;
+        margin-left: -8px;
+        margin-right: -8px;
+        padding: 8px;
+    }
+    
+    ${k} .relative:hover {
+        background: var(--lightBlue);
+    }
+`);
 
 const PeriodSelector: React.FunctionComponent<{
     value: Period;
     onChange: (period: Period) => void;
 }> = props => {
-    return <Select slim>
-        <option value={"r-7"}>7 days</option>
-        <option value={"r-30"}>30 days</option>
-        <option value={"r-90"}>90 days</option>
-        <option value={"r-365"}>365 days</option>
-    </Select>
+    const [start, end] = normalizePeriod(props.value);
+    function formatTs(ts: number): string {
+        const d = new Date(ts);
+        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    }
+
+    function periodToString(period: Period) {
+        switch (period.type) {
+            case "relative": {
+                return `Last ${period.distance} ${period.unit}s`;
+            }
+
+            case "absolute": {
+                let b = "";
+                b += dateToString(period.start)
+                b += " to ";
+                b += dateToString(period.end);
+                return b;
+            }
+        }
+    }
+
+    const onRelativeUpdated = useCallback((ev: React.SyntheticEvent) => {
+        const t = ev.target as HTMLElement;
+        const distance = parseInt(t.getAttribute("data-relative") ?? "0k");
+        const unit = t.getAttribute("data-relative-unit") as any;
+
+        props.onChange({
+            type: "relative",
+            distance,
+            unit
+        });
+    }, [props.onChange]);
+
+    return <ClickableDropdown
+        colorOnHover={false}
+        paddingControlledByContent={true}
+        noYPadding={true}
+        trigger={
+            <div className={PeriodStyle}>
+                <div style={{width: "180px"}}>{periodToString(props.value)}</div>
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
+            </div>
+        }
+    >
+        <div className={PeriodSelectorBodyStyle}>
+            <div>
+                <b>Absolute time range</b>
+
+                <label>
+                    From
+                    <Input type={"date"} value={formatTs(start)} />
+                </label>
+                <label>
+                    To
+                    <Input type={"date"} value={formatTs(end)} />
+                </label>
+            </div>
+
+            <div>
+                <b>Relative time range</b>
+
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"} data-relative={"7"}>Last 7 days</div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"} data-relative={"30"}>Last 30 days</div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"} data-relative={"90"}>Last 90 days</div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"} data-relative={"6"}>Last 6 months</div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"} data-relative={"12"}>Last 12 months</div>
+            </div>
+        </div>
+    </ClickableDropdown>;
 };
 
 function normalizePeriod(period: Period): [number, number] {
     switch (period.type) {
         case "relative": {
-            const now = timestampUnixMs();
-            return [now - period.distance, now];
+            let start = new Date();
+            const end = start.getTime();
+            start.setHours(0, 0, 0, 0);
+
+            switch (period.unit) {
+                case "day": {
+                    start.setDate(start.getDate() - period.distance);
+                    break;
+                }
+
+                case "month": {
+                    start.setMonth(start.getMonth() - period.distance);
+                    break;
+                }
+            }
+            return [start.getTime(), end];
         }
 
         case "absolute": {
@@ -1609,7 +1755,8 @@ const initialState: State = {
     summaries: [],
     selectedPeriod: {
         type: "relative",
-        distance: 1000 * 60 * 60 * 24 * 7,
+        distance: 7,
+        unit: "day"
     }
 };
 
