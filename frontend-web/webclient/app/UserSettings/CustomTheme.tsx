@@ -13,15 +13,13 @@ export function findCustomThemeColorOnLaunch() {
     root["style"].setProperty("--blue", color);
 }
 
-
-const COLORS: (`#${string}`)[] = ["#006aff", "#bed730", "#80007d", "#eaa621"];
+type HexColor = `#${string}`;
+const COLORS: HexColor[] = ["#006aff", "#bed730", "#80007d", "#eaa621"];
 export function CustomTheming(): React.ReactNode {
 
-    const root = React.useMemo(() => {
-        return document.querySelector(':root')!;
-    }, []);
+    const root = React.useMemo(() => document.querySelector(':root')!, []);
 
-    const setColor = React.useCallback((color: `#${string}`) => {
+    const setColor = React.useCallback((color: HexColor) => {
         localStorage.setItem(CUSTOM_THEME_COLOR_KEY, color);
         root["style"].setProperty('--blue', color);
     }, []);
@@ -29,8 +27,8 @@ export function CustomTheming(): React.ReactNode {
     const activeColor = localStorage.getItem(CUSTOM_THEME_COLOR_KEY) ?? COLORS[0];
 
     return <div>
-        <Heading>Theme color options</Heading>
-        <Flex>
+        <Heading>Theme color options (beta)</Heading>
+        <Flex mt="12px">
             {COLORS.map(color =>
                 <ColorOption key={color} isActive={color === activeColor} color={color} setColor={setColor} />
             )}
@@ -38,7 +36,7 @@ export function CustomTheming(): React.ReactNode {
     </div>
 }
 
-function ColorOption({color, setColor, isActive}: {isActive: boolean, color: `#${string}`, setColor(color: `#${string}`): void}) {
+function ColorOption({color, setColor, isActive}: {isActive: boolean, color: HexColor, setColor(color: HexColor): void}) {
     return <Box
         onClick={() => setColor(color)}
         style={{border: "2px solid " + isActive ? "var(--black)" : "var(--white)"}}
