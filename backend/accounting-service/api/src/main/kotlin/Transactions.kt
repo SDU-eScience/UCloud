@@ -34,7 +34,7 @@ sealed class Transaction {
     )
     abstract val actionPerformedBy: String
 
-    @UCloudApiDoc("A human readable description of why this change was made")
+    @UCloudApiDoc("A human-readable description of why this change was made")
     abstract val description: String
 
     @UCloudApiDoc("The ID of the `WalletAllocation` which was affected")

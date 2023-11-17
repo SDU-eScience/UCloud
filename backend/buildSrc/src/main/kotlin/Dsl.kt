@@ -1523,7 +1523,8 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
 
     fun primitiveType(type: String): String {
         return when (type) {
-            "Byte", "Short", "Int", "Long" -> "number"
+            "Byte", "Short", "Int" -> "number"
+            "Long" -> "bigint"
             "Boolean" -> "boolean"
             else -> error("??? $type ???")
         }
@@ -1549,8 +1550,9 @@ fun generateTypeScriptCode(ast: Parser.Ast, types: TypeTable): String {
     ): Int {
         val size = primitiveSize(type)
 
-        val getterFn = "getInt${size * 8}"
-        val setterFn = "setInt${size * 8}"
+        val middlePart = if (size < 8) "" else "Big"
+        val getterFn = "get${middlePart}Int${size * 8}"
+        val setterFn = "set${middlePart}Int${size * 8}"
         val getterConversion = if (type == "Boolean") {
             " == 1"
         } else {

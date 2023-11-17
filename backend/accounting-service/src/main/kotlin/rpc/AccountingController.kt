@@ -13,6 +13,8 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.responseAllocator
+import dk.sdu.cloud.messages.useAllocator
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -280,6 +282,10 @@ class AccountingController(
         implement(DepositNotifications.markAsRead) {
             notifications.markAsRead(actorAndProject, request)
             ok(Unit)
+        }
+
+        implement(VisualizationV2.retrieveCharts) {
+            ok(accounting.retrieveChartsV2(ctx.responseAllocator, actorAndProject, request))
         }
 
         return@with

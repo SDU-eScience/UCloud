@@ -7,5 +7,7 @@ export interface CallParameters {
     projectOverride?: string;
     accessTokenOverride?: string;
     unauthenticated?: boolean;
+    responseType?: XMLHttpRequestResponseType;
+    acceptType?: string;
 }
 

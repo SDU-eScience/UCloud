@@ -102,6 +102,8 @@ export class HttpClient {
             projectOverride,
             accessTokenOverride,
             unauthenticated = false,
+            responseType = "text",
+            acceptType = "*/*",
         } = params;
 
         await this.waitForCloudReady();
@@ -135,9 +137,10 @@ export class HttpClient {
                 }
 
                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+                req.setRequestHeader("Accept", acceptType);
                 const projectId = projectOverride ?? this.projectId;
                 if (projectId) req.setRequestHeader("Project", projectId);
-                req.responseType = "text"; // Explicitly set, otherwise issues with empty response
+                req.responseType = responseType; // Explicitly set, otherwise issues with empty response
                 if (withCredentials) {
                     req.withCredentials = true;
                 }

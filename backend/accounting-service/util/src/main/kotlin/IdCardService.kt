@@ -145,6 +145,7 @@ class IdCardService(
                             left join accounting.products p on pc.id = p.category
                         where
                             pc.provider = :provider
+                            and p.id is not null
                     """
                 ).rows
 
