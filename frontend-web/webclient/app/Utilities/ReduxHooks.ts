@@ -46,7 +46,7 @@ export function useGlobal<Property extends keyof HookStore>(
     ];
 }
 
-const reducer = (state: HookStore = {}, action: Action): HookStore => {
+function reducer(state: HookStore = {}, action: Action): HookStore {
     switch (action.type) {
         case "GENERIC_SET": {
             const newState = {};
@@ -76,6 +76,6 @@ const reducer = (state: HookStore = {}, action: Action): HookStore => {
             return state;
         }
     }
-};
+}
 
 export default reducer;

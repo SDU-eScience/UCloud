@@ -7,23 +7,23 @@ export interface RouterLocationProps {
     };
 }
 
-export const getQueryParam = (
+export function getQueryParam(
     props: RouterLocationProps | string,
     key: string
-): string | null => {
+): string | null {
     const search = typeof props === "object" ? props.location.search : props;
     const parsed = new URLSearchParams(search);
     return parsed.get(key);
-};
+}
 
-export const getQueryParamOrElse = (
+export function getQueryParamOrElse(
     props: RouterLocationProps | string,
     key: string,
     defaultValue: string
-): string => {
+): string {
     const result = getQueryParam(props, key);
     return result ? result : defaultValue;
-};
+}
 
 export const buildQueryString = <T extends Record<string, any>>(path: string, params: T): string => {
     const builtParams = Object.entries(params).map(
