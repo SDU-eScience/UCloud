@@ -6,7 +6,7 @@ import * as Heading from "@/ui-components/Heading";
 import {AppCardStyle} from "./Card";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
@@ -21,6 +21,7 @@ import {TextSpan} from "@/ui-components/Text";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationGroupToRowItem, ApplicationSummaryToRowItem} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -151,7 +152,6 @@ const ApplicationsLanding: React.FunctionComponent = () => {
     }, []);
     useRefreshFunction(refresh);
 
-    const [, invokeCommand] = useCloudCommand();
     const favorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
@@ -161,10 +161,11 @@ const ApplicationsLanding: React.FunctionComponent = () => {
         dispatch(toggleAppFavorite(app, !isFavorite));
 
         try {
-            await invokeCommand(UCloud.compute.apps.toggleFavorite({
+            await callAPI(UCloud.compute.apps.toggleFavorite({
                 appName: app.metadata.name
             }));
         } catch (e) {
+            snackbarStore.addFailure("Failed to toggle favorite", false);
             dispatch(toggleAppFavorite(app, !isFavorite));
         }
     }, [favorites]);

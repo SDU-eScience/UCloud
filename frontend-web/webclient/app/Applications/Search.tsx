@@ -19,6 +19,7 @@ import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
@@ -161,6 +162,7 @@ export const SearchResults: React.FunctionComponent = () => {
                 appName: app.metadata.name
             }));
         } catch (e) {
+            snackbarStore.addFailure("Failed to toggle favorite", false);
             dispatch(toggleAppFavorite(app, !isFavorite));
         }
     }, [favoriteStatus]);

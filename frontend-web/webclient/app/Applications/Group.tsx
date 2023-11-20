@@ -14,6 +14,7 @@ import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useDispatch, useSelector} from "react-redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -43,6 +44,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                 appName: app.metadata.name
             }));
         } catch (e) {
+            snackbarStore.addFailure("Failed to toggle favorite", false);
             dispatch(toggleAppFavorite(app, !isFavorite));
         }
     }, [favoriteStatus]);
