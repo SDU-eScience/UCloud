@@ -1380,24 +1380,7 @@ export class ResourceBrowser<T> {
         if (!useContextMenu) {
             this.shortCuts = {} as Record<ShortcutKey, () => void>;
 
-            {
-                if (inDevEnvironment()) {
-                    const shortCuts = operations.map(it => {
-                        if (isOperation(it)) {
-                            return ({shortcut: it.shortcut, text: it.text.toString()})
-                        } else {
-                            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({shortcut: it.shortcut, text: it.text.toString()}))]
-                        }
-                    }).flat(5);
-                    const entries: Record<string, string> = {};
-                    for (const short of shortCuts) {
-                        if (entries[short.shortcut ?? ""]) {
-                            console.log(`Shortcut: ${short.shortcut} already reserved for ${entries[short.shortcut ?? ""]}, attempted to use for ${short.text}`);
-                        }
-                        entries[short.shortcut ?? ""] = short.text;
-                    }
-                }
-            }
+            printDuplicateShortcuts(operations);
         }
 
         const selected = this.findSelectedEntries();
@@ -3696,3 +3679,23 @@ export function checkCanConsumeResources(projectId: string | null, callbacks: nu
 
 // https://stackoverflow.com/a/13139830
 export const placeholderImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) {
+    if (!inDevEnvironment()) return;
+
+    const shortCuts = operations.map(it => {
+        if (isOperation(it)) {
+            return ({shortcut: it.shortcut, text: it.text.toString()})
+        } else {
+            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({shortcut: it.shortcut, text: it.text.toString()}))]
+        }
+    }).flat(5);
+    const entries: Record<string, string> = {};
+    for (const short of shortCuts) {
+        if (entries[short.shortcut ?? ""]) {
+            console.log(`Shortcut: ${short.shortcut} already reserved for ${entries[short.shortcut ?? ""]}, attempted to use for ${short.text}`);
+        }
+        entries[short.shortcut ?? ""] = short.text;
+    }
+}
+
