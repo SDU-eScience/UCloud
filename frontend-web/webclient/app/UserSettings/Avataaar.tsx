@@ -11,6 +11,7 @@ import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import * as Options from "./AvatarOptions";
 import {saveAvatar} from "./Redux/AvataaarActions";
+import {avatarState} from "@/AvataaarLib/hook";
 
 function Modification(): React.JSX.Element {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
@@ -41,7 +42,10 @@ function Modification(): React.JSX.Element {
                 <Button
                     ml="auto"
                     mr="auto"
-                    onClick={async () => dispatch(await saveAvatar(avatar))}
+                    onClick={async () => {
+                        dispatch(await saveAvatar(avatar));
+                        avatarState.invalidateAndUpdate([Client.username!]);
+                    }}
                     mt="5px"
                     mb="5px"
                     color="blue"

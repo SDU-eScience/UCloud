@@ -2812,11 +2812,11 @@ export class ResourceBrowser<T> {
         const rootHeight = window.innerHeight;
 
         if (posX + listWidth >= rootWidth - 32) {
-            actualPosX -= listWidth;
+            actualPosX = rootWidth - listWidth - 32;
         }
 
         if (posY + listHeight >= rootHeight - 32) {
-            actualPosY -= listHeight;
+            actualPosY = rootHeight - listHeight - 32;
         }
 
         menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
