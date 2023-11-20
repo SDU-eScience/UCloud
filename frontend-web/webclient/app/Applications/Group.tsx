@@ -1,9 +1,8 @@
-import MainContainer from "@/MainContainer/MainContainer";
 import * as Heading from "@/ui-components/Heading";
 import React, {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardStyle, AppCardType} from "./Card";
@@ -26,7 +25,6 @@ const ApplicationsGroup: React.FunctionComponent = () => {
     );
 
     const dispatch = useDispatch();
-    const [, invokeCommand] = useCloudCommand();
 
     useEffect(() => {
         fetchAppGroup(retrieveGroup({id: id}));
@@ -41,7 +39,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
         dispatch(toggleAppFavorite(app, !isFavorite));
 
         try {
-            await invokeCommand(UCloud.compute.apps.toggleFavorite({
+            await callAPI(UCloud.compute.apps.toggleFavorite({
                 appName: app.metadata.name
             }));
         } catch (e) {

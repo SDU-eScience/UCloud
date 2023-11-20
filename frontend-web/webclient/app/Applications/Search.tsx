@@ -5,7 +5,7 @@ import {joinToString} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";
 import {useCallback, useEffect} from "react";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import Grid from "@/ui-components/Grid";
 import {AppCard, AppCardStyle, AppCardType} from "@/Applications/Card";
@@ -54,10 +54,24 @@ const AppSearchBoxClass = injectStyle("app-search-box", k => `
     }
 `);
 
+
+
 export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boolean}> = props => {
     const navigate = useNavigate();
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [isHidden, setHidden] = React.useState(props.hidden ?? true);
+
+    const onSearch = useCallback(() => {
+        const queryCurrent = inputRef.current;
+        if (!queryCurrent) return;
+
+        const queryValue = queryCurrent.value;
+
+        if (queryValue === "") return;
+
+        navigate(AppRoutes.apps.search(queryValue));
+    }, [inputRef.current]);
+
 
     return <Flex className={AppSearchBoxClass}>
         {isHidden ? null : (
@@ -69,29 +83,13 @@ export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boo
                     placeholder="Search for applications..."
                     onKeyUp={e => {
                         if (e.key === "Enter") {
-                            const queryCurrent = inputRef.current;
-                            if (!queryCurrent) return;
-
-                            const queryValue = queryCurrent.value;
-
-                            if (queryValue === "") return;
-
-                            navigate(AppRoutes.apps.search(queryValue));
+                            onSearch();
                         }
                     }}
                     autoFocus
                 />
                 <button>
-                    <Icon name="search" size={20} color="darkGray" my="auto" onClick={e => {
-                        const queryCurrent = inputRef.current;
-                        if (!queryCurrent) return;
-
-                        const queryValue = queryCurrent.value;
-
-                        if (queryValue === "") return;
-
-                        navigate(AppRoutes.apps.search(queryValue));
-                    }} />
+                    <Icon name="search" size={20} color="darkGray" my="auto" onClick={onSearch} />
                 </button>
             </Flex>
         )}
@@ -132,7 +130,6 @@ export const SearchResults: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const dispatch = useDispatch();
-    const [, invokeCommand] = useCloudCommand();
     const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage
@@ -160,7 +157,7 @@ export const SearchResults: React.FunctionComponent = () => {
         dispatch(toggleAppFavorite(app, !isFavorite));
 
         try {
-            await invokeCommand(UCloud.compute.apps.toggleFavorite({
+            await callAPI(UCloud.compute.apps.toggleFavorite({
                 appName: app.metadata.name
             }));
         } catch (e) {
