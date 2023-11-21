@@ -1,11 +1,11 @@
 import * as React from "react";
 import * as Heading from "@/ui-components/Heading";
 import {emptyPage} from "@/DefaultObjects";
-import {joinToString} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";
 import {useCallback, useEffect} from "react";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import Grid from "@/ui-components/Grid";
 import {AppCard, AppCardStyle, AppCardType} from "@/Applications/Card";
@@ -19,7 +19,6 @@ import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
@@ -162,7 +161,7 @@ export const SearchResults: React.FunctionComponent = () => {
                 appName: app.metadata.name
             }));
         } catch (e) {
-            snackbarStore.addFailure("Failed to toggle favorite", false);
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
             dispatch(toggleAppFavorite(app, !isFavorite));
         }
     }, [favoriteStatus]);

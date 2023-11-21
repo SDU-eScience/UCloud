@@ -6,7 +6,7 @@ import * as Heading from "@/ui-components/Heading";
 import {AppCardStyle} from "./Card";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
@@ -21,7 +21,7 @@ import {TextSpan} from "@/ui-components/Text";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationGroupToRowItem, ApplicationSummaryToRowItem} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -165,7 +165,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                 appName: app.metadata.name
             }));
         } catch (e) {
-            snackbarStore.addFailure("Failed to toggle favorite", false);
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
             dispatch(toggleAppFavorite(app, !isFavorite));
         }
     }, [favorites]);

@@ -2,7 +2,7 @@ import * as Heading from "@/ui-components/Heading";
 import React, {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardStyle, AppCardType} from "./Card";
@@ -14,7 +14,7 @@ import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useDispatch, useSelector} from "react-redux";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -44,7 +44,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                 appName: app.metadata.name
             }));
         } catch (e) {
-            snackbarStore.addFailure("Failed to toggle favorite", false);
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
             dispatch(toggleAppFavorite(app, !isFavorite));
         }
     }, [favoriteStatus]);
