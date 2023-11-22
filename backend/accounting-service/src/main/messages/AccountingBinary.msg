@@ -53,6 +53,16 @@ record UsageOverTime {
     data: UsageOverTimeDataPoint[],
 }
 
+record BreakdownByProjectPoint {
+    title: String,
+    projectId: String?,
+    usage: Long,
+}
+
+record BreakdownByProject {
+    data: BreakdownByProjectPoint[],
+}
+
 record Charts {
     categories: ProductCategoryB[],
     allocations: WalletAllocationB[],
@@ -62,4 +72,5 @@ record Charts {
 record ChartsForCategory {
     categoryIndex: Int,
     overTime: UsageOverTime,
+    breakdownByProject: BreakdownByProject,
 }

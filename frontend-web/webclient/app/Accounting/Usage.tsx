@@ -9,7 +9,7 @@ import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
-import {ProductType, translateBinaryProductCategory} from ".";
+import {translateBinaryProductCategory} from ".";
 import {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
@@ -18,8 +18,9 @@ import {callAPI} from "@/Authentication/DataHook";
 import * as AccountingB from "./AccountingBinary";
 import {useProjectId} from "@/Project/Api";
 import {formatDistance} from "date-fns";
-import { GradientWithPolygons } from "@/ui-components/GradientBackground";
+import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {deviceBreakpoint} from "@/ui-components/Hide";
 
 // State
 // =====================================================================================================================
@@ -33,6 +34,7 @@ interface State {
         quota: number,
         category: Accounting.ProductCategoryV2,
         chart: UsageChart,
+        breakdownByProject: BreakdownChart,
         categoryIdx: number,
     }[],
 
@@ -48,6 +50,7 @@ interface State {
             quota: number,
         },
         usageOverTime: UsageChart,
+        breakdownByProject: BreakdownChart,
     },
 
     selectedPeriod: Period,
@@ -69,6 +72,23 @@ type UIAction =
 function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "LoadCharts": {
+            function translateBreakdown(category: Accounting.ProductCategoryV2, chart: AccountingB.BreakdownByProject): BreakdownChart {
+                const {name, priceFactor} = Accounting.explainUnit(category);
+                const dataPoints: BreakdownChart["dataPoints"] = [];
+
+                const dataPointsLength = chart.data.count;
+                for (let i = 0; i < dataPointsLength; i++) {
+                    const dataPoint = chart.data.get(i);
+                    dataPoints.push({
+                        usage: Number(dataPoint.usage) * priceFactor,
+                        projectId: dataPoint.projectId,
+                        title: dataPoint.title
+                    });
+                }
+
+                return {unit: name, dataPoints};
+            }
+
             function translateChart(category: Accounting.ProductCategoryV2, chart: AccountingB.UsageOverTime): UsageChart {
                 const {name, priceFactor} = Accounting.explainUnit(category);
                 const dataPoints: UsageChart["dataPoints"] = [];
@@ -92,9 +112,7 @@ function stateReducer(state: State, action: UIAction): State {
 
             for (let i = 0; i < data.allocations.count; i++) {
                 const allocation = data.allocations.get(i);
-                console.log("Looking at allocation", i, allocation.encodeToJson());
                 if (now < allocation.startDate || now > allocation.endDate) continue;
-                console.log("Valid!");
                 const category = data.categories.get(allocation.categoryIndex);
 
                 const existingIndex = newSummaries.findIndex(it =>
@@ -108,6 +126,7 @@ function stateReducer(state: State, action: UIAction): State {
                         quota: 0,
                         category: translateBinaryProductCategory(category),
                         chart: emptyChart,
+                        breakdownByProject: emptyBreakdownChart,
                         categoryIdx: allocation.categoryIndex,
                     };
                     newSummaries.push(summary);
@@ -123,8 +142,8 @@ function stateReducer(state: State, action: UIAction): State {
                 const chart = data.charts.get(i);
                 const summary = newSummaries.find(it => it.categoryIdx === chart.categoryIndex);
                 if (!summary) continue;
-                console.log("Chart for", chart.encodeToJson());
                 summary.chart = translateChart(summary.category, chart.overTime);
+                summary.breakdownByProject = translateBreakdown(summary.category, chart.breakdownByProject);
             }
 
             const currentlySelectedCategory = state.activeDashboard?.category;
@@ -137,8 +156,6 @@ function stateReducer(state: State, action: UIAction): State {
 
                 if (selectedSummary) selectedIndex = selectedSummary.categoryIdx;
             }
-
-            console.log("Selecting stuff!", selectedIndex);
 
             return selectChart({
                 ...state,
@@ -165,7 +182,10 @@ function stateReducer(state: State, action: UIAction): State {
     function selectChart(state: State, categoryIndex: number): State {
         const chartData = state.remoteData.chartData;
         if (!chartData) return {...state, activeDashboard: undefined};
-        if (categoryIndex < 0 || categoryIndex > chartData.categories.count) return {...state, activeDashboard: undefined};
+        if (categoryIndex < 0 || categoryIndex > chartData.categories.count) return {
+            ...state,
+            activeDashboard: undefined
+        };
 
         const summary = state.summaries.find(it => it.categoryIdx === categoryIndex);
         if (!summary) return {...state, activeDashboard: undefined};
@@ -220,6 +240,7 @@ function stateReducer(state: State, action: UIAction): State {
                     quota: nextQuota,
                 },
                 usageOverTime: summary.chart,
+                breakdownByProject: summary.breakdownByProject,
             }
         };
     }
@@ -244,10 +265,10 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
             case "Init": {
                 const now = timestampUnixMs();
                 const charts = await callAPI(Accounting.retrieveChartsV2({
-                    start: now - (1000 * 60 * 60 * 24 * 180),
+                    start: now - (1000 * 60 * 60 * 24 * 7),
                     end: now
                 }));
-                dispatch({ type: "LoadCharts", charts });
+                dispatch({type: "LoadCharts", charts});
                 console.log(charts.encodeToJson());
                 break;
             }
@@ -260,137 +281,6 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
     }, [doDispatch]);
 }
 
-// Styling
-// =====================================================================================================================
-const VisualizationStyle = injectStyle("visualization", k => `
-    ${k} header {
-        position: fixed;
-        top: 0;
-        left: var(--currentSidebarWidth);
-        
-        background: var(--white);
-        
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        
-        height: 50px;
-        width: calc(100vw - var(--currentSidebarWidth));
-        
-        padding: 0 16px;
-        z-index: 10;
-        
-        box-shadow: ${theme.shadows.sm};
-    }
-
-    ${k} header.at-top {
-        box-shadow: unset;
-    }
-    
-    ${k} header h3 {
-        margin: 0;
-    }
-
-    ${k} header .duration-select {
-        width: 150px;
-    }
-
-    ${k} h1, ${k} h2, ${k} h3, ${k} h4 {
-        margin: 19px 0;
-    }
-
-    ${k} h3:first-child {
-        margin-top: 0;
-    }
-
-    ${k} .panel-grid {
-        display: flex;
-        gap: 16px;
-        flex-direction: row;
-        width: 100%;
-        padding: 16px 0;
-        height: calc(100vh - 195px);
-    }
-    
-    ${k} .primary-grid-2-2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 7fr 3fr;
-        gap: 16px;
-        width: 100%;
-        height: 100%;
-    }
-    
-    ${k} .primary-grid-2-1 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr;
-        gap: 16px;
-        width: 100%;
-        height: 100%;
-    }
-    
-    ${k} table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-    
-    ${k} tr > td:first-child,
-    ${k} tr > th:first-child {
-        border-left: 2px solid var(--midGray);
-    }
-
-    ${k} td, 
-    ${k} th {
-        padding: 0 8px;
-        border-right: 2px solid var(--midGray);
-    }
-
-    ${k} tbody > tr:last-child > td {
-        border-bottom: 2px solid var(--midGray);
-    }
-
-    ${k} th {
-        text-align: left;
-        border-top: 2px solid var(--midGray);
-        border-bottom: 2px solid var(--midGray);
-        position: sticky;
-        top: 0;
-        background: var(--lightGray); /* matches card background */
-    }
-    
-    ${k} .change > span:nth-child(1) {
-        float: left;
-    }
-    
-    ${k} .change > span:nth-child(2) {
-        float: right;
-    }
-    
-    ${k} .change.positive {
-        color: var(--green);
-    }
-    
-    ${k} .change.negative {
-        color: var(--red);
-    }
-    
-    ${k} .change.unchanged {
-        color: var(--midGray);
-    }
-    
-    ${k} .apexcharts-tooltip {
-        color: var(--black);
-    }
-    
-    ${k} .apexcharts-yaxis-title text,
-    ${k} .apexcharts-yaxis-texts-g text,
-    ${k} .apexcharts-xaxis-texts-g text {
-        fill: var(--black);
-    }
-`);
 
 // User-interface
 // =====================================================================================================================
@@ -403,8 +293,6 @@ const Visualization: React.FunctionComponent = props => {
     useEffect(() => {
         dispatchEvent({type: "Init"});
     }, [projectId]);
-
-    console.log(state);
 
     // Event handlers
     // -----------------------------------------------------------------------------------------------------------------
@@ -451,11 +339,11 @@ const Visualization: React.FunctionComponent = props => {
     });
 
     const setActiveCategory = useCallback((key: any) => {
-        dispatchEvent({ type: "SelectTab", tabIndex: key });
+        dispatchEvent({type: "SelectTab", tabIndex: key});
     }, [dispatchEvent]);
 
     const setPeriod = useCallback((period: Period) => {
-        dispatchEvent({ type: "UpdateSelectedPeriod", period });
+        dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
 
     // Actual user-interface
@@ -466,7 +354,7 @@ const Visualization: React.FunctionComponent = props => {
         <header className="at-top">
             <h3>Resource usage</h3>
             <div className="duration-select">
-                <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
+                <PeriodSelector value={state.selectedPeriod} onChange={setPeriod}/>
             </div>
             <div style={{flexGrow: "1"}}/>
             <ContextSwitcher/>
@@ -475,7 +363,7 @@ const Visualization: React.FunctionComponent = props => {
         <div style={{padding: "13px 16px 16px 16px"}}>
             <h3>Resource usage</h3>
 
-            <Flex flexDirection="row" gap="16px">
+            <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingBottom={"26px"}>
                 {state.summaries.map(s =>
                     <SmallUsageCard
                         key={s.categoryIdx}
@@ -487,7 +375,7 @@ const Visualization: React.FunctionComponent = props => {
                         chart={s.chart}
                         active={
                             s.category.name === state.activeDashboard?.category?.name &&
-                                s.category.provider === state.activeDashboard?.category?.provider
+                            s.category.provider === state.activeDashboard?.category?.provider
                         }
                         activationKey={s.categoryIdx}
                         onActivate={setActiveCategory}
@@ -506,15 +394,11 @@ const Visualization: React.FunctionComponent = props => {
                             nextAllocationAt={state.activeDashboard.nextAllocation?.startsAt}
                             nextAllocation={state.activeDashboard.nextAllocation?.quota}
                         />
-
-                        <BreakdownPanel/>
-
-                        <div className="primary-grid-2-2">
-                            <UsageOverTimePanel chart={state.activeDashboard.usageOverTime}/>
-                            <LargeJobsPanel/>
-                            <MostUsedApplicationsPanel/>
-                            <JobSubmissionPanel/>
-                        </div>
+                        <BreakdownPanel chart={state.activeDashboard.breakdownByProject}/>
+                        <UsageOverTimePanel chart={state.activeDashboard.usageOverTime}/>
+                        <LargeJobsPanel/>
+                        <MostUsedApplicationsPanel/>
+                        <JobSubmissionPanel/>
                     </div>
                 </div>
             }
@@ -526,35 +410,6 @@ const Visualization: React.FunctionComponent = props => {
 // =====================================================================================================================
 // Components for the various panels used in the dashboard.
 const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
-    ${k} {
-        display: flex;
-        flex-direction: column;
-
-        width: 300px !important;
-        flex-shrink: 0;
-    }
-
-    ${k} figure {
-        width: 128px;
-        margin: 0 auto;
-        margin-bottom: 14px; /* make size correct */
-    }
-
-    ${k} figure > *:nth-child(2) > *:first-child {
-        position: absolute;
-        top: -50px;
-        left: 64px;
-    }
-
-    ${k} h1 {
-        text-align: center;
-    }
-
-    ${k} .stat-container {
-        display: flex;
-        gap: 12px;
-        flex-direction: column;
-    }
     
     ${k} .stat > *:first-child {
         font-size: 14px;
@@ -562,6 +417,103 @@ const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
     
     ${k} .stat > *:nth-child(2) {
         font-size: 16px;
+    }
+    
+    ${deviceBreakpoint({minWidth: "1901px"})} {
+         ${k} {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }   
+        
+        ${k} > p {
+            flex-grow: 1;
+        }
+        
+        ${k} .stat-container {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+        
+        ${k} figure {
+            width: 128px;
+            margin: 0 auto;
+            margin-bottom: 14px; /* make size correct */
+        }
+
+        ${k} figure > *:nth-child(2) > *:first-child {
+            position: absolute;
+            top: -50px;
+            left: 64px;
+        }
+
+        ${k} h1 {
+            text-align: center;
+            margin: 0 !important;
+            margin-top: 19px !important;
+        }
+    }
+    
+    ${deviceBreakpoint({maxWidth: "1900px"})} {
+        ${k} {
+            display: grid;
+            grid-template-areas:
+                "fig description"
+                "fig stats";
+            grid-template-columns: 150px 1fr;
+            grid-template-rows: auto 50px;
+            gap: 20px;
+        }
+        
+        ${k} .figure-and-title {
+            grid-area: fig;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        ${k} p {
+            grid-area: description;
+        }
+        
+        ${k} .stat-container {
+            grid-area: stats;
+            
+            display: flex;
+            gap: 30px;
+            flex-direction: row;
+        }
+        
+        ${k} figure {
+            width: 64px;
+            margin: 0 auto;
+            margin-bottom: 7px; /* make size correct */
+        }
+
+        ${k} figure > *:nth-child(2) > *:first-child {
+            position: absolute;
+            top: -25px;
+            left: 32px;
+        }
+        
+        ${k} figure > svg {
+            width: 64px;
+            height: 64px;
+        }
+        
+        ${k} figure > div > div {
+            /* TODO fragile */
+            --wrapper-size: 32px !important;
+        }
+
+        ${k} h1 {
+            font-size: 1.3em;
+            text-wrap: pretty;
+            text-align: center;
+            margin: 0 !important;
+            margin-top: 8px !important;
+        }
     }
 `);
 
@@ -574,18 +526,21 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     nextAllocation?: number | null;
 }> = props => {
     const now = timestampUnixMs();
+    const description = Accounting.guestimateProductCategoryDescription(props.category.name, props.category.provider);
     return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle)}>
-        <figure>
-            <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128}/>
-            <div style={{position: "relative"}}>
-                <ProviderLogo providerId={props.category.provider} size={64}/>
-            </div>
-        </figure>
+        <div className={"figure-and-title"}>
+            <figure>
+                <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128}/>
+                <div style={{position: "relative"}}>
+                    <ProviderLogo providerId={props.category.provider} size={64}/>
+                </div>
+            </figure>
+            <h1><code>{props.category.name}</code></h1>
+        </div>
 
-        <h1><code>{props.category.name}</code></h1>
-        <p>{Accounting.guestimateProductCategoryDescription(props.category.name, props.category.provider)}</p>
-
-        <div style={{flexGrow: 1}}/>
+        <p>
+            {description ? description : <i>No description provided for this product</i>}
+        </p>
 
         <div className="stat-container">
             <div className="stat">
@@ -620,12 +575,6 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     </div>;
 };
 const BreakdownStyle = injectStyle("breakdown", k => `
-    ${k} {
-        /* This places the card aligned with a potential third summary card */
-        width: calc(450px + 8px) !important; 
-        flex-shrink: 0;
-    }
-    
     ${k} .pie-wrapper {
         width: 350px;
         margin: 20px auto;
@@ -638,9 +587,24 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-const BreakdownPanel: React.FunctionComponent<{ productType?: ProductType }> = props => {
-    const type = props.productType ?? "COMPUTE";
-    const unit = type === "STORAGE" ? "GB" : "DKK";
+const BreakdownPanel: React.FunctionComponent<{ chart: BreakdownChart }> = props => {
+    const unit = props.chart.unit;
+
+    const dataPoints = useMemo(
+        () => {
+            const unsorted = props.chart.dataPoints.map(it => ({key: it.title, value: it.usage}));
+            return unsorted.sort((a, b) => {
+                if (a.value < b.value) return 1;
+                if (a.value > b.value) return -1;
+                return 0;
+            });
+        },
+        [props.chart]
+    );
+
+    const formatter = useCallback((val: number) => {
+        return Accounting.addThousandSeparators(val.toFixed(0)) + " " + unit;
+    }, [unit]);
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
@@ -655,30 +619,7 @@ const BreakdownPanel: React.FunctionComponent<{ productType?: ProductType }> = p
         </div>
 
         <div className="pie-wrapper">
-            <Chart
-                type="pie"
-                series={[10, 20, 30, 30]}
-                options={{
-                    chart: {
-                        animations: {
-                            enabled: false,
-                        },
-                    },
-                    labels: ["A", "B", "C", "D"],
-                    dataLabels: {
-                        enabled: false,
-                    },
-                    stroke: {
-                        show: false,
-                    },
-                    legend: {
-                        show: false,
-                    },
-                    colors: ["var(--blue)", "var(--green)", "var(--red)", "var(--purple)", "var(--yellow)"],
-                }}
-                height={350}
-                width={350}
-            />
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
         </div>
 
         <table>
@@ -686,28 +627,15 @@ const BreakdownPanel: React.FunctionComponent<{ productType?: ProductType }> = p
             <tr>
                 <th>Project</th>
                 <th>Usage</th>
-                <th>Change</th>
             </tr>
             </thead>
             <tbody>
-            {Array(29).fill(undefined).map((_, idx) => {
-                const usage = Math.floor(Math.random() * 13000);
-                let change = 250 - Math.random() * 500;
-                if (Math.random() < 0.1) {
-                    change = 0;
-                }
-
-                let changeClass = "unchanged";
-                if (change < 0) changeClass = "negative";
-                else if (change > 0) changeClass = "positive";
+            {dataPoints.map((point, idx) => {
+                const usage = point.value;
 
                 return <tr key={idx}>
-                    <td>DeiC-{Math.floor(Math.random() * 10000).toString().padStart(4, "0")}</td>
+                    <td>{point.key}</td>
                     <td>{Accounting.addThousandSeparators(usage)} {unit}</td>
-                    <td className={`change ${changeClass}`}>
-                        <span>{change >= 0 ? "+" : "-"}</span>
-                        <span>{Math.abs(change).toFixed(2)}%</span>
-                    </td>
                 </tr>
             })}
             </tbody>
@@ -952,7 +880,7 @@ const LargeJobsPanel: React.FunctionComponent = () => {
         return 0;
     });
 
-    const dataPoints = fakeJobs.map(it => ({ key: it.username, value: it.usage }));
+    const dataPoints = fakeJobs.map(it => ({key: it.username, value: it.usage}));
     const formatter = useCallback((val: number) => {
         return Accounting.addThousandSeparators(val.toFixed(2)) + " DKK";
     }, []);
@@ -963,7 +891,7 @@ const LargeJobsPanel: React.FunctionComponent = () => {
         </div>
 
         <div style={{display: "flex", justifyContent: "center"}}>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
         </div>
 
         <div className="table-wrapper">
@@ -974,8 +902,9 @@ const LargeJobsPanel: React.FunctionComponent = () => {
                     <th>
                         Estimated usage
                         {" "}
-                        <TooltipV2 tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
-                            <Icon name={"heroQuestionMarkCircle"} />
+                        <TooltipV2
+                            tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
+                            <Icon name={"heroQuestionMarkCircle"}/>
                         </TooltipV2>
                     </th>
                 </tr>
@@ -1037,8 +966,8 @@ const UsageEntry: React.FunctionComponent<{
     return <div className={"entry"}>
         <div className="row" onClick={toggleOpen}>
             {props.depth === 0 ? null : props.children === undefined ?
-                <div style={{width: "16px"}} /> :
-                <Icon name={open ? "heroMinusSmall" : "heroPlusSmall"} />
+                <div style={{width: "16px"}}/> :
+                <Icon name={open ? "heroMinusSmall" : "heroPlusSmall"}/>
             }
             <Icon name={props.icon} color={"gray"}/>
             <div style={{flexGrow: 1}}>{props.title}</div>
@@ -1219,6 +1148,7 @@ const PieChart: React.FunctionComponent<{
     valueFormatter: (value: number) => string,
     size?: number,
 }> = props => {
+    const keyRef = useRef(0);
     const filteredList = useMemo(() => {
         const all = [...props.dataPoints];
         all.sort((a, b) => {
@@ -1233,9 +1163,10 @@ const PieChart: React.FunctionComponent<{
             for (let i = result.length; i < all.length; i++) {
                 othersSum += all[i].value;
             }
-            result.push({ key: "Other", value: othersSum });
+            result.push({key: "Other", value: othersSum});
         }
 
+        keyRef.current++;
         return result;
     }, [props.dataPoints]);
     const series = useMemo(() => {
@@ -1249,6 +1180,7 @@ const PieChart: React.FunctionComponent<{
     return <Chart
         type="pie"
         series={series}
+        key={keyRef.current.toString()}
         options={{
             chart: {
                 animations: {
@@ -1277,6 +1209,16 @@ const PieChart: React.FunctionComponent<{
         height={props.size ?? 350}
         width={props.size ?? 350}
     />
+};
+
+interface BreakdownChart {
+    unit: string,
+    dataPoints: { projectId?: string | null, title: string, usage: number }[];
+}
+
+const emptyBreakdownChart: BreakdownChart = {
+    unit: "",
+    dataPoints: [],
 };
 
 interface UsageChart {
@@ -1463,7 +1405,9 @@ const SmallUsageCard: React.FunctionComponent<{
     if (props.change < 0) themeColor = "red";
     else if (props.change > 0) themeColor = "green";
 
+    const chartKey = useRef(0);
     const chartProps = useMemo(() => {
+        chartKey.current++;
         return usageChartToChart(props.chart, {removeDetails: true});
     }, [props.chart]);
 
@@ -1475,11 +1419,12 @@ const SmallUsageCard: React.FunctionComponent<{
         <div className={classConcat(CardClass, SmallUsageCardStyle)}>
             <div className={"title-row"}>
                 <strong><code>{props.categoryName}</code></strong>
-                <Radio checked={props.active} onChange={doNothing} />
+                <Radio checked={props.active} onChange={doNothing}/>
             </div>
 
             <div className="body">
                 <Chart
+                    key={chartKey.current.toString()}
                     {...chartProps}
                     width={112}
                     height={63}
@@ -1580,9 +1525,9 @@ function usageToString(category: Accounting.ProductCategoryV2, usage: number, qu
         return `${Math.ceil((usage / quota) * 100)}% used`;
     } else {
         let builder = "";
-        builder += Accounting.balanceToString(category, usage, { removeUnitIfPossible: true, precision: 0 })
+        builder += Accounting.balanceToString(category, usage, {removeUnitIfPossible: true, precision: 0})
         builder += " / ";
-        builder += Accounting.balanceToString(category, quota, { precision: 0 });
+        builder += Accounting.balanceToString(category, quota, {precision: 0});
         return builder;
     }
 }
@@ -1613,7 +1558,7 @@ const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
         cursor: auto;
         display: flex;
         flex-direction: row;
-        width: 400px;
+        width: 422px;
         height: 300px;
     }
     
@@ -1650,6 +1595,7 @@ const PeriodSelector: React.FunctionComponent<{
     onChange: (period: Period) => void;
 }> = props => {
     const [start, end] = normalizePeriod(props.value);
+
     function formatTs(ts: number): string {
         const d = new Date(ts);
         return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
@@ -1662,10 +1608,24 @@ const PeriodSelector: React.FunctionComponent<{
             }
 
             case "absolute": {
+                const pad = (n: number) => n.toString().padStart(2, "0");
+                const startDate = new Date(period.start);
+                const endDate = new Date(period.end);
                 let b = "";
-                b += dateToString(period.start)
+
+                b += pad(startDate.getDate());
+                b += "/";
+                b += pad(startDate.getMonth() + 1);
+                b += "/";
+                b += startDate.getFullYear();
+
                 b += " to ";
-                b += dateToString(period.end);
+
+                b += pad(endDate.getDate());
+                b += "/";
+                b += pad(endDate.getMonth() + 1);
+                b += "/";
+                b += endDate.getFullYear();
                 return b;
             }
         }
@@ -1673,7 +1633,7 @@ const PeriodSelector: React.FunctionComponent<{
 
     const onRelativeUpdated = useCallback((ev: React.SyntheticEvent) => {
         const t = ev.target as HTMLElement;
-        const distance = parseInt(t.getAttribute("data-relative") ?? "0k");
+        const distance = parseInt(t.getAttribute("data-relative") ?? "0");
         const unit = t.getAttribute("data-relative-unit") as any;
 
         props.onChange({
@@ -1683,6 +1643,20 @@ const PeriodSelector: React.FunctionComponent<{
         });
     }, [props.onChange]);
 
+    const onChange = useCallback((ev: React.SyntheticEvent) => {
+        const target = ev.target as HTMLInputElement;
+        if (!target) return;
+        const isStart = target.classList.contains("start");
+
+        const newPeriod: Period = {
+            type: "absolute",
+            start: isStart ? (target.valueAsDate?.getTime() ?? start) : start,
+            end: isStart ? end : (target.valueAsDate?.getTime() ?? end),
+        };
+
+        props.onChange(newPeriod);
+    }, [start, end, props.onChange]);
+
     return <ClickableDropdown
         colorOnHover={false}
         paddingControlledByContent={true}
@@ -1690,7 +1664,7 @@ const PeriodSelector: React.FunctionComponent<{
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "180px"}}>{periodToString(props.value)}</div>
-                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px"/>
             </div>
         }
     >
@@ -1700,22 +1674,32 @@ const PeriodSelector: React.FunctionComponent<{
 
                 <label>
                     From
-                    <Input type={"date"} value={formatTs(start)} />
+                    <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)}/>
                 </label>
                 <label>
                     To
-                    <Input type={"date"} value={formatTs(end)} />
+                    <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)}/>
                 </label>
             </div>
 
             <div>
                 <b>Relative time range</b>
 
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"} data-relative={"7"}>Last 7 days</div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"} data-relative={"30"}>Last 30 days</div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"} data-relative={"90"}>Last 90 days</div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"} data-relative={"6"}>Last 6 months</div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"} data-relative={"12"}>Last 12 months</div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
+                     data-relative={"7"}>Last 7 days
+                </div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
+                     data-relative={"30"}>Last 30 days
+                </div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
+                     data-relative={"90"}>Last 90 days
+                </div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
+                     data-relative={"6"}>Last 6 months
+                </div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
+                     data-relative={"12"}>Last 12 months
+                </div>
             </div>
         </div>
     </ClickableDropdown>;
@@ -1747,6 +1731,216 @@ function normalizePeriod(period: Period): [number, number] {
         }
     }
 }
+
+// Styling
+// =====================================================================================================================
+const VisualizationStyle = injectStyle("visualization", k => `
+    ${k} header {
+        position: fixed;
+        top: 0;
+        left: var(--currentSidebarWidth);
+        
+        background: var(--white);
+        
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        
+        height: 50px;
+        width: calc(100vw - var(--currentSidebarWidth));
+        
+        padding: 0 16px;
+        z-index: 10;
+        
+        box-shadow: ${theme.shadows.sm};
+    }
+
+    ${k} header.at-top {
+        box-shadow: unset;
+    }
+    
+    ${k} header h3 {
+        margin: 0;
+    }
+
+    ${k} header .duration-select {
+        width: 150px;
+    }
+
+    ${k} h1, ${k} h2, ${k} h3, ${k} h4 {
+        margin: 19px 0;
+    }
+
+    ${k} h3:first-child {
+        margin-top: 0;
+    }
+
+/*
+    ${k} .panel-grid {
+        display: flex;
+        gap: 16px;
+        flex-direction: row;
+        width: 100%;
+        padding: 16px 0;
+        height: calc(100vh - 195px);
+    }
+    
+    ${k} .primary-grid-2-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 7fr 3fr;
+        gap: 16px;
+        width: 100%;
+        height: 100%;
+    }
+    
+    ${k} .primary-grid-2-1 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr;
+        gap: 16px;
+        width: 100%;
+        height: 100%;
+    }
+*/
+
+   
+    ${k} table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    ${k} tr > td:first-child,
+    ${k} tr > th:first-child {
+        border-left: 2px solid var(--midGray);
+    }
+
+    ${k} td, 
+    ${k} th {
+        padding: 0 8px;
+        border-right: 2px solid var(--midGray);
+    }
+
+    ${k} tbody > tr:last-child > td {
+        border-bottom: 2px solid var(--midGray);
+    }
+
+    ${k} th {
+        text-align: left;
+        border-top: 2px solid var(--midGray);
+        border-bottom: 2px solid var(--midGray);
+        position: sticky;
+        top: 0;
+        background: var(--lightGray); /* matches card background */
+    }
+    
+    ${k} .change > span:nth-child(1) {
+        float: left;
+    }
+    
+    ${k} .change > span:nth-child(2) {
+        float: right;
+    }
+    
+    ${k} .change.positive {
+        color: var(--green);
+    }
+    
+    ${k} .change.negative {
+        color: var(--red);
+    }
+    
+    ${k} .change.unchanged {
+        color: var(--midGray);
+    }
+    
+    ${k} .apexcharts-tooltip {
+        color: var(--black);
+    }
+    
+    ${k} .apexcharts-yaxis-title text,
+    ${k} .apexcharts-yaxis-texts-g text,
+    ${k} .apexcharts-xaxis-texts-g text {
+        fill: var(--black);
+    }
+    
+    /* Panel layouts */
+    /* ============================================================================================================== */
+    ${k} .panel-grid {
+        gap: 16px;
+    }
+    
+    ${deviceBreakpoint({minWidth: "1901px"})} {
+        ${k} .panel-grid {
+            display: grid;
+            grid-template-areas: 
+                "category breakdown over-time chart2"
+                "category breakdown over-time chart2"
+                "category breakdown over-time chart2"
+                "category breakdown chart3 chart4"
+                "category breakdown chart3 chart4";
+            height: calc(100vh - 210px);
+            grid-template-columns: 300px 450px 1fr 1fr;
+        }
+    }
+    
+    ${deviceBreakpoint({maxWidth: "1900px"})} {
+        ${k} .panel-grid {
+            display: grid;
+            grid-template-areas: 
+                "category category category"
+                "breakdown over-time chart2"
+                "breakdown chart3 chart4";
+            grid-template-rows: 160px 900px 500px;
+        }
+    }
+    
+    ${deviceBreakpoint({maxWidth: "1500px"})} {
+        ${k} .panel-grid {
+            display: grid;
+            grid-template-areas: 
+                "category category"
+                "over-time over-time"
+                "breakdown chart2"
+                "chart3 chart4";
+            grid-template-rows: 160px 1000px 900px 500px;
+        }
+    }
+    
+    ${deviceBreakpoint({maxWidth: "900px"})} {
+        ${k} .panel-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+    }
+    
+    .${CategoryDescriptorPanelStyle} {
+        grid-area: category;
+    }
+    
+    .${BreakdownStyle} {
+        grid-area: breakdown;
+    }
+    
+    .${UsageOverTimeStyle} {
+        grid-area: over-time;
+    }
+    
+    .${LargeJobsStyle} {
+        grid-area: chart2;
+    }
+    
+    .${MostUsedApplicationsStyle} {
+        grid-area: chart3;
+    }
+    
+    .${JobSubmissionStyle} {
+        grid-area: chart4;
+    }
+`);
 
 // Initial state
 // =====================================================================================================================

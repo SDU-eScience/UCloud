@@ -22,7 +22,7 @@ import dk.sdu.cloud.service.db.async.withSession
 
 interface IIdCardService {
     suspend fun fetchAllUserGroup(pid: Int): Int
-    suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard
+    suspend fun fetchIdCard(actorAndProject: ActorAndProject, allowCached: Boolean = true): IdCard
     suspend fun lookupUid(uid: Int): String?
     suspend fun lookupPid(pid: Int): String?
     suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup?
@@ -240,21 +240,27 @@ class IdCardService(
         }
     )
 
-    override suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
+    override suspend fun fetchIdCard(actorAndProject: ActorAndProject, allowCached: Boolean): IdCard {
         if (actorAndProject.actor == Actor.System) return IdCard.System
+
+        if (!allowCached) {
+            cached.remove(actorAndProject.actor.safeUsername())
+        }
 
         var card = cached.get(actorAndProject.actor.safeUsername())
             ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val project = actorAndProject.project
         if (project != null && card is IdCard.User) {
+            val projectKey = UsernameAndProject(actorAndProject.actor.safeUsername(), project)
+            if (!allowCached) {
+                println("Clearing the cache!")
+                projectCache.remove(projectKey)
+            }
+
             card = card.copy(
-                activeProject = projectCache.get(
-                    UsernameAndProject(
-                        actorAndProject.actor.safeUsername(),
-                        project
-                    )
-                ) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                activeProject = projectCache.get(projectKey)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             )
         }
 

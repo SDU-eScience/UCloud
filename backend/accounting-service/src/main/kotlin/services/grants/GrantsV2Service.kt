@@ -839,7 +839,7 @@ class GrantsV2Service(
     private class ModificationContext(
         private val ctx: GrantsV2Service,
         private val actorAndProject: ActorAndProject,
-        private val idCard: IdCard,
+        private var idCard: IdCard,
         private val session: AsyncDBConnection,
 
         private val grantGivers: List<GrantGiver>,
@@ -862,8 +862,8 @@ class GrantsV2Service(
                 .toSet()
         }
 
-        private suspend fun isGrantGiver(approverId: String? = null): Boolean {
-            return when (idCard) {
+        private suspend fun isGrantGiver(approverId: String? = null, withCache: Boolean = true): Boolean {
+            return when (val idCard = idCard) {
                 is IdCard.Provider -> false
                 IdCard.System -> true
                 is IdCard.User -> {
@@ -871,7 +871,14 @@ class GrantsV2Service(
                         if (approverId != null) setOf(ctx.idCardService.lookupPidFromProjectIdOrFail(approverId))
                         else grantGiverProjects()
 
-                    idCard.adminOf.any { it in projects }
+                    val success = idCard.adminOf.any { it in projects }
+                    if (withCache && !success) {
+                        println("Fetching it again")
+                        this.idCard = ctx.idCardService.fetchIdCard(actorAndProject, allowCached = false)
+                        isGrantGiver(approverId, withCache = false)
+                    } else {
+                        success
+                    }
                 }
             }
         }
@@ -886,7 +893,7 @@ class GrantsV2Service(
         }
 
         private suspend fun isOwner(): Boolean {
-            when (idCard) {
+            when (val idCard = idCard) {
                 is IdCard.Provider -> return false
                 IdCard.System -> return true
                 is IdCard.User -> {
@@ -1012,7 +1019,7 @@ class GrantsV2Service(
                                 application.currentRevision.document.copy(referenceIds = newRefIds)
                             )
                         } else {
-                            when (idCard) {
+                            when (val idCard = idCard) {
                                 is IdCard.Provider -> genericForbidden()
 
                                 IdCard.System -> {

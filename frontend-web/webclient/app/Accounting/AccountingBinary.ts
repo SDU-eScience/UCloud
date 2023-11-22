@@ -739,6 +739,180 @@ export const UsageOverTimeCompanion: BinaryTypeCompanion<UsageOverTime> = {
     create: (buf) => new UsageOverTime(buf),
 };
 
+export class BreakdownByProjectPoint implements UBinaryType {
+    buffer: BufferAndOffset;
+    constructor(buffer: BufferAndOffset) {
+        this.buffer = buffer;
+    }
+
+    get _title(): UText {
+        let result: UText | null = null;
+        const ptr = this.buffer.buf.getInt32(0 + this.buffer.offset);
+        if (ptr === 0) result = null;
+        else {
+            result = new UText(this.buffer.copyWithOffset(ptr));
+        }
+        return result!;
+    }
+    set _title(value: UText) {
+        if (value === null) this.buffer.buf.setInt32(0 + this.buffer.offset, 0);
+        else {
+            this.buffer.buf.setInt32(0 + this.buffer.offset, value.buffer.offset);
+        }
+    }
+    get title(): string {
+        return this._title?.decode() ?? null;
+    }
+
+    get _projectId(): UText | null {
+        let result: UText | null = null;
+        const ptr = this.buffer.buf.getInt32(4 + this.buffer.offset);
+        if (ptr === 0) result = null;
+        else {
+            result = new UText(this.buffer.copyWithOffset(ptr));
+        }
+        return result;
+    }
+    set _projectId(value: UText | null) {
+        if (value === null) this.buffer.buf.setInt32(4 + this.buffer.offset, 0);
+        else {
+            this.buffer.buf.setInt32(4 + this.buffer.offset, value.buffer.offset);
+        }
+    }
+    get projectId(): string | null {
+        return this._projectId?.decode() ?? null;
+    }
+
+    get usage(): bigint {
+        return this.buffer.buf.getBigInt64(8 + this.buffer.offset)
+    }
+
+    set usage(value: bigint) {
+        this.buffer.buf.setBigInt64(8 + this.buffer.offset, value)
+    }
+
+    encodeToJson() {
+        return {
+            title: this.title,
+            projectId: this.projectId,
+            usage: this.usage,
+        };
+    }
+
+    static create(
+        allocator: BinaryAllocator,
+        title: string,
+        projectId: string | null,
+        usage: bigint,
+    ): BreakdownByProjectPoint {
+        const result = allocator.allocate(BreakdownByProjectPointCompanion);
+        result._title = allocator.allocateText(title);
+        if (projectId === null) result._projectId = null;
+        else result._projectId = allocator.allocateText(projectId);
+        result.usage = usage;
+        return result;
+    }
+}
+export const BreakdownByProjectPointCompanion: BinaryTypeCompanion<BreakdownByProjectPoint> = {
+    size: 16,
+    decodeFromJson: (allocator, element) => {
+        if (typeof element !== "object" || element === null) {
+            throw "Expected an object but found an: " + element;
+        }
+        let title: string | null = null;
+        {
+            const valueForJsonDecode = element['title'];
+            if (typeof valueForJsonDecode !== 'string') throw "Expected 'title' to be a string";
+            title = valueForJsonDecode;
+            if (title === null) throw "Did not expect 'title' to be null!";
+        }
+        let projectId: string | null | null = null;
+        {
+            const valueForJsonDecode = element['projectId'];
+            if (valueForJsonDecode === null) projectId = null;
+            else {
+                if (typeof valueForJsonDecode !== 'string') throw "Expected 'projectId' to be a string";
+                projectId = valueForJsonDecode;
+            }
+        }
+        let usage: bigint | null = null;
+        {
+            const valueForJsonDecode = element['usage'];
+            if (typeof valueForJsonDecode !== 'bigint') throw "Expected 'usage' to be a bigint";
+            usage = valueForJsonDecode;
+            if (usage === null) throw "Did not expect 'usage' to be null!";
+        }
+        return BreakdownByProjectPoint.create(
+            allocator,
+            title,
+            projectId,
+            usage,
+        );
+    },
+    create: (buf) => new BreakdownByProjectPoint(buf),
+};
+
+export class BreakdownByProject implements UBinaryType {
+    buffer: BufferAndOffset;
+    constructor(buffer: BufferAndOffset) {
+        this.buffer = buffer;
+    }
+
+    get data(): BinaryTypeList<BreakdownByProjectPoint> {
+        let result: BinaryTypeList<BreakdownByProjectPoint> | null = null;
+        const ptr = this.buffer.buf.getInt32(0 + this.buffer.offset);
+        if (ptr === 0) result = null;
+        else {
+            result = new BinaryTypeList<BreakdownByProjectPoint>(BreakdownByProjectPointCompanion, this.buffer.copyWithOffset(ptr));
+        }
+        return result!;
+    }
+
+    set data(value) {
+        if (value === null) this.buffer.buf.setInt32(0 + this.buffer.offset, 0);
+        else this.buffer.buf.setInt32(0 + this.buffer.offset, value.buffer.offset);
+    }
+
+    encodeToJson() {
+        return {
+            data: this.data?.encodeToJson() ?? null,
+        };
+    }
+
+    static create(
+        allocator: BinaryAllocator,
+        data: BinaryTypeList<BreakdownByProjectPoint>,
+    ): BreakdownByProject {
+        const result = allocator.allocate(BreakdownByProjectCompanion);
+        result.data = data;
+        return result;
+    }
+}
+export const BreakdownByProjectCompanion: BinaryTypeCompanion<BreakdownByProject> = {
+    size: 4,
+    decodeFromJson: (allocator, element) => {
+        if (typeof element !== "object" || element === null) {
+            throw "Expected an object but found an: " + element;
+        }
+        let data: BinaryTypeList<BreakdownByProjectPoint> | null = null;
+        {
+            const valueForJsonDecode = element['data'];
+            if (!Array.isArray(valueForJsonDecode)) throw "Expected 'data' to be an array";
+            data = BinaryTypeList.create(
+                BreakdownByProjectPointCompanion,
+                allocator,
+                valueForJsonDecode.map(it => BreakdownByProjectPointCompanion.decodeFromJson(allocator, it))
+            );
+            if (data === null) throw "Did not expect 'data' to be null!";
+        }
+        return BreakdownByProject.create(
+            allocator,
+            data,
+        );
+    },
+    create: (buf) => new BreakdownByProject(buf),
+};
+
 export class Charts implements UBinaryType {
     buffer: BufferAndOffset;
     constructor(buffer: BufferAndOffset) {
@@ -890,10 +1064,27 @@ export class ChartsForCategory implements UBinaryType {
         }
     }
 
+    get breakdownByProject(): BreakdownByProject {
+        let result: BreakdownByProject | null = null;
+        const ptr = this.buffer.buf.getInt32(8 + this.buffer.offset);
+        if (ptr === 0) result = null;
+        else {
+            result = new BreakdownByProject(this.buffer.copyWithOffset(ptr));
+        }
+        return result!;
+    }
+    set breakdownByProject(value: BreakdownByProject) {
+        if (value === null) this.buffer.buf.setInt32(8 + this.buffer.offset, 0);
+        else {
+            this.buffer.buf.setInt32(8 + this.buffer.offset, value.buffer.offset);
+        }
+    }
+
     encodeToJson() {
         return {
             categoryIndex: this.categoryIndex,
             overTime: this.overTime?.encodeToJson() ?? null,
+            breakdownByProject: this.breakdownByProject?.encodeToJson() ?? null,
         };
     }
 
@@ -901,15 +1092,17 @@ export class ChartsForCategory implements UBinaryType {
         allocator: BinaryAllocator,
         categoryIndex: number,
         overTime: UsageOverTime,
+        breakdownByProject: BreakdownByProject,
     ): ChartsForCategory {
         const result = allocator.allocate(ChartsForCategoryCompanion);
         result.categoryIndex = categoryIndex;
         result.overTime = overTime;
+        result.breakdownByProject = breakdownByProject;
         return result;
     }
 }
 export const ChartsForCategoryCompanion: BinaryTypeCompanion<ChartsForCategory> = {
-    size: 8,
+    size: 12,
     decodeFromJson: (allocator, element) => {
         if (typeof element !== "object" || element === null) {
             throw "Expected an object but found an: " + element;
@@ -928,10 +1121,18 @@ export const ChartsForCategoryCompanion: BinaryTypeCompanion<ChartsForCategory> 
             overTime = UsageOverTimeCompanion.decodeFromJson(allocator, valueForJsonDecode);
             if (overTime === null) throw "Did not expect 'overTime' to be null!";
         }
+        let breakdownByProject: BreakdownByProject | null = null;
+        {
+            const valueForJsonDecode = element['breakdownByProject'];
+            if (typeof valueForJsonDecode !== 'object') throw "Expected 'breakdownByProject' to be an object";
+            breakdownByProject = BreakdownByProjectCompanion.decodeFromJson(allocator, valueForJsonDecode);
+            if (breakdownByProject === null) throw "Did not expect 'breakdownByProject' to be null!";
+        }
         return ChartsForCategory.create(
             allocator,
             categoryIndex,
             overTime,
+            breakdownByProject,
         );
     },
     create: (buf) => new ChartsForCategory(buf),

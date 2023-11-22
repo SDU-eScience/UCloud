@@ -544,6 +544,133 @@ fun BinaryAllocator.UsageOverTime(
 }
 
 @JvmInline
+value class BreakdownByProjectPoint(override val buffer: BufferAndOffset) : BinaryType {
+    var _title: Text
+        inline get() = Text(buffer.copy(offset = buffer.data.getInt(0 + buffer.offset)))
+        inline set(value) { buffer.data.putInt(0 + buffer.offset, value.buffer.offset) }
+    val title: String
+        inline get() = _title.decode()
+
+    var _projectId: Text?
+        inline get() {
+            val offset = buffer.data.getInt(4 + buffer.offset)
+            return if (offset == 0) null else Text(buffer.copy(offset = offset))
+        }
+        inline set(value) { buffer.data.putInt(4 + buffer.offset, value?.buffer?.offset ?: 0) }
+    val projectId: String?
+        inline get() = _projectId?.decode()
+
+    var usage: Long
+        inline get() = buffer.data.getLong(8 + buffer.offset)
+        inline set (value) { buffer.data.putLong(8 + buffer.offset, value) }
+
+    override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+        "title" to (title.let { JsonPrimitive(it) }),
+        "projectId" to (projectId?.let { JsonPrimitive(it) } ?: JsonNull),
+        "usage" to (usage.let { JsonPrimitive(it) }),
+    ))
+
+    companion object : BinaryTypeCompanion<BreakdownByProjectPoint> {
+        override val size = 16
+        private val mySerializer = BinaryTypeSerializer(this)
+        fun serializer() = mySerializer
+        override fun create(buffer: BufferAndOffset) = BreakdownByProjectPoint(buffer)
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): BreakdownByProjectPoint {
+            if (json !is JsonObject) error("BreakdownByProjectPoint must be decoded from an object")
+            val title = run {
+                val element = json["title"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    if (element !is JsonPrimitive) error("Expected 'title' to be a primitive")
+                    element.content
+                }
+            } ?: error("Missing required property: title in BreakdownByProjectPoint")
+            val projectId = run {
+                val element = json["projectId"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    if (element !is JsonPrimitive) error("Expected 'projectId' to be a primitive")
+                    element.content
+                }
+            }
+            val usage = run {
+                val element = json["usage"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    if (element !is JsonPrimitive) error("Expected 'usage' to be a primitive")
+                    element.content.toLong()
+                }
+            } ?: error("Missing required property: usage in BreakdownByProjectPoint")
+            return allocator.BreakdownByProjectPoint(
+                title = title,
+                projectId = projectId,
+                usage = usage,
+            )
+        }
+    }
+}
+
+
+fun BinaryAllocator.BreakdownByProjectPoint(
+    title: String,
+    projectId: String? = null,
+    usage: Long,
+): BreakdownByProjectPoint {
+    val result = this.allocate(BreakdownByProjectPoint)
+    result._title = title.let { allocateText(it) }
+    result._projectId = projectId?.let { allocateText(it) }
+    result.usage = usage
+    return result
+}
+
+@JvmInline
+value class BreakdownByProject(override val buffer: BufferAndOffset) : BinaryType {
+    var data: BinaryTypeList<BreakdownByProjectPoint>
+        inline get() {
+            val offset = buffer.data.getInt(0 + buffer.offset)
+            return (if (offset == 0) null else BinaryTypeList(BreakdownByProjectPoint, buffer.copy(offset = offset))) ?: error("Missing property data")
+        }
+        inline set(value) { buffer.data.putInt(0 + buffer.offset, value.buffer.offset) }
+
+    override fun encodeToJson(): JsonElement = JsonObject(mapOf(
+        "data" to (data.let { it.encodeToJson() }),
+    ))
+
+    companion object : BinaryTypeCompanion<BreakdownByProject> {
+        override val size = 4
+        private val mySerializer = BinaryTypeSerializer(this)
+        fun serializer() = mySerializer
+        override fun create(buffer: BufferAndOffset) = BreakdownByProject(buffer)
+        override fun decodeFromJson(allocator: BinaryAllocator, json: JsonElement): BreakdownByProject {
+            if (json !is JsonObject) error("BreakdownByProject must be decoded from an object")
+            val data = run {
+                val element = json["data"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    BinaryTypeList.decodeFromJson(BreakdownByProjectPoint, allocator, element)
+                }
+            } ?: error("Missing required property: data in BreakdownByProject")
+            return allocator.BreakdownByProject(
+                data = data,
+            )
+        }
+    }
+}
+
+
+fun BinaryAllocator.BreakdownByProject(
+    data: BinaryTypeList<BreakdownByProjectPoint>,
+): BreakdownByProject {
+    val result = this.allocate(BreakdownByProject)
+    result.data = data
+    return result
+}
+
+@JvmInline
 value class Charts(override val buffer: BufferAndOffset) : BinaryType {
     var categories: BinaryTypeList<ProductCategoryB>
         inline get() {
@@ -644,13 +771,27 @@ value class ChartsForCategory(override val buffer: BufferAndOffset) : BinaryType
             buffer.data.putInt(4 + buffer.offset, value?.buffer?.offset ?: 0)
         }
 
+    var breakdownByProject: BreakdownByProject
+        inline get() {
+            val offset = buffer.data.getInt(8 + buffer.offset)
+            return (if (offset == 0) {
+                null
+            } else {
+                BreakdownByProject(buffer.copy(offset = offset))
+            })!!
+        }
+        inline set(value) {
+            buffer.data.putInt(8 + buffer.offset, value?.buffer?.offset ?: 0)
+        }
+
     override fun encodeToJson(): JsonElement = JsonObject(mapOf(
         "categoryIndex" to (categoryIndex.let { JsonPrimitive(it) }),
         "overTime" to (overTime.let { it.encodeToJson() }),
+        "breakdownByProject" to (breakdownByProject.let { it.encodeToJson() }),
     ))
 
     companion object : BinaryTypeCompanion<ChartsForCategory> {
-        override val size = 8
+        override val size = 12
         private val mySerializer = BinaryTypeSerializer(this)
         fun serializer() = mySerializer
         override fun create(buffer: BufferAndOffset) = ChartsForCategory(buffer)
@@ -673,9 +814,18 @@ value class ChartsForCategory(override val buffer: BufferAndOffset) : BinaryType
                     UsageOverTime.decodeFromJson(allocator, element)
                 }
             } ?: error("Missing required property: overTime in ChartsForCategory")
+            val breakdownByProject = run {
+                val element = json["breakdownByProject"]
+                if (element == null || element == JsonNull) {
+                    null
+                } else {
+                    BreakdownByProject.decodeFromJson(allocator, element)
+                }
+            } ?: error("Missing required property: breakdownByProject in ChartsForCategory")
             return allocator.ChartsForCategory(
                 categoryIndex = categoryIndex,
                 overTime = overTime,
+                breakdownByProject = breakdownByProject,
             )
         }
     }
@@ -685,10 +835,12 @@ value class ChartsForCategory(override val buffer: BufferAndOffset) : BinaryType
 fun BinaryAllocator.ChartsForCategory(
     categoryIndex: Int,
     overTime: UsageOverTime,
+    breakdownByProject: BreakdownByProject,
 ): ChartsForCategory {
     val result = this.allocate(ChartsForCategory)
     result.categoryIndex = categoryIndex
     result.overTime = overTime
+    result.breakdownByProject = breakdownByProject
     return result
 }
 
