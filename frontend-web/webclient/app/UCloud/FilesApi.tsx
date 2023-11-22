@@ -10,7 +10,7 @@ import {
 import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {Box, Button, Flex, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -19,46 +19,41 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
-    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment,
-    onDevSite,
-    prettierString, removeTrailingSlash
+    displayErrorMessageOrDefault, doNothing, inDevEnvironment, onDevSite, prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {ResourceProperties} from "@/Resource/Properties";
-import {CheckboxFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import {MetadataBrowse} from "@/Files/Metadata/Documents/Browse";
 import {FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
-import {FileFavoriteToggle} from "@/Files/FavoriteToggle";
-import {PrettyFilePath} from "@/Files/FilePath";
+import {PrettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
-import {addStandardDialog, Sensitivity} from "@/UtilityComponents";
+import {addStandardDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {ListRowStat} from "@/ui-components/List";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {apiCreate, apiUpdate, callAPI, InvokeCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
-import {useCallback, useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {useNavigate} from "react-router";
+import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
+import {injectStyle} from "@/Unstyled";
+import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -231,31 +226,30 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
     return sensitivity;
 }
 
+const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
+    ${k} {
+
+    }
+
+    ${k} > .A {
+        padding: 15px;
+        width: 100%;
+    }
+
+    ${k} > .B {
+        font-size: 14px;
+        width: 240px;
+        min-width: 240px;
+        padding: 15px;
+        height: 100vh;
+    }
+`);
+
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
         super("files");
         this.sortEntries = [];
-        this.sortEntries.push({
-            column: "PATH",
-            icon: "id",
-            title: "Name",
-            helpText: "By the file's name"
-        }, {
-            column: "MODIFIED_AT",
-            icon: "edit",
-            title: "Modified time",
-            helpText: "When the file was last modified"
-        }, {
-            column: "SIZE",
-            icon: "fullscreen",
-            title: "Size",
-            helpText: "By size of the file"
-        });
-        this.filterWidgets = [];
-        this.filterPills = [];
-
-        this.registerFilter(CheckboxFilter("search", "filterHiddenFiles", "Show hidden files", true));
     }
 
     public routingNamespace = "files";
@@ -264,54 +258,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {
-        MainTitle({resource}) {return <>{resource ? fileName(resource.id) : ""}</>},
-        Icon(props: {resource?: UFile, size: string}) {
-            const file = props.resource;
-            const favoriteComponent = parseInt(props.size.replace("px", "")) > 40 ? null :
-                <FileFavoriteToggle file={file} />;
-            const icon = !file ?
-                <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size} /> :
-                <FtIcon
-                    iconHint={file.status.icon}
-                    fileIcon={{type: file.status.type, ext: extensionFromPath(fileName(file.id))}}
-                    size={props.size}
-                />;
-            return <>{favoriteComponent}{icon}</>
-        },
-        ImportantStats({resource, callbacks}) {
-            if (!resource) return null;
-            const sensitivity = useSensitivity(resource);
-
-            const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
-            const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
-
-            const navigate = useNavigate();
-            const openSync = useCallback(() => {
-                navigate(`/syncthing?provider=${resource.specification.product.provider}`);
-            }, []);
-
-            return <Flex>
-                {isSynchronized ?
-                    <div style={{cursor: "pointer"}} onClick={openSync}>
-                        <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
-                    </div>
-                    : null}
-                <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
-                    <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
-                </div>
-            </Flex>;
-        },
-        Stats({resource, callbacks}) {
-            if (resource == null) return null;
-            const size = fileSize(resource, callbacks.collection?.status.resolvedSupport?.support)
-            return <>
-                {size === undefined ? null : <ListRowStat icon={"rulerSolid"}>{sizeToString(size)}</ListRowStat>}
-                {resource.status.unixMode === undefined ? null :
-                    <ListRowStat icon={"verified"}>{readableUnixMode(resource.status.unixMode)}</ListRowStat>}
-            </>;
-        }
-    };
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {};
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -321,75 +268,108 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         allowUnsupportedInclude: true
     };
 
-    public Properties = (props) => {
-        return <ResourceProperties
-            {...props} api={this}
-            showMessages={false} showPermissions={false} showProperties={false}
-            flagsForRetrieve={this.defaultRetrieveFlags}
-            InfoChildren={props => {
-                const file = props.resource as UFile;
-                return <>
-                    <HighlightedCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
-                        <div><b>Path:</b> <Truncate title={file.id}><PrettyFilePath path={file.id} /></Truncate></div>
-                        <div>
-                            <b>Product: </b>
-                            {file.specification.product.id === file.specification.product.category ?
-                                <>{file.specification.product.id}</> :
-                                <>{file.specification.product.id} / {file.specification.product.category}</>
-                            }
-                        </div>
-                        <Flex gap="8px">
-                            <b>Provider: </b>
-                            <ProviderTitle providerId={file.specification.product.provider} />
-                        </Flex>
-                        <Box mt={"16px"} mb={"8px"}>
-                            <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
-                                <Button fullWidth>View in folder</Button>
-                            </Link>
-                        </Box>
-                    </HighlightedCard>
-                    <HighlightedCard color={"purple"} title={"Properties"} icon={"properties"}>
-                        <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
-                        {file.status.modifiedAt ?
-                            <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
-                        {file.status.accessedAt ?
-                            <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
-                        {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                            <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
-                        {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                            <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
-                            </div> : null
-                        }
-                        {file.status.unixOwner != null && file.status.unixGroup != null ?
-                            <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
-                            null
-                        }
-                        {file.status.unixMode != null ?
-                            <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
-                            null
-                        }
-                    </HighlightedCard>
-                </>
-            }}
-            ContentChildren={props => (
-                <>
-                    <HighlightedCard color={"purple"}>
-                        <MetadataBrowse
-                            file={props.resource as UFile}
-                            inPopIn={!!props.inPopIn}
-                            metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
-                            reload={props.reload}
-                        />
-                    </HighlightedCard>
-                    {(props.resource as UFile).status.type !== "FILE" ? null :
-                        <HighlightedCard color={"purple"} title={"Preview"} icon={"search"}>
-                            <FilePreview file={props.resource as UFile} />
-                        </HighlightedCard>
+    public Properties = () => {
+        const {id} = useParams<{id?: string}>();
+
+        const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
+
+        React.useEffect(() => {
+            if (!id) return;
+            fetchFile(this.retrieve({
+                id,
+                includeUpdates: true,
+                includeOthers: true,
+                includeSupport: true,
+                ...this.defaultRetrieveFlags
+            }))
+        }, [id]);
+
+        const prettyPath = usePrettyFilePath(id ?? "");
+        const downloadRef = React.useRef(new Uint8Array());
+        useTitle(prettyPath);
+
+        const [, invokeCommand] = useCloudCommand();
+
+        const downloadFunction = React.useMemo(() => {
+            return this.retrieveOperations().find(it => it.text === "Download");
+        }, []);
+
+        const file = fileData.data;
+
+        const downloadFile = React.useCallback(() => {
+            if (!id || !downloadFunction || !file) return;
+            if (downloadRef.current.length > 0) {
+                const url = window.URL.createObjectURL(
+                    new Blob([new Uint8Array(downloadRef.current, 0, downloadRef.current.length)])
+                );
+                const a = document.createElement("a");
+                a.style.display = "none";
+                a.href = url;
+                a.download = fileName(id);
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } else {
+                downloadFunction.onClick([file], {invokeCommand} as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks);
+            }
+        }, [downloadRef, file, id]);
+
+        if (!id) return <h1>Missing file id.</h1>
+
+        if (fileData.loading) return <PredicatedLoadingSpinner loading />
+
+        if (!file) return <h1>INVALID DATA! TODO! FIX THIS!</h1>;
+
+        return <Flex className={FilePropertiesLayout}>
+            <div className="A">
+                {file.status.type !== "FILE" ? null :
+                    <FilePreview file={file} contentRef={downloadRef} />
+                }
+            </div>
+
+            <div className="B">
+                <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
+                <div>
+                    <b>Product: </b>
+                    {file.specification.product.id === file.specification.product.category ?
+                        <>{file.specification.product.id}</> :
+                        <>{file.specification.product.id} / {file.specification.product.category}</>
                     }
-                </>
-            )}
-        />;
-    };
+                </div>
+                <Flex gap="8px">
+                    <b>Provider: </b>
+                    <ProviderTitle providerId={file.specification.product.provider} />
+                </Flex>
+                <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
+                {file.status.modifiedAt ?
+                    <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
+                {file.status.accessedAt ?
+                    <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+                {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
+                    <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+                {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
+                    <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
+                    </div> : null
+                }
+                {file.status.unixOwner != null && file.status.unixGroup != null ?
+                    <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
+                    null
+                }
+                {file.status.unixMode != null ?
+                    <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
+                    null
+                }
+                <Box mt={"16px"} mb={"8px"}>
+                    <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
+                        <Button fullWidth>View in folder</Button>
+                    </Link>
+                </Box>
+                <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
+                    <Button fullWidth>Download</Button>
+                </Box>
+            </div>
+        </Flex>
+    }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
         const base = super.retrieveOperations()

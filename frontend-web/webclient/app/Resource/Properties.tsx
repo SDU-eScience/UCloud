@@ -54,10 +54,6 @@ const Container = injectStyle("container", k => `
         max-width: 2200px;
     }
 
-    ${k}[data-in-pop-in="true"] {
-        margin: 0;
-    }
-
     ${k} {
         ${device("xs")} {
             margin-left: 0;
@@ -171,14 +167,14 @@ const ContentWrapper = injectStyleSimple("content-wrapper", `
 interface PropertiesProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
     embedded?: boolean;
-    inPopIn?: boolean;
+    classname?: string;
 
     resource?: Res | string;
     reload?: () => void;
     closeProperties?: () => void;
 
-    InfoChildren?: React.FunctionComponent<{resource: Res, reload: () => void; inPopIn?: boolean;}>;
-    ContentChildren?: React.FunctionComponent<{resource: Res, reload: () => void; inPopIn?: boolean;}>;
+    InfoChildren?: React.FunctionComponent<{resource: Res, reload: () => void;}>;
+    ContentChildren?: React.FunctionComponent<{resource: Res, reload: () => void;}>;
 
     showMessages?: boolean;
     showPermissions?: boolean;
@@ -229,7 +225,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const infoChildrenResolved = useMemo(() => {
         if (props.InfoChildren && ownResource.data) {
-            return <props.InfoChildren inPopIn={props.inPopIn} resource={ownResource.data} reload={reload} />;
+            return <props.InfoChildren resource={ownResource.data} reload={reload} />;
         } else {
             return null;
         }
@@ -237,7 +233,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const childrenResolved = useMemo(() => {
         if (props.ContentChildren && ownResource.data) {
-            return <props.ContentChildren inPopIn={props.inPopIn} resource={ownResource.data} reload={reload} />;
+            return <props.ContentChildren resource={ownResource.data} reload={reload} />;
         } else {
             return null;
         }
@@ -265,7 +261,6 @@ export function ResourceProperties<Res extends Resource>(
         closeProperties: props.closeProperties,
         dispatch,
         supportByProvider,
-        inPopIn: props.inPopIn
     }), [api, invokeCommand, commandLoading, navigate, reload, props.closeProperties, dispatch, supportByProvider]);
 
     const operations = useMemo(() => api.retrieveOperations(), [api]);
@@ -282,42 +277,44 @@ export function ResourceProperties<Res extends Resource>(
     const editPermissionsAllowed = canEditPermission(support, props.api.getNamespace());
 
     const main = resource ? <>
-        <div data-in-pop-in={props.inPopIn} className={classConcat(Container, "RUNNING active")}>
-            <div className={`logo-wrapper`}>
+        <div className={classConcat(Container, "RUNNING active")}>
+            {!renderer.Icon ? null : <div className={`logo-wrapper`}>
                 <div className="logo-scale">
                     <div className={"logo"}>
-                        {!renderer.Icon ? null : <renderer.Icon browseType={BrowseType.MainContent} resource={resource} size={"200px"} callbacks={{}} />}
+                        <renderer.Icon browseType={BrowseType.MainContent} resource={resource} size={"200px"} callbacks={{}} />
                     </div>
                 </div>
-            </div>
+            </div>}
 
 
             <div className={"data"}>
-                <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"} data-in-pop-in={props.inPopIn}>
-                    <div className={"fake-logo"} />
-                    <div className={"header-text"}>
-                        <div style={{width: props.inPopIn ? "210px" : undefined}}>
-                            <Heading.h2>
-                                {!renderer.MainTitle ? null : <Truncate>
-                                    <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource} callbacks={{}} />
-                                </Truncate>}
-                            </Heading.h2>
-                            <Heading.h3>{props.api.title}</Heading.h3>
+                {!renderer.MainTitle ? null :
+                    <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                        <div className={"fake-logo"} />
+                        <div className={"header-text"}>
+                            <div>
+                                <Heading.h2>
+                                    <Truncate>
+                                        <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource} callbacks={{}} />
+                                    </Truncate>
+                                </Heading.h2>
+                                <Heading.h3>{props.api.title}</Heading.h3>
+                            </div>
+                            <div className={"operations"}>
+                                <Operations
+                                    location={"TOPBAR"}
+                                    operations={operations}
+                                    selected={[resource]}
+                                    extra={callbacks}
+                                    entityNameSingular={api.title}
+                                    entityNamePlural={api.titlePlural}
+                                    displayTitle={false}
+                                    showSelectedCount={false}
+                                />
+                            </div>
                         </div>
-                        {props.inPopIn ? null : <div className={"operations"}>
-                            <Operations
-                                location={"TOPBAR"}
-                                operations={operations}
-                                selected={[resource]}
-                                extra={callbacks}
-                                entityNameSingular={api.title}
-                                entityNamePlural={api.titlePlural}
-                                displayTitle={false}
-                                showSelectedCount={false}
-                            />
-                        </div>}
-                    </div>
-                </Flex>
+                    </Flex>
+                }
 
                 <div className={InfoWrapper}>
                     {props.showProperties === false ? null :
@@ -359,11 +356,7 @@ export function ResourceProperties<Res extends Resource>(
         </div>
     </> : null;
 
-    if (props.embedded == true) {
-        return main;
-    } else {
-        return <MainContainer main={main} />;
-    }
+    return main;
 }
 
 const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => {

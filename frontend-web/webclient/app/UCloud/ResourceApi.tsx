@@ -194,7 +194,6 @@ export abstract class ResourceApi<Res extends Resource,
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: boolean;
-        inPopIn?: boolean;
     }> = props => <ResourceProperties {...props} api={this} />
 
     protected constructor(namespace: string) {

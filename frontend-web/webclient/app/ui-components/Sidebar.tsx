@@ -622,14 +622,19 @@ function SecondarySidebar({
     const asPopOver = hovered && !clicked;
 
     useEffect(() => {
-        const firstLevel = parseInt(getCssPropertyValue("sidebarWidth").replace("px", ""));
-        const secondLevel = parseInt(getCssPropertyValue("secondarySidebarWidth").replace("px", ""));
+        const firstLevel = parseInt(getCssPropertyValue("sidebarWidth").replace("px", ""), 10);
+        const secondLevel = parseInt(getCssPropertyValue("secondarySidebarWidth").replace("px", ""), 10);
 
         let sum = firstLevel;
         if (isOpen) sum += secondLevel;
+        if (asPopOver) {
+            document.body.style.setProperty("--sidebarBlockWidth", `${firstLevel}px`);
+        } else {
+            document.body.style.setProperty("--sidebarBlockWidth", `${sum}px`);
+        }
 
         document.body.style.setProperty("--currentSidebarWidth", `${sum}px`);
-    }, [isOpen]);
+    }, [isOpen, asPopOver]);
 
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}

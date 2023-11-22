@@ -22,7 +22,7 @@ import {TextSpan} from "@/ui-components/Text";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow from "./ApplicationsRow";
-import { GradientWithPolygons } from "@/ui-components/GradientBackground";
+import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -86,7 +86,7 @@ const LandingDivider = injectStyle("landing-divider", k => `
     }
 `);
 
-  const LargeSearchBoxClass = injectStyle("large-search-box", k => `
+const LargeSearchBoxClass = injectStyle("large-search-box", k => `
     ${k} {
         width: 400px;
         margin: 30px auto;
@@ -218,7 +218,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                                     scrolling={false}
                                 />
                             </>
-                        : <></>}
+                            : <></>}
 
 
                         <Flex className={LandingDivider} justifyContent="space-around">
@@ -242,7 +242,7 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                                     scrolling={false}
                                 />
                             </>
-                        : <></>}
+                            : <></>}
 
                         <FloatingButton />
                     </Box>

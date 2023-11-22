@@ -39,6 +39,7 @@ async function getMonaco(): Promise<any> {
                         return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
                 }
 
+
                 function getWorkerModule(moduleUrl, label) {
                     return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
                         name: label,
@@ -53,7 +54,13 @@ async function getMonaco(): Promise<any> {
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 
-export function FilePreview({file}: {file: UFile}): React.ReactNode {
+export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React.MutableRefObject<Uint8Array>}): React.ReactNode {
+    let oldOnResize: typeof window.onresize;
+
+    React.useEffect(() => {
+        oldOnResize = window.onresize;
+        return () => {window.onresize = oldOnResize}
+    }, [])
     const [type, setType] = useState<ExtensionType>(null);
     const [loading, invokeCommand] = useCloudCommand();
 
@@ -81,10 +88,13 @@ export function FilePreview({file}: {file: UFile}): React.ReactNode {
                 const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
 
                 const foundFileType = fileType(contentBuffer);
+                if (contentRef) contentRef.current = contentBuffer;
                 if (foundFileType.length === 0) {
                     const text = tryDecodeText(contentBuffer);
                     if (text !== null) {
-                        setType("text");
+                        if ([".md", ".markdown"].some(ending => file.id.endsWith(ending))) {
+                            setType("markdown")
+                        } else setType("text");
                         setData(text);
                         setError(null);
                     } else {
@@ -156,7 +166,10 @@ export function FilePreview({file}: {file: UFile}): React.ReactNode {
                     readOnly: true,
                     minimap: {enabled: false},
                     theme: isLightThemeStored() ? "light" : "vs-dark",
-                })
+                });
+                window.onresize = () => {
+                    monaco.editor.getEditors().forEach(it => it.layout());
+                };
             });
             return () => {
                 getMonaco().then(monaco => monaco.editor.getEditors().forEach(it => it.dispose()));
@@ -176,19 +189,19 @@ export function FilePreview({file}: {file: UFile}): React.ReactNode {
             node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
             break;
         case "image":
-            node = <img alt={fileName(file.id)} src={data} />
+            node = <img className={Image} alt={fileName(file.id)} src={data} />
             break;
         case "audio":
-            node = <audio controls src={data} />;
+            node = <audio className={Audio} controls src={data} />;
             break;
         case "video":
-            node = <video src={data} controls />;
+            node = <video className={Video} src={data} controls />;
             break;
         case "pdf":
-            node = <object type="application/pdf" style={{width: "100vw", height: "100vh"}} className="fullscreen" data={data} />;
+            node = <object type="application/pdf" className={classConcat("fullscreen", Object)} data={data} />;
             break;
         case "markdown":
-            node = <div><Markdown>{data}</Markdown></div>;
+            node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
             break;
         default:
             node = <div />
@@ -202,22 +215,43 @@ export function FilePreview({file}: {file: UFile}): React.ReactNode {
     return <div className={ItemWrapperClass}>{node}</div>;
 }
 
-const Editor = injectStyleSimple("m-editor", `
-    height: 500px;
+const MarkdownStyling = injectStyleSimple("markdown-styling", `
+    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
     width: 100%;
 `);
+
+const Audio = injectStyleSimple("preview-audio", `
+    margin-top: auto;
+    margin-bottom: auto;
+`);
+
+const Editor = injectStyleSimple("m-editor", `
+    height: calc(100vh - 15px - 15px);
+    width: 100%;
+`);
+
+const Image = injectStyleSimple("preview-image", `
+    object-fit: contain;
+    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
+    max-height: calc(100vh - 15px - 15px);
+`);
+
+const Video = injectStyleSimple("preview-video", `
+    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
+`);
+
+const Object = injectStyleSimple("preview-pdf", `
+    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
+    width: 100%;
+    max-height: calc(100vh - 30px);
+`)
 
 const ItemWrapperClass = injectStyle("item-wrapper", k => `
     ${k} {
         display: flex;
         justify-content: center;
-        margin-bottom: 15px;
-    }
-
-    ${k} > * {
-      max-width: 100%;
-      max-height: calc(100vh - 300px);
-      overflow-y: scroll;
+        height: 100%;
+        width: 100%;
     }
 `);
 

@@ -625,11 +625,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         },
                         viewProperties(res: UFile): void {
                             navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
-                            // Note(Jonas): Alternative solution, that might make more sense
-                            // dispatch(setPopInChild({
-                            //     el: <FilesApi.Properties inPopIn resource={res} reload={operations.reload} />,
-                            //     onFullScreen: () => navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
-                            // }));
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
