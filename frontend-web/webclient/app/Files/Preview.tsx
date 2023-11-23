@@ -215,8 +215,11 @@ export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React
     return <div className={ItemWrapperClass}>{node}</div>;
 }
 
+const MAX_HEIGHT = "calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));"
+const HEIGHT = "calc(100vh - 30px);"
+
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
-    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
+    max-width: ${MAX_HEIGHT};
     width: 100%;
 `);
 
@@ -226,24 +229,24 @@ const Audio = injectStyleSimple("preview-audio", `
 `);
 
 const Editor = injectStyleSimple("m-editor", `
-    height: calc(100vh - 15px - 15px);
+    height: ${HEIGHT}
     width: 100%;
 `);
 
 const Image = injectStyleSimple("preview-image", `
     object-fit: contain;
-    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
-    max-height: calc(100vh - 15px - 15px);
+    max-width: ${MAX_HEIGHT}
+    max-height: ${HEIGHT}
 `);
 
 const Video = injectStyleSimple("preview-video", `
-    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
+    max-width: ${MAX_HEIGHT}
 `);
 
 const Object = injectStyleSimple("preview-pdf", `
-    max-width: calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));
+    max-width: ${MAX_HEIGHT}
     width: 100%;
-    max-height: calc(100vh - 30px);
+    max-height: ${HEIGHT}
 `)
 
 const ItemWrapperClass = injectStyle("item-wrapper", k => `
