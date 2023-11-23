@@ -670,7 +670,7 @@ function SecondarySidebar({
             <Flex flexDirection={"column"} gap={"16px"}>
                 <div>
                     <h3><Link to={"/drives/"}>Drives</Link></h3>
-                    {drives.data.items.map(it =>
+                    {drives.data.items.slice(0, 8).map(it =>
                         <Link key={it.id} to={`/files?path=${it.id}`}>
                             <Flex>
                                 <Box mt="1px" mr="4px"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Box>
@@ -680,6 +680,16 @@ function SecondarySidebar({
                             </Flex>
                         </Link>
                     )}
+                    {drives.data.items.length < 8 ? null :
+                        /* TODO(Jonas): Find better solution than this. */
+                        <Link to={`/drives/`}>
+                            <Flex>
+                                <Text mx="auto" fontSize="14px" maxWidth={"150px"} color="var(--fixedWhite)">
+                                    View all drives
+                                </Text>
+                            </Flex>
+                        </Link>
+                    }
                 </div>
 
                 <div>
