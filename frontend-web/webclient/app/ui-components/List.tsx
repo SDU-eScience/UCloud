@@ -7,6 +7,7 @@ import {Cursor} from "@/ui-components/Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {classConcat, extractSize, injectStyle, unbox} from "@/Unstyled";
+import {CSSVarCurrentSidebarWidth} from "./Sidebar";
 
 export const ListClass = injectStyle("list", k => `
     ${k} {
@@ -169,13 +170,13 @@ const ListRowClass = injectStyle("list-item", k => `
   
     ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {
       ${k} .row-left{
-        max-width: calc(100vw - var(--currentSidebarWidth));
+        max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
       }
     }
 
     ${deviceBreakpoint({maxWidth: "767px"})} {
         ${k} .row-left {
-            max-width: calc(100vw - var(--currentSidebarWidth));
+            max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
         }
     }
 

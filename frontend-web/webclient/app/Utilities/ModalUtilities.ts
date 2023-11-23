@@ -1,3 +1,4 @@
+import {CSSVarCurrentSidebarWidth} from "@/ui-components/Sidebar";
 import ReactModal from "react-modal";
 
 export const largeModalStyle: ReactModal.Styles = {
@@ -10,7 +11,7 @@ export const largeModalStyle: ReactModal.Styles = {
         maxWidth: "calc(100vw - 10px)",
         position: "fixed",
         top: "10vh",
-        left: "calc(50vw - 450px + var(--currentSidebarWidth))",
+        left: `calc(50vw - 450px + var(${CSSVarCurrentSidebarWidth}))`,
         outline: "none",
     },
     overlay: {
@@ -27,7 +28,7 @@ export const defaultModalStyle: ReactModal.Styles = {
         maxWidth: "calc(100vw - 10px)",
         position: "fixed",
         top: "10vh",
-        left: "calc(50vw - 450px + var(--currentSidebarWidth))",
+        left: `calc(50vw - 450px + var(${CSSVarCurrentSidebarWidth}))`,
         outline: "none",
     },
     overlay: {
