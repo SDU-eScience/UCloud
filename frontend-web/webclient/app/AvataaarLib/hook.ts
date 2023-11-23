@@ -30,6 +30,13 @@ class AvatarState extends UState<AvatarState> {
         });
     }
 
+    invalidateAndUpdate(usernames: string[]): Promise<void> {
+        for (const name of usernames) {
+            delete this.cache[name];
+        }
+        return this.updateCache(usernames);
+    }
+
     avatar(username: string): AvatarType {
         this.updateCache([username]);
         return this.cache[username] ?? defaultAvatar;

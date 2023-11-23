@@ -3,6 +3,7 @@ import {IconName} from "@/ui-components/Icon";
 import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import { BulkRequest, PageV2, PaginationRequestV2 } from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import * as AccountingB from "./AccountingBinary";
 
 export const UCLOUD_PROVIDER = "ucloud";
 
@@ -683,6 +684,7 @@ export function usageExplainer(
 // Version 2 API
 // =====================================================================================================================
 const baseContextV2 = "/api/accounting/v2";
+const visualizationContextV2 = "/api/accounting/v2/visualization";
 
 export interface AccountingUnit {
     name: string;
@@ -925,10 +927,14 @@ const standardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
 const defaultUnits = ["K", "M", "B", "T"];
 const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
 
-export function balanceToString(category: ProductCategoryV2, balance: number): string {
+export function balanceToString(
+    category: ProductCategoryV2,
+    balance: number,
+    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.priceFactor;
-    return balanceToStringFromUnit(unit.productType, unit.name, normalizedBalance)
+    return balanceToStringFromUnit(unit.productType, unit.name, normalizedBalance, opts)
 }
 
 export function balanceToStringFromUnit(
@@ -974,8 +980,10 @@ export function balanceToStringFromUnit(
     let builder = "";
     builder += addThousandSeparators(removeSuffix(balanceToDisplay.toFixed(opts?.precision ?? 2), ".00"));
     if (attachedSuffix) builder += attachedSuffix;
-    builder += " ";
-    if (!canRemoveUnit) builder += unitToDisplay;
+    if (!canRemoveUnit) {
+        builder += " ";
+        builder += unitToDisplay;
+    }
     return builder;
 }
 
@@ -1051,6 +1059,16 @@ export function updateAllocationV2(request: BulkRequest<{
     return apiUpdate(request, baseContextV2, "updateAllocation");
 }
 
+export function retrieveChartsV2(request: {
+    start: number,
+    end: number,
+}): APICallParametersBinary<AccountingB.Charts> {
+    return {
+        ...apiRetrieve(request, visualizationContextV2, "charts"),
+        responseConstructor: AccountingB.Charts
+    };
+}
+
 export function walletOwnerEquals(a: WalletOwner, b: WalletOwner): boolean {
     switch (a.type) {
         case "project": {
@@ -1063,6 +1081,54 @@ export function walletOwnerEquals(a: WalletOwner, b: WalletOwner): boolean {
             return a.username === b.username;
         }
     }
+}
+
+export function translateBinaryProductType(t: AccountingB.ProductTypeB): ProductType {
+    switch (t) {
+        case AccountingB.ProductTypeB.STORAGE:
+            return "STORAGE";
+        case AccountingB.ProductTypeB.COMPUTE:
+            return "COMPUTE";
+        case AccountingB.ProductTypeB.LICENSE:
+            return "LICENSE";
+        case AccountingB.ProductTypeB.INGRESS:
+            return "INGRESS";
+        case AccountingB.ProductTypeB.NETWORK_IP:
+            return "NETWORK_IP";
+    }
+}
+
+export function translateBinaryFrequency(t: AccountingB.AccountingFrequencyB): AccountingFrequency {
+    switch (t) {
+        case AccountingB.AccountingFrequencyB.ONCE:
+            return "ONCE";
+        case AccountingB.AccountingFrequencyB.PERIODIC_MINUTE:
+            return "PERIODIC_MINUTE";
+        case AccountingB.AccountingFrequencyB.PERIODIC_HOUR:
+            return "PERIODIC_HOUR";
+        case AccountingB.AccountingFrequencyB.PERIODIC_DAY:
+            return "PERIODIC_DAY";
+    }
+}
+
+export function translateBinaryUnit(t: AccountingB.AccountingUnitB): AccountingUnit {
+    return {
+        name: t.name,
+        namePlural: t.namePlural,
+        displayFrequencySuffix: t.displayFrequencySuffix,
+        floatingPoint: t.floatingPoint
+    };
+}
+
+export function translateBinaryProductCategory(pc: AccountingB.ProductCategoryB): ProductCategoryV2 {
+    return {
+        name: pc.name,
+        provider: pc.provider,
+        productType: translateBinaryProductType(pc.productType),
+        accountingFrequency: translateBinaryFrequency(pc.accountingFrequency),
+        accountingUnit: translateBinaryUnit(pc.accountingUnit),
+        freeToUse: false
+    };
 }
 
 export function subAllocationOwner(alloc: SubAllocationV2): WalletOwner {

@@ -21,20 +21,26 @@ export class BinaryAllocator {
 
     private readOnly: boolean;
 
-    constructor(bufferSize: number, duplicateStringsSize: number, readOnly: boolean) {
-        this.buf = new DataView(new ArrayBuffer(bufferSize));
-        this.duplicateStringsSize = duplicateStringsSize;
-        this.readOnly = readOnly;
-        this.ptr = 4;
+    private constructor() {}
 
-        this.buf.setInt32(0, this.ptr);
+    static create(bufferSize: number, duplicateStringsSize: number): BinaryAllocator {
+        const res = new BinaryAllocator();
+        res.buf = new DataView(new ArrayBuffer(bufferSize));
+        res.duplicateStringsSize = duplicateStringsSize;
+        res.readOnly = false;
+        res.ptr = 4;
+
+        res.buf.setInt32(0, res.ptr);
+        return res;
     }
 
-    load(dataView: DataView) {
-        const source = new Uint8Array(dataView.buffer);
-        const destination = new Uint8Array(this.buf.buffer, 0, source.byteLength);
-
-        destination.set(source);
+    static fromView(view: DataView): BinaryAllocator {
+        const res = new BinaryAllocator();
+        res.buf = view;
+        res.duplicateStringsSize = 0;
+        res.readOnly = true;
+        res.ptr = view.byteLength;
+        return res;
     }
 
     allocate<T>(companion: BinaryTypeCompanion<T>): T {
@@ -688,8 +694,13 @@ const SimpleCompanion: BinaryTypeCompanion<Simple> = {
 };
 
 function useAllocator<R>(block: (allocator: BinaryAllocator) => R): R {
-    const allocator = new BinaryAllocator(1024 * 512, 128, false)
+    const allocator = BinaryAllocator.create(1024 * 512, 128)
     return block(allocator);
+}
+
+export function loadMessage<T>(ctor: { new(b: BufferAndOffset): T }, view: DataView) {
+    const alloc = BinaryAllocator.fromView(view);
+    return new ctor(alloc.root());
 }
 
 export function messageTest() {
@@ -708,3 +719,5 @@ export function messageTest() {
         console.log(alloc.slicedBuffer());
     })
 }
+
+export const contentType = "application/ucloud-msg";

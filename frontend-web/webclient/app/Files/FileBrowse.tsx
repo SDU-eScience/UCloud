@@ -16,7 +16,8 @@ import {
     ResourceBrowser,
     ResourceBrowserOpts,
     ColumnTitleList,
-    SelectionMode
+    SelectionMode,
+    checkCanConsumeResources
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -563,7 +564,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 });
 
                 browser.on("fetchOperationsCallback", () => {
-                    const path = browser.currentPath;
+                    const path = browser.currentPath ?? "";
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const folder = folderCache.retrieveFromCacheOnly(path);
@@ -624,11 +625,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         },
                         viewProperties(res: UFile): void {
                             navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
-                            // Note(Jonas): Alternative solution, that might make more sense
-                            // dispatch(setPopInChild({
-                            //     el: <FilesApi.Properties inPopIn resource={res} reload={operations.reload} />,
-                            //     onFullScreen: () => navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
-                            // }));
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
@@ -1302,6 +1298,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     }, []);
 
     const setLocalProject = opts?.isModal ? (projectId?: string) => {
+        const b = browserRef.current;
+        if (b) {
+            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+        }
         activeProject.current = projectId;
         clearAndFetchCollections();
     } : undefined;
@@ -1311,6 +1311,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         if (!b) return;
 
         if (opts?.initialPath !== undefined) {
+            b.canConsumeResources = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+
             if (selectorPathRef.current === "") {
                 clearAndFetchCollections();
             } else {
@@ -1355,7 +1357,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 b.open(selectorPathRef.current);
             }
             return res.items;
-        }))
+        }));
     }
 }
 

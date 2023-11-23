@@ -22,8 +22,7 @@ export const MetadataBrowse: React.FunctionComponent<{
     file: UFile;
     metadata: FileMetadataHistory;
     reload: () => void;
-    inPopIn?: boolean;
-}> = ({file, metadata, reload, inPopIn}) => {
+}> = ({file, metadata, reload}) => {
     const [lookingForTemplate, setLookingForTemplate] = useState<boolean>(false);
     const [inspecting, setInspecting] = useState<string | null>(null);
     const [creatingForTemplate, setCreatingForTemplate] = useState<FileMetadataTemplate | null>(null);
@@ -70,11 +69,9 @@ export const MetadataBrowse: React.FunctionComponent<{
             close={() => setCreatingForTemplate(null)} />;
     }
 
-    const filteredOperations = inPopIn ? [] : operations;
-
     return <div>
         <StandardList
-            generateCall={noopCall} renderer={fileMetadataRenderer} operations={filteredOperations}
+            generateCall={noopCall} renderer={fileMetadataRenderer} operations={operations}
             embedded={"inline"} preloadedResources={rows} title={entityName} titlePlural={entityName}
             extraCallbacks={callbacks} navigate={onNavigate}
         />
@@ -88,7 +85,7 @@ export const MetadataBrowse: React.FunctionComponent<{
         >
             <MetadataNamespacesBrowse opts={{isModal: true, selection: {text: "Use", onSelect: selectTemplate as any, onSelectRestriction(res) {
                 return true;
-            },}}} />
+            }}}} />
         </ReactModal>
     </div>;
 };

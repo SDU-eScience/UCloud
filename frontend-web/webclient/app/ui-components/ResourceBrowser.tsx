@@ -790,7 +790,7 @@ export class ResourceBrowser<T> {
         };
     }
 
-    private canConsumeResources = true;
+    public canConsumeResources = true;
 
     refresh() {
         this.open(this.currentPath, true);
@@ -864,7 +864,10 @@ export class ResourceBrowser<T> {
         this.renderRows();
         this.clearFilters();
 
-        if (!this.canConsumeResources) return;
+        if (!this.canConsumeResources) {
+            this.renderCantConsumeResources();
+            return;
+        }
 
         if (this.features.filters) {
             this.renderFilters();
@@ -987,6 +990,7 @@ export class ResourceBrowser<T> {
             const initialReason = this.emptyReasons[this.currentPath] ?? {tag: EmptyReasonTag.LOADING};
 
             const renderEmptyPage = async () => {
+                if (!this.canConsumeResources) return;
                 if (this.currentPath !== initialPage) return;
                 const page = this.cachedData[this.currentPath] ?? [];
                 if (page.length !== 0) return;
@@ -1011,7 +1015,9 @@ export class ResourceBrowser<T> {
 
             if (initialReason.tag === EmptyReasonTag.LOADING) {
                 // Delay rendering of the loading page a bit until we are sure the loading operation is actually "slow"
-                window.setTimeout(() => renderEmptyPage(), 300);
+                window.setTimeout(() => {
+                    renderEmptyPage()
+                }, 300);
             } else {
                 renderEmptyPage();
             }
@@ -1374,25 +1380,7 @@ export class ResourceBrowser<T> {
         if (!useContextMenu) {
             this.shortCuts = {} as Record<ShortcutKey, () => void>;
 
-            {
-                if (inDevEnvironment()) {
-                    const shortCuts = operations.map(it => {
-                        if (isOperation(it)) {
-                            return ({shortcut: it.shortcut, text: it.text.toString()})
-                        } else {
-                            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({shortcut: it.shortcut, text: it.text.toString()}))]
-                        }
-                    }).flat(5);
-                    const entries: Record<string, string> = {};
-                    for (const short of shortCuts) {
-                        if (entries[short.shortcut ?? ""]) {
-                            console.log(`Shortcut: ${short.shortcut} already reserved for ${entries[short.shortcut ?? ""]}, attempted to use for ${short.text}`);
-                        }
-                        entries[short.shortcut ?? ""] = short.text;
-                    }
-                }
-            }
-
+            printDuplicateShortcuts(operations);
         }
 
         const selected = this.findSelectedEntries();
@@ -2807,11 +2795,11 @@ export class ResourceBrowser<T> {
         const rootHeight = window.innerHeight;
 
         if (posX + listWidth >= rootWidth - 32) {
-            actualPosX -= listWidth;
+            actualPosX = rootWidth - listWidth - 32;
         }
 
         if (posY + listHeight >= rootHeight - 32) {
-            actualPosY -= listHeight;
+            actualPosY = rootHeight - listHeight - 32;
         }
 
         menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
@@ -3040,7 +3028,7 @@ export class ResourceBrowser<T> {
                 }
 
                 @container (min-width: 600px) {
-                        width: ${ResourceBrowser.rowTitleSizePercentage}%;
+                    width: ${ResourceBrowser.rowTitleSizePercentage}%;
                 }
             }
 
@@ -3116,6 +3104,8 @@ export class ResourceBrowser<T> {
                 box-shadow: 0 3px 6px rgba(0, 0, 0, 30%);
                 width: 400px;
                 display: none;
+                max-height: calc(40px * 8.5);
+                overflow-y: scroll;
                 transition: opacity 120ms, transform 60ms;
             }
 
@@ -3164,7 +3154,7 @@ export class ResourceBrowser<T> {
                 border-radius: 5px;
                 border: 1px solid var(--black);
                 color: var(--text);
-                z-index: 10000;
+                z-index: 1;
                 top: 0;
                 left: 60px;
             }
@@ -3691,3 +3681,23 @@ export function checkCanConsumeResources(projectId: string | null, callbacks: nu
 
 // https://stackoverflow.com/a/13139830
 export const placeholderImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) {
+    if (!inDevEnvironment()) return;
+
+    const shortCuts = operations.map(it => {
+        if (isOperation(it)) {
+            return ({shortcut: it.shortcut, text: it.text.toString()})
+        } else {
+            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({shortcut: it.shortcut, text: it.text.toString()}))]
+        }
+    }).flat(5);
+    const entries: Record<string, string> = {};
+    for (const short of shortCuts) {
+        if (entries[short.shortcut ?? ""]) {
+            console.log(`Shortcut: ${short.shortcut} already reserved for ${entries[short.shortcut ?? ""]}, attempted to use for ${short.text}`);
+        }
+        entries[short.shortcut ?? ""] = short.text;
+    }
+}
+

@@ -43,6 +43,12 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     return result;
 }
 
+export function projectTitleFromCache(projectId?: string) {
+    if (!projectId) return "My workspace";
+    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+    return project?.specification.title ?? ""
+}
+
 const triggerClass = injectStyle("context-switcher-trigger", k => `
     ${k} {
         border: 1px solid var(--midGray);
@@ -242,7 +248,7 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
     const {pathname} = window.location;
     runThisFunction();
     let doRefresh = true;
-    
+
     if (["/app/files/", "/app/files"].includes(pathname)) {
         navigate("/drives")
         doRefresh = false;

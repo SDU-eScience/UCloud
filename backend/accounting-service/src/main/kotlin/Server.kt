@@ -48,7 +48,7 @@ class Server(
             addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
             disableMasterElection = micro.commandLineArguments.contains("--single-instance")
         )
-        val accountingService = AccountingService(db, simpleProviders, accountingProcessor)
+        val accountingService = AccountingService(micro.developmentModeEnabled, db, simpleProviders, accountingProcessor)
 
         val productService = ProductService(db, accountingProcessor)
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
@@ -172,7 +172,7 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                AccountingController(accountingService, depositNotifications, client),
+                AccountingController(micro, accountingService, depositNotifications, client),
                 ProductController(productService, accountingService, client),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService),

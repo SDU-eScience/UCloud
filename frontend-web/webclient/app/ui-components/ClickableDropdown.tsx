@@ -32,6 +32,7 @@ export interface ClickableDropdownProps<T> {
 
     useMousePositioning?: boolean;
     paddingControlledByContent?: boolean;
+    noYPadding?: boolean;
 
     /**
      *   Intended usage is that either:

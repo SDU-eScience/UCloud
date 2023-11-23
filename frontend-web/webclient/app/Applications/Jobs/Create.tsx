@@ -355,7 +355,7 @@ export const Create: React.FunctionComponent = () => {
                                 </Link>
                             </Box> :
                             <Spacer
-                                left={<>
+                                left={<Flex maxWidth="800px">
                                     <Markdown
                                         unwrapDisallowed
                                         disallowedElements={[
@@ -366,7 +366,7 @@ export const Create: React.FunctionComponent = () => {
                                         {application.metadata.description}
                                     </Markdown>
                                     <Information simple application={application} />
-                                </>}
+                                </Flex>}
                                 right={
                                     <div>
                                         {estimatedCost.product ? <div className={EstimatesContainerClass}>

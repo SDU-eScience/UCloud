@@ -303,7 +303,6 @@ export function StandardList<T, CB = EmptyObject>(
         ops.push({
             text: "Use",
             primary: true,
-            canAppearInLocation: loc => loc !== "SIDEBAR",
             enabled: (selected, cb) => cb.onSelect !== undefined && selected.length === 1,
             onClick: (selected, cb) => {
                 cb.onSelect?.(selected[0]);
@@ -355,7 +354,7 @@ export function StandardList<T, CB = EmptyObject>(
 
     if (isInDialog) {
         return <Box divRef={scrollingContainerRef}>
-            <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX="20px">
+            <StickyBox shadow={!scrollStatus.isAtTheTop}>
                 <Operations selected={toggleSet.checked.items} location="TOPBAR"
                     entityNameSingular={props.title} entityNamePlural={titlePlural}
                     extra={callbacks} operations={allOperations} />

@@ -118,7 +118,7 @@ export const ImportParameters: React.FunctionComponent<{
     }, []);
 
     return <Box>
-        <Flex flexDirection="row" flexWrap="wrap">
+        <Flex flexDirection="row" minWidth="180px" flexWrap="wrap">
             <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
         </Flex>
 

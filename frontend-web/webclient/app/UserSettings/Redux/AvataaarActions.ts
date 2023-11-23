@@ -9,10 +9,12 @@ import {AVATAR_ERROR, AVATAR_SAVE} from "./AvataaarReducer";
 export type AvatarActions = SaveAvataaar | SetAvatarError;
 
 type SaveAvataaar = PayloadAction<typeof AVATAR_SAVE, {avatar: AvatarType, loading: true}>;
-const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
-    type: AVATAR_SAVE,
-    payload: {avatar, loading: true}
-});
+function saveAvataaar(avatar: AvatarType): SaveAvataaar {
+    return {
+        type: AVATAR_SAVE,
+        payload: {avatar, loading: true}
+    };
+}
 
 export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
     try {
@@ -26,11 +28,13 @@ export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | Set
 }
 
 type SetAvatarError = Action<typeof AVATAR_ERROR>;
-export const setAvatarError = (): SetAvatarError => ({
-    type: AVATAR_ERROR,
-});
+export function setAvatarError(): SetAvatarError {
+    return {
+        type: AVATAR_ERROR,
+    };
+}
 
-export const findAvatar = async (): Promise<SaveAvataaar | null> => {
+export async function findAvatar(): Promise<SaveAvataaar | null> {
     try {
         const res = await Client.get<AvatarType>(findAvatarQuery, undefined);
         return saveAvataaar(res.response);

@@ -2,7 +2,7 @@ import * as React from "react";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useNavigate} from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {callAPI} from "@/Authentication/DataHook";
@@ -28,7 +28,7 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 
-const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Provider name"}, {name: ""}, {name: ""}, {name: ""}];
+const rowTitles: ColumnTitleList = [{name: "Provider name"}, {name: ""}, {name: ""}, {name: ""}];
 console.log("Provider Browse Not meaningfully tested at all");
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);

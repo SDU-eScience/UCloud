@@ -12,7 +12,7 @@ import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {ProductSelectorPlayground} from "@/Products/Selector";
 import * as icons from "@/ui-components/icons";
-import {BinaryAllocator, messageTest} from "@/UCloud/Messages";
+import {BinaryAllocator, loadMessage, messageTest} from "@/UCloud/Messages";
 import {
     AppParameterFile,
     Wrapper
@@ -33,7 +33,7 @@ export const Playground: React.FunctionComponent = () => {
             }}>UCloud message test</Button>
             <Button onClick={() => {
                 function useAllocator<R>(block: (allocator: BinaryAllocator) => R): R {
-                    const allocator = new BinaryAllocator(1024 * 512, 128, false)
+                    const allocator = BinaryAllocator.create(1024 * 512, 128)
                     return block(allocator);
                 }
 
@@ -51,16 +51,15 @@ export const Playground: React.FunctionComponent = () => {
 
                 console.log(encoded);
 
-                useAllocator(alloc => {
-                    alloc.load(encoded);
-                    const value = new Wrapper(alloc.root()).wrapThis;
+                {
+                    const value = loadMessage(Wrapper, encoded).wrapThis;
 
                     if (value instanceof AppParameterFile) {
                         console.log(value.path, value.encodeToJson());
                     } else {
                         console.log("Not a file. It must be something else...", value);
                     }
-                })
+                }
             }}>UCloud message test2</Button>
             <ProductSelectorPlayground />
             <Button onClick={() => {

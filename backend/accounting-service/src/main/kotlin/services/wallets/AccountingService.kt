@@ -9,6 +9,8 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.messages.BinaryAllocator
+import dk.sdu.cloud.messages.BinaryTypeList
 import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -16,8 +18,12 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.random.Random
 
 class AccountingService(
+    val devMode: Boolean,
     val db: DBContext,
     val providers: Providers<SimpleProviderCommunication>,
     private val processor: AccountingProcessor,
@@ -1170,7 +1176,682 @@ class AccountingService(
         )).page
     }
 
+    suspend fun retrieveChartsV2(
+        allocator: BinaryAllocator,
+        actorAndProject: ActorAndProject,
+        request: VisualizationV2.RetrieveCharts.Request,
+    ): Charts = with(allocator) {
+        val categories = ArrayList<ProductCategoryB>()
+        val allocations = ArrayList<WalletAllocationB>()
+        val productCategoryIdToIndex = HashMap<Long, Int>()
+        val usageOverTimeCharts = HashMap<Long, UsageOverTime>()
+        val breakdownByProjectCharts = HashMap<Long, BreakdownByProject>()
+
+        var emptyUsageChart: UsageOverTime? = null
+        fun createEmptyUsageChart(): UsageOverTime {
+            if (emptyUsageChart != null) return emptyUsageChart!!
+            emptyUsageChart = UsageOverTime(BinaryTypeList.create(UsageOverTimeDataPoint, allocator, 0))
+            return emptyUsageChart!!
+        }
+
+        var emptyBreakdownChart: BreakdownByProject? = null
+        fun createEmptyBreakdownChart(): BreakdownByProject {
+            if (emptyBreakdownChart != null) return emptyBreakdownChart!!
+            emptyBreakdownChart = BreakdownByProject(BinaryTypeList.Companion.create(BreakdownByProjectPoint, allocator, 0))
+            return emptyBreakdownChart!!
+        }
+
+        fun assembleResult(): Charts {
+            val result = allocator.allocate(Charts)
+
+            val charts = ArrayList<ChartsForCategory>()
+            run {
+                val allKeys = usageOverTimeCharts.keys + breakdownByProjectCharts.keys
+                for (key in allKeys) {
+                    val categoryIdx = productCategoryIdToIndex[key] ?: continue
+                    val usageOverTime = usageOverTimeCharts[key] ?: createEmptyUsageChart()
+                    val breakdownByProject = breakdownByProjectCharts[key] ?: createEmptyBreakdownChart()
+
+                    charts.add(ChartsForCategory(
+                        categoryIdx,
+                        usageOverTime,
+                        breakdownByProject
+                    ))
+                }
+            }
+
+            result.charts = BinaryTypeList.Companion.create(ChartsForCategory, allocator, charts)
+            result.allocations = BinaryTypeList.Companion.create(WalletAllocationB, allocator, allocations)
+            result.categories = BinaryTypeList.Companion.create(ProductCategoryB, allocator, categories)
+            return result
+        }
+
+        val timeRange = (request.start)..(request.end)
+        if (timeRange.isEmpty()) return assembleResult()
+
+        val allWallets = processor
+            .retrieveWalletsInternal(
+                AccountingRequest.RetrieveWalletsInternal(
+                    actorAndProject.actor,
+                    actorAndProject.project ?: actorAndProject.actor.username,
+                )
+            )
+            .wallets
+            .mapNotNull { w ->
+                val newAllocations = w.allocations.filter { a ->
+                    val period = (a.startDate)..(a.endDate)
+                    timeRange.overlaps(period)
+                }
+
+                if (newAllocations.isEmpty()) return@mapNotNull null
+                if (w.paysFor.freeToUse) return@mapNotNull null
+
+                w.copy(allocations = newAllocations)
+            }
+
+        for ((walletIndex, wallet) in allWallets.withIndex()) {
+            val c = wallet.paysFor
+            categories.add(ProductCategoryB(
+                name = c.name,
+                provider = c.provider,
+                productType = when (c.productType) {
+                    ProductType.STORAGE -> ProductTypeB.STORAGE
+                    ProductType.COMPUTE -> ProductTypeB.COMPUTE
+                    ProductType.INGRESS -> ProductTypeB.INGRESS
+                    ProductType.LICENSE -> ProductTypeB.LICENSE
+                    ProductType.NETWORK_IP -> ProductTypeB.NETWORK_IP
+                },
+                accountingUnit = AccountingUnitB(
+                    name = c.accountingUnit.name,
+                    namePlural = c.accountingUnit.namePlural,
+                    floatingPoint = c.accountingUnit.floatingPoint,
+                    displayFrequencySuffix = c.accountingUnit.displayFrequencySuffix,
+                ),
+                accountingFrequency = when (c.accountingFrequency) {
+                    AccountingFrequency.ONCE -> AccountingFrequencyB.ONCE
+                    AccountingFrequency.PERIODIC_MINUTE -> AccountingFrequencyB.PERIODIC_MINUTE
+                    AccountingFrequency.PERIODIC_HOUR -> AccountingFrequencyB.PERIODIC_HOUR
+                    AccountingFrequency.PERIODIC_DAY -> AccountingFrequencyB.PERIODIC_DAY
+                },
+                freeToUse = c.freeToUse,
+            ))
+
+            for (alloc in wallet.allocations) {
+                allocations.add(WalletAllocationB(
+                    id = alloc.id.toLong(),
+                    usage = alloc.treeUsage ?: 0L,
+                    localUsage = alloc.localUsage,
+                    quota = alloc.quota,
+                    startDate = alloc.startDate,
+                    endDate = alloc.endDate,
+                    categoryIndex = walletIndex
+                ))
+            }
+        }
+
+        db.withSession { session ->
+            val pcRows = session.sendPreparedStatement(
+                {
+                    allWallets.split {
+                        into("names") { it.paysFor.name }
+                        into("providers") { it.paysFor.provider }
+                    }
+                },
+                """
+                    with
+                        needles as (
+                            select
+                                unnest(:names::text[]) as name,
+                                unnest(:providers::text[]) as provider
+                        )
+                    select
+                        pc.id,
+                        pc.category,
+                        pc.provider
+                    from
+                        needles n
+                        join accounting.product_categories pc on
+                            n.name = pc.category
+                            and n.provider = pc.provider
+                """
+            ).rows
+
+            for (row in pcRows) {
+                val category = row.getString(1)!!
+                val provider = row.getString(2)!!
+                productCategoryIdToIndex[row.getLong(0)!!] = allWallets.indexOfFirst {
+                    it.paysFor.name == category && it.paysFor.provider == provider
+                }
+            }
+
+            run {
+                // Usage over time
+                val rows = session.sendPreparedStatement(
+                    {
+                        setParameter("allocation_ids", allWallets.flatMap { w ->
+                            w.allocations.mapNotNull { it.id.toLongOrNull() }
+                        })
+
+                        setParameter("start", request.start)
+                        setParameter("end", request.end)
+                        setParameter("step", (request.end - request.start) / MAX_BUCKETS_FOR_CHART)
+                        println("duration = ${request.end - request.start} step = ${(request.end - request.start) / MAX_BUCKETS_FOR_CHART}")
+                    },
+                    """
+                        with
+                            my_allocations as (
+                                select alloc.id, w.category, alloc.end_date
+                                from
+                                    accounting.wallet_allocations alloc
+                                    join accounting.wallets w on alloc.associated_wallet = w.id
+                                where
+                                    alloc.start_date <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= alloc.end_date
+                                    and alloc.id = some(:allocation_ids)
+                            ),
+                            all_potentially_relevant_entries as (
+                                select
+                                    a.id as alloc_id,
+                                    a.category as alloc_category,
+                                    h.new_tree_usage as usage,
+                                    h.new_quota as quota,
+                                    h.created_at as timestamp
+                                from
+                                    my_allocations a
+                                    join accounting.transaction_history h
+                                        on a.id = h.affected_allocation
+                                where
+                                    h.created_at >= to_timestamp(:start / 1000)
+                                    and h.created_at <= to_timestamp(:end / 1000)
+                                    and h.created_at <= a.end_date
+                            ),
+                            time_at_prev_entry as (
+                                select
+                                    e.alloc_id,
+                                    e.alloc_category,
+                                    e.usage,
+                                    e.quota,
+                                    e.timestamp,
+                                    lag(e.timestamp) over w as prev_timestamp,
+                                    lead(e.timestamp) over w as next_timestamp
+                                from
+                                    all_potentially_relevant_entries e
+                                window
+                                    w as (
+                                        partition by e.alloc_id
+                                        order by e.timestamp
+                                    )
+                            ),
+                            time_of_last_entry_before_entering as (
+                                -- This table will find the state of all relevant allocations as they enter the period.
+                                -- This will, potentially, require us to backtrack quite a bit to figure out what the
+                                -- most recent state even is. If there are no prior entries, then we use the data
+                                -- directly from the allocation.
+
+                                select a.id, max(h.created_at) as max_time
+                                from
+                                    my_allocations a
+                                    join accounting.transaction_history h
+                                        on a.id = h.affected_allocation
+                                where
+                                    h.created_at < to_timestamp(:start / 1000)
+                                group by a.id
+                            ),
+                            state_before_entering_unfiltered as (
+                                select
+                                    e.id as alloc_id,
+                                    w.category as alloc_category,
+                                    coalesce(h.new_tree_usage, a.initial_balance - a.balance) as usage,
+                                    coalesce(h.new_quota, a.initial_balance) as quota,
+                                    h.created_at as timestamp,
+                                    row_number() over (partition by e.id) as row_number
+                                from
+                                    time_of_last_entry_before_entering e
+                                    join accounting.wallet_allocations a on e.id = a.id
+                                    join accounting.wallets w on a.associated_wallet = w.id
+                                    left join accounting.transaction_history h
+                                        on e.id = h.affected_allocation and e.max_time = h.created_at
+                            ),
+                            state_before_entering as (
+                                select
+                                    e.alloc_id,
+                                    e.alloc_category,
+                                    e.usage,
+                                    e.quota,
+                                    e.timestamp
+                                from state_before_entering_unfiltered e
+                                where e.row_number = 1
+                            ),
+                            expired_data_points as (
+                                select
+                                    a.id as alloc_id,
+                                    a.category as alloc_category,
+                                    0 as usage,
+                                    0 as quota,
+
+                                    -- ensure that this is always the last data point, which will make it take precedence over the others
+                                    a.end_date + '1 second'::interval as timestamp
+                                from
+                                    my_allocations a
+                                where
+                                    a.end_date >= to_timestamp(:start / 1000)
+                                    and a.end_date <= to_timestamp(:end / 1000)
+                            ),
+                            all_data as (
+                                select *
+                                from state_before_entering
+
+                                union
+
+                                select *
+                                from expired_data_points
+
+                                union
+
+                                select
+                                    e.alloc_id,
+                                    e.alloc_category,
+                                    e.usage,
+                                    e.quota,
+                                    e.timestamp
+                                from
+                                    time_at_prev_entry e
+                                where
+                                    e.prev_timestamp is null
+                                    or e.next_timestamp is null
+                                    or (
+                                        (provider.timestamp_to_unix(e.timestamp) / :step)::bigint !=
+                                        (provider.timestamp_to_unix(e.next_timestamp) / :step)::bigint
+                                    )
+                            ),
+                            normalized_data_with_potential_dupes as (
+                                select
+                                    e.alloc_id,
+                                    e.alloc_category,
+                                    e.usage,
+                                    e.quota,
+                                    (provider.timestamp_to_unix(e.timestamp) / :step)::bigint as slot,
+                                    row_number() over (partition by alloc_id, (provider.timestamp_to_unix(e.timestamp) / :step)::bigint) as rn
+                                from all_data e
+                            ),
+                            normalized_data as (
+                                select
+                                    alloc_id,
+                                    alloc_category,
+                                    usage,
+                                    usage - lag(usage, 1, 0) over w as usage_change,
+                                    quota - lag(quota, 1, 0) over w as quota_change,
+                                    slot
+                                from normalized_data_with_potential_dupes
+                                where rn = 1
+                                window w as (partition by alloc_id)
+                                order by alloc_category, slot
+                            ),
+                            combined as (
+                                select
+                                    d.alloc_category,
+                                    sum(d.usage_change) over w as usage,
+                                    sum(d.quota_change) over w as quota,
+
+                                    -- The rolling sum is only valid for the last row in each (alloc_category, slot) partition.
+                                    -- Keep row_number() and count() to figure out which row is the last.
+                                    row_number() over (partition by alloc_category, slot) as rn,
+                                    count(d.alloc_category) over (partition by alloc_category, slot) as c,
+
+                                    d.slot
+                                from normalized_data d
+                                window w as (partition by alloc_category rows unbounded preceding)
+                            )
+                        select alloc_category, usage::int8, quota::int8, slot * :step as ts
+                        from combined
+                        where c = rn
+                        order by alloc_category, slot;
+                    """
+                ).rows
+
+                var currentProductCategory = -1L
+
+                var dataPoints = ArrayList<UsageOverTimeDataPoint>()
+                fun flushChart() {
+                    if (currentProductCategory != -1L) {
+                        val res = allocator.allocate(UsageOverTime)
+                        res.data = BinaryTypeList.Companion.create(UsageOverTimeDataPoint, allocator, dataPoints)
+                        usageOverTimeCharts[currentProductCategory] = res
+
+                        dataPoints = ArrayList()
+                    }
+                }
+
+                for (row in rows) {
+                    val allocCategory = row.getLong(0)!!
+                    val usage = row.getLong(1)!!
+                    val quota = row.getLong(2)!!
+                    val timestamp = row.getLong(3)!!
+
+                    if (currentProductCategory != allocCategory) {
+                        flushChart() // no-op if currentProductCategory = -1L
+                        currentProductCategory = allocCategory
+                    }
+
+                    dataPoints.add(UsageOverTimeDataPoint(usage, quota, timestamp))
+                }
+                flushChart()
+            }
+
+            run {
+                // Breakdown by project
+                db.withSession { session ->
+                    val rows = session.sendPreparedStatement(
+                        {
+                            setParameter("allocation_ids", allWallets.flatMap { w ->
+                                w.allocations.mapNotNull { it.id.toLongOrNull() }
+                            })
+
+                            setParameter("start", request.start)
+                            setParameter("end", request.end)
+                        },
+                        """
+                            with
+                                my_allocations as (
+                                    select alloc.id, alloc.allocation_path, w.category, pc.accounting_frequency != 'ONCE' as is_monotonic
+                                    from
+                                        accounting.wallet_allocations alloc
+                                        join accounting.wallets w on alloc.associated_wallet = w.id
+                                        join accounting.product_categories pc on w.category = pc.id
+                                    where
+                                        alloc.start_date <= to_timestamp(:end / 1000)
+                                        and to_timestamp(:start / 1000) <= alloc.end_date
+                                        and alloc.id = some(:allocation_ids)
+                                ),
+                                allocations_with_children as (
+                                    -- This project
+                                    select
+                                        a.id,
+                                        a.category,
+                                        p.id as project_id,
+                                        coalesce(p.title, wo.username) as workspace_title,
+                                        a.is_monotonic,
+                                        alloc.end_date
+                                    from
+                                        my_allocations a
+                                        join accounting.wallet_allocations alloc on
+                                            a.id = alloc.id
+                                        join accounting.wallets w on
+                                            alloc.associated_wallet = w.id
+                                        join accounting.wallet_owner wo on
+                                            w.owned_by = wo.id
+                                        left join project.projects p on
+                                            wo.project_id = p.id
+
+                                    union
+
+                                    -- Child projects
+                                    select
+                                        child.id,
+                                        parent.category,
+                                        p.id as project_id,
+                                        coalesce(p.title, child_owner.username) as workspace_title,
+                                        parent.is_monotonic,
+                                        child.end_date
+                                    from
+                                        my_allocations parent
+                                        left join accounting.wallet_allocations child on
+                                            parent.allocation_path @> child.allocation_path
+                                            and nlevel(child.allocation_path) = nlevel(parent.allocation_path) + 1
+                                        join accounting.wallets child_wallet on
+                                            child.associated_wallet = child_wallet.id
+                                        join accounting.wallet_owner child_owner on
+                                            child_wallet.owned_by = child_owner.id
+                                        left join project.projects p on
+                                            child_owner.project_id = p.id
+                                    where
+                                        child.id is not null
+                                ),
+                                monotonic_result as (
+                                    select
+                                        alloc.category,
+                                        alloc.project_id,
+                                        alloc.workspace_title,
+                                        sum(
+                                            case
+                                                when alloc.id = some(:allocation_ids) then log.local_change
+                                                else log.tree_change
+                                            end
+                                        )::int8 as usage
+                                    from
+                                        allocations_with_children alloc
+                                        left join accounting.transaction_history log on
+                                            alloc.id = log.affected_allocation
+                                    where
+                                        alloc.is_monotonic = true
+                                        and log.created_at <= to_timestamp(:end / 1000)
+                                        and log.created_at >= to_timestamp(:start / 1000)
+                                    group by
+                                        alloc.category,
+                                        alloc.project_id,
+                                        alloc.workspace_title
+                                ),
+
+                                non_monotonic_oldest_log_per_alloc as (
+                                    select
+                                        alloc.id,
+                                        alloc.category,
+                                        alloc.project_id,
+                                        alloc.workspace_title,
+                                        max(log.created_at) as oldest_entry_timestamp
+                                    from
+                                        allocations_with_children alloc
+                                        left join accounting.transaction_history log on
+                                            alloc.id = log.affected_allocation
+                                    where
+                                        alloc.end_date >= to_timestamp(:end / 1000)
+                                        and not alloc.is_monotonic
+                                    group by
+                                        alloc.id,
+                                        alloc.category,
+                                        alloc.project_id,
+                                        alloc.workspace_title
+                                ),
+
+                                non_monotonic_usage_at_end_with_dupes as (
+                                    select
+                                        alloc.id,
+                                        alloc.category,
+                                        alloc.project_id,
+                                        alloc.workspace_title,
+                                        case
+                                            when alloc.id = some(:allocation_ids) then log.new_local_usage
+                                            else log.new_tree_usage
+                                        end as usage,
+                                        row_number() over (partition by alloc.id) as rn,
+                                        count(alloc.id) over (partition by alloc.id) as rnc
+                                    from
+                                        non_monotonic_oldest_log_per_alloc alloc
+                                        join accounting.transaction_history log on
+                                            alloc.id = log.affected_allocation
+                                            and alloc.oldest_entry_timestamp = log.created_at
+                                ),
+
+                                non_monotonic_usage_at_end as (
+                                    select id, category, project_id, workspace_title, usage
+                                    from non_monotonic_usage_at_end_with_dupes
+                                    where rn = rnc
+                                ),
+
+                                non_monotonic_result as (
+                                    select
+                                        category,
+                                        project_id,
+                                        workspace_title,
+                                        sum(usage)::int8
+                                    from
+                                        non_monotonic_usage_at_end
+                                    group by
+                                        category,
+                                        project_id,
+                                        workspace_title
+                                )
+                            select * from monotonic_result
+                            union
+                            select * from non_monotonic_result
+                            order by category;
+                        """,
+                        debug = true,
+                    ).rows
+
+                    var currentCategory = -1L
+                    var dataPoints = ArrayList<BreakdownByProjectPoint>()
+                    fun flushChart() {
+                        if (currentCategory != -1L) {
+                            val res = allocator.allocate(BreakdownByProject)
+                            res.data = BinaryTypeList.create(BreakdownByProjectPoint, allocator, dataPoints)
+                            breakdownByProjectCharts[currentCategory] = res
+                            dataPoints = ArrayList()
+                        }
+                    }
+
+                    for (row in rows) {
+                        val categoryId = row.getLong(0)!!
+                        val projectId = row.getString(1)
+                        val workspaceTitle = row.getString(2)!!
+                        val usage = row.getLong(3)!!
+
+                        if (categoryId != currentCategory) {
+                            flushChart()
+                            currentCategory = categoryId
+                        }
+
+                        dataPoints.add(BreakdownByProjectPoint(
+                            title = workspaceTitle,
+                            projectId = projectId,
+                            usage = usage,
+                        ))
+                    }
+                    flushChart()
+                }
+            }
+        }
+
+        return assembleResult()
+    }
+
+    private fun LongRange.overlaps(other: LongRange): Boolean {
+        return first <= other.last && other.first <= last
+    }
+
+    data class TestDataObject(
+        val projectId: String,
+        val categoryName: String,
+        val provider: String,
+        val usage: Long,
+    )
+    suspend fun generateTestData(
+        objects: List<TestDataObject>,
+        spreadOverDays: Int = 7,
+        clusterCount: Int = 10
+    ) {
+        require(devMode) { "devMode must be on" }
+
+        val stepSize = 1000L * 60 * 10
+        val duration = 1000L * 60 * 60 * 24 * spreadOverDays
+        val stepCount = duration / stepSize
+        val endOfPeriod = Time.now()
+        val startOfPeriod = endOfPeriod - duration
+        val charges = ArrayList<AccountingRequest.Charge>()
+
+        var before = 0
+        for (obj in objects) {
+            with (obj) {
+                val allTimestamps = HashSet<Long>()
+
+                for (cluster in LongArray(clusterCount) { Random.nextLong(stepCount - 10) }) {
+                    for (i in 0 until 10) {
+                        allTimestamps.add(stepSize * (cluster + i) + startOfPeriod)
+                    }
+                }
+
+//                println(allTimestamps)
+
+                val allWallets = processor.retrieveWalletsInternal(
+                    AccountingRequest.RetrieveWalletsInternal(
+                        Actor.System,
+                        projectId,
+                    )
+                )
+
+                val wallet =
+                    allWallets.wallets.find { it.paysFor.name == categoryName && it.paysFor.provider == provider }
+                        ?: error("no wallet in $projectId $categoryName $provider")
+                val isMonotonic = wallet.paysFor.isPeriodic()
+
+                if (isMonotonic) {
+                    var charged = 0L
+
+                    for ((index, timestamp) in allTimestamps.sorted().withIndex()) {
+                        var usageInCharge = min(usage - charged, max(1, usage / allTimestamps.size))
+                        if (index == allTimestamps.size - 1) {
+                            usageInCharge = usage - charged
+                        }
+                        charged += usageInCharge
+                        charges.add(
+                            AccountingRequest.Charge.DeltaCharge(
+                                actor = Actor.System,
+                                owner = projectId,
+                                dryRun = false,
+                                productCategory = ProductCategoryIdV2(categoryName, provider),
+                                usage = usageInCharge,
+                                description = ChargeDescription("test data", emptyList()),
+                                timestampOverride = timestamp
+                            )
+                        )
+                    }
+                } else {
+                    var currentUsage = Random.nextLong(usage)
+                    var lastSwitch = 0L
+                    var direction = 1
+                    for ((index, timestamp) in allTimestamps.sorted().withIndex()) {
+                        if (timestamp - lastSwitch > 1000L * 60 * 60 * 5) {
+                            direction = if (Random.nextBoolean()) 1 else -1
+                            lastSwitch = timestamp
+                        }
+
+                        val proposedDiff = (usage * (Random.nextDouble() * 0.03 * direction)).toLong()
+                        currentUsage = max(0, min(usage, currentUsage + proposedDiff))
+                        if (index == allTimestamps.size - 1) currentUsage = usage
+
+                        println("$timestamp $index $currentUsage")
+
+                        charges.add(
+                            AccountingRequest.Charge.TotalCharge(
+                                actor = Actor.System,
+                                owner = projectId,
+                                dryRun = false,
+                                productCategory = ProductCategoryIdV2(categoryName, provider),
+                                usage = currentUsage,
+                                description = ChargeDescription("test data", emptyList()),
+                                timestampOverride = timestamp
+                            )
+                        )
+                    }
+                }
+            }
+
+            println("Flushed ${charges.size - before} charges in ${obj.projectId}")
+            before = charges.size
+        }
+
+        val sortedBy = charges.sortedBy {
+            (it as? AccountingRequest.Charge.DeltaCharge)?.timestampOverride
+                ?: (it as? AccountingRequest.Charge.TotalCharge)?.timestampOverride
+                ?: 0L
+        }
+        for (charge in sortedBy) {
+            processor.sendRequest(charge)
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
+        const val MAX_BUCKETS_FOR_CHART = 1000
     }
 }

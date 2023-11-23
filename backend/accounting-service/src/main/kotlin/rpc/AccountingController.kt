@@ -13,13 +13,24 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.responseAllocator
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
-
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class AccountingController(
+    private val micro: Micro,
     private val accounting: AccountingService,
     private val notifications: DepositNotificationService,
     private val client: AuthenticatedClient,
@@ -43,6 +54,7 @@ class AccountingController(
         }
     }
 
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implementOrDispatch(Accounting.findRelevantProviders) {
             val responses = request.items.map {
@@ -280,6 +292,73 @@ class AccountingController(
         implement(DepositNotifications.markAsRead) {
             notifications.markAsRead(actorAndProject, request)
             ok(Unit)
+        }
+
+        implement(VisualizationV2.retrieveCharts) {
+            ok(accounting.retrieveChartsV2(ctx.responseAllocator, actorAndProject, request))
+        }
+
+
+        if (micro.developmentModeEnabled) {
+            GlobalScope.launch {
+                while (true) {
+                    val success = runCatching {
+                        val appEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
+                        appEngine.application.routing {
+                            webSocket("/accountingDevConsole") {
+                                suspend fun sendMessage(message: String) {
+                                    message.lines().forEach {
+                                        if (it.isNotBlank()) outgoing.send(Frame.Text(it))
+                                    }
+                                }
+
+                                sendMessage("Ready to accept queries!")
+                                for (frame in incoming) {
+                                    if (frame !is Frame.Text) continue
+
+                                    val text = frame.readText().trim()
+                                    val split = text.split(" ")
+                                    val command = split.firstOrNull()
+                                    val args = split.drop(1)
+
+                                    when (command) {
+                                        "test-data" -> {
+                                            sendMessage("Ready! End with EOF.")
+                                            val data = ArrayList<AccountingService.TestDataObject>()
+                                            for (innerFrame in incoming) {
+                                                if (innerFrame !is Frame.Text) continue
+                                                val textFrame = innerFrame.readText().trim()
+                                                if (textFrame.equals("EOF", ignoreCase = true)) break
+                                                val innerSplit = textFrame.split(" ")
+
+                                                val projectId = innerSplit.getOrNull(0)
+                                                val categoryName = innerSplit.getOrNull(1)
+                                                val provider = innerSplit.getOrNull(2)
+                                                val usage = innerSplit.getOrNull(3)?.toLongOrNull()
+
+                                                if (projectId == null || categoryName == null || provider == null || usage == null) {
+                                                    sendMessage("usage: test-data <projectId> <categoryName> <provider> <usage>")
+                                                } else {
+                                                    data.add(AccountingService.TestDataObject(projectId, categoryName, provider, usage))
+                                                }
+                                            }
+
+                                            accounting.generateTestData(data)
+                                            sendMessage("OK")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }.isSuccess
+
+                    if (success) {
+                        break
+                    }
+
+                    delay(100)
+                }
+            }
         }
 
         return@with

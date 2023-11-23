@@ -216,7 +216,8 @@ sealed class AccountingRequest {
             override val dryRun: Boolean,
             override val productCategory: ProductCategoryIdV2,
             val usage: Long,
-            val description: ChargeDescription
+            val description: ChargeDescription,
+            val timestampOverride: Long? = null,
         ) : Charge()
 
         data class TotalCharge(
@@ -225,7 +226,8 @@ sealed class AccountingRequest {
             override val dryRun: Boolean,
             override val productCategory: ProductCategoryIdV2,
             val usage: Long,
-            val description: ChargeDescription
+            val description: ChargeDescription,
+            val timestampOverride: Long? = null,
         ) : Charge()
     }
 
@@ -551,6 +553,7 @@ class AccountingProcessor(
                 }
             } catch (ex: Throwable) {
                 debug.logThrowable("Error in Accounting processor", ex)
+                log.info(ex.toReadableStacktrace().toString())
             }
         }
     }
@@ -602,7 +605,7 @@ class AccountingProcessor(
             is AccountingRequest.RootDeposit -> rootDeposit(request)
             is AccountingRequest.Deposit -> deposit(request)
             is AccountingRequest.Update -> update(request)
-            is AccountingRequest.Charge -> charge(request).also { println("$request -> $it") }
+            is AccountingRequest.Charge -> charge(request)
             is AccountingRequest.RetrieveAllocationsInternal -> retrieveAllocationsInternal(request)
             is AccountingRequest.RetrieveWalletsInternal -> retrieveWalletsInternal(request)
             is AccountingRequest.BrowseSubAllocations -> browseSubAllocations(request)
@@ -863,7 +866,7 @@ class AccountingProcessor(
                                     on conflict (username, project_id) do nothing
                                 )
                                 select * from created_project
-                            """.trimIndent(), debug = true
+                            """
                             ).rows
                                 .singleOrNull()
                                 ?.getString(0)
@@ -1210,7 +1213,6 @@ class AccountingProcessor(
         notBefore: Long,
         notAfter: Long?
     ): AccountingResponse.Error? {
-        println("Range ${notBefore} ${notAfter}")
         var current: InternalWalletAllocation? = parent
         if ((notAfter ?: Long.MAX_VALUE) < notBefore) return overlapError(parent)
         while (current != null) {
@@ -1271,8 +1273,6 @@ class AccountingProcessor(
         val b = dateString(latestBefore)
         val a = dateString(earliestAfter)
 
-        println(latestBefore)
-        println(earliestAfter)
         return AccountingResponse.Error(
             "Allocation period is outside of allowed range. It must be between $b and $a.",
             code = 400
@@ -1456,8 +1456,6 @@ class AccountingProcessor(
                 }
                 val price = product.price
                 val requestWithNewUnit = request.copy(units = newUnits)
-                println("period: ${requestWithNewUnit.period}, units: ${requestWithNewUnit.units}")
-                println("price: $price")
                 return when (translateToChargeType(category)) {
                     ChargeType.ABSOLUTE -> {
                         deltaCharge(requestWithNewUnit.toDelta(price))
@@ -1502,7 +1500,6 @@ class AccountingProcessor(
     }
 
     private suspend fun deltaCharge(request: AccountingRequest.Charge.DeltaCharge): AccountingResponse {
-        println("Charging Delta: Usage: ${request.usage}, Product: ${request.productCategory}")
         val productCategory = productCategories.retrieveProductCategory(request.productCategory)
             ?: return AccountingResponse.Charge(false)
         if (productCategory.freeToUse) {
@@ -1514,18 +1511,17 @@ class AccountingProcessor(
                             it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
         return if (productCategory.isPeriodic()) {
-            applyPeriodCharge(request.usage, wallet.allocations, request.description)
+            applyPeriodCharge(request.usage, wallet.allocations, request.description, request.timestampOverride)
         } else {
             var currentUsage = 0L
             for (allocation in wallet.allocations) {
                 currentUsage += allocation.localUsage
             }
-            applyNonPeriodicCharge(currentUsage + request.usage, wallet.allocations, request.description)
+            applyNonPeriodicCharge(currentUsage + request.usage, wallet.allocations, request.description, request.timestampOverride)
         }
     }
 
     private suspend fun totalCharge(request: AccountingRequest.Charge.TotalCharge): AccountingResponse {
-        println("Charging Total: Usage: ${request.usage}, Product: ${request.productCategory}")
         val productCategory = productCategories.retrieveProductCategory(request.productCategory)
             ?: return AccountingResponse.Charge(false)
         if (productCategory.freeToUse) {
@@ -1541,15 +1537,17 @@ class AccountingProcessor(
             for (allocation in wallet.allocations) {
                 currentUsage += allocation.localUsage
             }
-            applyPeriodCharge(request.usage - currentUsage, wallet.allocations, request.description)
+            applyPeriodCharge(request.usage - currentUsage, wallet.allocations, request.description, request.timestampOverride)
         } else {
-            applyNonPeriodicCharge(request.usage, wallet.allocations, request.description)
+            applyNonPeriodicCharge(request.usage, wallet.allocations, request.description, request.timestampOverride)
         }
     }
 
-    //TODO(HENRIK) Might be to expensive to update with every charge and that it would be fine to update tree usage by
-    // doing a full scan of tree every 5 min using O(n*log(n)) but this update should take log(n) (n=total number of allocations in path)
-    private fun updateParentTreeUsage(allocation: InternalWalletAllocation, delta: Long): Boolean {
+    private fun updateParentTreeUsage(
+        allocation: InternalWalletAllocation,
+        delta: Long,
+        timestampOverride: Long? = null,
+    ): Boolean {
         if (allocation.parentAllocation == null) {
             return true
         } else {
@@ -1562,33 +1560,37 @@ class AccountingProcessor(
             val transactionId = transactionId()
             dirtyTransactions.add(
                 UsageReport.AllocationHistoryEntry(
-                    parent.id.toString(),
-                    Time.now(),
-                    UsageReport.Balance(
-                        parent.treeUsage!!,
-                        parent.localUsage,
-                        parent.quota
+                    allocationId = parent.id.toString(),
+                    timestamp = timestampOverride ?: Time.now(),
+                    balance = UsageReport.Balance(
+                        treeUsage = parent.treeUsage!!,
+                        localUsage = parent.localUsage,
+                        quota = parent.quota
                     ),
                     //TODO(Henrik) Should be more flexible
                     //Currently only charges hitting this code
-                    UsageReport.HistoryAction.CHARGE,
-                    transactionId,
-                    UsageReport.Change(
-                        0,
-                        delta,
-                        0
+                    relatedAction = UsageReport.HistoryAction.CHARGE,
+                    transactionId = transactionId,
+                    change = UsageReport.Change(
+                        localChange = 0,
+                        treeChange = delta,
+                        quotaChange = 0
                     )
                 )
             )
             return if (parent.parentAllocation == null) {
                 true
             } else {
-                return updateParentTreeUsage(parent, delta)
+                return updateParentTreeUsage(parent, delta, timestampOverride)
             }
         }
     }
 
-    private fun chargeAllocation(allocationId: Int, delta: Long): Boolean {
+    private fun chargeAllocation(
+        allocationId: Int,
+        delta: Long,
+        timestampOverride: Long? = null,
+    ): Boolean {
         val internalWalletAllocation = allocations[allocationId] ?: return false
         internalWalletAllocation.begin()
         val willOvercharge = (internalWalletAllocation.localUsage + delta > internalWalletAllocation.quota)
@@ -1604,37 +1606,34 @@ class AccountingProcessor(
         internalWalletAllocation.commit()
         val transactionId = transactionId()
         val transaction = UsageReport.AllocationHistoryEntry(
-            internalWalletAllocation.id.toString(),
-            Time.now(),
-            UsageReport.Balance(
-                internalWalletAllocation.treeUsage ?: internalWalletAllocation.localUsage,
-                internalWalletAllocation.localUsage,
-                internalWalletAllocation.quota
+            allocationId = internalWalletAllocation.id.toString(),
+            timestamp = timestampOverride ?: Time.now(),
+            balance = UsageReport.Balance(
+                treeUsage = internalWalletAllocation.treeUsage ?: internalWalletAllocation.localUsage,
+                localUsage = internalWalletAllocation.localUsage,
+                quota = internalWalletAllocation.quota
             ),
-            UsageReport.HistoryAction.CHARGE,
-            transactionId,
-            UsageReport.Change(
-                delta,
-                postChargeTree - preChargeTree,
-                0
+            relatedAction = UsageReport.HistoryAction.CHARGE,
+            transactionId = transactionId,
+            change = UsageReport.Change(
+                localChange = delta,
+                treeChange = postChargeTree - preChargeTree,
+                quotaChange = 0
             )
         )
-        println("TRANSACTION IN CHARGE ALLOC: $transaction")
-        dirtyTransactions.add(
-            transaction
-        )
+        dirtyTransactions.add(transaction)
         //In case of overcharge, only propagate the part of delta that is need to hit quota. Parents should not pay for
         // overconsumption
         if (willOvercharge) {
             val remainingDelta = internalWalletAllocation.quota - (internalWalletAllocation.localUsage - delta)
-            if (!updateParentTreeUsage(internalWalletAllocation, remainingDelta)) {
+            if (!updateParentTreeUsage(internalWalletAllocation, remainingDelta, timestampOverride)) {
                 return false
             }
         }
         if (internalWalletAllocation.localUsage > internalWalletAllocation.quota) {
             return true
         }
-        if (!updateParentTreeUsage(internalWalletAllocation, delta)) {
+        if (!updateParentTreeUsage(internalWalletAllocation, delta, timestampOverride)) {
             return false
         }
         return true
@@ -1643,9 +1642,9 @@ class AccountingProcessor(
     private fun applyPeriodCharge(
         delta: Long,
         walletAllocations: List<WalletAllocationV2>,
-        chargeDescription: ChargeDescription
+        chargeDescription: ChargeDescription,
+        timestampOverride: Long? = null,
     ): AccountingResponse {
-        println("Applying: $delta")
         if (delta == 0L) return AccountingResponse.Charge(true)
         var activeQuota = 0L
         for (allocation in walletAllocations) {
@@ -1660,7 +1659,7 @@ class AccountingProcessor(
 
             //If we have no quota then just charge all to first allocation, and skip rest
             if (activeQuota == 0L) {
-                if (!chargeAllocation(allocation.id.toInt(), delta)) {
+                if (!chargeAllocation(allocation.id.toInt(), delta, timestampOverride)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
                     )
@@ -1670,22 +1669,20 @@ class AccountingProcessor(
             }
             val weight = allocation.quota.toDouble() / activeQuota.toDouble()
             val localCharge = (delta.toDouble() * weight).toLong()
-            if (!chargeAllocation(allocation.id.toInt(), localCharge)) {
+            if (!chargeAllocation(allocation.id.toInt(), localCharge, timestampOverride)) {
                 return AccountingResponse.Error(
                     "Internal Error in charging specific allocation, allocation: ${allocation.id}", 500
                 )
             }
             amountCharged += localCharge
         }
-        println("AmountCharged = $amountCharged. Delta = $delta")
         if (amountCharged != delta) {
             val stillActiveAllocations = walletAllocations.filter { it.isActive() && !it.isLocked() }
             val difference = delta - amountCharged
-            println("difference $difference")
             if (stillActiveAllocations.isEmpty()) {
                 // Will choose latest invalidated allocation to charge
                 val latest = walletAllocations.filter{ it.endDate <= Time.now() }.maxByOrNull { it.endDate }!!
-                if (!chargeAllocation(latest.id.toInt(), difference)) {
+                if (!chargeAllocation(latest.id.toInt(), difference, timestampOverride)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
                     )
@@ -1696,7 +1693,7 @@ class AccountingProcessor(
                 var isFirst = true
                 for (allocation in stillActiveAllocations) {
                     if (isFirst) {
-                        if (!chargeAllocation(allocation.id.toInt(), difference % walletAllocations.size)) {
+                        if (!chargeAllocation(allocation.id.toInt(), difference % walletAllocations.size, timestampOverride)) {
                             return AccountingResponse.Error(
                                 "Internal Error in charging remainder", 500
                             )
@@ -1704,7 +1701,7 @@ class AccountingProcessor(
                         isFirst = false
                     }
                     if (amountPerAllocation != 0L) {
-                        if (!chargeAllocation(allocation.id.toInt(), amountPerAllocation)) {
+                        if (!chargeAllocation(allocation.id.toInt(), amountPerAllocation, timestampOverride)) {
                             return AccountingResponse.Error(
                                 "Internal Error in charging remaining", 500
                             )
@@ -1722,9 +1719,9 @@ class AccountingProcessor(
     private fun applyNonPeriodicCharge(
         totalUsage: Long,
         walletAllocations: List<WalletAllocationV2>,
-        description: ChargeDescription
+        description: ChargeDescription,
+        timestampOverride: Long? = null,
     ): AccountingResponse {
-        println("applying: $totalUsage")
         if (walletAllocations.isEmpty()) {
             return AccountingResponse.Error("No allocations to charge from", 400)
         }
@@ -1744,19 +1741,23 @@ class AccountingProcessor(
                 null
             }
         }
+
         var totalCharged = 0L
         for (allocation in walletAllocations) {
             val alloc = allocations[allocation.id.toInt()]
                 ?: return AccountingResponse.Error("Error on finding walletAllocation", 500)
-            alloc.begin()
+
             val oldValue = alloc.localUsage
             val quota = alloc.quota
             var diff = -oldValue
             alloc.localUsage = 0L
             var localChange = 0L
             var treeChange = 0L
+
             if (activeAllocations.contains(allocation.id)) {
-                val weight = allocation.quota.toDouble() / activeQuota.toDouble()
+                alloc.begin()
+
+                val weight = alloc.quota.toDouble() / activeQuota.toDouble()
                 val toCharge = round(totalUsage.toDouble() * weight).toLong()
                 diff = toCharge - oldValue
                 if (diff < 0 && abs(diff) > quota) {
@@ -1767,30 +1768,29 @@ class AccountingProcessor(
                 treeChange = min(diff, alloc.quota)
                 alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + treeChange
                 totalCharged += toCharge
+
+                alloc.commit()
             }
-            alloc.commit()
+
             val transactionId = transactionId()
             val transaction = UsageReport.AllocationHistoryEntry(
-                allocation.id,
-                Time.now(),
-                UsageReport.Balance(
-                    allocation.treeUsage ?: allocation.localUsage,
-                    allocation.localUsage,
-                    allocation.quota
+                allocationId = allocation.id,
+                timestamp = timestampOverride ?: Time.now(),
+                balance = UsageReport.Balance(
+                    treeUsage = alloc.treeUsage ?: alloc.localUsage,
+                    localUsage = alloc.localUsage,
+                    quota = alloc.quota
                 ),
-                UsageReport.HistoryAction.CHARGE,
-                transactionId,
-                UsageReport.Change(
-                    localChange,
-                    treeChange,
-                    0
+                relatedAction = UsageReport.HistoryAction.CHARGE,
+                transactionId = transactionId,
+                change = UsageReport.Change(
+                    localChange = localChange,
+                    treeChange = treeChange,
+                    quotaChange = 0
                 )
             )
-            println("addingTrans non periodic: $transaction")
-            dirtyTransactions.add(
-                transaction
-            )
-            updateParentTreeUsage(alloc, min(diff, alloc.quota))
+            dirtyTransactions.add(transaction)
+            updateParentTreeUsage(alloc, min(diff, alloc.quota), timestampOverride)
         }
 
         if (totalCharged != totalUsage) {
@@ -1805,14 +1805,14 @@ class AccountingProcessor(
                 //the charge
                 for (allocation in allocationsUsedBeforeChange) {
                     if (isFirst) {
-                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size, timestampOverride)) {
                             return AccountingResponse.Error(
                                 "Internal Error in charging remainder of non-periodic", 500
                             )
                         }
                         isFirst = false
                     }
-                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
+                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation, timestampOverride)) {
                         return AccountingResponse.Error(
                             "Internal Error in charging remaining of non-periodic", 500
                         )
@@ -1824,14 +1824,14 @@ class AccountingProcessor(
                 var isFirst = true
                 for (allocation in activeAllocations) {
                     if (isFirst) {
-                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size)) {
+                        if (!chargeAllocation(allocation.toInt(), difference % walletAllocations.size, timestampOverride)) {
                             return AccountingResponse.Error(
                                 "Internal Error in charging remainder of non-periodic", 500
                             )
                         }
                         isFirst = false
                     }
-                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation)) {
+                    if (!chargeAllocation(allocation.toInt(), amountPerAllocation, timestampOverride)) {
                         return AccountingResponse.Error(
                             "Internal Error in charging remaining of non-periodic", 500
                         )
@@ -2277,12 +2277,13 @@ class AccountingProcessor(
                             start_date = excluded.start_date,
                             end_date = excluded.end_date,
                             granted_in = excluded.granted_in
-                    """, debug = true
+                    """
                     )
                 }
 
                 debug.detail("Dealing with transactions")
 
+                println("Flushing ${dirtyTransactions.size} transactions")
                 dirtyTransactions.chunkedSequence(500).forEach { chunk ->
                     session.sendPreparedStatement(
                         {
@@ -2305,7 +2306,7 @@ class AccountingProcessor(
                                 (transaction_id, created_at, affected_allocation, new_tree_usage, new_local_usage, new_quota, action, local_change, tree_change, quota_change) 
                             select
                                 unnest(:transaction_ids::text[]),
-                                now(),
+                                to_timestamp(unnest(:timestamps::int8[]) / 1000),
                                 unnest(:affected_allocations::bigint[]),
                                 unnest(:new_treeusages::bigint[]),
                                 unnest(:new_usages::bigint[]),
@@ -2314,7 +2315,7 @@ class AccountingProcessor(
                                 unnest(:local_change::bigint[]),
                                 unnest(:tree_change::bigint[]),
                                 unnest(:quota_change::bigint[])
-                        """,debug=true
+                        """
                     )
                 }
 
@@ -2357,7 +2358,7 @@ class AccountingProcessor(
                                 select
                                     now(), username, project_id, category_id, balance
                                 from notification_data
-                            """, debug = true
+                            """
                         )
                     }
 

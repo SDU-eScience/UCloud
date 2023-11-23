@@ -366,6 +366,11 @@ export function Sidebar(): JSX.Element | null {
                                 <div
                                     data-active={label === selectedPage}
                                     onMouseEnter={() => setHoveredPage(label)}
+                                    onClick={() => {
+                                        if (selectedPage) {
+                                            setSelectedPage(label);
+                                        }
+                                    }}
                                     className={SidebarMenuItem}
                                 >
                                     <SidebarElement icon={icon} />
@@ -373,6 +378,11 @@ export function Sidebar(): JSX.Element | null {
                             </Link>) : <div
                                 key={label}
                                 data-active={label === selectedPage}
+                                onClick={() => {
+                                    if (selectedPage) {
+                                        setSelectedPage(label);
+                                    }
+                                }}
                                 onMouseEnter={() => setHoveredPage(label)}
                                 className={SidebarMenuItem}
                             >
@@ -625,11 +635,16 @@ function SecondarySidebar({
     const asPopOver = hovered && !clicked;
 
     useEffect(() => {
-        const firstLevel = parseInt(getCssPropertyValue("sidebarWidth").replace("px", ""));
-        const secondLevel = parseInt(getCssPropertyValue("secondarySidebarWidth").replace("px", ""));
+        const firstLevel = parseInt(getCssPropertyValue("sidebarWidth").replace("px", ""), 10);
+        const secondLevel = parseInt(getCssPropertyValue("secondarySidebarWidth").replace("px", ""), 10);
 
         let sum = firstLevel;
         if (isOpen) sum += secondLevel;
+        if (asPopOver) {
+            document.body.style.setProperty("--sidebarBlockWidth", `${firstLevel}px`);
+        } else {
+            document.body.style.setProperty("--sidebarBlockWidth", `${sum}px`);
+        }
 
         document.body.style.setProperty(CSSVarCurrentSidebarWidth, `${sum}px`);
         document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
@@ -659,7 +674,7 @@ function SecondarySidebar({
             <Flex flexDirection={"column"} gap={"16px"}>
                 <div>
                     <h3><Link to={"/drives/"}>Drives</Link></h3>
-                    {drives.data.items.map(it =>
+                    {drives.data.items.slice(0, 8).map(it =>
                         <Link key={it.id} to={`/files?path=${it.id}`}>
                             <Flex>
                                 <Box mt="1px" mr="4px"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Box>
@@ -669,6 +684,16 @@ function SecondarySidebar({
                             </Flex>
                         </Link>
                     )}
+                    {drives.data.items.length < 8 ? null :
+                        /* TODO(Jonas): Find better solution than this. */
+                        <Link to={`/drives/`}>
+                            <Flex>
+                                <Text mx="auto" fontSize="14px" maxWidth={"150px"} color="var(--fixedWhite)">
+                                    View all drives
+                                </Text>
+                            </Flex>
+                        </Link>
+                    }
                 </div>
 
                 <div>

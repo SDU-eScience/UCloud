@@ -194,7 +194,6 @@ export abstract class ResourceApi<Res extends Resource,
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: boolean;
-        inPopIn?: boolean;
     }> = props => <ResourceProperties {...props} api={this} />
 
     protected constructor(namespace: string) {
@@ -223,7 +222,6 @@ export abstract class ResourceApi<Res extends Resource,
                 primary: true,
                 icon: "check",
                 enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) === true ?? true),
-                canAppearInLocation: loc => loc === "IN_ROW",
                 onClick: (selected, cb) => {
                     cb.onSelect!(selected[0]);
                 },
@@ -233,7 +231,6 @@ export abstract class ResourceApi<Res extends Resource,
                 text: "Create " + this.title.toLowerCase(),
                 icon: "upload",
                 primary: true,
-                canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
                     return !(selected.length !== 0 || cb.startCreation == null || cb.isCreating);
 
@@ -246,7 +243,6 @@ export abstract class ResourceApi<Res extends Resource,
                 text: "Cancel",
                 icon: "close",
                 color: "red",
-                canAppearInLocation: loc => loc === "SIDEBAR" || loc === "TOPBAR",
                 primary: true,
                 enabled: (selected, cb) => {
                     return cb.isCreating

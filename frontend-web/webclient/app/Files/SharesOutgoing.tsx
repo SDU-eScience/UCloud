@@ -15,7 +15,7 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useLocation, useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useAvatars} from "@/AvataaarLib/hook";
+import {avatarState} from "@/AvataaarLib/hook";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, SelectionMode, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -58,8 +58,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const location = useLocation();
-
-    const avatars = useAvatars();
 
     useTitle("Shared by me");
 
@@ -251,21 +249,23 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     text: "Created by"
                 }, dateRangeFilters("Date created")]);
 
-                let currentAvatars = new Set<string>();
-                let fetchedAvatars = new Set<string>();
+                const currentAvatars = new Set<string>();
+                const fetchedAvatars = new Set<string>();
                 browser.on("endRenderPage", () => {
                     if (currentAvatars.size > 0) {
-                        avatars.updateCache([...currentAvatars]).then(() => browser.rerender());
+                        avatarState.updateCache([...currentAvatars]);
                         currentAvatars.forEach(it => fetchedAvatars.add(it));
                         currentAvatars.clear();
                     }
                 });
+                
+                avatarState.subscribe(() => browser.rerender());
 
                 browser.on("renderRow", (share, row, dims) => {
                     const avatarWrapper = document.createElement("div");
 
                     if (isViewingShareGroupPreview(share)) {
-                        const sharedWithAvatar = avatars.avatar(share.sharedWith);
+                        const sharedWithAvatar = avatarState.avatar(share.sharedWith);
                         row.title.append(avatarWrapper);
                         new ReactStaticRenderer(() =>
                             <Tooltip
@@ -451,7 +451,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                     // causing multiple avatars to be shown.
                     if (!isViewingShareGroupPreview(share)) {
                         row.stat3.append(avatarWrapper);
-                        const sharedWithAvatars = share.sharePreview.map(it => avatars.avatar(it.sharedWith));
+                        const sharedWithAvatars = share.sharePreview.map(it => avatarState.avatar(it.sharedWith));
                         new ReactStaticRenderer(() =>
                             <Tooltip
                                 trigger={<Flex marginRight="26px">

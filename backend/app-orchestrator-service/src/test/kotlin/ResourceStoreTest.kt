@@ -163,7 +163,7 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
         )
     }
 
-    override suspend fun fetchIdCard(actorAndProject: ActorAndProject): IdCard {
+    override suspend fun fetchIdCard(actorAndProject: ActorAndProject, allowCached: Boolean): IdCard {
         val username = actorAndProject.actor.safeUsername()
         val project = actorAndProject.project
 

@@ -33,7 +33,7 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const logoDataUrls = new AsyncCache<string>();
+export const logoDataUrls = new AsyncCache<string>();
 
 const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Job name"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: "State"}];
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {

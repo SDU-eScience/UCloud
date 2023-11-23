@@ -6,6 +6,8 @@ import {HookStore} from "@/DefaultObjects";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as React from "react";
+import * as Messages from "@/UCloud/Messages";
+import {BufferAndOffset, loadMessage, UBinaryType} from "@/UCloud/Messages";
 
 const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1);
 
@@ -50,6 +52,10 @@ declare global {
         disableCache?: boolean;
         accessTokenOverride?: string;
         unauthenticated?: boolean;
+    }
+
+    export interface APICallParametersBinary<Response> extends APICallParameters {
+        responseConstructor: { new(b: BufferAndOffset): Response };
     }
 }
 
@@ -139,14 +145,23 @@ export function mapCallState<InputType, OutputType>(
     };
 }
 
-export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
+export async function callAPI<T>(
+    parameters: (APICallParameters<unknown, T> | APICallParametersBinary<T>)
+): Promise<T> {
     if (window["forceApiFailure"] !== undefined) {
         return Promise.reject(window["forceApiFailure"]);
     }
 
     const method = parameters.method !== undefined ? parameters.method : "GET";
     if (parameters.path === undefined) throw Error("Missing path");
-    return (await Client.call({
+    let responseType: XMLHttpRequestResponseType = "text";
+    let acceptType = "*/*";
+    if ("responseConstructor" in parameters) {
+        responseType = "arraybuffer";
+        acceptType = Messages.contentType;
+    }
+
+    const res = (await Client.call({
         method,
         path: parameters.path,
         body: parameters.payload,
@@ -155,7 +170,14 @@ export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Pro
         projectOverride: parameters.projectOverride,
         accessTokenOverride: parameters.accessTokenOverride,
         unauthenticated: parameters.unauthenticated,
+        responseType,
+        acceptType,
     })).response;
+
+    if ("responseConstructor" in parameters) {
+        return loadMessage(parameters.responseConstructor, new DataView(res));
+    }
+    return res;
 }
 
 export async function callAPIWithErrorHandler<T>(

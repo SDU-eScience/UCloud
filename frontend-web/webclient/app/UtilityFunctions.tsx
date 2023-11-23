@@ -328,12 +328,14 @@ export function requestFullScreen(el: Element, onFailure: () => void): void {
 }
 
 export function timestampUnixMs(): number {
-    return window.performance &&
+    return Math.floor(
+        window.performance &&
         window.performance["now"] &&
         window.performance.timing &&
         window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
-        Date.now();
+        Date.now()
+    );
 }
 
 /**
@@ -422,8 +424,8 @@ if (onDevSite()) {
                 // localStorage.setItem("accessToken", accessToken);
                 // localStorage.setItem("csrfToken", csrfToken);
                 // window.location.reload();
-            } 
-        } 
+            }
+        }
     });
 }
 

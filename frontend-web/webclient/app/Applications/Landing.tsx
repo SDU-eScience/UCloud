@@ -128,6 +128,11 @@ const AppStoreVisualClass = injectStyle("app-store-visual", k => `
         color: #5c89f4;
         font-weight: 400;
     }
+
+    ${k} img {
+        max-height: 250px;
+        transform: scaleX(-1);
+    }
 `);
 
 const ApplicationsLanding: React.FunctionComponent = () => {
@@ -213,7 +218,6 @@ const ApplicationsLanding: React.FunctionComponent = () => {
                                 />
                             </div>
                         ))}
-
                         <ViewAllButton />
                     </Box>
                 } />

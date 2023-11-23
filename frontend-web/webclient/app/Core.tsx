@@ -85,6 +85,7 @@ import {DrivesRouter, FilesRouter} from "./Files/Router";
 import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "./Applications/PublicLinks/Router";
 import SharesApi from "./UCloud/SharesApi";
+import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
 
 const NotFound = (): React.JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -308,6 +309,7 @@ injectStyle("ignored", () => `
 
 Client.initializeStore(store);
 removeExpiredFileUploads();
+findCustomThemeColorOnLaunch();
 
 const isLight = isLightThemeStored();
 toggleCssColors(isLight);

@@ -48,6 +48,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         top: 9px;
         left: 15px;
         position: absolute;
+        overflow-y: hidden;
         background: var(--progress-border);
         transition: transform .3s, opacity .2s;
         opacity: var(--icon-o, 0);
@@ -398,6 +399,8 @@ export function ConfirmationButtonPlainHTML(
     const button = document.createElement("button");
 
     {
+        button.style.overflowY = "hidden";
+        button.style.maxHeight = "40px";
         button.className = classConcat(ButtonClass, ConfirmButtonClass);
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
         button.setAttribute("data-no-text", (!actionText).toString());
@@ -502,13 +505,15 @@ export function ConfirmationButtonPlainHTML(
     button.append(icons);
 
     const ul = document.createElement("ul");
-    const ulStyle: CSSProperties = {};
-    if (opts.align === "left" && opts.asSquare) ulStyle.marginLeft = "34px";
+    if (opts.align === "left" && opts.asSquare) ul.style.marginLeft = "34px";
     if (opts.align !== "left") {
         ul.style.textAlign = "center";
     } else {
         ul.style.textAlign = "left";
     }
+
+    ul.style.maxHeight = "40px";
+    ul.style.overflowY = "hidden";
 
     const actionTextLi = document.createElement("li");
     actionTextLi.innerText = actionText;

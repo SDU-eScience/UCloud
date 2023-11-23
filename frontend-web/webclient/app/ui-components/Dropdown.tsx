@@ -70,7 +70,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         white-space: nowrap;
     }
 
-    ${k} > div {
+    ${k}[data-no-y-padding="false"] > div {
         padding-top: 5px;
         padding-bottom: 5px;
     }
@@ -125,6 +125,7 @@ export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<Dr
         data-fixed={props.fixed === true}
         data-hover-color={props.colorOnHover === true}
         data-padding-controlled={props.paddingControlledByContent === true}
+        data-no-y-padding={props.noYPadding === true}
         data-visible={props.visible === true}
         style={style}
         children={props.children}
@@ -161,6 +162,7 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     visible?: boolean;
     fixed?: boolean;
     paddingControlledByContent?: boolean;
+    noYPadding?: boolean;
     color?: string;
     onKeyDown?: React.KeyboardEventHandler;
     dropdownRef?: React.Ref<HTMLDivElement>
