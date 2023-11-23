@@ -58,8 +58,11 @@ data class Category(
         private set
 
     internal fun init() {
-        val c = cost ?: error("The category must have a cost at this point")
-
+        var c = cost ?: error("The category must have a cost at this point")
+        if (c is ProductCost.Resource && c.unit == null && type == ProductType.COMPUTE) {
+            cost = c.copy(unit = ComputeResourceType.Cpu.name)
+            c = cost
+        }
         category = ProductCategory(
             name,
             providerId,
