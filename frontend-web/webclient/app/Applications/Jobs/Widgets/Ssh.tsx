@@ -21,7 +21,6 @@ export const SshWidget: React.FunctionComponent<{
     const sshMode = props.application.invocation.ssh?.mode ?? "DISABLED";
     const [sshKeyFirstPage] = useCloudAPI<PageV2<SSHKey>>(SshKeyApi.browse({itemsPerPage: 10}), emptyPageV2);
     let hasAnyKeys = sshKeyFirstPage.data.items.length > 0;
-    if (sshKeyFirstPage.loading) hasAnyKeys = true;
     const [sshEnabled, setSshEnabled] = useState(true);
 
     useEffect(() => {
@@ -31,11 +30,6 @@ export const SshWidget: React.FunctionComponent<{
     useEffect(() => {
         props.onSshStatusChanged(sshMode === "MANDATORY" || (sshMode === "OPTIONAL" && sshEnabled));
     }, [sshMode, props.onSshStatusChanged, sshEnabled]);
-
-    useEffect(() => {
-        if (sshMode !== "MANDATORY") return;
-        props.onSshKeysValid(hasAnyKeys);
-    }, [hasAnyKeys, props.onSshKeysValid]);
 
     const toggleSshEnabled = useCallback(() => {
         setSshEnabled(prev => !prev);
