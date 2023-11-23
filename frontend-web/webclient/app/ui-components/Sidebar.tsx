@@ -363,6 +363,11 @@ export function Sidebar(): JSX.Element | null {
                                 <div
                                     data-active={label === selectedPage}
                                     onMouseEnter={() => setHoveredPage(label)}
+                                    onClick={() => {
+                                        if (selectedPage) {
+                                            setSelectedPage(label);
+                                        }
+                                    }}
                                     className={SidebarMenuItem}
                                 >
                                     <SidebarElement icon={icon} />
@@ -370,6 +375,11 @@ export function Sidebar(): JSX.Element | null {
                             </Link>) : <div
                                 key={label}
                                 data-active={label === selectedPage}
+                                onClick={() => {
+                                    if (selectedPage) {
+                                        setSelectedPage(label);
+                                    }
+                                }}
                                 onMouseEnter={() => setHoveredPage(label)}
                                 className={SidebarMenuItem}
                             >
