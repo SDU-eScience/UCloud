@@ -149,7 +149,7 @@ class Importer(
         data class AppGroupData(
             val title: String,
             val description: String,
-            val default: NameAndVersion? = null,
+            val default: String? = null,
             val applications: List<String>,
             val tags: List<String>
         )

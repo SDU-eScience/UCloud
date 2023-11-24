@@ -204,19 +204,12 @@ class LogoService(
                     setParameter("id", id)
                 },
                 """
-                    SELECT id, title, logo, description, default_name, default_version
+                    SELECT id, title, logo, description, default_name
                     FROM app_store.application_groups
                     WHERE id = :id
                 """
             ).rows.singleOrNull()?.let {
-                val default = if (it.getString("default_name") != null) {
-                    NameAndVersion(
-                        it.getString("default_name")!!,
-                        it.getString("default_version")!!,
-                    )
-                } else {
-                    null
-                }
+                val default = it.getString("default_name")
 
                 ApplicationGroup(
                     it.getInt("id")!!,
@@ -232,7 +225,7 @@ class LogoService(
         if (group.first.defaultApplication == null)
             throw RPCException("Logo not found", HttpStatusCode.NotFound)
 
-        return fetchLogo(actorAndProject, LogoType.APPLICATION, group.first.defaultApplication!!.name)
+        return fetchLogo(actorAndProject, LogoType.APPLICATION, group.first.defaultApplication!!)
     }
 
     private suspend fun browseAll(request: NormalizedPaginationRequestV2): PageV2<Pair<String, ByteArray>> {

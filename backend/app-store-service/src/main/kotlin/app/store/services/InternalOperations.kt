@@ -29,13 +29,23 @@ internal suspend fun internalHasPermission(
     actorAndProject: ActorAndProject,
     memberGroups: List<String>,
     appName: String,
-    appVersion: String,
+    appVersion: String?,
     permission: ApplicationAccessRight,
     publicService: ApplicationPublicService,
     aclDao: AclAsyncDao
 ): Boolean {
     if ((actorAndProject.actor as? Actor.User)?.principal?.role in Roles.PRIVILEGED) return true
-    if (ctx.withSession { session -> publicService.isPublic(session, actorAndProject, appName, appVersion)}) return true
+
+    if (appVersion != null) {
+        if (ctx.withSession { session ->
+                publicService.isPublic(session, actorAndProject, appName, appVersion)
+            }) return true
+    }
+
+    if (ctx.withSession { session ->
+            publicService.anyIsPublic(session, actorAndProject, appName)
+        }) return true
+
     return ctx.withSession { session ->
         aclDao.hasPermission(
             session,
@@ -50,7 +60,7 @@ internal suspend fun internalHasPermission(
 internal suspend fun internalByNameAndVersion(
     ctx: DBContext,
     appName: String,
-    appVersion: String
+    appVersion: String?
 ): RowData? {
     return ctx.withSession { session ->
         session.sendPreparedStatement(
@@ -59,11 +69,13 @@ internal suspend fun internalByNameAndVersion(
                 setParameter("version", appVersion)
             },
             """
-                    SELECT *
-                    FROM applications
-                    WHERE (name = :name) AND (version = :version)
-                """.trimIndent()
-        ).rows.singleOrNull()
+                SELECT a.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                FROM app_store.applications a
+                LEFT JOIN app_store.application_groups ag ON ag.id = a.group_id
+                WHERE (name = :name) AND (version = :version or :version::text is null)
+                ORDER BY created_at DESC 
+            """
+        ).rows.firstOrNull()
     }
 }
 

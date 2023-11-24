@@ -1,34 +1,70 @@
 import {injectStyle} from "@/Unstyled";
 import {ApplicationGroup} from "./api";
-import {AppCard, ApplicationCardType} from "./Card";
+import {AppCard, AppCardType, AppCardStyle} from "./Card";
 import React, {useEffect, useState} from "react";
-import {Absolute, Flex, Grid, Icon, Link, Relative} from "@/ui-components";
+import {Absolute, Icon, Link, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
+import {compute} from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 
-const ApplicationRowContainerClass = injectStyle("tag-grid-bottom-box", k => `
+export const ApplicationRowContainerClass = injectStyle("application-row-container", k => `
     ${k} {
-        padding: 15px 10px 15px 10px;
+        display: flex;
+        justify-content: left;
+        gap: 20px;
+        padding: 12px 10px;
         margin: 0 -10px;
         overflow-x: auto;
     }
+
+    ${k}[data-space-between=true] {
+        justify-content: space-between;
+    }
 `);
 
+export interface ApplicationRowItem {
+    id: string,
+    type: AppCardType,
+    title: string,
+    description?: string,
+    defaultApplication?: string,
+    tags?: string[],
+    isFavorite?: boolean,
+    application?: ApplicationSummaryWithFavorite
+}
+
+export function ApplicationGroupToRowItem(group: ApplicationGroup): ApplicationRowItem {
+    return {
+        id: group.id.toString(),
+        type: AppCardType.GROUP,
+        title: group.title,
+        description: group.description,
+        defaultApplication: group.defaultApplication,
+        tags: group.tags
+    }
+}
+
+export function ApplicationSummaryToRowItem(app: ApplicationSummaryWithFavorite): ApplicationRowItem {
+    return {
+        id: app.metadata.name,
+        type: AppCardType.APPLICATION,
+        title: app.metadata.title,
+        description: app.metadata.description,
+        isFavorite: app.favorite,
+        application: app
+    }
+}
+
 interface ApplicationRowProps {
-    items: ApplicationGroup[];
-    type: ApplicationCardType;
+    items: ApplicationRowItem[];
+    onFavorite?: (app: ApplicationSummaryWithFavorite) => void;
+    cardStyle: AppCardStyle;
     refreshId: number;
-    scrolling: boolean;
 }
 
 const SCROLL_SPEED = 156 * 4;
 
-function groupCardLink(app: ApplicationGroup): string {
-    return app.defaultApplication ? 
-        Pages.run(app.defaultApplication.name, app.defaultApplication.version)
-    :
-        Pages.browseGroup(app.id.toString())
 
-}
 
 const ScrollButtonClass = injectStyle("scroll-button", k => `
     ${k} {
@@ -60,8 +96,18 @@ function ScrollButton({disabled, left, onClick}: {disabled: boolean; left: boole
     </div>
 }
 
+function linkFromApplicationRowItem(item: ApplicationRowItem): string {
+    if (item.type === AppCardType.APPLICATION) {
+        return Pages.run(item.id)
+    }
+    if (item.defaultApplication) {
+        return Pages.run(item.defaultApplication)
+    }
+    return Pages.browseGroup(item.id)
+}
+
 const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
-    items, type, scrolling
+    items, onFavorite, cardStyle 
 }: ApplicationRowProps) => {
     const [hasScroll, setHasScroll] = useState<boolean>(false);
     const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -92,74 +138,26 @@ const ApplicationRow: React.FunctionComponent<ApplicationRowProps> = ({
                 </Relative>
             </>}
 
-            {type === ApplicationCardType.WIDE ?
-                <div ref={scrollRef} className={ApplicationRowContainerClass}>
-                    <Flex
-                        justifyContent={items.length < 3 ? "space-evenly" : "space-between"}
-                        gap="10px"
-                        py="10px"
-                    >
-                        {items.map(app =>
-                            <Link key={app.id} to={groupCardLink(app)}>
-                                <AppCard
-                                    type={ApplicationCardType.WIDE}
-                                    title={app.title}
-                                    description={app.description}
-                                    logo={app.id.toString()}
-                                    logoType="GROUP"
-                                    isFavorite={false}
-                                />
-                            </Link>
-                        )}
-                    </Flex>
-                </div>
-            :
-                scrolling ?
-                    <div ref={scrollRef} className={ApplicationRowContainerClass}>
-                        <Grid
-                            gridGap="25px"
-                            gridTemplateRows={"repeat(1, 1fr)"}
-                            gridTemplateColumns={"repeat(auto-fill, 166px)"}
-                            style={{gridAutoFlow: "column"}}
-                        >
-                            {items.map(app =>
-                                <>
-                                    <Link key={app.id} to={groupCardLink(app)}>
-                                        <AppCard
-                                            type={ApplicationCardType.TALL}
-                                            title={app.title}
-                                            description={app.description}
-                                            logo={app.id.toString()}
-                                            logoType="GROUP"
-                                            isFavorite={false}
-                                        />
-                                    </Link>
-                                </>
-                            )}
-                        </Grid>
-                    </div>
-                :
-                    <div ref={scrollRef} className={ApplicationRowContainerClass}>
-                        <Flex
-                            justifyContent="space-evenly"
-                            gap="10px"
-                            py="10px"
-                        >
-                            {items.map(app =>
-                                <Link key={app.id} to={groupCardLink(app)}>
-                                    <AppCard
-                                        type={ApplicationCardType.TALL}
-                                        title={app.title}
-                                        description={app.description}
-                                        logo={app.id.toString()}
-                                        logoType="GROUP"
-                                        isFavorite={false}
-                                    />
-                                </Link>
-                            )}
-                        </Flex>
-                    </div>
-            }
+            <div
+                ref={scrollRef}
+                className={ApplicationRowContainerClass}
+                data-space-between={cardStyle === AppCardStyle.WIDE ? (items.length > 3) : (items.length > 6)}
+            >
+                {items.map(item =>
+                    <AppCard
+                        key={item.id}
+                        cardStyle={cardStyle}
+                        title={item.title}
+                        description={item.description}
+                        logo={item.id}
+                        type={item.type}
+                        isFavorite={item.isFavorite}
+                        onFavorite={onFavorite}
+                        application={item.application}
+                        link={linkFromApplicationRowItem(item)}
+                    />
+                )}
+            </div>
         </>
     )
 

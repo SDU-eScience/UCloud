@@ -5,7 +5,7 @@ import NameAndVersion = compute.NameAndVersion;
 export const view = (name: string, version: string): string =>
     `/applications/details/${encodeURIComponent(name)}/${encodeURIComponent(version)}/`;
 
-export const run = (name: string, version: string): string =>
+export const run = (name: string, version: string | undefined = undefined): string =>
     buildQueryString("/jobs/create", {app: name, version});
 
 export const browseGroup = (id: string): string =>

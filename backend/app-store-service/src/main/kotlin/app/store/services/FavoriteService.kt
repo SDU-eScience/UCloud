@@ -20,7 +20,6 @@ class FavoriteService (
         ctx: DBContext,
         actorAndProject: ActorAndProject,
         appName: String,
-        appVersion: String
     ): Boolean {
         return 0L != ctx.withSession { session ->
             session
@@ -28,14 +27,12 @@ class FavoriteService (
                     {
                         setParameter("user", actorAndProject.actor.username)
                         setParameter("name", appName)
-                        setParameter("version", appVersion)
                     },
                     """
                         SELECT COUNT(*)
                         FROM favorited_by
                         WHERE (the_user = :user) AND
-                            (application_name = :name) AND
-                            (application_version = :version)
+                            (application_name = :name)
                     """
                 )
                 .rows
@@ -44,7 +41,7 @@ class FavoriteService (
     }
 
 
-    suspend fun toggleFavorite(actorAndProject: ActorAndProject, appName: String, appVersion: String) {
+    suspend fun toggleFavorite(actorAndProject: ActorAndProject, appName: String) {
         val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
         } else {
@@ -52,22 +49,18 @@ class FavoriteService (
         }
 
         db.withSession { session ->
-            val foundApp =
-                internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.BadApplication()
-            val isFavorite = isFavorite(session, actorAndProject, appName, appVersion)
+            val isFavorite = isFavorite(session, actorAndProject, appName)
 
             if (isFavorite) {
                 session.sendPreparedStatement(
                         {
                             setParameter("user", actorAndProject.actor.username)
                             setParameter("appname", appName)
-                            setParameter("appversion", appVersion)
                         },
                         """
                             DELETE FROM favorited_by
                             WHERE (the_user = :user) AND
-                                (application_name = :appname) AND
-                                (application_version = :appversion)
+                                (application_name = :appname)
                         """
                     )
 
@@ -76,26 +69,23 @@ class FavoriteService (
                     session,
                     actorAndProject,
                     projectGroups,
-                    foundApp.getString("name")!!,
-                    foundApp.getString("version")!!,
+                    appName,
+                    null,
                     ApplicationAccessRight.LAUNCH,
                     publicService,
                     aclDao
                 )
                 if (userHasPermission) {
-                    val id = session.allocateId()
                     session.sendPreparedStatement(
                         {
-                            setParameter("name", foundApp.getString("name"))
-                            setParameter("version", foundApp.getString("version"))
+                            setParameter("name", appName)
                             setParameter("user", actorAndProject.actor.username)
-                            setParameter("id", id)
                         },
                         """
                             insert into app_store.favorited_by
-                                (id, the_user, application_name, application_version)
+                                (the_user, application_name)
                             values
-                                (:id, :user, :name, :version)
+                                (:user, :name)
                         """
                     )
                 } else {
@@ -148,12 +138,12 @@ class FavoriteService (
                             setParameter("offset", request.offset)
                         },
                         """
-                        SELECT A.*
+                        SELECT DISTINCT ON (A.name) name, A.*,  ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                         FROM favorited_by as F, applications as A
+                        LEFT JOIN application_groups ag ON ag.id = A.group_id
                         WHERE 
                             (F.the_user = :user) AND
                             (F.application_name = A.name) AND
-                            (F.application_version = A.version) AND 
                             (
                                 (A.is_public = TRUE) OR
                                 (
@@ -173,7 +163,7 @@ class FavoriteService (
                                     :isAdmin
                                 )
                             )
-                        ORDER BY F.application_name
+                        ORDER BY A.name, A.created_at DESC
                         LIMIT :limit
                         OFFSET :offset
                     """

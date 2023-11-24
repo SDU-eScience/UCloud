@@ -58,6 +58,9 @@ import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {isJobStateTerminal} from "@/Applications/Jobs";
 
+export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";
+export const CSSVarCurrentSidebarStickyWidth = "--currentSidebarStickyWidth";
+
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
         background-color: var(--sidebarSecondaryColor);
@@ -643,7 +646,8 @@ function SecondarySidebar({
             document.body.style.setProperty("--sidebarBlockWidth", `${sum}px`);
         }
 
-        document.body.style.setProperty("--currentSidebarWidth", `${sum}px`);
+        document.body.style.setProperty(CSSVarCurrentSidebarWidth, `${sum}px`);
+        document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
     }, [isOpen, asPopOver]);
 
     return <div

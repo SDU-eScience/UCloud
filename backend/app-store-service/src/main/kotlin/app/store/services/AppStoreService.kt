@@ -37,7 +37,7 @@ class AppStoreService(
     suspend fun findByNameAndVersion(
         actorAndProject: ActorAndProject,
         appName: String,
-        appVersion: String
+        appVersion: String? = null
     ): ApplicationWithFavoriteAndTags {
         val projectGroups = if (actorAndProject.project.isNullOrBlank()) {
             emptyList()
@@ -311,9 +311,10 @@ class AppStoreService(
                                     ) apps_with_rno
                                     where rno <= 1
                                 )
-                            select a.*
+                            select a.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                             from
                                 most_recent_applications a
+                            left join application_groups ag on ag.id = a.group_id
                             where
                                 (a.application -> 'fileExtensions' ??| :ext::text[])
 
@@ -389,8 +390,10 @@ class AppStoreService(
                     setParameter("user", user?.username ?: "")
                 },
                 """
-                SELECT A.*
-                FROM applications AS A WHERE (A.created_at) IN (
+                SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                FROM applications AS A
+                LEFT JOIN application_groups ag on ag.id = A.group_id 
+                WHERE (A.created_at) IN (
                     SELECT MAX(created_at)
                     FROM applications as B
                     WHERE A.name = B.name AND (
@@ -465,8 +468,9 @@ class AppStoreService(
                     setParameter("user", actorAndProject.actor.username)
                 },
                 """
-                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description FROM applications AS A
-                    JOIN app_store.application_groups ag on A.group_id = ag.id
+                    SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                    FROM applications AS A
+                    LEFT JOIN app_store.application_groups ag on A.group_id = ag.id
                     WHERE A.name = :name AND (
                         (
                             A.is_public = TRUE
@@ -522,8 +526,10 @@ class AppStoreService(
                     setParameter("user", actorAndProject.actor.username)
                 },
                 """
-            SELECT A.*
-            FROM applications AS A WHERE (A.created_at) IN (
+            SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+            FROM applications AS A
+            LEFT JOIN app_store.application_groups ag ON ag.id = A.group_id
+            WHERE (A.created_at) IN (
                 SELECT MAX(created_at)
                 FROM applications as B
                 WHERE A.name = B.name AND (
@@ -590,8 +596,7 @@ class AppStoreService(
                             g.description,
                             s.id as section_id,
                             s.title as section_title,
-                            g.default_name,
-                            g.default_version
+                            g.default_name
                         from
                             app_store.sections s
                             left join app_store.section_tags st on s.id = st.section_id
@@ -607,11 +612,12 @@ class AppStoreService(
                     val description = row.getString(2)
                     val sectionId = row.getInt(3) ?: return@forEach
                     val sectionTitle = row.getString(4) ?: return@forEach
+                    val defaultApplication = row.getString(5)
 
                     sections[sectionId] = sectionTitle
                     items
                         .getOrPut(sectionId) { ArrayList() }
-                        .add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                        .add(ApplicationGroup(groupId, groupTitle, description, defaultApplication))
                 }
 
                 session.sendPreparedStatement(
@@ -631,7 +637,6 @@ class AppStoreService(
                                 g.title as title,
                                 g.description,
                                 g.default_name,
-                                g.default_version,
                                 s.order_index as s_index,
                                 f.order_index as f_index
                             from app_store.sections s
@@ -666,11 +671,12 @@ class AppStoreService(
                     val groupId = row.getInt("id")!!
                     val groupTitle = row.getString("title")!!
                     val description = row.getString("description")
+                    val defaultApplication = row.getString("default_name")
 
                     sections[sectionId] = sectionTitle
                     featured
                         .getOrPut(sectionId) { ArrayList() }
-                        .add(ApplicationGroup(groupId, groupTitle, description, row.defaultApplication()))
+                        .add(ApplicationGroup(groupId, groupTitle, description, defaultApplication))
 
                     items[sectionId]?.removeIf { it.id == groupId }
                 }
@@ -740,7 +746,7 @@ class AppStoreService(
         title: String,
         logo: ByteArray? = null,
         description: String? = null,
-        defaultApplication: NameAndVersion? = null
+        defaultApplication: String? = null
     ) {
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -749,8 +755,7 @@ class AppStoreService(
                     setParameter("title", title)
                     setParameter("logo", logo)
                     setParameter("description", description)
-                    setParameter("default_name", defaultApplication?.name)
-                    setParameter("default_version", defaultApplication?.version)
+                    setParameter("default_name", defaultApplication)
                 },
                 """
                     update app_store.application_groups
@@ -758,8 +763,7 @@ class AppStoreService(
                         title = :title,
                         logo = :logo,
                         description = :description,
-                        default_name = :default_name,
-                        default_version = :default_version 
+                        default_name = :default_name
                     where id = :id 
                 """
             )
@@ -786,7 +790,7 @@ class AppStoreService(
         return db.withSession { session ->
             session.sendPreparedStatement(
                 """
-                    select id, title, description, default_name, default_version
+                    select id, title, description, default_name
                     from application_groups
                     order by title
                 """
@@ -795,7 +799,7 @@ class AppStoreService(
                     row.getInt("id")!!,
                     row.getString("title")!!,
                     row.getString("description"),
-                    row.defaultApplication()
+                    row.getString("default_name")
                 )
             }
         }
@@ -814,7 +818,6 @@ class AppStoreService(
                         g.title,
                         g.description,
                         g.default_name,
-                        g.default_version,
                         jsonb_agg(t.tag) as tags
                     from
                         app_store.application_groups g
@@ -831,14 +834,14 @@ class AppStoreService(
                             )
                         )
                     group by
-                        g.id, g.title, g.description, g.default_name, g.default_version                    
+                        g.id, g.title, g.description, g.default_name
                 """
             ).rows.firstOrNull()?.let { row ->
                 ApplicationGroup(
                     row.getInt("id")!!,
                     row.getString("title")!!,
                     row.getString("description"),
-                    row.defaultApplication(),
+                    row.getString("default_name"),
                     defaultMapper.decodeFromString<List<String?>>(row.getString("tags") ?: "[]").filterNotNull()
                 )
             } ?: throw RPCException("Group not found", HttpStatusCode.NotFound)
@@ -880,10 +883,10 @@ class AppStoreService(
                             group by a.name
                         ),
                         most_recent as (
-                            select a.*
-                            from
-                                candidates c
-                                join app_store.applications a on a.name = c.name and a.created_at = c.most_recent
+                            select a.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
+                            from candidates c
+                            join app_store.applications a on a.name = c.name and a.created_at = c.most_recent
+                            left join app_store.application_groups ag ON ag.id = a.group_id
                         )
                     select * from most_recent;
                 """
@@ -923,6 +926,14 @@ class AppStoreService(
             if (tool.description.supportedProviders != listOf(providerName)) throw ApplicationException.NotAllowed()
         }
 
+
+        val existingWithName = db.withSession { session ->
+            internalByNameAndVersion(session, application.metadata.name, null)?.toApplicationSummary()
+        }
+
+        val group = existingWithName?.metadata?.group?.id
+        val flavor = existingWithName?.metadata?.flavorName
+
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -940,12 +951,14 @@ class AppStoreService(
                     setParameter("id_version", application.metadata.version)
                     setParameter("application", defaultMapper.encodeToString(application.invocation))
                     setParameter("original_document", content)
+                    setParameter("group", group)
+                    setParameter("flavor", flavor)
                 },
                 """
                     insert into app_store.applications
-                        (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website) 
+                        (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website, group_id, flavor_name) 
                     values 
-                        (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website)
+                        (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website, :group, :flavor)
                 """
             )
 
@@ -1150,7 +1163,6 @@ class AppStoreService(
             cleanupBeforeDelete(
                 session,
                 existingApp.getString("name")!!,
-                existingApp.getString("version")!!
             )
 
             session.sendPreparedStatement(
@@ -1284,8 +1296,9 @@ class AppStoreService(
                     setParameter("groups", groups)
                 },
                 """
-                SELECT A.*
+                SELECT A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                 FROM applications AS A 
+                LEFT JOIN application_groups ag ON ag.id = A.group_id
                 WHERE 
                     (A.created_at) IN (
                         SELECT MAX(created_at)
@@ -1340,8 +1353,9 @@ class AppStoreService(
                         setParameter("exclude", excludeNormalized)
                     },
                     """
-                        SELECT DISTINCT ON (A.name) A.*
+                        SELECT DISTINCT ON (A.name) A.*, ag.id as group_id, ag.title as group_title, ag.description as group_description, ag.default_name as default_name
                         FROM applications as A
+                        LEFT JOIN application_groups on ag.id = A.group_id
                         WHERE (A.name) IN (select unnest(:applications::text[])) AND (
                             (
                                 A.is_public = TRUE
@@ -1428,8 +1442,7 @@ class AppStoreService(
             }
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
-                    fav.getString("application_name") == item.metadata.name &&
-                        fav.getString("application_version") == item.metadata.version
+                    fav.getString("application_name") == item.metadata.name
                 }
 
                 val allTagsForApplication = allTagsForApplicationsOnPage
@@ -1468,18 +1481,17 @@ class AppStoreService(
         }
     }
 
-    private suspend fun cleanupBeforeDelete(ctx: DBContext, appName: String, appVersion: String) {
+    private suspend fun cleanupBeforeDelete(ctx: DBContext, appName: String) {
         ctx.withSession { session ->
             //DELETE FROM FAVORITES
             session
                 .sendPreparedStatement(
                     {
                         setParameter("appname", appName)
-                        setParameter("appversion", appVersion)
                     },
                     """
                         DELETE FROM favorited_by
-                        WHERE (application_name = :appname) AND (application_version = :appversion)
+                        WHERE (application_name = :appname)
                     """
                 )
                 .rows
@@ -1501,17 +1513,14 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
 }
 
 internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
-    // TODO This shouldn't be crashing like this. Make sure we actually get all of the data needed.
-    val group = try {
+    val group = if (this.getInt("group_id") != null && this.getString("group_title") != null) {
         ApplicationGroup(
             this.getInt("group_id")!!,
             this.getString("group_title")!!,
             this.getString("group_description"),
-            this.defaultApplication()
+            this.getString("default_name")
         )
-    } catch (e: Exception) {
-        null
-    }
+    } else { null }
 
     return ApplicationMetadata(
         this.getString("name")!!,
@@ -1528,22 +1537,6 @@ internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
 
 internal fun RowData.toApplicationSummary(): ApplicationSummary {
     return ApplicationSummary(toApplicationMetadata())
-}
-
-internal fun RowData.defaultApplication(): NameAndVersion? {
-    // TODO This shouldn't be crashing like this. Make sure we actually get all of the data needed.
-    return try {
-        val defaultName = this.getString("default_name")
-        val defaultVersion = this.getString("default_version")
-
-        if (defaultName != null && defaultVersion != null) {
-            NameAndVersion(defaultName, defaultVersion)
-        } else {
-            null
-        }
-    } catch (e: Exception) {
-        null
-    }
 }
 
 internal fun RowData.toApplicationWithInvocation(): Application {

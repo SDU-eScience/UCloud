@@ -1,15 +1,20 @@
-import MainContainer from "@/MainContainer/MainContainer";
 import * as Heading from "@/ui-components/Heading";
-import React, {useEffect} from "react";
+import React, {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
 import {RetrieveGroupResponse, retrieveGroup} from "./api";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
-import {Absolute, Box, Flex, Grid, Link} from "@/ui-components";
-import {AppCard, ApplicationCardType} from "./Card";
+import {Box, Flex, Grid} from "@/ui-components";
+import {AppCard, AppCardStyle, AppCardType} from "./Card";
+import {compute} from "@/UCloud";
+import * as UCloud from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import * as Pages from "./Pages";
-import {LargeSearchBox} from "./Overview";
+import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {toggleAppFavorite} from "./Redux/Actions";
+import {useDispatch, useSelector} from "react-redux";
+import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -20,53 +25,67 @@ const ApplicationsGroup: React.FunctionComponent = () => {
         null
     );
 
+    const dispatch = useDispatch();
+
     useEffect(() => {
         fetchAppGroup(retrieveGroup({id: id}));
     }, [id]);
 
+    const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+
+    const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
+        const favoriteApp = favoriteStatus.find(it => it.metadata.name === app.metadata.name);
+        const isFavorite = favoriteApp !== undefined ? true : app.favorite;
+
+        dispatch(toggleAppFavorite(app, !isFavorite));
+
+        try {
+            await callAPI(UCloud.compute.apps.toggleFavorite({
+                appName: app.metadata.name
+            }));
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
+            dispatch(toggleAppFavorite(app, !isFavorite));
+        }
+    }, [favoriteStatus]);
+
+
     if (!appGroup.data) return <>Not found</>;
 
-    return <MainContainer 
-        header={
-            <>
-                <Flex justifyContent="space-between">
-                    <Heading.h2>
-                        <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="45px" />
-                        {" "}
-                        {appGroup.data.group.title}
-                    </Heading.h2>
-                    <Box ml="auto" mt="30px">
-                        <ContextSwitcher />
-                    </Box>
-                </Flex>
-                <Absolute top="0px" left="calc(50% - 200px)">
-                    <LargeSearchBox />
-                </Absolute>
-            </>
-        }
-        headerSize={120}
-        main={
-            <>
-                <Grid
-                    mt="30px"
-                    gridGap="25px"
-                    gridTemplateColumns={"repeat(auto-fill, 312px)"}
-                >
-                    {appGroup.data.applications.map(app => (
-                        <Link key={app.metadata.name + app.metadata.version} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                            <AppCard
-                                type={ApplicationCardType.WIDE}
-                                title={app.metadata.title} 
-                                description={app.metadata.description}
-                                logo={app.metadata.name}
-                                logoType="APPLICATION"
-                            />
-                        </Link>
-                    ))}
-                </Grid>
-            </>
-        } 
-    />;
+    return <Box mx="auto" maxWidth="1340px">
+        <Flex justifyContent="space-between" mt="30px">
+            <Heading.h2>
+                <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="45px" />
+                {" "}
+                {appGroup.data.group.title}
+            </Heading.h2>
+            <Flex justifyContent="right">
+                <AppSearchBox />
+                <ContextSwitcher />
+            </Flex>
+        </Flex>
+        <Box mt="30px" />
+        <Grid
+            width="100%"
+            gridTemplateColumns={`repeat(auto-fill, 312px)`}
+            gridGap="30px"
+        >
+            {appGroup.data.applications.map(app => (
+                <AppCard
+                    key={app.metadata.name}
+                    cardStyle={AppCardStyle.WIDE}
+                    title={app.metadata.title} 
+                    description={app.metadata.description}
+                    logo={app.metadata.name}
+                    type={AppCardType.APPLICATION}
+                    link={Pages.run(app.metadata.name)}
+                    onFavorite={onFavorite}
+                    isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
+                    application={app}
+                />
+            ))}
+        </Grid>
+    </Box>;
 }
 
 export default ApplicationsGroup;

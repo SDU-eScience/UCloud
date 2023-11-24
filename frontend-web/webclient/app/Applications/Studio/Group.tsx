@@ -38,7 +38,7 @@ export const AppGroup: React.FunctionComponent = () => {
     const groupDescriptionField = React.useRef<HTMLInputElement>(null);
     const appSearchField = React.useRef<HTMLInputElement>(null);
 
-    const [defaultApplication, setDefaultApplication] = useState<{name: string; version: string;}|undefined>(undefined);
+    const [defaultApplication, setDefaultApplication] = useState<string|undefined>(undefined);
     const [tags, setTags] = useState<string[]>([]);
     const [selectedTag, setSelectedTag] = useState<string>("");
     const [allTags, fetchAllTags] = useCloudAPI<string[]>(
@@ -105,7 +105,7 @@ export const AppGroup: React.FunctionComponent = () => {
                 </Flex>
 
                 {!appList.data ? <>No apps found</> : (
-                    <List width="100%">
+                    <List width="100%" height="calc(80vh - 75px)" minHeight="325px" overflow="auto">
                         {appList.data.items.map(app => (
                             group.data!.applications.map(app => app.metadata.name).includes(app.metadata.name) ? null : (
                                 <ListRow
@@ -232,6 +232,8 @@ export const AppGroup: React.FunctionComponent = () => {
                                     tags: [selectedTag]
                                 }));
 
+                                setSelectedTag("");
+
                                 refresh();
 
                             }}>
@@ -269,18 +271,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 options={allTags.data.map(tag => ({value: tag, content: tag}))}
                                                 onSelect={async item => {
                                                     setSelectedTag(item);
-
-                                                    if (commandLoading) return;
-                                                    if (selectedTag === null) return;
-                                                    if (selectedTag === "") return;
-                                                    if (!group.data) return;
-
-                                                    await invokeCommand(UCloud.compute.apps.createTag({
-                                                        groupId: group.data.group.id,
-                                                        tags: [selectedTag]
-                                                    }));
-
-                                                    refresh();
                                                 }}
                                                 onChange={item => setSelectedTag(item)}
                                                 placeholder={"Enter or choose a tag..."}
@@ -309,7 +299,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                             setAddApplicationOpen(true);
                                         }}
                                         height="25px"
-                                        mt="20px"
                                         ml="25px"
                                     >
                                         Add
@@ -332,14 +321,14 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 <Box>
                                                     <Label>
                                                         <Checkbox
-                                                            checked={app.metadata.name === defaultApplication?.name}
+                                                            checked={app.metadata.name === defaultApplication}
                                                             onChange={() => {
                                                                 stopPropagation;
 
-                                                                if (app.metadata.name === defaultApplication?.name) {
+                                                                if (app.metadata.name === defaultApplication) {
                                                                     setDefaultApplication(undefined);
                                                                 } else {
-                                                                    setDefaultApplication({name: app.metadata.name, version: app.metadata.version});
+                                                                    setDefaultApplication(app.metadata.name);
                                                                 }
                                                             }}
                                                         />

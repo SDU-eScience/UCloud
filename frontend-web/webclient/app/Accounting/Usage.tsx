@@ -21,6 +21,7 @@ import {formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
+import {CSSVarCurrentSidebarWidth} from "@/ui-components/Sidebar";
 
 // State
 // =====================================================================================================================
@@ -1738,7 +1739,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
     ${k} header {
         position: fixed;
         top: 0;
-        left: var(--currentSidebarWidth);
+        left: var(${CSSVarCurrentSidebarWidth});
         
         background: var(--white);
         
@@ -1748,7 +1749,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
         gap: 8px;
         
         height: 50px;
-        width: calc(100vw - var(--currentSidebarWidth));
+        width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
         
         padding: 0 16px;
         z-index: 10;

@@ -32,11 +32,24 @@ class ApplicationPublicService(
                 setParameter("version", appVersion)
             },
             """
-                SELECT *
+                SELECT is_public
                 FROM applications
                 WHERE (name = :name) AND (version = :version)
             """.trimIndent()
         ).rows.singleOrNull()?.getBoolean("is_public") ?: false
+    }
+
+    suspend fun anyIsPublic(session: AsyncDBConnection, actorAndProject: ActorAndProject, appName: String): Boolean {
+        return session.sendPreparedStatement(
+            {
+                setParameter("name", appName)
+            },
+            """
+                SELECT name
+                FROM applications
+                WHERE (name = :name) and is_public
+            """.trimIndent()
+        ).rows.isNotEmpty()
     }
 
     suspend fun setPublic(

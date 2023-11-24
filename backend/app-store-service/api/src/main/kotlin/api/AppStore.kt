@@ -58,7 +58,7 @@ data class DetailedEntityWithPermission(
 @Serializable
 data class FindApplicationAndOptionalDependencies(
     val appName: String,
-    val appVersion: String
+    val appVersion: String? = null
 )
 
 @Serializable
@@ -98,7 +98,6 @@ data class ListAclRequest(
 @Serializable
 data class FavoriteRequest(
     val appName: String,
-    val appVersion: String
 )
 
 @Serializable
@@ -234,7 +233,7 @@ data class UpdateGroupRequest(
     val title: String,
     val logo: ByteArray? = null,
     val description: String? = null,
-    val defaultApplication: NameAndVersion? = null
+    val defaultApplication: String? = null
 )
 
 typealias UpdateGroupResponse = Unit
@@ -261,7 +260,7 @@ data class ApplicationGroup (
     val id: Int,
     val title: String,
     val description: String? = null,
-    val defaultApplication: NameAndVersion? = null,
+    val defaultApplication: String? = null,
     val tags: List<String> = emptyList()
 )
 
@@ -828,7 +827,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
         documentation {
-            summary = "Retrieves an Application by name and version"
+            summary = "Retrieves an Application by name and version, or newest Application if version is not specified"
         }
     }
 

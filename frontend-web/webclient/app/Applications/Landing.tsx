@@ -1,13 +1,12 @@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Button, Flex, Icon, Input, Link, theme} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {ApplicationCardType, FavoriteApp} from "./Card";
-import * as Pages from "./Pages";
+import {AppCardStyle} from "./Card";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
@@ -19,65 +18,115 @@ import {toggleAppFavorite} from "./Redux/Actions";
 import {useNavigate} from "react-router";
 import AppRoutes from "@/Routes";
 import {TextSpan} from "@/ui-components/Text";
-import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import ApplicationRow from "./ApplicationsRow";
-import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import ApplicationRow, {ApplicationGroupToRowItem, ApplicationSummaryToRowItem} from "./ApplicationsRow";
+import { GradientWithPolygons } from "@/ui-components/GradientBackground";
+import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
     titlePlural: "Applications"
 };
 
-export const ShowAllTagItem: React.FunctionComponent<{tag?: string; children: React.ReactNode;}> = props => (
-    <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
-);
+const LandingAppSearchBoxClass = injectStyle("app-search-box", k => `
+    ${k} {
+        margin: -35px auto 0 auto;
+        width: 300px;
+        position: relative;
+        align-items: center;
+    }
 
-function favoriteStatusKey(metadata: compute.ApplicationMetadata): string {
-    return `${metadata.name}/${metadata.version}`;
+    ${k} input.search-field {
+        width: 100%;
+        padding-right: 2.5rem;
+    }
+
+    ${k} button {
+        background: none;
+        border: 0;
+        padding: 0px 10px 1px 10px;
+        cursor: pointer;
+        position: absolute;
+        right: 0;
+        height: 2.4rem;
+    }
+`);
+
+export const LandingAppSearchBox: React.FunctionComponent<{value?: string; hidden?: boolean}> = props => {
+    const navigate = useNavigate();
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    const onSearch = useCallback(() => {
+        const queryCurrent = inputRef.current;
+        if (!queryCurrent) return;
+
+        const queryValue = queryCurrent.value;
+
+        if (queryValue === "") return;
+
+        navigate(AppRoutes.apps.search(queryValue));
+    }, [inputRef.current]);
+
+    return <Flex className={LandingAppSearchBoxClass}>
+        <Input
+            className="search-field"
+            defaultValue={props.value}
+            inputRef={inputRef}
+            placeholder="Search for applications..."
+            onKeyUp={e => {
+                if (e.key === "Enter") {
+                    onSearch()
+                }
+            }}
+            autoFocus
+        />
+        <button>
+            <Icon name="search" size={20} color="darkGray" my="auto" onClick={() => onSearch()} />
+        </button>
+    </Flex>;
 }
 
-type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
-
-const FloatingButtonClass = injectStyle("floating-button", k => `
+const ViewAllButtonClass = injectStyle("view-all-button", k => `
     ${k} {
-        position: fixed;
-        bottom: 30px;
-        left: calc(50% - 50px);
         width: 200px;
+        margin: 30px auto;
     }
 
     ${k} button {
         width: 200px;
         text-align: center;
-        box-shadow: ${theme.shadows.sm};
+    }
+
+    ${k} button svg {
     }
 `);
 
-function FloatingButton(): JSX.Element {
+export const SecondarySidebarStickyCSSVariable = "TODO"; 
+
+function ViewAllButton(): JSX.Element {
     const navigate = useNavigate();
 
-    return <div className={FloatingButtonClass}>
+    return <div className={ViewAllButtonClass}>
         <Button
             onClick={() => navigate(AppRoutes.apps.overview())}
-            borderRadius="99px"
         >
             <TextSpan pr="15px">View all</TextSpan>
-            <Icon name="chevronDownLight" size="18px" />
+            <Icon rotation={-90} name="chevronDownLight" size="18px" />
         </Button>
     </div>;
 }
 
-const LandingDivider = injectStyle("landing-divider", k => `
+const AppStoreVisualClass = injectStyle("app-store-visual", k => `
     ${k} {
-        margin-top: 50px;
-        margin-bottom: 50px;
+        margin: 32px 0 20px 0;
+        justify-content: left;
+        align-items: center;
+        gap: 15px;
     }
 
     ${k} h1 {
-        text-align: center;
-        margin-top: 50px;
         color: #5c89f4;
+        font-weight: 400;
     }
 
     ${k} img {
@@ -85,56 +134,6 @@ const LandingDivider = injectStyle("landing-divider", k => `
         transform: scaleX(-1);
     }
 `);
-
-const LargeSearchBoxClass = injectStyle("large-search-box", k => `
-    ${k} {
-        width: 400px;
-        margin: 30px auto;
-        position: relative;
-    }
-
-    ${k} input {
-        width: 100%;
-        border: 1px solid var(--midGray);
-        background: var(--white);
-        border-radius: 99px;
-        padding-left: 1.2em;
-        padding-right: 2.5rem;
-    }
-
-    ${k} button {
-        background: none;
-        border: 0;
-        padding: 2px 10px 1px 10px;
-        cursor: pointer;
-        position: absolute;
-        right: 0;
-        height: 2.5rem;
-    }
-`);
-
-export const LargeSearchBox: React.FunctionComponent<{value?: string}> = props => {
-    const navigate = useNavigate();
-
-    return <div className={LargeSearchBoxClass}>
-        <Flex justifyContent="space-evenly">
-            <Input
-                defaultValue={props.value}
-                placeholder="Search for applications..."
-                onKeyUp={e => {
-                    console.log(e);
-                    if (e.key === "Enter") {
-                        navigate(AppRoutes.apps.search((e as unknown as {target: {value: string}}).target.value));
-                    }
-                }}
-                autoFocus
-            />
-            <button>
-                <Icon name="search" size={20} color="darkGray" my="auto" />
-            </button>
-        </Flex>
-    </div>;
-}
 
 const ApplicationsLanding: React.FunctionComponent = () => {
     const [sections, fetchSections] = useCloudAPI<AppStoreSections>(
@@ -158,93 +157,68 @@ const ApplicationsLanding: React.FunctionComponent = () => {
     }, []);
     useRefreshFunction(refresh);
 
-    const [, invokeCommand] = useCloudCommand();
-    const favoriteStatus = React.useRef<FavoriteStatus>({});
+    const favorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
-        // Note(Jonas): This used to check commandLoading (from invokeCommand), but this gets stuck at true, so removed for now.
-        const key = favoriteStatusKey(app.metadata);
-        const isFavorite = favoriteStatus.current[key]?.override ?? app.favorite;
-        if (favoriteStatus.current[key]) {
-            delete favoriteStatus.current[key]
-        } else {
-            favoriteStatus.current[key] = {override: !isFavorite, app};
-        }
-        favoriteStatus.current = {...favoriteStatus.current};
+        const favoriteApp = favorites.find(it => it.metadata.name === app.metadata.name);
+        const isFavorite = favoriteApp !== undefined ? true : app.favorite;
+
         dispatch(toggleAppFavorite(app, !isFavorite));
+
         try {
-            await invokeCommand(UCloud.compute.apps.toggleFavorite({
-                appName: app.metadata.name,
-                appVersion: app.metadata.version
+            await callAPI(UCloud.compute.apps.toggleFavorite({
+                appName: app.metadata.name
             }));
         } catch (e) {
-            favoriteStatus.current[key].override = !favoriteStatus.current[key].override;
-            favoriteStatus.current = {...favoriteStatus.current};
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
+            dispatch(toggleAppFavorite(app, !isFavorite));
         }
-    }, [favoriteStatus]);
+    }, [favorites]);
 
     return (
         <div className={AppOverviewMarginPaddingHack}>
             <div className={GradientWithPolygons}>
                 <MainContainer main={
                     <Box mx="auto" maxWidth="1340px">
-                        <Flex width="100%">
-                            <Box ml="auto" mt="30px">
-                                <ContextSwitcher />
-                            </Box>
+                        <Flex justifyContent="right" mt="30px">
+                            <ContextSwitcher />
                         </Flex>
+                        <LandingAppSearchBox hidden={false} />
                         <Box mt="12px" />
-                        <FavoriteAppRow
-                            favoriteStatus={favoriteStatus}
-                            onFavorite={onFavorite}
-                            refreshId={refreshId}
-                        />
 
-                        <LargeSearchBox />
+                        {favorites.length < 1 ? <></> : <>
+                            <Flex className={AppStoreVisualClass}>
+                                <Heading.h1>Favorite Applications</Heading.h1>
+                            </Flex>
 
-                        {sections.data.sections[0] ?
-                            <>
+                            <ApplicationRow
+                                cardStyle={AppCardStyle.TALL}
+                                items={favorites.map(app => ApplicationSummaryToRowItem({metadata: app.metadata, favorite: true, tags: app.tags}))}
+                                onFavorite={onFavorite}
+                                refreshId={refreshId}
+                            />
+                        </>}
+
+                        {sections.data.sections.map(section => (
+                            <div key={section.id}>
+                                <Flex className={AppStoreVisualClass}>
+                                    <Heading.h1>{section.name}</Heading.h1>
+                                </Flex>
                                 <ApplicationRow
-                                    items={sections.data.sections[0].featured.slice(0, 4)}
-                                    type={ApplicationCardType.WIDE}
+                                    items={section.featured.slice(0, 4).map(ApplicationGroupToRowItem)}
+                                    onFavorite={onFavorite}
+                                    cardStyle={AppCardStyle.WIDE}
                                     refreshId={refreshId}
-                                    scrolling={false}
                                 />
-
                                 <ApplicationRow
-                                    items={sections.data.sections[0].featured.slice(4)}
-                                    type={ApplicationCardType.TALL}
+                                    items={section.featured.slice(4).map(ApplicationGroupToRowItem)}
+                                    onFavorite={onFavorite}
+                                    cardStyle={AppCardStyle.TALL}
                                     refreshId={refreshId}
-                                    scrolling={false}
                                 />
-                            </>
-                            : <></>}
-
-
-                        <Flex className={LandingDivider} justifyContent="space-around">
-                            <Heading.h1>Featured<br />Applications</Heading.h1>
-                            <img src={ucloudImage} />
-                        </Flex>
-
-                        {sections.data.sections[1] ?
-                            <>
-                                <ApplicationRow
-                                    items={sections.data.sections[1].featured.slice(0, 4)}
-                                    type={ApplicationCardType.WIDE}
-                                    refreshId={refreshId}
-                                    scrolling={false}
-                                />
-
-                                <ApplicationRow
-                                    items={sections.data.sections[1].featured.slice(4)}
-                                    type={ApplicationCardType.TALL}
-                                    refreshId={refreshId}
-                                    scrolling={false}
-                                />
-                            </>
-                            : <></>}
-
-                        <FloatingButton />
+                            </div>
+                        ))}
+                        <ViewAllButton />
                     </Box>
                 } />
             </div>
@@ -257,53 +231,5 @@ const AppOverviewMarginPaddingHack = injectStyleSimple("HACK-HACK-HACK", `
     margin-top: -12px;
 /* HACK */
 `);
-
-interface FavoriteAppRowProps {
-    favoriteStatus: React.MutableRefObject<FavoriteStatus>;
-    onFavorite: (app: ApplicationSummaryWithFavorite) => void;
-    refreshId: number;
-}
-
-function filterAppsByFavorite(
-    items: compute.ApplicationSummaryWithFavorite[],
-    favoriteStatus: React.MutableRefObject<FavoriteStatus>
-): compute.ApplicationSummaryWithFavorite[] {
-    let filteredItems = items.filter(item =>
-        favoriteStatus.current[favoriteStatusKey(item.metadata)]?.override ?? item.favorite
-    );
-
-    filteredItems = [...filteredItems, ...Object.values(favoriteStatus.current).filter(it => it.override).map(it => it.app)];
-    filteredItems = filteredItems.filter(it => favoriteStatus.current[favoriteStatusKey(it.metadata)]?.override !== false);
-
-    // Remove duplicates (This can happen due to favorite cache)
-    {
-        const observed = new Set<string>();
-        const newList: ApplicationSummaryWithFavorite[] = [];
-        for (const item of filteredItems) {
-            const key = favoriteStatusKey(item.metadata);
-            if (!observed.has(key)) {
-                observed.add(key);
-                newList.push(item);
-            }
-        }
-        return newList;
-    }
-}
-
-export function FavoriteAppRow({favoriteStatus, onFavorite}: FavoriteAppRowProps): JSX.Element {
-    const items = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
-    const filteredItems = React.useMemo(() =>
-        filterAppsByFavorite(items, favoriteStatus),
-        [items, favoriteStatus.current]
-    );
-
-    return <Flex overflowX="auto" width="100%">
-        <Flex mx="auto" mb="16px">
-            {filteredItems.map(app =>
-                <FavoriteApp key={app.metadata.name + app.metadata.version} name={app.metadata.name} version={app.metadata.version} title={app.metadata.title} onFavorite={() => onFavorite(app)} />
-            )}
-        </Flex>
-    </Flex>
-}
 
 export default ApplicationsLanding;

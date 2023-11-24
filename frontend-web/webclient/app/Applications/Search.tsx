@@ -1,19 +1,104 @@
 import * as React from "react";
+import * as Heading from "@/ui-components/Heading";
 import {emptyPage} from "@/DefaultObjects";
-import {joinToString} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";
-import {useEffect} from "react";
+import {useCallback, useEffect} from "react";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
-import {GridCardGroup} from "@/ui-components/Grid";
-import {AppCard, ApplicationCardType} from "@/Applications/Card";
+import Grid from "@/ui-components/Grid";
+import {AppCard, AppCardStyle, AppCardType} from "@/Applications/Card";
 import * as Pagination from "@/Pagination";
-import {Box, Flex, Input} from "@/ui-components";
-import {Link} from "react-router-dom";
+import {Box, Flex, Icon, Input} from "@/ui-components";
 import * as Pages from "./Pages";
-import {LargeSearchBox} from "./Overview";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {injectStyle} from "@/Unstyled";
+import AppRoutes from "@/Routes";
+import {compute} from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {useDispatch, useSelector} from "react-redux";
+import {toggleAppFavorite} from "./Redux/Actions";
+
+
+const AppSearchBoxClass = injectStyle("app-search-box", k => `
+    ${k} {
+        align-items: center;
+    }
+
+    ${k} div {
+        width: 300px;
+        position: relative;
+        align-items: center;
+        justify-content: space-evenly;
+    }
+
+    ${k} input.search-field {
+        width: 100%;
+        padding-right: 2.5rem;
+    }
+
+    ${k} button {
+        background: none;
+        border: 0;
+        padding: 0px 10px 1px 10px;
+        cursor: pointer;
+        position: absolute;
+        right: 0;
+        height: 2.4rem;
+    }
+
+    ${k} .search-icon {
+        margin-right: 15px;
+        margin-left: 15px;
+    }
+`);
+
+
+
+export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boolean}> = props => {
+    const navigate = useNavigate();
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const [isHidden, setHidden] = React.useState(props.hidden ?? true);
+
+    const onSearch = useCallback(() => {
+        const queryCurrent = inputRef.current;
+        if (!queryCurrent) return;
+
+        const queryValue = queryCurrent.value;
+
+        if (queryValue === "") return;
+
+        navigate(AppRoutes.apps.search(queryValue));
+    }, [inputRef.current]);
+
+
+    return <Flex className={AppSearchBoxClass}>
+        {isHidden ? null : (
+            <Flex>
+                <Input
+                    className="search-field"
+                    defaultValue={props.value}
+                    inputRef={inputRef}
+                    placeholder="Search for applications..."
+                    onKeyUp={e => {
+                        if (e.key === "Enter") {
+                            onSearch();
+                        }
+                    }}
+                    autoFocus
+                />
+                <button>
+                    <Icon name="search" size={20} color="darkGray" my="auto" onClick={onSearch} />
+                </button>
+            </Flex>
+        )}
+        <Icon name="heroMagnifyingGlass" cursor="pointer" size="24" color="blue" className="search-icon" onClick={() =>
+            setHidden(!isHidden)
+        } />
+    </Flex>;
+}
+
 
 interface SearchQuery {
     tags: string[];
@@ -44,7 +129,7 @@ function readQuery(queryParams: string): SearchQuery {
 export const SearchResults: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [, invokeCommand] = useCloudCommand();
+    const dispatch = useDispatch();
     const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage
@@ -63,38 +148,58 @@ export const SearchResults: React.FunctionComponent = () => {
         );
     }, [queryParams]);
 
-    const toggleFavorite = React.useCallback(async (appName: string, appVersion: string) => {
-        await invokeCommand(UCloud.compute.apps.toggleFavorite({appName, appVersion}));
-    }, [fetch]);
+    const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+
+    const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
+        const favoriteApp = favoriteStatus.find(it => it.metadata.name === app.metadata.name);
+        const isFavorite = favoriteApp !== undefined ? true : app.favorite;
+
+        dispatch(toggleAppFavorite(app, !isFavorite));
+
+        try {
+            await callAPI(UCloud.compute.apps.toggleFavorite({
+                appName: app.metadata.name
+            }));
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
+            dispatch(toggleAppFavorite(app, !isFavorite));
+        }
+    }, [favoriteStatus]);
 
     return <Box mx="auto" maxWidth="1340px">
-        <Flex width="100%">
-            <Box ml="auto" mt="30px">
+        <Flex width="100%" mt="30px" justifyContent="space-between">
+            <Heading.h2>Search results</Heading.h2>
+            <Flex justifyContent="right">
+                <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} hidden={false} />
                 <ContextSwitcher />
-            </Box>
+            </Flex>
         </Flex>
-        <Box mt="12px" />
-        <LargeSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} />
+        <Box mt="30px" />
 
         <Pagination.List
             loading={results.loading}
             page={results.data}
             pageRenderer={page => (
-                <GridCardGroup minmax={322}>
+                <Grid
+                    width="100%"
+                    gridTemplateColumns={`repeat(auto-fill, 312px)`}
+                    gridGap="30px"
+                >
                     {page.items.map(app => (
-                        <Link key={`${app.metadata.name}${app.metadata.version}`} to={Pages.run(app.metadata.name, app.metadata.version)}>
-                            <AppCard
-                                title={app.metadata.title}
-                                description={app.metadata.description}
-                                logo={app.metadata.name}
-                                logoType="APPLICATION"
-                                type={ApplicationCardType.WIDE}
-                                onFavorite={toggleFavorite}
-                                isFavorite={app.favorite}
-                            />
-                        </Link>))
-                    }
-                </GridCardGroup>
+                        <AppCard
+                            key={app.metadata.name}
+                            title={app.metadata.title}
+                            description={app.metadata.description}
+                            logo={app.metadata.name}
+                            type={AppCardType.APPLICATION}
+                            cardStyle={AppCardStyle.WIDE}
+                            link={Pages.run(app.metadata.name)}
+                            onFavorite={onFavorite}
+                            isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
+                            application={app}
+                        />
+                    ))}
+                </Grid>
             )}
             onPageChanged={newPage => {
                 navigate(buildQueryString("/applications/search", {

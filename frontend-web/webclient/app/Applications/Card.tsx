@@ -1,60 +1,25 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import {Flex, Icon, Relative} from "@/ui-components";
-import Link, {LinkProps} from "@/ui-components/Link";
+import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
-import {TextClass} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
-import * as Pages from "./Pages";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
-import {LogoType} from "./api";
-import {CardClass} from "@/ui-components/Card";
+import { CardClass } from "@/ui-components/Card";
+import {compute} from "@/UCloud";
+import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 
 interface ApplicationCardProps {
-    onFavorite?: (name: string, version: string) => void;
+    onFavorite?: (app: ApplicationSummaryWithFavorite) => void;
     title: string;
     description?: string;
     logo: string;
-    logoType: LogoType;
+    type: AppCardType;
     isFavorite?: boolean;
-    linkToRun?: boolean;
+    link?: string;
     colorBySpecificTag?: string;
+    application?: ApplicationSummaryWithFavorite
 }
-
-const AppCardBase = injectStyle("app-card-base", k => `
-    ${k} {
-        padding: 10px;
-        width: 100%;
-        display: flex;
-        align-items: center;
-    }
-
-    ${k} > img {
-        width: 32px;
-        height: 32px;
-        margin-right: 16px;
-        border-radius: 5px;
-        flex-shrink: 0;
-    }
-
-    ${k} > strong {
-        margin-right: 16px;
-        font-weight: 700;
-        flex-shrink: 0;
-    }
-
-    ${k} > .${TextClass} {
-        color: var(--gray, #f00);
-        flex-grow: 1;
-    }
-
-    ${k} > .${TextClass} > p {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-`);
-
 
 export const Tag = ({label, bg = "black"}: {label: string; bg?: ThemeColor}): JSX.Element => (
     <div style={{
@@ -155,44 +120,6 @@ export function hashF(str: string): number {
 export function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); // last color not used
 }
-
-function CardToolContainer({children}: React.PropsWithChildren): JSX.Element {
-    return <div className={CardToolContainerClass} children={children} />
-}
-
-const CardToolContainerClass = injectStyleSimple("card-tool-container", `
-    display: grid;
-    flex-direction: column;
-    align-items: flex-start;
-    border-radius: 5px;
-    overflow: hidden;
-    width: 100%;
-`);
-
-function SmallCard(props: LinkProps) {
-    return <Link className={SmallCardClass} {...props} />
-}
-
-const SmallCardClass = injectStyle("small-card", k => `
-    ${k} {
-        display: flex;
-        padding: 16px;
-        width: 150px;
-        height: 50px;
-        border-radius: 10px;
-        font-size: ${theme.fontSizes[2]}px;
-        text-align: center;
-        align-items: center;
-        justify-content: center;
-        box-shadow: ${theme.shadows.sm};
-        transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-    }
-
-    ${k}:hover {
-        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        color: var(--white, #f00);
-    }
-`);
 
 const MultiLineTruncateClass = injectStyleSimple("multiline-truncate", `
     display: -webkit-box;
@@ -323,66 +250,33 @@ function MultiLineTruncate(props: React.PropsWithChildren<{lines: number}>): JSX
     }} {...p} />;
 }
 
-const FAV_ICON_SIZE = "20px";
-
-export enum ApplicationCardType {
+export enum AppCardStyle {
     WIDE,
     EXTRA_TALL,
     TALL,
     EXTRA_WIDE,
 }
 
+export enum AppCardType {
+    GROUP,
+    APPLICATION
+}
+
 export interface AppCardProps extends React.PropsWithChildren<ApplicationCardProps> {
-    type: ApplicationCardType;
+    cardStyle: AppCardStyle;
 }
 
 const typeLineCount = {
-    [ApplicationCardType.TALL]: 5,
-    [ApplicationCardType.EXTRA_TALL]: 4,
-    [ApplicationCardType.WIDE]: 4,
-    [ApplicationCardType.EXTRA_WIDE]: 9
-}
-
-const FavoriteAppClass = injectStyle("favorite-app", k => `
-    ${k} {
-        width: 64px;
-        height: 64px;
-        border-radius: 99999px;
-        box-shadow: rgba(0, 0, 0, 0.14) 0px 6px 10px 0px;
-        display: flex;
-        background-color: var(--fixedWhite);
-        padding-left: 13px;
-        align-items: center;
-        border: 1px solid var(--midGray);
-    }
-    
-    html.dark ${k} {
-        border: 1px solid var(--lightGray);
-        box-shadow: rgba(255, 255, 255, 0.2) 0px 3px 5px -1px, rgba(255, 255, 255, 0.14) 0px 6px 10px 0px;
-    }
-
-    html.dark ${k}:hover, ${k}:hover {
-        border: 1px solid var(--blue);
-        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-    }
-`);
-
-export function FavoriteApp(props: {name: string, version: string, title: string, onFavorite(name: string, version: string): void;}): JSX.Element {
-    return <Flex mx="12px" py="20px">
-        <Link to={Pages.run(props.name, props.version)} title={props.title}>
-            <div className={FavoriteAppClass}>
-                <AppToolLogo size="36px" name={props.name} type="APPLICATION" />
-            </div>
-        </Link>
-        <Relative top="50px" right="24px" width="0px" height="0px">
-            <Icon cursor="pointer" name="starFilled" color="blue" hoverColor="blue" size={FAV_ICON_SIZE} onClick={() => props.onFavorite(props.name, props.version)} />
-        </Relative>
-    </Flex>
+    [AppCardStyle.TALL]: 5,
+    [AppCardStyle.EXTRA_TALL]: 4,
+    [AppCardStyle.WIDE]: 4,
+    [AppCardStyle.EXTRA_WIDE]: 9
 }
 
 export function AppCard(props: AppCardProps): JSX.Element {
     return React.useMemo(() => {
-        let lineCount = typeLineCount[props.type];
+        let lineCount = typeLineCount[props.cardStyle];
+        let card: React.JSX.Element;
         const titleAndDescription =
             <div className={TitleAndDescriptionClass}>
                 <div><b>{props.title}</b></div>
@@ -395,33 +289,71 @@ export function AppCard(props: AppCardProps): JSX.Element {
                     </Markdown>
                 </MultiLineTruncate>
             </div>;
-        switch (props.type) {
-            case ApplicationCardType.EXTRA_TALL:
-            case ApplicationCardType.TALL:
-                const isExtraTall = props.type === ApplicationCardType.EXTRA_TALL;
-                return <Flex
-                    flexDirection="column"
-                    className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)}
-                    data-xl={isExtraTall}
-                >
-                    <div className="image">
-                        <AppToolLogo size={"52px"} name={props.logo} type={props.logoType} />
-                    </div>
-                    {titleAndDescription}
-                </Flex>;
+        switch (props.cardStyle) {
+            case AppCardStyle.EXTRA_TALL:
+            case AppCardStyle.TALL:
+                const isExtraTall = props.cardStyle === AppCardStyle.EXTRA_TALL;
+                card = <Flex 
+                        flexDirection="column" 
+                        className={classConcat(CardClass, ApplicationCardClass, TallApplicationCard)} 
+                        data-xl={isExtraTall}
+                    >
+                        <div className="image">
+                            <AppToolLogo
+                                size={"52px"}
+                                name={props.logo}
+                                type={props.type === AppCardType.APPLICATION ?
+                                    "APPLICATION" : "GROUP"
+                                }
+                            />
+                        </div>
+                        {titleAndDescription}
+                    </Flex>;
+                break;
 
-            case ApplicationCardType.WIDE:
-            case ApplicationCardType.EXTRA_WIDE:
-                const isExtraWide = props.type === ApplicationCardType.EXTRA_WIDE;
-                return <div
-                    className={classConcat(CardClass, ApplicationCardClass, WideApplicationCard)}
+            case AppCardStyle.WIDE:
+            case AppCardStyle.EXTRA_WIDE:
+                const isExtraWide = props.cardStyle === AppCardStyle.EXTRA_WIDE;
+                card = <div 
+                    className={classConcat(CardClass, ApplicationCardClass, WideApplicationCard)} 
                     data-xl={isExtraWide}
                 >
                     <div className="image">
-                        <AppToolLogo size={isExtraWide ? "85px" : "65px"} name={props.logo} type={props.logoType} />
+                        <AppToolLogo
+                            size={isExtraWide ? "85px" : "65px"}
+                            name={props.logo}
+                            type={props.type === AppCardType.APPLICATION ?
+                                "APPLICATION" : "GROUP"
+                            }
+                        />
                     </div>
                     {titleAndDescription}
                 </div>
         }
+
+        return props.link ? 
+            props.type === AppCardType.APPLICATION ?
+                <Flex>
+                    <Link to={props.link}>
+                        {card}
+                    </Link>
+                    <Relative top="6px" right="28px" width="0px" height="0px">
+                        <Icon
+                            cursor="pointer"
+                            name={props.isFavorite ? "starFilled" : "starEmpty"}
+                            color="blue"
+                            hoverColor="blue"
+                            size="20px"
+                            onClick={() => props.onFavorite && props.application ?
+                                props.onFavorite(props.application) : {}
+                            }
+                        />
+                    </Relative>
+                </Flex>
+            :
+                <Link to={props.link}>
+                    {card}
+                </Link>
+        : <>{card}</>
     }, [props]);
 }

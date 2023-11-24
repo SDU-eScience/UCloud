@@ -42,7 +42,6 @@ import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
-import {StandardButtonSize} from "@/ui-components/Button";
 import {injectStyle} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
@@ -156,11 +155,9 @@ function DashboardFavoriteFiles(): JSX.Element {
         >
             {favorites.items.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
-                    <Text textAlign="center" width="100%">
                         As you add favorites, they will appear here.
-                    </Text>
-                    <Link to={"/drives"} mt={8} width={"100%"}>
-                        <Button standardSize={StandardButtonSize.LARGE} fullWidth mt={8}>Explore files</Button>
+                    <Link to={"/drives"} mt={8}>
+                        <Button mt={8}>Explore files</Button>
                     </Link>
                 </NoResultsCardBody>
             )}
