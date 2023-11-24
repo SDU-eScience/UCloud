@@ -1,4 +1,4 @@
-import {CSSVarCurrentSidebarWidth} from "@/ui-components/Sidebar";
+import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import ReactModal from "react-modal";
 
 export const largeModalStyle: ReactModal.Styles = {

@@ -7,7 +7,9 @@ import {Cursor} from "@/ui-components/Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {classConcat, extractSize, injectStyle, unbox} from "@/Unstyled";
-import {CSSVarCurrentSidebarWidth} from "./Sidebar";
+
+export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";
+export const CSSVarCurrentSidebarStickyWidth = "--currentSidebarStickyWidth";
 
 export const ListClass = injectStyle("list", k => `
     ${k} {

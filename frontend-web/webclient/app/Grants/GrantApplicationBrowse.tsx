@@ -76,13 +76,12 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("unhandledShortcut", () => { });
 
                 browser.on("wantToFetchNextPage", async path => {
-                    /* TODO(Jonas): Test if the fetch more works properly */
                     const result = await callAPI(
                         Grants.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters,
                             ...opts?.additionalFilters,
+                            ...browser.browseFilters,
                             filter: Grants.ApplicationFilter.SHOW_ALL,
                             includeIngoingApplications: isIngoing || opts?.both,
                             includeOutgoingApplications: !isIngoing || opts?.both

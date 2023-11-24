@@ -30,7 +30,7 @@ import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
 import formatDistance from "date-fns/formatDistance";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {CSSVarCurrentSidebarWidth} from "@/ui-components/Sidebar";
+import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 
 // State model

@@ -57,9 +57,7 @@ import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {isJobStateTerminal} from "@/Applications/Jobs";
-
-export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";
-export const CSSVarCurrentSidebarStickyWidth = "--currentSidebarStickyWidth";
+import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {

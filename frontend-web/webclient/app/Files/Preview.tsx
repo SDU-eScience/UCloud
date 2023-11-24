@@ -13,6 +13,7 @@ import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {useSelector} from "react-redux";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 
 const monacoCache = new AsyncCache<any>();
 
@@ -215,7 +216,7 @@ export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React
     return <div className={ItemWrapperClass}>{node}</div>;
 }
 
-const MAX_HEIGHT = "calc(100vw - 15px - 15px - 240px - var(--sidebarBlockWidth));"
+const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
 const HEIGHT = "calc(100vh - 30px);"
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `

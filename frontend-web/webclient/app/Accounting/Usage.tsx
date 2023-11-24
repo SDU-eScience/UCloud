@@ -21,7 +21,7 @@ import {formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
-import {CSSVarCurrentSidebarWidth} from "@/ui-components/Sidebar";
+import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 
 // State
 // =====================================================================================================================
