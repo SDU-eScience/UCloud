@@ -511,6 +511,14 @@ sealed class ComposeService {
                           memory: 1
                           description: An example CPU machine with 1 vCPU.
                           pricePerHour: 0.5
+                      cpu-h:
+                        cost: 
+                          type: Resource 
+                          interval: Minutely
+                        template: 
+                          cpu: [1, 2]
+                          memory: 1
+                          description: An example CPU machine with 1 vCPU.
                     storage: 
                       storage:
                           cost:

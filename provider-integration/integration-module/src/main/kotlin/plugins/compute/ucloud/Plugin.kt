@@ -3,7 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.AccountingFrequency
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
@@ -78,7 +78,11 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     override suspend fun PluginContext.initialize() {
         registerCli()
         if (!config.shouldRunServerCode()) return
-
+        productAllocationResolved.forEach {
+            if (it.category.accountingFrequency == AccountingFrequency.ONCE) {
+                error("Compute products cannot have single time use accounting frequency ")
+            }
+        }
         files = config.plugins.files[pluginName] as? UCloudFilePlugin
             ?: run {
                 error(
