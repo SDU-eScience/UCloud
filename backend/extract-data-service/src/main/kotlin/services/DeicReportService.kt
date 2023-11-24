@@ -67,13 +67,13 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
     }
 
     data class UserInProject(
-        val username: String,
+        val username: String?,
         val project: String?
     )
     fun makeMappingOfUsage( input: List<PostgresDataService.Usage>):Map<UserInProject, Long> {
         val mapping = mutableMapOf<UserInProject, Long>()
         input.forEach { usage ->
-            val uip = UserInProject(usage.performedBy, usage.projectID)
+            val uip = UserInProject(usage.username, usage.projectID)
             val found = mapping[uip]
             if (found == null) {
                 mapping[uip] = usage.coreHours
@@ -171,9 +171,9 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                     val universityId = postgresDataService.getUniversity(projectMember.username)
                     val accessType = AccessType.LOCAL.value
 
-                    val cpuUsedSDU = usageSDUCOMPUTE[UserInProject(projectMember.username, deicProject)] ?: 0L
-                    val gpuUsedSDU = usageSDUGPU[UserInProject(projectMember.username, deicProject)] ?: 0L
-                    val storageUsedSDU = storageSDU[UserInProject(projectMember.username, deicProject)] ?: 0L
+                    val cpuUsedSDU = usageSDUCOMPUTE[UserInProject(null, deicProject)] ?: 0L
+                    val gpuUsedSDU = usageSDUGPU[UserInProject(null, deicProject)] ?: 0L
+                    val storageUsedSDU = storageSDU[UserInProject(null, deicProject)] ?: 0L
 
                     if (cpuUsedSDU == 0L && gpuUsedSDU == 0L) {
                         //NOTHING
@@ -311,7 +311,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
             }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
 
             postgresDataService.findProjectMembers(deicProject).forEach { projectMember ->
-                val uip = UserInProject(projectMember.username, project.id)
+                val uip = UserInProject(null, project.id)
                 val universityId = postgresDataService.getUniversity(projectMember.username)
                 val accessType = AccessType.LOCAL.value
 

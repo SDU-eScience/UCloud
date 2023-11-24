@@ -137,6 +137,14 @@ class JobVerificationService(
             .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ), requireAll = false)
             .associateBy { it.id }
 
+        //Check if we attempt to mount files with same name -> conflict in k8
+        val filenames = files.mapNotNull {
+            it.path.split("/").last()
+        }.toSet()
+        if (files.size != filenames.size) {
+            throw RPCException("Cannot mount files with same name", HttpStatusCode.BadRequest)
+        }
+
         for (file in files) {
             val perms = retrievedCollections[extractPathMetadata(file.path).collection]?.permissions?.myself
                 ?: continue

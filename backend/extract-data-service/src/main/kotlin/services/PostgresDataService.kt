@@ -7,6 +7,8 @@ import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
 import java.time.LocalDateTime
 
 class PostgresDataService(val db: AsyncDBSessionFactory) {
@@ -108,17 +110,28 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     setParameter("id", projectId)
                                 },
                                 """
-                                SELECT -sum(usage)::bigint / 60
+                                with nomalized as (
+                                select *
+                                from accounting.transactions
+                                where
+                                    created_at > '2023-01-01' and
+                                    length(split_part(transaction_id, '-', 6)) > 0
+                            ),
+                            ids as (
+                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                from nomalized
+                                order by created_at desc
+                            )
+                            SELECT -sum(usage)::bigint / 60
                                 from (
                                     SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  "accounting"."transactions" tr
+                                    FROM  ids tr
                                         join accounting.products p on p.id = tr.product_id
                                         join accounting.product_categories pc on pc.id = p.category
                                         join accounting.wallets w on pc.id = w.category
                                         join accounting.wallet_owner wo on w.owned_by = wo.id
                                     WHERE
-                                        initial_transaction_id = transaction_id
-                                        AND created_at >= :startDate::timestamp
+                                        created_at >= :startDate::timestamp
                                         AND created_at < :endDate::timestamp
                                         AND tr.action_performed_by = :username
                                         and wo.project_id = :id
@@ -144,17 +157,28 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     setParameter("id", projectId)
                                 },
                                 """
-                                SELECT -sum(usage)::bigint / 60
+                                with nomalized as (
+                                select *
+                                from accounting.transactions
+                                where
+                                    created_at > '2023-01-01' and
+                                    length(split_part(transaction_id, '-', 6)) > 0
+                            ),
+                            ids as (
+                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                from nomalized
+                                order by created_at desc
+                            )
+                            SELECT -sum(usage)::bigint / 60
                                 from (
                                     SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  "accounting"."transactions" tr
+                                    FROM  ids tr
                                         join accounting.products p on p.id = tr.product_id
                                         join accounting.product_categories pc on pc.id = p.category
                                         join accounting.wallets w on pc.id = w.category
                                         join accounting.wallet_owner wo on w.owned_by = wo.id
                                     WHERE
-                                        initial_transaction_id = transaction_id
-                                        AND created_at >= :startDate::timestamp
+                                        created_at >= :startDate::timestamp
                                         AND created_at < :endDate::timestamp
                                         AND tr.action_performed_by = :username
                                         and wo.project_id = :id
@@ -183,17 +207,28 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     setParameter("id", projectId)
                                 },
                                 """
-                                SELECT -sum(usage)::bigint / 60
+                                with nomalized as (
+                                select *
+                                from accounting.transactions
+                                where
+                                    created_at > '2023-01-01' and
+                                    length(split_part(transaction_id, '-', 6)) > 0
+                            ),
+                            ids as (
+                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                from nomalized
+                                order by created_at desc
+                            )
+                            SELECT -sum(usage)::bigint / 60
                                 from (
                                     SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  "accounting"."transactions" tr
+                                    FROM  ids tr
                                         join accounting.products p on p.id = tr.product_id
                                         join accounting.product_categories pc on pc.id = p.category
                                         join accounting.wallets w on pc.id = w.category
                                         join accounting.wallet_owner wo on w.owned_by = wo.id
                                     WHERE
-                                        initial_transaction_id = transaction_id
-                                        AND created_at >= :startDate::timestamp
+                                        created_at >= :startDate::timestamp
                                         AND created_at < :endDate::timestamp
                                         AND tr.action_performed_by = :username
                                         and wo.project_id = :id
@@ -217,17 +252,28 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     setParameter("id", projectId)
                                 },
                                 """
-                                SELECT -sum(usage)::bigint / 60
+                                with nomalized as (
+                                select *
+                                from accounting.transactions
+                                where
+                                    created_at > '2023-01-01' and
+                                    length(split_part(transaction_id, '-', 6)) > 0
+                            ),
+                            ids as (
+                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                from nomalized
+                                order by created_at desc
+                            )
+                            SELECT -sum(usage)::bigint / 60
                                 from (
                                     SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  "accounting"."transactions" tr
+                                    FROM  ids tr
                                         join accounting.products p on p.id = tr.product_id
                                         join accounting.product_categories pc on pc.id = p.category
                                         join accounting.wallets w on pc.id = w.category
                                         join accounting.wallet_owner wo on w.owned_by = wo.id
                                     WHERE
-                                        initial_transaction_id = transaction_id
-                                        AND created_at >= :startDate::timestamp
+                                        created_at >= :startDate::timestamp
                                         AND created_at < :endDate::timestamp
                                         AND tr.action_performed_by = :username
                                         and wo.project_id = :id
@@ -294,17 +340,28 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 setParameter("projectid", projectId)
                             },
                             """
+                            with nomalized as (
+                                select *
+                                from accounting.transactions
+                                where
+                                    created_at > '2023-01-01' and
+                                    length(split_part(transaction_id, '-', 6)) > 0
+                            ),
+                            ids as (
+                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                from nomalized
+                                order by created_at desc
+                            )
                             SELECT -sum(usage)::bigint / 60
                                 from (
                                     SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  "accounting"."transactions" tr
+                                    FROM  ids tr
                                         join accounting.products p on p.id = tr.product_id
                                         join accounting.product_categories pc on pc.id = p.category
                                         join accounting.wallets w on pc.id = w.category
                                         join accounting.wallet_owner wo on w.owned_by = wo.id
                                     WHERE
-                                        initial_transaction_id = transaction_id
-                                        AND created_at >= :startDate::timestamp
+                                        created_at >= :startDate::timestamp
                                         AND pc.product_type = :type
                                         AND tr.action_performed_by = :username
                                     AND tr.type = 'charge' and wo.project_id = :id
@@ -365,19 +422,30 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     setParameter("endDate", endDate.toLocalDate().toString())
                                 },
                                 """
+                            with nomalized as (
+                                select *
+                                from accounting.transactions
+                                where
+                                    created_at > '2023-01-01' and
+                                    length(split_part(transaction_id, '-', 6)) > 0
+                            ),
+                            ids as (
+                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                from nomalized
+                                order by created_at desc
+                            )
                             SELECT -sum(usage)::bigint / 60
                             from (
                                 SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                FROM  "accounting"."transactions" tr
+                                FROM  ids tr
                                     join accounting.products p on p.id = tr.product_id
                                     join accounting.product_categories pc on pc.id = p.category
                                 WHERE
-                                    initial_transaction_id = transaction_id
-                                    AND created_at >= :startDate::timestamp
+                                    created_at >= :startDate::timestamp
                                     AND created_at < :endDate::timestamp
-                                    AND tr.action_performed_by NOT LIKE '\_%'
-                                AND tr.type = 'charge'
-                                and p.name like 'uc-t4%'
+                                    AND pc.product_type = 'COMPUTE'
+                                    AND tr.type = 'charge'
+                                    and p.name like 'uc-t4%'
                             ) as used;
                         """
                             ).rows
@@ -402,6 +470,18 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     setParameter("endDate", endDate.toLocalDate().toString())
                                 },
                                 """
+                            with nomalized as (
+                                select *
+                                from accounting.transactions
+                                where
+                                    created_at > '2023-01-01' and
+                                    length(split_part(transaction_id, '-', 6)) > 0
+                            ),
+                            ids as (
+                                select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                from nomalized
+                                order by created_at desc
+                            )
                             SELECT -sum(usage)::bigint / 60
                             from (
                                 SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
@@ -412,9 +492,9 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     initial_transaction_id = transaction_id
                                     AND created_at >= :startDate::timestamp
                                     AND created_at < :endDate::timestamp
-                                    AND tr.action_performed_by NOT LIKE '\_%'
-                                AND tr.type = 'charge'
-                                and p.name like 'uc-gene%'
+                                    AND pc.product_type = 'COMPUTE'
+                                    AND tr.type = 'charge'
+                                    and p.name like 'uc-gene%'
                             ) as used;
                         """
                             ).rows
@@ -434,19 +514,30 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     setParameter("endDate", endDate.toLocalDate().toString())
                                 },
                                 """
+                                    with nomalized as (
+                                        select *
+                                        from accounting.transactions
+                                        where
+                                            created_at > '2023-01-01' and
+                                            length(split_part(transaction_id, '-', 6)) > 0
+                                    ),
+                                    ids as (
+                                        select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                        from nomalized
+                                        order by created_at desc
+                                    )
                                     SELECT -sum(usage)::bigint / 60
                                     from (
                                         SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                        FROM  "accounting"."transactions" tr
+                                        FROM ids as tr
                                             join accounting.products p on p.id = tr.product_id
                                             join accounting.product_categories pc on pc.id = p.category
                                         WHERE
-                                            initial_transaction_id = transaction_id
-                                            AND created_at >= :startDate::timestamp
+                                            created_at >= :startDate::timestamp
                                             AND created_at < :endDate::timestamp
-                                            AND tr.action_performed_by NOT LIKE '\_%'
                                             AND tr.type = 'charge'
-                                        and p.name not like 'uc%' and p.name not like '%gpu%'
+                                            AND pc.product_type = 'COMPUTE'
+                                            and p.name not like 'uc%' and p.name not like '%gpu%'
                                     ) as used;
                                 """
                             ).rows
@@ -481,19 +572,30 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                         when (productType) {
                             ProductType.GPU -> {
                                 """
+                                    with nomalized as (
+                                        select *
+                                        from accounting.transactions
+                                        where
+                                            created_at > '2023-01-01' and
+                                            length(split_part(transaction_id, '-', 6)) > 0
+                                    ),
+                                    ids as (
+                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                        from nomalized
+                                        order by created_at desc
+                                    )
                                     select (((usage)/60)/10)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
                                     from (
                                         select -sum(tr.change/p.price_per_unit) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
                                         from accounting.wallets w
                                             join accounting.wallet_owner wo on w.owned_by = wo.id
                                             join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join accounting.transactions tr on wall.id = tr.affected_allocation_id
+                                            join ids tr on wall.id = tr.affected_allocation_id
                                             join accounting.products p on p.id = tr.product_id
                                             join accounting.product_categories pc on p.category = pc.id
                                         where
                                             tr.created_at >= :startDate
                                             and tr.created_at < :endDate
-                                            and tr.initial_transaction_id = tr.transaction_id
                                             and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
                                             and pc.category like 'uc-t%'
                                             and tr.type = 'charge'
@@ -505,19 +607,30 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             }
                             ProductType.CPU -> {
                                 """
+                                    with nomalized as (
+                                        select *
+                                        from accounting.transactions
+                                        where
+                                            created_at > '2023-01-01' and
+                                            length(split_part(transaction_id, '-', 6)) > 0
+                                    ),
+                                    ids as (
+                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                        from nomalized
+                                        order by created_at desc
+                                    )
                                     select ((usage)/60)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
                                     from (
                                         select -sum(tr.change/p.price_per_unit) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
                                         from accounting.wallets w
                                             join accounting.wallet_owner wo on w.owned_by = wo.id
                                             join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join accounting.transactions tr on wall.id = tr.affected_allocation_id
+                                            join ids tr on wall.id = tr.affected_allocation_id
                                             join accounting.products p on p.id = tr.product_id
                                             join accounting.product_categories pc on p.category = pc.id
                                         where
                                             tr.created_at >= :startDate
                                             and tr.created_at < :endDate
-                                            and tr.initial_transaction_id = tr.transaction_id
                                             and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
                                             and pc.category like 'uc-gene%'
                                             and tr.type = 'charge'
@@ -556,73 +669,74 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                         when (productType) {
                             ProductType.GPU -> {
                                 """
-                                    with gpusmall as (
+                                    with nomalized as (
+                                        select *
+                                        from accounting.transactions
+                                        where
+                                            created_at > :startDate and
+                                            length(split_part(transaction_id, '-', 6)) > 0
+                                    ),
+                                    ids as (
+                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                        from nomalized
+                                        order by created_at desc
+                                    ),
+                                    gpusmall as (
                                         select (-sum(tr.change/p.price_per_unit)/20) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
                                         from accounting.wallets w
                                             join accounting.wallet_owner wo on w.owned_by = wo.id
                                             join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join accounting.transactions tr on wall.id = tr.affected_allocation_id
+                                            join ids tr on wall.id = tr.affected_allocation_id
                                             join accounting.products p on p.id = tr.product_id
                                             join accounting.product_categories pc on p.category = pc.id
                                         where
                                             tr.created_at >= :startDate
                                             and tr.created_at < :endDate
-                                            and tr.initial_transaction_id = tr.transaction_id
                                             and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
                                             and pc.category not like 'uc%'
                                             and pc.category like '%gpu%'
                                             and tr.type = 'charge'
-                                        group by tr.affected_allocation_id, wo,username, wo.project_id, pc.category, tr.action_performed_by
-                                        order by tr.affected_allocation_id
-                                    ),
-                                    gpubig as (
-                                        select (-sum(tr.change/p.price_per_unit)/12) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
-                                        from accounting.wallets w
-                                            join accounting.wallet_owner wo on w.owned_by = wo.id
-                                            join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join accounting.transactions tr on wall.id = tr.affected_allocation_id
-                                            join accounting.products p on p.id = tr.product_id
-                                            join accounting.product_categories pc on p.category = pc.id
-                                        where
-                                            tr.created_at >= :startDate
-                                            and tr.created_at < :endDate
-                                            and tr.initial_transaction_id = tr.transaction_id
-                                            and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
-                                            and pc.category not like 'uc%'
-                                            and pc.category like '%gpu%'
-                                            and tr.type = 'charge'
-                                        group by tr.affected_allocation_id, wo,username, wo.project_id, pc.category, tr.action_performed_by
+                                        group by tr.affected_allocation_id, wo.username, wo.project_id, pc.category, tr.action_performed_by
                                         order by tr.affected_allocation_id
                                     )
-                                    select ((usage)/60)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
-                                    from gpubig
-                                    union
                                     select ((usage)/60)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
                                     from gpusmall;
                                 """.trimIndent()
                             }
                             ProductType.CPU -> {
                                 """
+                                    with nomalized as (
+                                        select *
+                                        from accounting.transactions
+                                        where
+                                            created_at > '2023-01-01' and
+                                            length(split_part(transaction_id, '-', 6)) > 0
+                                    ),
+                                    ids as (
+                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
+                                        from nomalized
+                                        order by created_at desc
+                                    )
                                     select ((usage)/60)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
                                     from (
                                         select -sum(tr.change/p.price_per_unit) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
                                         from accounting.wallets w
                                             join accounting.wallet_owner wo on w.owned_by = wo.id
                                             join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join accounting.transactions tr on wall.id = tr.affected_allocation_id
+                                            join ids tr on wall.id = tr.affected_allocation_id
                                             join accounting.products p on p.id = tr.product_id
                                             join accounting.product_categories pc on p.category = pc.id
                                         where
                                             tr.created_at >= :startDate
                                             and tr.created_at < :endDate
-                                            and tr.initial_transaction_id = tr.transaction_id
                                             and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
                                             and pc.category not like 'uc%'
                                             and pc.category not like '%gpu%'
                                             and tr.type = 'charge'
                                         group by tr.affected_allocation_id, wo,username, wo.project_id, pc.category, tr.action_performed_by
                                         order by tr.affected_allocation_id
-                                    ) as used
+                                    ) as used;
+
                                     ;
                                 """.trimIndent()
                             }
