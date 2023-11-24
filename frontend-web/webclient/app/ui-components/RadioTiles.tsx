@@ -111,7 +111,7 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     ${k} input:checked + .${RadioTileIconClass} {
         background-color: var(--blue, #f00);
         border: 0px solid var(--invertedThemeColor);
-        color: var(--invertedThemeColor);
+        color: var(--fixedWhite);
     }   
     
     ${k} label {

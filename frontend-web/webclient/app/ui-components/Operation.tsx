@@ -194,7 +194,7 @@ export const Operations: OperationsType = props => {
 
     if (props.location === "IN_ROW") {
         // Don't render anything if we are in row and we have selected something
-        const WIDTH = "51px";
+        const WIDTH = "47px";
         if (!props.row) return <Box width={WIDTH} />;
         if (props.selected.length > 0 && !props.selected.includes(props.row)) return <Box width={WIDTH} />;
     }
@@ -269,7 +269,7 @@ export const Operations: OperationsType = props => {
                         size={"1em"}
                         rotation={90}
                         data-tag={props.dropdownTag}
-                    /> : <Box ml={"33px"} />
+                    /> : <Box ml="29px" />
         )
     };
 

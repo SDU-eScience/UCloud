@@ -5,9 +5,9 @@ import AppRoutes from "@/Routes";
 
 export enum ResourceOptions {
     PUBLIC_IP = "Public IPs",
-    PUBLIC_LINKS = "Public Links",
+    PUBLIC_LINKS = "Public links",
     LICENSES = "Licenses",
-    SSH_KEYS = "SSH Keys",
+    SSH_KEYS = "SSH keys",
 }
 
 export const sidebarLinks: LinkInfo[] = [

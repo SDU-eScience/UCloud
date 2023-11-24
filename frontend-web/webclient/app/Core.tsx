@@ -22,7 +22,7 @@ const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
 const Products = React.lazy(() => import("@/Products/Products"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
-const ProjectMembers = React.lazy(() => import("@/Project/Members2"));
+const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteLink"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));

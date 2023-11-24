@@ -923,7 +923,7 @@ const InviteRenderer: ItemRenderer<ProjectInvite> = {
     Icon: ({resource}) => {
         const avatars = useAvatars();
         if (!resource) return null;
-        return <UserAvatar avatar={avatars.avatar(resource.recipient)} />;
+        return <UserAvatar avatar={avatars.avatar(resource.recipient)} height="48px" width="48px" />;
     },
 
     MainTitle: ({resource}) => {
@@ -1012,7 +1012,7 @@ const GroupMemberRenderer: ItemRenderer<string> = {
     Icon: ({resource}) => {
         const avatars = useAvatars();
         if (!resource) return null;
-        return <UserAvatar avatar={avatars.avatar(resource)} />;
+        return <UserAvatar avatar={avatars.avatar(resource)} height="48px" width="48px" />;
     },
     MainTitle: ({resource}) => <>{resource}</>,
 };
@@ -1055,9 +1055,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
     ];
 
     const groupItems = groups.map(g =>
-        g ?
-            {text: g.specification.title, value: g.id}
-            : null
+        g ? {text: g.specification.title, value: g.id} : null
     ).filter(g => g?.text != "All users");
 
     useEffect(() => {
@@ -1076,7 +1074,6 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
         fetchInviteLinks({
             ...Api.browseInviteLinks({itemsPerPage: 10}),
             projectOverride: project.id
-
         });
     }, []);
 
@@ -1115,7 +1112,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                             useMousePositioning
                             width="100px"
                             chevron
-                            trigger={<>{roles.find(it => it.value === selectedRole)?.text}</>}
+                            trigger={roles.find(it => it.value === selectedRole)?.text}
                             options={roles}
                             onChange={async role => {
                                 await callAPIWithErrorHandler({
@@ -1150,7 +1147,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                     item ?
                                         <Box
                                             key={item.value}
-                                            onClick={async _ => {
+                                            onClick={async () => {
                                                 const newSelection = selectedGroups.length < 1 ? [item.value] :
                                                     selectedGroups.includes(item.value) ?
                                                         selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
@@ -1321,9 +1318,9 @@ function addNamingToRenderer<T, CB extends CreationCallbacks>(renderer: ItemRend
 // ================================================================================
 // div
 const MemberRowWrapper = injectStyleSimple("member-row-wrapper", `
-  display: flex;
-  align-items: center;
-  gap: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 `);
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
