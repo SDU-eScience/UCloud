@@ -254,7 +254,6 @@ class IdCardService(
         if (project != null && card is IdCard.User) {
             val projectKey = UsernameAndProject(actorAndProject.actor.safeUsername(), project)
             if (!allowCached) {
-                println("Clearing the cache!")
                 projectCache.remove(projectKey)
             }
 

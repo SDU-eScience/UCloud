@@ -60,6 +60,8 @@ object AppOrchestratorServices {
     lateinit var sshKeys: SshKeyService
 
     lateinit var jobMonitoring: JobMonitoringService
+
+    lateinit var statistics: StatisticsService
 }
 
 class Server(override val micro: Micro) : CommonServer {
@@ -146,6 +148,7 @@ class Server(override val micro: Micro) : CommonServer {
             sshKeys = SshKeyService()
             exporter = ParameterExportService()
             jobMonitoring = JobMonitoringService()
+            statistics = StatisticsService()
             runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
 
             eventStreams?.let { streams -> AppProcessor(streams, appCache).init() }

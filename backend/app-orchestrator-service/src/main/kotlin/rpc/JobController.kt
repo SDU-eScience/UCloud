@@ -5,6 +5,8 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.statistics
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService
 import dk.sdu.cloud.app.store.api.NameAndVersion
@@ -42,310 +44,344 @@ class JobController(
             GlobalScope.launch {
                 delay(1000)
                 val appEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
-                val devKey = micro.configuration.requestChunkOrNull<String>("jobsDevKey")
-                if (devKey != null) {
-                    appEngine.application.routing {
-                        webSocket("/$devKey") {
-                            suspend fun sendMessage(message: String) {
-                                message.lines().forEach {
-                                    if (it.isNotBlank()) outgoing.send(Frame.Text(it))
-                                }
+                appEngine.application.routing {
+                    webSocket("/jobsDevConsole") {
+                        suspend fun sendMessage(message: String) {
+                            message.lines().forEach {
+                                if (it.isNotBlank()) outgoing.send(Frame.Text(it))
                             }
+                        }
 
-                            sendMessage("Ready to accept queries!")
+                        sendMessage("Ready to accept queries!")
 
-                            for (frame in incoming) {
-                                try {
-                                    if (frame !is Frame.Text) continue
+                        for (frame in incoming) {
+                            try {
+                                if (frame !is Frame.Text) continue
 
-                                    val text = frame.readText().trim()
-                                    val split = text.split(" ")
-                                    val command = split.firstOrNull()
-                                    val args = split.drop(1)
-                                    when (command) {
-                                        "retrieve" -> {
-                                            val id = args.getOrNull(0)
-                                            val username = args.getOrNull(1)
-                                            val project = args.getOrNull(2)
+                                val text = frame.readText().trim()
+                                val split = text.split(" ")
+                                val command = split.firstOrNull()
+                                val args = split.drop(1)
+                                when (command) {
+                                    "test-data" -> {
+                                        val data = ArrayList<JobResourceService.TestDataObject>()
+                                        for (innerFrame in incoming) {
+                                            if (innerFrame !is Frame.Text) continue
+                                            val textFrame = innerFrame.readText().trim()
+                                            if (textFrame.equals("EOF", ignoreCase = true)) break
+                                            val innerSplit = textFrame.split(" ")
+                                            val projectId = innerSplit.getOrNull(0)
+                                            val categoryName = innerSplit.getOrNull(1)
+                                            val provider = innerSplit.getOrNull(2)
+                                            val usage = innerSplit.getOrNull(3)?.toLongOrNull()
 
-                                            if (id == null || username == null) {
-                                                sendMessage("Usage: retrieve <id> <username> [project]")
+                                            if (projectId == null || categoryName == null || provider == null || usage == null) {
+                                                sendMessage("usage: test-data <projectId> <categoryName> <provider> <usageInCoreMinutes>")
                                             } else {
-                                                val result = jobs.retrieve(
-                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), project),
-                                                    ResourceRetrieveRequest(
-                                                        JobIncludeFlags(
-                                                            includeParameters = true,
-                                                            includeOthers = true
-                                                        ), id
+                                                data.add(
+                                                    JobResourceService.TestDataObject(
+                                                        projectId,
+                                                        categoryName,
+                                                        provider,
+                                                        usage
                                                     )
                                                 )
-
-                                                if (result == null) {
-                                                    sendMessage("Unknown job")
-                                                } else {
-                                                    sendMessage(
-                                                        prettyMapper.encodeToString(
-                                                            Job.serializer(),
-                                                            result
-                                                        )
-                                                    )
-                                                }
                                             }
                                         }
 
-                                        "browse-simple", "browse", "browse-running" -> {
-                                            val username = args.getOrNull(0)
-                                            val project = args.getOrNull(1)
-                                            val next = args.getOrNull(2)
+                                        jobs.generateTestData(data)
+                                        sendMessage("OK")
+                                    }
 
-                                            if (username == null) {
-                                                sendMessage("usage: browse <username> [project (can be null)] [next]")
+                                    "retrieve" -> {
+                                        val id = args.getOrNull(0)
+                                        val username = args.getOrNull(1)
+                                        val project = args.getOrNull(2)
+
+                                        if (id == null || username == null) {
+                                            sendMessage("Usage: retrieve <id> <username> [project]")
+                                        } else {
+                                            val result = jobs.retrieve(
+                                                ActorAndProject(Actor.SystemOnBehalfOfUser(username), project),
+                                                ResourceRetrieveRequest(
+                                                    JobIncludeFlags(
+                                                        includeParameters = true,
+                                                        includeOthers = true
+                                                    ), id
+                                                )
+                                            )
+
+                                            if (result == null) {
+                                                sendMessage("Unknown job")
                                             } else {
+                                                sendMessage(
+                                                    prettyMapper.encodeToString(
+                                                        Job.serializer(),
+                                                        result
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    "browse-simple", "browse", "browse-running" -> {
+                                        val username = args.getOrNull(0)
+                                        val project = args.getOrNull(1)
+                                        val next = args.getOrNull(2)
+
+                                        if (username == null) {
+                                            sendMessage("usage: browse <username> [project (can be null)] [next]")
+                                        } else {
+                                            val result = jobs.browseBy(
+                                                ActorAndProject(
+                                                    Actor.SystemOnBehalfOfUser(username),
+                                                    project?.takeIf { it != "-" && it != "null" }),
+                                                ResourceBrowseRequest(
+                                                    JobIncludeFlags(
+                                                        includeParameters = true,
+                                                        includeOthers = true,
+                                                        filterState = if (command == "browse-running") JobState.RUNNING else null
+                                                    ),
+                                                    itemsPerPage = 250,
+                                                    next
+                                                )
+                                            )
+
+                                            if (command == "browse-simple" || command == "browse-running") {
+                                                sendMessage("Next token: ${result.next ?: "no next token"}")
+                                                if (result.items.isEmpty()) sendMessage("No results")
+                                                for (item in result.items) {
+                                                    sendMessage(item.id)
+                                                }
+                                            } else {
+                                                sendMessage(
+                                                    prettyMapper.encodeToString(
+                                                        PageV2.serializer(Job.serializer()),
+                                                        result
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    "browse-all", "browse-tokens" -> {
+                                        val username = args.getOrNull(0)
+                                        val project = args.getOrNull(1)
+
+                                        if (username == null) {
+                                            sendMessage("usage: browse-all <username> [project (can be null)]")
+                                        } else {
+                                            var next: String? = null
+                                            while (true) {
                                                 val result = jobs.browseBy(
-                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), project?.takeIf { it != "-" && it != "null" }),
+                                                    ActorAndProject(
+                                                        Actor.SystemOnBehalfOfUser(username),
+                                                        project?.takeIf { it != "-" && it != "null" }
+                                                    ),
+                                                    ResourceBrowseRequest(
+                                                        JobIncludeFlags(
+                                                            includeParameters = true,
+                                                            includeOthers = true
+                                                        ),
+                                                        itemsPerPage = 1000,
+                                                        next
+                                                    )
+                                                )
+
+                                                if (command == "browse-tokens") {
+                                                    sendMessage(result.next ?: "no next token")
+                                                } else {
+                                                    for (item in result.items) {
+                                                        sendMessage(item.id)
+                                                    }
+                                                }
+
+//                                                    sendMessage("---")
+
+                                                next = result.next ?: break
+                                            }
+                                        }
+                                    }
+
+                                    "filter-test" -> {
+                                        val username = args.getOrNull(0)
+                                        val project = args.getOrNull(1)?.takeIf { it != "-" && it != "null" }
+                                        val filterCreatedBy = args.getOrNull(2)
+
+                                        if (username == null || filterCreatedBy == null) {
+                                            sendMessage("filter-test: <username> <project?> <filterCreatedBy>")
+                                        } else {
+                                            var next: String? = null
+                                            while (true) {
+                                                val result = jobs.browseBy(
+                                                    ActorAndProject(
+                                                        Actor.SystemOnBehalfOfUser(username),
+                                                        project,
+                                                    ),
                                                     ResourceBrowseRequest(
                                                         JobIncludeFlags(
                                                             includeParameters = true,
                                                             includeOthers = true,
-                                                            filterState = if (command == "browse-running") JobState.RUNNING else null
+                                                            filterCreatedBy = filterCreatedBy
                                                         ),
                                                         itemsPerPage = 250,
                                                         next
                                                     )
                                                 )
 
-                                                if (command == "browse-simple" || command == "browse-running") {
-                                                    sendMessage("Next token: ${result.next ?: "no next token"}")
-                                                    if (result.items.isEmpty()) sendMessage("No results")
-                                                    for (item in result.items) {
-                                                        sendMessage(item.id)
-                                                    }
-                                                } else {
-                                                    sendMessage(
-                                                        prettyMapper.encodeToString(
-                                                            PageV2.serializer(Job.serializer()),
-                                                            result
-                                                        )
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        "browse-all", "browse-tokens" -> {
-                                            val username = args.getOrNull(0)
-                                            val project = args.getOrNull(1)
-
-                                            if (username == null) {
-                                                sendMessage("usage: browse-all <username> [project (can be null)]")
-                                            } else {
-                                                var next: String? = null
-                                                while (true) {
-                                                    val result = jobs.browseBy(
-                                                        ActorAndProject(
-                                                            Actor.SystemOnBehalfOfUser(username),
-                                                            project?.takeIf { it != "-" && it != "null" }
-                                                        ),
-                                                        ResourceBrowseRequest(
-                                                            JobIncludeFlags(
-                                                                includeParameters = true,
-                                                                includeOthers = true
-                                                            ),
-                                                            itemsPerPage = 1000,
-                                                            next
-                                                        )
-                                                    )
-
-                                                    if (command == "browse-tokens") {
-                                                        sendMessage(result.next ?: "no next token")
-                                                    } else {
-                                                        for (item in result.items) {
-                                                            sendMessage(item.id)
-                                                        }
-                                                    }
-
-//                                                    sendMessage("---")
-
-                                                    next = result.next ?: break
-                                                }
-                                            }
-                                        }
-
-                                        "filter-test" -> {
-                                            val username = args.getOrNull(0)
-                                            val project = args.getOrNull(1)?.takeIf { it != "-" && it != "null" }
-                                            val filterCreatedBy = args.getOrNull(2)
-
-                                            if (username == null || filterCreatedBy == null) {
-                                                sendMessage("filter-test: <username> <project?> <filterCreatedBy>")
-                                            } else {
-                                                var next: String? = null
-                                                while (true) {
-                                                    val result = jobs.browseBy(
-                                                        ActorAndProject(
-                                                            Actor.SystemOnBehalfOfUser(username),
-                                                            project,
-                                                        ),
-                                                        ResourceBrowseRequest(
-                                                            JobIncludeFlags(
-                                                                includeParameters = true,
-                                                                includeOthers = true,
-                                                                filterCreatedBy = filterCreatedBy
-                                                            ),
-                                                            itemsPerPage = 250,
-                                                            next
-                                                        )
-                                                    )
-
-                                                    for (item in result.items) {
-                                                        sendMessage("${item.id}: ${item.owner.createdBy}")
-                                                    }
-
-                                                    next = result.next ?: break
-                                                }
-                                            }
-                                        }
-
-                                        "hide-test" -> {
-                                            val username = args.getOrNull(0)
-                                            val project = args.getOrNull(1)?.takeIf { it != "-" && it != "null" }
-                                            val hideProductName = args.getOrNull(2)
-
-                                            if (username == null || hideProductName == null) {
-                                                sendMessage("hide-test: <username> <project?> <hideCategory>")
-                                            } else {
-                                                var next: String? = null
-                                                while (true) {
-                                                    val result = jobs.browseBy(
-                                                        ActorAndProject(
-                                                            Actor.SystemOnBehalfOfUser(username),
-                                                            project,
-                                                        ),
-                                                        ResourceBrowseRequest(
-                                                            JobIncludeFlags(
-                                                                includeParameters = true,
-                                                                includeOthers = true,
-                                                                hideProductId = hideProductName,
-                                                            ),
-                                                            itemsPerPage = 250,
-                                                            next
-                                                        )
-                                                    )
-
-                                                    for (item in result.items) {
-                                                        sendMessage("${item.id}: ${item.owner.createdBy}")
-                                                    }
-
-                                                    next = result.next ?: break
-                                                }
-                                            }
-                                        }
-
-                                        "register" -> {
-                                            val username = args.getOrNull(0)
-                                            val project = args.getOrNull(1)
-                                            jobs.register(
-                                                ActorAndProject(Actor.SystemOnBehalfOfUser("#P_k8"), null),
-                                                bulkRequestOf(
-                                                    ProviderRegisteredResource(
-                                                        JobSpecification(
-                                                            NameAndVersion("unknown", "unknown"),
-                                                            ProductReference("cpu-1", "cpu", "k8"),
-                                                            parameters = emptyMap(),
-                                                            resources = emptyList(),
-                                                            timeAllocation = SimpleDuration.fromMillis(1000L),
-                                                        ),
-                                                        providerGeneratedId = "test-${System.currentTimeMillis()}",
-                                                        createdBy = username,
-                                                        project = project,
-                                                        projectAllRead = true,
-                                                        projectAllWrite = true,
-                                                    )
-                                                )
-                                            )
-                                        }
-
-                                        "update" -> {
-                                            val id = args.getOrNull(0)
-                                            val username = args.getOrNull(1)
-                                            val project = args.getOrNull(2)?.takeIf { it != "-" && it != "null" }
-                                            val message = args.getOrNull(3)
-                                            if (username == null || id == null) {
-                                                sendMessage("Usage: update <username> <project (can be null)> <id> [message]")
-                                            } else {
-                                                sendMessage("Ready to receive update!")
-                                                val updateText = (incoming.receive() as Frame.Text).readText()
-
-                                                val request = bulkRequestOf(
-                                                    ResourceUpdateAndId(
-                                                        id,
-                                                        defaultMapper.decodeFromString(
-                                                            JobUpdate.serializer(),
-                                                            updateText
-                                                        ).also { it.status = message }
-                                                    )
-                                                )
-
-                                                jobs.addUpdate(
-                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), project),
-                                                    request
-                                                )
-
-                                                sendMessage("Updating $id with:")
-                                                sendMessage(prettyMapper.encodeToString(request))
-                                            }
-                                        }
-
-                                        "acl-test" -> {
-                                            val id = args.getOrNull(0)
-                                            val username = args.getOrNull(1)
-                                            val target = args.getOrNull(2)
-                                            val type = args.getOrNull(3)
-
-                                            if (id == null || username == null || target == null || type == null) {
-                                                sendMessage("Usage: acl-test <id> <username> <target> <type> <perms>")
-                                            } else {
-                                                val added = if (type == "add") {
-                                                    listOf(ResourceAclEntry(AclEntity.User(target), listOf(Permission.READ, Permission.EDIT)))
-                                                } else {
-                                                    emptyList()
+                                                for (item in result.items) {
+                                                    sendMessage("${item.id}: ${item.owner.createdBy}")
                                                 }
 
-                                                val deleted = if (type == "deleted") {
-                                                    listOf(AclEntity.User(target))
-                                                } else {
-                                                    emptyList()
-                                                }
-
-                                                jobs.updateAcl(
-                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), null),
-                                                    bulkRequestOf(
-                                                        UpdatedAcl(
-                                                            id,
-                                                            added,
-                                                            deleted
-                                                        )
-                                                    ).also {
-                                                        sendMessage(prettyMapper.encodeToString(it))
-                                                    }
-                                                )
+                                                next = result.next ?: break
                                             }
-                                        }
-
-                                        else -> {
-                                            sendMessage("unknown command")
                                         }
                                     }
-                                } catch (ex: Throwable) {
-                                    sendMessage(ex.stackTraceToString().toString())
-//                                    sendMessage(ex.toReadableStacktrace().toString())
+
+                                    "hide-test" -> {
+                                        val username = args.getOrNull(0)
+                                        val project = args.getOrNull(1)?.takeIf { it != "-" && it != "null" }
+                                        val hideProductName = args.getOrNull(2)
+
+                                        if (username == null || hideProductName == null) {
+                                            sendMessage("hide-test: <username> <project?> <hideCategory>")
+                                        } else {
+                                            var next: String? = null
+                                            while (true) {
+                                                val result = jobs.browseBy(
+                                                    ActorAndProject(
+                                                        Actor.SystemOnBehalfOfUser(username),
+                                                        project,
+                                                    ),
+                                                    ResourceBrowseRequest(
+                                                        JobIncludeFlags(
+                                                            includeParameters = true,
+                                                            includeOthers = true,
+                                                            hideProductId = hideProductName,
+                                                        ),
+                                                        itemsPerPage = 250,
+                                                        next
+                                                    )
+                                                )
+
+                                                for (item in result.items) {
+                                                    sendMessage("${item.id}: ${item.owner.createdBy}")
+                                                }
+
+                                                next = result.next ?: break
+                                            }
+                                        }
+                                    }
+
+                                    "register" -> {
+                                        val username = args.getOrNull(0)
+                                        val project = args.getOrNull(1)
+                                        jobs.register(
+                                            ActorAndProject(Actor.SystemOnBehalfOfUser("#P_k8"), null),
+                                            bulkRequestOf(
+                                                ProviderRegisteredResource(
+                                                    JobSpecification(
+                                                        NameAndVersion("unknown", "unknown"),
+                                                        ProductReference("cpu-1", "cpu", "k8"),
+                                                        parameters = emptyMap(),
+                                                        resources = emptyList(),
+                                                        timeAllocation = SimpleDuration.fromMillis(1000L),
+                                                    ),
+                                                    providerGeneratedId = "test-${System.currentTimeMillis()}",
+                                                    createdBy = username,
+                                                    project = project,
+                                                    projectAllRead = true,
+                                                    projectAllWrite = true,
+                                                )
+                                            )
+                                        )
+                                    }
+
+                                    "update" -> {
+                                        val id = args.getOrNull(0)
+                                        val username = args.getOrNull(1)
+                                        val project = args.getOrNull(2)?.takeIf { it != "-" && it != "null" }
+                                        val message = args.getOrNull(3)
+                                        if (username == null || id == null) {
+                                            sendMessage("Usage: update <username> <project (can be null)> <id> [message]")
+                                        } else {
+                                            sendMessage("Ready to receive update!")
+                                            val updateText = (incoming.receive() as Frame.Text).readText()
+
+                                            val request = bulkRequestOf(
+                                                ResourceUpdateAndId(
+                                                    id,
+                                                    defaultMapper.decodeFromString(
+                                                        JobUpdate.serializer(),
+                                                        updateText
+                                                    ).also { it.status = message }
+                                                )
+                                            )
+
+                                            jobs.addUpdate(
+                                                ActorAndProject(Actor.SystemOnBehalfOfUser(username), project),
+                                                request
+                                            )
+
+                                            sendMessage("Updating $id with:")
+                                            sendMessage(prettyMapper.encodeToString(request))
+                                        }
+                                    }
+
+                                    "acl-test" -> {
+                                        val id = args.getOrNull(0)
+                                        val username = args.getOrNull(1)
+                                        val target = args.getOrNull(2)
+                                        val type = args.getOrNull(3)
+
+                                        if (id == null || username == null || target == null || type == null) {
+                                            sendMessage("Usage: acl-test <id> <username> <target> <type> <perms>")
+                                        } else {
+                                            val added = if (type == "add") {
+                                                listOf(
+                                                    ResourceAclEntry(
+                                                        AclEntity.User(target),
+                                                        listOf(Permission.READ, Permission.EDIT)
+                                                    )
+                                                )
+                                            } else {
+                                                emptyList()
+                                            }
+
+                                            val deleted = if (type == "deleted") {
+                                                listOf(AclEntity.User(target))
+                                            } else {
+                                                emptyList()
+                                            }
+
+                                            jobs.updateAcl(
+                                                ActorAndProject(Actor.SystemOnBehalfOfUser(username), null),
+                                                bulkRequestOf(
+                                                    UpdatedAcl(
+                                                        id,
+                                                        added,
+                                                        deleted
+                                                    )
+                                                ).also {
+                                                    sendMessage(prettyMapper.encodeToString(it))
+                                                }
+                                            )
+                                        }
+                                    }
+
+                                    else -> {
+                                        sendMessage("unknown command")
+                                    }
                                 }
+                            } catch (ex: Throwable) {
+                                sendMessage(ex.stackTraceToString().toString())
+//                                    sendMessage(ex.toReadableStacktrace().toString())
                             }
                         }
+                    }
 
-                        get("/api/overheadTest") {
-                            call.respondBytes(ByteArray(0))
-                        }
+                    get("/api/overheadTest") {
+                        call.respondBytes(ByteArray(0))
                     }
                 }
             }
@@ -435,6 +471,10 @@ class JobController(
 
         implement(JobsControl.checkCredits) {
             ok(jobs.chargeOrCheckCredits(actorAndProject, request, checkOnly = true))
+        }
+
+        implement(Statistics.retrieveStatistics) {
+            ok(statistics.retrieveStatistics(ctx.responseAllocator, actorAndProject, request.start, request.end))
         }
     }
 

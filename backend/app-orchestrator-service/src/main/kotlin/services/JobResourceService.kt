@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.appCache
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
@@ -22,6 +23,7 @@ import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -37,6 +39,8 @@ import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.collections.ArrayList
+import kotlin.math.min
+import kotlin.random.Random
 
 // `Job`s in UCloud are the core abstraction used to describe units of computation. The code in this file implements
 // the orchestrating part of Jobs. We suggest you read more about jobs before trying to understand this file.
@@ -972,6 +976,163 @@ class JobResourceService {
 
         return SupportInfo(application, tool, block)
     }
+
+
+    // Test data
+    // =================================================================================================================
+    // Used for generating test data for use in dev environments. Not intended to be used in tests. Does not run in
+    // production for obvious reasons. The generated data is only guaranteed to be valid enough that this service can
+    // work with it. It does not guarantee that the provider would ever have accepted such a scenario. No communication
+    // is made to the provider. No accounting charges are made.
+    data class TestDataObject(
+        val projectId: String,
+        val categoryName: String,
+        val provider: String,
+        val usageInCoreMinutes: Long,
+    )
+
+    @Suppress("DEPRECATION")
+    suspend fun generateTestData(
+        objects: List<TestDataObject>,
+        spreadOverDays: Int = 7,
+        clusterCount: Int = 10
+    ) {
+        require(AppOrchestratorServices.micro.developmentModeEnabled) { "devMode must be enabled" }
+
+        val stepSize = 1000L * 60 * 10
+        val duration = 1000L * 60 * 60 * 24 * spreadOverDays
+        val stepCount = duration / stepSize
+        val endOfPeriod = Time.now()
+        val startOfPeriod = endOfPeriod - duration
+        val charges = ArrayList<Unit>()
+
+        val applications = ArrayList<NameAndVersion>()
+        run {
+            db.withSession { session ->
+                val rows = session.sendPreparedStatement(
+                    {},
+                    """
+                        select app.name, app.version
+                        from app_store.applications app
+                    """
+                ).rows
+
+                for (row in rows) {
+                    applications.add(NameAndVersion(row.getString(0)!!, row.getString(1)!!))
+                }
+            }
+        }
+
+        for (obj in objects) {
+            with(obj) {
+                val piUsername = run {
+                    db.withSession { session ->
+                        session.sendPreparedStatement(
+                            { setParameter("project_id", projectId) },
+                            """
+                                select username
+                                from project.project_members pm
+                                where project_id = :project_id and role = 'PI'
+                                limit 1
+                            """
+                        ).rows.single().getString(0)!!
+                    }
+                }
+
+                val card = idCards.fetchIdCard(
+                    ActorAndProject(
+                        Actor.SystemOnBehalfOfUser(piUsername),
+                        projectId
+                    )
+                )
+
+                val allTimestamps = HashSet<Long>()
+
+                for (cluster in LongArray(clusterCount) { Random.nextLong(stepCount - 10) }) {
+                    for (i in 0 until 10) {
+                        allTimestamps.add(stepSize * (cluster + i) + startOfPeriod)
+                    }
+                }
+
+                val relevantProducts = ArrayList<Product.Compute>()
+                for (id in productCache.productCategoryToProductIds(obj.categoryName) ?: emptyList()) {
+                    val product = productCache.productIdToProduct(id) ?: continue
+                    if (product !is Product.Compute) continue
+                    if (product.category.provider != provider) continue
+                    relevantProducts.add(product)
+                }
+                val smallestProduct = relevantProducts.minBy { it.cpu ?: 1 }
+
+                val minimumSize = (usageInCoreMinutes / allTimestamps.size) / 2
+                // Takes some bad luck to hit the min case here
+                val maxSize = min(usageInCoreMinutes, minimumSize * 3)
+
+                var charged = 0L
+                for ((index, timestamp) in allTimestamps.withIndex()) {
+                    var product = relevantProducts.random()
+                    var usage = min(usageInCoreMinutes - charged, Random.nextLong(minimumSize, maxSize))
+                    if (index == allTimestamps.size - 1) {
+                        product = smallestProduct
+                        usage = usageInCoreMinutes - charged
+                    }
+
+                    val usageInWallMinutes = usage / (product.cpu ?: 1)
+                    val application = applications.random()
+
+                    charged += usageInWallMinutes * (product.cpu ?: 1)
+
+                    val docId = documents.create(
+                        card,
+                        product.toReference(),
+                        InternalJobState(
+                            JobSpecification(
+                                application,
+                                product.toReference(),
+                                parameters = emptyMap(),
+                                timeAllocation = SimpleDuration(200, 0, 0),
+                                resources = emptyList()
+                            ),
+                            JobState.SUCCESS,
+                            startedAt = timestamp
+                        ),
+                        null,
+                    )
+
+                    println("$docId ${product.name} ${product.cpu} CPUs $usage $usageInWallMinutes")
+
+                    documents.modify(
+                        card,
+                        Array(1) { ResourceDocument() },
+                        longArrayOf(docId),
+                        Permission.READ
+                    ) { arrIdx, doc ->
+                        this.createdAt[arrIdx] = timestamp
+                    }
+
+                    val timeInQueue = Random.nextLong(1000L * 120)
+                    documents.addUpdate(
+                        IdCard.System,
+                        docId,
+                        listOf(
+                            ResourceDocumentUpdate(
+                                "Mark job as running (test data/fake job)",
+                                defaultMapper.encodeToJsonElement(JobUpdate.serializer(), JobUpdate(JobState.RUNNING)),
+                                timestamp + timeInQueue,
+                            ),
+                            ResourceDocumentUpdate(
+                                "Mark job as done (test data/fake job)",
+                                defaultMapper.encodeToJsonElement(JobUpdate.serializer(), JobUpdate(JobState.SUCCESS)),
+                                timestamp + timeInQueue + (usageInWallMinutes * 1000L * 60),
+                            )
+                        )
+                    )
+                }
+
+                println("We have charged $charged out of $usageInCoreMinutes")
+            }
+        }
+    }
+
 
     // Persistent storage and indices
     // =================================================================================================================
