@@ -629,6 +629,7 @@ export function clamp(val: number, lower: number, upper: number): number {
 interface HTMLElementContent {
     tagType: keyof HTMLElementTagNameMap;
     style?: Partial<CSSStyleDeclaration>;
+    innerText?: string;
     dataTags?: [string, string][];
     handlers?: {onClick?: ((this: GlobalEventHandlers, ev: MouseEvent) => any); onChange?: ((this: GlobalEventHandlers, ev: Event) => any) | null;}
     className?: string;
@@ -638,6 +639,7 @@ interface HTMLElementContent {
 export function createHTMLElements<T extends HTMLElement>({children = [], ...rootEntry}: HTMLElementContent): T {
     const root = document.createElement(rootEntry.tagType);
     if (rootEntry.className) root.className = rootEntry.className;
+    if (rootEntry.innerText) root.innerText = rootEntry.innerText;
     if (rootEntry.handlers?.onChange) root.onchange = rootEntry.handlers?.onChange;
     if (rootEntry.handlers?.onClick) root.onclick = rootEntry.handlers?.onClick;
     if (rootEntry.dataTags) for (const tag of rootEntry.dataTags) {

@@ -1033,9 +1033,12 @@ export class ResourceBrowser<T> {
             style: {
                 userSelect: "none",
                 webkitUserSelect: "none" // This is deprecated, but this is the only one accepted in Safari.
-            }
+            },
+            children: [{
+                tagType: "span",
+                innerText: title
+            }]
         });
-        div.innerText = title;
         div.onclick = mockDoubleClick();
         return div;
 

@@ -575,7 +575,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks = {
                         supportByProvider,
-                        allowMoveCopyOverride: false,
                         collection: collection,
                         directory: folder,
                         dispatch: dispatch,
