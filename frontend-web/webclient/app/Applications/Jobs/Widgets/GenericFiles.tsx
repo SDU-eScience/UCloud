@@ -61,7 +61,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     initialPath: "",
                     selection: {
                         text: "Use",
-                        onSelect: async res => {
+                        onClick: async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                             if (props.errors[props.parameter.name]) {
                                 delete props.errors[props.parameter.name];
@@ -74,7 +74,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                                 props.setWarning?.("Duplicate folders selected. This is not always supported.");
                             }
                         },
-                        onSelectRestriction: file => {
+                        show(file) {
                             const fileProvider = file.specification.product.provider;
                             const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
                             const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";

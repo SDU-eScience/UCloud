@@ -11,11 +11,10 @@ import List from "@/ui-components/List";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {APICallState, InvokeCommand, callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
@@ -37,7 +36,7 @@ import {
 } from "@/Accounting";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
-import {isAdminOrPI} from "@/Project/Api";
+import {default as ProjectApi, ProjectInvite, isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -49,6 +48,7 @@ import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
+import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 
 function Dashboard(): JSX.Element {
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -89,6 +89,8 @@ function Dashboard(): JSX.Element {
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
             <DashboardNews news={news} />
+
+            <ProjectInvites />
 
             <div className={GridClass}>
                 <DashboardFavoriteFiles />
@@ -133,6 +135,23 @@ const GridClass = injectStyle("grid", k => `
 }
 `);
 
+function ProjectInvites(): React.ReactNode {
+    const [invites] = useCloudAPI<PageV2<ProjectInvite>>(ProjectApi.browseInvites({itemsPerPage: 100}), emptyPageV2);
+
+    if (invites.data.items.length === 0) return null;
+    return <Flex mt="24px">
+        <HighlightedCard
+            color="darkOrange"
+            isLoading={invites.loading}
+            icon="projects"
+            title="Project invitations"
+            error={invites.error?.why}
+        >
+            <ProjectInviteBrowse opts={{embedded: true, page: invites.data}} />
+        </HighlightedCard>
+    </Flex>
+}
+
 function DashboardFavoriteFiles(): JSX.Element {
     const [, invokeCommand] = useCloudCommand();
 
@@ -155,7 +174,7 @@ function DashboardFavoriteFiles(): JSX.Element {
         >
             {favorites.items.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
-                        As you add favorites, they will appear here.
+                    As you add favorites, they will appear here.
                     <Link to={"/drives"} mt={8}>
                         <Button mt={8}>Explore files</Button>
                     </Link>

@@ -83,7 +83,7 @@ export const MetadataBrowse: React.FunctionComponent<{
             style={largeModalStyle}
             className={CardClass}
         >
-            <MetadataNamespacesBrowse opts={{isModal: true, selection: {text: "Use", onSelect: selectTemplate as any, onSelectRestriction(res) {
+            <MetadataNamespacesBrowse opts={{isModal: true, selection: {text: "Use", onClick: selectTemplate as any, show(res) {
                 return true;
             }}}} />
         </ReactModal>

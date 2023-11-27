@@ -138,7 +138,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
-                        onSelect: opts?.selection?.onSelect,
+                        onSelect: opts?.selection?.onClick,
                         embedded: false,
                         isCreating: false,
                         dispatch: dispatch,

@@ -491,7 +491,7 @@ export function ArchiveSingleProject(props: ArchiveSingleProjectProps): JSX.Elem
         {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
-                    <Heading.h3>Project Archival</Heading.h3>
+                    <Heading.h3>Project archival</Heading.h3>
                     <Text>
                         {!props.isArchived ? null : (
                             <>
@@ -562,7 +562,7 @@ export function LeaveProject(props: LeaveProjectProps): JSX.Element {
     return (
         <ActionBox>
             <Box flexGrow={1}>
-                <Heading.h3>Leave Project</Heading.h3>
+                <Heading.h3>Leave project</Heading.h3>
                 <Text>
                     If you leave the project the following will happen:
 

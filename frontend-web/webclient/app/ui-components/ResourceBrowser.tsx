@@ -45,8 +45,8 @@ export interface ResourceBrowserOpts<T> {
     // to ensure that some keyhandler are only done for the active modal, and not a potential parent ResBrowser-comp. 
     isModal?: boolean;
     selection?: {
-        onSelect(res: T): void;
-        onSelectRestriction(res: T): boolean | string;
+        onClick(res: T): void;
+        show?(res: T): boolean | string;
         text: string;
     }
 }
@@ -1078,17 +1078,20 @@ export class ResourceBrowser<T> {
         return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
     }
 
-    public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T) {
+    public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T, opts?: {
+        color?: ThemeColor, width?: string, height?: string 
+    }) {
         if (!selection) return;
-        if (selection.onSelectRestriction(item) === true) {
+        if (!selection.show || selection.show(item) === true) {
             const button = document.createElement("button");
             button.innerText = selection.text;
             button.className = ButtonClass;
-            button.style.height = "32px";
-            button.style.width = "96px";
+            button.style.height = opts?.height ?? "32px";
+            button.style.width = opts?.width ?? "96px";
+            if (opts?.color) button.style.backgroundColor = `var(--${opts.color})`;
             button.onclick = e => {
                 e.stopImmediatePropagation();
-                selection?.onSelect(item);
+                selection?.onClick(item);
             }
             return button;
         }

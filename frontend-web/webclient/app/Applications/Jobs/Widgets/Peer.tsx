@@ -138,12 +138,12 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                     isModal: true,
                     selection: {
                         text: "Use",
-                        onSelectRestriction(job) {
+                        show(job) {
                             const errorMessage = checkProviderMismatch(job, "Jobs");
                             if (errorMessage) return errorMessage;
                             return true;
                         },
-                        onSelect(job) {
+                        onClick(job) {
                             const el = document.getElementById(widgetId(props.parameter) + "job");
                             if (el) {
                                 (el as HTMLInputElement).value = job.id;

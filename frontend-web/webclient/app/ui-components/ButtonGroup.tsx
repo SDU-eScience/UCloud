@@ -3,7 +3,7 @@ import {injectStyle} from "@/Unstyled";
 import * as React from "react";
 import Box, {BoxProps} from "@/ui-components/Box";
 
-const ButtonGroupClass = injectStyle("button-group", k => `
+export const ButtonGroupClass = injectStyle("button-group", k => `
     ${k} {
         display: flex;
     }

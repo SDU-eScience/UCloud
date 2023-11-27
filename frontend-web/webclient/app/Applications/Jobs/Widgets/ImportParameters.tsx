@@ -175,11 +175,11 @@ export const ImportParameters: React.FunctionComponent<{
                                     initialPath: "",
                                     selection: {
                                         text: "Use",
-                                        onSelect: res => {
+                                        onClick: res => {
                                             fetchAndImportParameters(res);
                                             dialogStore.success();
                                         },
-                                        onSelectRestriction: res => res.status.type === "FILE" && res.id.endsWith(".json")
+                                        show: res => res.status.type === "FILE" && res.id.endsWith(".json")
                                     }
                                 }}
                             />,
@@ -197,8 +197,8 @@ export const ImportParameters: React.FunctionComponent<{
                                 isModal: true,
                                 selection: {
                                     text: "Import",
-                                    onSelectRestriction: () => true, // Note(Jonas): Only valid apps should be shown here
-                                    onSelect: res => {
+                                    show: () => true, // Note(Jonas): Only valid apps should be shown here
+                                    onClick(res) {
                                         readParsedJSON(res.status.jobParametersJson);
                                         dialogStore.success();
                                     }

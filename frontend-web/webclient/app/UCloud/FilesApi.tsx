@@ -514,8 +514,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         <FileBrowse opts={{
                             isModal: true, selection: {
                                 text: "Copy to",
-                                onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
-                                onSelect: async (res) => {
+                                show(res) {return res.status.type === "DIRECTORY"},
+                                onClick: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                                     try {
                                         await cb.invokeCommand(
@@ -567,8 +567,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         <FileBrowse opts={{
                             isModal: true, selection: {
                                 text: "Move to",
-                                onSelectRestriction(res) {return res.status.type === "DIRECTORY"},
-                                onSelect: async (res) => {
+                                show(res) {return res.status.type === "DIRECTORY"},
+                                onClick: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                                     try {

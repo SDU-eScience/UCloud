@@ -145,7 +145,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
-                        onSelect: opts?.selection?.onSelect,
+                        onSelect: opts?.selection?.onClick,
                         embedded: false,
                         isCreating: false,
                         dispatch: dispatch,

@@ -173,7 +173,7 @@ export function ContextSwitcher({managed}: {
                 width="500px"
             >
                 <div style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
-                    <TextH3 bold mt="0" mb="16px">Select workspace</TextH3>
+                    <TextH3 bold mt="4px" mb="8px">Select workspace</TextH3>
                     <Flex>
                         <Input autoFocus className={"filter-input"} placeholder="Search..." defaultValue={filter} onKeyDown={e => {
                             if (["Escape"].includes(e.key) && e.target["value"]) {

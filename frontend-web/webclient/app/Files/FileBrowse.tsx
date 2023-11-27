@@ -629,8 +629,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         invokeCommand: call => callAPI(call),
                         api: FilesApi,
                         isCreating: false,
-                        onSelectRestriction: opts?.selection?.onSelectRestriction,
-                        onSelect: opts?.selection?.onSelect,
+                        onSelectRestriction: opts?.selection?.show,
+                        onSelect: opts?.selection?.onClick,
                     };
 
                     return callbacks;

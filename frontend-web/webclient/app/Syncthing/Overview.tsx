@@ -362,10 +362,10 @@ export const Overview: React.FunctionComponent = () => {
                     initialPath: "",
                     selection: {
                         text: "Sync",
-                        onSelectRestriction(file) {
+                        show(file) {
                             return file.status.type === "DIRECTORY" && file.specification.product.id !== "share";
                         },
-                        async onSelect(res) {
+                        async onClick(res) {
                             if (res.specification.product.provider != provider) {
                                 snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
                                 return;

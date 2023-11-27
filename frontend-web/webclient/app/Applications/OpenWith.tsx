@@ -105,7 +105,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     });
 
                     const button = browser.defaultButtonRenderer({
-                        onSelect: async () => {
+                        onClick: async () => {
                             try {
                                 const resolvedApplication = await callAPI(
                                     UCloud.compute.apps.findByNameAndVersion({
@@ -122,7 +122,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                                 displayErrorMessageOrDefault(error, "Failed to fetch application info.")
                             }
                         },
-                        onSelectRestriction: () => true,
+                        show: () => true,
                         text: "Launch"
                     }, entry);
                     if (button) {

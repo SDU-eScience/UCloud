@@ -102,8 +102,8 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                 opts={{
                     selection: {
                         text: "Use",
-                        onSelect: onUse,
-                        onSelectRestriction(res) {
+                        onClick: onUse,
+                        show(res) {
                             const errorMessage = checkProviderMismatch(res, "Public links");
                             if (errorMessage) return errorMessage;
                             return res.status.boundTo.length === 0;
