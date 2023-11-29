@@ -170,12 +170,12 @@ class MetadataService(
             // if this is possible. Maybe we can introduce a verification step later which is done by the provider.
             // For the initial version I think this is enough.
             val collectionIds = request.items.map { extractPathMetadata(it.fileId).collection }
-            collections.retrieveBulk(
+            val resolvedCollections = collections.retrieveBulk(
                 actorAndProject,
                 collectionIds,
                 listOf(Permission.EDIT),
                 ctx = session,
-                useProject = true
+                useProject = false,
             )
 
             val resolvedIds = checkIfShareAndChangeCollectionIdForMetadata(request.items, session)
@@ -198,12 +198,13 @@ class MetadataService(
                     throw RPCException("Supplied metadata is not valid", HttpStatusCode.BadRequest)
                 }
 
+                val driveProject = resolvedCollections.find { it.id == collectionIds[index] }?.owner?.project
+
                 val workspace = when (template.namespaceType) {
                     FileMetadataTemplateNamespaceType.PER_USER -> actorAndProject.actor.safeUsername()
-                    else -> actorAndProject.project ?: actorAndProject.actor.safeUsername()
+                    else -> driveProject ?: actorAndProject.actor.safeUsername()
                 }
-
-                val isWorkspaceProject = actorAndProject.project != null &&
+                val isWorkspaceProject = driveProject != null &&
                     template.namespaceType != FileMetadataTemplateNamespaceType.PER_USER
 
                 if (!template.requireApproval) {
