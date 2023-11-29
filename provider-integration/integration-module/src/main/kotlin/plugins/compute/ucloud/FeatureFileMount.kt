@@ -1,6 +1,7 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.ExportedParameters
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.JobUpdate
@@ -9,6 +10,7 @@ import dk.sdu.cloud.app.orchestrator.api.files
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
@@ -19,12 +21,14 @@ import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.prettyMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.writeString
 import io.ktor.utils.io.pool.*
+import kotlinx.coroutines.runBlocking
 import java.nio.CharBuffer
 
 /**
@@ -35,9 +39,19 @@ class FeatureFileMount(
     private val memberFiles: MemberFiles,
     private val pathConverter: PathConverter,
     private val limitChecker: LimitChecker,
+    private val serviceClient: AuthenticatedClient
 ) : JobFeature {
     private var lastRun = 0L
 
+    private val collectionCache = SimpleCache<String, FileCollection> { collectionId ->
+        FileCollectionsControl.retrieve.call(
+            ResourceRetrieveRequest(
+                FileCollectionIncludeFlags(),
+                collectionId
+            ),
+            serviceClient
+        ).orThrow()
+    }
     private suspend fun JobManagement.findJobFolder(job: Job, initializeFolder: Boolean): InternalFile {
         val username = job.owner.createdBy
         val project = job.owner.project
@@ -99,7 +113,7 @@ class FeatureFileMount(
         for (coll in fileCollections) {
             limitChecker.checkLimit(coll)
         }
-
+ 
         val fileMounts = run {
             val allMounts = job.files.map {
                 val internalFile = ucloudToRelative(UCloudFile.create(it.path))
@@ -144,7 +158,13 @@ class FeatureFileMount(
                 ) {
                     joinPath(pathSplit[pathSplit.size - 2], pathSplit.last())
                 } else {
-                    pathSplit.last()
+                    var inAppPath = mount.fileName
+                    val driveId = mount.path.normalize().components().getOrNull(1) ?: error("Unexpected path: $inAppPath")
+                    if (pathSplit.size == 2 && inAppPath == driveId) {
+                        val driveName = collectionCache.get(driveId)?.specification?.title ?: error("Unexpected Drive")
+                        inAppPath = driveName
+                    }
+                    inAppPath
                 }
             builder.mountUCloudFileSystem(
                 mount.system,
