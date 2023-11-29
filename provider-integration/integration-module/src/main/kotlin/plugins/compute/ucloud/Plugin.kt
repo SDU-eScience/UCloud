@@ -202,7 +202,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                 files.memberFiles,
                 files.pathConverter,
                 files.limitChecker,
-                rpcClient
+                rpcClient,
             )
             register(fileMountPlugin)
             register(FeatureMultiNode)

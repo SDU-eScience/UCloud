@@ -56,36 +56,35 @@ class FileCollectionService(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
-        //Change to not allow drives to have same name within same provider
+        // Change to not allow drives to have same name within same provider
         val error = session.sendPreparedStatement(
             {
-                setParameter("isproject", !actorAndProject.project.isNullOrBlank())
+                setParameter("is_project", !actorAndProject.project.isNullOrBlank())
                 setParameter("project", actorAndProject.project)
                 setParameter("username", actorAndProject.actor.safeUsername())
             },
             """
-                select title, r.provider, pc.category
+                select lower(title), r.provider, pc.category
                     from provider.resource r join
                     file_orchestrator.file_collections fc on r.id = fc.resource join
                     accounting.products p on r.product = p.id join
                     accounting.product_categories pc on p.category = pc.id
                 where 
-                    (:isproject and project = :project) or 
-                    (not :isproject and created_by = :username and project is null)
-            """.trimIndent()
-        ).rows.map { data ->
-            val title = data.getString(0)!!.lowercase()
+                    (:is_project and project = :project::text) or 
+                    (not :is_project and created_by = :username::text and project is null)
+            """
+        ).rows.any { data ->
+            val title = data.getString(0)!!
             val provider = data.getString(1)!!
             val category = data.getString(2)!!
-            idWithSpec.forEach {
-                if (it.second.title.lowercase() == title && it.second.product.provider == provider && it.second.product.category == category) {
-                    return@map true
-                }
+            idWithSpec.any { (_, spec) ->
+                spec.title.equals(title, ignoreCase = true) &&
+                    spec.product.provider == provider &&
+                    spec.product.category == category
             }
-            false
-        }.contains(true)
+        }
         if (error) {
-            //Clean up resource
+            // Clean up resource
             session.sendPreparedStatement(
                 {
                     val ids by parameterList<Long>()
@@ -100,9 +99,9 @@ class FileCollectionService(
                     )
                     delete from provider.resource
                     where id in (select unnest(:ids::bigint[]))
-                """.trimIndent()
+                """
             )
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Cannot create drive with existing drive name")
+            throw RPCException("Cannot create drive with existing drive name", HttpStatusCode.BadRequest)
         }
         session.sendPreparedStatement(
             {

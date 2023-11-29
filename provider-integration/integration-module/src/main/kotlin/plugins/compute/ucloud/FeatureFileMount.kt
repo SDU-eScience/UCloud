@@ -158,15 +158,13 @@ class FeatureFileMount(
                 ) {
                     joinPath(pathSplit[pathSplit.size - 2], pathSplit.last())
                 } else {
-                    var path = mount.fileName
-                    val driveId = mount.path.normalize().components().getOrNull(1) ?: error("Unexpected path: $path")
-                    if(pathSplit.size == 2 && path == driveId) {
-                        val driveName = runBlocking {
-                            collectionCache.get(mount.path.normalize().components().getOrNull(1)!!)?.specification?.title ?: error("Unexpected Drive")
-                        }
-                        path = driveName
+                    var inAppPath = mount.fileName
+                    val driveId = mount.path.normalize().components().getOrNull(1) ?: error("Unexpected path: $inAppPath")
+                    if (pathSplit.size == 2 && inAppPath == driveId) {
+                        val driveName = collectionCache.get(driveId)?.specification?.title ?: error("Unexpected Drive")
+                        inAppPath = driveName
                     }
-                    path
+                    inAppPath
                 }
             builder.mountUCloudFileSystem(
                 mount.system,
