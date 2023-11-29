@@ -78,7 +78,7 @@ class FileCollectionService(
             val provider = data.getString(1)!!
             val category = data.getString(2)!!
             idWithSpec.forEach {
-                if (it.second.title == title && it.second.product.provider == provider && it.second.product.category == category) {
+                if (it.second.title.lowercase() == title && it.second.product.provider == provider && it.second.product.category == category) {
                     return@map true
                 }
             }
