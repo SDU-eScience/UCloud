@@ -80,9 +80,9 @@ export const Create: React.FunctionComponent = () => {
     );
 
     if (applicationResp) {
-        useTitle(`${applicationResp.data?.metadata.name} ${applicationResp.data?.metadata.version}`);
+        useTitle(`${applicationResp.data?.metadata.name} ${applicationResp.data?.metadata.version ?? ""}`);
     } else {
-        useTitle(`${appName} ${appVersion}`);
+        useTitle(`${appName} ${appVersion ?? ""}`);
     }
 
     const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(

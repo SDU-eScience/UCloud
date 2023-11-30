@@ -58,7 +58,7 @@ export const AppHeader: React.FunctionComponent<{
                                                     key={f.metadata.name}
                                                     onClick={() => {
                                                         close.current();
-                                                        navigate(Pages.runApplication(f.metadata));
+                                                        navigate(Pages.runApplicationWithName(f.metadata.name));
                                                     }}
                                                 >
                                                     {f.metadata.flavorName ?? f.metadata.title}
