@@ -13,6 +13,8 @@ import dk.sdu.cloud.messages.BinaryAllocator
 import dk.sdu.cloud.messages.BinaryTypeList
 import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.StaticTimeProvider
+import dk.sdu.cloud.service.SystemTimeProvider
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.paginateV2
@@ -21,6 +23,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.hours
 
 class AccountingService(
     val devMode: Boolean,
@@ -1747,8 +1750,8 @@ class AccountingService(
     )
     suspend fun generateTestData(
         objects: List<TestDataObject>,
-        spreadOverDays: Int = 7,
-        clusterCount: Int = 10
+        spreadOverDays: Int = 3650,
+        clusterCount: Int = 10,
     ) {
         require(devMode) { "devMode must be on" }
 
@@ -1757,7 +1760,9 @@ class AccountingService(
         val stepCount = duration / stepSize
         val endOfPeriod = Time.now()
         val startOfPeriod = endOfPeriod - duration
-        val charges = ArrayList<AccountingRequest.Charge>()
+        val charges = ArrayList<Pair<Long, AccountingRequest.Charge>>()
+
+        Time.provider = StaticTimeProvider
 
         var before = 0
         for (obj in objects) {
@@ -1769,8 +1774,6 @@ class AccountingService(
                         allTimestamps.add(stepSize * (cluster + i) + startOfPeriod)
                     }
                 }
-
-//                println(allTimestamps)
 
                 val allWallets = processor.retrieveWalletsInternal(
                     AccountingRequest.RetrieveWalletsInternal(
@@ -1794,14 +1797,13 @@ class AccountingService(
                         }
                         charged += usageInCharge
                         charges.add(
-                            AccountingRequest.Charge.DeltaCharge(
+                            timestamp to AccountingRequest.Charge.DeltaCharge(
                                 actor = Actor.System,
                                 owner = projectId,
                                 dryRun = false,
                                 productCategory = ProductCategoryIdV2(categoryName, provider),
                                 usage = usageInCharge,
                                 description = ChargeDescription("test data", emptyList()),
-                                timestampOverride = timestamp
                             )
                         )
                     }
@@ -1822,14 +1824,13 @@ class AccountingService(
                         println("$timestamp $index $currentUsage")
 
                         charges.add(
-                            AccountingRequest.Charge.TotalCharge(
+                            timestamp to AccountingRequest.Charge.TotalCharge(
                                 actor = Actor.System,
                                 owner = projectId,
                                 dryRun = false,
                                 productCategory = ProductCategoryIdV2(categoryName, provider),
                                 usage = currentUsage,
                                 description = ChargeDescription("test data", emptyList()),
-                                timestampOverride = timestamp
                             )
                         )
                     }
@@ -1840,14 +1841,20 @@ class AccountingService(
             before = charges.size
         }
 
-        val sortedBy = charges.sortedBy {
-            (it as? AccountingRequest.Charge.DeltaCharge)?.timestampOverride
-                ?: (it as? AccountingRequest.Charge.TotalCharge)?.timestampOverride
-                ?: 0L
-        }
-        for (charge in sortedBy) {
+        val sortedBy = charges.sortedBy { it.first }
+        var last = 0L
+        for ((timestamp, charge) in sortedBy) {
+            StaticTimeProvider.time = timestamp
             processor.sendRequest(charge)
+
+            if (timestamp - last > 3.hours.inWholeMilliseconds) {
+                processor.sendRequest(AccountingRequest.Sync())
+            }
+
+            last = timestamp
         }
+
+        Time.provider = SystemTimeProvider
     }
 
     companion object : Loggable {
