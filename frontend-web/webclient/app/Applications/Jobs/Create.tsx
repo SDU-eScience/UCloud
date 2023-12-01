@@ -290,7 +290,7 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [application, folders, peers, ingress, networks]);
 
-    useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
+    useTitle(application == null ? `${appName} ${appVersion ?? ""}` : `${application.metadata.title} ${appVersion ?? ""}`);
 
     if (applicationResp.loading) return <MainContainer main={<LoadingIcon size={36} />} />;
 
