@@ -1079,7 +1079,7 @@ export class ResourceBrowser<T> {
     }
 
     public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T, opts?: {
-        color?: ThemeColor, width?: string, height?: string 
+        color?: ThemeColor, width?: string, height?: string
     }) {
         if (!selection) return;
         if (!selection.show || selection.show(item) === true) {
@@ -1949,6 +1949,8 @@ export class ResourceBrowser<T> {
             // NOTE(Dan): We are purposefully only checking if x <= end of text.
             // NOTE(Dan): We are adding 30px to increase the hit-box slightly
             shouldDragAndDrop = event.clientX <= textRect.x + textRect.width + 30;
+            // NOTE(Jonas): This is the case that ensure that the user drags the text and not the rest of the truncate-tag.
+            shouldDragAndDrop = (event.target as HTMLElement).children.length === 0;
         }
 
         if (shouldDragAndDrop) {
