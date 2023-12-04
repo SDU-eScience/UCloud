@@ -198,7 +198,6 @@ export const App: React.FunctionComponent = () => {
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
-    const flavorName = apps.data.items.length > 0 ? (apps.data.items[0].metadata.flavorName ?? appTitle) : undefined;
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const flavorField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
@@ -284,7 +283,9 @@ export const App: React.FunctionComponent = () => {
 
                             <Heading.h2>Flavor (name)</Heading.h2>
                             <Flex>
-                                <Input rightLabel inputRef={flavorField} defaultValue={flavorName} />
+                                <Input rightLabel inputRef={flavorField} placeholder={
+                                    apps.data.items.length > 0 ? apps.data.items[0].metadata.flavorName ?? appTitle : appTitle
+                                } />
                                 <Button
                                     attached
                                     onClick={async () => {
