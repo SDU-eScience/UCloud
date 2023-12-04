@@ -23,6 +23,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 
 class AccountingService(
@@ -1184,6 +1185,10 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: VisualizationV2.RetrieveCharts.Request,
     ): Charts = with(allocator) {
+        if (request.end - request.start > (365 * 15).days.inWholeMilliseconds) {
+            throw RPCException("You cannot request data for more than 15 years", HttpStatusCode.BadRequest)
+        }
+
         val categories = ArrayList<ProductCategoryB>()
         val allocations = ArrayList<WalletAllocationB>()
         val productCategoryIdToIndex = HashMap<Long, Int>()
@@ -1337,178 +1342,18 @@ class AccountingService(
 
                         setParameter("start", request.start)
                         setParameter("end", request.end)
-                        setParameter("step", (request.end - request.start) / MAX_BUCKETS_FOR_CHART)
-                        println("duration = ${request.end - request.start} step = ${(request.end - request.start) / MAX_BUCKETS_FOR_CHART}")
                     },
                     """
-                        with
-                            my_allocations as (
-                                select alloc.id, w.category, alloc.end_date
-                                from
-                                    accounting.wallet_allocations alloc
-                                    join accounting.wallets w on alloc.associated_wallet = w.id
-                                where
-                                    alloc.start_date <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= alloc.end_date
-                                    and alloc.id = some(:allocation_ids)
-                            ),
-                            all_potentially_relevant_entries as (
-                                select
-                                    a.id as alloc_id,
-                                    a.category as alloc_category,
-                                    h.new_tree_usage as usage,
-                                    h.new_quota as quota,
-                                    h.created_at as timestamp
-                                from
-                                    my_allocations a
-                                    join accounting.transaction_history h
-                                        on a.id = h.affected_allocation
-                                where
-                                    h.created_at >= to_timestamp(:start / 1000)
-                                    and h.created_at <= to_timestamp(:end / 1000)
-                                    and h.created_at <= a.end_date
-                            ),
-                            time_at_prev_entry as (
-                                select
-                                    e.alloc_id,
-                                    e.alloc_category,
-                                    e.usage,
-                                    e.quota,
-                                    e.timestamp,
-                                    lag(e.timestamp) over w as prev_timestamp,
-                                    lead(e.timestamp) over w as next_timestamp
-                                from
-                                    all_potentially_relevant_entries e
-                                window
-                                    w as (
-                                        partition by e.alloc_id
-                                        order by e.timestamp
-                                    )
-                            ),
-                            time_of_last_entry_before_entering as (
-                                -- This table will find the state of all relevant allocations as they enter the period.
-                                -- This will, potentially, require us to backtrack quite a bit to figure out what the
-                                -- most recent state even is. If there are no prior entries, then we use the data
-                                -- directly from the allocation.
-
-                                select a.id, max(h.created_at) as max_time
-                                from
-                                    my_allocations a
-                                    join accounting.transaction_history h
-                                        on a.id = h.affected_allocation
-                                where
-                                    h.created_at < to_timestamp(:start / 1000)
-                                group by a.id
-                            ),
-                            state_before_entering_unfiltered as (
-                                select
-                                    e.id as alloc_id,
-                                    w.category as alloc_category,
-                                    coalesce(h.new_tree_usage, a.initial_balance - a.balance) as usage,
-                                    coalesce(h.new_quota, a.initial_balance) as quota,
-                                    h.created_at as timestamp,
-                                    row_number() over (partition by e.id) as row_number
-                                from
-                                    time_of_last_entry_before_entering e
-                                    join accounting.wallet_allocations a on e.id = a.id
-                                    join accounting.wallets w on a.associated_wallet = w.id
-                                    left join accounting.transaction_history h
-                                        on e.id = h.affected_allocation and e.max_time = h.created_at
-                            ),
-                            state_before_entering as (
-                                select
-                                    e.alloc_id,
-                                    e.alloc_category,
-                                    e.usage,
-                                    e.quota,
-                                    e.timestamp
-                                from state_before_entering_unfiltered e
-                                where e.row_number = 1
-                            ),
-                            expired_data_points as (
-                                select
-                                    a.id as alloc_id,
-                                    a.category as alloc_category,
-                                    0 as usage,
-                                    0 as quota,
-
-                                    -- ensure that this is always the last data point, which will make it take precedence over the others
-                                    a.end_date + '1 second'::interval as timestamp
-                                from
-                                    my_allocations a
-                                where
-                                    a.end_date >= to_timestamp(:start / 1000)
-                                    and a.end_date <= to_timestamp(:end / 1000)
-                            ),
-                            all_data as (
-                                select *
-                                from state_before_entering
-
-                                union
-
-                                select *
-                                from expired_data_points
-
-                                union
-
-                                select
-                                    e.alloc_id,
-                                    e.alloc_category,
-                                    e.usage,
-                                    e.quota,
-                                    e.timestamp
-                                from
-                                    time_at_prev_entry e
-                                where
-                                    e.prev_timestamp is null
-                                    or e.next_timestamp is null
-                                    or (
-                                        (provider.timestamp_to_unix(e.timestamp) / :step)::bigint !=
-                                        (provider.timestamp_to_unix(e.next_timestamp) / :step)::bigint
-                                    )
-                            ),
-                            normalized_data_with_potential_dupes as (
-                                select
-                                    e.alloc_id,
-                                    e.alloc_category,
-                                    e.usage,
-                                    e.quota,
-                                    (provider.timestamp_to_unix(e.timestamp) / :step)::bigint as slot,
-                                    row_number() over (partition by alloc_id, (provider.timestamp_to_unix(e.timestamp) / :step)::bigint) as rn
-                                from all_data e
-                            ),
-                            normalized_data as (
-                                select
-                                    alloc_id,
-                                    alloc_category,
-                                    usage,
-                                    usage - lag(usage, 1, 0) over w as usage_change,
-                                    quota - lag(quota, 1, 0) over w as quota_change,
-                                    slot
-                                from normalized_data_with_potential_dupes
-                                where rn = 1
-                                window w as (partition by alloc_id)
-                                order by alloc_category, slot
-                            ),
-                            combined as (
-                                select
-                                    d.alloc_category,
-                                    sum(d.usage_change) over w as usage,
-                                    sum(d.quota_change) over w as quota,
-
-                                    -- The rolling sum is only valid for the last row in each (alloc_category, slot) partition.
-                                    -- Keep row_number() and count() to figure out which row is the last.
-                                    row_number() over (partition by alloc_category, slot) as rn,
-                                    count(d.alloc_category) over (partition by alloc_category, slot) as c,
-
-                                    d.slot
-                                from normalized_data d
-                                window w as (partition by alloc_category rows unbounded preceding)
-                            )
-                        select alloc_category, usage::int8, quota::int8, slot * :step as ts
-                        from combined
-                        where c = rn
-                        order by alloc_category, slot;
+                        select distinct w.category, tree_usage, quota, provider.timestamp_to_unix(sampled_at)::int8
+                        from
+                            accounting.wallet_allocations alloc
+                            join accounting.wallets w on alloc.associated_wallet = w.id
+                            join accounting.wallet_samples s on w.id = s.wallet_id
+                        where
+                            alloc.id = some(:allocation_ids::int8[])
+                            and s.sampled_at >= to_timestamp(:start / 1000.0)
+                            and s.sampled_at <= to_timestamp(:end / 1000.0)
+                        order by w.category, provider.timestamp_to_unix(sampled_at)::int8;
                     """
                 ).rows
 
@@ -1555,148 +1400,65 @@ class AccountingService(
                         },
                         """
                             with
-                                my_allocations as (
-                                    select alloc.id, alloc.allocation_path, w.category, pc.accounting_frequency != 'ONCE' as is_monotonic
+                                relevant_wallets as (
+                                    select
+                                        w.id,
+                                        w.category,
+                                        pc.accounting_frequency != 'ONCE' as is_periodic,
+                                        nlevel(child.allocation_path) = nlevel(alloc.allocation_path) + 1 as is_child
                                     from
                                         accounting.wallet_allocations alloc
-                                        join accounting.wallets w on alloc.associated_wallet = w.id
+                                        join accounting.wallet_allocations child on
+                                            alloc.allocation_path @> child.allocation_path
+                                            and nlevel(child.allocation_path) <= nlevel(alloc.allocation_path) + 1
+                                        join accounting.wallets w on child.associated_wallet = w.id
                                         join accounting.product_categories pc on w.category = pc.id
                                     where
-                                        alloc.start_date <= to_timestamp(:end / 1000)
-                                        and to_timestamp(:start / 1000) <= alloc.end_date
-                                        and alloc.id = some(:allocation_ids)
+                                        alloc.id = some(:allocation_ids::int8[])
                                 ),
-                                allocations_with_children as (
-                                    -- This project
+                                data_timestamps as (
                                     select
-                                        a.id,
-                                        a.category,
-                                        p.id as project_id,
-                                        coalesce(p.title, wo.username) as workspace_title,
-                                        a.is_monotonic,
-                                        alloc.end_date
+                                        w.id, w.category, w.is_periodic, w.is_child,
+                                        min(s.sampled_at) as oldest_data_ts,
+                                        max(s.sampled_at) as newest_data_ts
                                     from
-                                        my_allocations a
-                                        join accounting.wallet_allocations alloc on
-                                            a.id = alloc.id
-                                        join accounting.wallets w on
-                                            alloc.associated_wallet = w.id
-                                        join accounting.wallet_owner wo on
-                                            w.owned_by = wo.id
-                                        left join project.projects p on
-                                            wo.project_id = p.id
-
-                                    union
-
-                                    -- Child projects
-                                    select
-                                        child.id,
-                                        parent.category,
-                                        p.id as project_id,
-                                        coalesce(p.title, child_owner.username) as workspace_title,
-                                        parent.is_monotonic,
-                                        child.end_date
-                                    from
-                                        my_allocations parent
-                                        left join accounting.wallet_allocations child on
-                                            parent.allocation_path @> child.allocation_path
-                                            and nlevel(child.allocation_path) = nlevel(parent.allocation_path) + 1
-                                        join accounting.wallets child_wallet on
-                                            child.associated_wallet = child_wallet.id
-                                        join accounting.wallet_owner child_owner on
-                                            child_wallet.owned_by = child_owner.id
-                                        left join project.projects p on
-                                            child_owner.project_id = p.id
+                                        relevant_wallets w
+                                        join accounting.wallet_samples s on w.id = s.wallet_id
                                     where
-                                        child.id is not null
-                                ),
-                                monotonic_result as (
-                                    select
-                                        alloc.category,
-                                        alloc.project_id,
-                                        alloc.workspace_title,
-                                        sum(
-                                            case
-                                                when alloc.id = some(:allocation_ids) then log.local_change
-                                                else log.tree_change
-                                            end
-                                        )::int8 as usage
-                                    from
-                                        allocations_with_children alloc
-                                        left join accounting.transaction_history log on
-                                            alloc.id = log.affected_allocation
-                                    where
-                                        alloc.is_monotonic = true
-                                        and log.created_at <= to_timestamp(:end / 1000)
-                                        and log.created_at >= to_timestamp(:start / 1000)
+                                        s.sampled_at >= to_timestamp(:start / 1000.0)
+                                        and s.sampled_at <= to_timestamp(:end / 1000.0)
                                     group by
-                                        alloc.category,
-                                        alloc.project_id,
-                                        alloc.workspace_title
+                                        w.id, w.category, w.is_periodic, w.is_child
                                 ),
-
-                                non_monotonic_oldest_log_per_alloc as (
+                                with_usage as (
                                     select
-                                        alloc.id,
-                                        alloc.category,
-                                        alloc.project_id,
-                                        alloc.workspace_title,
-                                        max(log.created_at) as oldest_entry_timestamp
-                                    from
-                                        allocations_with_children alloc
-                                        left join accounting.transaction_history log on
-                                            alloc.id = log.affected_allocation
-                                    where
-                                        alloc.end_date >= to_timestamp(:end / 1000)
-                                        and not alloc.is_monotonic
-                                    group by
-                                        alloc.id,
-                                        alloc.category,
-                                        alloc.project_id,
-                                        alloc.workspace_title
-                                ),
-
-                                non_monotonic_usage_at_end_with_dupes as (
-                                    select
-                                        alloc.id,
-                                        alloc.category,
-                                        alloc.project_id,
-                                        alloc.workspace_title,
+                                        dts.id,
+                                        dts.category,
                                         case
-                                            when alloc.id = some(:allocation_ids) then log.new_local_usage
-                                            else log.new_tree_usage
-                                        end as usage,
-                                        row_number() over (partition by alloc.id) as rn,
-                                        count(alloc.id) over (partition by alloc.id) as rnc
+                                            when dts.is_periodic and dts.is_child then newest_sample.tree_usage - oldest_sample.tree_usage
+                                            when dts.is_periodic and not dts.is_child then newest_sample.local_usage - oldest_sample.local_usage
+                                            when not dts.is_periodic and dts.is_child then newest_sample.tree_usage
+                                            when not dts.is_periodic and not dts.is_child then newest_sample.local_usage
+                                        end as usage
                                     from
-                                        non_monotonic_oldest_log_per_alloc alloc
-                                        join accounting.transaction_history log on
-                                            alloc.id = log.affected_allocation
-                                            and alloc.oldest_entry_timestamp = log.created_at
-                                ),
-
-                                non_monotonic_usage_at_end as (
-                                    select id, category, project_id, workspace_title, usage
-                                    from non_monotonic_usage_at_end_with_dupes
-                                    where rn = rnc
-                                ),
-
-                                non_monotonic_result as (
-                                    select
-                                        category,
-                                        project_id,
-                                        workspace_title,
-                                        sum(usage)::int8
-                                    from
-                                        non_monotonic_usage_at_end
-                                    group by
-                                        category,
-                                        project_id,
-                                        workspace_title
+                                        data_timestamps dts
+                                        join accounting.wallet_samples oldest_sample on
+                                            dts.oldest_data_ts = oldest_sample.sampled_at
+                                            and dts.id = oldest_sample.wallet_id
+                                        join accounting.wallet_samples newest_sample on
+                                            dts.newest_data_ts = newest_sample.sampled_at
+                                            and dts.id = newest_sample.wallet_id
                                 )
-                            select * from monotonic_result
-                            union
-                            select * from non_monotonic_result
+                            select
+                                u.category,
+                                p.id,
+                                coalesce(p.title, wo.username),
+                                u.usage
+                            from
+                                with_usage u
+                                join accounting.wallets w on u.id = w.id
+                                join accounting.wallet_owner wo on w.owned_by = wo.id
+                                left join project.projects p on wo.project_id = p.id
                             order by category;
                         """,
                         debug = true,
@@ -1842,18 +1604,22 @@ class AccountingService(
         }
 
         val sortedBy = charges.sortedBy { it.first }
-        var last = 0L
-        for ((timestamp, charge) in sortedBy) {
-            StaticTimeProvider.time = timestamp
-            processor.sendRequest(charge)
+        val syncEvery = 6.hours.inWholeMilliseconds
+        for ((index, entry) in sortedBy.withIndex()) {
+            val (timestamp, charge) = entry
+            val prevTimestamp = if (index > 0) sortedBy[index - 1].first else 0L
+            val timeSinceLastEntry = if (index == 0) 0L else timestamp - prevTimestamp
 
-            if (timestamp - last > 3.hours.inWholeMilliseconds) {
+            val missingSyncs = (timeSinceLastEntry / syncEvery).toInt()
+            repeat(missingSyncs) {
+                StaticTimeProvider.time = prevTimestamp + (it * syncEvery)
                 processor.sendRequest(AccountingRequest.Sync())
             }
 
-            last = timestamp
+            StaticTimeProvider.time = timestamp
+            processor.sendRequest(charge)
         }
-
+        processor.sendRequest(AccountingRequest.Sync())
         Time.provider = SystemTimeProvider
     }
 

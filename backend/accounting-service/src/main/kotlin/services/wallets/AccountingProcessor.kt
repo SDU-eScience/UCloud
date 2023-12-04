@@ -22,6 +22,7 @@ import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
@@ -77,7 +78,7 @@ private data class InternalWalletAllocation(
     var grantedIn: Long?,
 
     val canAllocate: Boolean,
-    val allowSubAllocationsToAllocate: Boolean
+    val allowSubAllocationsToAllocate: Boolean,
 ) {
     var inProgress: Boolean = false
         private set
@@ -88,9 +89,6 @@ private data class InternalWalletAllocation(
     var beginLocalUsage: Long = 0L
     var beginGrantedIn: Long? = null
     var lastBegin: Throwable? = null
-    var dirtyUsageChange = 0L
-    var dirtyTreeUsageChange = 0L
-    var dirtyQuotaChange = 0L
 
     fun begin() {
         if (inProgress) throw RuntimeException("Already in progress", lastBegin)
@@ -102,9 +100,6 @@ private data class InternalWalletAllocation(
         beginLocalUsage = localUsage
         beginGrantedIn = grantedIn
         beginTreeUsage = treeUsage
-        dirtyQuotaChange = 0
-        dirtyUsageChange = 0
-        dirtyTreeUsageChange = 0
         inProgress = true
     }
 
@@ -119,10 +114,6 @@ private data class InternalWalletAllocation(
                     beginLocalUsage != localUsage ||
                     beginGrantedIn != grantedIn ||
                     beginTreeUsage != treeUsage
-
-        dirtyUsageChange = localUsage - beginLocalUsage
-        dirtyQuotaChange = quota - beginQuota
-        dirtyTreeUsageChange = (treeUsage ?: 0L) - (beginTreeUsage ?: 0L)
         inProgress = false
 
         verifyIntegrity()
@@ -151,9 +142,6 @@ private data class InternalWalletAllocation(
     }
 
     fun clearDirty() {
-        dirtyQuotaChange = 0
-        dirtyUsageChange = 0
-        dirtyTreeUsageChange = 0
         isDirty = false
     }
 
@@ -461,9 +449,11 @@ class AccountingProcessor(
         val bucketReferences: List<Int>,
         val bucketUsage: List<Long>,
     )
+
     private var lastSampling = 0L
     private var nextSynchronization = 0L
     private val dirtyDeposits = ArrayList<DirtyDeposit>()
+
     private data class DirtyDeposit(
         val allocationId: Int,
         val timestamp: Long,
@@ -640,6 +630,7 @@ class AccountingProcessor(
                 attemptSynchronize(forced = true)
                 AccountingResponse.Sync()
             }
+
             is AccountingRequest.RootDeposit -> rootDeposit(request)
             is AccountingRequest.Deposit -> deposit(request)
             is AccountingRequest.Update -> update(request)
@@ -861,7 +852,7 @@ class AccountingProcessor(
                                 grantedIn = grantedIn,
                                 canAllocate = canAllocate,
                                 allowSubAllocationsToAllocate = allowSubAllocationsToAllocate,
-                                isDirty = isDirty
+                                isDirty = isDirty,
                             ).also {
                                 it.verifyIntegrity()
                             }
@@ -1398,7 +1389,10 @@ class AccountingProcessor(
 
     @Suppress("DEPRECATION")
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
-        if (!authorizeProvider(request.actor, request.productCategory)) return AccountingResponse.Error("Forbidden", 403)
+        if (!authorizeProvider(request.actor, request.productCategory)) return AccountingResponse.Error(
+            "Forbidden",
+            403
+        )
         if (request.dryRun) return check(request)
 
         when (request) {
@@ -1599,7 +1593,7 @@ class AccountingProcessor(
             val difference = delta - amountCharged
             if (stillActiveAllocations.isEmpty()) {
                 // Will choose latest invalidated allocation to charge
-                val latest = walletAllocations.filter{ it.endDate <= Time.now() }.maxByOrNull { it.endDate }!!
+                val latest = walletAllocations.filter { it.endDate <= Time.now() }.maxByOrNull { it.endDate }!!
                 if (!chargeAllocation(latest.id.toInt(), difference)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
@@ -2141,7 +2135,7 @@ class AccountingProcessor(
                         """
                             insert into accounting.wallet_allocations 
                                 (id, allocation_path, associated_wallet, balance, initial_balance, local_balance, start_date, 
-                                 end_date, granted_in, provider_generated_id, can_allocate, allow_sub_allocations_to_allocate) 
+                                 end_date, granted_in, provider_generated_id, can_allocate, allow_sub_allocations_to_allocate)
                             select
                                 unnest(:ids::bigint[]),
                                 unnest(:allocation_paths::ltree[]),
@@ -2243,13 +2237,16 @@ class AccountingProcessor(
                         val treeUsage: Long,
                         val quota: Long,
                     )
+
                     data class Sample(
                         val walletId: Int,
                         var localUsage: Long = 0L,
+                        var localUsageChange: Long = 0L,
                         var treeUsage: Long = 0L,
                         var quota: Long = 0L,
                         val allocs: ArrayList<Alloc> = ArrayList(),
                     )
+
                     val samples = HashMap<Int, Sample>()
 
                     for (allocation in allocations) {
@@ -2267,12 +2264,14 @@ class AccountingProcessor(
                             sample.localUsage += allocation.localUsage
                             sample.treeUsage += allocation.treeUsage ?: allocation.localUsage
                             sample.quota += allocation.quota
-                            sample.allocs.add(Alloc(
-                                allocation.id,
-                                allocation.localUsage,
-                                allocation.treeUsage ?: allocation.localUsage,
-                                allocation.quota,
-                            ))
+                            sample.allocs.add(
+                                Alloc(
+                                    allocation.id,
+                                    allocation.localUsage,
+                                    allocation.treeUsage ?: allocation.localUsage,
+                                    allocation.quota,
+                                )
+                            )
                         } else {
                             sample.allocs.add(Alloc(allocation.id, 0L, 0L, 0L))
                         }
@@ -2355,63 +2354,6 @@ class AccountingProcessor(
                         println("Wrote some samples!")
                     }
 
-                    // NOTE(Dan): I am somewhat concerned about the O(n^2) loop we have here. It might be okay since we
-                    // are only aiming to do this ~4 times a day, but it might effectively freeze the system while it
-                    // is running.
-                    samples.entries.chunkedSequence(500).forEach { chunk ->
-                        val newSamples = ArrayList<BreakdownSample>()
-
-                        for ((walletId, sample) in chunk) {
-                            val isPeriodic = wallets[walletId]!!.paysFor.accountingFrequency != AccountingFrequency.ONCE
-                            var tooManyChildren = false
-                            val childUsage = HashMap<String, Long>()
-
-                            for (child in allocations) {
-                                if (child == null) continue
-                                if (child.parentAllocation == null) continue
-                                if (!child.isValid(now)) continue
-                                if (sample.allocs.none { it.allocId == child.parentAllocation }) continue
-                                val childWallet = wallets[child.associatedWallet]!!
-                                if (!childWallet.owner.matches(PROJECT_REGEX)) continue
-
-                                val change = if (isPeriodic) {
-                                    child.dirtyTreeUsageChange
-                                } else {
-                                    (child.treeUsage ?: child.localUsage)
-                                }
-
-                                childUsage[childWallet.owner] = (childUsage[childWallet.owner] ?: 0L) + change
-
-                                if (childUsage.size > 16) {
-                                    tooManyChildren = true
-                                    break
-                                }
-                            }
-
-                            val (references, usage) = if (!tooManyChildren) {
-                                val references = ArrayList<Int>()
-                                val usage = ArrayList<Long>()
-                                childUsage.forEach { (owner, childUsage) ->
-                                    references.add(projects.retrieveProjectInfoFromId(owner).first.numericPid)
-                                    usage.add(childUsage)
-                                }
-                                Pair(references, usage)
-                            } else {
-                                Pair(emptyList<Int>(), emptyList<Long>())
-                            }
-
-                            newSamples.add(
-                                BreakdownSample(
-                                    walletId,
-                                    now,
-                                    sample.localUsage,
-                                    true,
-                                    references,
-                                    usage
-                                )
-                            )
-                        }
-                    }
                     lastSampling = now
                 }
             }
