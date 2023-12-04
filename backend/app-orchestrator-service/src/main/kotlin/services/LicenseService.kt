@@ -18,7 +18,7 @@ class LicenseService(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>,
     serviceClient: AuthenticatedClient,
-    orchestrator: JobOrchestrator,
+    orchestrator: JobResourceService,
 ) : JobBoundResource<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus, Product.License,
         LicenseSupport, ComputeCommunication,
         AppParameterValue.License>(projectCache, db, providers, support, serviceClient, orchestrator) {
@@ -60,8 +60,8 @@ class LicenseService(
             )
     }
 
-    override fun resourcesFromJob(job: Job): List<AppParameterValue.License> =
-        job.specification.parameters?.values?.filterIsInstance<AppParameterValue.License>() ?: emptyList()
+    override fun resourcesFromJob(job: JobSpecification): List<AppParameterValue.License> =
+        job.parameters?.values?.filterIsInstance<AppParameterValue.License>() ?: emptyList()
 
     override fun isReady(res: License): Boolean = res.status.state == LicenseState.READY
     override fun boundUpdate(binding: JobBinding): LicenseUpdate = LicenseUpdate(binding = binding)

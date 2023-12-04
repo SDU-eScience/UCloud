@@ -12,10 +12,53 @@ import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import { ProductSelectorPlayground } from "@/Products/Selector";
+import {BinaryAllocator, BinaryTypeDictionary, BinaryTypeList, messageTest, UTextCompanion} from "@/UCloud/Messages";
+import {
+    AppParameterCompanion,
+    AppParameterFile,
+    AppParameterIntegerNumber,
+    FindBulkRequest,
+    FindBulkRequestCompanion,
+    Wrapper
+} from "@/UCloud/Scratch";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
+            <Button onClick={() => {
+                messageTest();
+            }}>UCloud message test</Button>
+            <Button onClick={() => {
+                function useAllocator<R>(block: (allocator: BinaryAllocator) => R): R {
+                    const allocator = new BinaryAllocator(1024 * 512, 128, false)
+                    return block(allocator);
+                }
+
+                const encoded = useAllocator(alloc => {
+                    const root = Wrapper.create(
+                        alloc,
+                        AppParameterFile.create(
+                            alloc,
+                            "/home/dan/.vimrc"
+                        )
+                    );
+                    alloc.updateRoot(root);
+                    return alloc.slicedBuffer();
+                });
+
+                console.log(encoded);
+
+                useAllocator(alloc => {
+                    alloc.load(encoded);
+                    const value = new Wrapper(alloc.root()).wrapThis;
+
+                    if (value instanceof AppParameterFile) {
+                        console.log(value.path, value.encodeToJson());
+                    } else {
+                        console.log("Not a file. It must be something else...", value);
+                    }
+                })
+            }}>UCloud message test2</Button>
             <ProductSelectorPlayground />
             <Button onClick={() => {
                 const now = timestampUnixMs();
@@ -73,7 +116,6 @@ export const Playground: React.FunctionComponent = () => {
                 ))}
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
-            <ProjectPlayground />
         </>
     );
     return <MainContainer main={main} />;

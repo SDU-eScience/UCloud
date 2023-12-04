@@ -67,25 +67,35 @@ class SimpleCache<K, V : Any>(
             internalMap[key]
         }
 
+        val now = Time.now()
         if (existing != null) {
             if (maxAge == DONT_EXPIRE) {
                 return existing.value
-            } else if (Time.now() - existing.timestamp < maxAge) {
+            } else if (now - existing.timestamp < maxAge) {
                 return existing.value
             }
         }
 
-        val result = lookup(key) ?: return null
         mutex.withLock {
-            internalMap[key] = CacheEntry(Time.now(), result)
-        }
+            val existingAfterLock = internalMap[key]
+            if (existingAfterLock != null) {
+                if (maxAge == DONT_EXPIRE) {
+                    return existingAfterLock.value
+                } else if (now - existingAfterLock.timestamp < maxAge) {
+                    return existingAfterLock.value
+                }
+            }
 
-        return result
+            val result = lookup(key) ?: return null
+            internalMap[key] = CacheEntry(now, result)
+            return result
+        }
     }
 
     suspend fun cleanup() {
         if (maxAge == DONT_EXPIRE) return
         val now = Time.now()
+        if (now < nextRemoveExpired) return
 
         mutex.withLock {
             if (now < nextRemoveExpired) return

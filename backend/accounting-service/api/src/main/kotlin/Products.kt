@@ -104,6 +104,7 @@ data class ProductReference(
     val provider: String,
 ) : DocVisualizable {
     override fun visualize(): DocVisualization = DocVisualization.Inline("$id / $category / $provider")
+    override fun toString() = "$id / $category / $provider"
 }
 
 @Serializable
@@ -502,6 +503,8 @@ sealed class Product : DocVisualizable {
             }
         }
     }
+
+    fun toReference(): ProductReference = ProductReference(name, category.name, category.provider)
 
     override fun toString(): String {
         return "${name}/${category.name}@${category.provider}"

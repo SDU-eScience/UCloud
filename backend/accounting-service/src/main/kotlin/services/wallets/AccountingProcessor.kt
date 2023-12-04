@@ -831,20 +831,20 @@ class AccountingProcessor(
                                     setParameter("title", recipient.title)
                                 },
                                 """ 
-                                with created_project as (
-                                    insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
-                                    select uuid_generate_v4()::text, now(), now(), :title, false, :parent_id::text, null, false
-                                    on conflict (parent, upper(title::text)) do update set title = excluded.title
-                                    returning id
-                                ),
-                                created_user as (
-                                    insert into project.project_members (created_at, modified_at, role, username, project_id)
-                                    select now(), now(), 'PI', :pi, cp.id
-                                    from created_project cp
-                                    on conflict (username, project_id) do nothing
-                                )
-                                select * from created_project
-                            """.trimIndent(), debug = true
+                                    with created_project as (
+                                        insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
+                                        select uuid_generate_v4()::text, now(), now(), :title, false, :parent_id::text, null, false
+                                        on conflict (parent, upper(title::text)) do update set title = excluded.title
+                                        returning id
+                                    ),
+                                    created_user as (
+                                        insert into project.project_members (created_at, modified_at, role, username, project_id)
+                                        select now(), now(), 'PI', :pi, cp.id
+                                        from created_project cp
+                                        on conflict (username, project_id) do nothing
+                                    )
+                                    select * from created_project
+                                """
                             ).rows
                                 .singleOrNull()
                                 ?.getString(0)
@@ -1354,6 +1354,9 @@ class AccountingProcessor(
                 transactionId
             )
         )
+
+        resetLowFundsNotification(existingWallet.id.toLong())
+
         if (request.forcedSync) {
             attemptSynchronize(forced = true)
         }
@@ -1436,7 +1439,24 @@ class AccountingProcessor(
             )
         )
 
+        resetLowFundsNotification(existingWallet.id.toLong())
+
         return AccountingResponse.Deposit(created)
+    }
+
+    private suspend fun resetLowFundsNotification(walletId: Long) {
+        db.withSession {session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("walletid", walletId)
+                },
+                """
+                    update accounting.wallets
+                    set low_funds_notifications_send = true
+                    where id = :walletid
+                """.trimIndent()
+            )
+        }
     }
 
     // Charge

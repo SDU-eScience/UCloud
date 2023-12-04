@@ -293,13 +293,13 @@ data class JobStatus(
 data class JobUpdate(
     val state: JobState? = null,
     val outputFolder: String? = null,
-    override val status: String? = null,
+    override var status: String? = null,
     val expectedState: JobState? = null,
     val expectedDifferentState: Boolean? = null,
     val newTimeAllocation: Long? = null,
     val allowRestart: Boolean? = null,
     val newMounts: List<String>? = null,
-    override val timestamp: Long = 0L
+    override var timestamp: Long = 0L
 ) : ResourceUpdate {
     init {
         if (allowRestart == true) {
@@ -329,7 +329,7 @@ data class JobSpecification(
     val application: NameAndVersion,
 
     @UCloudApiDoc("A reference to the product that this job will be executed on")
-    override val product: ComputeProductReference,
+    override var product: ComputeProductReference,
 
     @UCloudApiDoc(
         "A name for this job assigned by the user.\n\n" +
@@ -350,6 +350,7 @@ data class JobSpecification(
             "By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. " +
             "This field must be set to `true` to allow you to create two jobs with identical configuration."
     )
+    @UCloudApiInternal(InternalLevel.BETA)
     val allowDuplicateJob: Boolean = false,
 
     @UCloudApiDoc(
@@ -379,7 +380,7 @@ data class JobSpecification(
             "will be terminated, regardless of result, after the duration has expired. Some providers support " +
             "extended this duration via the `extend` operation."
     )
-    val timeAllocation: SimpleDuration? = null,
+    var timeAllocation: SimpleDuration? = null,
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc(
@@ -426,7 +427,7 @@ data class JobSpecification(
     init {
         if (name != null && !name.matches(nameRegex)) {
             throw RPCException(
-                "Provided job name is invalid. It cannot contain any special characters",
+                "Provided job name is invalid. It cannot contain any special characters ($name).",
                 HttpStatusCode.BadRequest
             )
         }
@@ -502,8 +503,8 @@ typealias JobsFollowRequest = FindByStringId
 @Serializable
 @UCloudApiStable
 data class JobsFollowResponse(
-    val updates: List<JobUpdate>,
-    val log: List<JobsLog>,
+    val updates: List<JobUpdate> = emptyList(),
+    val log: List<JobsLog> = emptyList(),
     val newStatus: JobStatus? = null,
 )
 
@@ -541,17 +542,23 @@ val Job.peers: List<AppParameterValue.Peer>
             (specification.parameters?.values?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList())
     }
 
-val Job.ingressPoints: List<AppParameterValue.Ingress>
+val JobSpecification.ingressPoints: List<AppParameterValue.Ingress>
     get() {
-        return (specification.resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
-            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+        return (resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
+                (parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+    }
+
+val Job.ingressPoints: List<AppParameterValue.Ingress>
+    get() = specification.ingressPoints
+
+val JobSpecification.networks: List<AppParameterValue.Network>
+    get() {
+        return (resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
+            (parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
     }
 
 val Job.networks: List<AppParameterValue.Network>
-    get() {
-        return (specification.resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
-            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
-    }
+    get() = specification.networks
 
 val Job.blockStorage: List<AppParameterValue.BlockStorage>
     get() {

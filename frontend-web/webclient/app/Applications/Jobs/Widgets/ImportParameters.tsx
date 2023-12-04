@@ -36,6 +36,7 @@ export const ImportParameters: React.FunctionComponent<{
         JobsApi.browse({
             itemsPerPage: 50,
             filterApplication: application.metadata.name,
+            includeParameters: true,
         }),
         emptyPageV2
     );

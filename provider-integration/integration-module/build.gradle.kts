@@ -92,6 +92,8 @@ graalvmNative {
             buildArgs.add("-R:MinHeapSize=128m")
             buildArgs.add("-R:MaxNewSize=64m")
             buildArgs.add("--trace-class-initialization=org.slf4j.LoggerFactory")
+
+            buildArgs.add("-J-Xmx4G")
         }
     }
 }

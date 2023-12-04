@@ -621,7 +621,7 @@ fun <T> bulkResponseOf(vararg items: T): BulkResponse<T> {
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
 @UCloudApiStable
-data class BulkResponse<T>(val responses: List<T>)
+data class BulkResponse<out T>(val responses: List<T>)
 
 @UCloudApiStable
 object ApiConventions : CallDescriptionContainer("api_conventions") {

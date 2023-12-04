@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import dk.sdu.cloud.calls.UCloudApiStable
@@ -32,6 +33,12 @@ data class CommonErrorMessage(
 @UCloudApiStable
 @UCloudApiDoc("A request message to find a resource by a unique identifier.")
 data class FindByStringId(override val id: String) : WithStringId
+
+fun BulkResponse<FindByStringId?>.singleIdOrNull(): String? = responses.singleOrNull()?.id
+fun Collection<*>.asFindByIdResponse(): BulkResponse<FindByStringId> =
+    BulkResponse(map { FindByStringId(it.toString()) })
+fun Collection<*>.asFindByIdResponseOptional(): BulkResponse<FindByStringId?> =
+    BulkResponse(map { if (it != null) FindByStringId(it.toString()) else null })
 
 interface WithStringId {
     val id: String

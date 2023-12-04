@@ -122,7 +122,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
             itemsPerPage: 10
         }));
         fetchUsage(retrieveUsage({}));
-        fetchRuns(JobsApi.browse({itemsPerPage: 10, sortBy: "MODIFIED_AT"}));
+        fetchRuns(JobsApi.browse({itemsPerPage: 10, sortBy: "MODIFIED_AT", sortDirection: "descending"}));
     }
 
     const main = (

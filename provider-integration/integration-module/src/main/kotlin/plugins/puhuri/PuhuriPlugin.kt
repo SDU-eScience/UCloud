@@ -510,7 +510,7 @@ class PuhuriAllocationPlugin : AllocationPlugin {
         puhuriPlugin = config.plugins.projects as? PuhuriPlugin ?: run {
             throw IllegalStateException(
                 "The Puhuri allocation plugin cannot be used without the corresponding " +
-                        "project plugin"
+                    "project plugin"
             )
         }
     }
@@ -616,39 +616,42 @@ class PuhuriClient(
 
     suspend fun addUserToProject(userId: String, projectId: String, role: ProjectRole) {
         val puhuriRole = PuhuriProjectRole.values().find { it.ucloudRole == role } ?: PuhuriProjectRole.USER
-        val projectUrl = "${rootEndpoint}projects/$projectId/"
-        val userUrl = "${rootEndpoint}users/$userId/"
 
         // NOTE(Brian): Requires deletion of old entry if it exists
         removeUserFromProject(userId, projectId)
 
         httpClient.post(
-            apiPath("project-permissions"),
+            apiPath("projects/${projectId}/add_user"),
             apiRequestWithBody(
                 PuhuriSetProjectPermissionRequest.serializer(),
                 PuhuriSetProjectPermissionRequest(
-                    userUrl,
-                    projectUrl,
+                    userId,
                     puhuriRole
                 )
             )
         ).orThrow()
     }
 
-    suspend fun listProjectMembers(projectId: String): List<PuhuriProjectPermissionEntry> {
+    private suspend fun listProjectMembers(projectId: String): List<PuhuriProjectPermissionEntry> {
         if (projectId.isEmpty()) return emptyList()
 
-        val resp = httpClient.get(apiPath("project-permissions") + "?project=$projectId", apiRequest()).orThrow()
+        val resp = httpClient.get(apiPath("projects/${projectId}/list_users"), apiRequest()).orThrow()
         return defaultMapper.decodeFromString(ListSerializer(PuhuriProjectPermissionEntry.serializer()), resp.bodyAsText())
     }
 
     suspend fun removeUserFromProject(userId: String, projectId: String) {
         val lookup = listProjectMembers(projectId).firstOrNull { it.userId == userId } ?: return
-        removeUserFromProjectByPk(lookup.pk)
-    }
 
-    private suspend fun removeUserFromProjectByPk(pk: Int) {
-        httpClient.delete(apiPath("project-permissions/${pk}"), apiRequest()).orThrow()
+        httpClient.post(
+            apiPath("projects/${projectId}/delete_user"),
+            apiRequestWithBody(
+                PuhuriRemoveUserFromProjectRequest.serializer(),
+                PuhuriRemoveUserFromProjectRequest(
+                    userId,
+                    lookup.role
+                )
+            )
+        ).orThrow()
     }
 
     suspend fun createProject(id: String, name: String, description: String): PuhuriProject {
@@ -811,6 +814,12 @@ data class PuhuriAllocation(
 )
 
 @Serializable
+data class PuhuriRemoveUserFromProjectRequest(
+    val user: String,
+    val role: PuhuriProjectRole
+)
+
+@Serializable
 data class PuhuriGetUserIdRequest(
     val cuid: String,
 )
@@ -823,45 +832,28 @@ data class PuhuriGetUserIdResponse(
 @Serializable
 data class PuhuriSetProjectPermissionRequest(
     val user: String,
-    val project: String,
     val role: PuhuriProjectRole
 )
 
 @Serializable
 data class PuhuriProjectPermissionEntry(
-    val url: String,
-    val pk: Int,
-
-    val role: PuhuriProjectRole,
-
+    val uuid: String,
     val created: Instant,
 
     @SerialName("expiration_time")
     val expiration: Instant?,
 
-    @SerialName("created_by")
-    val createdBy: String,
+    @SerialName("role_name")
+    val role: PuhuriProjectRole,
 
-    @SerialName("project")
-    val projectUrl: String,
+    @SerialName("role_uuid")
+    val roleId: String,
 
-    @SerialName("project_uuid")
-    val projectId: String,
-
-    @SerialName("project_name")
-    val projectName: String,
-
-    @SerialName("customer_name")
-    val customerName: String,
-
-    @SerialName("user")
-    val userUrl: String,
+    @SerialName("user_email")
+    val userEmail: String,
 
     @SerialName("user_full_name")
     val userFullName: String,
-
-    @SerialName("user_native_name")
-    val userNativeName: String,
 
     @SerialName("user_username")
     val userUsername: String,
@@ -869,19 +861,25 @@ data class PuhuriProjectPermissionEntry(
     @SerialName("user_uuid")
     val userId: String,
 
-    @SerialName("user_email")
-    val userEmail: String,
+    @SerialName("user_image")
+    val userImage: String?,
+
+    @SerialName("created_by_full_name")
+    val createdByName: String,
+
+    @SerialName("created_by_uuid")
+    val createdById: String,
 )
 
 
 @Serializable
 enum class PuhuriProjectRole(val ucloudRole: ProjectRole) {
-    @SerialName("manager")
+    @SerialName("PROJECT.MANAGER")
     MANAGER(ProjectRole.PI),
 
-    @SerialName("admin")
+    @SerialName("PROJECT.ADMIN")
     ADMIN(ProjectRole.ADMIN),
 
-    @SerialName("member")
+    @SerialName("PROJECT.USER")
     USER(ProjectRole.USER);
 }

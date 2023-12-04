@@ -431,7 +431,8 @@ sealed class ApplicationDescription(val application: String) {
                         ApplicationParameter.Ingress(
                             param.name,
                             param.title,
-                            param.description
+                            param.description,
+                            param.optional
                         )
                     }
                     is ApplicationParameterYaml.InputDirectory -> {

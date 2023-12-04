@@ -14,15 +14,14 @@ import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 
-class JobException {
-    class VerificationError(message: String) : RPCException(message, HttpStatusCode.BadRequest)
+sealed class JobException(message: String, code: HttpStatusCode) : RPCException(message, code) {
+    class VerificationError(message: String) : JobException(message, HttpStatusCode.BadRequest)
 }
 
 class JobVerificationService(
-    private val appService: AppStoreCache,
-    private val orchestrator: JobOrchestrator,
+    private val appService: ApplicationCache,
+    private val orchestrator: JobResourceService,
     private val fileCollections: FileCollectionService,
 ) {
     suspend fun verifyOrThrow(
@@ -116,15 +115,14 @@ class JobVerificationService(
         actorAndProject: ActorAndProject,
         peers: List<AppParameterValue.Peer>
     ): List<AppParameterValue.Peer> {
-        val validPeers = orchestrator.retrieveBulk(
-            actorAndProject, 
-            peers.map { it.jobId }, 
-            listOf(Permission.EDIT), 
-            requireAll = false
+        val validPeers = orchestrator.validatePermission(
+            actorAndProject,
+            peers.map { it.jobId },
+            Permission.EDIT
         )
 
         return peers.filter { input ->
-            validPeers.any { valid -> valid.id == input.jobId }
+            validPeers.any { valid -> valid == input.jobId }
         }
     }
 
@@ -138,6 +136,14 @@ class JobVerificationService(
         val retrievedCollections = fileCollections
             .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ), requireAll = false)
             .associateBy { it.id }
+
+        //Check if we attempt to mount files with same name -> conflict in k8
+        val filenames = files.mapNotNull {
+            it.path.split("/").last()
+        }.toSet()
+        if (files.size != filenames.size) {
+            throw RPCException("Cannot mount files with same name", HttpStatusCode.BadRequest)
+        }
 
         for (file in files) {
             val perms = retrievedCollections[extractPathMetadata(file.path).collection]?.permissions?.myself

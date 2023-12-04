@@ -1,26 +1,15 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.accounting.util.*
-import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.invokeCall
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.fileCollections
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.providers
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
-import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 
-class SyncthingService(
-    private val providers: Providers<*>,
-    private val serviceClient: AuthenticatedClient,
-    private val fileCollections: FileCollectionService,
-) {
+class SyncthingService {
     // NOTE(Dan): Syncthing is provided in UCloud as an integrated application. This essentially means that the
     // orchestrator is providing a very limited API to the provider centered around pushing configuration. The
     // orchestrator expects the provider to use this configuration to update the storage and compute systems, in such 
@@ -45,7 +34,7 @@ class SyncthingService(
         actorAndProject: ActorAndProject,
         request: IAppsRetrieveConfigRequest<SyncthingConfig>
     ): IAppsRetrieveConfigResponse<SyncthingConfig> {
-        return providers.invokeCall(
+        return providers.call(
             request.provider,
             actorAndProject,
             { SyncthingProvider(request.provider).retrieveConfiguration },
@@ -53,7 +42,6 @@ class SyncthingService(
                 request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
             ),
-            actorAndProject.signedIntentFromUser,
         ).also { result ->
             result.copy(
                 config = result.config.copy(orchestratorInfo = null)
@@ -98,7 +86,7 @@ class SyncthingService(
             )
         }
 
-        return providers.invokeCall(
+        return providers.call(
             request.provider,
             actorAndProject,
             { SyncthingProvider(request.provider).updateConfiguration },
@@ -108,7 +96,6 @@ class SyncthingService(
                 newConfig,
                 request.expectedETag,
             ),
-            actorAndProject.signedIntentFromUser,
         )
     }
 
@@ -116,7 +103,7 @@ class SyncthingService(
         actorAndProject: ActorAndProject,
         request: IAppsResetConfigRequest<SyncthingConfig>
     ): IAppsResetConfigResponse<SyncthingConfig> {
-        return providers.invokeCall(
+        return providers.call(
             request.provider,
             actorAndProject,
             { SyncthingProvider(request.provider).resetConfiguration },
@@ -125,7 +112,6 @@ class SyncthingService(
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
                 request.expectedETag,
             ),
-            actorAndProject.signedIntentFromUser,
         )
     }
 
@@ -133,7 +119,7 @@ class SyncthingService(
         actorAndProject: ActorAndProject,
         request: IAppsRestartRequest<SyncthingConfig>
     ): IAppsRestartResponse<SyncthingConfig> {
-        return providers.invokeCall(
+        return providers.call(
             request.provider,
             actorAndProject,
             { SyncthingProvider(request.provider).restart },
@@ -141,7 +127,6 @@ class SyncthingService(
                 request.productId,
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
             ),
-            actorAndProject.signedIntentFromUser,
         )
     }
 }

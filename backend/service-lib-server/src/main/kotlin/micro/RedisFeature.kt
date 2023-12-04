@@ -6,6 +6,7 @@ import dk.sdu.cloud.events.RedisStreamService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.findValidHostname
 import io.lettuce.core.RedisClient
+import io.lettuce.core.RedisURI
 import org.slf4j.Logger
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -13,6 +14,7 @@ data class RedisConfiguration(
     val hostname: String? = null,
     val port: Int? = null,
     val password: String? = null,
+    val tls: Boolean? = null,
 )
 
 class RedisFeature : MicroFeature {
@@ -38,15 +40,24 @@ class RedisFeature : MicroFeature {
 
         val port = userConfig.port ?: 6379
         ctx.redisConnectionManager = RedisConnectionManager(RedisClient.create(
-            buildString {
-                append("redis://")
-                if (userConfig.password != null) {
-                    append(userConfig.password)
-                    append("@")
+            RedisURI.create(
+                buildString {
+                    append("redis")
+                    if (userConfig.tls == true) append("s")
+                    append("://")
+                    if (userConfig.password != null) {
+                        append(userConfig.password)
+                        append("@")
+                    }
+                    append(hostname)
+                    append(":")
+                    append(port)
                 }
-                append(hostname)
-                append(":")
-                append(port)
+            ).also { cfg ->
+                if (userConfig.tls == true) {
+                    // NOTE(Dan): We do not support TLS peer verification at the moment
+                    cfg.setVerifyPeer(false)
+                }
             }
         ))
 
