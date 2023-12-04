@@ -146,7 +146,7 @@ sealed class ApplicationParameterYaml {
         override var name: String = "",
         override val title: String = "",
         override val description: String = "",
-        override val optional:Boolean = false
+        override val optional: Boolean = false,
     ) : ApplicationParameterYaml() {
         override val defaultValue: Any? = null
     }
