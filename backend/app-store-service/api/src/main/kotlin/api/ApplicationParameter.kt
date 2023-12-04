@@ -224,9 +224,9 @@ sealed class ApplicationParameter {
         override var name: String = "",
         override val title: String = "",
         override val description: String = "",
+        override val optional: Boolean// = false
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
-        override val optional = false
     }
 
     @Serializable
@@ -257,8 +257,8 @@ sealed class ApplicationParameter {
         override var name: String = "",
         override val title: String = "",
         override val description: String = "",
+        override val optional: Boolean = false
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
-        override val optional = false
     }
 }
