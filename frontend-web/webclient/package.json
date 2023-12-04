@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2023.4.0-rc.1",
+    "version": "2023.4.0",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {

@@ -96,7 +96,9 @@ class JobMonitoringService {
                                                 isUserRequest = false
                                             )
                                         } catch (ex: Throwable) {
-                                            log.info("Failed to verify block in $provider. Jobs: ${localJobs.map { it.id }}")
+                                            if (provider != "aau") {
+                                                log.info("Failed to verify block in $provider. Jobs: ${localJobs.map { it.id }}")
+                                            }
                                         }
 
                                         val requiresRestart = localJobs.filter {

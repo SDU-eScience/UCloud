@@ -993,7 +993,8 @@ class JobResourceService {
                     from app_orchestrator.jobs j
                     where
                         j.current_state != 'SUCCESS' and
-                        j.current_state != 'FAILURE'
+                        j.current_state != 'FAILURE' and
+                        j.current_state != 'EXPIRED'
                 """
             ).rows
 

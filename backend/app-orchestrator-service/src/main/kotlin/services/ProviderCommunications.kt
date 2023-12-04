@@ -326,7 +326,7 @@ class ProviderCommunications(
                 }
 
                 if (product == null) {
-                    log.info("Could not resolve product: ${elem.product}")
+                    if (elem.product.provider != "aau") log.info("Could not resolve product: ${elem.product}")
                 } else {
                     list.add(ResolvedSupport(product, elem))
                 }
