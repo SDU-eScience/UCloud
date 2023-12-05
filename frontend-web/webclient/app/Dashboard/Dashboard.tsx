@@ -289,7 +289,7 @@ const ResourceGridClass = injectStyle("resource-grid", k => `
     }
     
     ${k} a:hover {
-        color: var(--blue);
+        color: var(--primary);
     }
 `);
 

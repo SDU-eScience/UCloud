@@ -1292,7 +1292,7 @@ function usageChartToChart(
                 stops: [0, 90, 100]
             }
         },
-        colors: ['var(--blue)'],
+        colors: ['var(--primary)'],
         yaxis: {
             labels: {
                 formatter: function (val) {

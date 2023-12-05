@@ -42,7 +42,7 @@ export const SshWidget: React.FunctionComponent<{
         {sshMode !== "MANDATORY" ? null : <>
             <p>
                 This application requires SSH keys to be configured. You can configure your SSH keys{" "}
-                <Link color={"blue"} to={"/ssh-keys"} target={"_blank"}>here</Link>.
+                <Link color={"primary"} to={"/ssh-keys"} target={"_blank"}>here</Link>.
             </p>
 
             {hasAnyKeys ? null : <>
@@ -56,7 +56,7 @@ export const SshWidget: React.FunctionComponent<{
             <p>
                 This application has optional support for SSH. In order to use SSH access, you must configure at least
                 one SSH key. You can configure your SSH keys{" "}
-                <Link color={"blue"} to={"/ssh-keys"} target={"_blank"}>here</Link>.
+                <Link color={"primary"} to={"/ssh-keys"} target={"_blank"}>here</Link>.
             </p>
 
             {hasAnyKeys ? <>

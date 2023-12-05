@@ -40,7 +40,7 @@ export const ButtonClass = injectStyle("button", k => `
         font-family: inherit;
         font-weight: normal;
         cursor: pointer;
-        background-color: var(--blue, #f00);
+        background-color: var(--primary);
         color: var(--white, #f00);
         border-width: 0;
         border-style: solid;

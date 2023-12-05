@@ -10,7 +10,7 @@ export function findCustomThemeColorOnLaunch() {
     const root = document.querySelector(":root")!;
     const color = localStorage.getItem(CUSTOM_THEME_COLOR_KEY);
     if (!color) return;
-    root["style"].setProperty("--blue", color);
+    root["style"].setProperty("--primary", color);
 }
 
 type HexColor = `#${string}`;
@@ -21,7 +21,7 @@ export function CustomTheming(): React.ReactNode {
 
     const setColor = React.useCallback((color: HexColor) => {
         localStorage.setItem(CUSTOM_THEME_COLOR_KEY, color);
-        root["style"].setProperty('--blue', color);
+        root["style"].setProperty("--primary", color);
     }, []);
 
     const activeColor = localStorage.getItem(CUSTOM_THEME_COLOR_KEY) ?? COLORS[0];

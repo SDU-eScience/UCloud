@@ -40,7 +40,7 @@ const CheckboxClass = injectStyle("checkbox", k => `
     
     ${k} > input:checked ~ svg[data-name="checked"] {
         display: inline-block;
-        color: var(--blue);
+        color: var(--primary);
     }
     
     ${k} > input:checked ~ svg[data-name="empty"] {

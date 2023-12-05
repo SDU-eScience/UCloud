@@ -92,7 +92,7 @@ const FormWrapper = injectStyle("form-wrapper", k => `
     ${k} input:focus, ${k} textarea:focus {
         outline: none;
         background-color: transparent;
-        border-color: var(--blue, #f00);
+        border-color: var(--primary);
     }
   
     ${k} input:disabled, ${k} textarea:focus {

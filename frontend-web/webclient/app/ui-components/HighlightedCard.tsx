@@ -22,7 +22,7 @@ const style = injectStyle("highlightedCard", k => `
     }
     
     ${k} .title-row a:hover {
-        color: var(--blue);
+        color: var(--primary);
     }
     
     ${k} {

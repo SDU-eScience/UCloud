@@ -3185,7 +3185,7 @@ export class ResourceBrowser<T> {
             }
             
             .file-browser .page-empty .graphic {
-                background: var(--blue);
+                background: var(--primary);
                 min-height: 100px;
                 min-width: 100px;
                 border-radius: 100px;
@@ -3642,7 +3642,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const outer = div("");
     outer.className = "provider-icon"
-    outer.style.background = "var(--blue)";
+    outer.style.background = "var(--primary)";
     outer.style.borderRadius = "8px";
     outer.style.width = outer.style.minWidth = opts?.width ?? "20px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "20px";

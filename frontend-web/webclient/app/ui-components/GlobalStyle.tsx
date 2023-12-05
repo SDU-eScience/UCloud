@@ -49,7 +49,7 @@ div#form-builder_add_popover.popover-inner h3.popover-header {
 
 div.popover.show.bs-popover-auto {
     background-color: var(--lightGray);
-    border: 2px solid var(--blue);
+    border: 2px solid var(--primary);
     border-radius: 10px;
     padding-left: 4px;
     padding-right: 4px;
@@ -93,7 +93,7 @@ div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondar
     font-weight: ${theme.bold};
     cursor: pointer;
     border-radius: ${theme.radius};
-    background-color: var(--blue, #f00);
+    background-color: var(--primary);
     color: var(--white, #f00);
     border-width: 0;
     border-style: solid;
@@ -144,6 +144,7 @@ html {
     --lightBlue: #D9E9FF;
     --lightBlue2: #cdf;
     --blue: #006aff;
+    --primary: var(--blue);
     --darkBlue: #049;
     --lightGreen: #00ff77;
     --green: #00C05A;
@@ -157,7 +158,7 @@ html {
     --purple: #70b;
     --yellow: #ffed33;
     --text: var(--textBlack, #f00);
-    --textHighlight: var(--blue, #f00);
+    --textHighlight: var(--primary, #f00);
     --headerText: var(--white, #f00);
     --headerBg: #006aff;
     --headerIconColor: #fff;
@@ -171,7 +172,7 @@ html {
     --FtIconColor2: #c9d3df;
     --FtFolderColor: var(--gray, #f00);
     --FtFolderColor2: var(--midGray, #f00);
-    --spinnerColor: var(--blue, #f00);
+    --spinnerColor: var(--primary, #f00);
     --tableRowHighlight: #dae4fd;
     --appCard: #fafbfc;
     --wayfGreen: #c8dd51;

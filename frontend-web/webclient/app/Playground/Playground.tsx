@@ -202,7 +202,7 @@ export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
 
 function SearchThing({enabled}): JSX.Element | null {
     if (!enabled) return null;
-    return <Icon size={20} color="var(--blue)" name="heroMagnifyingGlass" />
+    return <Icon size={20} color="var(--primary)" name="heroMagnifyingGlass" />
 }
 
 function RefreshThing(): JSX.Element | null {
@@ -211,7 +211,7 @@ function RefreshThing(): JSX.Element | null {
     const loading = useSelector((it: ReduxObject) => it.status.loading);
     if (!refresh) return null;
     return <Icon cursor="pointer" size={24} onClick={refresh} spin={spin || loading} hoverColor="blue"
-        color="var(--blue)" name="heroArrowPath" />
+        color="var(--primary)" name="heroArrowPath" />
 }
 
 export default Playground;

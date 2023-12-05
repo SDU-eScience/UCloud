@@ -26,7 +26,7 @@ export const BreadCrumbsClass = injectStyle("breadcrumbs", k => `
     
     ${k} > span:hover {
         cursor: pointer;
-        color: var(--blue);
+        color: var(--primary);
     }
     
     ${k} > span + span:before {

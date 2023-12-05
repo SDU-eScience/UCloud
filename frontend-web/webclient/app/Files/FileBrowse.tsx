@@ -704,7 +704,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 position: "relative",
                                 left: "13px",
                                 top: "-2px",
-                                backgroundColor: "var(--blue)",
+                                backgroundColor: "var(--primary)",
                                 height: "10px",
                                 width: "10px",
                                 padding: "4px",
