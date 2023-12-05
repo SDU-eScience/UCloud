@@ -45,8 +45,8 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {classConcat, injectStyle, injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
-import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
+import {sidebarJobCache} from "@/ui-components/Sidebar";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -196,8 +196,14 @@ const Container = injectStyle("container", k => `
 // NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
-    log: {rank: number; stdout?: string; stderr?: string}[];
+    log: LogMessage[];
     newStatus?: JobStatus;
+}
+
+interface LogMessage {
+    rank: number;
+    stdout?: string;
+    stderr?: string;
 }
 
 function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowResponse) => void): void {
@@ -225,8 +231,12 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
     }, [job, callback]);
 }
 
-interface JobUpdateListener {
-    handler: (e: JobsFollowResponse) => void;
+interface JobUpdates {
+    updateQueue: compute.JobUpdate[];
+    logQueue: LogMessage[];
+    statusQueue: JobStatus[];
+
+    subscriptions: (() => void)[];
 }
 
 function getBackend(job?: Job): string {
@@ -333,27 +343,37 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
         }
     }, [status?.state])
 
-    const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
+    const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
     useEffect(() => {
-        jobUpdateCallbackHandlers.current = [{
-            handler: (e) => {
+        jobUpdateState.current.subscriptions.push(() => {
+            const s = jobUpdateState.current;
+            while (true) {
+                const e = s.statusQueue.pop();
+                if (e === undefined) break;
+
                 if (!useFakeState) {
-                    if (e.newStatus != null) {
-                        setStatus(e.newStatus);
-                    }
+                    setStatus(e);
                 } else {
-                    if (e.newStatus != null) {
-                        console.log("Wanted to switch status, but didn't. " +
-                            "Remove localStorage useFakeState if you wish to use real status.");
-                    }
+                    console.log("Wanted to switch status, but didn't. " +
+                        "Remove localStorage useFakeState if you wish to use real status.");
                 }
             }
-        }];
+        });
     }, [id]);
+
     const jobUpdateListener = useCallback((e: JobsFollowResponse) => {
         if (!e) return;
+        const s = jobUpdateState.current;
+
+        if (e.log) {
+            for (const msg of e.log) {
+                s.logQueue.push(msg);
+            }
+        }
+
         if (e.updates) {
             for (const update of e.updates) {
+                s.updateQueue.push(update);
                 job?.updates?.push(update);
 
                 if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
@@ -363,10 +383,14 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                 }
             }
         }
-        jobUpdateCallbackHandlers.current.forEach(({handler}) => {
-            handler(e);
-        });
+
+        if (e.newStatus) {
+            s.statusQueue.push(e.newStatus);
+        }
+
+        s.subscriptions.forEach(it => it());
     }, [job]);
+
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
@@ -406,7 +430,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                             <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
                                 <HighlightedCard color={"purple"}>
                                     <Box py={"16px"}>
-                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+                                        <ProviderUpdates job={job} state={jobUpdateState} />
                                     </Box>
                                 </HighlightedCard>
                             </Box>
@@ -433,7 +457,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
                         <RunningContent
                             job={job}
-                            updateListeners={jobUpdateCallbackHandlers}
+                            state={jobUpdateState}
                             status={status}
                         />
                     </div>
@@ -456,7 +480,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                             </div>
                         </Flex>
 
-                        <CompletedContent job={job} jobUpdateCallbackHandlers={jobUpdateCallbackHandlers} />
+                        <CompletedContent job={job} state={jobUpdateState} />
                     </div>
                 </CSSTransition>
             )}
@@ -474,8 +498,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
 const CompletedContent: React.FunctionComponent<{
     job: Job;
-    jobUpdateCallbackHandlers: React.RefObject<JobUpdateListener[]>;
-}> = ({job, jobUpdateCallbackHandlers}) => {
+    state: React.RefObject<JobUpdates>;
+}> = ({job, state}) => {
     const project = useProject();
     const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
         "My Workspace" : "My Workspace";
@@ -501,7 +525,7 @@ const CompletedContent: React.FunctionComponent<{
             </HighlightedCard>
 
             <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+                <ProviderUpdates job={job} state={state} />
             </HighlightedCard>
         </div>
     </div>
@@ -929,9 +953,9 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
 
 const RunningContent: React.FunctionComponent<{
     job: Job;
-    updateListeners: React.RefObject<JobUpdateListener[]>;
+    state: React.RefObject<JobUpdates>;
     status: JobStatus;
-}> = ({job, updateListeners, status}) => {
+}> = ({job, state, status}) => {
     const fileInfo = useJobFiles(job.specification);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
@@ -1091,7 +1115,7 @@ const RunningContent: React.FunctionComponent<{
                 </Flex>
             </HighlightedCard>
             <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={updateListeners} />
+                <ProviderUpdates job={job} state={state} />
             </HighlightedCard>
 
             {ingresses.length === 0 ? null :
@@ -1158,7 +1182,7 @@ const RunningContent: React.FunctionComponent<{
         {!supportsLogs ? null :
             <div className={RunningJobsWrapper}>
                 {Array(job.specification.replicas).fill(0).map((_, i) => {
-                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
+                    return <RunningJobRank key={i} job={job} rank={i} state={state} />;
                 })}
             </div>
         }
@@ -1245,8 +1269,8 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
 const RunningJobRank: React.FunctionComponent<{
     job: Job,
     rank: number,
-    updateListeners: React.RefObject<JobUpdateListener[]>,
-}> = ({job, rank, updateListeners}) => {
+    state: React.RefObject<JobUpdates>,
+}> = ({job, rank, state}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
     const toggleExpand = useCallback((autoScroll = true) => {
@@ -1268,20 +1292,24 @@ const RunningJobRank: React.FunctionComponent<{
     }, [expanded, termRef]);
 
     useEffect(() => {
-        updateListeners.current?.push({
-            handler: e => {
-                for (const logEvent of e.log) {
-                    if (logEvent.rank === rank && logEvent.stderr != null) {
-                        appendToXterm(terminal, logEvent.stderr);
-                    }
+        const listener = () => {
+            const s = state.current;
+            if (!s) return;
 
-                    if (logEvent.rank === rank && logEvent.stdout != null) {
-                        appendToXterm(terminal, logEvent.stdout);
-                    }
+            const newLogQueue: LogMessage[] = [];
+            for (const l of s.logQueue) {
+                if (l.rank === rank) {
+                    if (l.stderr != null) appendToXterm(terminal, l.stderr);
+                    if (l.stdout != null) appendToXterm(terminal, l.stdout);
+                } else {
+                    newLogQueue.push(l);
                 }
             }
-        });
-        // NOTE(Dan): Clean up is performed by the parent object
+
+            s.logQueue = newLogQueue;
+        };
+        state.current?.subscriptions?.push(listener);
+        listener();
 
         if (job.specification.replicas === 1) {
             toggleExpand(false)
@@ -1478,8 +1506,8 @@ const CancelButton: React.FunctionComponent<{
 
 const ProviderUpdates: React.FunctionComponent<{
     job: Job;
-    updateListeners: React.RefObject<JobUpdateListener[]>;
-}> = ({job, updateListeners}) => {
+    state: React.RefObject<JobUpdates>;
+}> = ({job, state}) => {
     const {termRef, terminal} = useXTerm({autofit: true});
 
     const appendUpdate = useCallback((update: JobUpdate) => {
@@ -1532,19 +1560,23 @@ const ProviderUpdates: React.FunctionComponent<{
 
     useLayoutEffect(() => {
         let mounted = true;
-        const listener: JobUpdateListener = {
-            handler: e => {
-                if (!mounted) return;
-                for (const update of e.updates) {
-                    appendUpdate(update);
-                }
+        const listener = () => {
+            if (!mounted) return;
+            const s = state.current;
+            if (!s) return;
+
+            while (true) {
+                const update = s.updateQueue.pop();
+                if (!update) break;
+                appendUpdate(update);
             }
-        }
-        updateListeners.current?.push(listener);
+        };
+        listener();
+        state.current?.subscriptions?.push(listener);
         return () => {
             mounted = false;
         };
-    }, [updateListeners]);
+    }, [state]);
     return <Box height={"200px"} divRef={termRef} />
 };
 
