@@ -27,7 +27,7 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 
-const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: "Invited by"}, {name: "Invited"}, {name: ""}];
+const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: ""}, {name: "Invited by"}, {name: "Invited"}];
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {page?: PageV2<ProjectInvite>}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ProjectInvite> | null>(null);
@@ -75,7 +75,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                     }
                 });
 
-                browser.on("wantToFetchNextPage", async (path) => {
+                browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
                         api.browseInvites({
                             next: browser.cachedNext[path] ?? undefined,
@@ -85,6 +85,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                         })
                     );
                     browser.registerPage(result, path, false);
+                    browser.renderRows();
                 });
 
                 browser.on("fetchFilters", () => []);
@@ -93,13 +94,13 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                     row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, dims, row));
 
 
-                    row.stat1.innerText = invite.invitedBy;
-                    row.stat2.innerText = format(invite.createdAt, "dd/MM/yy");
+                    row.stat2.innerText = invite.invitedBy;
+                    row.stat3.innerText = format(invite.createdAt, "dd/MM/yy");
                     const group = createHTMLElements<HTMLDivElement>({
                         tagType: "div",
-                        className: ButtonGroupClass, 
+                        className: ButtonGroupClass,
                     });
-                    row.stat3.append(group);
+                    row.stat1.append(group);
                     group.appendChild(browser.defaultButtonRenderer({
                         onClick: () => {
                             callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})))

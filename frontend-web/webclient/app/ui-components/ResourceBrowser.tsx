@@ -1345,7 +1345,7 @@ export class ResourceBrowser<T> {
         const menuList = document.createElement("ul");
         menu.append(menuList);
         let shortcutNumber = 1;
-        for (const [index, element] of elements.entries()) {
+        for (const element of elements) {
             const myIndex = shortcutNumber - 1;
             this.contextMenuHandlers.push(() => {
                 const handler = handlers[myIndex];
@@ -1428,7 +1428,6 @@ export class ResourceBrowser<T> {
                     {asSquare: inContextMenu, color: "red", hoverColor: "darkRed", disabled: !opEnabled}
                 );
 
-
                 // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
                 if (inContextMenu) {
                     element.style.height = "40px";
@@ -1444,8 +1443,8 @@ export class ResourceBrowser<T> {
                     });
                     button.querySelector("button > ul")!["style"].marginLeft = "-60px";
                 } else {
-                    element.style.height = "46px";
-                    button.style.height = "46px";
+                    element.style.height = "35px";
+                    button.style.height = "35px";
 
                     const textChildren = button.querySelectorAll("button > ul > li");
                     textChildren.item(0)["style"].marginTop = "8px";
@@ -1456,8 +1455,8 @@ export class ResourceBrowser<T> {
                         it["style"].marginTop = "-2px";
                     });
                     button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].marginTop = "4px";
-                        it["style"].marginLeft = "-6px";
+                        it["style"].marginTop = "0px";
+                        it["style"].marginLeft = "-8px";
                     });
                     button.querySelectorAll("button > ul").forEach(it => {
                         it["style"]["marginTop"] = "-8px";
@@ -1469,6 +1468,8 @@ export class ResourceBrowser<T> {
                 }
 
                 element.style.padding = "0";
+                if (op.color) element.style.color = op.color;
+                else element.style.color = "var(--black)";
 
                 element.append(button);
                 element.setAttribute("data-is-confirm", "true");
@@ -1485,7 +1486,11 @@ export class ResourceBrowser<T> {
             }
 
             {
-                if (operationText) element.append(operationText);
+                if (operationText) {
+                    element.append(operationText);
+                    if (op.color) element.style.color = `var(--${op.color})`;
+                    else element.style.color = "var(--invertedThemeColor)";
+                }
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("kbd");
                     shortcutElem.append(shortcut);
@@ -1526,7 +1531,6 @@ export class ResourceBrowser<T> {
                     continue;
                 }
 
-
                 const text = child.enabled(selected, callbacks, page);
                 const isDisabled = typeof text === "string";
 
@@ -1535,15 +1539,13 @@ export class ResourceBrowser<T> {
                 if (isDisabled) {
                     item.style.backgroundColor = "var(--midGray)";
                     item.style.cursor = "not-allowed";
-                }
-
-                if (child.text === "Create...") item.style.backgroundColor = "blue";
-
-                if (isDisabled) {
+                    item.style.filter = "opacity(25%)";
                     const d = document.createElement("div");
                     d.innerText = text;
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
+
+                if (child.text === "Create...") item.style.backgroundColor = "blue";
 
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
 
@@ -1588,6 +1590,7 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
+            element.classList.add(ButtonClass);
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
             const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
@@ -1597,6 +1600,7 @@ export class ResourceBrowser<T> {
                 const d = document.createElement("div");
                 d.innerText = enabled;
                 element.style.cursor = "not-allowed";
+                element.style.filter = "opacity(25%)";
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 

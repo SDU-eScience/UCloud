@@ -74,7 +74,7 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             break;
         case "REVIEW_PROJECT":
         case "PROJECT_INVITE":
-            navigate("/projects/");
+            navigate(AppRoutes.dashboard.dashboardA());
             break;
         case "NEW_GRANT_APPLICATION":
         case "COMMENT_GRANT_APPLICATION":
@@ -460,7 +460,7 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
 
 const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
 
-export interface Notification {
+interface Notification {
     type: string;
     id: number;
     message: string;

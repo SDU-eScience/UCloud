@@ -400,7 +400,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Upload files",
                 icon: "upload",
                 primary: true,
-                color: "black",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -428,7 +427,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Create folder",
                 icon: "uploadFolder",
                 primary: true,
-                color: "black",
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";

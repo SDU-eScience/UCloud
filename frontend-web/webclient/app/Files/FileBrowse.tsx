@@ -1381,9 +1381,11 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
         wrapper.append(span);
         span.innerText = `${collection.specification.title} (${collection.id})`;
         span.className = TruncateClass;
-        const shortcutElem = document.createElement("kbd");
-        shortcutElem.append(`[${index + 1}]`);
-        wrapper.append(shortcutElem);
+        if (index + 1 <= 9) {
+            const shortcutElem = document.createElement("kbd");
+            shortcutElem.append(`[${index + 1}]`);
+            wrapper.append(shortcutElem);
+        }
         return wrapper;
     });
 
