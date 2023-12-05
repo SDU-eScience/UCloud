@@ -8,6 +8,7 @@ use.
 
 ```
 UCloud/Core @ 2023.4.1
+UCloud/Frontend @ 2023.4.1
 Type 1/SDU Provider @ 2023.4.1
 ```
 
