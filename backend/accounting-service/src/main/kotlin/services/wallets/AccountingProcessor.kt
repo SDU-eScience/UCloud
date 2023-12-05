@@ -1246,7 +1246,13 @@ class AccountingProcessor(
                     .toSet()
             }
         }
-        val allProviders = providers + products.findAllFreeProducts().map { it.category.provider }.toSet()
+
+        val freeProviders = products.findAllFreeProducts()
+            .filter { request.filterProductType == null || it.productType == request.filterProductType }
+            .map { it.category.provider }
+            .toSet()
+
+        val allProviders = providers + freeProviders
         return AccountingResponse.FindRelevantProviders(allProviders.toList())
     }
 

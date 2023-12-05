@@ -7,7 +7,7 @@ use.
 ## 05-12-23
 
 ```
-UCloud/Core @ 2023.4.1
+UCloud/Core @ 2023.4.2
 UCloud/Frontend @ 2023.4.1
 Type 1/SDU Provider @ 2023.4.1
 ```
