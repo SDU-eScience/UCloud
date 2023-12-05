@@ -60,6 +60,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
             new ResourceBrowser<ProjectInvite>(mount, "Project invites", opts).init(browserRef, features, "", browser => {
                 browser.setColumnTitles(rowTitles);
 
+                browser.on("beforeOpen", (oldPath, newPath, res) => res != null);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) return;
 

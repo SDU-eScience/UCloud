@@ -88,7 +88,7 @@ function Dashboard(): JSX.Element {
     const main = (<Box mx="auto" maxWidth={"1200px"}>
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
-            <div style={{marginBottom: "12px"}}>
+            <div style={{marginBottom: "24px"}}>
                 <HighlightedCard
                     color="red"
                 >
