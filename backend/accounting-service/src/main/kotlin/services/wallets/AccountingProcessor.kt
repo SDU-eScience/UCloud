@@ -275,6 +275,7 @@ sealed class AccountingRequest {
         val username: String,
         val project: String?,
         val useProject: Boolean,
+        val filterProductType: ProductType?,
 
         override var id: Long = -1
     ) : AccountingRequest()
@@ -1233,9 +1234,15 @@ class AccountingProcessor(
                 emptySet()
             } else {
                 wallets
-                    .asSequence()
-                    .filter { it?.owner == (project ?: request.username) }
-                    .mapNotNull { it?.paysFor?.provider }
+                    .filterNotNull()
+                    .filter {
+                        it.owner == (project ?: request.username) &&
+                            (
+                                request.filterProductType == null ||
+                                products.retrieveProductType(it.paysFor) == request.filterProductType
+                            )
+                    }
+                    .map { it.paysFor.provider }
                     .toSet()
             }
         }

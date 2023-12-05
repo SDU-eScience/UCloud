@@ -709,7 +709,8 @@ typealias UpdateAllocationResponse = Unit
 data class FindRelevantProvidersRequestItem(
     val username: String,
     val project: String? = null,
-    val useProject: Boolean
+    val useProject: Boolean,
+    val filterProductType: ProductType? = null,
 )
 @Serializable
 data class FindRelevantProvidersResponse(

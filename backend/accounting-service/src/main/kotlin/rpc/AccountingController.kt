@@ -48,7 +48,8 @@ class AccountingController(
                     actorAndProject,
                     it.username,
                     it.project,
-                    it.useProject
+                    it.useProject,
+                    it.filterProductType,
                 )
                 FindRelevantProvidersResponse(providers)
             }

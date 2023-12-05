@@ -70,6 +70,7 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
             AlertingService,
             PasswordResetService,
             SupportService,
+            SlackService,
             TaskService -> true
 
             else -> false

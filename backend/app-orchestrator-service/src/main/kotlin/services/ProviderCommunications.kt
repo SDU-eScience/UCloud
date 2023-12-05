@@ -251,12 +251,14 @@ class ProviderCommunications(
 
     suspend fun findRelevantProviders(
         actorAndProject: ActorAndProject,
+        filterProductType: ProductType? = null,
     ): List<String> {
         return Accounting.findRelevantProviders.call(
             bulkRequestOf(
                 FindRelevantProvidersRequestItem(
                     actorAndProject.actor.safeUsername(),
-                    useProject = false
+                    useProject = false,
+                    filterProductType = filterProductType,
                 )
             ),
             serviceClient
@@ -272,9 +274,10 @@ class ProviderCommunications(
     suspend fun forEachRelevantProvider(
         actorAndProject: ActorAndProject,
         deadlineMs: Long = 10_000L,
+        filterProductType: ProductType? = null,
         fn: suspend (providerId: String) -> Unit,
     ) {
-        val providers = findRelevantProviders(actorAndProject)
+        val providers = findRelevantProviders(actorAndProject, filterProductType)
 
         coroutineScope {
             val jobs = providers.map { providerId ->
