@@ -306,7 +306,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     }
                 });
 
-                browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
+                browser.on("fetchOperationsCallback", () => {
                     const callbacks: ResourceBrowseCallbacks<PublicLink> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,

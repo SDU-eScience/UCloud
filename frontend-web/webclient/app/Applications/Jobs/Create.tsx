@@ -336,7 +336,7 @@ export const Create: React.FunctionComponent = () => {
                         {!application.metadata.website ? null : (
                             <Tooltip
                                 trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
-                                    <Icon name="documentation" color="blue" />
+                                    <Icon name="documentation" color="primary" />
                                 </ExternalLink>}>
                                 View documentation
                             </Tooltip>

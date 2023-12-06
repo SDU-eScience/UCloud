@@ -14,7 +14,7 @@ export function findCustomThemeColorOnLaunch() {
 }
 
 type HexColor = `#${string}`;
-const COLORS: HexColor[] = ["#006aff", "#bed730", "#80007d", "#eaa621"];
+const COLORS: HexColor[] = ["#006aff", "#bed730", "#80007d", "#eaa621", "#775e43"];
 export function CustomTheming(): React.ReactNode {
 
     const root = React.useMemo(() => document.querySelector(':root')!, []);

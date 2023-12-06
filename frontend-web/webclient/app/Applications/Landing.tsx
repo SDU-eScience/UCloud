@@ -101,9 +101,7 @@ const ViewAllButtonClass = injectStyle("view-all-button", k => `
     }
 `);
 
-export const SecondarySidebarStickyCSSVariable = "TODO"; 
-
-function ViewAllButton(): JSX.Element {
+function ViewAllButton(): React.JSX.Element {
     const navigate = useNavigate();
 
     return <div className={ViewAllButtonClass}>

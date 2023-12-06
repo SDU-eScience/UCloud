@@ -53,7 +53,7 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
             <PaginationButton
                 key={it}
                 unclickable={currentPage === it}
-                color={currentPage === it ? "gray" : "blue"}
+                color={currentPage === it ? "gray" : "primary"}
                 onClick={() => toPage(it)}
             >
                 {it + 1}

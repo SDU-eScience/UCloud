@@ -2,7 +2,7 @@ import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalized, createHTMLElements, doNothing, inDevEnvironment, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -29,6 +29,7 @@ import {ButtonClass} from "./Button";
 import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {FlexClass} from "./Flex";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
@@ -438,9 +439,10 @@ export class ResourceBrowser<T> {
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
-                    <ul></ul>
-                    <input class="location-bar">
-                    <img class="location-bar-edit">
+                    <div class="${FlexClass} location">
+                        <ul></ul>
+                        <input class="location-bar">
+                    </div>
                     <div style="flex-grow: 1;"></div>
                     <input class="${InputClass} search-field" hidden>
                     <img class="search-icon">
@@ -527,14 +529,24 @@ export class ResourceBrowser<T> {
         );
 
         if (this.features.locationBar) {
-            // Render edit button for the location bar
-            const editIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .location-bar-edit")!;
-            editIcon.setAttribute("data-shown", "");
-            editIcon.src = placeholderImage;
-            this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
-                .then(url => editIcon.src = url);
-            editIcon.addEventListener("click", () => {
+            const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location")!;
+            location.style.flexGrow = "1";
+            location.style.border = "1px solid var(--black)";
+            location.style.padding = "0 6px";
+            location.style.borderRadius = "4px";
+            location.style.width = "100%";
+            location.style.cursor = "pointer";
+            const ul = location.querySelector<HTMLUListElement>(":scope > ul")!;
+            ul.style.marginTop = "-2px";
+            ul.style.marginBottom = "-2px";
+
+            location.addEventListener("click", () => {
                 this.toggleLocationBar();
+                if (this.isLocationBarVisible()) {
+                    location["style"].border = "";
+                } else {
+                    location["style"].border = "1px solid var(--black)";
+                }
             });
         }
 
@@ -1181,8 +1193,9 @@ export class ResourceBrowser<T> {
             if (canKeepThis) {
                 const listItem = document.createElement("li");
                 listItem.innerText = visualizeWhitespaces(truncatedComponents[idx]);
-                listItem.addEventListener("click", () => {
+                listItem.addEventListener("click", e => {
                     this.open(myPath);
+                    stopPropagation(e);
                 });
                 listItem.addEventListener("mousemove", () => {
                     if (this.allowEventListenerAction()) {
@@ -2917,14 +2930,9 @@ export class ResourceBrowser<T> {
                 flex-grow: 1;
             }
 
-            .header-first-row .location-bar-edit[data-shown], .header-first-row .search-icon[data-shown] {
+            .header-first-row .search-icon[data-shown] {
                 width: 24px;
                 height: 24px;
-            }
-
-            .header-first-row .location-bar-edit {
-                margin-left: 14px;
-                margin-right: 14px;
             }
 
             .file-browser header ul {
@@ -2969,19 +2977,19 @@ export class ResourceBrowser<T> {
                 height: 35px;
             }
             
-            .file-browser header > div > ul[data-no-slashes="true"] li::before {
+            .file-browser header > div > div > ul[data-no-slashes="true"] li::before {
                 display: inline-block;
                 content: unset;
                 margin: 0;
             }
 
-            .file-browser header > div > ul li::before {
+            .file-browser header > div > div > ul li::before {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;
             }
 
-            .file-browser header ul li {
+            .file-browser header div ul li {
                 list-style: none;
                 margin: 0;
                 padding: 0;

@@ -190,7 +190,7 @@ function DashboardFavoriteFiles(): JSX.Element {
             )}
             <List>
                 {favorites.items.slice(0, 10).map(it => (<Flex key={it.path} height="55px">
-                    <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="blue" onClick={async () => {
+                    <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="primary" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
                             await invokeCommand(

@@ -87,7 +87,7 @@ export const NewsList: React.FC = () => {
         const now = new Date().getTime();
         return <Grid gridTemplateColumns={"repeat(1, auto)"} gridGap={32}>
             {page.items.map(item => (
-                <HighlightedCard color={"blue"} isLoading={false} key={item.id}>
+                <HighlightedCard color={"primary"} isLoading={false} key={item.id}>
                     <Box my={16}>
                         <Link mt="12px" to={AppRoutes.news.detailed(item.id)}>
                             <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden} /></Flex>
