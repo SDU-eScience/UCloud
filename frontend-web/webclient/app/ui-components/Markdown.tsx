@@ -4,7 +4,7 @@ import ExternalLink from "./ExternalLink";
 import SyntaxHighlighter from "react-syntax-highlighter";
 
 function CodeBlock(props: {lang?: string; inline?: boolean; children: React.ReactNode & React.ReactNode[]}) {
-    if (props.inline === true) return <code>{props.children}</code>;
+    if (props.inline === true || !props.lang) return <code>{props.children}</code>;
 
     return (
         <SyntaxHighlighter language={props.lang}>
@@ -17,16 +17,15 @@ function LinkBlock(props: {href?: string; children: React.ReactNode & React.Reac
     return <ExternalLink color={"darkBlue"} href={props.href}>{props.children}</ExternalLink>;
 };
 
-const Markdown: React.FunctionComponent<Options> = props => {
+function Markdown(props: Options): React.ReactNode {
+
     return <ReactMarkdown
         {...props}
         components={{
             a: LinkBlock,
             code: CodeBlock
         }}
-    >
-        {props.children}
-    </ReactMarkdown>
+    />
 };
 
 export default Markdown;
