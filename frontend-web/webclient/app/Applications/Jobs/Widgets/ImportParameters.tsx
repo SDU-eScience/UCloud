@@ -216,7 +216,7 @@ export const ImportParameters: React.FunctionComponent<{
                                     readParsedJSON(res.status.jobParametersJson);
                                     dialogStore.success();
                                 }}
-                                additionalFilters={{filterApplication: application.metadata.name}}
+                                additionalFilters={{filterApplication: application.metadata.name, includeParameters: "true"}}
                                 onSelectRestriction={res =>
                                     res.specification.application.name === application.metadata.name
                                 }
