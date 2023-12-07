@@ -222,7 +222,7 @@ class JobResourceService {
     // - `addUpdate`: updates from the provider, primary way for providers to mutate the state of a job
 
     // Validation of user input is implemented in the JobVerificationService:
-    private val validation = JobVerificationService(appCache, this, fileCollections)
+    private val validation = JobVerificationService(appCache, this, fileCollections, db)
 
     // The create call is invoked when an end-user wishes to start a job. The request contains which application to
     // start and how to run it. This function will authorize, verify the request and proxy it to the provider(s).
