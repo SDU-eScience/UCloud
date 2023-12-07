@@ -4,7 +4,7 @@ import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {
     addContextSwitcherInPortal,
     checkIsWorkspaceAdmin,

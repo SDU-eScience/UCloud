@@ -61,7 +61,7 @@ import {Navigate, Route, Routes} from "react-router-dom";
 import {USER_LOGIN} from "@/Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import {Provider} from "react-redux";

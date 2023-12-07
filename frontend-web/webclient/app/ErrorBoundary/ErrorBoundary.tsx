@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Button, TextArea} from "@/ui-components";

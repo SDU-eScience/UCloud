@@ -5,7 +5,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
 import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";

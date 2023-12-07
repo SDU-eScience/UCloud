@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useNavigate, useParams} from "react-router";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";

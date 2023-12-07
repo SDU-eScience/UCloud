@@ -1,5 +1,5 @@
 import * as React from "react";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {Button, Icon, Input, List} from "@/ui-components";

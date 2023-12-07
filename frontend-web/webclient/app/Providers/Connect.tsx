@@ -9,7 +9,7 @@ import {doNothing} from "@/UtilityFunctions";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import Spinner from "@/LoadingIcon/LoadingIcon";

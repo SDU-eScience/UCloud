@@ -5,7 +5,7 @@ import * as Heading from "@/ui-components/Heading";
 import Loading from "@/LoadingIcon/LoadingIcon";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {NewsPost} from "@/Dashboard/Dashboard";
 import {Tag} from "@/Applications/Card";
 import {format} from "date-fns/esm";

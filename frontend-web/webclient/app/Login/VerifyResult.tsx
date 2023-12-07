@@ -3,7 +3,7 @@ import {useLocation} from "react-router";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import { Box, Button, Flex, Link } from "@/ui-components";
 import {Client} from "@/Authentication/HttpClientInstance";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 
 const VerifyResult: React.FunctionComponent = () => {

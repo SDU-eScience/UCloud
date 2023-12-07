@@ -1,8 +1,8 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {injectStyle} from "@/Unstyled";
-import MainContainer from "@/MainContainer/MainContainer";
-import {Box, Button, Checkbox, Icon, Input, Select, TextArea, theme, Tooltip} from "@/ui-components";
+import MainContainer from "@/ui-components/MainContainer";
+import {Box, Button, Checkbox, Icon, Input, Select, TextArea, theme} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";

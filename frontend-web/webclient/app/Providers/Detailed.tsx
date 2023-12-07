@@ -6,7 +6,7 @@ import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";

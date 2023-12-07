@@ -7,7 +7,7 @@ import {NewsPost} from "@/Dashboard/Dashboard";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {emptyPage} from "@/DefaultObjects";
 import {useNavigate, useParams} from "react-router";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as Pagination from "@/Pagination";
 import {format} from "date-fns/esm";
 import {Tag} from "@/Applications/Card";

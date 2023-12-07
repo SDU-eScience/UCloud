@@ -1,5 +1,5 @@
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";

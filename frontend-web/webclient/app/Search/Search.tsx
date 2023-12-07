@@ -1,5 +1,5 @@
 import {HeaderSearchType} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {setPrioritizedSearch, setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";

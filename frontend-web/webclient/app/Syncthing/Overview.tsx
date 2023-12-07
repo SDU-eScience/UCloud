@@ -9,7 +9,7 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";

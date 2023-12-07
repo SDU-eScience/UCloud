@@ -1,5 +1,5 @@
 import {Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis} from "recharts";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";

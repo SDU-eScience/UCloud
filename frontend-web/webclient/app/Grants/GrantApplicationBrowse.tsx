@@ -5,7 +5,7 @@ import {useLocation, useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {callAPI} from "@/Authentication/DataHook";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
 import {dateToString} from "@/Utilities/DateUtilities";
@@ -141,6 +141,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     if (opts?.embedded) return [];
                     return [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}];
                 });
+
                 browser.on("renderEmptyPage", reason => {
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
@@ -171,7 +172,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 });
 
                 browser.on("fetchOperationsCallback", () => ({
-                    dispatch, navigate, api: {isCoreResource: true}, isCreating: false, startCreation: () => console.log("TODO!"), cancelCreation: () => void 0
+                    dispatch, navigate, api: {isCoreResource: true}, isCreating: false, cancelCreation: () => void 0
                 }));
 
                 browser.on("fetchOperations", () => {

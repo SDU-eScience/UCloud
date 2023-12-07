@@ -1,5 +1,5 @@
 import {useCloudAPI} from "@/Authentication/DataHook";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {RetrieveLinkResponse, Share, shareLinksApi} from "@/UCloud/SharesApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";

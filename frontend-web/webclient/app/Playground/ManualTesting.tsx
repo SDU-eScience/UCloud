@@ -1,7 +1,6 @@
 import * as React from "react";
 import ManualTestingEntries from "@/Playground/manual-test-suite.json";
 import {Box, Checkbox, Label} from "@/ui-components";
-import MainContainer from "@/MainContainer/MainContainer";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export default function ManualTestingOverview() {
@@ -15,9 +14,7 @@ export default function ManualTestingOverview() {
         };
     }, []);
 
-    return <MainContainer
-        main={<TestingEntry depth={0} entry={ManualTestingEntries} />}
-    />
+    return <TestingEntry depth={0} entry={ManualTestingEntries} />;
 }
 
 function TestingEntry(props): JSX.Element {

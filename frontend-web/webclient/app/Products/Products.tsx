@@ -7,7 +7,7 @@ import {
 } from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPage} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {ListV2} from "@/Pagination";
 import {Card, Box, Flex, Icon, Text, ContainerForText} from "@/ui-components";
 import * as React from "react";

@@ -18,7 +18,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
 import {injectStyleSimple} from "@/Unstyled";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -29,7 +29,6 @@ import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import FilesApi from "@/UCloud/FilesApi";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},

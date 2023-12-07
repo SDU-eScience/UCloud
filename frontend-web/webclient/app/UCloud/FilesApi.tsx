@@ -28,7 +28,7 @@ import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
-import {PrettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {usePrettyFilePath} from "@/Files/FilePath";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
@@ -238,7 +238,7 @@ const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
 
     ${k} > .B {
         font-size: 14px;
-        width: 240px;
+        width: 340px;
         min-width: 240px;
         padding: 15px;
         height: 100vh;

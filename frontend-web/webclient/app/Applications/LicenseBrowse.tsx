@@ -1,5 +1,5 @@
 import {callAPI} from "@/Authentication/DataHook";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";

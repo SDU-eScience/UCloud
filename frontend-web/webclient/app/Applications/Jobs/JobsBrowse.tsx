@@ -1,11 +1,11 @@
 import {callAPI} from "@/Authentication/DataHook";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {appLogoCache} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";

@@ -3,7 +3,7 @@ import {useCloudCommand, useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {
     useRefreshFunction
 } from "@/Navigation/Redux/HeaderActions";

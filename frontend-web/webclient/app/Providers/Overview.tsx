@@ -1,4 +1,4 @@
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {Box, Link, theme} from "@/ui-components";
 import {GridCardGroup} from "@/ui-components/Grid";

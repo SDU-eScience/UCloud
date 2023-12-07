@@ -683,7 +683,6 @@ function SecondarySidebar({
                         </Link>
                     )}
                     {drives.data.items.length < 8 ? null :
-                        /* TODO(Jonas): Find better solution than this. */
                         <Link to={`/drives/`}>
                             <Flex>
                                 <Text mx="auto" fontSize="14px" maxWidth={"150px"} color="var(--fixedWhite)">

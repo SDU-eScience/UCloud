@@ -1,5 +1,5 @@
 import * as React from "react";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";

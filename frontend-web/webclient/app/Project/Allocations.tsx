@@ -1,7 +1,7 @@
 import {browseWallets, ChargeType, explainAllocation, ProductCategoryId, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
 import {apiBrowse, apiSearch, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {PageV2, PaginationRequestV2} from "@/UCloud";

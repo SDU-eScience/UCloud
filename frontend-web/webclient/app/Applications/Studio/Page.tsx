@@ -3,7 +3,7 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as Pagination from "@/Pagination";
 import * as React from "react";

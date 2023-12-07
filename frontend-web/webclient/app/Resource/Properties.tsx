@@ -20,7 +20,7 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
 import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useNavigate, useParams} from "react-router";

@@ -39,6 +39,4 @@ export {default as UIGlobalStyle} from "./GlobalStyle";
 export {default as ExternalLink} from "./ExternalLink";
 export {default as Markdown} from "./Markdown";
 export {SelectableTextWrapper, SelectableText} from "./SelectableText";
-
-// TODO(Dan): I don't understand why this isn't in this folder...
-export {default as MainContainer} from "@/MainContainer/MainContainer";
+export {default as MainContainer} from "./MainContainer";

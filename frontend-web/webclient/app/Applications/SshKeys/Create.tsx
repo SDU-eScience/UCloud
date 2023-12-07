@@ -1,5 +1,5 @@
 import * as React from "react";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {ResourceOptions} from "@/Resource/ResourceOptions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import SshKeyApi from "@/UCloud/SshKeyApi";

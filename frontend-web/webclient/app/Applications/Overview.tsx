@@ -1,21 +1,19 @@
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import {Box, Flex, Link} from "@/ui-components";
+import {Box, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {AppCardStyle} from "./Card";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
-import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreSections = compute.AppStoreSections;
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
 import {injectStyleSimple} from "@/Unstyled";
-import {useDispatch, useSelector} from "react-redux";
-import {toggleAppFavorite} from "./Redux/Actions";
-import {useLocation, useNavigate} from "react-router";
+import {useDispatch} from "react-redux";
+import {useLocation} from "react-router";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationGroupToRowItem} from "./ApplicationsRow";
 import {AppSearchBox} from "./Search";
@@ -49,8 +47,6 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     }, [refreshId]);
 
     useResourceSearch(ApiLike);
-
-    const dispatch = useDispatch();
 
     useTitle("Applications");
     const refresh = useCallback(() => {

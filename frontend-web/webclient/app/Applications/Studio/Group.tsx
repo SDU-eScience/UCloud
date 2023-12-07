@@ -1,5 +1,5 @@
 import * as UCloud from "@/UCloud";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Box, Button, Checkbox, DataList, Flex, Icon, Input, Label, Relative, TextArea} from "@/ui-components";
 import React, {useCallback, useEffect, useState} from "react";
 import {RetrieveGroupResponse, clearLogo, setGroup, retrieveGroup, updateGroup, uploadLogo} from "../api";

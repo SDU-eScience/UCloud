@@ -1,4 +1,4 @@
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box, Button, Flex, Icon, Input} from "@/ui-components";

@@ -1,4 +1,4 @@
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
 import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
