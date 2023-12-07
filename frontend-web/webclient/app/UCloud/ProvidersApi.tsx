@@ -166,7 +166,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 if (props.resource == null) return null;
                 const provider = props.resource as Provider;
                 return <>
-                    <HighlightedCard color={"purple"} title={"Metadata"} icon={"mapMarkedAltSolid"}>
+                    <HighlightedCard title={"Metadata"} icon={"mapMarkedAltSolid"}>
                         <Box mb={"8px"}>
                             <b>Host: </b>
                             {provider.specification.https ? "https://" : "http://"}
@@ -223,7 +223,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
 
                 if (provider == null) return null;
                 return <>
-                    <HighlightedCard color={"purple"}>
+                    <HighlightedCard>
                         <Operations
                             topbarIcon={"cubeSolid"}
                             location={"TOPBAR"}

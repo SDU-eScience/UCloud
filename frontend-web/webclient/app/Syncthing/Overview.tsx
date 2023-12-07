@@ -442,7 +442,6 @@ export const Overview: React.FunctionComponent = () => {
                 <HighlightedCard
                     icon="hdd"
                     title="My devices"
-                    color="primary"
                     className="devices"
                     subtitle={<Flex>
                         <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
@@ -477,7 +476,6 @@ export const Overview: React.FunctionComponent = () => {
                         className="servers"
                         icon="globeEuropeSolid"
                         title={servers.length > 1 ? "Syncthing servers" : "Syncthing server"}
-                        color="primary"
                     >
                         <Text color="darkGray">
                             We synchronize your files from this server. Monitor the health of your servers here.
@@ -512,7 +510,6 @@ export const Overview: React.FunctionComponent = () => {
                 className="folders"
                 icon="ftFolder"
                 title="Synchronized folders"
-                color="primary"
                 subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
                 <Text color="darkGray">

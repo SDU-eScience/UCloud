@@ -113,7 +113,6 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
 
     if (props.embedded) {
         return <HighlightedCard
-            color={"darkOrange"}
             icon={"heroCloud"}
             title={<Link to={"/providers/connect"}><Heading.h3>Providers</Heading.h3></Link>}
             subtitle={<Link to="/providers/overview">Show all</Link>}

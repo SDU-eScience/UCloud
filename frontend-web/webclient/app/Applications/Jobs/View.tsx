@@ -428,7 +428,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
                         <div className={Content}>
                             <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                <HighlightedCard color={"purple"}>
+                                <HighlightedCard>
                                     <Box py={"16px"}>
                                         <ProviderUpdates job={job} state={jobUpdateState} />
                                     </Box>
@@ -508,7 +508,7 @@ const CompletedContent: React.FunctionComponent<{
 
     return <div className={Content}>
         <div className={RunningInfoWrapper}>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+            <HighlightedCard isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
@@ -524,7 +524,7 @@ const CompletedContent: React.FunctionComponent<{
                 </Flex>
             </HighlightedCard>
 
-            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
+            <HighlightedCard isLoading={false} title="Messages" icon="chat">
                 <ProviderUpdates job={job} state={state} />
             </HighlightedCard>
         </div>
@@ -783,7 +783,7 @@ const InfoCard: React.FunctionComponent<{
     icon: IconName,
     children: React.ReactNode;
 }> = props => {
-    return <HighlightedCard color={"purple"} isLoading={false}>
+    return <HighlightedCard isLoading={false}>
         <div className={InfoCardContainer}>
             <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
             <div className={"stat"}>{props.stat}</div>
@@ -1043,7 +1043,7 @@ const RunningContent: React.FunctionComponent<{
 
     return <>
         <div className={RunningInfoWrapper}>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+            <HighlightedCard isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
@@ -1062,7 +1062,7 @@ const RunningContent: React.FunctionComponent<{
                     </Box>
                 </Flex>
             </HighlightedCard>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
+            <HighlightedCard isLoading={false} title={"Time allocation"} icon={"hourglass"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     <Box>
                         <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
@@ -1114,12 +1114,12 @@ const RunningContent: React.FunctionComponent<{
                     </Box>
                 </Flex>
             </HighlightedCard>
-            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
+            <HighlightedCard isLoading={false} title="Messages" icon="chat">
                 <ProviderUpdates job={job} state={state} />
             </HighlightedCard>
 
             {ingresses.length === 0 ? null :
-                <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
+                <HighlightedCard isLoading={false} title="Public links" icon="globeEuropeSolid">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         {ingresses.map(ingress => <PublicLinkEntry id={ingress.id} />)}
                     </Text>
@@ -1127,7 +1127,7 @@ const RunningContent: React.FunctionComponent<{
             }
 
             {!supportsPeers || peers.length === 0 ? null :
-                <HighlightedCard color="purple" isLoading={false} title="Connected jobs">
+                <HighlightedCard isLoading={false} title="Connected jobs">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         <Table>
                             <TableHeader>
@@ -1160,7 +1160,7 @@ const RunningContent: React.FunctionComponent<{
             }
 
             {!sshAccess ? null :
-                <HighlightedCard color="purple" isLoading={false} title="SSH access" icon="key">
+                <HighlightedCard isLoading={false} title="SSH access" icon="key">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         {sshAccess.success ? null : <Warning>
                             SSH was not configured successfully!
@@ -1317,7 +1317,7 @@ const RunningJobRank: React.FunctionComponent<{
     }, [job.id, rank]);
 
     return <>
-        <HighlightedCard color={"purple"} isLoading={false}>
+        <HighlightedCard isLoading={false}>
             <div className={classConcat(RunningJobRankWrapper, expanded ? "expanded" : undefined)}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>

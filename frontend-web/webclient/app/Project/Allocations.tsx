@@ -365,7 +365,7 @@ export const AllocationViewer: React.FunctionComponent<{
     simple?: boolean;
 }> = ({wallet, allocation, simple = true}) => {
     const url = "/grants?id=" + allocation.grantedIn;
-    return <HighlightedCard color={"red"} width={"400px"} height="100%">
+    return <HighlightedCard width={"400px"} height="100%">
         <Flex flexDirection={"row"} mt={"8px"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                 size={"54px"} mr={"16px"} />

@@ -40,7 +40,7 @@ export default function DetailedProvider() {
         <Box height="48px" />
         {entry.texts.map((text, index) =>
             <Box key={index} my="32px">
-                <HighlightedCard color="purple">
+                <HighlightedCard>
                     <Flex>
                         {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />

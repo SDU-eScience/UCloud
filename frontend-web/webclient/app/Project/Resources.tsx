@@ -167,7 +167,6 @@ const Resources: React.FunctionComponent = () => {
                                         key={it.type + it.unit}
                                         title={`${productAreaTitle(it.type)}`}
                                         icon={productTypeToIcon(it.type)}
-                                        color="blue"
                                         width="400px"
                                     >
                                         <Flex flexDirection={"column"} height={"calc(100% - 36px)"}>
@@ -183,7 +182,6 @@ const Resources: React.FunctionComponent = () => {
                                         key={pt}
                                         title={`${productAreaTitle(pt)}`}
                                         icon={productTypeToIcon(pt)}
-                                        color="blue"
                                         width="400px"
                                     >
                                         <Flex style={{flexDirection: "column", height: "calc(100% - 36px)"}}>
