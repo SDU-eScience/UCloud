@@ -79,6 +79,7 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
         case "NEW_GRANT_APPLICATION":
         case "COMMENT_GRANT_APPLICATION":
         case "GRANT_APPLICATION_RESPONSE":
+        case "UPDATED_GRANT_APPLICATION":
         case "GRANT_APPLICATION_UPDATED": {
             const {meta} = notification;
             navigate(`/grants?id=${meta.appId}`);
