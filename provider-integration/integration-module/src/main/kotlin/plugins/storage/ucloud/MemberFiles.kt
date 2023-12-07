@@ -19,7 +19,7 @@ class MemberFiles(
             }
 
             val (drive) = paths.locator.register(
-                "MemberFiles/${username}",
+                "Member Files: ${username}",
                 UCloudDrive.ProjectMemberFiles(UCloudDrive.PLACEHOLDER_ID, project, username),
                 ownedByProject = project,
                 createdByUser = username
