@@ -2651,6 +2651,8 @@ export class ResourceBrowser<T> {
 
                 case "Escape": {
                     this.setLocationBarVisibility(false);
+                    const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location");
+                    if (location) location.style.border = "1px solid var(--black)";
                     setValue(this.currentPath);
                     break;
                 }

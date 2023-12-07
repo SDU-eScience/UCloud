@@ -86,7 +86,6 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             break;
         }
         case "PROJECT_ROLE_CHANGE": {
-            navigate(AppRoutes.project.members());
             break;
         }
         default:
