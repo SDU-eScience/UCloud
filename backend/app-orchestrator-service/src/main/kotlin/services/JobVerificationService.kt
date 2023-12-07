@@ -87,7 +87,6 @@ class JobVerificationService(
         // Check mounts
         run {
             val mounts = resources.filterIsInstance<AppParameterValue.File>()
-            println(mounts)
             newResources.addAll(checkAndReturnValidFiles(actorAndProject, mounts))
             println(newResources)
         }
