@@ -156,7 +156,11 @@ class FeatureFileMount(
                     (pathSplit.size == 4 && pathSplit.indexOf("Members' Files") == 2) ||
                     (pathSplit.size == 2 && pathSplit.first() == "home")
                 ) {
-                    joinPath(pathSplit[pathSplit.size - 2], pathSplit.last())
+                    if (pathSplit.size == 4) {
+                        "MemberFiles/${pathSplit.last()}"
+                    } else {
+                        "Home"
+                    }
                 } else {
                     var inAppPath = mount.fileName
                     val driveId = mount.path.normalize().components().getOrNull(1) ?: error("Unexpected path: $inAppPath")
