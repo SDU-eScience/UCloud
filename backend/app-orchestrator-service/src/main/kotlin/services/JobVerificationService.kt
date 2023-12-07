@@ -88,7 +88,6 @@ class JobVerificationService(
         run {
             val mounts = resources.filterIsInstance<AppParameterValue.File>()
             newResources.addAll(checkAndReturnValidFiles(actorAndProject, mounts))
-            println(newResources)
         }
 
         // Check ingress
