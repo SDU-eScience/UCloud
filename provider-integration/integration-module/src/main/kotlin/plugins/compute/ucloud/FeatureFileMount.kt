@@ -153,8 +153,8 @@ class FeatureFileMount(
             val pathSplit = mount.path.split("/")
             val mountPath =
                 if (
-                    (pathSplit.size == 4 && pathSplit.indexOf("Members' Files") == 2) ||
-                    (pathSplit.size == 2 && pathSplit.first() == "home")
+                    (pathSplit.size == 4 && pathSplit.indexOf(PathConverter.PERSONAL_REPOSITORY) == 2) ||
+                    (pathSplit.size == 2 && pathSplit.first() == PathConverter.HOME_DIRECTORY)
                 ) {
                     if (pathSplit.size == 4) {
                         "MemberFiles/${pathSplit.last()}"
