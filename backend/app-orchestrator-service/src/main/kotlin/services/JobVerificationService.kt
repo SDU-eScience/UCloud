@@ -188,7 +188,6 @@ class JobVerificationService(
         }
 
         for (file in translatedFiles) {
-            println("file: $file")
             val perms = retrievedCollections[extractPathMetadata(file.path).collection]?.permissions?.myself
                 ?: continue
 
