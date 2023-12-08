@@ -42,7 +42,7 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {classConcat, injectStyle, injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
+import {chain, classConcat, injectStyle, injectStyleSimple, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
@@ -79,6 +79,22 @@ const zoomInAnim = makeKeyframe("zoom-in-anim", `
   }
 `);
 
+const logoWrapper = makeClassName("logo-wrapper");
+const logoScale = makeClassName("logo-scale");
+const fakeLogo = makeClassName("fake-logo");
+const active = makeClassName("active");
+const data = makeClassName("data");
+const dataEnterDone = makeClassName("data-enter-done");
+const dataEnterActive = makeClassName("data-enter-active");
+const header = makeClassName("headers");
+const headerText = makeClassName("header-text");
+const dataExitActive = makeClassName("data-exit-active");
+const dataExit = makeClassName("data-exit");
+const inQueue = makeClassName("in-queue");
+const logo = makeClassName("logo");
+const running = makeClassName("running");
+const topButtons = makeClassName("top-buttons");
+
 const Container = injectStyle("container", k => `
     ${k} {
         --logoScale: 1;
@@ -102,24 +118,24 @@ const Container = injectStyle("container", k => `
         position: relative;
     }
 
-  ${k} > .logo-wrapper {
+  ${k} > ${logoWrapper.dot} {
     position: absolute;
     left: 0;
     top: 0;
     animation: 800ms ${zoomInAnim};
   }
 
-  ${k} > .logo-wrapper.active {
+  ${k} > ${chain(logoWrapper, active)} {
     transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} > .logo-wrapper.active > .logo-scale {
+  ${k} > ${chain(logoWrapper, active)} > ${logoScale.dot} {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
     transform: scale(var(--logoScale));
     transform-origin: top left;
   }
 
-  ${k} .fake-logo {
+  ${k} ${fakeLogo.dot} {
     /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
     this basically fixes our document flow */
     display: block;
@@ -128,66 +144,66 @@ const Container = injectStyle("container", k => `
     content: '';
   }
 
-  ${k} .data.data-enter-done {
-  opacity: 1;
+  ${k} ${chain(data, dataEnterDone)} {
+    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 
-  ${k} .data.data-enter-active {
+  ${k} ${chain(data, dataEnterActive)} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} .data.data-exit {
+  ${k} ${chain(data, dataExit)} {
     opacity: 1;
   }
 
-  ${k} .data-exit-active {
+  ${k} ${chain(data, dataExitActive)} {
     display: none;
   }
 
-  ${k} .data {
+  ${k} ${data.dot} {
     width: 100%; /* fix info card width */
     opacity: 0;
     transform: translate3d(0, 50vh, 0);
   }
 
-  ${k} .header-text {
+  ${k} ${headerText.dot} {
     margin-left: 32px;
     margin-top: calc(var(--logoScale) * 16px);
     width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
   }
 
   ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${k} .fake-logo {
+    ${k} ${fakeLogo.dot} {
       width: 100%; /* force the header to wrap */
     }
 
-    ${k} .logo-wrapper {
+    ${k} ${logoWrapper.dot} {
       left: calc(50% - var(--logoSize) / 2);
     }
 
-    ${k} .header {
+    ${k} ${header.dot} {
       text-align: center;
     }
 
-    ${k} .header-text {
+    ${k} ${headerText.dot} {
       margin-left: 0;
       margin-top: 0;
       width: 100%;
     }
   }
 
-  ${k}.IN_QUEUE .logo {
+  ${k}${inQueue.dot} ${logo.dot} {
     animation: 2s ${enterAnimation} infinite;
   }
 
-  ${k}.RUNNING {
+  ${chain(k, running)} {
     --logoScale: 0.5;
   }
 
-  ${k} .top-buttons {
+  ${k} ${topButtons.dot} {
     display: flex;
     gap: 8px;
   }
@@ -399,8 +415,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
     const main = (
         <div className={classConcat(Container, status?.state ?? "state-loading")}>
-            <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
-                <div className="logo-scale">
+            <div className={`${logoWrapper.class} ${logoAnimationAllowed && status ? active.class : ""}`}>
+                <div className={logoScale.class}>
                     <div className="logo">
                         <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
@@ -415,12 +431,12 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                         enter: 1000,
                         exit: 0,
                     }}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
+                    <div className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
+                            <div className={fakeLogo.class} />
                             <div className={"header-text"}>
                                 {status?.state === "IN_QUEUE" ? <InQueueText job={job} /> : null}
                             </div>
@@ -444,13 +460,13 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                 <CSSTransition
                     in={status?.state === "RUNNING" && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
+                    <div className={data.class}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
+                            <div className={fakeLogo.class} />
+                            <div className={headerText.class}>
                                 <RunningText job={job} />
                             </div>
                         </Flex>
@@ -469,13 +485,13 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                 <CSSTransition
                     in={isJobStateTerminal(status.state) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
+                    <div className={data.class}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
+                            <div className={fakeLogo.class} />
+                            <div className={headerText.class}>
                                 <CompletedText job={job} state={status.state} />
                             </div>
                         </Flex>
@@ -588,7 +604,7 @@ const BusyWrapper = injectStyle("busy-wrapper", k => `
         display: none;
     }
 
-    ${k}.active {
+    ${k}${active.dot} {
         animation: 1s ${busyAnim};
         display: block;
     }
@@ -1443,7 +1459,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
 
-    return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
+    return <div className={job.specification.replicas > 1 ? "buttons" : topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();

@@ -113,7 +113,7 @@ const standardButtonSizes: {height: number; name: string;}[] = [
 export const Button: React.FunctionComponent<ButtonProps> = props => {
     const inlineStyles = unbox(props);
     let sizeName: string | undefined = undefined;
-    inlineStyles.backgroundColor = `var(--${props.color ?? "blue"})`;
+    inlineStyles.backgroundColor = `var(--${props.color ?? "primary"})`;
     inlineStyles.color = `var(--${props.textColor ?? "white"})`;
     if (props.disableStandardSizes !== true) {
         let bestMatch = 1;
