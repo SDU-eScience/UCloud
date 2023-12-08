@@ -44,7 +44,6 @@ import kotlin.collections.ArrayList
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
-const val PERSONAL_REPOSITORY = "Members' Files"
 const val MAX_FILE_COUNT_FOR_SORTING = 25_000
 
 

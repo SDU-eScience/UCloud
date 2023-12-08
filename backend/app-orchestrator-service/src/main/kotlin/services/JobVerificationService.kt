@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
 import dk.sdu.cloud.app.orchestrator.api.JobSpecification
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.Application
@@ -14,7 +14,6 @@ import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.json.JsonObject
@@ -28,7 +27,6 @@ class JobVerificationService(
     private val appService: ApplicationCache,
     private val orchestrator: JobResourceService,
     private val fileCollections: FileCollectionService,
-    private val db: DBContext
 ) {
     suspend fun verifyOrThrow(
         actorAndProject: ActorAndProject,
@@ -138,32 +136,41 @@ class JobVerificationService(
     ): List<AppParameterValue.File> {
         return files.map { file ->
             val components = file.path.components()
-            val returnFile =  if (components.size == 1 && components.first().toLongOrNull() == null ) {
-                val path = db.withSession { session ->
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("user", actorAndProject.actor.safeUsername())
-                            setParameter("path", components.first())
-                        },
-                        """
-                            select available_at
-                            from file_orchestrator.shares s 
-                            where shared_with = :user and 
-                                regexp_substr(original_file_path, '[^\/]*$') = :path
-                        """
-                    )
-                }.rows
-                    .singleOrNull()
-                    ?.getString(0)
-                    ?: throw RPCException(
+
+            if (components.size == 1 && components.first().toLongOrNull() == null) {
+                // In this case, we might be looking at a share
+                val matchingShares = db
+                    .withSession { session ->
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("user", actorAndProject.actor.safeUsername())
+                                setParameter("path", components.first())
+                            },
+                            """
+                                select available_at
+                                from file_orchestrator.shares s 
+                                where
+                                    shared_with = :user
+                                    and regexp_substr(original_file_path, '[^\/]*$') = :path
+                            """
+                        )
+                    }
+                    .rows
+                    .map { it.getString(0)!! }
+
+                if (matchingShares.size > 1) {
+                    throw RPCException(
                         "Multiple shares found with same name. Please select subfolder inside selected mount.",
                         HttpStatusCode.BadRequest
                     )
-                AppParameterValue.File(path = path, file.readOnly)
+                } else if (matchingShares.size == 1) {
+                    AppParameterValue.File(path = matchingShares.single(), file.readOnly)
+                } else {
+                    file
+                }
             } else {
                 file
             }
-            returnFile
         }
     }
 
@@ -179,10 +186,8 @@ class JobVerificationService(
             .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ), requireAll = false)
             .associateBy { it.id }
 
-        //Check if we attempt to mount files with same name -> conflict in k8
-        val filenames = translatedFiles.mapNotNull {
-            it.path.split("/").last()
-        }.toSet()
+        // Check if we attempt to mount files with same name -> conflict in k8
+        val filenames = translatedFiles.map { it.path.split("/").last() }.toSet()
         if (translatedFiles.size != filenames.size) {
             throw RPCException("Cannot mount files with same name", HttpStatusCode.BadRequest)
         }
@@ -235,6 +240,7 @@ class JobVerificationService(
                             AppParameterValue.Text(it.content)
                         } ?: (param.defaultValue as? JsonPrimitive)?.let { AppParameterValue.Text(it.content) }
                     }
+
                     is ApplicationParameter.Integer -> {
                         ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)
                             ?.content?.toLongOrNull()
@@ -243,6 +249,7 @@ class JobVerificationService(
                                 AppParameterValue.Integer(it)
                             }
                     }
+
                     is ApplicationParameter.FloatingPoint -> {
                         ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)
                             ?.content
@@ -252,12 +259,14 @@ class JobVerificationService(
                                 AppParameterValue.FloatingPoint(it)
                             }
                     }
+
                     is ApplicationParameter.Bool -> {
                         ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)
                             ?.content?.toBoolean()?.let { AppParameterValue.Bool(it) }
                             ?: (param.defaultValue as? JsonPrimitive)?.content?.toBoolean()
                                 ?.let { AppParameterValue.Bool(it) }
                     }
+
                     is ApplicationParameter.Enumeration -> {
                         (param.defaultValue as? JsonObject)?.let { map ->
                             val value = (map["value"] as? JsonPrimitive)?.content
