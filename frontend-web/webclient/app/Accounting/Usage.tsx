@@ -12,7 +12,7 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, us
 import {translateBinaryProductCategory} from ".";
 import {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import { doNothing, timestampUnixMs } from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AccountingB from "./AccountingBinary";
@@ -23,7 +23,6 @@ import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
-import { JobSubmissionStatistics } from "@/Applications/Jobs";
 
 // State
 // =====================================================================================================================
@@ -211,7 +210,7 @@ function stateReducer(state: State, action: UIAction): State {
             };
         }
 
-        const summary = state.summaries.find(it => it.categoryIdx === categoryIndex);
+        const summary = state.summaries.find(it => it.categoryIdx === catIdx);
         if (!summary) return {...state, activeDashboard: undefined};
 
         let earliestNextAllocation: number | null = null;
@@ -371,19 +370,17 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
         async function doLoad(start: number, end: number) {
             callAPI(Jobs.retrieveStatistics({start, end})).then(statistics => {
                 dispatch({type: "LoadJobStats", statistics});
-                console.log(statistics.encodeToJson());
             });
 
             callAPI(Accounting.retrieveChartsV2({start, end})).then(charts => {
                 dispatch({type: "LoadCharts", charts});
-                console.log(charts.encodeToJson());
             });
         }
 
         switch (event.type) {
             case "Init": {
-                const now = timestampUnixMs();
-                await doLoad(now - (1000 * 60 * 60 * 24 * 7), now);
+                const [start, end] = normalizePeriod(initialState.selectedPeriod);
+                await doLoad(start, end);
                 break;
             }
 
@@ -470,7 +467,6 @@ const Visualization: React.FunctionComponent = props => {
     // -----------------------------------------------------------------------------------------------------------------
     // NOTE(Dan): We are not using a <MainContainer/> here on purpose since
     // we want to use _all_ of the space.
-    console.log(state);
     return <div className={VisualizationStyle}>
         <header className="at-top">
             <h3>Resource usage</h3>
@@ -698,7 +694,9 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
 const BreakdownStyle = injectStyle("breakdown", k => `
     ${k} .pie-wrapper {
         width: 350px;
+        height: 350px;
         margin: 20px auto;
+        display: flex;
     }
 
     ${k} table tbody tr > td:nth-child(2),
@@ -756,7 +754,7 @@ const BreakdownPanel: React.FunctionComponent<{ chart: BreakdownChart }> = props
 
                 return <tr key={idx}>
                     <td>{point.key}</td>
-                    <td>{Accounting.addThousandSeparators(usage)} {unit}</td>
+                    <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
                 </tr>
             })}
             </tbody>
@@ -834,11 +832,6 @@ const JobSubmissionStyle = injectStyle("job-submission", k => `
 `);
 
 const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const periods = Array(4).fill(undefined).map((_, i) => {
-    const start = i * 6;
-    const end = (i + 1) * 6;
-    return `${start.toString().padStart(2, "0")}:00-${end.toString().padStart(2, "0")}:00`;
-});
 
 const DurationOfSeconds: React.FunctionComponent<{ duration: number}> = ({duration}) => {
     if (duration > 3600) {
@@ -874,7 +867,6 @@ const JobSubmissionPanel: React.FunctionComponent<{ data?: SubmissionStatistics 
                 <tbody>
                 {dataPoints.map((dp, i) => {
                     const day = dayNames[dp.day];
-                    const period = periods[i % 4];
                     return <tr key={i}>
                         <td>{day}</td>
                         <td>
@@ -918,6 +910,53 @@ const UsageOverTimeStyle = injectStyle("usage-over-time", k => `
     }
 `);
 
+const DynamicallySizedChart: React.FunctionComponent<{
+    Component: React.ComponentType<any>,
+    chart: any
+}> = ({Component, chart}) => {
+    // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
+    // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
+    // of a grid and a flexbox.
+    //
+    // The idea of this component is as follows:
+    // 1. Render an empty box (without the chart) to determine the allocated size from of flexbox
+    // 2. Tell the chart exactly this size
+    //
+    // We cannot render the chart without affecting the allocated size. As a result, every time a resize event occurs
+    // we temporarily turn off the chart. This allows us to re-record the size of the flexbox and re-render the chart
+    // with the correct size.
+
+    // NOTE(Dan): The wrapper is required to ensure the useEffect runs every time.
+    const [heightWrapper, setHeight] = useState<{ height: string | null }>({ height: null });
+    const height = heightWrapper.height;
+    const mountPoint = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        const listener = () => setHeight({ height: null });
+        window.addEventListener("resize", listener);
+        return () => {
+            window.removeEventListener("resize", listener);
+        }
+    }, []);
+
+    useLayoutEffect(() => {
+        const wrapper = mountPoint.current;
+        if (!wrapper) return;
+        if (heightWrapper.height) return;
+
+        // NOTE(Dan): If we do not add a bit of a delay, then we risk that this API sometimes gives us back a result
+        // which is significantly larger than it should be.
+        window.setTimeout(() => {
+            const assignedHeight = wrapper.getBoundingClientRect().height;
+            setHeight({ height: assignedHeight + "px" });
+        }, 50);
+    }, [heightWrapper]);
+
+    return <div style={{flexGrow: 2, flexShrink: 1, flexBasis: "400px"}} ref={mountPoint}>
+        {height && <Component {...chart} height={height} />}
+    </div>;
+}
+
 const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({chart}) => {
     let sum = 0;
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
@@ -933,7 +972,7 @@ const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({cha
             <h4>Usage over time</h4>
         </div>
 
-        <Chart key={chartCounter.current} {...chartProps} />
+        <DynamicallySizedChart Component={Chart} chart={chartProps} />
 
         <div className="table-wrapper">
             <table>
@@ -974,7 +1013,7 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
     }
     
     ${k} table tbody tr > td:nth-child(2) {
-        width: 155px;
+        width: 200px;
     }
 `);
 
@@ -993,9 +1032,7 @@ const UsageByUsers: React.FunctionComponent<{ data?: JobUsageByUsers }> = ({data
             <h4>Usage by users</h4>
         </div>
 
-        <div style={{display: "flex", justifyContent: "center"}}>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
-        </div>
+        <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
 
         <div className="table-wrapper">
             <table>
@@ -1251,7 +1288,6 @@ const PieChart: React.FunctionComponent<{
     valueFormatter: (value: number) => string,
     size?: number,
 }> = props => {
-    const keyRef = useRef(0);
     const filteredList = useMemo(() => {
         const all = [...props.dataPoints];
         all.sort((a, b) => {
@@ -1269,7 +1305,6 @@ const PieChart: React.FunctionComponent<{
             result.push({key: "Other", value: othersSum});
         }
 
-        keyRef.current++;
         return result;
     }, [props.dataPoints]);
     const series = useMemo(() => {
@@ -1280,38 +1315,39 @@ const PieChart: React.FunctionComponent<{
         return filteredList.map(it => it.key);
     }, [filteredList]);
 
-    return <Chart
-        type="pie"
-        series={series}
-        key={keyRef.current.toString()}
-        options={{
-            chart: {
-                animations: {
+    const chartProps = useMemo(() => {
+        return {
+            type: "pie",
+            series: series,
+            options: {
+                chart: {
+                    animations: {
+                        enabled: false,
+                    },
+                },
+                labels: labels,
+                dataLabels: {
                     enabled: false,
                 },
-            },
-            labels: labels,
-            dataLabels: {
-                enabled: false,
-            },
-            stroke: {
-                show: false,
-            },
-            legend: {
-                show: false,
-            },
-            tooltip: {
-                shared: false,
-                y: {
-                    formatter: function (val) {
-                        return props.valueFormatter(val);
+                stroke: {
+                    show: false,
+                },
+                legend: {
+                    show: false,
+                },
+                tooltip: {
+                    shared: false,
+                        y: {
+                        formatter: function (val) {
+                            return props.valueFormatter(val);
+                        }
                     }
-                }
-            },
-        }}
-        height={props.size ?? 350}
-        width={props.size ?? 350}
-    />
+                },
+            }
+        };
+    }, [series]);
+
+    return <DynamicallySizedChart Component={Chart} chart={chartProps} />;
 };
 
 interface SubmissionStatistics {
@@ -1611,6 +1647,8 @@ const PanelClass = injectStyle("panel", k => `
     ${k} .table-wrapper {
         flex-grow: 1;
         overflow-y: auto;
+        min-height: 200px;
+        flex-shrink: 5;
     }
     
     html.light ${k} .table-wrapper {
@@ -2077,8 +2115,8 @@ const initialState: State = {
     summaries: [],
     selectedPeriod: {
         type: "relative",
-        distance: 7,
-        unit: "day"
+        distance: 12,
+        unit: "month"
     }
 };
 
