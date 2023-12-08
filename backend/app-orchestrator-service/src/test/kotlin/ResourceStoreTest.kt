@@ -2,9 +2,7 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.IdCard
@@ -31,10 +29,17 @@ fun Product.toReference(): ProductReference {
 
 class FakeProductCache : IProductCache {
     @Volatile
-    private var products = listOf<Product>(Product.Compute("-", 1L, ProductCategoryId("-", "-"), description = "-"))
+    private var products = listOf<ProductV2>(
+        ProductV2.Compute(
+            name = "-",
+            price = 1L,
+            category = ProductCategory("-", "-", ProductType.COMPUTE, AccountingUnit("DKK", "DKK", true, false), AccountingFrequency.PERIODIC_MINUTE),
+            description = "-"
+        )
+    )
     private val insertMutex = Mutex()
 
-    suspend fun insert(product: Product): Int {
+    suspend fun insert(product: ProductV2): Int {
         insertMutex.withLock {
             val newList = products + product
             products = newList
@@ -43,7 +48,25 @@ class FakeProductCache : IProductCache {
     }
 
     suspend fun insert(name: String, category: String, provider: String): Int {
-        return insert(Product.Compute(name, 1L, ProductCategoryId(category, provider), description = "Test"))
+        return insert(
+            ProductV2.Compute(
+                name,
+                1L,
+                ProductCategory(
+                    name,
+                    provider,
+                    ProductType.COMPUTE,
+                    AccountingUnit(
+                        name = "DKK",
+                        namePlural = "DKK",
+                        floatingPoint = true,
+                        displayFrequencySuffix = false
+                    ),
+                    AccountingFrequency.PERIODIC_MINUTE
+                ),
+                description = "Test"
+            )
+        )
     }
 
     override suspend fun referenceToProductId(ref: ProductReference): Int? {
@@ -57,13 +80,13 @@ class FakeProductCache : IProductCache {
         return -1
     }
 
-    override suspend fun productIdToReference(id: Int): ProductReference? {
+    override suspend fun productIdToReference(id: Int): ProductReferenceV2? {
         val list = products
         if (id < 0 || id >= list.size) return null
         return list[id].toReference()
     }
 
-    override suspend fun productIdToProduct(id: Int): Product? {
+    override suspend fun productIdToProduct(id: Int): ProductV2? {
         return products.getOrNull(id)
     }
 
@@ -94,9 +117,13 @@ class FakeProductCache : IProductCache {
         return result.takeIf { it.isNotEmpty() }
     }
 
-    override suspend fun products(): List<Product> {
+    override suspend fun products(): List<ProductV2> {
         return products
     }
+}
+
+private fun ProductV2.toReference(): ProductReferenceV2? {
+    return ProductReferenceV2(name, category.name, category.provider)
 }
 
 class FakeIdCardService(val products: FakeProductCache) : IIdCardService {

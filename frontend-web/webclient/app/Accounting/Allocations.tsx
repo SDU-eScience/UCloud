@@ -14,7 +14,7 @@ import {
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import {ProductType} from "@/Accounting";
+import { periodsOverlap, ProductType } from "@/Accounting";
 import {fuzzySearch, groupBy} from "@/Utilities/CollectionUtilities";
 import {ChangeEvent, useCallback, useEffect, useReducer, useRef} from "react";
 import {useProjectId} from "@/Project/Api";
@@ -1230,10 +1230,6 @@ function allocationToPeriod(alloc: Accounting.WalletAllocationV2 | Accounting.Su
 
 function normalizePeriodForComparison(period: Period): Period {
     return { start: ((period.start / 1000) | 0) * 1000, end: ((period.end / 1000) | 0) * 1000, title: period.title };
-}
-
-function periodsOverlap(a: Period, b: Period): boolean {
-    return a.start <= b.end && b.start <= a.end;
 }
 
 const SmallIconButtonStyle = injectStyle("small-icon-button", k => `

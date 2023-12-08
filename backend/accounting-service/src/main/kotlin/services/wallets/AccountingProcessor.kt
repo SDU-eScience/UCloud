@@ -1124,7 +1124,7 @@ class AccountingProcessor(
 
     private fun InternalWallet.toApiWallet(): ApiWallet {
         return ApiWallet(
-            if (owner.matches(PROJECT_REGEX)) {
+            if (!owner.matches(PROJECT_REGEX)) {
                 ApiWalletOwner.User(owner)
             } else {
                 ApiWalletOwner.Project(owner)
@@ -2000,7 +2000,6 @@ class AccountingProcessor(
     // precise measurement, and we allow this to be off by ~1 second.
     private suspend fun attemptSynchronize(forced: Boolean = false) {
         val now = Time.now()
-        println("Right now it is $now ${Date(now)}")
         if (now < nextSynchronization && !forced) return
         if (isLoading) return
 
@@ -2351,7 +2350,6 @@ class AccountingProcessor(
                                 select * from combined
                             """
                         )
-                        println("Wrote some samples!")
                     }
 
                     lastSampling = now

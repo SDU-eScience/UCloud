@@ -142,7 +142,7 @@ suspend fun PaymentService.chargeOrCheckCredits(
                         HttpStatusCode.InternalServerError
                     )
 
-                val resolvedProduct = productCache.productIdToProduct(doc.product)
+                val resolvedProduct = productCache.productIdToProduct(doc.product)?.toV1()
                     ?: throw RPCException(
                         "Could not lookup product: ${doc.product}",
                         HttpStatusCode.InternalServerError

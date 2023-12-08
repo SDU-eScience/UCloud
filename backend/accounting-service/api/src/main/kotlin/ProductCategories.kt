@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.messages.BinaryAllocator
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -74,6 +75,34 @@ data class ProductCategory(
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
 }
+
+fun ProductCategory.toBinary(allocator: BinaryAllocator): ProductCategoryB = with(allocator) {
+    return ProductCategoryB(
+        name = name,
+        provider = provider,
+        productType = when (productType) {
+            ProductType.STORAGE -> ProductTypeB.STORAGE
+            ProductType.COMPUTE -> ProductTypeB.COMPUTE
+            ProductType.INGRESS -> ProductTypeB.INGRESS
+            ProductType.LICENSE -> ProductTypeB.LICENSE
+            ProductType.NETWORK_IP -> ProductTypeB.NETWORK_IP
+        },
+        accountingUnit = AccountingUnitB(
+            name = accountingUnit.name,
+            namePlural = accountingUnit.namePlural,
+            floatingPoint = accountingUnit.floatingPoint,
+            displayFrequencySuffix = accountingUnit.displayFrequencySuffix,
+        ),
+        accountingFrequency = when (accountingFrequency) {
+            AccountingFrequency.ONCE -> AccountingFrequencyB.ONCE
+            AccountingFrequency.PERIODIC_MINUTE -> AccountingFrequencyB.PERIODIC_MINUTE
+            AccountingFrequency.PERIODIC_HOUR -> AccountingFrequencyB.PERIODIC_HOUR
+            AccountingFrequency.PERIODIC_DAY -> AccountingFrequencyB.PERIODIC_DAY
+        },
+        freeToUse = freeToUse,
+    )
+}
+
 
 @UCloudApiOwnedBy(ProductCategories::class)
 @UCloudApiStable

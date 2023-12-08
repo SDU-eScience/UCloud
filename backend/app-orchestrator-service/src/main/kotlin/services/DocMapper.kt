@@ -30,7 +30,7 @@ class DocMapper<A, B>(
         val resolvedProduct = if (flags != null && !flags.includeProduct && !flags.includeSupport) {
             null
         } else {
-            productCache.productIdToProduct(doc.product) ?: error("unknown product: ${doc.product}")
+            productCache.productIdToProduct(doc.product)?.toV1() ?: error("unknown product: ${doc.product}")
         }
 
         val resolvedSupport = if (resolvedProduct == null || (flags != null && !flags.includeSupport)) {

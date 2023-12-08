@@ -381,7 +381,6 @@ class ProductService(
                 } else {null}
                 return@mapNotNull Pair(product,balance)
             }
-            println(result)
             val next = if (result.size < itemsPerPage) {
                 null
             } else buildString {

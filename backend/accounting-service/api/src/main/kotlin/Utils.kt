@@ -68,7 +68,6 @@ fun basicTranslationToAccountingUnit(productPriceUnit: ProductPriceUnit, product
                     displayFrequencySuffix = false
                 )
             } else {
-                println("WRIONG: $productPriceUnit $productType")
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Missing type to translate")
             }
         }

@@ -1162,3 +1162,7 @@ export function utcDateAndTime(ts: number): string {
     message += d.getUTCMinutes().toString().padStart(2, '0');
     return message;
 }
+
+export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
+    return a.start <= b.end && b.start <= a.end;
+}

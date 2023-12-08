@@ -100,7 +100,7 @@ class AccountingChecks(
                         coalesce(started.project_id, stopped.project_id) as project_id,
                         coalesce(started.created_by, stopped.created_by) as username
                     from started full join stopped on started.id = stopped.id
-                """.trimIndent(), debug = true
+                """
             ).rows.map {
                 JobInfo(
                     it.getLong(0)!!,
@@ -183,7 +183,7 @@ class AccountingChecks(
                         floating_point
                     from sums join earliest on sums.affected_allocation = earliest.affected_allocation
                     group by project_id, username, category, provider, wallet_id, floating_point, usage, local_change;
-                """.trimIndent(), debug = true
+                """
             ).rows.map {
                 TransactionData(
                     it.getLong(0)!!,
@@ -222,8 +222,6 @@ class AccountingChecks(
             val diff = abs(todaysUsage - totalUsage)
             val allowedDelta = 100L
             val maxdiff = if (transaction.isFloatingPoint) allowedDelta * 1_000_000L else allowedDelta
-
-            println("Category${transaction.categoryName} todaysUsage: $todaysUsage, total: $totalUsage, maxDiff: $maxdiff, abs: $diff")
 
             if (diff > maxdiff ) {
                 highDiffs.add(

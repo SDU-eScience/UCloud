@@ -1259,30 +1259,7 @@ class AccountingService(
 
         for ((walletIndex, wallet) in allWallets.withIndex()) {
             val c = wallet.paysFor
-            categories.add(ProductCategoryB(
-                name = c.name,
-                provider = c.provider,
-                productType = when (c.productType) {
-                    ProductType.STORAGE -> ProductTypeB.STORAGE
-                    ProductType.COMPUTE -> ProductTypeB.COMPUTE
-                    ProductType.INGRESS -> ProductTypeB.INGRESS
-                    ProductType.LICENSE -> ProductTypeB.LICENSE
-                    ProductType.NETWORK_IP -> ProductTypeB.NETWORK_IP
-                },
-                accountingUnit = AccountingUnitB(
-                    name = c.accountingUnit.name,
-                    namePlural = c.accountingUnit.namePlural,
-                    floatingPoint = c.accountingUnit.floatingPoint,
-                    displayFrequencySuffix = c.accountingUnit.displayFrequencySuffix,
-                ),
-                accountingFrequency = when (c.accountingFrequency) {
-                    AccountingFrequency.ONCE -> AccountingFrequencyB.ONCE
-                    AccountingFrequency.PERIODIC_MINUTE -> AccountingFrequencyB.PERIODIC_MINUTE
-                    AccountingFrequency.PERIODIC_HOUR -> AccountingFrequencyB.PERIODIC_HOUR
-                    AccountingFrequency.PERIODIC_DAY -> AccountingFrequencyB.PERIODIC_DAY
-                },
-                freeToUse = c.freeToUse,
-            ))
+            categories.add(c.toBinary(allocator))
 
             for (alloc in wallet.allocations) {
                 allocations.add(WalletAllocationB(
@@ -1461,7 +1438,6 @@ class AccountingService(
                                 left join project.projects p on wo.project_id = p.id
                             order by category;
                         """,
-                        debug = true,
                     ).rows
 
                     var currentCategory = -1L
@@ -1583,8 +1559,6 @@ class AccountingService(
                         currentUsage = max(0, min(usage, currentUsage + proposedDiff))
                         if (index == allTimestamps.size - 1) currentUsage = usage
 
-                        println("$timestamp $index $currentUsage")
-
                         charges.add(
                             timestamp to AccountingRequest.Charge.TotalCharge(
                                 actor = Actor.System,
@@ -1599,7 +1573,6 @@ class AccountingService(
                 }
             }
 
-            println("Flushed ${charges.size - before} charges in ${obj.projectId}")
             before = charges.size
         }
 

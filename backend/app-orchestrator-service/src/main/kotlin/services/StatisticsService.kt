@@ -3,11 +3,14 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.ProductCategoryB
 import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
+import dk.sdu.cloud.accounting.api.ProductV2
+import dk.sdu.cloud.accounting.api.toBinary
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.messages.BinaryAllocator
 import dk.sdu.cloud.messages.BinaryTypeList
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.idCards
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -20,9 +23,21 @@ class StatisticsService {
         start: Long,
         end: Long
     ): JobStatistics = with(allocator) {
-        val categoryLookupTable = HashMap<ProductCategoryIdV2, Int>()
-
         val categories = ArrayList<ProductCategoryB>()
+        val categoryLookupTable = HashMap<ProductCategoryIdV2, Int>()
+        val potentialCategories = productCache.products()
+        fun lookupCategory(category: ProductCategoryIdV2): Int {
+            val cached = categoryLookupTable[category]
+            if (cached != null) return cached
+            val result = potentialCategories.find {
+                it.category.name == category.name && it.category.provider == category.provider
+            } ?: return -1
+
+            categories.add(result.category.toBinary(allocator))
+            categoryLookupTable[category] = categories.size - 1
+            return categories.size - 1
+        }
+
         val usageByUser = ArrayList<JobUsageByUser>()
         val mostUsedApplications = ArrayList<MostUsedApplications>()
         val jobSubmissionStatistics = ArrayList<JobSubmissionStatistics>()
@@ -141,7 +156,7 @@ class StatisticsService {
                 fun flushChart() {
                     val cat = currentCategory ?: return
                     usageByUser.add(JobUsageByUser(
-                        categoryLookupTable.getValue(cat),
+                        lookupCategory(cat),
                         BinaryTypeList.create(JobUsageByUserDataPoint, allocator, dataPoints)
                     ))
                     dataPoints = ArrayList()
@@ -233,7 +248,7 @@ class StatisticsService {
                 fun flushChart() {
                     val cat = currentCategory ?: return
                     mostUsedApplications.add(MostUsedApplications(
-                        categoryLookupTable.getValue(cat),
+                        lookupCategory(cat),
                         BinaryTypeList.create(MostUsedApplicationsDataPoint, allocator, dataPoints)
                     ))
                     dataPoints = ArrayList()
@@ -333,10 +348,10 @@ class StatisticsService {
                                     and running_update.extra->>'state' = 'RUNNING'
                             )
                         select
-                            category, provider, slot,
+                            category, provider, slot::int4,
                             count(run_time)::int4 as job_count,
-                            extract(epoch from avg(run_time))::int4 as average_run_seconds,
-                            extract(epoch from avg(queue_time))::int4 as average_queue_seconds
+                            (extract(epoch from avg(run_time)))::int4 as average_run_seconds,
+                            (extract(epoch from avg(queue_time)))::int4 as average_queue_seconds
                         from
                             jobs
                         group by
@@ -351,7 +366,7 @@ class StatisticsService {
                 fun flushChart() {
                     val cat = currentCategory ?: return
                     jobSubmissionStatistics.add(JobSubmissionStatistics(
-                        categoryLookupTable.getValue(cat),
+                        lookupCategory(cat),
                         BinaryTypeList.create(JobSubmissionStatisticsDataPoint, allocator, dataPoints)
                     ))
                     dataPoints = ArrayList()
@@ -365,8 +380,8 @@ class StatisticsService {
                     val averageRunTimeInSeconds = row.getInt(4)!!
                     val averageQueueTimeInSeconds = row.getInt(5)!!
 
-                    val hourOfDayStart = ((slotOfWeek % 4) + 6).toByte()
-                    val hourOfDayEnd = (((slotOfWeek + 1) % 4) + 6).toByte()
+                    val hourOfDayStart = ((slotOfWeek % 4) * 6).toByte()
+                    val hourOfDayEnd = (((slotOfWeek + 1) % 4) * 6).toByte()
                     val dayOfWeek = (slotOfWeek / 4).toByte()
 
                     val thisCategory = ProductCategoryIdV2(category, provider)
