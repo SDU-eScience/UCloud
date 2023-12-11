@@ -25,8 +25,8 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
-import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {Product, usageExplainer} from "@/Accounting";
@@ -80,9 +80,9 @@ export const Create: React.FunctionComponent = () => {
     );
 
     if (applicationResp) {
-        useTitle(`${applicationResp.data?.metadata.name} ${applicationResp.data?.metadata.version}`);
+        useTitle(`${applicationResp.data?.metadata.title} ${applicationResp.data?.metadata.version ?? ""}`);
     } else {
-        useTitle(`${appName} ${appVersion}`);
+        useTitle(`${appName} ${appVersion ?? ""}`);
     }
 
     const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
@@ -289,8 +289,6 @@ export const Create: React.FunctionComponent = () => {
             }
         }
     }, [application, folders, peers, ingress, networks]);
-
-    useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
     if (applicationResp.loading) return <MainContainer main={<LoadingIcon size={36} />} />;
 
