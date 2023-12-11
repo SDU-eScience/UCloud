@@ -157,7 +157,8 @@ class FeatureFileMount(
                     (pathSplit.size == 2 && pathSplit.first() == PathConverter.HOME_DIRECTORY)
                 ) {
                     if (pathSplit.size == 4) {
-                        "MemberFiles/${pathSplit.last()}"
+                        //Just use Username for Member Files mounts
+                        pathSplit.last()
                     } else {
                         "Home"
                     }

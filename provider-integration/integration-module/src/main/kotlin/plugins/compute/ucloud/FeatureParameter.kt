@@ -127,7 +127,13 @@ private class OurArgBuilder(
                     if (components.isEmpty()) {
                         return ArgumentBuilder.Default.build(parameter, value)
                     }
-                    joinPath("/work", components[components.lastIndex]).removeSuffix("/")
+                    if (components.size == 4 && components[2] == "home") {
+                        joinPath("/work", "Home")
+                    } else if (components.size == 6 && components[4] == "Members' Files"){
+                        joinPath("/work", components.last().removeSuffix("/"))
+                    } else {
+                        joinPath("/work", components.last().removeSuffix("/"))
+                    }
                 }
             }
 
