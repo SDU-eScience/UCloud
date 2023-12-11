@@ -395,10 +395,10 @@ export function Sidebar(): JSX.Element | null {
                     <ResourceInit />
                     <VersionManager />
                     <BackgroundTasks />
-                    <Downtimes />
                 </>
 
                 <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
+                    <Downtimes />
                     <Notification />
                     <Support />
                     <UserMenu avatar={avatar} />
@@ -856,7 +856,7 @@ function Downtimes(): JSX.Element | null {
 
     if (upcomingDowntime === -1) return null;
     return <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
-        <Tooltip trigger={<Icon color="yellow" name="warning" />}>
+        <Tooltip trigger={<Icon size="24" color="yellow" name="warning" />}>
             Upcoming downtime.<br />
             Click to view
         </Tooltip>

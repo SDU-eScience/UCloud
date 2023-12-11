@@ -148,7 +148,7 @@ function ProjectInvites(): React.ReactNode {
     return <Flex mt="24px">
         <HighlightedCard
             isLoading={invites.loading}
-            icon="projects"
+            icon="heroUserGroup"
             title="Project invitations"
             error={invites.error?.why}
         >
