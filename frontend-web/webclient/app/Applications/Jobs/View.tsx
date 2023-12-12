@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useNavigate, useParams} from "react-router";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
@@ -42,11 +42,11 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {classConcat, injectStyle, injectStyleSimple, makeKeyframe, unbox} from "@/Unstyled";
+import {chain, classConcat, injectStyle, injectStyleSimple, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
-import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
+import {sidebarJobCache} from "@/ui-components/Sidebar";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -79,6 +79,22 @@ const zoomInAnim = makeKeyframe("zoom-in-anim", `
   }
 `);
 
+const logoWrapper = makeClassName("logo-wrapper");
+const logoScale = makeClassName("logo-scale");
+const fakeLogo = makeClassName("fake-logo");
+const active = makeClassName("active");
+const data = makeClassName("data");
+const dataEnterDone = makeClassName("data-enter-done");
+const dataEnterActive = makeClassName("data-enter-active");
+const header = makeClassName("headers");
+const headerText = makeClassName("header-text");
+const dataExitActive = makeClassName("data-exit-active");
+const dataExit = makeClassName("data-exit");
+const inQueue = makeClassName("in-queue");
+const logo = makeClassName("logo");
+const running = makeClassName("running");
+const topButtons = makeClassName("top-buttons");
+
 const Container = injectStyle("container", k => `
     ${k} {
         --logoScale: 1;
@@ -102,24 +118,24 @@ const Container = injectStyle("container", k => `
         position: relative;
     }
 
-  ${k} > .logo-wrapper {
+  ${k} > ${logoWrapper.dot} {
     position: absolute;
     left: 0;
     top: 0;
     animation: 800ms ${zoomInAnim};
   }
 
-  ${k} > .logo-wrapper.active {
+  ${k} > ${chain(logoWrapper, active)} {
     transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} > .logo-wrapper.active > .logo-scale {
+  ${k} > ${chain(logoWrapper, active)} > ${logoScale.dot} {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
     transform: scale(var(--logoScale));
     transform-origin: top left;
   }
 
-  ${k} .fake-logo {
+  ${k} ${fakeLogo.dot} {
     /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
     this basically fixes our document flow */
     display: block;
@@ -128,66 +144,66 @@ const Container = injectStyle("container", k => `
     content: '';
   }
 
-  ${k} .data.data-enter-done {
-  opacity: 1;
+  ${k} ${chain(data, dataEnterDone)} {
+    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 
-  ${k} .data.data-enter-active {
+  ${k} ${chain(data, dataEnterActive)} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} .data.data-exit {
+  ${k} ${chain(data, dataExit)} {
     opacity: 1;
   }
 
-  ${k} .data-exit-active {
+  ${k} ${chain(data, dataExitActive)} {
     display: none;
   }
 
-  ${k} .data {
+  ${k} ${data.dot} {
     width: 100%; /* fix info card width */
     opacity: 0;
     transform: translate3d(0, 50vh, 0);
   }
 
-  ${k} .header-text {
+  ${k} ${headerText.dot} {
     margin-left: 32px;
     margin-top: calc(var(--logoScale) * 16px);
     width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
   }
 
   ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${k} .fake-logo {
+    ${k} ${fakeLogo.dot} {
       width: 100%; /* force the header to wrap */
     }
 
-    ${k} .logo-wrapper {
+    ${k} ${logoWrapper.dot} {
       left: calc(50% - var(--logoSize) / 2);
     }
 
-    ${k} .header {
+    ${k} ${header.dot} {
       text-align: center;
     }
 
-    ${k} .header-text {
+    ${k} ${headerText.dot} {
       margin-left: 0;
       margin-top: 0;
       width: 100%;
     }
   }
 
-  ${k}.IN_QUEUE .logo {
+  ${k}${inQueue.dot} ${logo.dot} {
     animation: 2s ${enterAnimation} infinite;
   }
 
-  ${k}.RUNNING {
+  ${chain(k, running)} {
     --logoScale: 0.5;
   }
 
-  ${k} .top-buttons {
+  ${k} ${topButtons.dot} {
     display: flex;
     gap: 8px;
   }
@@ -196,8 +212,14 @@ const Container = injectStyle("container", k => `
 // NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
-    log: {rank: number; stdout?: string; stderr?: string}[];
+    log: LogMessage[];
     newStatus?: JobStatus;
+}
+
+interface LogMessage {
+    rank: number;
+    stdout?: string;
+    stderr?: string;
 }
 
 function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowResponse) => void): void {
@@ -225,8 +247,12 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
     }, [job, callback]);
 }
 
-interface JobUpdateListener {
-    handler: (e: JobsFollowResponse) => void;
+interface JobUpdates {
+    updateQueue: compute.JobUpdate[];
+    logQueue: LogMessage[];
+    statusQueue: JobStatus[];
+
+    subscriptions: (() => void)[];
 }
 
 function getBackend(job?: Job): string {
@@ -333,27 +359,37 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
         }
     }, [status?.state])
 
-    const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
+    const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
     useEffect(() => {
-        jobUpdateCallbackHandlers.current = [{
-            handler: (e) => {
+        jobUpdateState.current.subscriptions.push(() => {
+            const s = jobUpdateState.current;
+            while (true) {
+                const e = s.statusQueue.pop();
+                if (e === undefined) break;
+
                 if (!useFakeState) {
-                    if (e.newStatus != null) {
-                        setStatus(e.newStatus);
-                    }
+                    setStatus(e);
                 } else {
-                    if (e.newStatus != null) {
-                        console.log("Wanted to switch status, but didn't. " +
-                            "Remove localStorage useFakeState if you wish to use real status.");
-                    }
+                    console.log("Wanted to switch status, but didn't. " +
+                        "Remove localStorage useFakeState if you wish to use real status.");
                 }
             }
-        }];
+        });
     }, [id]);
+
     const jobUpdateListener = useCallback((e: JobsFollowResponse) => {
         if (!e) return;
+        const s = jobUpdateState.current;
+
+        if (e.log) {
+            for (const msg of e.log) {
+                s.logQueue.push(msg);
+            }
+        }
+
         if (e.updates) {
             for (const update of e.updates) {
+                s.updateQueue.push(update);
                 job?.updates?.push(update);
 
                 if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
@@ -363,10 +399,14 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                 }
             }
         }
-        jobUpdateCallbackHandlers.current.forEach(({handler}) => {
-            handler(e);
-        });
+
+        if (e.newStatus) {
+            s.statusQueue.push(e.newStatus);
+        }
+
+        s.subscriptions.forEach(it => it());
     }, [job]);
+
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
@@ -375,8 +415,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
     const main = (
         <div className={classConcat(Container, status?.state ?? "state-loading")}>
-            <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
-                <div className="logo-scale">
+            <div className={`${logoWrapper.class} ${logoAnimationAllowed && status ? active.class : ""}`}>
+                <div className={logoScale.class}>
                     <div className="logo">
                         <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
@@ -391,12 +431,12 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                         enter: 1000,
                         exit: 0,
                     }}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
+                    <div className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
+                            <div className={fakeLogo.class} />
                             <div className={"header-text"}>
                                 {status?.state === "IN_QUEUE" ? <InQueueText job={job} /> : null}
                             </div>
@@ -404,9 +444,9 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
                         <div className={Content}>
                             <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                <HighlightedCard color={"purple"}>
+                                <HighlightedCard>
                                     <Box py={"16px"}>
-                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+                                        <ProviderUpdates job={job} state={jobUpdateState} />
                                     </Box>
                                 </HighlightedCard>
                             </Box>
@@ -420,20 +460,20 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                 <CSSTransition
                     in={status?.state === "RUNNING" && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
+                    <div className={data.class}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
+                            <div className={fakeLogo.class} />
+                            <div className={headerText.class}>
                                 <RunningText job={job} />
                             </div>
                         </Flex>
 
                         <RunningContent
                             job={job}
-                            updateListeners={jobUpdateCallbackHandlers}
+                            state={jobUpdateState}
                             status={status}
                         />
                     </div>
@@ -445,18 +485,18 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                 <CSSTransition
                     in={isJobStateTerminal(status.state) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
+                    <div className={data.class}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
+                            <div className={fakeLogo.class} />
+                            <div className={headerText.class}>
                                 <CompletedText job={job} state={status.state} />
                             </div>
                         </Flex>
 
-                        <CompletedContent job={job} jobUpdateCallbackHandlers={jobUpdateCallbackHandlers} />
+                        <CompletedContent job={job} state={jobUpdateState} />
                     </div>
                 </CSSTransition>
             )}
@@ -474,8 +514,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
 const CompletedContent: React.FunctionComponent<{
     job: Job;
-    jobUpdateCallbackHandlers: React.RefObject<JobUpdateListener[]>;
-}> = ({job, jobUpdateCallbackHandlers}) => {
+    state: React.RefObject<JobUpdates>;
+}> = ({job, state}) => {
     const project = useProject();
     const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
         "My Workspace" : "My Workspace";
@@ -484,7 +524,7 @@ const CompletedContent: React.FunctionComponent<{
 
     return <div className={Content}>
         <div className={RunningInfoWrapper}>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+            <HighlightedCard isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
@@ -500,8 +540,8 @@ const CompletedContent: React.FunctionComponent<{
                 </Flex>
             </HighlightedCard>
 
-            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+            <HighlightedCard isLoading={false} title="Messages" icon="chat">
+                <ProviderUpdates job={job} state={state} />
             </HighlightedCard>
         </div>
     </div>
@@ -564,7 +604,7 @@ const BusyWrapper = injectStyle("busy-wrapper", k => `
         display: none;
     }
 
-    ${k}.active {
+    ${k}${active.dot} {
         animation: 1s ${busyAnim};
         display: block;
     }
@@ -759,7 +799,7 @@ const InfoCard: React.FunctionComponent<{
     icon: IconName,
     children: React.ReactNode;
 }> = props => {
-    return <HighlightedCard color={"purple"} isLoading={false}>
+    return <HighlightedCard isLoading={false}>
         <div className={InfoCardContainer}>
             <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
             <div className={"stat"}>{props.stat}</div>
@@ -929,9 +969,9 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
 
 const RunningContent: React.FunctionComponent<{
     job: Job;
-    updateListeners: React.RefObject<JobUpdateListener[]>;
+    state: React.RefObject<JobUpdates>;
     status: JobStatus;
-}> = ({job, updateListeners, status}) => {
+}> = ({job, state, status}) => {
     const fileInfo = useJobFiles(job.specification);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
@@ -1019,7 +1059,7 @@ const RunningContent: React.FunctionComponent<{
 
     return <>
         <div className={RunningInfoWrapper}>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+            <HighlightedCard isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
@@ -1038,7 +1078,7 @@ const RunningContent: React.FunctionComponent<{
                     </Box>
                 </Flex>
             </HighlightedCard>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
+            <HighlightedCard isLoading={false} title={"Time allocation"} icon={"hourglass"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     <Box>
                         <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
@@ -1090,12 +1130,12 @@ const RunningContent: React.FunctionComponent<{
                     </Box>
                 </Flex>
             </HighlightedCard>
-            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={updateListeners} />
+            <HighlightedCard isLoading={false} title="Messages" icon="chat">
+                <ProviderUpdates job={job} state={state} />
             </HighlightedCard>
 
             {ingresses.length === 0 ? null :
-                <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
+                <HighlightedCard isLoading={false} title="Public links" icon="globeEuropeSolid">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         {ingresses.map(ingress => <PublicLinkEntry id={ingress.id} />)}
                     </Text>
@@ -1103,7 +1143,7 @@ const RunningContent: React.FunctionComponent<{
             }
 
             {!supportsPeers || peers.length === 0 ? null :
-                <HighlightedCard color="purple" isLoading={false} title="Connected jobs">
+                <HighlightedCard isLoading={false} title="Connected jobs">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         <Table>
                             <TableHeader>
@@ -1136,7 +1176,7 @@ const RunningContent: React.FunctionComponent<{
             }
 
             {!sshAccess ? null :
-                <HighlightedCard color="purple" isLoading={false} title="SSH access" icon="key">
+                <HighlightedCard isLoading={false} title="SSH access" icon="key">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         {sshAccess.success ? null : <Warning>
                             SSH was not configured successfully!
@@ -1158,7 +1198,7 @@ const RunningContent: React.FunctionComponent<{
         {!supportsLogs ? null :
             <div className={RunningJobsWrapper}>
                 {Array(job.specification.replicas).fill(0).map((_, i) => {
-                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
+                    return <RunningJobRank key={i} job={job} rank={i} state={state} />;
                 })}
             </div>
         }
@@ -1245,8 +1285,8 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
 const RunningJobRank: React.FunctionComponent<{
     job: Job,
     rank: number,
-    updateListeners: React.RefObject<JobUpdateListener[]>,
-}> = ({job, rank, updateListeners}) => {
+    state: React.RefObject<JobUpdates>,
+}> = ({job, rank, state}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
     const toggleExpand = useCallback((autoScroll = true) => {
@@ -1268,20 +1308,24 @@ const RunningJobRank: React.FunctionComponent<{
     }, [expanded, termRef]);
 
     useEffect(() => {
-        updateListeners.current?.push({
-            handler: e => {
-                for (const logEvent of e.log) {
-                    if (logEvent.rank === rank && logEvent.stderr != null) {
-                        appendToXterm(terminal, logEvent.stderr);
-                    }
+        const listener = () => {
+            const s = state.current;
+            if (!s) return;
 
-                    if (logEvent.rank === rank && logEvent.stdout != null) {
-                        appendToXterm(terminal, logEvent.stdout);
-                    }
+            const newLogQueue: LogMessage[] = [];
+            for (const l of s.logQueue) {
+                if (l.rank === rank) {
+                    if (l.stderr != null) appendToXterm(terminal, l.stderr);
+                    if (l.stdout != null) appendToXterm(terminal, l.stdout);
+                } else {
+                    newLogQueue.push(l);
                 }
             }
-        });
-        // NOTE(Dan): Clean up is performed by the parent object
+
+            s.logQueue = newLogQueue;
+        };
+        state.current?.subscriptions?.push(listener);
+        listener();
 
         if (job.specification.replicas === 1) {
             toggleExpand(false)
@@ -1289,7 +1333,7 @@ const RunningJobRank: React.FunctionComponent<{
     }, [job.id, rank]);
 
     return <>
-        <HighlightedCard color={"purple"} isLoading={false}>
+        <HighlightedCard isLoading={false}>
             <div className={classConcat(RunningJobRankWrapper, expanded ? "expanded" : undefined)}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
@@ -1415,7 +1459,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
 
-    return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
+    return <div className={job.specification.replicas > 1 ? "buttons" : topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
@@ -1478,8 +1522,8 @@ const CancelButton: React.FunctionComponent<{
 
 const ProviderUpdates: React.FunctionComponent<{
     job: Job;
-    updateListeners: React.RefObject<JobUpdateListener[]>;
-}> = ({job, updateListeners}) => {
+    state: React.RefObject<JobUpdates>;
+}> = ({job, state}) => {
     const {termRef, terminal} = useXTerm({autofit: true});
 
     const appendUpdate = useCallback((update: JobUpdate) => {
@@ -1532,19 +1576,23 @@ const ProviderUpdates: React.FunctionComponent<{
 
     useLayoutEffect(() => {
         let mounted = true;
-        const listener: JobUpdateListener = {
-            handler: e => {
-                if (!mounted) return;
-                for (const update of e.updates) {
-                    appendUpdate(update);
-                }
+        const listener = () => {
+            if (!mounted) return;
+            const s = state.current;
+            if (!s) return;
+
+            while (true) {
+                const update = s.updateQueue.pop();
+                if (!update) break;
+                appendUpdate(update);
             }
-        }
-        updateListeners.current?.push(listener);
+        };
+        listener();
+        state.current?.subscriptions?.push(listener);
         return () => {
             mounted = false;
         };
-    }, [updateListeners]);
+    }, [state]);
     return <Box height={"200px"} divRef={termRef} />
 };
 

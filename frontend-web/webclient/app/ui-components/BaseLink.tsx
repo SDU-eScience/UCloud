@@ -16,7 +16,7 @@ export interface BaseLinkProps extends BoxProps {
 export const BaseLinkClass = injectStyle("base-link", k => `
     ${k} {
         --hoverColor: var(--darkBlue);
-        --textColor: var(--blue);
+        --textColor: var(--primary);
         cursor: pointer;
         text-decoration: none;
         color: var(--textColor);

@@ -7,19 +7,21 @@ import {
     Label,
     Text,
     Checkbox,
-    Card, Grid, TextArea, DataList, Icon
+    TextArea,
+    DataList,
+    Icon
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import ProjectAPI, {OldProjectRole, Project, isAdminOrPI, useProjectId} from "@/Project/Api";
+import ProjectAPI, {OldProjectRole, isAdminOrPI, useProjectId} from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
@@ -28,7 +30,7 @@ import {Spacer} from "@/ui-components/Spacer";
 import * as Grants from "@/Grants";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {HiddenInputField} from "@/ui-components/Input";
-import {doNothing, inSuccessRange, preventDefault} from "@/UtilityFunctions";
+import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import WAYF from "@/Grants/wayf-idps.json";

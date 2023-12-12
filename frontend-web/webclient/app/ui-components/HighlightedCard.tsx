@@ -3,7 +3,7 @@ import Card from "./Card";
 import * as Heading from "./Heading";
 import Error from "./Error";
 import Icon, {IconName} from "./Icon";
-import theme, {ThemeColor} from "./theme";
+import theme from "./theme";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {classConcat, injectStyle} from "@/Unstyled";
 
@@ -22,7 +22,7 @@ const style = injectStyle("highlightedCard", k => `
     }
     
     ${k} .title-row a:hover {
-        color: var(--blue);
+        color: var(--primary);
     }
     
     ${k} {
@@ -41,7 +41,6 @@ export const HighlightedCard: React.FunctionComponent<{
     title?: React.ReactNode;
     subtitle?: React.ReactNode;
     error?: string;
-    color: ThemeColor;
     isLoading?: boolean;
     icon?: IconName;
     height?: string;
@@ -53,25 +52,24 @@ export const HighlightedCard: React.FunctionComponent<{
     onClick?: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     className?: string;
-    highlightSize?: string;
     children?: React.ReactNode;
     overflow?: string;
 }> = ({
     title,
     subtitle,
-    onClick,
     error,
     isLoading = false,
     icon = undefined,
-    children,
     height = "auto",
     minHeight,
     maxHeight,
     width = "100%",
     minWidth,
     maxWidth,
+    onClick,
     onContextMenu,
     className,
+    children,
     overflow,
 }) => (
         <Card

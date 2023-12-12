@@ -79,7 +79,7 @@ export const FirewallEditor: React.FunctionComponent<{
     }, [inspecting, reload]);
 
     return <>
-        <HighlightedCard color={"purple"} isLoading={false} title={"Firewall"} icon={"verified"}>
+        <HighlightedCard isLoading={false} title={"Firewall"} icon={"verified"}>
             {!didChange ?
                 <>
                     <Box height={120}>

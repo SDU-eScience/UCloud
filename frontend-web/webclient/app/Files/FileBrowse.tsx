@@ -4,7 +4,7 @@ import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {
     addContextSwitcherInPortal,
     checkIsWorkspaceAdmin,
@@ -704,7 +704,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 position: "relative",
                                 left: "13px",
                                 top: "-2px",
-                                backgroundColor: "var(--blue)",
+                                backgroundColor: "var(--primary)",
                                 height: "10px",
                                 width: "10px",
                                 padding: "4px",
@@ -1381,9 +1381,11 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
         wrapper.append(span);
         span.innerText = `${collection.specification.title} (${collection.id})`;
         span.className = TruncateClass;
-        const shortcutElem = document.createElement("kbd");
-        shortcutElem.append(`[${index + 1}]`);
-        wrapper.append(shortcutElem);
+        if (index + 1 <= 9) {
+            const shortcutElem = document.createElement("kbd");
+            shortcutElem.append(`[${index + 1}]`);
+            wrapper.append(shortcutElem);
+        }
         return wrapper;
     });
 

@@ -1,6 +1,6 @@
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {Box, Link, theme} from "@/ui-components";
+import {Box, Flex, Link, theme} from "@/ui-components";
 import {GridCardGroup} from "@/ui-components/Grid";
 import * as React from "react";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
@@ -9,7 +9,7 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import Providers from "@/Assets/provider_info.json";
 import {Feature, hasFeature} from "@/Features";
-import {classConcat, injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {ApplicationCardClass} from "@/Applications/Card";
 import {CardClass} from "@/ui-components/Card";
 
@@ -21,20 +21,20 @@ interface ProviderType {
     description: string;
 }
 
-const ProviderContentClass = "provider-content"
-
 export function ProviderEntry(props: {provider: ProviderType}): React.ReactElement {
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
             <div className={classConcat(CardClass, ApplicationCardClass, ProviderCard)}>
-                <div className="image" style={{marginTop: "12px"}}>
-                    <ProviderLogo providerId={props.provider.id} size={150} />
-                </div>
+                <Flex mt="12px">
+                    <Flex mx="auto">
+                        <ProviderLogo providerId={props.provider.id} size={150} />
+                    </Flex>
+                </Flex>
                 <h3 style={{textAlign: "center", marginTop: "8px", height: "50px"}}>
                     <ProviderTitle providerId={props.provider.id} />
                 </h3>
 
-                <div className={ProviderContentClass} style={{textAlign: "start"}}>
+                <div style={{textAlign: "start"}}>
                     {props.provider.shortDescription}
                 </div>
             </div>
@@ -58,9 +58,9 @@ export default function ProviderOverview() {
     if (!Client.isLoggedIn) return (<>
         <NonAuthenticatedHeader />
         <Box mb="72px" />
-        <Box m={[0, 0, "15px"]}>
+        <div>
             {main}
-        </Box>
+        </div>
     </>);
 
     return (<MainContainer main={main} />);
@@ -71,9 +71,9 @@ const ProviderCard = injectStyle("provider-card", k => `
         height: 380px;
     }
 
-  ${k}:hover {
-    transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-    box-shadow: 0px 3px  5px -1px rgba(0, 106, 255, 0.2), 0px 6px 10px 0px rgba(0, 106, 255, .14), 0px 1px 18px 0px rgba(0, 106, 255, .12);
-    transform: translateY(-2px);
-  }
+    ${k}:hover {
+        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+        box-shadow: 0px 3px  5px -1px rgba(0, 106, 255, 0.2), 0px 6px 10px 0px rgba(0, 106, 255, .14), 0px 1px 18px 0px rgba(0, 106, 255, .12);
+        transform: translateY(-2px);
+    }
 `);

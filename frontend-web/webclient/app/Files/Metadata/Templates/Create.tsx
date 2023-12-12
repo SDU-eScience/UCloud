@@ -5,7 +5,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
 import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
@@ -436,7 +436,7 @@ const BootstrapReplacement = injectStyle("bootstrap-replacement", k => `
     }
 
     ${k} > div.formBuilder-0-2-1 > div.form-body > div.collapse-element.card-container:hover {
-        border: 2px solid var(--blue, #f00);
+        border: 2px solid var(--primary, #f00);
     }
 
     ${k} > div.formBuilder-0-2-1 > div.form-body > div.section-container {
@@ -445,12 +445,12 @@ const BootstrapReplacement = injectStyle("bootstrap-replacement", k => `
     }
 
     ${k} > div.formBuilder-0-2-1 > div.form-body > div.section-container:hover {
-        border: 1px solid var(--blue, #f00);
+        border: 1px solid var(--primary, #f00);
     }
 
     ${k} > div.formBuilder-0-2-1 > div > span > svg.svg-inline--fa.fa-plus-square.fa-w-14.fa, ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa,
     ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
-        color: var(--blue, #f00);
+        color: var(--primary, #f00);
     }
 
     ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-up.fa-w-14.fa, ${k} > div.formBuilder-0-2-1 > span > span > svg.svg-inline--fa.fa-arrow-down.fa-w-14.fa {
@@ -458,8 +458,8 @@ const BootstrapReplacement = injectStyle("bootstrap-replacement", k => `
     }
     
     ${k} > div.formBuilder-0-2-1 > span > svg.svg-inline--fa.fa-pencil-alt.fa-w-16.fa {
-        color: var(--blue, #f00);
-        border: 2px solid var(--blue, #f00);
+        color: var(--primary, #f00);
+        border: 2px solid var(--primary, #f00);
     }
 
     ${k} > div.formBuilder-0-2-1 > span > svg.svg-inline--fa.fa-trash.fa-w-14.fa {
@@ -497,7 +497,7 @@ const BootstrapReplacement = injectStyle("bootstrap-replacement", k => `
     }
 
     ${k} > div.formBuilder-0-2-1 > input.form-control:active, input.form-control:focus {
-        border: 2px solid var(--blue);            
+        border: 2px solid var(--primary);            
     }
 
     ${k} > div.formBuilder-0-2-1 > div[class*="-ValueContainer"], div[class*="-IndicatorsContainer"] {
@@ -512,7 +512,7 @@ const BootstrapReplacement = injectStyle("bootstrap-replacement", k => `
     ${k} > div.formBuilder-0-2-1 > svg.svg-inline--fa.fa-plus.fa-w-14.fa {
         margin-left: auto;
         margin-right: auto;
-        color: var(--blue);            
+        color: var(--primary);            
     }
 
     ${k} form > button {
@@ -528,7 +528,7 @@ const BootstrapReplacement = injectStyle("bootstrap-replacement", k => `
         font-weight: ${theme.bold};
         cursor: pointer;
         border-radius: ${theme.radius};
-        background-color: var(--blue, #f00);
+        background-color: var(--primary, #f00);
         color: var(--white, #f00);
         border-width: 0;
         border-style: solid;
@@ -576,7 +576,7 @@ const JsonSchemaFormBootstrapReplacement = injectStyle("json-schema-form-bootstr
         font-weight: ${theme.bold};
         cursor: pointer;
         border-radius: ${theme.radius};
-        background-color: var(--blue, #f00);
+        background-color: var(--primary);
         color: var(--white, #f00);
         border-width: 0;
         border-style: solid;

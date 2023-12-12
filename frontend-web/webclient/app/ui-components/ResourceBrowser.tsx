@@ -2,7 +2,7 @@ import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalized, createHTMLElements, doNothing, inDevEnvironment, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -10,7 +10,7 @@ import {fileName, resolvePath} from "@/Utilities/FileUtilities";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
-import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
+import {makeClassName, injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
@@ -29,6 +29,7 @@ import {ButtonClass} from "./Button";
 import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {FlexClass} from "./Flex";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
@@ -433,14 +434,15 @@ export class ResourceBrowser<T> {
     mount() {
         // Mount primary UI and stylesheets
         ResourceBrowser.injectStyle();
-
-        this.root.classList.add("file-browser");
+        const browserClass = makeClassName("browser");
+        this.root.classList.add(browserClass.class);
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
-                    <ul></ul>
-                    <input class="location-bar">
-                    <img class="location-bar-edit">
+                    <div class="${FlexClass} location">
+                        <ul></ul>
+                        <input class="location-bar">
+                    </div>
                     <div style="flex-grow: 1;"></div>
                     <input class="${InputClass} search-field" hidden>
                     <img class="search-icon">
@@ -527,14 +529,24 @@ export class ResourceBrowser<T> {
         );
 
         if (this.features.locationBar) {
-            // Render edit button for the location bar
-            const editIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .location-bar-edit")!;
-            editIcon.setAttribute("data-shown", "");
-            editIcon.src = placeholderImage;
-            this.icons.renderIcon({name: "heroPencil", color: "blue", color2: "blue", width: 64, height: 64})
-                .then(url => editIcon.src = url);
-            editIcon.addEventListener("click", () => {
+            const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location")!;
+            location.style.flexGrow = "1";
+            location.style.border = "1px solid var(--black)";
+            location.style.padding = "0 6px";
+            location.style.borderRadius = "4px";
+            location.style.width = "100%";
+            location.style.cursor = "pointer";
+            const ul = location.querySelector<HTMLUListElement>(":scope > ul")!;
+            ul.style.marginTop = "-2px";
+            ul.style.marginBottom = "-2px";
+
+            location.addEventListener("click", () => {
                 this.toggleLocationBar();
+                if (this.isLocationBarVisible()) {
+                    location["style"].border = "";
+                } else {
+                    location["style"].border = "1px solid var(--black)";
+                }
             });
         }
 
@@ -1079,7 +1091,7 @@ export class ResourceBrowser<T> {
     }
 
     public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T, opts?: {
-        color?: ThemeColor, width?: string, height?: string 
+        color?: ThemeColor, width?: string, height?: string
     }) {
         if (!selection) return;
         if (!selection.show || selection.show(item) === true) {
@@ -1181,8 +1193,9 @@ export class ResourceBrowser<T> {
             if (canKeepThis) {
                 const listItem = document.createElement("li");
                 listItem.innerText = visualizeWhitespaces(truncatedComponents[idx]);
-                listItem.addEventListener("click", () => {
+                listItem.addEventListener("click", e => {
                     this.open(myPath);
+                    stopPropagation(e);
                 });
                 listItem.addEventListener("mousemove", () => {
                     if (this.allowEventListenerAction()) {
@@ -1345,7 +1358,7 @@ export class ResourceBrowser<T> {
         const menuList = document.createElement("ul");
         menu.append(menuList);
         let shortcutNumber = 1;
-        for (const [index, element] of elements.entries()) {
+        for (const element of elements) {
             const myIndex = shortcutNumber - 1;
             this.contextMenuHandlers.push(() => {
                 const handler = handlers[myIndex];
@@ -1428,7 +1441,6 @@ export class ResourceBrowser<T> {
                     {asSquare: inContextMenu, color: "red", hoverColor: "darkRed", disabled: !opEnabled}
                 );
 
-
                 // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
                 if (inContextMenu) {
                     element.style.height = "40px";
@@ -1444,8 +1456,8 @@ export class ResourceBrowser<T> {
                     });
                     button.querySelector("button > ul")!["style"].marginLeft = "-60px";
                 } else {
-                    element.style.height = "46px";
-                    button.style.height = "46px";
+                    element.style.height = "35px";
+                    button.style.height = "35px";
 
                     const textChildren = button.querySelectorAll("button > ul > li");
                     textChildren.item(0)["style"].marginTop = "8px";
@@ -1456,8 +1468,8 @@ export class ResourceBrowser<T> {
                         it["style"].marginTop = "-2px";
                     });
                     button.querySelectorAll("button > div.icons").forEach(it => {
-                        it["style"].marginTop = "4px";
-                        it["style"].marginLeft = "-6px";
+                        it["style"].marginTop = "0px";
+                        it["style"].marginLeft = "-8px";
                     });
                     button.querySelectorAll("button > ul").forEach(it => {
                         it["style"]["marginTop"] = "-8px";
@@ -1469,6 +1481,8 @@ export class ResourceBrowser<T> {
                 }
 
                 element.style.padding = "0";
+                if (op.color) element.style.color = op.color;
+                else element.style.color = "var(--black)";
 
                 element.append(button);
                 element.setAttribute("data-is-confirm", "true");
@@ -1485,7 +1499,11 @@ export class ResourceBrowser<T> {
             }
 
             {
-                if (operationText) element.append(operationText);
+                if (operationText) {
+                    element.append(operationText);
+                    if (op.color) element.style.color = `var(--${op.color})`;
+                    else element.style.color = "var(--invertedThemeColor)";
+                }
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("kbd");
                     shortcutElem.append(shortcut);
@@ -1526,7 +1544,6 @@ export class ResourceBrowser<T> {
                     continue;
                 }
 
-
                 const text = child.enabled(selected, callbacks, page);
                 const isDisabled = typeof text === "string";
 
@@ -1535,15 +1552,13 @@ export class ResourceBrowser<T> {
                 if (isDisabled) {
                     item.style.backgroundColor = "var(--midGray)";
                     item.style.cursor = "not-allowed";
-                }
-
-                if (child.text === "Create...") item.style.backgroundColor = "blue";
-
-                if (isDisabled) {
+                    item.style.filter = "opacity(25%)";
                     const d = document.createElement("div");
                     d.innerText = text;
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
+
+                if (child.text === "Create...") item.style.backgroundColor = "blue";
 
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
 
@@ -1588,6 +1603,7 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
+            element.classList.add(ButtonClass);
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
             const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
@@ -1597,6 +1613,7 @@ export class ResourceBrowser<T> {
                 const d = document.createElement("div");
                 d.innerText = enabled;
                 element.style.cursor = "not-allowed";
+                element.style.filter = "opacity(25%)";
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
@@ -1949,6 +1966,8 @@ export class ResourceBrowser<T> {
             // NOTE(Dan): We are purposefully only checking if x <= end of text.
             // NOTE(Dan): We are adding 30px to increase the hit-box slightly
             shouldDragAndDrop = event.clientX <= textRect.x + textRect.width + 30;
+            // NOTE(Jonas): This is the case that ensure that the user drags the text and not the rest of the truncate-tag.
+            shouldDragAndDrop = (event.target as HTMLElement).children.length === 0;
         }
 
         if (shouldDragAndDrop) {
@@ -2632,6 +2651,8 @@ export class ResourceBrowser<T> {
 
                 case "Escape": {
                     this.setLocationBarVisibility(false);
+                    const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location");
+                    if (location) location.style.border = "1px solid var(--black)";
                     setValue(this.currentPath);
                     break;
                 }
@@ -2826,6 +2847,7 @@ export class ResourceBrowser<T> {
     static injectStyle() {
         if (ResourceBrowser.styleInjected) return;
         ResourceBrowser.styleInjected = true;
+        const browserClass = makeClassName("browser");
         //language=css
         unstyledInjectStyle("ignored", () => `
             body[data-cursor=not-allowed] * {
@@ -2840,7 +2862,7 @@ export class ResourceBrowser<T> {
                 user-select: none;
             }
 
-            .file-browser .drag-indicator {
+            ${browserClass.dot} .drag-indicator {
                 position: fixed;
                 z-index: 10000;
                 background-color: rgba(0, 0, 255, 30%);
@@ -2850,8 +2872,8 @@ export class ResourceBrowser<T> {
                 left: 0;
             }
 
-            .file-browser .file-drag-indicator-content,
-            .file-browser .file-drag-indicator {
+            ${browserClass.dot} .file-drag-indicator-content,
+            ${browserClass.dot} .file-drag-indicator {
                 position: fixed;
                 z-index: 10000;
                 display: none;
@@ -2861,33 +2883,33 @@ export class ResourceBrowser<T> {
                 user-select: none;
             }
             
-            .file-browser .file-drag-indicator-content {
+            ${browserClass.dot} .file-drag-indicator-content {
                 z-index: 10001;
                 width: 400px;
                 margin: 16px;
                 white-space: pre;
             }
 
-            .file-browser .filters, .file-browser .session-filters,  .file-browser .right-sort-filters {
+            ${browserClass.dot} .filters, ${browserClass.dot} .session-filters, ${browserClass.dot} .right-sort-filters {
                 display: flex;
                 margin-top: 12px;
             }
 
-            .file-browser .file-drag-indicator-content img {
+            ${browserClass.dot} .file-drag-indicator-content img {
                 margin-right: 8px;
             }
 
-            .file-browser .file-drag-indicator {
+            ${browserClass.dot} .file-drag-indicator {
                 transition: transform 0.06s;
                 background: var(--tableRowHighlight);
                 width: 1px;
                 overflow: hidden;
             }
          
-            .file-browser .file-drag-indicator.animate {
+            ${browserClass.dot} .file-drag-indicator.animate {
             }
 
-            .file-browser {
+            ${browserClass.dot} {
                 width: 100%;
                 height: calc(100vh - 32px);
                 display: flex;
@@ -2895,33 +2917,28 @@ export class ResourceBrowser<T> {
                 font-size: 16px;
             }
 
-            .file-browser header .header-first-row {
+            ${browserClass.dot} header .header-first-row {
                 display: flex;
                 align-items: center;
                 margin-bottom: 8px;
             }
 
-            .file-browser header .header-first-row img {
+            ${browserClass.dot} header .header-first-row img {
                 cursor: pointer;
                 flex-shrink: 0;
                 margin-left: 16px;
             }
 
-            .file-browser header .header-first-row .location-bar {
+            ${browserClass.dot} header .header-first-row .location-bar {
                 flex-grow: 1;
             }
 
-            .header-first-row .location-bar-edit[data-shown], .header-first-row .search-icon[data-shown] {
+            .header-first-row .search-icon[data-shown] {
                 width: 24px;
                 height: 24px;
             }
 
-            .header-first-row .location-bar-edit {
-                margin-left: 14px;
-                margin-right: 14px;
-            }
-
-            .file-browser header ul {
+            ${browserClass.dot} header ul {
                 padding: 0;
                 margin: 0;
                 display: flex;
@@ -2932,50 +2949,50 @@ export class ResourceBrowser<T> {
                 align-items: center;
             }
 
-            .file-browser > div {
+            ${browserClass.dot} > div {
                 flex-grow: 1;
             }
 
-            .file-browser header {
+            ${browserClass.dot} header {
                 width: 100%;
                 height: 100px;
                 flex-shrink: 0;
                 overflow: hidden;
             }
             
-            .file-browser header[data-has-filters] {
+            ${browserClass.dot} header[data-has-filters] {
                 height: 136px;
             }
 
-            .file-browser header .location-bar,
-            .file-browser header.show-location-bar ul {
+            ${browserClass.dot} header .location-bar,
+            ${browserClass.dot} header.show-location-bar ul {
                 display: none;
             }
 
-            .file-browser header.show-location-bar .location-bar,
-            .file-browser header ul {
+            ${browserClass.dot} header.show-location-bar .location-bar,
+            ${browserClass.dot} header ul {
                 display: flex;
             }
 
-            .file-browser .location-bar {
+            ${browserClass.dot} .location-bar {
                 width: 100%;
                 font-size: 120%;
                 height: 35px;
             }
             
-            .file-browser header > div > ul[data-no-slashes="true"] li::before {
+            ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
                 display: inline-block;
                 content: unset;
                 margin: 0;
             }
 
-            .file-browser header > div > ul li::before {
+            ${browserClass.dot} header > div > div > ul li::before {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;
             }
 
-            .file-browser header ul li {
+            ${browserClass.dot} header div ul li {
                 list-style: none;
                 margin: 0;
                 padding: 0;
@@ -2983,7 +3000,7 @@ export class ResourceBrowser<T> {
                 font-size: 120%;
             }
 
-            .file-browser .row {
+            ${browserClass.dot} .row {
                 display: flex;
                 flex-direction: row;
                 container-type: inline-size;
@@ -2997,32 +3014,32 @@ export class ResourceBrowser<T> {
                 transition: filter 0.3s;
             }
             
-            .file-browser .rows-title {
+            ${browserClass.dot} .rows-title {
                 max-height: 0;
                 color: var(--textColor);
                 display: none;
             }
             
-            body[data-cursor=grabbing] .file-browser .row:hover {
+            body[data-cursor=grabbing] ${browserClass.dot} .row:hover {
                 filter: hue-rotate(10deg) saturate(500%);
             }
 
-            .file-browser .row.hidden {
+            ${browserClass.dot} .row.hidden {
                 display: none;
             }
 
-            .file-browser .row input[type=checkbox] {
+            ${browserClass.dot} .row input[type=checkbox] {
                 height: 20px;
                 width: 20px;
             }
 
-            .file-browser .row[data-selected="true"] {
+            ${browserClass.dot} .row[data-selected="true"] {
                 background: var(--tableRowHighlight);
             }
 
         
 
-            .file-browser .row .title {
+            ${browserClass.dot} .row .title {
                 display: flex;
                 align-items: center;
                 width: 85%;
@@ -3038,16 +3055,16 @@ export class ResourceBrowser<T> {
                 }
             }
 
-            .file-browser .row .stat2,
-            .file-browser .row .stat3  {
+            ${browserClass.dot} .row .stat2,
+            ${browserClass.dot} .row .stat3  {
                 display: none;
                 width: 0;
             }
 
             @media screen and (min-width: 860px) {
-                .file-browser .row .stat1,
-                .file-browser .row .stat2,
-                .file-browser .row .stat3 {
+                ${browserClass.dot} .row .stat1,
+                ${browserClass.dot} .row .stat2,
+                ${browserClass.dot} .row .stat3 {
                     display: flex;
                     justify-content: end;
                     text-align: end;
@@ -3055,8 +3072,14 @@ export class ResourceBrowser<T> {
                 }
             }
 
+            @media screen and (max-width: 860px) {
+                ${browserClass.dot} .row .stat1 {
+                    margin-left: auto;
+                }
+            }
+
  
-            .file-browser .sensitivity-badge {
+            ${browserClass.dot} .sensitivity-badge {
                 height: 2em;
                 width: 2em;
                 display: flex;
@@ -3067,38 +3090,38 @@ export class ResourceBrowser<T> {
                 border-radius: 100%;
             }
 
-            .file-browser .sensitivity-badge.PRIVATE {
+            ${browserClass.dot} .sensitivity-badge.PRIVATE {
                 --badgeColor: var(--midGray);
             }
 
-            .file-browser .sensitivity-badge.CONFIDENTIAL {
+            ${browserClass.dot} .sensitivity-badge.CONFIDENTIAL {
                 --badgeColor: var(--purple);
             }
 
-            .file-browser .sensitivity-badge.SENSITIVE {
+            ${browserClass.dot} .sensitivity-badge.SENSITIVE {
                 --badgeColor: #ff0004;
             }
 
-            .file-browser .operation {
+            ${browserClass.dot} .operation {
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 gap: 8px;
             }
 
-            .file-browser .operation.in-header {
+            ${browserClass.dot} .operation.in-header {
                 padding: 11px;
                 background: var(--headerOperationColor);
                 border-radius: 8px;
             }
 
-            .file-browser .operations {
+            ${browserClass.dot} .operations {
                 display: flex;
                 flex-direction: row;
                 gap: 16px;
             }
 
-            .file-browser .context-menu {
+            ${browserClass.dot} .context-menu {
                 position: fixed;
                 z-index: 10000;
                 top: 0;
@@ -3115,14 +3138,14 @@ export class ResourceBrowser<T> {
                 transition: opacity 120ms, transform 60ms;
             }
 
-            .file-browser .context-menu ul {
+            ${browserClass.dot} .context-menu ul {
                 padding: 0;
                 margin: 0;
                 display: flex;
                 flex-direction: column;
             }
 
-            .file-browser .context-menu li {
+            ${browserClass.dot} .context-menu li {
                 margin: 0;
                 padding: 8px 8px;
                 list-style: none;
@@ -3131,29 +3154,29 @@ export class ResourceBrowser<T> {
                 gap: 8px;
             }
 
-            .file-browser .context-menu li kbd {
+            ${browserClass.dot} .context-menu li kbd {
                 flex-grow: 1;
                 text-align: end;
             }
 
-            .file-browser .context-menu li[data-selected=true] {
+            ${browserClass.dot} .context-menu li[data-selected=true] {
                 background: var(--tableRowHighlight);
             }
 
-            .file-browser .context-menu > ul > *:first-child,
-            .file-browser .context-menu > ul > li:first-child > button {
+            ${browserClass.dot} .context-menu > ul > *:first-child,
+            ${browserClass.dot} .context-menu > ul > li:first-child > button {
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
             }
             
-            .file-browser .context-menu > ul > *:last-child,
-             .file-browser .context-menu > ul > li:last-child,
-             .file-browser .context-menu > ul > li:last-child > button {
+            ${browserClass.dot} .context-menu > ul > *:last-child,
+             ${browserClass.dot} .context-menu > ul > li:last-child,
+             ${browserClass.dot} .context-menu > ul > li:last-child > button {
                 border-bottom-left-radius: 8px;
                 border-bottom-right-radius: 8px;
             }
             
-            .file-browser .rename-field {
+            ${browserClass.dot} .rename-field {
                 display: none;
                 position: absolute;
                 background-color: var(--lightGray);
@@ -3165,7 +3188,7 @@ export class ResourceBrowser<T> {
                 left: 60px;
             }
 
-            .file-browser .page-empty {
+            ${browserClass.dot} .page-empty {
                 display: none;
                 position: fixed;
                 top: 0;
@@ -3178,8 +3201,8 @@ export class ResourceBrowser<T> {
                 text-align: center;
             }
             
-            .file-browser .page-empty .graphic {
-                background: var(--blue);
+            ${browserClass.dot} .page-empty .graphic {
+                background: var(--primary);
                 min-height: 100px;
                 min-width: 100px;
                 border-radius: 100px;
@@ -3188,11 +3211,11 @@ export class ResourceBrowser<T> {
                 justify-content: center;
             }
             
-            .file-browser .page-empty .provider-reason {
+            ${browserClass.dot} .page-empty .provider-reason {
                 font-style: italic;
             }
 
-            .file-browser div > div.right-sort-filters {
+            ${browserClass.dot} div > div.right-sort-filters {
                 margin-left: auto;
             }
         `);
@@ -3636,7 +3659,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const outer = div("");
     outer.className = "provider-icon"
-    outer.style.background = "var(--blue)";
+    outer.style.background = "var(--primary)";
     outer.style.borderRadius = "8px";
     outer.style.width = outer.style.minWidth = opts?.width ?? "20px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "20px";

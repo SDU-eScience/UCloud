@@ -1,8 +1,8 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {injectStyle} from "@/Unstyled";
-import MainContainer from "@/MainContainer/MainContainer";
-import {Box, Button, Checkbox, Icon, Input, Select, TextArea, theme, Tooltip} from "@/ui-components";
+import MainContainer from "@/ui-components/MainContainer";
+import {Box, Button, Checkbox, Icon, Input, Select, TextArea, theme} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -32,6 +32,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
+import { periodsOverlap } from "@/Accounting";
 
 // State model
 // =====================================================================================================================
@@ -2309,6 +2310,13 @@ export const Editor: React.FunctionComponent = () => {
                                                         )
                                                     ;
 
+                                                    console.log(
+                                                        category,
+                                                        shouldShowSplitSelector,
+                                                        allocationsToSelectFrom,
+                                                        splits,
+                                                    );
+
                                                     const freq = category.category.accountingFrequency;
 
                                                     const errorMessage = category.error?.allocator === allocatorId ?
@@ -2384,9 +2392,7 @@ export const Editor: React.FunctionComponent = () => {
                                                                                         <option
                                                                                             key={it.id}
                                                                                             value={it.id}
-                                                                                            disabled={
-                                                                                                !isInAllocationPeriod(it.startDate, state) && !isInAllocationPeriod(it.endDate, state)
-                                                                                            }
+                                                                                            disabled={!allocOverlapsWithPeriod(it, state)}
                                                                                         >
                                                                                             {Accounting.utcDate(it.startDate)}
                                                                                             {" - "}
@@ -3109,9 +3115,9 @@ function stateToMonthOptions(state: EditorState): { key: string, text: string }[
     return result;
 }
 
-function isInAllocationPeriod(timestamp: number, state: EditorState) {
+function allocOverlapsWithPeriod(alloc: Accounting.WalletAllocationV2, state: EditorState) {
     const [start, end] = stateToAllocationPeriod(state);
-    return timestamp >= start && timestamp <= end;
+    return Accounting.periodsOverlap({ start, end }, { start: alloc.startDate, end: alloc.endDate });
 }
 
 type PeriodEntry = { start: number, end: number };

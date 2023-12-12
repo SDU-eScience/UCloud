@@ -27,7 +27,7 @@ const RadioClass = injectStyle("radio", k => `
     }
     
     ${k}[data-checked="true"]:hover {
-        color: var(--blue);
+        color: var(--primary);
     }
     
     ${k} input {
@@ -42,7 +42,7 @@ const RadioClass = injectStyle("radio", k => `
     }
     
     ${k} input:checked ~ svg {
-        color: var(--blue);
+        color: var(--primary);
     }
     
     ${k} input:disabled ~ svg {

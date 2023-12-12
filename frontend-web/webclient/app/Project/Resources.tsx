@@ -1,5 +1,5 @@
 import {Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis} from "recharts";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
@@ -167,7 +167,6 @@ const Resources: React.FunctionComponent = () => {
                                         key={it.type + it.unit}
                                         title={`${productAreaTitle(it.type)}`}
                                         icon={productTypeToIcon(it.type)}
-                                        color="blue"
                                         width="400px"
                                     >
                                         <Flex flexDirection={"column"} height={"calc(100% - 36px)"}>
@@ -183,7 +182,6 @@ const Resources: React.FunctionComponent = () => {
                                         key={pt}
                                         title={`${productAreaTitle(pt)}`}
                                         icon={productTypeToIcon(pt)}
-                                        color="blue"
                                         width="400px"
                                     >
                                         <Flex style={{flexDirection: "column", height: "calc(100% - 36px)"}}>

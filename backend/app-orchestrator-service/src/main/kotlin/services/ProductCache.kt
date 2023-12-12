@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.ReadWriterMutex
@@ -14,25 +13,25 @@ import java.util.HashMap
 import java.util.concurrent.atomic.AtomicLong
 
 interface IProductCache {
-    suspend fun referenceToProduct(ref: ProductReference): Product? {
+    suspend fun referenceToProduct(ref: ProductReferenceV2): ProductV2? {
         val id = referenceToProductId(ref) ?: return null
         return productIdToProduct(id)
     }
 
-    suspend fun referenceToProductId(ref: ProductReference): Int?
-    suspend fun productIdToReference(id: Int): ProductReference?
-    suspend fun productIdToProduct(id: Int): Product?
+    suspend fun referenceToProductId(ref: ProductReferenceV2): Int?
+    suspend fun productIdToReference(id: Int): ProductReferenceV2?
+    suspend fun productIdToProduct(id: Int): ProductV2?
     suspend fun productNameToProductIds(name: String): List<Int>?
     suspend fun productCategoryToProductIds(category: String): List<Int>?
     suspend fun productProviderToProductIds(provider: String): List<Int>?
-    suspend fun products(): List<Product>
+    suspend fun products(): List<ProductV2>
 }
 
 class ProductCache(private val db: DBContext) : IProductCache {
     private val mutex = ReadWriterMutex()
-    private val referenceToProductId = HashMap<ProductReference, Int>()
-    private val productIdToReference = HashMap<Int, ProductReference>()
-    private val productInformation = HashMap<Int, Product>()
+    private val referenceToProductId = HashMap<ProductReferenceV2, Int>()
+    private val productIdToReference = HashMap<Int, ProductReferenceV2>()
+    private val productInformation = HashMap<Int, ProductV2>()
     private val productNameToProductIds = HashMap<String, ArrayList<Int>>()
     private val productCategoryToProductIds = HashMap<String, ArrayList<Int>>()
     private val productProviderToProductIds = HashMap<String, ArrayList<Int>>()
@@ -68,10 +67,10 @@ class ProductCache(private val db: DBContext) : IProductCache {
                     if (rows.isEmpty()) break
 
                     rows.forEach { row ->
-                        val product = defaultMapper.decodeFromString(ProductV2.serializer(), row.getString(0)!!).toV1()
+                        val product = defaultMapper.decodeFromString(ProductV2.serializer(), row.getString(0)!!)
                         val id = row.getLong(1)!!.toInt()
 
-                        val reference = ProductReference(product.name, product.category.name, product.category.provider)
+                        val reference = ProductReferenceV2(product.name, product.category.name, product.category.provider)
                         referenceToProductId[reference] = id
                         productIdToReference[id] = reference
                         productInformation[id] = product
@@ -87,21 +86,21 @@ class ProductCache(private val db: DBContext) : IProductCache {
         }
     }
 
-    override suspend fun referenceToProductId(ref: ProductReference): Int? {
+    override suspend fun referenceToProductId(ref: ProductReferenceV2): Int? {
         fillCache()
         return mutex.withReader {
             referenceToProductId[ref]
         }
     }
 
-    override suspend fun productIdToReference(id: Int): ProductReference? {
+    override suspend fun productIdToReference(id: Int): ProductReferenceV2? {
         fillCache()
         return mutex.withReader {
             productIdToReference[id]
         }
     }
 
-    override suspend fun productIdToProduct(id: Int): Product? {
+    override suspend fun productIdToProduct(id: Int): ProductV2? {
         fillCache()
         return mutex.withReader {
             productInformation[id]
@@ -129,7 +128,7 @@ class ProductCache(private val db: DBContext) : IProductCache {
         }
     }
 
-    override suspend fun products(): List<Product> {
+    override suspend fun products(): List<ProductV2> {
         fillCache()
         return mutex.withReader {
             ArrayList(productInformation.values)

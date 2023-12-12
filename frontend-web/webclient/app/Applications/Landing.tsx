@@ -1,4 +1,4 @@
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {Box, Button, Flex, Icon, Input} from "@/ui-components";
@@ -101,9 +101,7 @@ const ViewAllButtonClass = injectStyle("view-all-button", k => `
     }
 `);
 
-export const SecondarySidebarStickyCSSVariable = "TODO"; 
-
-function ViewAllButton(): JSX.Element {
+function ViewAllButton(): React.JSX.Element {
     const navigate = useNavigate();
 
     return <div className={ViewAllButtonClass}>

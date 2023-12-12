@@ -1,7 +1,7 @@
 import {Product, ProductIngress, productTypeToIcon} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
@@ -306,7 +306,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     }
                 });
 
-                browser.on("fetchOperationsCallback", () => {/* TODO(Jonas): Missing props */
+                browser.on("fetchOperationsCallback", () => {
                     const callbacks: ResourceBrowseCallbacks<PublicLink> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,

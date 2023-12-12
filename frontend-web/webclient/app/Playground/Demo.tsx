@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useState} from "react";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {ListRow} from "@/ui-components/List";
 import List from "@/ui-components/List";
 import {Button, ExternalLink} from "@/ui-components";

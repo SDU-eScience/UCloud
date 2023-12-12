@@ -341,8 +341,8 @@ export function AppCard(props: AppCardProps): JSX.Element {
                         <Icon
                             cursor="pointer"
                             name={props.isFavorite ? "starFilled" : "starEmpty"}
-                            color="blue"
-                            hoverColor="blue"
+                            color="primary"
+                            hoverColor="primary"
                             size="20px"
                             onClick={() => props.onFavorite && props.application ?
                                 props.onFavorite(props.application) : {}

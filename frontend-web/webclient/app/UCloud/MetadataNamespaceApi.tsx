@@ -152,7 +152,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
         const generateCall = useCallback((next?: string): APICallParameters => {
             return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
         }, []);
-        return <HighlightedCard color={"purple"}>
+        return <HighlightedCard>
             <StandardList
                 generateCall={generateCall}
                 renderer={this.templateRenderer}

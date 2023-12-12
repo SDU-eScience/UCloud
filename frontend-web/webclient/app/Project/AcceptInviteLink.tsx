@@ -6,7 +6,7 @@ import api, {AcceptInviteLinkResponse, RetrieveInviteLinkInfoResponse} from "./A
 import * as Heading from "@/ui-components/Heading";
 import {dispatchSetProjectAction} from "./Redux";
 import {Button, Flex} from "@/ui-components";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {injectStyleSimple} from "@/Unstyled";
 import AppRoutes from "@/Routes";

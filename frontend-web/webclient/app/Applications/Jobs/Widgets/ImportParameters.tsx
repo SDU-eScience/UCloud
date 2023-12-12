@@ -23,6 +23,7 @@ import {getQueryParam} from "@/Utilities/URIUtilities";
 import JobBrowse from "../JobsBrowse";
 import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
+import {ShortcutKey} from "@/ui-components/Operation";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -146,27 +147,37 @@ export const ImportParameters: React.FunctionComponent<{
             ariaHideApp={false}
             className={CardClass}
         >
-            <div>
-                <div>
-                    <label className={ButtonClass}>
-                        Upload file
-                        <HiddenInputField
-                            type="file"
-                            accept="application/json"
-                            onChange={e => {
-                                onImportDialogClose();
-                                if (e.target.files) {
-                                    const file = e.target.files[0];
-                                    if (file.size > 10_000_000) {
-                                        snackbarStore.addFailure("File exceeds 10 MB. Not allowed.", false);
-                                    } else {
-                                        importParameters(file);
-                                    }
+            <JobBrowse opts={{
+                isModal: true,
+                operations: [{
+                    enabled: (selected) => selected.length === 0,
+                    onClick: () => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = "application/json";
+                        input.onchange = e => {
+                            if (!e) return;
+                            const files = (e.target! as any).files as File[];
+                            onImportDialogClose();
+                            if (files) {
+                                const file = files[0];
+                                if (file.size > 10_000_000) {
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.", false);
+                                } else {
+                                    importParameters(file);
                                 }
-                            }}
-                        />
-                    </label>
-                    <Button mt="6px" fullWidth onClick={() => {
+                            }
+                        }
+                        document.body.appendChild(input);
+                        input.click();
+                        document.body.removeChild(input);
+                    },
+                    text: "Upload job-file",
+                    shortcut: ShortcutKey.U,
+                    icon: "upload"
+                }, {
+                    enabled: (selected) => selected.length === 0,
+                    onClick: () => {
                         onImportDialogClose();
                         dialogStore.addDialog(
                             <FileBrowse
@@ -187,36 +198,21 @@ export const ImportParameters: React.FunctionComponent<{
                             true,
                             largeModalStyle
                         );
-                    }}>
-                        Select file from {CONF.PRODUCT_NAME}
-                    </Button>
-                    <Button mt="6px" fullWidth onClick={() => {
-                        onImportDialogClose();
-                        dialogStore.addDialog(
-                            <JobBrowse opts={{
-                                isModal: true,
-                                selection: {
-                                    text: "Import",
-                                    show: () => true, // Note(Jonas): Only valid apps should be shown here
-                                    onClick(res) {
-                                        readParsedJSON(res.status.jobParametersJson);
-                                        dialogStore.success();
-                                    }
-                                },
-                                additionalFilters: {filterApplication: application.metadata.name, includeParameters: "true"},
-                            }} />,
-                            () => undefined,
-                            true,
-                            largeModalStyle
-                        );
-                    }}>
-                        Select parameters from jobs
-                    </Button>
-                </div>
-                <Flex mt="20px">
-                    <Button onClick={onImportDialogClose} color="red" mr="5px">Close</Button>
-                </Flex>
-            </div>
+                    },
+                    text: `Select file from ${CONF.PRODUCT_NAME}`,
+                    shortcut: ShortcutKey.S,
+                    icon: "documentation"
+                }],
+                selection: {
+                    text: "Import",
+                    show: () => true, // Note(Jonas): Only valid apps should be shown here
+                    onClick(res) {
+                        readParsedJSON(res.status.jobParametersJson);
+                        dialogStore.success();
+                    }
+                },
+                additionalFilters: {filterApplication: application.metadata.name, includeParameters: "true"},
+            }} />
         </ReactModal>
     </Box>;
 };

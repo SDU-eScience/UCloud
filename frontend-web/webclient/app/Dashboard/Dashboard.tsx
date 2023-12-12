@@ -1,5 +1,5 @@
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
@@ -88,6 +88,12 @@ function Dashboard(): JSX.Element {
     const main = (<Box mx="auto" maxWidth={"1200px"}>
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
+            <div style={{marginBottom: "24px"}}>
+                <HighlightedCard>
+                    <Flex><Icon mx="auto" my="-32px" name="deiCLogo" size="128px" /></Flex>
+                </HighlightedCard>
+            </div>
+
             <DashboardNews news={news} />
 
             <ProjectInvites />
@@ -141,9 +147,8 @@ function ProjectInvites(): React.ReactNode {
     if (invites.data.items.length === 0) return null;
     return <Flex mt="24px">
         <HighlightedCard
-            color="darkOrange"
             isLoading={invites.loading}
-            icon="projects"
+            icon="heroUserGroup"
             title="Project invitations"
             error={invites.error?.why}
         >
@@ -166,7 +171,6 @@ function DashboardFavoriteFiles(): JSX.Element {
 
     return (
         <HighlightedCard
-            color="darkBlue"
             isLoading={sidebarFavoriteCache.loading}
             icon="heroStar"
             title="Favorites"
@@ -182,7 +186,7 @@ function DashboardFavoriteFiles(): JSX.Element {
             )}
             <List>
                 {favorites.items.slice(0, 10).map(it => (<Flex key={it.path} height="55px">
-                    <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="blue" onClick={async () => {
+                    <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="primary" onClick={async () => {
                         if (!favoriteTemplateId) return;
                         try {
                             await invokeCommand(
@@ -281,7 +285,7 @@ const ResourceGridClass = injectStyle("resource-grid", k => `
     }
     
     ${k} a:hover {
-        color: var(--blue);
+        color: var(--primary);
     }
 `);
 
@@ -290,7 +294,7 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
     const products = React.useMemo(() => <DashboardResources products={props.products} />, [props.products]);
 
     return (
-        <HighlightedCard color="yellow">
+        <HighlightedCard> 
             <div className={ResourceGridClass}>
                 {usage}
                 {products}
@@ -333,7 +337,6 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
 
 function DashboardRuns(): JSX.Element {
     return <HighlightedCard
-        color="gray"
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="heroServer"
     >
@@ -441,7 +444,6 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
 
     return <HighlightedCard
         title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>Grant applications</Heading.h3></Link>}
-        color="green"
         icon="heroDocumentCheck"
     >
         <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
@@ -457,7 +459,6 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                     <Heading.h3>{newsItem?.title ?? "News"}</Heading.h3>
                 </Link>
             }
-            color="orange"
             isLoading={news.loading}
             icon={"heroNewspaper"}
             error={news.error?.why}

@@ -17,7 +17,7 @@ const SelectableTextContainerClass = injectStyle("tab-container", k => `
     }
     
     ${k} > [data-selected="true"] {
-        border-bottom: 3px solid var(--blue);
+        border-bottom: 3px solid var(--primary);
     }
 `);
 

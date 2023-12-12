@@ -6,7 +6,7 @@ import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";
@@ -40,7 +40,7 @@ export default function DetailedProvider() {
         <Box height="48px" />
         {entry.texts.map((text, index) =>
             <Box key={index} my="32px">
-                <HighlightedCard color="purple">
+                <HighlightedCard>
                     <Flex>
                         {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />

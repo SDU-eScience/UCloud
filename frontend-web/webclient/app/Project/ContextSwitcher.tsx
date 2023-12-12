@@ -278,6 +278,6 @@ const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
     ${k} {
         transition: 0.1s background-color;
         display: flex;
-        border-bottom: 0.5px solid var(--blue);
+        border-bottom: 0.5px solid var(--primary);
     }
 `);

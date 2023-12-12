@@ -7,7 +7,7 @@ import {
 } from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPage} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {ListV2} from "@/Pagination";
 import {Card, Box, Flex, Icon, Text, ContainerForText} from "@/ui-components";
 import * as React from "react";
@@ -70,7 +70,7 @@ const DetailedView = injectStyle("detailed-view", k => `
     }
 `);
 
-export const MachineView: React.FunctionComponent<{area: ProductType, provider: string; color?: string}> = ({area, provider, color = "var(--blue, #f00)"}) => {
+export const MachineView: React.FunctionComponent<{area: ProductType, provider: string; color?: string}> = ({area, provider, color = "var(--primary)"}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
         {...UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
         emptyPage

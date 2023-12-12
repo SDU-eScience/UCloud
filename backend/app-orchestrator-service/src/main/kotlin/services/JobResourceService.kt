@@ -1056,7 +1056,7 @@ class JobResourceService {
 
                 val relevantProducts = ArrayList<Product.Compute>()
                 for (id in productCache.productCategoryToProductIds(obj.categoryName) ?: emptyList()) {
-                    val product = productCache.productIdToProduct(id) ?: continue
+                    val product = productCache.productIdToProduct(id)?.toV1() ?: continue
                     if (product !is Product.Compute) continue
                     if (product.category.provider != provider) continue
                     relevantProducts.add(product)
@@ -1098,8 +1098,6 @@ class JobResourceService {
                         null,
                     )
 
-                    println("$docId ${product.name} ${product.cpu} CPUs $usage $usageInWallMinutes")
-
                     documents.modify(
                         card,
                         Array(1) { ResourceDocument() },
@@ -1127,8 +1125,6 @@ class JobResourceService {
                         )
                     )
                 }
-
-                println("We have charged $charged out of $usageInCoreMinutes")
             }
         }
     }

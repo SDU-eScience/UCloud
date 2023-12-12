@@ -117,7 +117,7 @@ const Style = injectStyle("notification", k => `
         }
 
     ${k} .notification-inner a, ${k} .notification-inner .snooze {
-        color: var(--blue);
+        color: var(--primary);
         cursor: pointer;
     }
 

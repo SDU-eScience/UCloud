@@ -74,18 +74,18 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             break;
         case "REVIEW_PROJECT":
         case "PROJECT_INVITE":
-            navigate("/projects/");
+            navigate(AppRoutes.dashboard.dashboardA());
             break;
         case "NEW_GRANT_APPLICATION":
         case "COMMENT_GRANT_APPLICATION":
         case "GRANT_APPLICATION_RESPONSE":
+        case "UPDATED_GRANT_APPLICATION":
         case "GRANT_APPLICATION_UPDATED": {
             const {meta} = notification;
             navigate(`/grants?id=${meta.appId}`);
             break;
         }
         case "PROJECT_ROLE_CHANGE": {
-            navigate(AppRoutes.project.members());
             break;
         }
         default:
@@ -460,7 +460,7 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
 
 const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
 
-export interface Notification {
+interface Notification {
     type: string;
     id: number;
     message: string;

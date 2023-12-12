@@ -173,6 +173,17 @@ export function injectStyleSimple(title: string, css: string): string {
     `);
 }
 
+export function makeClassName(name: string) {
+    return {
+        dot: `.${name}`,
+        class: name
+    };
+}
+
+export function chain(...names: ({dot: string}| string)[]): string {
+    return names.map(it => typeof it === "string" ? it : it.dot).join("");
+}
+
 export type WithEventHandlers = Omit<Omit<React.DOMAttributes<any>, "dangerouslySetInnerHTML">, "children">;
 
 export function extractEventHandlers(props: WithEventHandlers): WithEventHandlers {

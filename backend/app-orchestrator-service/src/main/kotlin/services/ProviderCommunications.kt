@@ -174,14 +174,14 @@ class ProviderCommunications(
         }
     }
 
-    private val allocationCache = AsyncCache<Pair<WalletOwner, ProductCategoryId>, Boolean>(
+    private val allocationCache = AsyncCache<Pair<WalletOwner, ProductCategory>, Boolean>(
         backgroundScope,
         timeToLiveMilliseconds = 1000L * 60 * 30,
         timeoutException = { throw RPCException("Failed to fetch information about allocations", HttpStatusCode.BadGateway) },
         retrieve = { (owner, category) ->
             Wallets.retrieveAllocationsInternal
                 .call(
-                    WalletAllocationsInternalRetrieveRequest(owner, category),
+                    WalletAllocationsInternalRetrieveRequest(owner, ProductCategoryId(category.name, category.provider)),
                     serviceClient
                 )
                 .orThrow()
@@ -223,7 +223,7 @@ class ProviderCommunications(
 
     suspend fun requireAllocationProducts(
         actorAndProject: ActorAndProject,
-        resolvedProducts: Collection<Product>,
+        resolvedProducts: Collection<ProductV2>,
         actionDescription: String,
     ) {
         if (actorAndProject.actor == Actor.System) return
@@ -236,7 +236,7 @@ class ProviderCommunications(
 
         for (product in resolvedProducts) {
             val category = product.category
-            if (product.freeToUse) continue
+            if (product.category.freeToUse) continue
 
             if (!allocationCache.checkOrRefresh(Pair(walletOwner, category))) {
                 throw RPCException(

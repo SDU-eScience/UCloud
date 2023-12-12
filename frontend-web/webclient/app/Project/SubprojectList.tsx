@@ -1,4 +1,4 @@
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString} from "@/Utilities/URIUtilities";

@@ -40,7 +40,7 @@ export const ButtonClass = injectStyle("button", k => `
         font-family: inherit;
         font-weight: normal;
         cursor: pointer;
-        background-color: var(--blue, #f00);
+        background-color: var(--primary);
         color: var(--white, #f00);
         border-width: 0;
         border-style: solid;
@@ -113,7 +113,7 @@ const standardButtonSizes: {height: number; name: string;}[] = [
 export const Button: React.FunctionComponent<ButtonProps> = props => {
     const inlineStyles = unbox(props);
     let sizeName: string | undefined = undefined;
-    inlineStyles.backgroundColor = `var(--${props.color ?? "blue"})`;
+    inlineStyles.backgroundColor = `var(--${props.color ?? "primary"})`;
     inlineStyles.color = `var(--${props.textColor ?? "white"})`;
     if (props.disableStandardSizes !== true) {
         let bestMatch = 1;

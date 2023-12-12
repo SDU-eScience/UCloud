@@ -2,7 +2,7 @@ import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, useProjectId} from "./Api";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {

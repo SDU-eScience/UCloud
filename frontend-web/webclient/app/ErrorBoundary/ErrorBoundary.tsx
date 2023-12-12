@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Button, TextArea} from "@/ui-components";
@@ -49,7 +49,7 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
                                     inputRef={this.ref}
                                 />
                             </Box>
-                            <Button mr="1em" onClick={this.submitError} color="blue">Submit</Button>
+                            <Button mr="1em" onClick={this.submitError} color="primary">Submit</Button>
                             <Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
 
                             <Box pt="10px">We support Chrome, Edge, Firefox and Safari.

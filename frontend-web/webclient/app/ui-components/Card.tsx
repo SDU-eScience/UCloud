@@ -42,7 +42,7 @@ export const CardClass = injectStyle("card", k => `
     }
 
     a ${k}:hover {
-        border-color: var(--blue);
+        border-color: var(--primary);
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     }
 `);

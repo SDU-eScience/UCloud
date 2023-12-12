@@ -1,7 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
 import {emptyPage} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as Pagination from "@/Pagination";
 import {usePromiseKeeper} from "@/PromiseKeeper";

@@ -12,10 +12,11 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, us
 import {translateBinaryProductCategory} from ".";
 import {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import { doNothing, timestampUnixMs } from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AccountingB from "./AccountingBinary";
+import * as Jobs from "@/Applications/Jobs";
 import {useProjectId} from "@/Project/Api";
 import {formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
@@ -28,6 +29,7 @@ import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 interface State {
     remoteData: {
         chartData?: AccountingB.Charts;
+        jobStatistics?: Jobs.JobStatistics;
     },
 
     summaries: {
@@ -40,6 +42,7 @@ interface State {
     }[],
 
     activeDashboard?: {
+        idx: number,
         category: Accounting.ProductCategoryV2,
         currentAllocation: {
             usage: number,
@@ -52,6 +55,10 @@ interface State {
         },
         usageOverTime: UsageChart,
         breakdownByProject: BreakdownChart,
+
+        jobUsageByUsers?: JobUsageByUsers,
+        mostUsedApplications?: MostUsedApplications,
+        submissionStatistics?: SubmissionStatistics,
     },
 
     selectedPeriod: Period,
@@ -66,6 +73,7 @@ type Period =
 // =====================================================================================================================
 type UIAction =
     { type: "LoadCharts", charts: AccountingB.Charts, }
+    | { type: "LoadJobStats", statistics: Jobs.JobStatistics, }
     | { type: "SelectTab", tabIndex: number }
     | { type: "UpdateSelectedPeriod", period: Period }
     ;
@@ -73,6 +81,7 @@ type UIAction =
 function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "LoadCharts": {
+            // TODO Move this into selectChart
             function translateBreakdown(category: Accounting.ProductCategoryV2, chart: AccountingB.BreakdownByProject): BreakdownChart {
                 const {name, priceFactor} = Accounting.explainUnit(category);
                 const dataPoints: BreakdownChart["dataPoints"] = [];
@@ -168,6 +177,16 @@ function stateReducer(state: State, action: UIAction): State {
             }, selectedIndex);
         }
 
+        case "LoadJobStats": {
+            return selectChart({
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    jobStatistics: action.statistics
+                }
+            });
+        }
+
         case "SelectTab": {
             return selectChart(state, action.tabIndex);
         }
@@ -180,15 +199,18 @@ function stateReducer(state: State, action: UIAction): State {
         }
     }
 
-    function selectChart(state: State, categoryIndex: number): State {
+    function selectChart(state: State, categoryIndex?: number): State {
         const chartData = state.remoteData.chartData;
         if (!chartData) return {...state, activeDashboard: undefined};
-        if (categoryIndex < 0 || categoryIndex > chartData.categories.count) return {
-            ...state,
-            activeDashboard: undefined
-        };
+        let catIdx = categoryIndex === undefined ? state.activeDashboard?.idx : categoryIndex;
+        if (catIdx === undefined || catIdx < 0 || catIdx > chartData.categories.count) {
+            return {
+                ...state,
+                activeDashboard: undefined
+            };
+        }
 
-        const summary = state.summaries.find(it => it.categoryIdx === categoryIndex);
+        const summary = state.summaries.find(it => it.categoryIdx === catIdx);
         if (!summary) return {...state, activeDashboard: undefined};
 
         let earliestNextAllocation: number | null = null;
@@ -226,9 +248,89 @@ function stateReducer(state: State, action: UIAction): State {
             }
         }
 
+        let jobUsageByUsers: JobUsageByUsers | undefined = undefined;
+        let mostUsedApplications: MostUsedApplications | undefined = undefined;
+        let submissionStatistics: SubmissionStatistics | undefined = undefined;
+        if (summary.category.productType === "COMPUTE" && state.remoteData.jobStatistics) {
+            const stats = state.remoteData.jobStatistics;
+            let catIdx: number = -1;
+            const catCount = stats.categories.count;
+            for (let i = 0; i < catCount; i++) {
+                const cat = stats.categories.get(i);
+                if (cat.name === summary.category.name && cat.provider === summary.category.provider) {
+                    catIdx = i;
+                    break;
+                }
+            }
+
+            const unit = Accounting.explainUnit(summary.category);
+
+            if (catIdx !== -1) {
+                const usageCount = stats.usageByUser.count;
+                for (let i = 0; i < usageCount; i++) {
+                    const usage = stats.usageByUser.get(i);
+                    if (usage.categoryIndex !== catIdx) continue;
+
+                    const result: JobUsageByUsers = { unit: unit.name, dataPoints: [] };
+
+                    const pointCount = usage.dataPoints.count;
+                    for (let j = 0; j < pointCount; j++) {
+                        const dataPoint = usage.dataPoints.get(j);
+                        result.dataPoints.push(({
+                            usage: Number(dataPoint.usage) * unit.priceFactor,
+                            username: dataPoint.username
+                        }));
+                    }
+
+                    jobUsageByUsers = result;
+                }
+
+                const appCount = stats.mostUsedApplications.count;
+                for (let i = 0; i < appCount; i++) {
+                    const appStats = stats.mostUsedApplications.get(i);
+                    if (appStats.categoryIndex !== catIdx) continue;
+
+                    const result: MostUsedApplications = { dataPoints: [] };
+                    const pointCount = appStats.dataPoints.count;
+                    for (let j = 0; j < pointCount; j++) {
+                        const dataPoint = appStats.dataPoints.get(j);
+                        result.dataPoints.push(({
+                            applicationTitle: dataPoint.applicationName,
+                            count: dataPoint.numberOfJobs
+                        }));
+                    }
+
+                    mostUsedApplications = result;
+                }
+
+                const submissionCount = stats.jobSubmissionStatistics.count;
+                for (let i = 0; i < submissionCount; i++) {
+                    const submissionStats = stats.jobSubmissionStatistics.get(i);
+                    if (submissionStats.categoryIndex !== catIdx) continue;
+
+                    const result: SubmissionStatistics = { dataPoints: [] };
+                    const pointCount = submissionStats.dataPoints.count;
+                    for (let j = 0; j < pointCount; j++) {
+                        const dataPoint = submissionStats.dataPoints.get(j);
+                        result.dataPoints.push({
+                            day: dataPoint.day,
+                            hourOfDayStart: dataPoint.hourOfDayStart,
+                            hourOfDayEnd: dataPoint.hourOfDayEnd,
+                            numberOfJobs: dataPoint.numberOfJobs,
+                            averageQueueInSeconds: dataPoint.averageQueueInSeconds,
+                            averageDurationInSeconds: dataPoint.averageDurationInSeconds,
+                        });
+                    }
+
+                    submissionStatistics = result;
+                }
+            }
+        }
+
         return {
             ...state,
             activeDashboard: {
+                idx: catIdx,
                 category: summary.category,
                 currentAllocation: {
                     usage: summary.usage,
@@ -242,6 +344,9 @@ function stateReducer(state: State, action: UIAction): State {
                 },
                 usageOverTime: summary.chart,
                 breakdownByProject: summary.breakdownByProject,
+                jobUsageByUsers,
+                mostUsedApplications,
+                submissionStatistics,
             }
         };
     }
@@ -262,15 +367,27 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
             doDispatch(ev);
         }
 
+        async function doLoad(start: number, end: number) {
+            callAPI(Jobs.retrieveStatistics({start, end})).then(statistics => {
+                dispatch({type: "LoadJobStats", statistics});
+            });
+
+            callAPI(Accounting.retrieveChartsV2({start, end})).then(charts => {
+                dispatch({type: "LoadCharts", charts});
+            });
+        }
+
         switch (event.type) {
             case "Init": {
-                const now = timestampUnixMs();
-                const charts = await callAPI(Accounting.retrieveChartsV2({
-                    start: now - (1000 * 60 * 60 * 24 * 7),
-                    end: now
-                }));
-                dispatch({type: "LoadCharts", charts});
-                console.log(charts.encodeToJson());
+                const [start, end] = normalizePeriod(initialState.selectedPeriod);
+                await doLoad(start, end);
+                break;
+            }
+
+            case "UpdateSelectedPeriod": {
+                dispatch(event);
+                const [start, end] = normalizePeriod(event.period);
+                await doLoad(start, end);
                 break;
             }
 
@@ -286,7 +403,6 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 // User-interface
 // =====================================================================================================================
 const Visualization: React.FunctionComponent = props => {
-    const [activeCard, setActiveCard] = useState("u1-standard");
     const projectId = useProjectId();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
@@ -397,9 +513,9 @@ const Visualization: React.FunctionComponent = props => {
                         />
                         <BreakdownPanel chart={state.activeDashboard.breakdownByProject}/>
                         <UsageOverTimePanel chart={state.activeDashboard.usageOverTime}/>
-                        <LargeJobsPanel/>
-                        <MostUsedApplicationsPanel/>
-                        <JobSubmissionPanel/>
+                        <UsageByUsers data={state.activeDashboard.jobUsageByUsers}/>
+                        <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications}/>
+                        <JobSubmissionPanel data={state.activeDashboard.submissionStatistics}/>
                     </div>
                 </div>
             }
@@ -578,7 +694,9 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
 const BreakdownStyle = injectStyle("breakdown", k => `
     ${k} .pie-wrapper {
         width: 350px;
+        height: 350px;
         margin: 20px auto;
+        display: flex;
     }
 
     ${k} table tbody tr > td:nth-child(2),
@@ -636,7 +754,7 @@ const BreakdownPanel: React.FunctionComponent<{ chart: BreakdownChart }> = props
 
                 return <tr key={idx}>
                     <td>{point.key}</td>
-                    <td>{Accounting.addThousandSeparators(usage)} {unit}</td>
+                    <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
                 </tr>
             })}
             </tbody>
@@ -653,7 +771,9 @@ const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
     }
 `);
 
-const MostUsedApplicationsPanel: React.FunctionComponent = () => {
+const MostUsedApplicationsPanel: React.FunctionComponent<{ data?: MostUsedApplications }> = ({data}) => {
+    if (data === undefined) return null;
+
     return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
         <div className="panel-title">
             <h4>Most used applications</h4>
@@ -665,35 +785,14 @@ const MostUsedApplicationsPanel: React.FunctionComponent = () => {
                 <tr>
                     <th>Application</th>
                     <th>Number of jobs</th>
-                    <th>Change</th>
                 </tr>
                 </thead>
                 <tbody>
-                {Array(100).fill(undefined).map((_, i) =>
-                    <React.Fragment key={i}>
+                {data.dataPoints.map(it =>
+                    <React.Fragment key={it.applicationTitle}>
                         <tr>
-                            <td>Visual Studio Code</td>
-                            <td>42</td>
-                            <td className={"change positive"}>
-                                <span>+</span>
-                                <span>23,00%</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>RStudio</td>
-                            <td>32</td>
-                            <td className={"change negative"}>
-                                <span>-</span>
-                                <span>23,00%</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>RStudio</td>
-                            <td>32</td>
-                            <td className={"change unchanged"}>
-                                <span>+</span>
-                                <span>0,00%</span>
-                            </td>
+                            <td>{it.applicationTitle}</td>
+                            <td>{it.count}</td>
                         </tr>
                     </React.Fragment>
                 )}
@@ -733,13 +832,22 @@ const JobSubmissionStyle = injectStyle("job-submission", k => `
 `);
 
 const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const periods = Array(4).fill(undefined).map((_, i) => {
-    const start = i * 6;
-    const end = (i + 1) * 6;
-    return `${start.toString().padStart(2, "0")}:00-${end.toString().padStart(2, "0")}:00`;
-});
 
-const JobSubmissionPanel: React.FunctionComponent = () => {
+const DurationOfSeconds: React.FunctionComponent<{ duration: number}> = ({duration}) => {
+    if (duration > 3600) {
+        const hours = Math.floor(duration / 3600);
+        const minutes = Math.floor((duration % 3600) / 60);
+        return <>{hours.toString().padStart(2, '0')}H {minutes.toString().padStart(2, '0')}M</>;
+    } else {
+        const minutes = Math.floor(duration / 60);
+        const seconds = duration % 60;
+        return <>{minutes.toString().padStart(2, '0')}M {seconds.toString().padStart(2, '0')}S</>;
+    }
+}
+
+const JobSubmissionPanel: React.FunctionComponent<{ data?: SubmissionStatistics }> = ({data}) => {
+    if (data === undefined) return null;
+    const dataPoints = data.dataPoints;
     return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
         <div className="panel-title">
             <h4>When are your jobs being submitted?</h4>
@@ -757,15 +865,17 @@ const JobSubmissionPanel: React.FunctionComponent = () => {
                 </tr>
                 </thead>
                 <tbody>
-                {Array(4 * 7).fill(undefined).map((_, i) => {
-                    const day = dayNames[Math.floor(i / 4)];
-                    const period = periods[i % 4];
+                {dataPoints.map((dp, i) => {
+                    const day = dayNames[dp.day];
                     return <tr key={i}>
                         <td>{day}</td>
-                        <td>{period}</td>
-                        <td>{Math.floor(Math.random() * 30)}</td>
-                        <td>{Math.floor(Math.random() * 12).toString().padStart(2, "0")}H {Math.floor(Math.random() * 60).toString().padStart(2, "0")}M</td>
-                        <td>{Math.floor(Math.random()).toString().padStart(2, "0")}H {Math.floor(Math.random() * 15).toString().padStart(2, "0")}M {Math.floor(Math.random() * 60).toString().padStart(2, "0")}S</td>
+                        <td>
+                            {dp.hourOfDayStart.toString().padStart(2, '0')}:00-
+                            {dp.hourOfDayEnd.toString().padStart(2, '0')}:00
+                        </td>
+                        <td>{dp.numberOfJobs}</td>
+                        <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
+                        <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
                     </tr>;
                 })}
                 </tbody>
@@ -800,6 +910,53 @@ const UsageOverTimeStyle = injectStyle("usage-over-time", k => `
     }
 `);
 
+const DynamicallySizedChart: React.FunctionComponent<{
+    Component: React.ComponentType<any>,
+    chart: any
+}> = ({Component, chart}) => {
+    // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
+    // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
+    // of a grid and a flexbox.
+    //
+    // The idea of this component is as follows:
+    // 1. Render an empty box (without the chart) to determine the allocated size from of flexbox
+    // 2. Tell the chart exactly this size
+    //
+    // We cannot render the chart without affecting the allocated size. As a result, every time a resize event occurs
+    // we temporarily turn off the chart. This allows us to re-record the size of the flexbox and re-render the chart
+    // with the correct size.
+
+    // NOTE(Dan): The wrapper is required to ensure the useEffect runs every time.
+    const [heightWrapper, setHeight] = useState<{ height: string | null }>({ height: null });
+    const height = heightWrapper.height;
+    const mountPoint = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        const listener = () => setHeight({ height: null });
+        window.addEventListener("resize", listener);
+        return () => {
+            window.removeEventListener("resize", listener);
+        }
+    }, []);
+
+    useLayoutEffect(() => {
+        const wrapper = mountPoint.current;
+        if (!wrapper) return;
+        if (heightWrapper.height) return;
+
+        // NOTE(Dan): If we do not add a bit of a delay, then we risk that this API sometimes gives us back a result
+        // which is significantly larger than it should be.
+        window.setTimeout(() => {
+            const assignedHeight = wrapper.getBoundingClientRect().height;
+            setHeight({ height: assignedHeight + "px" });
+        }, 50);
+    }, [heightWrapper]);
+
+    return <div style={{flexGrow: 2, flexShrink: 1, flexBasis: "400px"}} ref={mountPoint}>
+        {height && <Component {...chart} height={height} />}
+    </div>;
+}
+
 const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({chart}) => {
     let sum = 0;
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
@@ -815,7 +972,7 @@ const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({cha
             <h4>Usage over time</h4>
         </div>
 
-        <Chart key={chartCounter.current} {...chartProps} />
+        <DynamicallySizedChart Component={Chart} chart={chartProps} />
 
         <div className="table-wrapper">
             <table>
@@ -856,44 +1013,26 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
     }
     
     ${k} table tbody tr > td:nth-child(2) {
-        width: 155px;
+        width: 200px;
     }
 `);
 
-const LargeJobsPanel: React.FunctionComponent = () => {
-    const fakeJobs: {
-        usage: number,
-        username: string,
-    }[] = [];
+const UsageByUsers: React.FunctionComponent<{ data?: JobUsageByUsers }> = ({data}) => {
+    if (data === undefined) return null;
 
-    for (let i = 0; i < 50; i++) {
-        const d = new Date();
-        d.setHours(d.getHours() - Math.floor(Math.random() * 7 * 24));
-        fakeJobs.push({
-            usage: Math.random() * 300,
-            username: `User${i}`
-        });
-    }
-
-    fakeJobs.sort((a, b) => {
-        if (a.usage > b.usage) return -1;
-        if (a.usage < b.usage) return 1;
-        return 0;
-    });
-
-    const dataPoints = fakeJobs.map(it => ({key: it.username, value: it.usage}));
+    const dataPoints = useMemo(() => {
+        return data.dataPoints.map(it => ({ key: it.username, value: it.usage }));
+    }, [data.dataPoints]);
     const formatter = useCallback((val: number) => {
-        return Accounting.addThousandSeparators(val.toFixed(2)) + " DKK";
-    }, []);
+        return Accounting.addThousandSeparators(val.toFixed(2)) + " " + data.unit;
+    }, [data.unit]);
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <div className="panel-title">
-            <h4>Jobs by usage</h4>
+            <h4>Usage by users</h4>
         </div>
 
-        <div style={{display: "flex", justifyContent: "center"}}>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
-        </div>
+        <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
 
         <div className="table-wrapper">
             <table>
@@ -911,9 +1050,9 @@ const LargeJobsPanel: React.FunctionComponent = () => {
                 </tr>
                 </thead>
                 <tbody>
-                {fakeJobs.map(it => <tr key={it.username}>
+                {data.dataPoints.map(it => <tr key={it.username}>
                     <td>{it.username}</td>
-                    <td>{Accounting.addThousandSeparators(it.usage.toFixed(2))} DKK</td>
+                    <td>{Accounting.addThousandSeparators(it.usage.toFixed(2))} {data.unit}</td>
                 </tr>)}
                 </tbody>
             </table>
@@ -1149,7 +1288,6 @@ const PieChart: React.FunctionComponent<{
     valueFormatter: (value: number) => string,
     size?: number,
 }> = props => {
-    const keyRef = useRef(0);
     const filteredList = useMemo(() => {
         const all = [...props.dataPoints];
         all.sort((a, b) => {
@@ -1167,7 +1305,6 @@ const PieChart: React.FunctionComponent<{
             result.push({key: "Other", value: othersSum});
         }
 
-        keyRef.current++;
         return result;
     }, [props.dataPoints]);
     const series = useMemo(() => {
@@ -1178,39 +1315,65 @@ const PieChart: React.FunctionComponent<{
         return filteredList.map(it => it.key);
     }, [filteredList]);
 
-    return <Chart
-        type="pie"
-        series={series}
-        key={keyRef.current.toString()}
-        options={{
-            chart: {
-                animations: {
+    const chartProps = useMemo(() => {
+        return {
+            type: "pie",
+            series: series,
+            options: {
+                chart: {
+                    animations: {
+                        enabled: false,
+                    },
+                },
+                labels: labels,
+                dataLabels: {
                     enabled: false,
                 },
-            },
-            labels: labels,
-            dataLabels: {
-                enabled: false,
-            },
-            stroke: {
-                show: false,
-            },
-            legend: {
-                show: false,
-            },
-            tooltip: {
-                shared: false,
-                y: {
-                    formatter: function (val) {
-                        return props.valueFormatter(val);
+                stroke: {
+                    show: false,
+                },
+                legend: {
+                    show: false,
+                },
+                tooltip: {
+                    shared: false,
+                        y: {
+                        formatter: function (val) {
+                            return props.valueFormatter(val);
+                        }
                     }
-                }
-            },
-        }}
-        height={props.size ?? 350}
-        width={props.size ?? 350}
-    />
+                },
+            }
+        };
+    }, [series]);
+
+    return <DynamicallySizedChart Component={Chart} chart={chartProps} />;
 };
+
+interface SubmissionStatistics {
+    dataPoints: {
+        day: number;
+        hourOfDayStart: number;
+        hourOfDayEnd: number;
+        numberOfJobs: number;
+        averageDurationInSeconds: number;
+        averageQueueInSeconds: number;
+    }[];
+}
+const emptySubmisssionStatistics: SubmissionStatistics = { dataPoints: [] };
+
+interface MostUsedApplications {
+    dataPoints: { applicationTitle: string; count: number; }[],
+}
+
+const emptyMostUsedApplications: MostUsedApplications = { dataPoints: [] };
+
+interface JobUsageByUsers {
+    unit: string,
+    dataPoints: { username: string; usage: number; }[],
+}
+
+const emptyJobUsageByUsers: JobUsageByUsers = { unit: "", dataPoints: [] };
 
 interface BreakdownChart {
     unit: string,
@@ -1292,7 +1455,7 @@ function usageChartToChart(
                 stops: [0, 90, 100]
             }
         },
-        colors: ['var(--blue)'],
+        colors: ['var(--primary)'],
         yaxis: {
             labels: {
                 formatter: function (val) {
@@ -1484,6 +1647,8 @@ const PanelClass = injectStyle("panel", k => `
     ${k} .table-wrapper {
         flex-grow: 1;
         overflow-y: auto;
+        min-height: 200px;
+        flex-shrink: 5;
     }
     
     html.light ${k} .table-wrapper {
@@ -1950,8 +2115,8 @@ const initialState: State = {
     summaries: [],
     selectedPeriod: {
         type: "relative",
-        distance: 7,
-        unit: "day"
+        distance: 12,
+        unit: "month"
     }
 };
 

@@ -1,6 +1,6 @@
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {LoadingMainContainer} from "@/MainContainer/MainContainer";
+import {LoadingMainContainer} from "@/ui-components/MainContainer";
 import {useCallback} from "react";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";

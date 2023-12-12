@@ -13,7 +13,7 @@ import {
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
 import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";

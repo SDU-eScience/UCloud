@@ -873,7 +873,6 @@ class GrantsV2Service(
 
                     val success = idCard.adminOf.any { it in projects }
                     if (withCache && !success) {
-                        println("Fetching it again")
                         this.idCard = ctx.idCardService.fetchIdCard(actorAndProject, allowCached = false)
                         isGrantGiver(approverId, withCache = false)
                     } else {

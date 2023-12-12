@@ -9,7 +9,7 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
@@ -442,7 +442,6 @@ export const Overview: React.FunctionComponent = () => {
                 <HighlightedCard
                     icon="hdd"
                     title="My devices"
-                    color="blue"
                     className="devices"
                     subtitle={<Flex>
                         <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
@@ -477,7 +476,6 @@ export const Overview: React.FunctionComponent = () => {
                         className="servers"
                         icon="globeEuropeSolid"
                         title={servers.length > 1 ? "Syncthing servers" : "Syncthing server"}
-                        color="blue"
                     >
                         <Text color="darkGray">
                             We synchronize your files from this server. Monitor the health of your servers here.
@@ -512,7 +510,6 @@ export const Overview: React.FunctionComponent = () => {
                 className="folders"
                 icon="ftFolder"
                 title="Synchronized folders"
-                color="blue"
                 subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
                 <Text color="darkGray">

@@ -18,7 +18,7 @@ import {NavigateFunction, useNavigate} from "react-router";
 import {Box, List} from "@/ui-components/index";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {StickyBox} from "@/ui-components/StickyBox";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "./MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
 
 interface BrowseProps<T> {

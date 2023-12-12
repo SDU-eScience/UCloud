@@ -20,7 +20,7 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
 import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useNavigate, useParams} from "react-router";
@@ -318,7 +318,7 @@ export function ResourceProperties<Res extends Resource>(
 
                 <div className={InfoWrapper}>
                     {props.showProperties === false ? null :
-                        <HighlightedCard color={"purple"} isLoading={false} title={"Properties"} icon={"properties"}>
+                        <HighlightedCard isLoading={false} title={"Properties"} icon={"properties"}>
                             <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                                 <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
                                 {resource.specification.product.provider === UCLOUD_CORE ? null : <>
@@ -335,7 +335,7 @@ export function ResourceProperties<Res extends Resource>(
                         </HighlightedCard>
                     }
                     {props.showMessages === false ? null :
-                        <HighlightedCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
+                        <HighlightedCard isLoading={false} title={"Messages"} icon={"chat"}>
                             <Messages resource={resource} />
                         </HighlightedCard>
                     }
@@ -344,7 +344,7 @@ export function ResourceProperties<Res extends Resource>(
 
                 <div className={ContentWrapper}>
                     {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
-                        <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
+                        <HighlightedCard isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
                                 noPermissionsWarning={props.noPermissionsWarning} />
                             <Box mb={16} />

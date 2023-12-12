@@ -29,7 +29,7 @@ export const AppHeader: React.FunctionComponent<{
     const close = React.useRef(() => void 0);
 
     return (
-        <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
+        <Flex flexDirection={"row"}>
             <Box mr={16} mt="auto">
                 <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
             </Box>
@@ -112,7 +112,7 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     padding-right: 12px;
     text-align: center;
     color: var(--fixedWhite);
-    background-color: var(--blue);
+    background-color: var(--primary);
     border-radius: 20px;
     cursor: pointer;
 `);
@@ -124,7 +124,7 @@ const FlavorSelectorClass = injectStyle("flavor-selector", k => `
         padding: 0px 15px;
         font-size: var(--buttonText);
         align-items: center;
-        background-color: var(--blue);
+        background-color: var(--primary);
         color: white;
         margin: auto 0px;
     }

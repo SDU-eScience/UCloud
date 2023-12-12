@@ -2,7 +2,7 @@ import * as React from "react";
 import {SpaceProps} from "styled-system";
 import * as ReactDOM from "react-dom";
 import {useCallback, useRef} from "react";
-import {injectStyle} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 
 interface Tooltip extends SpaceProps {
     children: React.ReactNode;
@@ -10,16 +10,14 @@ interface Tooltip extends SpaceProps {
     tooltipContentWidth?: number;
 }
 
-const TooltipContent = injectStyle("tooltip-content", k => `
-    ${k} {
-        padding: 8px;
-        border-radius: 8px;
-        background: var(--black);
-        color: var(--white);
-        font-size: 16px;
-        position: fixed;
-        z-index: 10000;
-    }
+const TooltipContent = injectStyleSimple("tooltip-content", `
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--black);
+    color: var(--white);
+    font-size: 16px;
+    position: fixed;
+    z-index: 10000;
 `);
 
 function getPortal(): HTMLElement {

@@ -18,7 +18,6 @@ import {InputProps} from "@/ui-components/Input";
 import {ButtonProps} from "@/ui-components/Button";
 import {Feature, hasFeature} from "@/Features";
 
-
 const BackgroundImage = injectStyleSimple("background-image", `
     background: url(${deicBackground}) no-repeat center;
     background-size: calc(3000px + 80vw);

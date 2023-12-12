@@ -1,10 +1,10 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {Box, Flex, Radio} from "@/ui-components";
+import {Box, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ChangePassword} from "@/UserSettings/ChangePassword";
 import {Sessions} from "@/UserSettings/Sessions";

@@ -93,7 +93,7 @@ export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boo
                 </button>
             </Flex>
         )}
-        <Icon name="heroMagnifyingGlass" cursor="pointer" size="24" color="blue" className="search-icon" onClick={() =>
+        <Icon name="heroMagnifyingGlass" cursor="pointer" size="24" color="primary" className="search-icon" onClick={() =>
             setHidden(!isHidden)
         } />
     </Flex>;

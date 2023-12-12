@@ -84,8 +84,8 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     }
     
     ${k}[data-disabled="false"]:hover > .${RadioTileIconClass} {
-        color: var(--blue, #f00); 
-        border: 1px solid var(--blue, #f00);
+        color: var(--primary, #f00); 
+        border: 1px solid var(--primary, #f00);
     }
 
     ${k}[data-checked="true"]:hover > .${RadioTileIconClass}, ${k}[data-disabled="true"] > .${RadioTileIconClass} {
@@ -109,7 +109,7 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     }
     
     ${k} input:checked + .${RadioTileIconClass} {
-        background-color: var(--blue, #f00);
+        background-color: var(--primary, #f00);
         border: 0px solid var(--invertedThemeColor);
         color: var(--fixedWhite);
     }   

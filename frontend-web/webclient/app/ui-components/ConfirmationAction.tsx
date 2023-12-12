@@ -29,8 +29,8 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     }
     
     ${k}[data-square="true"]:hover {
-        --progress-border: var(--hoverColor, var(--blue));
-        --background: var(--hoverColor, var(--blue)) !important;
+        --progress-border: var(--hoverColor, var(--primary));
+        --background: var(--hoverColor, var(--primary)) !important;
     }
     
     ${k}[data-square="true"] {

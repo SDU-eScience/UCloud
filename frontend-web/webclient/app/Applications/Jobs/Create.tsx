@@ -3,7 +3,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import * as UCloud from "@/UCloud";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
 import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Grid, Icon, Link, Markdown, Tooltip} from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
@@ -25,8 +25,8 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
-import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {Product, usageExplainer} from "@/Accounting";
@@ -62,11 +62,10 @@ export const Create: React.FunctionComponent = () => {
     const appVersion = getQueryParam(location.search, "version");
 
     if (!appName) {
+        // Note: This is incorrect use of hooks, but this case should be unreachable
         navigate("/");
         return null;
     }
-
-
 
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
@@ -80,7 +79,7 @@ export const Create: React.FunctionComponent = () => {
     );
 
     if (applicationResp) {
-        useTitle(`${applicationResp.data?.metadata.name} ${applicationResp.data?.metadata.version ?? ""}`);
+        useTitle(`${applicationResp.data?.metadata.title} ${applicationResp.data?.metadata.version ?? ""}`);
     } else {
         useTitle(`${appName} ${appVersion ?? ""}`);
     }
@@ -290,8 +289,6 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [application, folders, peers, ingress, networks]);
 
-    useTitle(application == null ? `${appName} ${appVersion ?? ""}` : `${application.metadata.title} ${appVersion ?? ""}`);
-
     if (applicationResp.loading) return <MainContainer main={<LoadingIcon size={36} />} />;
 
     if (application == null) {
@@ -326,23 +323,28 @@ export const Create: React.FunctionComponent = () => {
         main={
             <>
                 <Box mx="50px" mt="32px">
-                    <Spacer left={
-                        <AppHeader
-                            title={appGroup?.data?.group.title ?? application.metadata.title}
-                            slim application={application}
-                            flavors={appGroup?.data?.applications ?? []}
-                            allVersions={previousResp.data?.items ?? []}
-                            />} right={<>
-                        {!application.metadata.website ? null : (
-                            <Tooltip
-                                trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
-                                    <Icon name="documentation" color="blue" />
-                                </ExternalLink>}>
-                                View documentation
-                            </Tooltip>
-                        )}
-                        <UtilityBar searchEnabled={false} />
-                    </>} />
+                    <Spacer
+                        left={
+                            <AppHeader
+                                title={appGroup?.data?.group.title ?? application.metadata.title}
+                                slim application={application}
+                                flavors={appGroup?.data?.applications ?? []}
+                                allVersions={previousResp.data?.items ?? []}
+                            />}
+                        right={<>
+                            {!application.metadata.website ? null : (
+                                <Flex my="auto">
+                                    <Tooltip
+                                        trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
+                                            <Icon name="documentation" color="primary" />
+                                        </ExternalLink>}>
+                                        View documentation
+                                    </Tooltip>
+                                </Flex>
+                            )}
+                            <UtilityBar searchEnabled={false} />
+                        </>}
+                    />
                 </Box>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
@@ -388,7 +390,7 @@ export const Create: React.FunctionComponent = () => {
                                                 }>
                                                     {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
                                                 </Tooltip>
-                                            :
+                                                :
                                                 <Button
                                                     color={"green"}
                                                     type={"button"}
