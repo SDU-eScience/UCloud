@@ -62,11 +62,10 @@ export const Create: React.FunctionComponent = () => {
     const appVersion = getQueryParam(location.search, "version");
 
     if (!appName) {
+        // Note: This is incorrect use of hooks, but this case should be unreachable
         navigate("/");
         return null;
     }
-
-
 
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
@@ -324,23 +323,28 @@ export const Create: React.FunctionComponent = () => {
         main={
             <>
                 <Box mx="50px" mt="32px">
-                    <Spacer left={
-                        <AppHeader
-                            title={appGroup?.data?.group.title ?? application.metadata.title}
-                            slim application={application}
-                            flavors={appGroup?.data?.applications ?? []}
-                            allVersions={previousResp.data?.items ?? []}
-                            />} right={<>
-                        {!application.metadata.website ? null : (
-                            <Tooltip
-                                trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
-                                    <Icon name="documentation" color="primary" />
-                                </ExternalLink>}>
-                                View documentation
-                            </Tooltip>
-                        )}
-                        <UtilityBar searchEnabled={false} />
-                    </>} />
+                    <Spacer
+                        left={
+                            <AppHeader
+                                title={appGroup?.data?.group.title ?? application.metadata.title}
+                                slim application={application}
+                                flavors={appGroup?.data?.applications ?? []}
+                                allVersions={previousResp.data?.items ?? []}
+                            />}
+                        right={<>
+                            {!application.metadata.website ? null : (
+                                <Flex my="auto">
+                                    <Tooltip
+                                        trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
+                                            <Icon name="documentation" color="primary" />
+                                        </ExternalLink>}>
+                                        View documentation
+                                    </Tooltip>
+                                </Flex>
+                            )}
+                            <UtilityBar searchEnabled={false} />
+                        </>}
+                    />
                 </Box>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
@@ -386,7 +390,7 @@ export const Create: React.FunctionComponent = () => {
                                                 }>
                                                     {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
                                                 </Tooltip>
-                                            :
+                                                :
                                                 <Button
                                                     color={"green"}
                                                     type={"button"}

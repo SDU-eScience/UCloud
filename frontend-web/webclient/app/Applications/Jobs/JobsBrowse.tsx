@@ -17,6 +17,7 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
+import {Operation} from "@/ui-components/Operation";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -36,7 +37,7 @@ const FEATURES: ResourceBrowseFeatures = {
 export const logoDataUrls = new AsyncCache<string>();
 
 const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Job name"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: "State"}];
-function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean;}}): JSX.Element {
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -210,7 +211,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
-                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
+                    return JobsApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries)).concat(opts?.operations ?? []);
                 });
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.omitBreadcrumbs) return [];

@@ -10,6 +10,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {createHTMLElements} from "@/UtilityFunctions";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
+import {ShortcutKey} from "@/ui-components/Operation";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -128,7 +129,24 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                     return {};
                 });
                 browser.on("fetchOperations", () => {
-                    return [];
+                    return [{
+                        enabled: (selected) => selected.length === 1,
+                        text: "Accept",
+                        onClick: ([invite]) => {
+                            callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})))
+                        },
+                        icon: "check",
+                        shortcut: ShortcutKey.N
+                    }, {
+                        enabled: (selected) => selected.length === 1,
+                        text: "Decline",
+                        color: "red",
+                        onClick: ([invite]) => {
+                            callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
+                        },
+                        icon: "close",
+                        shortcut: ShortcutKey.Backspace
+                    }];
                 });
                 browser.on("generateBreadcrumbs", () => {
                     return [{title: "Providers", absolutePath: ""}]
@@ -150,11 +168,10 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
         browserRef.current?.refresh();
     });
 
-    const main = <>
+    return <div>
         <div ref={mountRef} />
         {switcher}
-    </>;
-    return <div>{main}</div>;
+    </div>;
 }
 
 export default ProviderBrowse;

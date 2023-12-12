@@ -10,7 +10,7 @@ import {fileName, resolvePath} from "@/Utilities/FileUtilities";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
-import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
+import {makeClassName, injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
@@ -434,8 +434,8 @@ export class ResourceBrowser<T> {
     mount() {
         // Mount primary UI and stylesheets
         ResourceBrowser.injectStyle();
-
-        this.root.classList.add("file-browser");
+        const browserClass = makeClassName("browser");
+        this.root.classList.add(browserClass.class);
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -2847,6 +2847,7 @@ export class ResourceBrowser<T> {
     static injectStyle() {
         if (ResourceBrowser.styleInjected) return;
         ResourceBrowser.styleInjected = true;
+        const browserClass = makeClassName("browser");
         //language=css
         unstyledInjectStyle("ignored", () => `
             body[data-cursor=not-allowed] * {
@@ -2861,7 +2862,7 @@ export class ResourceBrowser<T> {
                 user-select: none;
             }
 
-            .file-browser .drag-indicator {
+            ${browserClass.dot} .drag-indicator {
                 position: fixed;
                 z-index: 10000;
                 background-color: rgba(0, 0, 255, 30%);
@@ -2871,8 +2872,8 @@ export class ResourceBrowser<T> {
                 left: 0;
             }
 
-            .file-browser .file-drag-indicator-content,
-            .file-browser .file-drag-indicator {
+            ${browserClass.dot} .file-drag-indicator-content,
+            ${browserClass.dot} .file-drag-indicator {
                 position: fixed;
                 z-index: 10000;
                 display: none;
@@ -2882,33 +2883,33 @@ export class ResourceBrowser<T> {
                 user-select: none;
             }
             
-            .file-browser .file-drag-indicator-content {
+            ${browserClass.dot} .file-drag-indicator-content {
                 z-index: 10001;
                 width: 400px;
                 margin: 16px;
                 white-space: pre;
             }
 
-            .file-browser .filters, .file-browser .session-filters,  .file-browser .right-sort-filters {
+            ${browserClass.dot} .filters, ${browserClass.dot} .session-filters, ${browserClass.dot} .right-sort-filters {
                 display: flex;
                 margin-top: 12px;
             }
 
-            .file-browser .file-drag-indicator-content img {
+            ${browserClass.dot} .file-drag-indicator-content img {
                 margin-right: 8px;
             }
 
-            .file-browser .file-drag-indicator {
+            ${browserClass.dot} .file-drag-indicator {
                 transition: transform 0.06s;
                 background: var(--tableRowHighlight);
                 width: 1px;
                 overflow: hidden;
             }
          
-            .file-browser .file-drag-indicator.animate {
+            ${browserClass.dot} .file-drag-indicator.animate {
             }
 
-            .file-browser {
+            ${browserClass.dot} {
                 width: 100%;
                 height: calc(100vh - 32px);
                 display: flex;
@@ -2916,19 +2917,19 @@ export class ResourceBrowser<T> {
                 font-size: 16px;
             }
 
-            .file-browser header .header-first-row {
+            ${browserClass.dot} header .header-first-row {
                 display: flex;
                 align-items: center;
                 margin-bottom: 8px;
             }
 
-            .file-browser header .header-first-row img {
+            ${browserClass.dot} header .header-first-row img {
                 cursor: pointer;
                 flex-shrink: 0;
                 margin-left: 16px;
             }
 
-            .file-browser header .header-first-row .location-bar {
+            ${browserClass.dot} header .header-first-row .location-bar {
                 flex-grow: 1;
             }
 
@@ -2937,7 +2938,7 @@ export class ResourceBrowser<T> {
                 height: 24px;
             }
 
-            .file-browser header ul {
+            ${browserClass.dot} header ul {
                 padding: 0;
                 margin: 0;
                 display: flex;
@@ -2948,50 +2949,50 @@ export class ResourceBrowser<T> {
                 align-items: center;
             }
 
-            .file-browser > div {
+            ${browserClass.dot} > div {
                 flex-grow: 1;
             }
 
-            .file-browser header {
+            ${browserClass.dot} header {
                 width: 100%;
                 height: 100px;
                 flex-shrink: 0;
                 overflow: hidden;
             }
             
-            .file-browser header[data-has-filters] {
+            ${browserClass.dot} header[data-has-filters] {
                 height: 136px;
             }
 
-            .file-browser header .location-bar,
-            .file-browser header.show-location-bar ul {
+            ${browserClass.dot} header .location-bar,
+            ${browserClass.dot} header.show-location-bar ul {
                 display: none;
             }
 
-            .file-browser header.show-location-bar .location-bar,
-            .file-browser header ul {
+            ${browserClass.dot} header.show-location-bar .location-bar,
+            ${browserClass.dot} header ul {
                 display: flex;
             }
 
-            .file-browser .location-bar {
+            ${browserClass.dot} .location-bar {
                 width: 100%;
                 font-size: 120%;
                 height: 35px;
             }
             
-            .file-browser header > div > div > ul[data-no-slashes="true"] li::before {
+            ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
                 display: inline-block;
                 content: unset;
                 margin: 0;
             }
 
-            .file-browser header > div > div > ul li::before {
+            ${browserClass.dot} header > div > div > ul li::before {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;
             }
 
-            .file-browser header div ul li {
+            ${browserClass.dot} header div ul li {
                 list-style: none;
                 margin: 0;
                 padding: 0;
@@ -2999,7 +3000,7 @@ export class ResourceBrowser<T> {
                 font-size: 120%;
             }
 
-            .file-browser .row {
+            ${browserClass.dot} .row {
                 display: flex;
                 flex-direction: row;
                 container-type: inline-size;
@@ -3013,32 +3014,32 @@ export class ResourceBrowser<T> {
                 transition: filter 0.3s;
             }
             
-            .file-browser .rows-title {
+            ${browserClass.dot} .rows-title {
                 max-height: 0;
                 color: var(--textColor);
                 display: none;
             }
             
-            body[data-cursor=grabbing] .file-browser .row:hover {
+            body[data-cursor=grabbing] ${browserClass.dot} .row:hover {
                 filter: hue-rotate(10deg) saturate(500%);
             }
 
-            .file-browser .row.hidden {
+            ${browserClass.dot} .row.hidden {
                 display: none;
             }
 
-            .file-browser .row input[type=checkbox] {
+            ${browserClass.dot} .row input[type=checkbox] {
                 height: 20px;
                 width: 20px;
             }
 
-            .file-browser .row[data-selected="true"] {
+            ${browserClass.dot} .row[data-selected="true"] {
                 background: var(--tableRowHighlight);
             }
 
         
 
-            .file-browser .row .title {
+            ${browserClass.dot} .row .title {
                 display: flex;
                 align-items: center;
                 width: 85%;
@@ -3054,16 +3055,16 @@ export class ResourceBrowser<T> {
                 }
             }
 
-            .file-browser .row .stat2,
-            .file-browser .row .stat3  {
+            ${browserClass.dot} .row .stat2,
+            ${browserClass.dot} .row .stat3  {
                 display: none;
                 width: 0;
             }
 
             @media screen and (min-width: 860px) {
-                .file-browser .row .stat1,
-                .file-browser .row .stat2,
-                .file-browser .row .stat3 {
+                ${browserClass.dot} .row .stat1,
+                ${browserClass.dot} .row .stat2,
+                ${browserClass.dot} .row .stat3 {
                     display: flex;
                     justify-content: end;
                     text-align: end;
@@ -3071,8 +3072,14 @@ export class ResourceBrowser<T> {
                 }
             }
 
+            @media screen and (max-width: 860px) {
+                ${browserClass.dot} .row .stat1 {
+                    margin-left: auto;
+                }
+            }
+
  
-            .file-browser .sensitivity-badge {
+            ${browserClass.dot} .sensitivity-badge {
                 height: 2em;
                 width: 2em;
                 display: flex;
@@ -3083,38 +3090,38 @@ export class ResourceBrowser<T> {
                 border-radius: 100%;
             }
 
-            .file-browser .sensitivity-badge.PRIVATE {
+            ${browserClass.dot} .sensitivity-badge.PRIVATE {
                 --badgeColor: var(--midGray);
             }
 
-            .file-browser .sensitivity-badge.CONFIDENTIAL {
+            ${browserClass.dot} .sensitivity-badge.CONFIDENTIAL {
                 --badgeColor: var(--purple);
             }
 
-            .file-browser .sensitivity-badge.SENSITIVE {
+            ${browserClass.dot} .sensitivity-badge.SENSITIVE {
                 --badgeColor: #ff0004;
             }
 
-            .file-browser .operation {
+            ${browserClass.dot} .operation {
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 gap: 8px;
             }
 
-            .file-browser .operation.in-header {
+            ${browserClass.dot} .operation.in-header {
                 padding: 11px;
                 background: var(--headerOperationColor);
                 border-radius: 8px;
             }
 
-            .file-browser .operations {
+            ${browserClass.dot} .operations {
                 display: flex;
                 flex-direction: row;
                 gap: 16px;
             }
 
-            .file-browser .context-menu {
+            ${browserClass.dot} .context-menu {
                 position: fixed;
                 z-index: 10000;
                 top: 0;
@@ -3131,14 +3138,14 @@ export class ResourceBrowser<T> {
                 transition: opacity 120ms, transform 60ms;
             }
 
-            .file-browser .context-menu ul {
+            ${browserClass.dot} .context-menu ul {
                 padding: 0;
                 margin: 0;
                 display: flex;
                 flex-direction: column;
             }
 
-            .file-browser .context-menu li {
+            ${browserClass.dot} .context-menu li {
                 margin: 0;
                 padding: 8px 8px;
                 list-style: none;
@@ -3147,29 +3154,29 @@ export class ResourceBrowser<T> {
                 gap: 8px;
             }
 
-            .file-browser .context-menu li kbd {
+            ${browserClass.dot} .context-menu li kbd {
                 flex-grow: 1;
                 text-align: end;
             }
 
-            .file-browser .context-menu li[data-selected=true] {
+            ${browserClass.dot} .context-menu li[data-selected=true] {
                 background: var(--tableRowHighlight);
             }
 
-            .file-browser .context-menu > ul > *:first-child,
-            .file-browser .context-menu > ul > li:first-child > button {
+            ${browserClass.dot} .context-menu > ul > *:first-child,
+            ${browserClass.dot} .context-menu > ul > li:first-child > button {
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
             }
             
-            .file-browser .context-menu > ul > *:last-child,
-             .file-browser .context-menu > ul > li:last-child,
-             .file-browser .context-menu > ul > li:last-child > button {
+            ${browserClass.dot} .context-menu > ul > *:last-child,
+             ${browserClass.dot} .context-menu > ul > li:last-child,
+             ${browserClass.dot} .context-menu > ul > li:last-child > button {
                 border-bottom-left-radius: 8px;
                 border-bottom-right-radius: 8px;
             }
             
-            .file-browser .rename-field {
+            ${browserClass.dot} .rename-field {
                 display: none;
                 position: absolute;
                 background-color: var(--lightGray);
@@ -3181,7 +3188,7 @@ export class ResourceBrowser<T> {
                 left: 60px;
             }
 
-            .file-browser .page-empty {
+            ${browserClass.dot} .page-empty {
                 display: none;
                 position: fixed;
                 top: 0;
@@ -3194,7 +3201,7 @@ export class ResourceBrowser<T> {
                 text-align: center;
             }
             
-            .file-browser .page-empty .graphic {
+            ${browserClass.dot} .page-empty .graphic {
                 background: var(--primary);
                 min-height: 100px;
                 min-width: 100px;
@@ -3204,11 +3211,11 @@ export class ResourceBrowser<T> {
                 justify-content: center;
             }
             
-            .file-browser .page-empty .provider-reason {
+            ${browserClass.dot} .page-empty .provider-reason {
                 font-style: italic;
             }
 
-            .file-browser div > div.right-sort-filters {
+            ${browserClass.dot} div > div.right-sort-filters {
                 margin-left: auto;
             }
         `);
