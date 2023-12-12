@@ -1489,7 +1489,7 @@ class AccountingService(
     suspend fun generateTestData(
         objects: List<TestDataObject>,
         spreadOverDays: Int = 3650,
-        clusterCount: Int = 10,
+        clusterCount: Int = 600,
     ) {
         require(devMode) { "devMode must be on" }
 

@@ -1,14 +1,14 @@
 import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
-import {classConcat, injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import {Flex, Icon, Input, Radio, Select} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
+import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {translateBinaryProductCategory} from ".";
 import {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -463,11 +463,21 @@ const Visualization: React.FunctionComponent = props => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
 
+
+    // Short-hands
+    // -----------------------------------------------------------------------------------------------------------------
+    const hasChart3And4 = state.activeDashboard?.submissionStatistics !== undefined; // a bit too simplified
+
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
     // NOTE(Dan): We are not using a <MainContainer/> here on purpose since
     // we want to use _all_ of the space.
-    return <div className={VisualizationStyle}>
+    return <div
+        className={classConcat(
+            VisualizationStyle,
+            hasChart3And4 ? undefined : AccountingPanelsOnlyStyle
+        )}
+    >
         <header className="at-top">
             <h3>Resource usage</h3>
             <div className="duration-select">
@@ -487,8 +497,6 @@ const Visualization: React.FunctionComponent = props => {
                         categoryName={s.category.name}
                         usageText1={usageToString(s.category, s.usage, s.quota, false)}
                         usageText2={usageToString(s.category, s.usage, s.quota, true)}
-                        change={0}
-                        changeText={"7d change"}
                         chart={s.chart}
                         active={
                             s.category.name === state.activeDashboard?.category?.name &&
@@ -569,6 +577,7 @@ const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
             text-align: center;
             margin: 0 !important;
             margin-top: 19px !important;
+            text-wrap: pretty;
         }
     }
     
@@ -910,10 +919,15 @@ const UsageOverTimeStyle = injectStyle("usage-over-time", k => `
     }
 `);
 
+const ASPECT_RATIO_LINE_CHART: [number, number] = [1 / (16 / 9), 1 / (24 / 9)];
+const ASPECT_RATIO_PIE_CHART: [number, number] = [1, 1];
+
 const DynamicallySizedChart: React.FunctionComponent<{
     Component: React.ComponentType<any>,
-    chart: any
-}> = ({Component, chart}) => {
+    chart: any,
+    aspectRatio: [number, number],
+    maxWidth?: number,
+}> = ({Component, chart, aspectRatio, maxWidth}) => {
     // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
     // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
     // of a grid and a flexbox.
@@ -927,12 +941,14 @@ const DynamicallySizedChart: React.FunctionComponent<{
     // with the correct size.
 
     // NOTE(Dan): The wrapper is required to ensure the useEffect runs every time.
-    const [heightWrapper, setHeight] = useState<{ height: string | null }>({ height: null });
-    const height = heightWrapper.height;
+    const [dimensions, setDimensions] = useState<{ height?: string, width?: string }>({});
     const mountPoint = useRef<HTMLDivElement>(null);
+    const styleForLayoutTest: CSSProperties = {flexGrow: 2, flexShrink: 1, flexBasis: "400px"};
 
     useLayoutEffect(() => {
-        const listener = () => setHeight({ height: null });
+        const listener = () => {
+            setDimensions({});
+        };
         window.addEventListener("resize", listener);
         return () => {
             window.removeEventListener("resize", listener);
@@ -942,18 +958,47 @@ const DynamicallySizedChart: React.FunctionComponent<{
     useLayoutEffect(() => {
         const wrapper = mountPoint.current;
         if (!wrapper) return;
-        if (heightWrapper.height) return;
+        if (dimensions.height || dimensions.width) return;
 
         // NOTE(Dan): If we do not add a bit of a delay, then we risk that this API sometimes gives us back a result
         // which is significantly larger than it should be.
         window.setTimeout(() => {
-            const assignedHeight = wrapper.getBoundingClientRect().height;
-            setHeight({ height: assignedHeight + "px" });
-        }, 50);
-    }, [heightWrapper]);
+            console.log("Calculating size!");
+            const [minRatio, maxRatio] = aspectRatio;
 
-    return <div style={{flexGrow: 2, flexShrink: 1, flexBasis: "400px"}} ref={mountPoint}>
-        {height && <Component {...chart} height={height} />}
+            const boundingRect = wrapper.getBoundingClientRect();
+            const brWidth = boundingRect.width;
+            const brHeight = boundingRect.height;
+
+            // Use full width of either ratio
+            // If neither can do full width, go for the smallest ratio
+
+            let width = Math.min(brWidth, maxWidth ?? Number.MAX_SAFE_INTEGER);
+            let height = width * minRatio;
+            if (height > brHeight) {
+                height = width * maxRatio;
+
+                if (height > brHeight) {
+                    height = brHeight;
+                    width = height / minRatio;
+                }
+            }
+
+            setDimensions({ width: `${width}px`, height: `${height}px` });
+        }, 50);
+    }, [dimensions]);
+
+    return <div
+        style={dimensions.height ? {...dimensions, width: "100%", display: "flex", justifyContent: "center"} : styleForLayoutTest}
+        ref={mountPoint}
+    >
+        {dimensions.height && dimensions.width &&
+            <Component
+                {...chart}
+                height={dimensions.height}
+                width={dimensions.width}
+            />
+        }
     </div>;
 }
 
@@ -972,7 +1017,7 @@ const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({cha
             <h4>Usage over time</h4>
         </div>
 
-        <DynamicallySizedChart Component={Chart} chart={chartProps} />
+        <DynamicallySizedChart Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
 
         <div className="table-wrapper">
             <table>
@@ -988,10 +1033,11 @@ const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({cha
                     if (idx == 0) return null;
                     const change = point.usage - chart.dataPoints[idx - 1].usage;
                     sum += change;
+                    if (change === 0) return null;
                     return <tr key={idx}>
                         <td>{dateToString(point.timestamp)}</td>
-                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))} {chart.unit}</td>
-                        <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))} {chart.unit}</td>
+                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))}</td>
+                        <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))}</td>
                     </tr>;
                 })}
                 </tbody>
@@ -1052,7 +1098,7 @@ const UsageByUsers: React.FunctionComponent<{ data?: JobUsageByUsers }> = ({data
                 <tbody>
                 {data.dataPoints.map(it => <tr key={it.username}>
                     <td>{it.username}</td>
-                    <td>{Accounting.addThousandSeparators(it.usage.toFixed(2))} {data.unit}</td>
+                    <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
                 </tr>)}
                 </tbody>
             </table>
@@ -1286,7 +1332,6 @@ const fieldOfResearch = {
 const PieChart: React.FunctionComponent<{
     dataPoints: { key: string, value: number }[],
     valueFormatter: (value: number) => string,
-    size?: number,
 }> = props => {
     const filteredList = useMemo(() => {
         const all = [...props.dataPoints];
@@ -1347,7 +1392,7 @@ const PieChart: React.FunctionComponent<{
         };
     }, [series]);
 
-    return <DynamicallySizedChart Component={Chart} chart={chartProps} />;
+    return <DynamicallySizedChart Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
 };
 
 interface SubmissionStatistics {
@@ -1509,6 +1554,7 @@ function usageChartToChart(
 
 const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
     ${k} {
+        --offset: 0px;
         width: 300px;
     }
     
@@ -1539,7 +1585,7 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
 
     ${k} .border-bottom {
         position: absolute;
-        top: -6px;
+        top: var(--offset);
         width: 112px;
         height: 1px;
         background: var(--midGray);
@@ -1548,7 +1594,7 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
     ${k} .border-left {
         position: absolute;
         top: -63px;
-        height: calc(63px - 6px);
+        height: calc(63px + var(--offset));
         width: 1px;
         background: var(--midGray);
     }
@@ -1558,17 +1604,11 @@ const SmallUsageCard: React.FunctionComponent<{
     categoryName: string;
     usageText1: string;
     usageText2: string;
-    change: number;
-    changeText: string;
     chart: UsageChart;
     active: boolean;
     activationKey?: any;
     onActivate: (activationKey?: any) => void;
 }> = props => {
-    let themeColor: ThemeColor = "midGray";
-    if (props.change < 0) themeColor = "red";
-    else if (props.change > 0) themeColor = "green";
-
     const chartKey = useRef(0);
     const chartProps = useMemo(() => {
         chartKey.current++;
@@ -1595,12 +1635,7 @@ const SmallUsageCard: React.FunctionComponent<{
                 />
                 <div>
                     {props.usageText1} <br/>
-                    {props.usageText2} <br/>
-                    <span style={{color: `var(--${themeColor})`}}>
-                        {props.change < 0 ? "" : "+"}
-                        {props.change.toFixed(2)}%
-                    </span>
-                    {" "}{props.changeText}
+                    {props.usageText2}
                 </div>
             </div>
             <div style={{position: "relative"}}>
@@ -1900,6 +1935,7 @@ function normalizePeriod(period: Period): [number, number] {
 
 // Styling
 // =====================================================================================================================
+const AccountingPanelsOnlyStyle = injectStyle("accounting-panels-only", () => "");
 const VisualizationStyle = injectStyle("visualization", k => `
     ${k} header {
         position: fixed;
@@ -1942,36 +1978,6 @@ const VisualizationStyle = injectStyle("visualization", k => `
         margin-top: 0;
     }
 
-/*
-    ${k} .panel-grid {
-        display: flex;
-        gap: 16px;
-        flex-direction: row;
-        width: 100%;
-        padding: 16px 0;
-        height: calc(100vh - 195px);
-    }
-    
-    ${k} .primary-grid-2-2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 7fr 3fr;
-        gap: 16px;
-        width: 100%;
-        height: 100%;
-    }
-    
-    ${k} .primary-grid-2-1 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr;
-        gap: 16px;
-        width: 100%;
-        height: 100%;
-    }
-*/
-
-   
     ${k} table {
         width: 100%;
         border-collapse: separate;
@@ -2093,6 +2099,13 @@ const VisualizationStyle = injectStyle("visualization", k => `
     
     .${UsageOverTimeStyle} {
         grid-area: over-time;
+    }
+    
+    ${k}.${AccountingPanelsOnlyStyle} .${UsageOverTimeStyle} {
+        grid-row-start: over-time;
+        grid-row-end: chart4;
+        grid-column-start: over-time;
+        grid-column-end: chart4;
     }
     
     .${LargeJobsStyle} {
