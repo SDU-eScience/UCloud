@@ -29,7 +29,7 @@ export const AppHeader: React.FunctionComponent<{
     const close = React.useRef(() => void 0);
 
     return (
-        <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
+        <Flex flexDirection={"row"}>
             <Box mr={16} mt="auto">
                 <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
             </Box>
