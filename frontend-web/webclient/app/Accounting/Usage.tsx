@@ -23,6 +23,7 @@ import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
+import Warning from "@/ui-components/Warning";
 
 // State
 // =====================================================================================================================
@@ -466,7 +467,8 @@ const Visualization: React.FunctionComponent = props => {
 
     // Short-hands
     // -----------------------------------------------------------------------------------------------------------------
-    const hasChart3And4 = state.activeDashboard?.submissionStatistics !== undefined; // a bit too simplified
+    const activeCategory = state.activeDashboard?.category;
+    const hasChart3And4 = activeCategory?.productType === "COMPUTE";
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -519,11 +521,13 @@ const Visualization: React.FunctionComponent = props => {
                             nextAllocationAt={state.activeDashboard.nextAllocation?.startsAt}
                             nextAllocation={state.activeDashboard.nextAllocation?.quota}
                         />
-                        <BreakdownPanel chart={state.activeDashboard.breakdownByProject}/>
+                        <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject}/>
                         <UsageOverTimePanel chart={state.activeDashboard.usageOverTime}/>
-                        <UsageByUsers data={state.activeDashboard.jobUsageByUsers}/>
-                        <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications}/>
-                        <JobSubmissionPanel data={state.activeDashboard.submissionStatistics}/>
+                        {activeCategory?.productType === "COMPUTE" && <>
+                            <UsageByUsers data={state.activeDashboard.jobUsageByUsers}/>
+                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications}/>
+                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics}/>
+                        </>}
                     </div>
                 </div>
             }
@@ -715,7 +719,7 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-const BreakdownPanel: React.FunctionComponent<{ chart: BreakdownChart }> = props => {
+const BreakdownPanel: React.FunctionComponent<{ period: Period, chart: BreakdownChart }> = props => {
     const unit = props.chart.unit;
 
     const dataPoints = useMemo(
@@ -734,17 +738,21 @@ const BreakdownPanel: React.FunctionComponent<{ chart: BreakdownChart }> = props
         return Accounting.addThousandSeparators(val.toFixed(0)) + " " + unit;
     }, [unit]);
 
+    const showWarning = (() => {
+        const [start, end] = normalizePeriod(props.period);
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
+    })();
+
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
-            <h4>Usage breakdown by</h4>
-            <div>
-                <Select slim>
-                    <option>Project</option>
-                    <option>Field of research</option>
-                    <option>Machine type</option>
-                </Select>
-            </div>
+            <h4>Usage breakdown by sub-projects</h4>
         </div>
+
+        {showWarning && <>
+            <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
+        </>}
 
         <div className="pie-wrapper">
             <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
@@ -772,7 +780,6 @@ const BreakdownPanel: React.FunctionComponent<{ chart: BreakdownChart }> = props
 };
 
 const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
-   
     ${k} table tr > td:nth-child(2),
     ${k} table tr > td:nth-child(3) {
         font-family: var(--monospace);
@@ -812,7 +819,6 @@ const MostUsedApplicationsPanel: React.FunctionComponent<{ data?: MostUsedApplic
 };
 
 const JobSubmissionStyle = injectStyle("job-submission", k => `
-
     ${k} table tr > td:nth-child(2),
     ${k} table tr > td:nth-child(3),
     ${k} table tr > td:nth-child(4),
@@ -1012,12 +1018,34 @@ const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({cha
         });
     }, [chart]);
 
+    const showWarning = (() => {
+        const initialUsage = chart.dataPoints[0].usage;
+        const initialQuota = chart.dataPoints[0].quota;
+        if (initialUsage !== 0) {
+            if (chart.dataPoints.some(it => it.usage === 0)) {
+                return true;
+            }
+
+            if (chart.dataPoints.some(it => it.quota !== initialQuota)) {
+                return true;
+            }
+        }
+        return false;
+    })();
+
     return <div className={classConcat(CardClass, PanelClass, UsageOverTimeStyle)}>
         <div className="panel-title">
             <h4>Usage over time</h4>
         </div>
 
         <DynamicallySizedChart Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
+
+        {showWarning && <>
+            <Warning>
+                It looks like the graph is showing data from multiple allocations.
+                Fluctuations in usage normally indicate that an allocation has expired.
+            </Warning>
+        </>}
 
         <div className="table-wrapper">
             <table>
