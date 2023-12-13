@@ -3,7 +3,6 @@ import * as React from "react";
 import api, {ProjectInvite} from "./Api";
 import {callAPI} from "@/Authentication/DataHook";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {PageV2} from "@/UCloud";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {format} from "date-fns";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -11,10 +10,15 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {createHTMLElements} from "@/UtilityFunctions";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {ShortcutKey} from "@/ui-components/Operation";
+import {MainContainer} from "@/ui-components";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
 };
+
+interface SetShowBrowserHack {
+    setShowBrowser?: (show: boolean) => void;
+}
 
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
@@ -27,9 +31,8 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-
 const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: ""}, {name: "Invited by"}, {name: "Invited"}];
-function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {page?: PageV2<ProjectInvite>}}): JSX.Element {
+function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & SetShowBrowserHack}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ProjectInvite> | null>(null);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
@@ -37,12 +40,6 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
     if (!opts?.embedded && !opts?.isModal) {
         useTitle("Providers");
     }
-
-    React.useEffect(() => {
-        if (browserRef.current && opts?.page) {
-            browserRef.current.registerPage(opts.page, "/", true);
-        }
-    }, [opts?.page]);
 
     const omitFilters = !!opts?.omitFilters;
 
@@ -58,23 +55,22 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<ProjectInvite>(mount, "Project invites", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<ProjectInvite>(mount, "", opts).init(browserRef, features, "", browser => {
                 browser.setColumnTitles(rowTitles);
 
                 browser.on("beforeOpen", (oldPath, newPath, res) => res != null);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) return;
 
-                    if (!opts?.page) {
-                        callAPI(api.browseInvites({
-                            ...browser.browseFilters,
-                            ...defaultRetrieveFlags,
-                            ...opts?.additionalFilters
-                        })).then(result => {
-                            browser.registerPage(result, newPath, true);
-                            browser.renderRows();
-                        });
-                    }
+                    callAPI(api.browseInvites({
+                        ...browser.browseFilters,
+                        ...defaultRetrieveFlags,
+                        ...opts?.additionalFilters
+                    })).then(result => {
+                        browser.registerPage(result, newPath, true);
+                        browser.renderRows();
+                        opts?.setShowBrowser?.(result.items.length > 0);
+                    });
                 });
 
                 browser.on("wantToFetchNextPage", async path => {
@@ -88,13 +84,15 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                     );
                     browser.registerPage(result, path, false);
                     browser.renderRows();
+
+                    // HACK(Jonas): For Dashboard invite cards.
+                    opts?.setShowBrowser?.(result.items.length > 0);
                 });
 
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (invite, row, dims) => {
                     row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, dims, row));
-
 
                     row.stat2.innerText = invite.invitedBy;
                     row.stat3.innerText = format(invite.createdAt, "dd/MM/yy");
@@ -104,14 +102,16 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                     });
                     row.stat1.append(group);
                     group.appendChild(browser.defaultButtonRenderer({
-                        onClick: () => {
-                            callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})))
+                        onClick: async () => {
+                            await callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})))
+                            browser.refresh();
                         },
                         text: "Accept"
                     }, invite, {color: "green", width: "72px"})!);
                     group.appendChild(browser.defaultButtonRenderer({
-                        onClick: () => {
-                            callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
+                        onClick: async () => {
+                            await callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
+                            browser.refresh();
                         },
                         text: "Decline"
                     }, invite, {color: "red", width: "72px"})!);
@@ -132,8 +132,9 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                     return [{
                         enabled: (selected) => selected.length === 1,
                         text: "Accept",
-                        onClick: ([invite]) => {
-                            callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})))
+                        onClick: async ([invite]) => {
+                            await callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})));
+                            browser.refresh();
                         },
                         icon: "check",
                         shortcut: ShortcutKey.N
@@ -141,8 +142,9 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
                         enabled: (selected) => selected.length === 1,
                         text: "Decline",
                         color: "red",
-                        onClick: ([invite]) => {
-                            callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
+                        onClick: async ([invite]) => {
+                            await callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
+                            browser.refresh();
                         },
                         icon: "close",
                         shortcut: ShortcutKey.Backspace
@@ -168,10 +170,10 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & {pa
         browserRef.current?.refresh();
     });
 
-    return <div>
+    return <MainContainer main={<div>
         <div ref={mountRef} />
         {switcher}
-    </div>;
+    </div>} />;
 }
 
 export default ProviderBrowse;

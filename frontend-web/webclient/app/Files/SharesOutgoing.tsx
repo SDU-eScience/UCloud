@@ -75,7 +75,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                 let shouldRemoveFakeDirectory = true;
                 const dummyId = "temporary-share-id-that-will-be-unique";
                 function showShareInput() {
-                    browser.removeEntryFromCurrentPage(it => it.id === dummyId);
+                    browser.removeEntryFromCurrentPage(it => (it as any).id === dummyId);
                     shouldRemoveFakeDirectory = false;
                     insertFakeEntry(dummyId);
                     const idx = browser.findVirtualRowIndex((it: OutgoingShareGroupPreview) => it.shareId === dummyId);

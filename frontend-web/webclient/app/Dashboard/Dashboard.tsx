@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2, pageV2Of} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -49,6 +49,8 @@ import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
+import {IngoingSharesBrowse} from "@/Files/Shares";
+import SharesApi, {Share} from "@/UCloud/SharesApi";
 
 function Dashboard(): JSX.Element {
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -96,7 +98,7 @@ function Dashboard(): JSX.Element {
 
             <DashboardNews news={news} />
 
-            <ProjectInvites />
+            <Invites />
 
             <div className={GridClass}>
                 <DashboardFavoriteFiles />
@@ -141,20 +143,23 @@ const GridClass = injectStyle("grid", k => `
 }
 `);
 
-function ProjectInvites(): React.ReactNode {
-    const [invites] = useCloudAPI<PageV2<ProjectInvite>>(ProjectApi.browseInvites({itemsPerPage: 100}), emptyPageV2);
+function Invites(): React.ReactNode {
+    const [showProjectInvites, setShowProjectInvites] = React.useState(false);
+    const [showShareInvites, setShowShareInvites] = React.useState(false);
 
-    if (invites.data.items.length === 0) return null;
-    return <Flex mt="24px">
+    return <Flex mt="24px" style={display(showShareInvites || showProjectInvites)}>
         <HighlightedCard
-            isLoading={invites.loading}
             icon="heroUserGroup"
-            title="Project invitations"
-            error={invites.error?.why}
+            title="Invites"
         >
-            <ProjectInviteBrowse opts={{embedded: true, page: invites.data}} />
+            <div style={display(showProjectInvites)}><ProjectInviteBrowse opts={{embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
+            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
         </HighlightedCard>
     </Flex>
+}
+
+function display(val: boolean): {display: "none" | undefined} {
+    return {display: val ? undefined : "none"}
 }
 
 function DashboardFavoriteFiles(): JSX.Element {
@@ -294,7 +299,7 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
     const products = React.useMemo(() => <DashboardResources products={props.products} />, [props.products]);
 
     return (
-        <HighlightedCard> 
+        <HighlightedCard>
             <div className={ResourceGridClass}>
                 {usage}
                 {products}
