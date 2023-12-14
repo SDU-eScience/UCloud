@@ -324,7 +324,7 @@ class ProviderCommunications(
             for (elem in elements) {
                 @Suppress("UNCHECKED_CAST")
                 val product = productCache.referenceToProductId(elem.product)?.let {
-                    productCache.productIdToProduct(it) as? P?
+                    productCache.productIdToProduct(it)?.toV1() as? P?
                 }
 
                 if (product == null) {
