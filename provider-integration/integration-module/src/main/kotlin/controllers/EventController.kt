@@ -279,6 +279,8 @@ class EventController(
     }
 
     private suspend fun synchronizeProject(id: String): Boolean {
+        controllerContext.configuration.plugins.projects ?: return false
+
         val project = Projects.retrieve.call(
             ProjectsRetrieveRequest(id, includeMembers = true, includeGroups = true, includeSettings = true,
                 includePath = true),
