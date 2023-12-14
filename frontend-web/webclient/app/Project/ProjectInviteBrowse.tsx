@@ -66,7 +66,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                     callAPI(api.browseInvites({
                         ...browser.browseFilters,
                         ...defaultRetrieveFlags,
-                       ...opts?.additionalFilters
+                        ...opts?.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
@@ -167,9 +167,12 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     return <MainContainer main={<div>
         <div ref={mountRef} />

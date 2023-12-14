@@ -248,9 +248,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     const main = <>
         <div ref={mountRef} />

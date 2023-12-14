@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPage, emptyPageV2, pageV2Of} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
@@ -36,7 +36,7 @@ import {
 } from "@/Accounting";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
-import {default as ProjectApi, ProjectInvite, isAdminOrPI} from "@/Project/Api";
+import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -50,10 +50,9 @@ import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
-import SharesApi, {Share} from "@/UCloud/SharesApi";
 
 function Dashboard(): JSX.Element {
-    const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
+    const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
         withHidden: false,
@@ -65,6 +64,8 @@ function Dashboard(): JSX.Element {
 
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
+    
+    const [reloadIteration, setIteration] = React.useState(0);
 
 
     useTitle("Dashboard");
@@ -77,12 +78,14 @@ function Dashboard(): JSX.Element {
 
     function reload(): void {
         reduxOps.setAllLoading(true);
+        fetchNews(newsParams);
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
             includeBalance: true,
             includeMaxBalance: true
         }));
+        setIteration(it => it + 1);
         sidebarFavoriteCache.fetch();
         fetchUsage(retrieveUsage({}));
     }
@@ -98,16 +101,16 @@ function Dashboard(): JSX.Element {
 
             <DashboardNews news={news} />
 
-            <Invites />
+            <Invites key={reloadIteration} />
 
             <div className={GridClass}>
                 <DashboardFavoriteFiles />
-                <DashboardRuns />
+                <DashboardRuns key={reloadIteration} />
             </div>
             <UsageAndResources charts={usage} products={products} />
             <div className={GridClass}>
                 <Connect embedded />
-                <DashboardGrantApplications />
+                <DashboardGrantApplications key={reloadIteration} />
             </div>
         </div>
     </Box>);

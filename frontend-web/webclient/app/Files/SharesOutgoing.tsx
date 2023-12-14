@@ -17,7 +17,7 @@ import {useDispatch} from "react-redux";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {avatarState} from "@/AvataaarLib/hook";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, SelectionMode, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {ShareModal, StateIconAndColor} from "./Shares";
@@ -52,7 +52,7 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
 
 const shareValidationCache: Record<string, ShareValidateState> = {};
 
-export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
+export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<OutgoingShareGroup | OutgoingShareGroupPreview>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview> | null>(null);
     const navigate = useNavigate();
@@ -258,7 +258,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
                         currentAvatars.clear();
                     }
                 });
-                
+
                 avatarState.subscribe(() => browser.rerender());
 
                 browser.on("renderRow", (share, row, dims) => {
@@ -640,9 +640,11 @@ export function OutgoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record
         }
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     React.useLayoutEffect(() => {
         const b = browserRef.current;

@@ -347,9 +347,11 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, [])
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     return <MainContainer
         main={<>

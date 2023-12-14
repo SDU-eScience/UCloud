@@ -552,9 +552,11 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
         }
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.isModal && !opts?.embedded) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     return <MainContainer main={<div ref={mountRef} />} />;
 }

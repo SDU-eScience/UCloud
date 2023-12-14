@@ -201,9 +201,11 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     const main = <>
         <div ref={mountRef} />

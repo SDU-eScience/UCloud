@@ -311,9 +311,11 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     if (!projectId) return null;
 
