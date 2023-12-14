@@ -325,7 +325,7 @@ class ShareService(
             )
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == "23505") {
-                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared. Check shares page.")
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared with the user. Check shares page.")
             }
             else throw ex
         }

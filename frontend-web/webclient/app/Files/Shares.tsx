@@ -11,7 +11,7 @@ import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, To
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {copyToClipboard, createHTMLElements, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -83,12 +83,12 @@ export const ShareModal: React.FunctionComponent<{
             }
         }}>
             <Heading.h3 mb={"10px"}>Share</Heading.h3>
-            <form onSubmit={async (e) => {
+            <form onSubmit={e => {
                 e.preventDefault();
 
                 if (!usernameRef?.current?.value) return;
 
-                await cb.invokeCommand<BulkResponse<FindById>>(
+                cb.invokeCommand<BulkResponse<FindById>>(
                     SharesApi.create(
                         bulkRequestOf({
                             sharedWith: usernameRef.current?.value ?? "",
@@ -102,7 +102,7 @@ export const ShareModal: React.FunctionComponent<{
                         cb.navigate(`/shares/outgoing`);
                         dialogStore.success();
                     }
-                });
+                }).catch(e => displayErrorMessageOrDefault(e, "Failed to share file."));
             }}>
                 <Flex>
                     <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
@@ -244,7 +244,11 @@ const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: true} = {
     filterIngoing: true,
 };
 
-export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState; setShowBrowser?: (show: boolean) => void;}}): JSX.Element {
+interface SetShowBrowserHack {
+    setShowBrowser?: (show: boolean) => void;
+}
+
+export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Share> | null>(null);
     const navigate = useNavigate();
