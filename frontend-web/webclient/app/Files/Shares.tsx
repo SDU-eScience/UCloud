@@ -11,7 +11,7 @@ import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, To
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {copyToClipboard, createHTMLElements, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {copyToClipboard, createHTMLElements, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -77,7 +77,11 @@ export const ShareModal: React.FunctionComponent<{
     }, []);
 
     return !editingLink ? <>
-        <Box mb="40px">
+        <Box mb="40px" onKeyDown={e => {
+            if (e.key !== "Escape") {
+                e.stopPropagation()
+            }
+        }}>
             <Heading.h3 mb={"10px"}>Share</Heading.h3>
             <form onSubmit={async (e) => {
                 e.preventDefault();
@@ -354,7 +358,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     );
 
                     const pendingSharedWithMe = share.owner.createdBy !== Client.username && share.status.state === "PENDING";
-
 
                     // Row stat1
                     const wrapper = div("");
