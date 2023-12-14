@@ -12,8 +12,9 @@ import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {MainContainer} from "@/ui-components";
 
-const defaultRetrieveFlags: {itemsPerPage: number} = {
+const defaultRetrieveFlags: {itemsPerPage: number; filterType: "INGOING"} = {
     itemsPerPage: 250,
+    filterType: "INGOING",
 };
 
 interface SetShowBrowserHack {
@@ -65,7 +66,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                     callAPI(api.browseInvites({
                         ...browser.browseFilters,
                         ...defaultRetrieveFlags,
-                        ...opts?.additionalFilters
+                       ...opts?.additionalFilters
                     })).then(result => {
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
