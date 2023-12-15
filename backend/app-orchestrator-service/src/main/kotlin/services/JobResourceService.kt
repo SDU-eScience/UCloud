@@ -19,11 +19,17 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -34,6 +40,8 @@ import kotlinx.coroutines.selects.select
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
@@ -67,7 +75,9 @@ data class InternalJobState(
     var jobParameters: ExportedParameters? = null,
 )
 
-class JobResourceService {
+class JobResourceService(
+    val serviceClient: AuthenticatedClient
+) {
     // Listeners and lifetime events
     // =================================================================================================================
     // Components can hook into lifetime events of a job. This is primarily used to implement features such as
@@ -395,7 +405,30 @@ class JobResourceService {
                         state?.also { newState ->
                             job.state = newState
 
-                            if (newState == JobState.RUNNING) job.startedAt = Time.now()
+                            if (newState == JobState.RUNNING) {
+                                job.startedAt = Time.now()
+
+                                backgroundScope.launch {
+                                    NotificationDescriptions.create.call(
+                                        CreateNotification(
+                                            "user",
+                                            Notification(
+                                                NotificationType.JOB_STARTED.name,
+                                                "Your job is now running.",
+                                                meta = JsonObject(
+                                                    mapOf(
+                                                        "jobId" to JsonPrimitive(jobId),
+                                                        "title" to JsonPrimitive(
+                                                            appCache.resolveApplication(job.specification.application)!!.metadata.title
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        serviceClient
+                                    )
+                                }
+                            }
 
                             if (!newState.isFinal()) {
                                 allActiveJobs[jobId.toLongOrNull()] = Unit

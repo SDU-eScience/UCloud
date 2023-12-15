@@ -20,12 +20,13 @@ data class Notification(
 )
 
 @Serializable
- enum class NotificationType{
-     APP_COMPLETE,
-     PROJECT_ROLE_CHANGE,
-     PROJECT_INVITE,
-     PROJECT_USER_LEFT,
-     PROJECT_USER_REMOVED,
-     SHARE_REQUEST,
-     REVIEW_PROJECT,
- }
+enum class NotificationType{
+    PROJECT_ROLE_CHANGE,
+    PROJECT_INVITE,
+    PROJECT_USER_LEFT,
+    PROJECT_USER_REMOVED,
+    SHARE_REQUEST,
+    REVIEW_PROJECT,
+    JOB_STARTED,
+    JOB_COMPLETED,
+}

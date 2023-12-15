@@ -58,7 +58,22 @@ function resolveNotification(event: Notification): {
                 return {icon, modifiedMessage, modifiedTitle};
             }
             return {icon};
-        case "APP_COMPLETE":
+        case "JOB_STARTED":
+            return {
+                icon: "heroServer",
+                color: "black",
+                color2: "midGray",
+                modifiedTitle: `${event.meta.title ?? "Job"} started`,
+                modifiedMessage: `Your ${event.meta.title ?? ""} job is now running.`
+            };
+        case "JOB_COMPLETED":
+            return {
+                icon: "heroServer",
+                color: "black",
+                color2: "midGray",
+                modifiedTitle: `${event.meta.title ?? "Job"} completed`,
+                modifiedMessage: `Your ${event.meta.title ?? ""} job ended and is no longer running.`
+            };
         default:
             return {icon: "info", color: "white", color2: "black"};
     }
@@ -66,8 +81,11 @@ function resolveNotification(event: Notification): {
 
 function onNotificationAction(notification: Notification, navigate: NavigateFunction) {
     switch (notification.type) {
-        case "APP_COMPLETE":
-            navigate(`/applications/results/${notification.meta.jobId}`);
+        case "JOB_COMPLETED":
+            navigate(`/jobs/properties/${notification.meta.jobId}`);
+            break;
+        case "JOB_STARTED":
+            navigate(`/jobs/properties/${notification.meta.jobId}`);
             break;
         case "SHARE_REQUEST":
             navigate("/shares");
