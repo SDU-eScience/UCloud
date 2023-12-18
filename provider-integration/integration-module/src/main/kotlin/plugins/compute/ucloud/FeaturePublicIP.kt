@@ -174,6 +174,26 @@ class FeaturePublicIP(
                 HttpStatusCode.BadRequest
             )
         }
+        val rows = ArrayList<String>()
+        db.withSession { session ->
+            session.prepareStatement(
+                """
+                    select job_id
+                    from ucloud_compute_bound_network_ips
+                    where network_ip_id = some(:ids::text[])
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindList("ids", networks.map { it.id })
+                },
+                readRow = {
+                    rows.add(it.getString(0)!!)
+                }
+            )
+        }
+        if (rows.isNotEmpty()) {
+            throw RPCException("IP is already in use in the following jobs: $rows", HttpStatusCode.BadRequest)
+        }
 
         val idsAndIps = db.withSession { session ->
             for (network in networks) {
