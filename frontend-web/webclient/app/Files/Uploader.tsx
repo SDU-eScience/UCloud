@@ -245,7 +245,7 @@ const Uploader: React.FunctionComponent = () => {
 
     const stopUploads = useCallback((batch: Upload[]) => {
         for (const upload of batch) {
-            // Find possible entries in 
+            // Find possible entries in resumables
             upload.terminationRequested = true;
         }
     }, []);
@@ -472,9 +472,9 @@ function getUploadTimings(uploads: Upload[]): {
     let timeRemaining = 0;
 
     for (const upload of uploads) {
-        let speed = uploadCalculateSpeed(upload);
+        const speed = uploadCalculateSpeed(upload);
         if (speed === 0) continue;
-        timeRemaining += (upload.fileSizeInBytes ?? 0 - upload.progressInBytes) / speed;
+        timeRemaining += ((upload.fileSizeInBytes ?? 0) - upload.progressInBytes) / speed;
         uploadSpeed += speed;
     }
 

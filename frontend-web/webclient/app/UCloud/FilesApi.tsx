@@ -35,7 +35,7 @@ import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
 import {addStandardDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
@@ -49,7 +49,7 @@ import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {ShareModal} from "@/Files/Shares";
+import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {injectStyle} from "@/Unstyled";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
@@ -629,13 +629,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: async (selected, cb) => {
-                    dialogStore.addDialog(
-                        <ShareModal
-                            selected={{path: selected[0].id, product: selected[0].specification.product}}
-                            cb={cb}
-                        />,
-                        doNothing, true
-                    );
+                    addShareModal({path: selected[0].id, product: selected[0].specification.product}, cb);
                 },
                 shortcut: ShortcutKey.S
             },
@@ -644,7 +638,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) { }
+                    if ((support as FileCollectionSupport)) { /* ??? */ }
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;

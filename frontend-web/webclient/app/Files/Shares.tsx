@@ -11,7 +11,7 @@ import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, To
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, doNothing, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -32,6 +32,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {div} from "@/Utilities/HTMLUtilities";
 import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -46,9 +47,34 @@ function inviteLinkFromToken(token: string): string {
     return window.location.origin + "/app/shares/invite/" + token;
 }
 
-export const ShareModal: React.FunctionComponent<{
-    selected: {path: string; product: accounting.ProductReference},
-    cb: {invokeCommand: InvokeCommand, navigate: NavigateFunction}
+const ShareModalStyle = {
+    ...defaultModalStyle,
+    content: {...defaultModalStyle.content, minHeight: undefined, top: "25%"}
+}
+
+interface SelectedShare {
+    path: string;
+    product: accounting.ProductReference
+}
+
+interface ShareCallbacks {
+    invokeCommand: InvokeCommand;
+    navigate: NavigateFunction;
+}
+
+export function addShareModal(selected: SelectedShare, cb: ShareCallbacks): void {
+    dialogStore.addDialog(
+        <ShareModal
+            selected={selected}
+            cb={cb}
+        />,
+        doNothing, true, ShareModalStyle
+    );
+}
+
+const ShareModal: React.FunctionComponent<{
+    selected: SelectedShare,
+    cb: ShareCallbacks
 }> = ({selected, cb}) => {
 
     const [inviteLinks, fetchLinks] = useCloudAPI<PageV2<ShareLink>>({noop: true}, emptyPageV2);
