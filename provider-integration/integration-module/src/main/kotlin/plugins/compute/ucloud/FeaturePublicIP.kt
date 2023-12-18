@@ -181,7 +181,7 @@ class FeaturePublicIP(
                     select job_id
                     from ucloud_compute_bound_network_ips
                     where network_ip_id in (select unnest(:ids::text[]))
-                """.trimIndent()
+                """
             ).useAndInvoke(
                 prepare = {
                     bindList("ids", networks.map { it.id })
