@@ -37,7 +37,7 @@ const style = injectStyle("highlightedCard", k => `
     }
 `);
 
-export const HighlightedCard: React.FunctionComponent<{
+export const TitledCard: React.FunctionComponent<React.PropsWithChildren<{
     title?: React.ReactNode;
     subtitle?: React.ReactNode;
     error?: string;
@@ -52,9 +52,8 @@ export const HighlightedCard: React.FunctionComponent<{
     onClick?: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     className?: string;
-    children?: React.ReactNode;
     overflow?: string;
-}> = ({
+}>> = ({
     title,
     subtitle,
     error,
@@ -88,7 +87,7 @@ export const HighlightedCard: React.FunctionComponent<{
                 <div className="title-row">
                     {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
                     {icon !== undefined ? (
-                        <Icon name={icon} size="20" color={theme.colors.darkGray}/>
+                        <Icon name={icon} size="20" color={theme.colors.darkGray} />
                     ) : null}
                     {subtitle ? <div className={"subtitle"}>{subtitle}</div> : null}
                 </div> : null
@@ -99,4 +98,4 @@ export const HighlightedCard: React.FunctionComponent<{
         </Card>
     );
 
-export default HighlightedCard;
+export default TitledCard;

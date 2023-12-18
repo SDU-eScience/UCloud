@@ -10,7 +10,7 @@ import MainContainer from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {MachineView} from "@/Products/Products";
 
 export default function DetailedProvider() {
@@ -40,7 +40,7 @@ export default function DetailedProvider() {
         <Box height="48px" />
         {entry.texts.map((text, index) =>
             <Box key={index} my="32px">
-                <HighlightedCard>
+                <TitledCard>
                     <Flex>
                         {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
@@ -53,7 +53,7 @@ export default function DetailedProvider() {
                             </Markdown>
                         </div>
                     </Flex>
-                </HighlightedCard>
+                </TitledCard>
             </Box>
         )}
         <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "STORAGE"} area="STORAGE" />

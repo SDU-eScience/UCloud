@@ -16,7 +16,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
 import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
@@ -318,7 +318,7 @@ export function ResourceProperties<Res extends Resource>(
 
                 <div className={InfoWrapper}>
                     {props.showProperties === false ? null :
-                        <HighlightedCard isLoading={false} title={"Properties"} icon={"properties"}>
+                        <TitledCard isLoading={false} title={"Properties"} icon={"properties"}>
                             <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                                 <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
                                 {resource.specification.product.provider === UCLOUD_CORE ? null : <>
@@ -332,23 +332,23 @@ export function ResourceProperties<Res extends Resource>(
                                     <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
                                 }
                             </Flex>
-                        </HighlightedCard>
+                        </TitledCard>
                     }
                     {props.showMessages === false ? null :
-                        <HighlightedCard isLoading={false} title={"Messages"} icon={"chat"}>
+                        <TitledCard isLoading={false} title={"Messages"} icon={"chat"}>
                             <Messages resource={resource} />
-                        </HighlightedCard>
+                        </TitledCard>
                     }
                     {infoChildrenResolved}
                 </div>
 
                 <div className={ContentWrapper}>
                     {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
-                        <HighlightedCard isLoading={false} title={"Permissions"} icon={"share"}>
+                        <TitledCard isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
                                 noPermissionsWarning={props.noPermissionsWarning} />
                             <Box mb={16} />
-                        </HighlightedCard>
+                        </TitledCard>
                     }
                     {childrenResolved}
                 </div>

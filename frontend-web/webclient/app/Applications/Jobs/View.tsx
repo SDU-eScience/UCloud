@@ -9,7 +9,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {IconName} from "@/ui-components/Icon";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
@@ -444,11 +444,11 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
                         <div className={Content}>
                             <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                <HighlightedCard>
+                                <TitledCard>
                                     <Box py={"16px"}>
                                         <ProviderUpdates job={job} state={jobUpdateState} />
                                     </Box>
-                                </HighlightedCard>
+                                </TitledCard>
                             </Box>
                             <InfoCards job={job} status={status} />
                         </div>
@@ -524,7 +524,7 @@ const CompletedContent: React.FunctionComponent<{
 
     return <div className={Content}>
         <div className={RunningInfoWrapper}>
-            <HighlightedCard isLoading={false} title={"Job info"} icon={"properties"}>
+            <TitledCard isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
@@ -538,11 +538,11 @@ const CompletedContent: React.FunctionComponent<{
                     <Box><b>Input:</b> {fileInfo}</Box>
                     <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
                 </Flex>
-            </HighlightedCard>
+            </TitledCard>
 
-            <HighlightedCard isLoading={false} title="Messages" icon="chat">
+            <TitledCard isLoading={false} title="Messages" icon="chat">
                 <ProviderUpdates job={job} state={state} />
-            </HighlightedCard>
+            </TitledCard>
         </div>
     </div>
 };
@@ -799,7 +799,7 @@ const InfoCard: React.FunctionComponent<{
     icon: IconName,
     children: React.ReactNode;
 }> = props => {
-    return <HighlightedCard isLoading={false}>
+    return <TitledCard isLoading={false}>
         <div className={InfoCardContainer}>
             <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
             <div className={"stat"}>{props.stat}</div>
@@ -808,7 +808,7 @@ const InfoCard: React.FunctionComponent<{
                 {props.children}
             </div>
         </div>
-    </HighlightedCard>;
+    </TitledCard>;
 };
 
 const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
@@ -1059,7 +1059,7 @@ const RunningContent: React.FunctionComponent<{
 
     return <>
         <div className={RunningInfoWrapper}>
-            <HighlightedCard isLoading={false} title={"Job info"} icon={"properties"}>
+            <TitledCard isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
@@ -1077,8 +1077,8 @@ const RunningContent: React.FunctionComponent<{
                         <CancelButton job={job} state={"RUNNING"} fullWidth />
                     </Box>
                 </Flex>
-            </HighlightedCard>
-            <HighlightedCard isLoading={false} title={"Time allocation"} icon={"hourglass"}>
+            </TitledCard>
+            <TitledCard isLoading={false} title={"Time allocation"} icon={"hourglass"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     <Box>
                         <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
@@ -1129,21 +1129,21 @@ const RunningContent: React.FunctionComponent<{
                         }
                     </Box>
                 </Flex>
-            </HighlightedCard>
-            <HighlightedCard isLoading={false} title="Messages" icon="chat">
+            </TitledCard>
+            <TitledCard isLoading={false} title="Messages" icon="chat">
                 <ProviderUpdates job={job} state={state} />
-            </HighlightedCard>
+            </TitledCard>
 
             {ingresses.length === 0 ? null :
-                <HighlightedCard isLoading={false} title="Public links" icon="globeEuropeSolid">
+                <TitledCard isLoading={false} title="Public links" icon="globeEuropeSolid">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         {ingresses.map(ingress => <PublicLinkEntry id={ingress.id} />)}
                     </Text>
-                </HighlightedCard>
+                </TitledCard>
             }
 
             {!supportsPeers || peers.length === 0 ? null :
-                <HighlightedCard isLoading={false} title="Connected jobs">
+                <TitledCard isLoading={false} title="Connected jobs">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         <Table>
                             <TableHeader>
@@ -1172,11 +1172,11 @@ const RunningContent: React.FunctionComponent<{
                             </tbody>
                         </Table>
                     </Text>
-                </HighlightedCard>
+                </TitledCard>
             }
 
             {!sshAccess ? null :
-                <HighlightedCard isLoading={false} title="SSH access" icon="key">
+                <TitledCard isLoading={false} title="SSH access" icon="key">
                     <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
                         {sshAccess.success ? null : <Warning>
                             SSH was not configured successfully!
@@ -1191,7 +1191,7 @@ const RunningContent: React.FunctionComponent<{
                             <Link to={"/ssh-keys"} target="_blank">here</Link>.
                         </p>}
                     </Text>
-                </HighlightedCard>
+                </TitledCard>
             }
         </div>
 
@@ -1333,7 +1333,7 @@ const RunningJobRank: React.FunctionComponent<{
     }, [job.id, rank]);
 
     return <>
-        <HighlightedCard isLoading={false}>
+        <TitledCard isLoading={false}>
             <div className={classConcat(RunningJobRankWrapper, expanded ? "expanded" : undefined)}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
@@ -1347,7 +1347,7 @@ const RunningJobRank: React.FunctionComponent<{
                         toggleExpand={toggleExpand} />
                 )}
             </div>
-        </HighlightedCard>
+        </TitledCard>
     </>;
 };
 

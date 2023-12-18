@@ -21,7 +21,7 @@ import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NavigateFunction, useNavigate} from "react-router";
 import {
@@ -94,9 +94,9 @@ function Dashboard(): JSX.Element {
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
             <div style={{marginBottom: "24px"}}>
-                <HighlightedCard>
+                <TitledCard>
                     <Flex><Icon mx="auto" my="-32px" name="deiCLogo" size="128px" /></Flex>
-                </HighlightedCard>
+                </TitledCard>
             </div>
 
             <DashboardNews news={news} />
@@ -151,13 +151,13 @@ function Invites(): React.ReactNode {
     const [showShareInvites, setShowShareInvites] = React.useState(false);
 
     return <Flex mt="24px" style={display(showShareInvites || showProjectInvites)}>
-        <HighlightedCard
+        <TitledCard
             icon="heroUserGroup"
             title="Invites"
         >
             <div style={display(showProjectInvites)}><ProjectInviteBrowse opts={{embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
-        </HighlightedCard>
+        </TitledCard>
     </Flex>
 }
 
@@ -178,7 +178,7 @@ function DashboardFavoriteFiles(): JSX.Element {
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
     return (
-        <HighlightedCard
+        <TitledCard
             isLoading={sidebarFavoriteCache.loading}
             icon="heroStar"
             title="Favorites"
@@ -212,7 +212,7 @@ function DashboardFavoriteFiles(): JSX.Element {
                     <Text cursor="pointer" fontSize={FONT_SIZE} my="auto" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
                 </Flex>))}
             </List>
-        </HighlightedCard>
+        </TitledCard>
     );
 
     async function fetchTemplate() {
@@ -302,12 +302,12 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
     const products = React.useMemo(() => <DashboardResources products={props.products} />, [props.products]);
 
     return (
-        <HighlightedCard>
+        <TitledCard>
             <div className={ResourceGridClass}>
                 {usage}
                 {products}
             </div>
-        </HighlightedCard>
+        </TitledCard>
     );
 }
 
@@ -344,7 +344,7 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
 }
 
 function DashboardRuns(): JSX.Element {
-    return <HighlightedCard
+    return <TitledCard
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="heroServer"
     >
@@ -352,7 +352,7 @@ function DashboardRuns(): JSX.Element {
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
             additionalFilters: {"itemsPerPage": "10"}
         }} />
-    </HighlightedCard>;
+    </TitledCard>;
 }
 
 function DashboardResources({products}: {
@@ -450,18 +450,18 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
     if (!canApply) return null;
 
 
-    return <HighlightedCard
+    return <TitledCard
         title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>Grant applications</Heading.h3></Link>}
         icon="heroDocumentCheck"
     >
         <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
-    </HighlightedCard>;
+    </TitledCard>;
 };
 
 function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Element | null {
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
-        <HighlightedCard
+        <TitledCard
             title={
                 <Link to={newsItem ? AppRoutes.news.detailed(newsItem.id) : "/news/list/"}>
                     <Heading.h3>{newsItem?.title ?? "News"}</Heading.h3>
@@ -504,7 +504,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                 </div>
                 <img src={ucloudImage} />
             </div>
-        </HighlightedCard>
+        </TitledCard>
     );
 }
 

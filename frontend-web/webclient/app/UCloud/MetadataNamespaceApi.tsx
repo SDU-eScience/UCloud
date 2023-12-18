@@ -14,7 +14,7 @@ import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {useCallback, useMemo, useState} from "react";
@@ -152,7 +152,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
         const generateCall = useCallback((next?: string): APICallParameters => {
             return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
         }, []);
-        return <HighlightedCard>
+        return <TitledCard>
             <StandardList
                 generateCall={generateCall}
                 renderer={this.templateRenderer}
@@ -202,7 +202,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
                     </Section>
                 </Grid>
             </> : null}
-        </HighlightedCard>
+        </TitledCard>
     };
 
     Properties = (props) => {

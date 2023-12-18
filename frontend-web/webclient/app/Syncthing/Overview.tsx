@@ -10,7 +10,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
 import MainContainer from "@/ui-components/MainContainer";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
@@ -439,7 +439,7 @@ export const Overview: React.FunctionComponent = () => {
             }
 
             <div className={TwoPanelLayout}>
-                <HighlightedCard
+                <TitledCard
                     icon="hdd"
                     title="My devices"
                     className="devices"
@@ -469,10 +469,10 @@ export const Overview: React.FunctionComponent = () => {
                             />
                         )}
                     </List>
-                </HighlightedCard>
+                </TitledCard>
 
                 {uiState.folders !== undefined && folders.length === 0 ? null :
-                    <HighlightedCard
+                    <TitledCard
                         className="servers"
                         icon="globeEuropeSolid"
                         title={servers.length > 1 ? "Syncthing servers" : "Syncthing server"}
@@ -502,11 +502,11 @@ export const Overview: React.FunctionComponent = () => {
                                 )}
                             </List>
                         </>}
-                    </HighlightedCard>
+                    </TitledCard>
                 }
             </div>
 
-            <HighlightedCard
+            <TitledCard
                 className="folders"
                 icon="ftFolder"
                 title="Synchronized folders"
@@ -538,7 +538,7 @@ export const Overview: React.FunctionComponent = () => {
                         </List>
                     </>
                 }
-            </HighlightedCard>
+            </TitledCard>
         </div>;
     }
 
