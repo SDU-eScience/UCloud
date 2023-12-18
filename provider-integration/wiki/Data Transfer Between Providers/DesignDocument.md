@@ -15,8 +15,7 @@ The UCloud platform is made of several different components. In generalized term
  
 An end-user will interact with the UCloud/Frontend which communicates with the UCloud/Core which communicates with the providers, thereby granting users access to resources at the providers in one interface.
 
-Picture is at Brian
-![UCloud_core_providers_overview]()
+![UCloudCoreProvidersOverview](./Pictures/UCloudCoreProvidersOverview.png)
 
 Each provider may have different resources, and use different software internally, and may even be located at completely physical locations. However, providers does not have any knowledge of each other nor communication between them.
 
@@ -210,8 +209,7 @@ When the session is established between  the client and provider B, the client w
 
 Provider A is now ready to initiate a transfer to provider B.
 
-Picture is at Brian
-![image (6)]()
+![KeyExchange](./Pictures/KeyExchange.png)
 
 
 ## Plugin interface
