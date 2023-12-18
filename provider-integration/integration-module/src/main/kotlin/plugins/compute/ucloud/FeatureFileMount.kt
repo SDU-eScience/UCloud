@@ -153,10 +153,15 @@ class FeatureFileMount(
             val pathSplit = mount.path.split("/")
             val mountPath =
                 if (
-                    (pathSplit.size == 4 && pathSplit.indexOf("Members' Files") == 2) ||
-                    (pathSplit.size == 2 && pathSplit.first() == "home")
+                    (pathSplit.size == 4 && pathSplit.indexOf(PathConverter.PERSONAL_REPOSITORY) == 2) ||
+                    (pathSplit.size == 2 && pathSplit.first() == PathConverter.HOME_DIRECTORY)
                 ) {
-                    joinPath(pathSplit[pathSplit.size - 2], pathSplit.last())
+                    if (pathSplit.size == 4) {
+                        //Just use Username for Member Files mounts
+                        pathSplit.last()
+                    } else {
+                        "Home"
+                    }
                 } else {
                     var inAppPath = mount.fileName
                     val driveId = mount.path.normalize().components().getOrNull(1) ?: error("Unexpected path: $inAppPath")

@@ -70,7 +70,13 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     return isCorrectlyDir || isCorrectlyFile;
                 }}
                 onSelect={async res => {
-                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                    let target: string
+                    const isDrive = res.id.split("/").length == 2
+                    if (res.specification.product.id === "share" && isDrive) {
+                        target = removeTrailingSlash("/" + res.specification.collection)
+                    } else {
+                        target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                    }
                     if (props.errors[props.parameter.name]) {
                         delete props.errors[props.parameter.name];
                         props.setErrors({...props.errors});
