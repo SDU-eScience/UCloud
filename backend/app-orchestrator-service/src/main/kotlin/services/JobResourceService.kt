@@ -76,7 +76,7 @@ data class InternalJobState(
 )
 
 class JobResourceService(
-    val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient
 ) {
     // Listeners and lifetime events
     // =================================================================================================================
@@ -405,29 +405,15 @@ class JobResourceService(
                         state?.also { newState ->
                             job.state = newState
 
-                            if (newState == JobState.RUNNING) {
-                                job.startedAt = Time.now()
+                            if (newState == JobState.RUNNING) job.startedAt = Time.now()
 
-                                backgroundScope.launch {
-                                    NotificationDescriptions.create.call(
-                                        CreateNotification(
-                                            "user",
-                                            Notification(
-                                                NotificationType.JOB_STARTED.name,
-                                                "Your job is now running.",
-                                                meta = JsonObject(
-                                                    mapOf(
-                                                        "jobId" to JsonPrimitive(jobId),
-                                                        "title" to JsonPrimitive(
-                                                            appCache.resolveApplication(job.specification.application)!!.metadata.title
-                                                        )
-                                                    )
-                                                )
-                                            )
-                                        ),
-                                        serviceClient
-                                    )
-                                }
+                            backgroundScope.launch {
+                                notifyUser(
+                                    idCards.lookupUid(uid),
+                                    newState,
+                                    jobId,
+                                    appCache.resolveApplication(job.specification.application)!!.metadata.title
+                                )
                             }
 
                             if (!newState.isFinal()) {
@@ -505,6 +491,41 @@ class JobResourceService(
                 }
             }
         }
+    }
+
+    private suspend fun notifyUser(user: String?, newState: JobState, jobId: String, jobTitle: String) {
+        if (user == null) return;
+
+        val type = when (newState) {
+            JobState.RUNNING -> "JOB_STARTED"
+            JobState.FAILURE -> "JOB_FAILED"
+            JobState.EXPIRED -> "JOB_EXPIRED"
+            else -> return;
+        }
+
+        val message = when (newState) {
+            JobState.RUNNING -> "Your job is now running."
+            JobState.FAILURE -> "Your job has failed."
+            JobState.EXPIRED -> "Your job has expired."
+            else -> return;
+        }
+
+        NotificationDescriptions.create.call(
+            CreateNotification(
+                user,
+                Notification(
+                    type,
+                    message,
+                    meta = JsonObject(
+                        mapOf(
+                            "jobId" to JsonPrimitive(jobId),
+                            "title" to JsonPrimitive(jobTitle)
+                        )
+                    )
+                )
+            ),
+            serviceClient
+        )
     }
 
     // Job specific read operations

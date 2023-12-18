@@ -66,13 +66,21 @@ function resolveNotification(event: Notification): {
                 modifiedTitle: `${event.meta.title ?? "Job"} started`,
                 modifiedMessage: `Your ${event.meta.title ?? ""} job is now running.`
             };
-        case "JOB_COMPLETED":
+        case "JOB_EXPIRED":
             return {
                 icon: "heroServer",
                 color: "black",
                 color2: "midGray",
-                modifiedTitle: `${event.meta.title ?? "Job"} completed`,
-                modifiedMessage: `Your ${event.meta.title ?? ""} job ended and is no longer running.`
+                modifiedTitle: `${event.meta.title ?? "Job"} expired`,
+                modifiedMessage: `Your ${event.meta.title ?? ""} job reached its time limit and is no longer running.`
+            };
+        case "JOB_FAILED":
+            return {
+                icon: "heroServer",
+                color: "black",
+                color2: "midGray",
+                modifiedTitle: `${event.meta.title ?? "Job"} failed`,
+                modifiedMessage: `Your ${event.meta.title ?? ""} job terminated with a failure.`
             };
         default:
             return {icon: "info", color: "white", color2: "black"};
