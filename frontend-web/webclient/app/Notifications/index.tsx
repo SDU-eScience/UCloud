@@ -90,9 +90,9 @@ function resolveNotification(event: Notification): {
 function onNotificationAction(notification: Notification, navigate: NavigateFunction) {
     switch (notification.type) {
         case "JOB_COMPLETED":
-            navigate(`/jobs/properties/${notification.meta.jobId}`);
-            break;
         case "JOB_STARTED":
+        case "JOB_FAILED":
+        case "JOB_EXPIRED":
             navigate(`/jobs/properties/${notification.meta.jobId}`);
             break;
         case "SHARE_REQUEST":
