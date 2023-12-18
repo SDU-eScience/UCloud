@@ -180,7 +180,7 @@ class FeaturePublicIP(
                 """
                     select job_id
                     from ucloud_compute_bound_network_ips
-                    where network_ip_id in (select unnest(:ids::text[]))
+                    where network_ip_id = some(:ids::text[])
                 """
             ).useAndInvoke(
                 prepare = {
