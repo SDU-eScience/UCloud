@@ -323,6 +323,18 @@ class MailService(
                 verifyEmailAddress(letter.verifyType, letter.username ?: recipientName, letter.token)
             }
 
+            is Mail.JobStarted -> {
+                jobStartedTemplate(recipientName, letter.jobId, letter.appTitle)
+            }
+
+            is Mail.JobFailed -> {
+                jobFailedTemplate(recipientName, letter.jobId, letter.appTitle)
+            }
+
+            is Mail.JobExpired-> {
+                jobExpiredTemplate(recipientName, letter.jobId, letter.appTitle)
+            }
+
             else -> {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.InternalServerError,

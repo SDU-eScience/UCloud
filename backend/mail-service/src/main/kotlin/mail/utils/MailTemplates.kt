@@ -227,6 +227,44 @@ fun lowResourcesTemplate(
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
+fun jobStartedTemplate(
+    recipient: String,
+    jobId: String,
+    appTitle: String
+) = """
+    <p>Dear ${escapeHtml(recipient)}</p>
+    <p>
+        Your ${escapeHtml(appTitle)} job with ID ${jobId} have started successfully, and is now running.
+    </p>
+    $NO_NOTIFICATIONS_DISCLAIMER
+""".trimIndent()
+
+fun jobFailedTemplate(
+    recipient: String,
+    jobId: String,
+    appTitle: String
+) = """
+    <p>Dear ${escapeHtml(recipient)}</p>
+    <p>
+        Your ${escapeHtml(appTitle)} job with ID ${jobId} failed unexpectedly, and has been terminated.
+    </p>
+    $NO_NOTIFICATIONS_DISCLAIMER
+""".trimIndent()
+
+
+fun jobExpiredTemplate(
+    recipient: String,
+    jobId: String,
+    appTitle: String
+) = """
+     <p>Dear ${escapeHtml(recipient)}</p>
+     <p>
+        Your ${escapeHtml(appTitle)} job with ID ${jobId} has reached its time limit, and has been terminated.
+    </p>      
+    $NO_NOTIFICATIONS_DISCLAIMER
+""".trimIndent()
+
+
 
 fun verifyEmailAddress(
     type: String,

@@ -30,7 +30,11 @@ export const defaultEmailSettings: EmailSettings = {
     verificationReminder: true,
     userRoleChange: true,
     userLeft: true,
-    lowFunds: true
+    lowFunds: true,
+    // Jobs
+    jobStarted: false,
+    jobFailed: false,
+    jobExpired: false
 }
 
 export enum MailType {
@@ -43,13 +47,17 @@ export enum MailType {
     NEW_COMMENT_ON_APPLICATION,
     APPLICATION_TRANSFER,
     APPLICATION_STATUS_CHANGE,
-    //Project
+    // Project
     PROJECT_USER_INVITE,
     PROJECT_USER_REMOVED,
     VERIFICATION_REMINDER,
     USER_ROLE_CHANGE,
     USER_LEFT,
-    LOW_FUNDS
+    LOW_FUNDS,
+    // Jobs
+    JOB_STARTED,
+    JOB_FAILED,
+    JOB_EXPIRED
 }
 
 const initialState: UserDetailsState = {
@@ -146,6 +154,15 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                 break;
             case MailType.APPLICATION_TRANSFER:
                 state.settings.applicationTransfer = !state.settings.applicationTransfer
+                break;
+            case MailType.JOB_STARTED:
+                state.settings.jobStarted = !state.settings.jobStarted
+                break;
+            case MailType.JOB_FAILED:
+                state.settings.jobFailed = !state.settings.jobFailed
+                break;
+            case MailType.JOB_EXPIRED:
+                state.settings.jobExpired = !state.settings.jobExpired
                 break;
         }
         dispatch({
@@ -290,6 +307,37 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     />
                     <span>Verification reminders</span>
                 </Label>
+
+
+                <Heading.h5>Jobs</Heading.h5>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.JOB_STARTED)}
+                        onChange={() => undefined}
+                        checked={state.settings.jobStarted}
+                    />
+                    <span>Job started</span>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.JOB_FAILED)}
+                        onChange={() => undefined}
+                        checked={state.settings.jobFailed}
+                    />
+                    <span>Job failed</span>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.JOB_EXPIRED)}
+                        onChange={() => undefined}
+                        checked={state.settings.jobExpired}
+                    />
+                    <span>Job expired</span>
+                </Label>
+
 
                 <Heading.h5> </Heading.h5>
                 <Button

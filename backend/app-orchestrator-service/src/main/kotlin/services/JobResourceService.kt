@@ -25,6 +25,9 @@ import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.mail.api.Mail
+import dk.sdu.cloud.mail.api.MailDescriptions
+import dk.sdu.cloud.mail.api.SendRequestItem
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
@@ -412,7 +415,7 @@ class JobResourceService(
                                     idCards.lookupUid(uid),
                                     newState,
                                     jobId,
-                                    appCache.resolveApplication(job.specification.application)!!.metadata.title
+                                    job.specification
                                 )
                             }
 
@@ -493,8 +496,16 @@ class JobResourceService(
         }
     }
 
-    private suspend fun notifyUser(user: String?, newState: JobState, jobId: String, jobTitle: String) {
+    private suspend fun notifyUser(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
         if (user == null) return;
+
+        val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
+
+        val jobNameAndId = if (jobSpecification.name != null) {
+            "${jobSpecification.name} ($jobId)"
+        } else {
+            jobId
+        }
 
         val type = when (newState) {
             JobState.RUNNING -> "JOB_STARTED"
@@ -519,9 +530,26 @@ class JobResourceService(
                     meta = JsonObject(
                         mapOf(
                             "jobId" to JsonPrimitive(jobId),
-                            "title" to JsonPrimitive(jobTitle)
+                            "title" to JsonPrimitive(appTitle)
                         )
                     )
+                )
+            ),
+            serviceClient
+        )
+
+        val mail = when (newState) {
+            JobState.RUNNING -> Mail.JobStarted(jobNameAndId, appTitle)
+            JobState.FAILURE -> Mail.JobFailed(jobNameAndId, appTitle)
+            JobState.EXPIRED -> Mail.JobExpired(jobNameAndId, appTitle)
+            else -> return
+        }
+
+        MailDescriptions.sendToUser.call(
+            bulkRequestOf(
+                SendRequestItem(
+                    user,
+                    mail
                 )
             ),
             serviceClient
