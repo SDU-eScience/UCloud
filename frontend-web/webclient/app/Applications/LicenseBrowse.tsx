@@ -276,9 +276,11 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     return <MainContainer
         main={<>

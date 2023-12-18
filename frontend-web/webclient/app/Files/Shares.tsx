@@ -11,7 +11,7 @@ import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, To
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {copyToClipboard, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -22,13 +22,16 @@ import MainContainer from "@/ui-components/MainContainer";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
+import {div} from "@/Utilities/HTMLUtilities";
+import {FlexClass} from "@/ui-components/Flex";
+import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -74,14 +77,18 @@ export const ShareModal: React.FunctionComponent<{
     }, []);
 
     return !editingLink ? <>
-        <Box mb="40px">
+        <Box mb="40px" onKeyDown={e => {
+            if (e.key !== "Escape") {
+                e.stopPropagation()
+            }
+        }}>
             <Heading.h3 mb={"10px"}>Share</Heading.h3>
-            <form onSubmit={async (e) => {
+            <form onSubmit={e => {
                 e.preventDefault();
 
                 if (!usernameRef?.current?.value) return;
 
-                await cb.invokeCommand<BulkResponse<FindById>>(
+                cb.invokeCommand<BulkResponse<FindById>>(
                     SharesApi.create(
                         bulkRequestOf({
                             sharedWith: usernameRef.current?.value ?? "",
@@ -95,7 +102,7 @@ export const ShareModal: React.FunctionComponent<{
                         cb.navigate(`/shares/outgoing`);
                         dialogStore.success();
                     }
-                });
+                }).catch(e => displayErrorMessageOrDefault(e, "Failed to share file."));
             }}>
                 <Flex>
                     <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
@@ -237,7 +244,11 @@ const defaultRetrieveFlags: {itemsPerPage: number, filterIngoing: true} = {
     filterIngoing: true,
 };
 
-export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<string, string>}}): JSX.Element {
+interface SetShowBrowserHack {
+    setShowBrowser?: (show: boolean) => void;
+}
+
+export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Share> | null>(null);
     const navigate = useNavigate();
@@ -245,9 +256,14 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
 
     const avatars = useAvatars();
 
-    useTitle("Shared with me");
+    if (!opts?.embedded) {
+        useTitle("Shared with me");
+    }
 
-    const features: ResourceBrowseFeatures = FEATURES;
+    const features: ResourceBrowseFeatures = {
+        ...FEATURES,
+        dragToSelect: !opts?.embedded
+    };
 
     const dateRanges = dateRangeFilters("Created after");
 
@@ -275,6 +291,15 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                             ...opts?.additionalFilters
                         })
                     ).then(result => {
+                        if (opts?.filterState) {
+                            // HACK(Jonas): You can't fetch pending shares from backend, so we do this hacky thing instead.
+                            const filteredResult = {...result, items: result.items.filter(it => it.status.state === opts.filterState)};
+                            browser.registerPage(filteredResult, newPath, true);
+                            browser.renderRows();
+                            opts?.setShowBrowser?.(filteredResult.items.length > 0);
+                            return result;
+                        }
+
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
                         return result;
@@ -336,25 +361,21 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                         )
                     );
 
-                    // Row stat1
-                    const {state} = share.status;
-                    const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
-                    stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
-                    row.stat1.appendChild(stateIcon);
-                    browser.icons.renderIcon({
-                        ...StateIconAndColor[state],
-                        color2: "black",
-                        height: 32,
-                        width: 32,
-                    }).then(setStateIcon);
-                    const isEdit = share.specification.permissions.some(it => it === "EDIT");
+                    const pendingSharedWithMe = share.owner.createdBy !== Client.username && share.status.state === "PENDING";
 
+                    // Row stat1
+                    const wrapper = div("");
+                    row.stat1.append(wrapper);
+                    wrapper.className = FlexClass;
+                    wrapper.style.marginTop = wrapper.style.marginBottom = "auto"
+
+                    const isEdit = share.specification.permissions.some(it => it === "EDIT");
                     // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
                     // the re-render doesn't happen multiple times, when re-rendering. The radioTilesContainerWrapper can be dead,
                     // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
                     // causing multiple avatars to be shown.
                     const radioTilesContainerWrapper = document.createElement("div");
-                    row.stat1.append(radioTilesContainerWrapper);
+                    wrapper.appendChild(radioTilesContainerWrapper);
                     new ReactStaticRenderer(() =>
                         <RadioTilesContainer height={48} onClick={stopPropagation}>
                             {!isEdit ? <RadioTile
@@ -379,6 +400,40 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
                             /> : null}
                         </RadioTilesContainer>
                     ).promise.then(it => radioTilesContainerWrapper.append(it.clone()));
+
+                    if (pendingSharedWithMe) {
+                        const group = createHTMLElements<HTMLDivElement>({
+                            tagType: "div",
+                            className: ButtonGroupClass,
+                            style: {marginTop: "auto", marginBottom: "auto"},
+                        });
+                        wrapper.append(group);
+                        group.appendChild(browser.defaultButtonRenderer({
+                            onClick: async () => {
+                                await callAPI(SharesApi.approve(bulkRequestOf({id: share.id})));
+                                browser.refresh();
+                            },
+                            text: "Accept"
+                        }, share, {color: "green", width: "72px"})!);
+                        group.appendChild(browser.defaultButtonRenderer({
+                            onClick: async () => {
+                                await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
+                                browser.refresh();
+                            },
+                            text: "Decline"
+                        }, share, {color: "red", width: "72px"})!);
+                    } else {
+                        const {state} = share.status;
+                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
+                        stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
+                        wrapper.appendChild(stateIcon);
+                        browser.icons.renderIcon({
+                            ...StateIconAndColor[state],
+                            color2: "black",
+                            height: 32,
+                            width: 32,
+                        }).then(setStateIcon);
+                    }
 
                     // Row stat2
                     row.stat2.innerText = dateToString(share.createdAt ?? timestampUnixMs());
@@ -497,12 +552,13 @@ export function IngoingSharesBrowse({opts}: {opts?: {additionalFilters?: Record<
         }
     }, []);
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.isModal && !opts?.embedded) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
-    const main = <div ref={mountRef} />;
-    return <MainContainer main={main} />;
+    return <MainContainer main={<div ref={mountRef} />} />;
 }
 
 

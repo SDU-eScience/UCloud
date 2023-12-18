@@ -160,9 +160,11 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
         fetchInfo();
     };
 
-    useRefreshFunction(() => {
-        browserRef.current?.refresh();
-    });
+    if (!opts?.embedded && !opts?.isModal) {
+        useRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
 
     return <div>
         <div ref={mountRef} style={selectedApp ? {display: "none"} : undefined} />

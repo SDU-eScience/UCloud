@@ -51,6 +51,7 @@ export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<Error
         borderRadius="6px"
         height="auto"
         p="1em 1em 1em 1em"
+        my={"1em"}
         color="black"
         bg={props.bg}
         borderColor={props.borderColor}

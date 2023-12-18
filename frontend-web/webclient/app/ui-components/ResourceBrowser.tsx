@@ -1438,7 +1438,7 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: inContextMenu, color: "red", hoverColor: "darkRed", disabled: !opEnabled}
+                    {asSquare: inContextMenu, color: op.color ?? "red", hoverColor: op.color === "red" ? "darkRed" : undefined, disabled: !opEnabled}
                 );
 
                 // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
@@ -1820,7 +1820,7 @@ export class ResourceBrowser<T> {
         this.dispatchMessage("sort", fn => fn(page));
     }
 
-    removeEntryFromCurrentPage(predicate: (T) => boolean) {
+    removeEntryFromCurrentPage(predicate: (entry: T) => boolean) {
         const page = this.cachedData[this.currentPath] ?? [];
         const idx = page.findIndex(predicate);
         if (idx !== -1) page.splice(idx, 1);

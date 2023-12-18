@@ -1,6 +1,6 @@
 import * as React from "react";
 import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
-import {isAdminOrPI, useProjectId} from "./Api";
+import {useProjectId} from "./Api";
 import AppRoutes from "@/Routes";
 import {useProject} from "./cache";
 
@@ -10,7 +10,6 @@ export function ProjectLinks(): JSX.Element {
 
     const links: LinkInfo[] = React.useMemo(() => {
         const isPersonalWorkspace = !activeProjectId;
-        const adminOrPi = isAdminOrPI(project.fetch().status.myRole);
 
         const result: LinkInfo[] = [];
         result.push({
@@ -34,14 +33,12 @@ export function ProjectLinks(): JSX.Element {
             text: "Grant Applications",
             icon: "heroDocumentText",
         });
-        if (adminOrPi) {
-            result.push({
-                to: AppRoutes.project.settings(""),
-                text: "Settings",
-                icon: "heroWrenchScrewdriver",
-                removed: isPersonalWorkspace
-            });
-        }
+        result.push({
+            to: AppRoutes.project.settings(""),
+            text: "Settings",
+            icon: "heroWrenchScrewdriver",
+            removed: isPersonalWorkspace
+        });
         result.push({
             to: AppRoutes.project.subprojects(),
             text: "Subprojects",

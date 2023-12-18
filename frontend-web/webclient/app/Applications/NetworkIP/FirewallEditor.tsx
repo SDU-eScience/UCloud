@@ -7,7 +7,7 @@ import {useCallback, useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {blankOrUndefined} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {classConcat} from "@/Unstyled";
 
@@ -79,7 +79,7 @@ export const FirewallEditor: React.FunctionComponent<{
     }, [inspecting, reload]);
 
     return <>
-        <HighlightedCard isLoading={false} title={"Firewall"} icon={"verified"}>
+        <TitledCard isLoading={false} title={"Firewall"} icon={"verified"}>
             {!didChange ?
                 <>
                     <Box height={120}>
@@ -132,6 +132,6 @@ export const FirewallEditor: React.FunctionComponent<{
                     </tbody>
                 </Table>
             </form>
-        </HighlightedCard>
+        </TitledCard>
     </>
 };

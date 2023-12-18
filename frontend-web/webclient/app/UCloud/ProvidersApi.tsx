@@ -22,7 +22,7 @@ import {
 } from "@/Accounting";
 import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {doNothing} from "@/UtilityFunctions";
 import {ListV2} from "@/Pagination";
 import {NoResultsCardBody} from "@/Dashboard/Dashboard";
@@ -166,7 +166,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 if (props.resource == null) return null;
                 const provider = props.resource as Provider;
                 return <>
-                    <HighlightedCard title={"Metadata"} icon={"mapMarkedAltSolid"}>
+                    <TitledCard title={"Metadata"} icon={"mapMarkedAltSolid"}>
                         <Box mb={"8px"}>
                             <b>Host: </b>
                             {provider.specification.https ? "https://" : "http://"}
@@ -183,7 +183,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                             <TextArea id={"cert"} width="100%" value={provider.publicKey} rows={3}
                                 onChange={doNothing} />
                         </Box>
-                    </HighlightedCard>
+                    </TitledCard>
                 </>
             }}
             ContentChildren={props => {
@@ -223,7 +223,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
 
                 if (provider == null) return null;
                 return <>
-                    <HighlightedCard>
+                    <TitledCard>
                         <Operations
                             topbarIcon={"cubeSolid"}
                             location={"TOPBAR"}
@@ -262,7 +262,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                         {!isCreatingProduct ? null :
                             <ProductCreationForm provider={provider} onComplete={stopProductCreation} />
                         }
-                    </HighlightedCard>
+                    </TitledCard>
                 </>;
             }}
         />;

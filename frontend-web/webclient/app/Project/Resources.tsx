@@ -26,7 +26,7 @@ import {
     usageExplainer,
     Wallet,
 } from "@/Accounting";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Spacer} from "@/ui-components/Spacer";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
@@ -163,7 +163,7 @@ const Resources: React.FunctionComponent = () => {
                                         bd.chargeType == it.chargeType &&
                                         bd.unit == it.unit
                                     ).map((it, idx) => <DonutChart key={idx} chart={it} />);
-                                    return <HighlightedCard
+                                    return <TitledCard
                                         key={it.type + it.unit}
                                         title={`${productAreaTitle(it.type)}`}
                                         icon={productTypeToIcon(it.type)}
@@ -175,10 +175,10 @@ const Resources: React.FunctionComponent = () => {
                                             <Flex flexGrow={1} />
                                             <UsageChartViewer key={idx} c={it} dateRange={dateRange} onMaximizeToggle={() => onUsageMaximize(idx)} />
                                         </Flex>
-                                    </HighlightedCard>
+                                    </TitledCard>
                                 })}
                                 {unusedProductTypes.map(pt =>
-                                    <HighlightedCard
+                                    <TitledCard
                                         key={pt}
                                         title={`${productAreaTitle(pt)}`}
                                         icon={productTypeToIcon(pt)}
@@ -189,7 +189,7 @@ const Resources: React.FunctionComponent = () => {
                                             <Heading ml="auto" mr="auto">No usage found</Heading>
                                             <Box mt="auto" />
                                         </Flex>
-                                    </HighlightedCard>
+                                    </TitledCard>
                                 )}
                             </div>
                         }

@@ -54,7 +54,7 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 const ROW_TITLES: ColumnTitleList = [{name: "Script"}, {name: ""}, {name: "Last run"}, {name: ""}];
-const Scripts: React.FunctionComponent = () => {
+function Scripts(): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ScriptInfo> | null>(null);
     useTitle("Scripts");
@@ -136,7 +136,7 @@ const Scripts: React.FunctionComponent = () => {
     if (!Client.userIsAdmin) return null;
 
     return <MainContainer main={<div ref={mountRef} />} />
-};
+}
 
 const operations: Operation<ScriptInfo, Record<string, never>>[] = [
     {

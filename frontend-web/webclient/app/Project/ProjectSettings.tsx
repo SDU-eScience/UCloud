@@ -35,6 +35,7 @@ import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import WAYF from "@/Grants/wayf-idps.json";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {projectCache, projectTitleFromCache} from "./ContextSwitcher";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -204,107 +205,114 @@ export const ProjectSettings: React.FunctionComponent = () => {
         header={
             <Spacer
                 left={<h2 style={{margin: "0"}}>Settings</h2>}
-                right={<></>}
-                // right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+                right={null}
             />
         }
         headerSize={64}
-        main={!isAdminOrPI(status.myRole) ? (
-            <Heading.h1>Only project or admin and PIs can view settings.</Heading.h1>
-        ) : <div className={ActionContainer}>
-            <section>
-                <Heading.h3>Project information</Heading.h3>
-
-                <ChangeProjectTitle
-                    projectId={projectId}
-                    projectTitle={project.specification.title}
-                    onSuccess={() => projectOps.reload()}
-                />
-
-                <SubprojectSettings
-                    projectId={projectId}
-                    projectRole={status.myRole!}
-                    setLoading={() => false}
-                />
-
-            </section>
-
-            <section>
-                <Heading.h3>Grant settings</Heading.h3>
-
-                <UpdateProjectLogo/>
-
-                <form onSubmit={onSave}>
-                    <label>
-                        Project description <br/>
-                        <TextArea width={"100%"} rows={5} inputRef={description} />
-                    </label>
-
-                    <label>
-                        Template for personal projects <br/>
-                        <TextArea width={"100%"} rows={5} inputRef={templatePersonal} />
-                    </label>
-
-                    <label>
-                        Template for existing projects <br/>
-                        <TextArea width={"100%"} rows={5} inputRef={templateExisting} />
-                    </label>
-
-                    <label>
-                        Template for new projects <br/>
-                        <TextArea width={"100%"} rows={5} inputRef={templateNew} />
-                    </label>
-
-                    {settings.enabled && <>
-                        <Flex flexDirection={"row"} gap={"32px"}>
-                            <div>
-                                <label style={{marginBottom: "16px"}}>Allow applications from</label>
-                                <UserCriteriaEditor
-                                    criteria={settings.allowRequestsFrom}
-                                    onSubmit={onAllowAdd}
-                                    isExclusion={false}
-                                    onRemove={onAllowRemove}
-                                    showSubprojects={settings.enabled}
-                                />
-                            </div>
-
-                            <div>
-                                <label>Exclude applications from</label>
-                                <UserCriteriaEditor
-                                    criteria={settings.excludeRequestsFrom}
-                                    onSubmit={onExcludeAdd}
-                                    isExclusion={true}
-                                    onRemove={onExcludeRemove}
-                                    showSubprojects={false}
-                                />
-                            </div>
-                        </Flex>
-                    </>}
-
-                    <Flex justifyContent={"center"} mt={32}>
-                        <Button type={"submit"} fullWidth>Save</Button>
-                    </Flex>
-                </form>
-            </section>
-
-            <section>
-                <ArchiveSingleProject
-                    isArchived={status.archived}
-                    projectId={projectId}
-                    projectRole={status.myRole!}
-                    title={project.specification.title}
-                    onSuccess={() => projectOps.reload()}
-                />
-            </section>
-
-            <section>
+        main={<div className={ActionContainer}>
+            {!isAdminOrPI(status.myRole) ? (<section>
                 <LeaveProject
                     onSuccess={() => navigate("/")}
                     projectTitle={project.specification.title}
                     projectId={projectId}
                     projectRole={status.myRole!}
+                    showTitle
                 />
-            </section>
+            </section>) : <>
+                <section>
+                    <Heading.h3>Project information</Heading.h3>
+
+                    <ChangeProjectTitle
+                        projectId={projectId}
+                        projectTitle={project.specification.title}
+                        onSuccess={() => projectOps.reload()}
+                    />
+
+                    <SubprojectSettings
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                        setLoading={() => false}
+                    />
+
+                </section>
+
+                <section>
+                    <Heading.h3>Grant settings</Heading.h3>
+
+                    <UpdateProjectLogo />
+
+                    <form onSubmit={onSave}>
+                        <label>
+                            Project description <br />
+                            <TextArea width={"100%"} rows={5} inputRef={description} />
+                        </label>
+
+                        <label>
+                            Template for personal projects <br />
+                            <TextArea width={"100%"} rows={5} inputRef={templatePersonal} />
+                        </label>
+
+                        <label>
+                            Template for existing projects <br />
+                            <TextArea width={"100%"} rows={5} inputRef={templateExisting} />
+                        </label>
+
+                        <label>
+                            Template for new projects <br />
+                            <TextArea width={"100%"} rows={5} inputRef={templateNew} />
+                        </label>
+
+                        {settings.enabled && <>
+                            <Flex flexDirection={"row"} gap={"32px"}>
+                                <div>
+                                    <label style={{marginBottom: "16px"}}>Allow applications from</label>
+                                    <UserCriteriaEditor
+                                        criteria={settings.allowRequestsFrom}
+                                        onSubmit={onAllowAdd}
+                                        isExclusion={false}
+                                        onRemove={onAllowRemove}
+                                        showSubprojects={settings.enabled}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label>Exclude applications from</label>
+                                    <UserCriteriaEditor
+                                        criteria={settings.excludeRequestsFrom}
+                                        onSubmit={onExcludeAdd}
+                                        isExclusion={true}
+                                        onRemove={onExcludeRemove}
+                                        showSubprojects={false}
+                                    />
+                                </div>
+                            </Flex>
+                        </>}
+
+                        <Flex justifyContent={"center"} mt={32}>
+                            <Button type={"submit"} fullWidth>Save</Button>
+                        </Flex>
+                    </form>
+                </section>
+
+                <section>
+                    <ArchiveSingleProject
+                        isArchived={status.archived}
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                        title={project.specification.title}
+                        onSuccess={() => projectOps.reload()}
+                    />
+                </section>
+
+                <section>
+                    <LeaveProject
+                        onSuccess={() => navigate("/")}
+                        projectTitle={project.specification.title}
+                        projectId={projectId}
+                        projectRole={status.myRole!}
+                    />
+                </section>
+            </>}
         </div>}
     />
 };
@@ -556,6 +564,7 @@ export function ArchiveSingleProject(props: ArchiveSingleProjectProps): JSX.Elem
 interface LeaveProjectProps {
     projectRole: OldProjectRole;
     projectId: string;
+    showTitle?: boolean;
     projectTitle: string;
     onSuccess: () => void;
 }
@@ -564,7 +573,7 @@ export function LeaveProject(props: LeaveProjectProps): JSX.Element {
     return (
         <ActionBox>
             <Box flexGrow={1}>
-                <Heading.h3>Leave project</Heading.h3>
+                <Heading.h3>Leave project {props.showTitle ? `"${projectTitleFromCache(Client.projectId)}"` : ""}</Heading.h3>
                 <Text>
                     If you leave the project the following will happen:
 
@@ -631,7 +640,7 @@ export function UpdateProjectLogo(): JSX.Element | null {
             Project logo (click{" "}
             <span style={{color: "var(--textHighlight)", cursor: "pointer"}}>here</span>
             {" "}to upload a new logo)
-            <br/>
+            <br />
 
             <HiddenInputField
                 type="file"
@@ -681,56 +690,56 @@ const UserCriteriaEditor: React.FunctionComponent<{
     return <>
         <Table mb={16}>
             <thead>
-            <TableRow>
-                <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
-                <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
-                <TableHeaderCell />
-            </TableRow>
+                <TableRow>
+                    <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
+                    <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
+                    <TableHeaderCell />
+                </TableRow>
             </thead>
             <tbody>
 
-            {!props.showSubprojects ? null :
-                <TableRow>
-                    <TableCell>Subprojects</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell />
-                </TableRow>
-            }
+                {!props.showSubprojects ? null :
+                    <TableRow>
+                        <TableCell>Subprojects</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                }
 
-            {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
-                <TableRow>
-                    <TableCell>No one</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell />
-                </TableRow>
-            </> : null}
+                {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
+                    <TableRow>
+                        <TableCell>No one</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                </> : null}
 
-            {props.criteria.map((it, idx) =>
-                <TableRow key={keyFromCriteria(it)}>
-                    <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
-                    <TableCell textAlign={"left"}>
-                        {it.type === "wayf" ? it.org : null}
-                        {it.type === "email" ? it.domain : null}
-                        {it.type === "anyone" ? "None" : null}
-                    </TableCell>
-                    <TableCell textAlign={"right"}>
-                        <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
-                    </TableCell>
-                </TableRow>
-            )}
+                {props.criteria.map((it, idx) =>
+                    <TableRow key={keyFromCriteria(it)}>
+                        <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
+                        <TableCell textAlign={"left"}>
+                            {it.type === "wayf" ? it.org : null}
+                            {it.type === "email" ? it.domain : null}
+                            {it.type === "anyone" ? "None" : null}
+                        </TableCell>
+                        <TableCell textAlign={"right"}>
+                            <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                        </TableCell>
+                    </TableRow>
+                )}
 
-            {showRequestFromEditor ?
-                <UserCriteriaRowEditor
-                    onSubmit={(c) => {
-                        props.onSubmit(c);
-                        setShowRequestFromEditor(false);
-                    }}
-                    onCancel={() => setShowRequestFromEditor(false)}
-                    allowAnyone={!props.isExclusion && props.criteria.find(it => it.type === "anyone") === undefined}
-                    allowWayf={!props.isExclusion}
-                /> :
-                null
-            }
+                {showRequestFromEditor ?
+                    <UserCriteriaRowEditor
+                        onSubmit={(c) => {
+                            props.onSubmit(c);
+                            setShowRequestFromEditor(false);
+                        }}
+                        onCancel={() => setShowRequestFromEditor(false)}
+                        allowAnyone={!props.isExclusion && props.criteria.find(it => it.type === "anyone") === undefined}
+                        allowWayf={!props.isExclusion}
+                    /> :
+                    null
+                }
 
             </tbody>
         </Table>

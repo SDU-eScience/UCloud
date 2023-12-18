@@ -4,7 +4,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Link, Text, Flex, Box, Icon, Grid} from "@/ui-components";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {NewsPost} from "@/Dashboard/Dashboard";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {emptyPage} from "@/DefaultObjects";
 import {useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -87,7 +87,7 @@ export const NewsList: React.FC = () => {
         const now = new Date().getTime();
         return <Grid gridTemplateColumns={"repeat(1, auto)"} gridGap={32}>
             {page.items.map(item => (
-                <HighlightedCard isLoading={false} key={item.id}>
+                <TitledCard isLoading={false} key={item.id}>
                     <Box my={16}>
                         <Link mt="12px" to={AppRoutes.news.detailed(item.id)}>
                             <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden} /></Flex>
@@ -101,7 +101,7 @@ export const NewsList: React.FC = () => {
                         </Flex>
                         <IsExpired now={now} expiration={item.hideFrom} />
                     </Box>
-                </HighlightedCard>
+                </TitledCard>
             ))}
         </Grid>;
     }

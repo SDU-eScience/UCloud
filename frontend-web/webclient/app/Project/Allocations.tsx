@@ -6,7 +6,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {Box, Flex, Grid, Icon, Link, Text, Tooltip} from "@/ui-components";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import * as React from "react";
 import {useCallback, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
@@ -365,7 +365,7 @@ export const AllocationViewer: React.FunctionComponent<{
     simple?: boolean;
 }> = ({wallet, allocation, simple = true}) => {
     const url = "/grants?id=" + allocation.grantedIn;
-    return <HighlightedCard width={"400px"} height="100%">
+    return <TitledCard width={"400px"} height="100%">
         <Flex flexDirection={"row"} mt={"8px"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                 size={"54px"} mr={"16px"} />
@@ -385,7 +385,7 @@ export const AllocationViewer: React.FunctionComponent<{
                 <div> {allocation.grantedIn != null ? <Link to={url}> Show Grant </Link> : null}  </div>
             </Flex>
         </Flex>
-    </HighlightedCard>;
+    </TitledCard>;
 };
 
 const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | null;}> = ({startDate, endDate}) => {

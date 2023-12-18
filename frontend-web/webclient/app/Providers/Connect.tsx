@@ -1,5 +1,5 @@
 import * as React from "react";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {Text, Button, Icon, List, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
@@ -112,13 +112,13 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     </>;
 
     if (props.embedded) {
-        return <HighlightedCard
+        return <TitledCard
             icon={"heroCloud"}
             title={<Link to={"/providers/connect"}><Heading.h3>Providers</Heading.h3></Link>}
             subtitle={<Link to="/providers/overview">Show all</Link>}
         >
             {body}
-        </HighlightedCard>;
+        </TitledCard>;
     } else {
         // NOTE(Dan): You are not meant to swap the embedded property on a mounted component. We should be fine even
         // though we are breaking rules of hooks.

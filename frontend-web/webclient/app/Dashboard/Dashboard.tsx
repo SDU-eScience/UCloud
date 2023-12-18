@@ -21,7 +21,7 @@ import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NavigateFunction, useNavigate} from "react-router";
 import {
@@ -36,7 +36,7 @@ import {
 } from "@/Accounting";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
-import {default as ProjectApi, ProjectInvite, isAdminOrPI} from "@/Project/Api";
+import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -49,9 +49,10 @@ import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
+import {IngoingSharesBrowse} from "@/Files/Shares";
 
 function Dashboard(): JSX.Element {
-    const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
+    const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
         withHidden: false,
@@ -63,6 +64,8 @@ function Dashboard(): JSX.Element {
 
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
+    
+    const [reloadIteration, setIteration] = React.useState(0);
 
 
     useTitle("Dashboard");
@@ -75,12 +78,14 @@ function Dashboard(): JSX.Element {
 
     function reload(): void {
         reduxOps.setAllLoading(true);
+        fetchNews(newsParams);
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
             includeBalance: true,
             includeMaxBalance: true
         }));
+        setIteration(it => it + 1);
         sidebarFavoriteCache.fetch();
         fetchUsage(retrieveUsage({}));
     }
@@ -89,23 +94,23 @@ function Dashboard(): JSX.Element {
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <div>
             <div style={{marginBottom: "24px"}}>
-                <HighlightedCard>
+                <TitledCard>
                     <Flex><Icon mx="auto" my="-32px" name="deiCLogo" size="128px" /></Flex>
-                </HighlightedCard>
+                </TitledCard>
             </div>
 
             <DashboardNews news={news} />
 
-            <ProjectInvites />
+            <Invites key={reloadIteration} />
 
             <div className={GridClass}>
                 <DashboardFavoriteFiles />
-                <DashboardRuns />
+                <DashboardRuns key={reloadIteration} />
             </div>
             <UsageAndResources charts={usage} products={products} />
             <div className={GridClass}>
                 <Connect embedded />
-                <DashboardGrantApplications />
+                <DashboardGrantApplications key={reloadIteration} />
             </div>
         </div>
     </Box>);
@@ -141,20 +146,23 @@ const GridClass = injectStyle("grid", k => `
 }
 `);
 
-function ProjectInvites(): React.ReactNode {
-    const [invites] = useCloudAPI<PageV2<ProjectInvite>>(ProjectApi.browseInvites({itemsPerPage: 100}), emptyPageV2);
+function Invites(): React.ReactNode {
+    const [showProjectInvites, setShowProjectInvites] = React.useState(false);
+    const [showShareInvites, setShowShareInvites] = React.useState(false);
 
-    if (invites.data.items.length === 0) return null;
-    return <Flex mt="24px">
-        <HighlightedCard
-            isLoading={invites.loading}
+    return <Flex mt="24px" style={display(showShareInvites || showProjectInvites)}>
+        <TitledCard
             icon="heroUserGroup"
-            title="Project invitations"
-            error={invites.error?.why}
+            title="Invites"
         >
-            <ProjectInviteBrowse opts={{embedded: true, page: invites.data}} />
-        </HighlightedCard>
+            <div style={display(showProjectInvites)}><ProjectInviteBrowse opts={{embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
+            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
+        </TitledCard>
     </Flex>
+}
+
+function display(val: boolean): {display: "none" | undefined} {
+    return {display: val ? undefined : "none"}
 }
 
 function DashboardFavoriteFiles(): JSX.Element {
@@ -170,7 +178,7 @@ function DashboardFavoriteFiles(): JSX.Element {
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
     return (
-        <HighlightedCard
+        <TitledCard
             isLoading={sidebarFavoriteCache.loading}
             icon="heroStar"
             title="Favorites"
@@ -204,7 +212,7 @@ function DashboardFavoriteFiles(): JSX.Element {
                     <Text cursor="pointer" fontSize={FONT_SIZE} my="auto" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
                 </Flex>))}
             </List>
-        </HighlightedCard>
+        </TitledCard>
     );
 
     async function fetchTemplate() {
@@ -294,12 +302,12 @@ function UsageAndResources(props: {charts: APICallState<{charts: UsageChart[]}>;
     const products = React.useMemo(() => <DashboardResources products={props.products} />, [props.products]);
 
     return (
-        <HighlightedCard> 
+        <TitledCard>
             <div className={ResourceGridClass}>
                 {usage}
                 {products}
             </div>
-        </HighlightedCard>
+        </TitledCard>
     );
 }
 
@@ -336,7 +344,7 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
 }
 
 function DashboardRuns(): JSX.Element {
-    return <HighlightedCard
+    return <TitledCard
         title={<Link to={"/jobs"}><Heading.h3>Recent runs</Heading.h3></Link>}
         icon="heroServer"
     >
@@ -344,7 +352,7 @@ function DashboardRuns(): JSX.Element {
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
             additionalFilters: {"itemsPerPage": "10"}
         }} />
-    </HighlightedCard>;
+    </TitledCard>;
 }
 
 function DashboardResources({products}: {
@@ -442,18 +450,18 @@ const DashboardGrantApplications: React.FunctionComponent = () => {
     if (!canApply) return null;
 
 
-    return <HighlightedCard
+    return <TitledCard
         title={<Link to={AppRoutes.grants.outgoing()}><Heading.h3>Grant applications</Heading.h3></Link>}
         icon="heroDocumentCheck"
     >
         <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
-    </HighlightedCard>;
+    </TitledCard>;
 };
 
 function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Element | null {
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
-        <HighlightedCard
+        <TitledCard
             title={
                 <Link to={newsItem ? AppRoutes.news.detailed(newsItem.id) : "/news/list/"}>
                     <Heading.h3>{newsItem?.title ?? "News"}</Heading.h3>
@@ -496,7 +504,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                 </div>
                 <img src={ucloudImage} />
             </div>
-        </HighlightedCard>
+        </TitledCard>
     );
 }
 

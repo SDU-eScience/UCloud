@@ -26,7 +26,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
             width={props.width}
         >
             <Flex alignItems="center">
-                <div style={{whiteSpace: "pre"}}>
+                <div>
                     {props.warning}
                     {props.children}
                 </div>
