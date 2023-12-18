@@ -129,7 +129,7 @@ private class OurArgBuilder(
                     }
                     if (components.size == 4 && components[2] == PathConverter.HOME_DIRECTORY) {
                         joinPath("/work", "Home")
-                    } else if (components.size == 6 && components[4] == "Members' Files"){
+                    } else if (components.size == 6 && components[4] == PathConverter.PERSONAL_REPOSITORY){
                         joinPath("/work", components.last().removeSuffix("/"))
                     } else {
                         joinPath("/work", components.last().removeSuffix("/"))
