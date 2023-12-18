@@ -192,7 +192,7 @@ class FeaturePublicIP(
             )
         }
         if (rows.isNotEmpty()) {
-            throw RPCException("IP already in use on other job: $rows", HttpStatusCode.BadRequest)
+            throw RPCException("IP is already in use in the following jobs: $rows", HttpStatusCode.BadRequest)
         }
 
         val idsAndIps = db.withSession { session ->
