@@ -279,11 +279,12 @@ class JobResourceService {
                 val provider = job.product.provider
                 documents.createViaProvider(card, job.product, initialState, addOwnerToAcl = true) { doc ->
                     val mapped = docMapper.map(null, doc)
-                    providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
-                        .singleIdOrNull()
-                        ?.also { _ -> listeners.forEach { it.onCreate(mapped) } }
-                        ?.also { allActiveJobs[it.toLong()] = Unit }
+                    val result = providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
+                    listeners.forEach { it.onCreate(mapped) }
+                    allActiveJobs[doc.id] = Unit 
+                    result.singleIdOrNull()
                 }
+
             } catch (ex: Throwable) {
                 if (firstException == null) firstException = ex
                 log.info("Caught exception while creating job: ${ex.toReadableStacktrace()}")
