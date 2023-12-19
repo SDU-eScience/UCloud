@@ -4,6 +4,12 @@ This page tracks a high-level overview of changes to the version of UCloud
 hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
+## 19-12-23
+
+```
+UCloud/Core @ 2023.4.2
+```
+
 ## 18-12-23
 
 ```
