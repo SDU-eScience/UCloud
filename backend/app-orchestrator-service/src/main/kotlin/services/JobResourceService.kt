@@ -508,6 +508,7 @@ class JobResourceService(
         }
 
         val type = when (newState) {
+            JobState.SUCCESS -> "JOB_COMPLETED"
             JobState.RUNNING -> "JOB_STARTED"
             JobState.FAILURE -> "JOB_FAILED"
             JobState.EXPIRED -> "JOB_EXPIRED"
@@ -515,6 +516,7 @@ class JobResourceService(
         }
 
         val message = when (newState) {
+            JobState.SUCCESS -> "Your job completed successfully."
             JobState.RUNNING -> "Your job is now running."
             JobState.FAILURE -> "Your job has failed."
             JobState.EXPIRED -> "Your job has expired."
@@ -539,6 +541,7 @@ class JobResourceService(
         )
 
         val mail = when (newState) {
+            JobState.SUCCESS -> Mail.JobCompleted(jobNameAndId, appTitle)
             JobState.RUNNING -> Mail.JobStarted(jobNameAndId, appTitle)
             JobState.FAILURE -> Mail.JobFailed(jobNameAndId, appTitle)
             JobState.EXPIRED -> Mail.JobExpired(jobNameAndId, appTitle)

@@ -79,8 +79,9 @@ class SettingsService(
             is Mail.UserRoleChangeMail -> settings.userRoleChange
             is Mail.VerificationReminderMail -> settings.verificationReminder
             is Mail.JobStarted -> settings.jobStarted
-            is Mail.JobFailed -> settings.jobFailed
-            is Mail.JobExpired -> settings.jobExpired
+            is Mail.JobFailed -> settings.jobStopped
+            is Mail.JobCompleted -> settings.jobStopped
+            is Mail.JobExpired -> settings.jobStopped
             else -> {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.InternalServerError, "Mapping from mail to setting not found"

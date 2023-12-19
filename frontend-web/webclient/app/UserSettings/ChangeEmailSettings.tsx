@@ -33,8 +33,7 @@ export const defaultEmailSettings: EmailSettings = {
     lowFunds: true,
     // Jobs
     jobStarted: false,
-    jobFailed: false,
-    jobExpired: false
+    jobStopped: false,
 }
 
 export enum MailType {
@@ -56,8 +55,7 @@ export enum MailType {
     LOW_FUNDS,
     // Jobs
     JOB_STARTED,
-    JOB_FAILED,
-    JOB_EXPIRED
+    JOB_STOPPED,
 }
 
 const initialState: UserDetailsState = {
@@ -158,12 +156,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
             case MailType.JOB_STARTED:
                 state.settings.jobStarted = !state.settings.jobStarted
                 break;
-            case MailType.JOB_FAILED:
-                state.settings.jobFailed = !state.settings.jobFailed
-                break;
-            case MailType.JOB_EXPIRED:
-                state.settings.jobExpired = !state.settings.jobExpired
-                break;
+            case MailType.JOB_STOPPED:
+                state.settings.jobStopped = !state.settings.jobStopped
         }
         dispatch({
             type: "UpdatePlaceholdersEmailSettings",
@@ -322,22 +316,12 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
                         size={27}
-                        onClick={() => toggleSubscription(MailType.JOB_FAILED)}
+                        onClick={() => toggleSubscription(MailType.JOB_STOPPED)}
                         onChange={() => undefined}
-                        checked={state.settings.jobFailed}
+                        checked={state.settings.jobStopped}
                     />
-                    <span>Job failed</span>
+                    <span>Job stopped</span>
                 </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
-                        onClick={() => toggleSubscription(MailType.JOB_EXPIRED)}
-                        onChange={() => undefined}
-                        checked={state.settings.jobExpired}
-                    />
-                    <span>Job expired</span>
-                </Label>
-
 
                 <Heading.h5> </Heading.h5>
                 <Button

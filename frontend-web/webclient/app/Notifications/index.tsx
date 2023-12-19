@@ -58,6 +58,14 @@ function resolveNotification(event: Notification): {
                 return {icon, modifiedMessage, modifiedTitle};
             }
             return {icon};
+        case "JOB_COMPLETED":
+            return {
+                icon: "heroServer",
+                color: "black",
+                color2: "midGray",
+                modifiedTitle: `${event.meta.title ?? "Job"} completed`,
+                modifiedMessage: `Your ${event.meta.title ?? ""} job has completed successfully.`
+            };
         case "JOB_STARTED":
             return {
                 icon: "heroServer",

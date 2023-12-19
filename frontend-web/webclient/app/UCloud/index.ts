@@ -4496,8 +4496,7 @@ export interface EmailSettings {
     userLeft: boolean,
     lowFunds: boolean,
     jobStarted: boolean,
-    jobFailed: boolean,
-    jobExpired: boolean
+    jobStopped: boolean,
 }
 export interface RetrieveEmailSettingsRequest {
     username?: string,

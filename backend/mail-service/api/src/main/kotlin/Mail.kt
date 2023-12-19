@@ -23,8 +23,7 @@ data class EmailSettings(
     val lowFunds: Boolean = true,
     //Jobs
     val jobStarted: Boolean = false,
-    val jobFailed: Boolean = false,
-    val jobExpired: Boolean = false
+    val jobStopped: Boolean = false,
 )
 
 
@@ -207,6 +206,14 @@ sealed class Mail {
         val jobId: String,
         val appTitle: String,
         override val subject: String = "Your job on UCloud has started"
+    ) : Mail()
+
+    @Serializable
+    @SerialName("jobCompleted")
+    data class JobCompleted(
+        val jobId: String,
+        val appTitle: String,
+        override val subject: String = "Your job on UCloud has completed"
     ) : Mail()
 
     @Serializable

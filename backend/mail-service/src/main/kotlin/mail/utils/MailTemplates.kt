@@ -239,6 +239,18 @@ fun jobStartedTemplate(
     $NO_NOTIFICATIONS_DISCLAIMER
 """.trimIndent()
 
+fun jobCompletedTemplate(
+    recipient: String,
+    jobId: String,
+    appTitle: String
+) = """
+    <p>Dear ${escapeHtml(recipient)}</p>
+    <p>
+        Your ${escapeHtml(appTitle)} job with ID ${jobId} has completed successfully.
+    </p>
+    $NO_NOTIFICATIONS_DISCLAIMER
+""".trimIndent()
+
 fun jobFailedTemplate(
     recipient: String,
     jobId: String,
