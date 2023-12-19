@@ -172,7 +172,7 @@ export const ImportParameters: React.FunctionComponent<{
                         input.click();
                         document.body.removeChild(input);
                     },
-                    text: "Upload job-file",
+                    text: "Upload JobParameters.json",
                     shortcut: ShortcutKey.U,
                     icon: "upload"
                 }, {

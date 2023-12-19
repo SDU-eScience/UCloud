@@ -21,7 +21,7 @@ export const SshWidget: React.FunctionComponent<{
     const sshMode = props.application.invocation.ssh?.mode ?? "DISABLED";
     const [sshKeyFirstPage] = useCloudAPI<PageV2<SSHKey>>(SshKeyApi.browse({itemsPerPage: 10}), emptyPageV2);
     let hasAnyKeys = sshKeyFirstPage.data.items.length > 0;
-    const [sshEnabled, setSshEnabled] = useState(true);
+    const [sshEnabled, setSshEnabled] = useState(false);
 
     useEffect(() => {
         if (props.initialEnabledStatus !== undefined) setSshEnabled(props.initialEnabledStatus);
@@ -41,14 +41,21 @@ export const SshWidget: React.FunctionComponent<{
 
         {sshMode !== "MANDATORY" ? null : <>
             <p>
-                This application requires SSH keys to be configured. You can configure your SSH keys{" "}
-                <Link color={"primary"} to={"/ssh-keys"} target={"_blank"}>here</Link>.
+                This application has been configured to use SSH. 
             </p>
 
             {hasAnyKeys ? null : <>
-                <Warning>You don't currently have any keys configured. You must upload at least one SSH key to start
-                    this
-                    application.</Warning>
+                <Warning>
+                    <p>
+                        You don't currently have any keys configured. You must upload at least one SSH key to start
+                        this application.
+                    </p>
+
+                    <p>
+                        You can configure your SSH keys{" "}
+                        <Link color={"primary"} to={"/ssh-keys"} target={"_blank"}>here</Link>.
+                    </p>
+                </Warning>
             </>}
         </>}
 

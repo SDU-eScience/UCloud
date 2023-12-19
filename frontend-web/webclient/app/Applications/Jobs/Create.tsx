@@ -415,6 +415,11 @@ export const Create: React.FunctionComponent = () => {
                             />
                         </Card>
 
+                        <FolderResource
+                            {...folders}
+                            application={application}
+                        />
+
                         {/* Parameters */}
                         {mandatoryParameters.length === 0 ? null : (
                             <Card>
@@ -468,11 +473,6 @@ export const Create: React.FunctionComponent = () => {
                             onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
 
                         {/* Resources */}
-
-                        <FolderResource
-                            {...folders}
-                            application={application}
-                        />
 
                         <IngressResource
                             {...ingress}

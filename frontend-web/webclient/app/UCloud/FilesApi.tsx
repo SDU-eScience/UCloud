@@ -318,6 +318,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         if (fileData.loading) return <PredicatedLoadingSpinner loading />
 
+        // TODO
         if (!file) return <h1>INVALID DATA! TODO! FIX THIS!</h1>;
 
         return <Flex className={FilePropertiesLayout}>
