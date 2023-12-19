@@ -4,7 +4,6 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-//import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -12,13 +11,7 @@ import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.SendDirectMandatoryEmailRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.bool
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
@@ -29,6 +22,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import javax.mail.Message
 import javax.mail.Session
 import javax.mail.Transport
@@ -56,13 +50,6 @@ class MailService(
         properties.setProperty("mail.smtps.allow8bitmime", "true");
 
         session = Session.getInstance(properties)
-    }
-
-    object MailCounterTable: SQLTable("mail_counting") {
-        val mailCount = long("mail_count", notNull = true)
-        val username = text("username", notNull = true)
-        val periodStart = timestamp("period_start", notNull = true)
-        val alertedFor = bool("alerted_for", notNull = true)
     }
 
     private val escienceLogoFile: File by lazy {
@@ -515,12 +502,12 @@ class MailService(
         val alertedFor: Boolean
     )
 
-    fun RowData.toMailCountInfo(): MailCountInfo {
+    private fun RowData.toMailCountInfo(): MailCountInfo {
         return MailCountInfo(
-            getField(MailCounterTable.username),
-            getField(MailCounterTable.periodStart),
-            getField(MailCounterTable.mailCount),
-            getField(MailCounterTable.alertedFor)
+            getString("username")!!,
+            getAs<LocalDateTime>("period_start")!!,
+            getLong("mail_count")!!,
+            getBoolean("alerted_for")!!
         )
     }
 
