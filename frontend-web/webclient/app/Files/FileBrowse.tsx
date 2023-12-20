@@ -865,8 +865,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     var pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
                     if (!pIcon) {
-                        const providerIconWrapper = document.createElement("div");
-                        providerIconWrapper.className = "provider-icon";
+                        const providerIconWrapper = createHTMLElements({
+                            tagType: "div",
+                            className: "provider-icon",
+                            style: {marginRight: "6px"}
+                        });
                         const url = browser.header.querySelector("div.header-first-row");
                         if (url) url.prepend(providerIconWrapper);
                         pIcon = providerIconWrapper;

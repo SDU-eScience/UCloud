@@ -529,6 +529,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                         );
                                         cb.reload();
                                         dialogStore.success();
+                                        snackbarStore.addSuccess("Files copied", false);
                                     } catch (e) {
                                         displayErrorMessageOrDefault(e, "Failed to move to folder");
                                     }
@@ -583,6 +584,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                         );
                                         cb.reload();
                                         dialogStore.success();
+                                        snackbarStore.addSuccess("Files moved", false);
                                     } catch (e) {
                                         displayErrorMessageOrDefault(e, "Failed to move to folder");
                                     }
