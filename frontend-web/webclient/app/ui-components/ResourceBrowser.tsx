@@ -237,7 +237,6 @@ interface ResourceBrowserListenerMap<T> {
 
 interface ResourceBrowserRow {
     container: HTMLElement;
-    selected: HTMLInputElement;
     star: HTMLElement;
     title: HTMLElement;
     stat1: HTMLElement;
@@ -719,7 +718,6 @@ export class ResourceBrowser<T> {
         const rows: HTMLDivElement[] = [];
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
             const row = div(`
-                <input type="checkbox">
                 <div class="favorite"></div>
                 <div class="title"></div>
                 <div class="stat1"></div>
@@ -751,23 +749,12 @@ export class ResourceBrowser<T> {
 
             const r = {
                 container: row,
-                selected: row.querySelector<HTMLInputElement>("input")!,
                 star: row.querySelector<HTMLElement>(".favorite")!,
                 title: row.querySelector<HTMLElement>(".title")!,
                 stat1: row.querySelector<HTMLElement>(".stat1")!,
                 stat2: row.querySelector<HTMLElement>(".stat2")!,
                 stat3: row.querySelector<HTMLElement>(".stat3")!,
             };
-
-            r.selected.addEventListener("pointerdown", e => {
-                e.preventDefault();
-                e.stopPropagation();
-            });
-
-            r.selected.addEventListener("click", e => {
-                e.stopPropagation();
-                this.select(parseInt(r.container.getAttribute("data-idx") ?? "-1"), SelectionMode.TOGGLE_SINGLE);
-            });
 
             r.star.addEventListener("pointerdown", e => {
                 e.preventDefault();
@@ -946,8 +933,7 @@ export class ResourceBrowser<T> {
             row.container.removeAttribute("data-selected");
             row.container.removeAttribute("data-idx");
             row.container.style.position = "absolute";
-            row.selected.style.display = hasAnySelected || !this.features.showStar ? "block" : "none";
-            row.star.style.display = hasAnySelected || !this.features.showStar ? "none" : "block";
+            row.star.style.display = !this.features.showStar ? "none" : "block";
             const top = Math.min(totalSize - ResourceBrowser.rowSize, (firstRowToRender + i) * ResourceBrowser.rowSize);
             row.container.style.top = `${top}px`;
             row.title.innerHTML = "";
@@ -980,7 +966,6 @@ export class ResourceBrowser<T> {
 
             row.container.setAttribute("data-idx", i.toString());
             row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
-            row.selected.checked = (this.isSelected[i] !== 0);
             row.container.classList.remove("hidden");
 
             const x = this.scrollingContainerLeft + relativeX;
@@ -3026,11 +3011,6 @@ export class ResourceBrowser<T> {
 
             ${browserClass.dot} .row.hidden {
                 display: none;
-            }
-
-            ${browserClass.dot} .row input[type=checkbox] {
-                height: 20px;
-                width: 20px;
             }
 
             ${browserClass.dot} .row[data-selected="true"] {

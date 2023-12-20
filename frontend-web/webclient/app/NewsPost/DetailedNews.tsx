@@ -8,7 +8,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {NewsPost} from "@/Dashboard/Dashboard";
 import {Tag} from "@/Applications/Card";
-import {format} from "date-fns/esm";
+import {format} from "date-fns";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Spacer} from "@/ui-components/Spacer";

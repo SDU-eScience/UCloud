@@ -9,7 +9,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {useNavigate, useParams} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as Pagination from "@/Pagination";
-import {format} from "date-fns/esm";
+import {format} from "date-fns";
 import {Tag} from "@/Applications/Card";
 import {capitalized} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";

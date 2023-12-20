@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {format} from "date-fns/esm";
+import {format} from "date-fns";
 import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";

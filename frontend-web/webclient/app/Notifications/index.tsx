@@ -1,5 +1,5 @@
 import {WSFactory} from "@/Authentication/HttpClientInstance";
-import {formatDistance} from "date-fns/esm";
+import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";

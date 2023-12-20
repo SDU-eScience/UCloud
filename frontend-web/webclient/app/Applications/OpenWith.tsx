@@ -75,6 +75,8 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     });
                 });
 
+                browser.setEmptyIcon("play");
+
                 browser.on("renderRow", (entry, row, dimensions) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"

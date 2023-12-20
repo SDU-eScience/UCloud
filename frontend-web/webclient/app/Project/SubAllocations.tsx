@@ -24,7 +24,7 @@ import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndP
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
-import format from "date-fns/format";
+import {format} from "date-fns";
 import {ListRow, ListRowStat} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {DatePicker} from "@/ui-components/DatePicker";
@@ -36,7 +36,7 @@ import {ListV2} from "@/Pagination";
 import {AllocationViewer, resultAsPercent, SubAllocation, allocationText, percentageString} from "./Allocations";
 import {ProgressBarWithLabel} from "@/ui-components/ProgressBarWithLabel";
 import {TextSpan} from "@/ui-components/Text";
-import startOfDay from "date-fns/esm/startOfDay";
+import {startOfDay} from "date-fns";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
 import {isAllocationSuitableForSubAllocation} from "@/Grants";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
