@@ -55,7 +55,7 @@ declare global {
     }
 
     export interface APICallParametersBinary<Response> extends APICallParameters {
-        responseConstructor: { new(b: BufferAndOffset): Response };
+        responseConstructor: {new(b: BufferAndOffset): Response};
     }
 }
 

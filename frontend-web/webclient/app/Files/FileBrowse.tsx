@@ -93,6 +93,7 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 }
 
+let lastActiveProject: string | undefined = "";
 const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", sortById: "MODIFIED_AT"}, {name: "Size", sortById: "SIZE"}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
@@ -107,11 +108,17 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
         isInitialMount.current = false;
+        
+        // Invalidate cache if necessary on active project change
+        if (lastActiveProject !== Client.projectId) {
+            collectionCacheForCompletion.invalidateAll();
+        }
+        lastActiveProject = Client.projectId;
     }, []);
 
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
-    const activeProject = useRef(opts?.isModal ? Client.projectId : undefined);
+    const activeProject = useRef(Client.projectId);
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
         return baseCallAPI({
@@ -1374,6 +1381,7 @@ function isReadonly(entries: Permission[]): boolean {
 
 export default FileBrowse;
 
+// Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
 function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
     const collections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
     const filteredCollections = collections;

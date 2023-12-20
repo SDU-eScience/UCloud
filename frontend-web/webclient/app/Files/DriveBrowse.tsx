@@ -46,7 +46,7 @@ const FEATURES: ResourceBrowseFeatures = {
     locationBar: false,
     showStar: false,
     renderSpinnerWhenLoading: true,
-    breadcrumbsSeparatedBySlashes: true,
+    breadcrumbsSeparatedBySlashes: false,
     search: true,
     filters: true,
     sorting: true,
