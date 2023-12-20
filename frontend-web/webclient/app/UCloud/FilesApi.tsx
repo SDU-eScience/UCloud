@@ -10,7 +10,7 @@ import {
 import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Flex, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {Box, Button, Error, Flex, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -318,8 +318,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         if (fileData.loading) return <PredicatedLoadingSpinner loading />
 
-        // TODO
-        if (!file) return <h1>INVALID DATA! TODO! FIX THIS!</h1>;
+        if (fileData.error) return <Error error={fileData.error.why} />;
+        if (!file) return <></>;
 
         return <Flex className={FilePropertiesLayout}>
             <div className="A">
@@ -563,7 +563,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(<>
+                    dialogStore.addDialog(
                         <FileBrowse opts={{
                             isModal: true, selection: {
                                 text: "Move to",
@@ -592,8 +592,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             },
                             initialPath: pathRef.current,
                             additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }} />
-                    </>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -641,7 +640,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) { /* ??? */ }
+                    if ((support as FileCollectionSupport)) { /* ??? */}
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
