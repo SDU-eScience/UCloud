@@ -531,8 +531,8 @@ export class ResourceBrowser<T> {
             const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location")!;
             location.style.flexGrow = "1";
             location.style.border = "1px solid var(--black)";
-            location.style.padding = "0 6px";
-            location.style.borderRadius = "4px";
+            location.style.marginLeft = "-6px";
+            location.style.borderRadius = "5px";
             location.style.width = "100%";
             location.style.cursor = "pointer";
             const ul = location.querySelector<HTMLUListElement>(":scope > ul")!;
@@ -540,11 +540,9 @@ export class ResourceBrowser<T> {
             ul.style.marginBottom = "-2px";
 
             location.addEventListener("click", () => {
-                this.toggleLocationBar();
-                if (this.isLocationBarVisible()) {
-                    location["style"].border = "";
-                } else {
-                    location["style"].border = "1px solid var(--black)";
+                if (!this.isLocationBarVisible()) {
+                    this.toggleLocationBar();
+                    location.style.border = "";
                 }
             });
         }
@@ -2629,6 +2627,8 @@ export class ResourceBrowser<T> {
                     const newPath = readValue();
                     if (newPath) {
                         this.setLocationBarVisibility(false);
+                        const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location");
+                        if (location) location.style.border = "1px solid var(--black)";
                         this.open(newPath);
                     }
                     break;
@@ -2764,7 +2764,7 @@ export class ResourceBrowser<T> {
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         fetchFilters: () => [],
-        searchHidden: () => { },
+        searchHidden: () => {},
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};

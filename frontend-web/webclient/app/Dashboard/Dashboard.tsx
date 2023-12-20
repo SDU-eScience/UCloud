@@ -64,7 +64,7 @@ function Dashboard(): JSX.Element {
 
     const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
-    
+
     const [reloadIteration, setIteration] = React.useState(0);
 
 
@@ -355,6 +355,10 @@ function DashboardRuns(): JSX.Element {
     </TitledCard>;
 }
 
+const APPLY_LINK_BUTTON = <Link to={AppRoutes.grants.editor()} mt={8}>
+    <Button mt={8}>Apply for resources</Button>
+</Link>;
+
 function DashboardResources({products}: {
     products: APICallState<PageV2<Product>>;
 }): JSX.Element | null {
@@ -399,10 +403,6 @@ function DashboardResources({products}: {
         return (a.balance < b.balance) ? 1 : -1;
     });
 
-    const applyLinkButton = <Link to={AppRoutes.grants.editor()} mt={8}>
-        <Button mt={8}>Apply for resources</Button>
-    </Link>;
-
     return (
         <div>
             <Link to={AppRoutes.project.allocations()}><Heading.h3>Resource allocations</Heading.h3></Link>
@@ -411,7 +411,7 @@ function DashboardResources({products}: {
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                     </Text>}
-                    {applyLinkButton}
+                    {APPLY_LINK_BUTTON}
                 </NoResultsCardBody>
             ) :
                 <>
@@ -435,7 +435,7 @@ function DashboardResources({products}: {
                             </tbody>
                         </Table>
                         <Box flexGrow={1} />
-                        <Flex mx="auto">{applyLinkButton}</Flex>
+                        <Flex mx="auto">{APPLY_LINK_BUTTON}</Flex>
                     </Flex>
                 </>
             }
