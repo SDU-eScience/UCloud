@@ -414,30 +414,28 @@ function DashboardResources({products}: {
                     {APPLY_LINK_BUTTON}
                 </NoResultsCardBody>
             ) :
-                <>
-                    {/* height is 100% - height of Heading 55px */}
-                    <Flex flexDirection="column" height={"calc(100% - 55px)"}>
-                        <Table>
-                            <tbody>
-                                {wallets.slice(0, 7).map((n, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell fontSize={FONT_SIZE}>
-                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                                <ProviderLogo providerId={n.category.provider} size={32} />
-                                                <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
-                                            </Flex>
-                                        </TableCell>
-                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                            {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </tbody>
-                        </Table>
-                        <Box flexGrow={1} />
-                        <Flex mx="auto">{APPLY_LINK_BUTTON}</Flex>
-                    </Flex>
-                </>
+                /* height is 100% - height of Heading 55px */
+                <Flex flexDirection="column" height={"calc(100% - 55px)"}>
+                    <Table>
+                        <tbody>
+                            {wallets.slice(0, 7).map((n, i) => (
+                                <TableRow key={i}>
+                                    <TableCell fontSize={FONT_SIZE}>
+                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                            <ProviderLogo providerId={n.category.provider} size={32} />
+                                            <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
+                                        </Flex>
+                                    </TableCell>
+                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                        {usageExplainer(n.balance, n.productType, n.chargeType, n.unitOfPrice)}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </tbody>
+                    </Table>
+                    <Box flexGrow={1} />
+                    <Flex mx="auto">{APPLY_LINK_BUTTON}</Flex>
+                </Flex>
             }
         </div>
     );

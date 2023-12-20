@@ -2965,6 +2965,10 @@ export class ResourceBrowser<T> {
                 height: 35px;
             }
             
+            ${browserClass.dot} header > div > div > ul {
+                margin-left: 6px;
+            }
+            
             ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
                 display: inline-block;
                 content: unset;
