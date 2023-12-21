@@ -561,6 +561,7 @@ class PuhuriClient(
     }
 
     suspend fun lookupProject(ucloudProjectId: String): PuhuriProject? {
+        log.debug("Looking up project with backend id $ucloudProjectId")
         return debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "lookupProject $ucloudProjectId") {
             val resp = httpClient.get(
                 apiPath("projects") + "?backend_id=$ucloudProjectId",
@@ -591,6 +592,8 @@ class PuhuriClient(
     }
 
     suspend fun createOrder(projectId: String, allocation: PuhuriAllocation) {
+        log.debug("Creating order for project $projectId")
+
         if (allocation.cpuKHours == 0 && allocation.gbKHours == 0 && allocation.gpuHours == 0) {
             throw RPCException("Unable to create empty allocation", HttpStatusCode.BadRequest)
         }
@@ -601,20 +604,18 @@ class PuhuriClient(
                 PuhuriCreateOrderRequest.serializer(),
                 PuhuriCreateOrderRequest(
                     "${rootEndpoint}projects/$projectId/",
-                    listOf(
-                        PuhuriOrderItem(
-                            offering,
-                            PuhuriOrderItemAttributes("UCloud allocation"),
-                            plan,
-                            allocation
-                        )
-                    )
+                    offering,
+                    PuhuriOrderAttributes("UCloud allocation"),
+                    plan,
+                    allocation
                 )
             )
         ).orThrow()
     }
 
     suspend fun addUserToProject(userId: String, projectId: String, role: ProjectRole) {
+        log.debug("Adding user $userId to project $projectId")
+
         val puhuriRole = PuhuriProjectRole.values().find { it.ucloudRole == role } ?: PuhuriProjectRole.USER
 
         // NOTE(Brian): Requires deletion of old entry if it exists
@@ -655,6 +656,7 @@ class PuhuriClient(
     }
 
     suspend fun createProject(id: String, name: String, description: String): PuhuriProject {
+        log.debug("Creating project $name")
         val resp = httpClient.post(
             apiPath("projects"),
             apiRequestWithBody(
@@ -787,19 +789,14 @@ data class PuhuriBillingPriceEstimate(
 @Serializable
 data class PuhuriCreateOrderRequest(
     val project: String,
-    val items: List<PuhuriOrderItem>
-)
-
-@Serializable
-data class PuhuriOrderItem(
     val offering: String,
-    val attributes: PuhuriOrderItemAttributes,
+    val attributes: PuhuriOrderAttributes,
     val plan: String,
-    val limits: PuhuriAllocation,
+    val limits: PuhuriAllocation
 )
 
 @Serializable
-data class PuhuriOrderItemAttributes(
+data class PuhuriOrderAttributes(
     val name: String
 )
 
