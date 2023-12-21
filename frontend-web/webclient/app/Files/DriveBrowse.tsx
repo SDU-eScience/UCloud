@@ -343,7 +343,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 // =========================================================================================================
                 browser.on("open", (oldPath, newPath) => {
                     if (newPath !== "/") {
-                        navigate("/files/?path=" + encodeURIComponent(`/${newPath}`));
+                        const p = newPath.startsWith("/") ? newPath : "/" + newPath;
+                        navigate("/files?path=" + encodeURIComponent(p));
                         return;
                     }
 

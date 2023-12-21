@@ -1079,7 +1079,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        if (!isInitialMount.current) navigate("/files?path=" + encodeURIComponent(newPath));
+                        if (!isInitialMount.current && oldPath !== newPath) navigate("/files?path=" + encodeURIComponent(newPath));
                     }
 
                     if (newPath == SEARCH) {
