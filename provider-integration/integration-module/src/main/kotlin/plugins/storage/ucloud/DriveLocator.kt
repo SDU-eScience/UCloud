@@ -288,6 +288,33 @@ private object DriveAndSystemStore {
         }
     }
 
+    suspend fun delete(drive: UCloudDrive, ctx: DBContext = dbConnection) {
+        val entry = entries.indexOfFirst { it.drive.ucloudId == drive.ucloudId }
+        if (entry != -1) {
+            entries.removeAt(entry)
+        }
+        mutex.withLock {
+            ctx.withSession { session ->
+                session.prepareStatement(
+                    buildString {
+                        append(
+                            """
+                                delete 
+                                from ucloud_storage_drives
+                                where collection_id = :id
+                            """
+                        )
+                    }
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindLong("id", drive.ucloudId)
+                    }
+                )
+            }
+        }
+    }
+
+
     suspend fun retrieve(id: Long): DriveAndSystem? {
         return mutex.withLock {
             entries.find { it.drive.ucloudId == id }
@@ -544,6 +571,15 @@ class DriveLocator(
         )
 
         return DriveAndSystemStore.retrieve(id) ?: error("internal error - could not find drive after insertion")
+    }
+
+    suspend fun remove(drive: UCloudDrive) {
+        registeredDrivesMutex.withLock {
+            registeredDrives.remove(drive.toProviderId())
+            DriveAndSystemStore.delete(
+                drive
+            )
+        }
     }
 
     suspend fun resolveDriveByProviderId(drive: UCloudDrive): DriveAndSystem {
