@@ -31,7 +31,7 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, inDevEnvironment, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -57,6 +57,7 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
+import {cheatsheetOperation} from "@/Playground/Playground";
 
 // Cached network data
 // =====================================================================================================================
@@ -108,8 +109,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
         isInitialMount.current = false;
-        
-        // Invalidate cache if necessary on active project change
+
+        // Invalidate cache if necessary on active project changes
         if (lastActiveProject !== Client.projectId) {
             collectionCacheForCompletion.invalidateAll();
         }
@@ -567,7 +568,9 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    return groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
+                    const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
+                    if (inDevEnvironment()) ops.unshift(cheatsheetOperation(features, "files"));
+                    return ops;
                 });
 
                 browser.on("fetchOperationsCallback", () => {

@@ -1531,11 +1531,9 @@ export class ResourceBrowser<T> {
                 const isDisabled = typeof text === "string";
 
                 var item = document.createElement("li");
+                const isConfirm = isOperation(child) && child.confirm;
 
                 if (isDisabled) {
-                    item.style.backgroundColor = "var(--midGray)";
-                    item.style.cursor = "not-allowed";
-                    item.style.filter = "opacity(25%)";
                     const d = document.createElement("div");
                     d.innerText = text;
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
@@ -1546,7 +1544,6 @@ export class ResourceBrowser<T> {
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
-                const isConfirm = isOperation(child) && child.confirm;
                 this.contextMenuHandlers.push(() => {
                     if (isDisabled) {
                         // No action
@@ -1586,7 +1583,8 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
-            element.classList.add(ButtonClass);
+            const isConfirmButton = isOperation(op) && op.confirm;
+            if (!isConfirmButton) element.classList.add(ButtonClass);
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
             const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
@@ -1595,8 +1593,10 @@ export class ResourceBrowser<T> {
             if (handleDisabled) {
                 const d = document.createElement("div");
                 d.innerText = enabled;
-                element.style.cursor = "not-allowed";
-                element.style.filter = "opacity(25%)";
+                if (isOperation(op) && !op.confirm) {
+                    element.style.cursor = "not-allowed";
+                    element.style.filter = "opacity(25%)";
+                }
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
@@ -3144,7 +3144,7 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} .context-menu li[data-selected=true] {
-                background: var(--tableRowHighlight);
+                background: var(--tableRowHighlight); /* TODO(Jonas): This should NOT work for disabled buttons */
             }
 
             ${browserClass.dot} .context-menu > ul > *:first-child,

@@ -227,6 +227,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     Adding them to the Dependency List doesn't work.
 */
 const startedMap = {};
+/* HACK(Jonas): End */
 
 const actionDelay = 1000;
 const holdToConfirmTime = 1000;
@@ -310,14 +311,12 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         }
 
         if (timer.current > holdToConfirmTime - shakeDelta && !wasReset.current) {
-            // button.classList.add("shaking");
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
             }
             setShowHelp(true);
             setTimeout(() => {
                 setShowHelp(false);
-                // buttonRef.current?.classList?.remove("shaking");
                 for (let i = 0; i < button.children.length; i++) {
                     button.children.item(i)?.classList.remove("shaking");
                 }
@@ -401,10 +400,9 @@ export function ConfirmationButtonPlainHTML(
     {
         button.style.overflowY = "hidden";
         button.style.maxHeight = "40px";
-        button.className = classConcat(ButtonClass, ConfirmButtonClass);
+        button.className = classConcat(ConfirmButtonClass, ButtonClass);
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
         button.setAttribute("data-no-text", (!actionText).toString());
-        button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(opts.color ?? "blue")})`)
         button.style.setProperty("--color", `var(--${opts.textColor ?? "white"})`)
         button.style.setProperty("--background", `var(--${opts.color})`)
         button.style.removeProperty("background-color");
@@ -415,7 +413,9 @@ export function ConfirmationButtonPlainHTML(
         button.style.removeProperty("background-color");
         if (opts.disabled) {
             button.disabled = opts.disabled;
-            button.style.filter = "brightness(50%)";
+            button.style.setProperty("--hoverColor", `var(--${opts.color})`);
+        } else {
+            button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(opts.color ?? "blue")})`)
         }
     }
 

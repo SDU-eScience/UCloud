@@ -9,7 +9,7 @@ import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
-import {timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, timestampUnixMs} from "@/UtilityFunctions";
 import {ProductSelectorPlayground} from "@/Products/Selector";
 import * as icons from "@/ui-components/icons";
 import {BinaryAllocator, loadMessage, messageTest} from "@/UCloud/Messages";
@@ -22,6 +22,9 @@ import {useSelector} from "react-redux";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
+import {ResourceBrowseFeatures} from "@/ui-components/ResourceBrowser";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -128,7 +131,6 @@ export const Playground: React.FunctionComponent = () => {
                     </div>
                 ))}
             </Grid>
-
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
         </>
     );
@@ -146,6 +148,42 @@ export const ProjectPlayground: React.FunctionComponent = () => {
         return <>Title: {project.data.specification.title}</>;
     } else {
         return <>Project is still loading...</>;
+    }
+}
+
+function Cheatsheet({features, resource}: {features: ResourceBrowseFeatures, resource: string}) {
+    return <pre>
+        This page supports keyboard shortcuts.<br />
+        <br />
+        <br />
+        ↑ or ↓ to go up or down in the list, respectively.<br />
+        <br />
+        {capitalized(resource)} supports:<br />
+        <ul>
+            {features.dragToSelect ? <li>Drag to select</li> : null}
+            {features.locationBar ? <>
+                <li>Click on a location bar segment to navigate to it.</li>
+                <li>Clicking next to the segments will allow manual entering of paths.</li>
+                <li>Tab-completion is also supported.</li>
+            </> : null}
+            {features.showStar ? <li>You can favorite {resource} by clicking the star next to it</li> : null}
+            {features.search ? <li>Search by {resource}</li> : null}
+            {features.sorting ? <li>Sort rows by clicking a column title, e.g. "Name"</li> : null}
+            {features.supportsCopy ? <li>Use TODO(Jonas) Keyboard shortcut to copy and paste files.</li> : null}
+            {features.supportsMove ? <li>Use TODO(Jonas) Keyboard shortcut to cut and paste files.</li> : null}
+        </ul>
+
+        Start typing the name of the wanted file to select it.
+    </pre>
+}
+
+export function cheatsheetOperation(features: ResourceBrowseFeatures, resourceName: string): Operation<unknown, unknown> {
+    return {
+        text: "",
+        icon: "cloudTryingItsBest",
+        onClick: () => dialogStore.addDialog(<Cheatsheet features={features} resource={resourceName} />, () => {}),
+        enabled: () => true,
+        shortcut: ShortcutKey.Z
     }
 }
 
