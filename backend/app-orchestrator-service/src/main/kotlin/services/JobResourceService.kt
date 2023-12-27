@@ -43,12 +43,14 @@ import kotlinx.coroutines.selects.select
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
 import java.util.concurrent.CancellationException
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
 import kotlin.math.min
 import kotlin.random.Random
@@ -78,9 +80,17 @@ data class InternalJobState(
     var jobParameters: ExportedParameters? = null,
 )
 
+data class JobNotificationInfo(
+    val type: JobState,
+    val jobId: String,
+    val appTitle: String
+)
+
 class JobResourceService(
     private val serviceClient: AuthenticatedClient
 ) {
+    private val jobNotifications = AtomicReference(mutableMapOf<String, MutableList<JobNotificationInfo>>())
+
     // Listeners and lifetime events
     // =================================================================================================================
     // Components can hook into lifetime events of a job. This is primarily used to implement features such as
@@ -410,13 +420,19 @@ class JobResourceService(
 
                             if (newState == JobState.RUNNING) job.startedAt = Time.now()
 
+                            // Handle notifications for user
                             backgroundScope.launch {
-                                notifyUser(
+                                addNotification(
                                     idCards.lookupUid(uid),
                                     newState,
                                     jobId,
                                     job.specification
                                 )
+
+                                while (jobNotifications.get().isNotEmpty()) {
+                                    delay(10_000)
+                                    sendNotifications()
+                                }
                             }
 
                             if (!newState.isFinal()) {
@@ -496,7 +512,9 @@ class JobResourceService(
         }
     }
 
-    private suspend fun notifyUser(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
+    private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
+        log.debug("Adding notification")
+
         if (user == null) return;
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
@@ -507,38 +525,23 @@ class JobResourceService(
             jobId
         }
 
-        val type = when (newState) {
-            JobState.SUCCESS -> "JOB_COMPLETED"
-            JobState.RUNNING -> "JOB_STARTED"
-            JobState.FAILURE -> "JOB_FAILED"
-            JobState.EXPIRED -> "JOB_EXPIRED"
-            else -> return;
+        if (!jobNotifications.get().containsKey(user)) {
+            val new = jobNotifications.get()
+            new[user] = mutableListOf()
+            jobNotifications.set(new)
         }
 
-        val message = when (newState) {
-            JobState.SUCCESS -> "Your job completed successfully."
-            JobState.RUNNING -> "Your job is now running."
-            JobState.FAILURE -> "Your job has failed."
-            JobState.EXPIRED -> "Your job has expired."
-            else -> return;
-        }
+        val newNotifications = jobNotifications.get()
 
-        NotificationDescriptions.create.call(
-            CreateNotification(
-                user,
-                Notification(
-                    type,
-                    message,
-                    meta = JsonObject(
-                        mapOf(
-                            "jobId" to JsonPrimitive(jobId),
-                            "title" to JsonPrimitive(appTitle)
-                        )
-                    )
-                )
-            ),
-            serviceClient
+        newNotifications[user]!!.add(
+            JobNotificationInfo(
+                newState,
+                jobId,
+                appTitle
+            )
         )
+
+        jobNotifications.set(newNotifications)
 
         val mail = when (newState) {
             JobState.SUCCESS -> Mail.JobCompleted(jobNameAndId, appTitle)
@@ -557,6 +560,60 @@ class JobResourceService(
             ),
             serviceClient
         )
+    }
+
+    private suspend fun sendNotifications() {
+        log.debug("Sending notifications ${jobNotifications.get().size}")
+        val handledTypes = mutableListOf<JobState>()
+
+        for (user in jobNotifications.get().keys) {
+            val notifications = jobNotifications.get()[user] ?: continue
+
+            val summarized: List<Notification> = notifications.mapNotNull { notification ->
+                if (!handledTypes.contains(notification.type)) {
+                    val sameType = notifications.filter { notification.type == it.type }
+                    handledTypes.add(notification.type)
+
+                    val jobIds = sameType.map { JsonPrimitive(it.jobId) }
+                    val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
+
+                    val type = when (notification.type) {
+                        JobState.SUCCESS -> "JOB_COMPLETED"
+                        JobState.RUNNING -> "JOB_STARTED"
+                        JobState.FAILURE -> "JOB_FAILED"
+                        JobState.EXPIRED -> "JOB_EXPIRED"
+                        else -> return;
+                    }
+
+                    Notification(
+                        type,
+                        "",
+                        meta = JsonObject(
+                            mapOf(
+                                "jobIds" to JsonArray(jobIds),
+                                "appTitles" to JsonArray(appTitles),
+                            )
+                        )
+                    )
+                } else {
+                    null
+                }
+            }
+
+            summarized.forEach { notification ->
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        user,
+                        notification
+                    ),
+                    serviceClient
+                )
+            }
+
+            jobNotifications.set(mutableMapOf())
+        }
+
+
     }
 
     // Job specific read operations

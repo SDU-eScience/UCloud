@@ -59,36 +59,84 @@ function resolveNotification(event: Notification): {
             }
             return {icon};
         case "JOB_COMPLETED":
+            const jobsCompletedTitle = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs completed`
+            :
+                `${event.meta.appTitles[0]} completed`
+            ;
+
+            const jobsCompletedMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs completed successfully.`
+            :
+                `Your ${event.meta.appTitles[0]} job completed successfully.`
+            ;
+
             return {
                 icon: "heroServer",
                 color: "black",
                 color2: "midGray",
-                modifiedTitle: `${event.meta.title ?? "Job"} completed`,
-                modifiedMessage: `Your ${event.meta.title ?? ""} job has completed successfully.`
+                modifiedTitle: jobsCompletedTitle,
+                modifiedMessage: jobsCompletedMessage
             };
         case "JOB_STARTED":
+            const jobsStartedTitle = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs started`
+            :
+                `${event.meta.appTitles[0]} started`
+            ;
+
+            const jobsStartedMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs are now running.`
+            :
+                `Your ${event.meta.appTitles[0]} job is now running`
+            ;
+
             return {
                 icon: "heroServer",
                 color: "black",
                 color2: "midGray",
-                modifiedTitle: `${event.meta.title ?? "Job"} started`,
-                modifiedMessage: `Your ${event.meta.title ?? ""} job is now running.`
+                modifiedTitle: jobsStartedTitle,
+                modifiedMessage: jobsStartedMessage
             };
         case "JOB_EXPIRED":
+            const jobsExpiredTitle = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs expired`
+            :
+                `${event.meta.appTitles[0]} expired`
+            ;
+
+            const jobsExpiredMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs has reached their time limit and is no longer running.`
+            :
+                `Your ${event.meta.appTitles[0]} job has reached its time limit and is no longer running.`
+            ;
+
             return {
                 icon: "heroServer",
                 color: "black",
                 color2: "midGray",
-                modifiedTitle: `${event.meta.title ?? "Job"} expired`,
-                modifiedMessage: `Your ${event.meta.title ?? ""} job reached its time limit and is no longer running.`
+                modifiedTitle: jobsExpiredTitle,
+                modifiedMessage: jobsExpiredMessage
             };
         case "JOB_FAILED":
+            const jobsFailedTitle = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs failed`
+            :
+                `${event.meta.appTitles[0]} failed`
+            ;
+
+            const jobsFailedMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs terminated with a failure.`
+            :
+                `Your ${event.meta.appTitles[0]} job terminated with a failure.`
+            ;
+
             return {
                 icon: "heroServer",
                 color: "black",
                 color2: "midGray",
-                modifiedTitle: `${event.meta.title ?? "Job"} failed`,
-                modifiedMessage: `Your ${event.meta.title ?? ""} job terminated with a failure.`
+                modifiedTitle: jobsFailedTitle,
+                modifiedMessage: jobsFailedMessage
             };
         default:
             return {icon: "info", color: "white", color2: "black"};
