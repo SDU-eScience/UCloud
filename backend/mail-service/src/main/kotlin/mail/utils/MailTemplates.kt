@@ -1,5 +1,6 @@
 package dk.sdu.cloud.mail.utils
 
+import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.calls.client.urlEncode
 import dk.sdu.cloud.service.escapeHtml
 
@@ -229,54 +230,99 @@ fun lowResourcesTemplate(
 
 fun jobStartedTemplate(
     recipient: String,
-    jobId: String,
-    appTitle: String
-) = """
-    <p>Dear ${escapeHtml(recipient)}</p>
-    <p>
-        Your ${escapeHtml(appTitle)} job with ID ${jobId} have started successfully, and is now running.
-    </p>
-    $NO_NOTIFICATIONS_DISCLAIMER
-""".trimIndent()
+    jobIds: List<String>,
+    appTitles: List<String>
+): String {
+    return if (jobIds.length > 1) {
+        """
+            <p>Dear ${escapeHtml(recipient)}</p>
+            <p>
+                ${jobIds.length} of your jobs have started successfully, and is now running.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    } else {
+        """
+            <p>Dear ${escapeHtml(recipient)}</p>
+            <p>
+                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} have started successfully, and is now running.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    }
+}
 
 fun jobCompletedTemplate(
     recipient: String,
-    jobId: String,
-    appTitle: String
-) = """
-    <p>Dear ${escapeHtml(recipient)}</p>
-    <p>
-        Your ${escapeHtml(appTitle)} job with ID ${jobId} has completed successfully.
-    </p>
-    $NO_NOTIFICATIONS_DISCLAIMER
-""".trimIndent()
+    jobIds: List<String>,
+    appTitles: List<String>
+): String {
+    return if (jobIds.length > 1) {
+        """
+            <p>Dear ${escapeHtml(recipient)}</p>
+            <p>
+                ${jobIds.length} of your jobs has completed successfully.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    } else {
+        """
+            <p>Dear ${escapeHtml(recipient)}</p>
+            <p>
+                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} has completed successfully.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    }
+}
 
 fun jobFailedTemplate(
     recipient: String,
-    jobId: String,
-    appTitle: String
-) = """
-    <p>Dear ${escapeHtml(recipient)}</p>
-    <p>
-        Your ${escapeHtml(appTitle)} job with ID ${jobId} failed unexpectedly, and has been terminated.
-    </p>
-    $NO_NOTIFICATIONS_DISCLAIMER
-""".trimIndent()
-
+    jobIds: List<String>,
+    appTitles: List<String>
+): String {
+    return if (jobIds.length > 1) {
+        """
+            <p>Dear ${escapeHtml(recipient)}</p>
+            <p>
+                ${jobIds.length} jobs failed unexpectedly, and has been terminated.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    } else {
+        """
+            <p>Dear ${escapeHtml(recipient)}</p>
+            <p>
+                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} failed unexpectedly, and has been terminated.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    }
+}
 
 fun jobExpiredTemplate(
     recipient: String,
-    jobId: String,
-    appTitle: String
-) = """
-     <p>Dear ${escapeHtml(recipient)}</p>
-     <p>
-        Your ${escapeHtml(appTitle)} job with ID ${jobId} has reached its time limit, and has been terminated.
-    </p>      
-    $NO_NOTIFICATIONS_DISCLAIMER
-""".trimIndent()
-
-
+    jobIds: List<String>,
+    appTitles: List<String>
+): String {
+    return if (jobIds.length > 1) {
+        """
+             <p>Dear ${escapeHtml(recipient)}</p>
+             <p>
+                ${jobIds.length} jobs has reached their time limit, and has been terminated.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    } else {
+        """
+             <p>Dear ${escapeHtml(recipient)}</p>
+             <p>
+                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} has reached its time limit, and has been terminated.
+            </p>
+            $NO_NOTIFICATIONS_DISCLAIMER
+        """.trimIndent()
+    }
+}
 
 fun verifyEmailAddress(
     type: String,

@@ -311,15 +311,19 @@ class MailService(
             }
 
             is Mail.JobStarted -> {
-                jobStartedTemplate(recipientName, letter.jobId, letter.appTitle)
+                jobStartedTemplate(recipientName, letter.jobIds, letter.appTitles)
+            }
+
+            is Mail.JobCompleted -> {
+                jobCompletedTemplate(recipientName, letter.jobIds, letter.appTitles)
             }
 
             is Mail.JobFailed -> {
-                jobFailedTemplate(recipientName, letter.jobId, letter.appTitle)
+                jobFailedTemplate(recipientName, letter.jobIds, letter.appTitles)
             }
 
             is Mail.JobExpired-> {
-                jobExpiredTemplate(recipientName, letter.jobId, letter.appTitle)
+                jobExpiredTemplate(recipientName, letter.jobIds, letter.appTitles)
             }
 
             else -> {

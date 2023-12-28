@@ -203,32 +203,32 @@ sealed class Mail {
     @Serializable
     @SerialName("jobStarted")
     data class JobStarted(
-        val jobId: String,
-        val appTitle: String,
-        override val subject: String = "Your job on UCloud has started"
+        val jobIds: List<String>,
+        val appTitles: List<String>,
+        override val subject: String = "Your job(s) on UCloud has started"
     ) : Mail()
 
     @Serializable
     @SerialName("jobCompleted")
     data class JobCompleted(
-        val jobId: String,
-        val appTitle: String,
-        override val subject: String = "Your job on UCloud has completed"
+        val jobIds: List<String>,
+        val appTitles: List<String>,
+        override val subject: String = "Your job(s) on UCloud has completed"
     ) : Mail()
 
     @Serializable
     @SerialName("jobFailed")
     data class JobFailed(
-        val jobId: String,
-        val appTitle: String,
-        override val subject: String = "Your job on UCloud has failed"
+        val jobIds: List<String>,
+        val appTitles: List<String>,
+        override val subject: String = "Your job(s) on UCloud has failed"
     ) : Mail()
 
     @Serializable
     @SerialName("jobExpired")
     data class JobExpired(
-        val jobId: String,
-        val appTitle: String,
-        override val subject: String = "Your job on UCloud has expired"
+        val jobIds: List<String>,
+        val appTitles: List<String>,
+        override val subject: String = "Your job(s) on UCloud has expired"
     ) : Mail()
 }

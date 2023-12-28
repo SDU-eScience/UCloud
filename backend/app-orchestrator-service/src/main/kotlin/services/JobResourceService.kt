@@ -83,7 +83,8 @@ data class InternalJobState(
 data class JobNotificationInfo(
     val type: JobState,
     val jobId: String,
-    val appTitle: String
+    val appTitle: String,
+    val jobName: String? = null,
 )
 
 class JobResourceService(
@@ -519,12 +520,6 @@ class JobResourceService(
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
 
-        val jobNameAndId = if (jobSpecification.name != null) {
-            "${jobSpecification.name} ($jobId)"
-        } else {
-            jobId
-        }
-
         if (!jobNotifications.get().containsKey(user)) {
             val new = jobNotifications.get()
             new[user] = mutableListOf()
@@ -537,29 +532,14 @@ class JobResourceService(
             JobNotificationInfo(
                 newState,
                 jobId,
-                appTitle
+                appTitle,
+                jobSpecification.name,
             )
         )
 
         jobNotifications.set(newNotifications)
 
-        val mail = when (newState) {
-            JobState.SUCCESS -> Mail.JobCompleted(jobNameAndId, appTitle)
-            JobState.RUNNING -> Mail.JobStarted(jobNameAndId, appTitle)
-            JobState.FAILURE -> Mail.JobFailed(jobNameAndId, appTitle)
-            JobState.EXPIRED -> Mail.JobExpired(jobNameAndId, appTitle)
-            else -> return
-        }
 
-        MailDescriptions.sendToUser.call(
-            bulkRequestOf(
-                SendRequestItem(
-                    user,
-                    mail
-                )
-            ),
-            serviceClient
-        )
     }
 
     private suspend fun sendNotifications() {
@@ -569,7 +549,7 @@ class JobResourceService(
         for (user in jobNotifications.get().keys) {
             val notifications = jobNotifications.get()[user] ?: continue
 
-            val summarized: List<Notification> = notifications.mapNotNull { notification ->
+            val summarizedNotifications: List<Notification> = notifications.mapNotNull { notification ->
                 if (!handledTypes.contains(notification.type)) {
                     val sameType = notifications.filter { notification.type == it.type }
                     handledTypes.add(notification.type)
@@ -600,7 +580,7 @@ class JobResourceService(
                 }
             }
 
-            summarized.forEach { notification ->
+            summarizedNotifications.forEach { notification ->
                 NotificationDescriptions.create.call(
                     CreateNotification(
                         user,
@@ -610,10 +590,49 @@ class JobResourceService(
                 )
             }
 
+            handledTypes.clear()
+
+            val summarizedMails = notifications.mapNotNull { notification ->
+                if (!handledTypes.contains(notification.type)) {
+                    val sameType = notifications.filter { notification.type == it.type }
+                    handledTypes.add(notification.type)
+
+                    val jobIds = sameType.map {
+                        if (it.jobName != null) {
+                            "${it.jobName} (${it.jobId})"
+                        } else {
+                            it.jobId
+                        }
+                    }
+
+                    val appTitles = sameType.map { it.appTitle }
+
+                    when (notification.type) {
+                        JobState.SUCCESS -> Mail.JobCompleted(jobIds, appTitles)
+                        JobState.RUNNING -> Mail.JobStarted(jobIds, appTitles)
+                        JobState.FAILURE -> Mail.JobFailed(jobIds, appTitles)
+                        JobState.EXPIRED -> Mail.JobExpired(jobIds, appTitles)
+                        else -> return
+                    }
+                } else {
+                    null
+                }
+            }
+
+            summarizedMails.forEach { mail ->
+                MailDescriptions.sendToUser.call(
+                    bulkRequestOf(
+                        SendRequestItem(
+                            user,
+                            mail
+                        )
+                    ),
+                    serviceClient
+                )
+            }
+
             jobNotifications.set(mutableMapOf())
         }
-
-
     }
 
     // Job specific read operations
