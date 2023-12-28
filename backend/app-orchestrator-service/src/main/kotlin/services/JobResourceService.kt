@@ -429,9 +429,15 @@ class JobResourceService(
                                     job.specification
                                 )
 
-                                while (jobNotifications.get().isNotEmpty()) {
-                                    delay(10_000)
-                                    sendNotifications()
+                                var timeUntilSend = 10_000
+
+                                while (timeUntilSend > 0 && jobNotifications.get().isNotEmpty()) {
+                                    delay(1_000)
+                                    timeUntilSend -= 1_000
+
+                                    if (timeUntilSend <= 0 && jobNotifications.get().isNotEmpty()) {
+                                        sendNotifications()
+                                    }
                                 }
                             }
 
