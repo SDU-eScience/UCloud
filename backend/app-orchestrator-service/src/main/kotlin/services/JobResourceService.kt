@@ -519,8 +519,6 @@ class JobResourceService(
     }
 
     private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
-        log.debug("Adding notification")
-
         if (user == null) return;
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
@@ -548,7 +546,6 @@ class JobResourceService(
     }
 
     private suspend fun sendNotifications() {
-        log.debug("Sending notifications ${jobNotifications.get().size}")
         val handledTypes = mutableListOf<JobState>()
 
         for (user in jobNotifications.get().keys) {
