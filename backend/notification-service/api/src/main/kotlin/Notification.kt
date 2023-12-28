@@ -18,15 +18,3 @@ data class Notification(
     val ts: Long = Time.now(),
     val read: Boolean = false
 )
-
-@Serializable
-enum class NotificationType{
-    PROJECT_ROLE_CHANGE,
-    PROJECT_INVITE,
-    PROJECT_USER_LEFT,
-    PROJECT_USER_REMOVED,
-    SHARE_REQUEST,
-    REVIEW_PROJECT,
-    JOB_STARTED,
-    JOB_COMPLETED,
-}

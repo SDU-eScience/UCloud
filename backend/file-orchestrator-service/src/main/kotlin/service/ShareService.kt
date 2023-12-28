@@ -9,7 +9,6 @@ import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
@@ -21,11 +20,9 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import java.time.OffsetDateTime
 import java.util.*
@@ -336,7 +333,7 @@ class ShareService(
                     CreateNotification(
                         it.second.sharedWith,
                         Notification(
-                            NotificationType.SHARE_REQUEST.name,
+                            "SHARE_REQUEST",
                             "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
                             meta = JsonObject(emptyMap())
                         )

@@ -32,7 +32,6 @@ import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
