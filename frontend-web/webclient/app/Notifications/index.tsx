@@ -149,7 +149,11 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
         case "JOB_STARTED":
         case "JOB_FAILED":
         case "JOB_EXPIRED":
-            navigate(`/jobs/properties/${notification.meta.jobId}`);
+            if (notification.meta.jobIds.length > 1) {
+                navigate(`/jobs/`);
+            } else {
+                navigate(`/jobs/properties/${notification.meta.jobIds[0]}`);
+            }
             break;
         case "SHARE_REQUEST":
             navigate("/shares");
