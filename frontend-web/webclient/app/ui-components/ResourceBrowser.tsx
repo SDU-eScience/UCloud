@@ -540,9 +540,11 @@ export class ResourceBrowser<T> {
             ul.style.marginBottom = "-2px";
 
             location.addEventListener("click", () => {
-                if (!this.isLocationBarVisible()) {
-                    this.toggleLocationBar();
-                    location.style.border = "";
+                if (this.features.locationBar) { // We can toggle this value in the child component
+                    if (!this.isLocationBarVisible()) {
+                        this.toggleLocationBar();
+                        location.style.border = "";
+                    }
                 }
             });
         }

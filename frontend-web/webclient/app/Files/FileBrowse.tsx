@@ -861,8 +861,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 // =========================================================================================================
                 browser.on("generateBreadcrumbs", path => {
                     if (path === SEARCH) {
+                        // Disallow locationbar when we are in search-mode.
+                        browser.features.locationBar = false;
                         return [{absolutePath: SEARCH, title: `Search results for "${browser.searchQuery}"`}]
                     }
+
+                    // Note(Jonas): Allow locationbar as we are not in search mode.
+                    browser.features.locationBar = true;
+
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const collectionName = collection ?
