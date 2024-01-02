@@ -289,28 +289,28 @@ private object DriveAndSystemStore {
     }
 
     suspend fun delete(drive: UCloudDrive, ctx: DBContext = dbConnection) {
-        val entry = entries.indexOfFirst { it.drive.ucloudId == drive.ucloudId }
-        if (entry != -1) {
-            entries.removeAt(entry)
-        }
         mutex.withLock {
-            ctx.withSession { session ->
-                session.prepareStatement(
-                    buildString {
-                        append(
-                            """
+            val entry = entries.indexOfFirst { it.drive.ucloudId == drive.ucloudId }
+            if (entry != -1) {
+                entries.removeAt(entry)
+            }
+        }
+        ctx.withSession { session ->
+            session.prepareStatement(
+                buildString {
+                    append(
+                        """
                                 delete 
                                 from ucloud_storage_drives
                                 where collection_id = :id
                             """
-                        )
-                    }
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindLong("id", drive.ucloudId)
-                    }
-                )
-            }
+                    )
+                }
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindLong("id", drive.ucloudId)
+                }
+            )
         }
     }
 
