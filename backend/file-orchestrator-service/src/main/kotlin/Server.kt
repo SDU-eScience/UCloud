@@ -1,6 +1,6 @@
 package dk.sdu.cloud.file.orchestrator
 
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -27,7 +27,9 @@ class Server(override val micro: Micro) : CommonServer {
                 comms.wsClient,
                 comms.provider,
                 FilesProvider(comms.provider.id),
-                FileCollectionsProvider(comms.provider.id)
+                FileCollectionsProvider(comms.provider.id),
+                comms.auth,
+                comms.hostInfo,
             )
         }
         val providerSupport = StorageProviderSupport(providers, serviceClient) { comms ->
@@ -36,7 +38,8 @@ class Server(override val micro: Micro) : CommonServer {
         val templateSupport = ProviderSupport<StorageCommunication, Product, FileMetadataTemplateSupport>(
             providers, serviceClient, fetchSupport = { listOf(FileMetadataTemplateSupport()) })
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
-        val metadataTemplateNamespaces = MetadataTemplateNamespaces(projectCache, db, providers, templateSupport, serviceClient)
+        val metadataTemplateNamespaces =
+            MetadataTemplateNamespaces(projectCache, db, providers, templateSupport, serviceClient)
         val fileCollections = FileCollectionService(projectCache, db, providers, providerSupport, serviceClient)
         val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
         val filesService = FilesService(
@@ -46,7 +49,7 @@ class Server(override val micro: Micro) : CommonServer {
             metadataService,
             metadataTemplateNamespaces,
             serviceClient,
-            db
+            db,
         )
 
         val shares = ShareService(
@@ -77,7 +80,6 @@ class Server(override val micro: Micro) : CommonServer {
                 }
             )
         )
-
 
         configureControllers(
             FileMetadataController(metadataService),

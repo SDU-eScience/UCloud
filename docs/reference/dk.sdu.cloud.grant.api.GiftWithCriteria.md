@@ -83,7 +83,7 @@ Suitable for presentation in UIs
 
 <details>
 <summary>
-<code>criteria</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.projects.UserCriteria.md'>UserCriteria</a>&gt;</code></code>
+<code>criteria</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.grant.api.UserCriteria.md'>UserCriteria</a>&gt;</code></code>
 </summary>
 
 

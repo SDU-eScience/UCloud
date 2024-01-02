@@ -14,8 +14,6 @@ data class Request(
     val next: String?,
     val consistency: PaginationRequestV2Consistency?,
     val itemsToSkip: Long?,
-    val filterEmptyAllocations: Boolean?,
-    val includeMaxUsableBalance: Boolean?,
     val filterType: ProductType?,
 )
 ```
@@ -90,28 +88,6 @@ paginate through the results.
 <details>
 <summary>
 <code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterEmptyAllocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeMaxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

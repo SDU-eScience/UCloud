@@ -23,7 +23,9 @@ interface ProviderComms {
 data class SimpleProviderCommunication(
     override val client: AuthenticatedClient,
     override val wsClient: AuthenticatedClient,
-    override val provider: ProviderSpecification
+    override val provider: ProviderSpecification,
+    val auth: RefreshingJWTAuthenticator? = null,
+    val hostInfo: HostInfo? = null,
 ) : ProviderComms
 
 @Suppress("FunctionName")
@@ -33,7 +35,7 @@ fun Providers(serviceClient: AuthenticatedClient): dk.sdu.cloud.accounting.util.
 
 class Providers<Communication : ProviderComms>(
     private val serviceClient: AuthenticatedClient,
-    private val communicationFactory: (comms: ProviderComms) -> Communication
+    private val communicationFactory: (comms: SimpleProviderCommunication) -> Communication
 ) {
     private val rpcClient = serviceClient.withoutAuthentication()
 
@@ -62,7 +64,7 @@ class Providers<Communication : ProviderComms>(
             val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
             val wsClient = auth.authenticateClient(OutgoingWSCall).withFixedHost(hostInfo)
 
-            val simpleComms = SimpleProviderCommunication(httpClient, wsClient, providerSpec)
+            val simpleComms = SimpleProviderCommunication(httpClient, wsClient, providerSpec, auth, hostInfo)
 
             communicationFactory(simpleComms)
         }

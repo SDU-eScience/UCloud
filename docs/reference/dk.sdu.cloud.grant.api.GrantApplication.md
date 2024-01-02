@@ -83,7 +83,7 @@ closed.
 
 <details>
 <summary>
-<code>status</code>: <code><code><a href='#grantapplication.status'>GrantApplication.Status</a></code></code> Status information about the application in its entireity
+<code>status</code>: <code><code><a href='#grantapplication.status'>GrantApplication.Status</a></code></code> Status information about the application in its entirety
 </summary>
 
 

@@ -299,59 +299,6 @@ class AccountingService(
         }
     }
 
-    suspend fun browseTransactions(
-        actorAndProject: ActorAndProject,
-        request: TransactionsBrowseRequest
-    ): PageV2<Transaction> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("filter_category", request.filterCategory)
-                        setParameter("filter_provider", request.filterProvider)
-                        setParameter("user", actorAndProject.actor.safeUsername())
-                        setParameter("project", actorAndProject.project)
-                    },
-                    """
-                        declare c cursor for
-                        select accounting.transaction_to_json(t, p, pc)
-                        from
-                            accounting.transactions t join
-                            accounting.wallet_allocations alloc on t.affected_allocation_id = alloc.id join
-                            accounting.wallets w on alloc.associated_wallet = w.id join
-                            accounting.product_categories pc on w.category = pc.id join
-                            accounting.wallet_owner wo on w.owned_by = wo.id left join
-                            project.project_members pm on wo.project_id = pm.project_id left join
-                            accounting.products p on pc.id = p.category and t.product_id = p.id
-                        where
-                            (
-                                :project::text is null or
-                                wo.project_id = :project
-                            ) and
-                            (
-                                pm.username = :user or
-                                wo.username = :user
-                            ) and
-                            (
-                                :filter_category::text is null or
-                                :filter_category = pc.category
-                            ) and
-                            (
-                                :filter_provider::text is null or
-                                :filter_provider = pc.provider
-                            )
-                        order by 
-                            w.id, alloc.id, t.created_at desc
-                    """,
-                    "Accounting Browse Transactions"
-                )
-            },
-            mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
-        )
-    }
-
     suspend fun browseSubAllocations(
         actorAndProject: ActorAndProject,
         request: SubAllocationQuery,

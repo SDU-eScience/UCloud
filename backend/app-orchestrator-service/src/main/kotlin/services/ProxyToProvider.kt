@@ -4,6 +4,7 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.util.IIdCardService
+import dk.sdu.cloud.accounting.util.ProductCache
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException

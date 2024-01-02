@@ -9,20 +9,19 @@
 
 ```kotlin
 data class Avatar(
-    val buffer: Unit,
-    val clothes: Clothes,
-    val clothesGraphic: ClothesGraphic,
-    val colorFabric: ColorFabric,
-    val eyebrows: Eyebrows,
-    val eyes: Eyes,
-    val facialHair: FacialHair,
-    val facialHairColor: FacialHairColor,
-    val hairColor: HairColor,
-    val hatColor: HatColor,
-    val mouthTypes: MouthTypes,
-    val skinColors: SkinColors,
     val top: Top,
     val topAccessory: TopAccessory,
+    val hairColor: HairColor,
+    val facialHair: FacialHair,
+    val facialHairColor: FacialHairColor,
+    val clothes: Clothes,
+    val colorFabric: ColorFabric,
+    val eyes: Eyes,
+    val eyebrows: Eyebrows,
+    val mouthTypes: MouthTypes,
+    val skinColors: SkinColors,
+    val clothesGraphic: ClothesGraphic,
+    val hatColor: HatColor,
 )
 ```
 
@@ -33,7 +32,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>buffer</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code></code>
+<code>top</code>: <code><code><a href='#top'>Top</a></code></code>
 </summary>
 
 
@@ -44,7 +43,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>clothes</code>: <code><code><a href='#clothes'>Clothes</a></code></code>
+<code>topAccessory</code>: <code><code><a href='#topaccessory'>TopAccessory</a></code></code>
 </summary>
 
 
@@ -55,40 +54,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>clothesGraphic</code>: <code><code><a href='#clothesgraphic'>ClothesGraphic</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>colorFabric</code>: <code><code><a href='#colorfabric'>ColorFabric</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>eyebrows</code>: <code><code><a href='#eyebrows'>Eyebrows</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>eyes</code>: <code><code><a href='#eyes'>Eyes</a></code></code>
+<code>hairColor</code>: <code><code><a href='#haircolor'>HairColor</a></code></code>
 </summary>
 
 
@@ -121,7 +87,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>hairColor</code>: <code><code><a href='#haircolor'>HairColor</a></code></code>
+<code>clothes</code>: <code><code><a href='#clothes'>Clothes</a></code></code>
 </summary>
 
 
@@ -132,7 +98,29 @@ data class Avatar(
 
 <details>
 <summary>
-<code>hatColor</code>: <code><code><a href='#hatcolor'>HatColor</a></code></code>
+<code>colorFabric</code>: <code><code><a href='#colorfabric'>ColorFabric</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>eyes</code>: <code><code><a href='#eyes'>Eyes</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>eyebrows</code>: <code><code><a href='#eyebrows'>Eyebrows</a></code></code>
 </summary>
 
 
@@ -165,7 +153,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>top</code>: <code><code><a href='#top'>Top</a></code></code>
+<code>clothesGraphic</code>: <code><code><a href='#clothesgraphic'>ClothesGraphic</a></code></code>
 </summary>
 
 
@@ -176,7 +164,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>topAccessory</code>: <code><code><a href='#topaccessory'>TopAccessory</a></code></code>
+<code>hatColor</code>: <code><code><a href='#hatcolor'>HatColor</a></code></code>
 </summary>
 
 
