@@ -371,7 +371,7 @@ export class HttpClient {
      *
      * @return {Promise} a promise of an access token
      */
-    public async receiveAccessTokenOrRefreshIt(): Promise<any> {
+    public async receiveAccessTokenOrRefreshIt(): Promise<string> {
         await this.waitForCloudReady();
 
         let tokenPromise: Promise<any> | null = null;
@@ -379,7 +379,7 @@ export class HttpClient {
             tokenPromise = this.refresh();
             this.forceRefresh = false;
         } else {
-            tokenPromise = new Promise((resolve) => resolve(this.retrieveToken()));
+            tokenPromise = new Promise((resolve) => resolve(this.retrieveTokenNow()));
         }
         return tokenPromise;
     }
@@ -427,7 +427,7 @@ export class HttpClient {
         else return userInfo.principalType;
     }
 
-    private retrieveToken(): string {
+    retrieveTokenNow(): string {
         return HttpClient.storedAccessToken;
     }
 

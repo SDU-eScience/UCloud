@@ -325,6 +325,8 @@ applications = Page(
         metadata = ApplicationMetadata(
             authors = listOf("UCloud"), 
             description = "This is a batch application", 
+            flavorName = null, 
+            group = null, 
             isPublic = true, 
             name = "a-batch-application", 
             public = true, 
@@ -426,6 +428,8 @@ application = ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "This is a batch application", 
+        flavorName = null, 
+        group = null, 
         isPublic = true, 
         name = "a-batch-application", 
         public = true, 
@@ -563,7 +567,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps?itemsPerP
 #                 "title": "A Batch Application",
 #                 "description": "This is a batch application",
 #                 "website": null,
-#                 "public": true
+#                 "public": true,
+#                 "flavorName": null,
+#                 "group": null
 #             },
 #             "favorite": false,
 #             "tags": [
@@ -590,7 +596,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "A Batch Application",
 #         "description": "This is a batch application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": null
 #     },
 #     "invocation": {
 #         "tool": {
@@ -2631,7 +2639,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 /* When the user creates the Job, they have enough credits */
 
 Wallets.browse.call(
-    AccountingV2.BrowseWallets.Request(
+    WalletBrowseRequest(
         consistency = null, 
         filterEmptyAllocations = null, 
         filterType = null, 

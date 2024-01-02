@@ -38,7 +38,6 @@ kotlin {
     sourceSets {
         val api by creating {
             dependencies {
-                api("com.google.flatbuffers:flatbuffers-java:23.3.3")
             }
         }
 

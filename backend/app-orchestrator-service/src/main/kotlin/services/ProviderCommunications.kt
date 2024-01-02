@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.AsyncCache
+import dk.sdu.cloud.accounting.util.ProductCache
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.accounting.util.checkOrRefresh
 import dk.sdu.cloud.auth.api.JwtRefresher

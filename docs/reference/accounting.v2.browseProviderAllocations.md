@@ -10,7 +10,7 @@ _Browses allocations relevant for a specific provider_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#walletsretrieveprovidersummaryrequest'>WalletsRetrieveProviderSummaryRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#providerwalletsummaryv2'>ProviderWalletSummaryV2</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#accountingv2.browseproviderallocations.request'>AccountingV2.BrowseProviderAllocations.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#accountingv2.browseproviderallocations.responseitem'>AccountingV2.BrowseProviderAllocations.ResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 This endpoint is only usable by providers. The endpoint will return a stable results.
 

@@ -129,6 +129,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-batch", 
         public = true, 
@@ -182,7 +190,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme batch",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {

@@ -10,7 +10,7 @@
 ```kotlin
 data class FindApplicationAndOptionalDependencies(
     val appName: String,
-    val appVersion: String,
+    val appVersion: String?,
 )
 ```
 
@@ -32,7 +32,7 @@ data class FindApplicationAndOptionalDependencies(
 
 <details>
 <summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

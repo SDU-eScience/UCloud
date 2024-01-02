@@ -38,7 +38,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1695293239217, 
+        ts = 1704180845776, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -85,7 +85,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1695293239217,
+#             "ts": 1704180845776,
 #             "read": false
 #         }
 #     ]

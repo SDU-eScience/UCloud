@@ -45,5 +45,9 @@ RUN apt-get update && apt-get -qq -y install munge slurm-client ssh python3
 RUN cp /etc/passwd /etc/passwd.orig
 RUN cp /etc/group /etc/group.orig
 RUN cp /etc/shadow /etc/shadow.orig
+RUN curl -Lo /tmp/go.tar.gz https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+RUN cd /opt && tar xvf /tmp/go.tar.gz && rm /tmp/go.tar.gz
+RUN ln -s /opt/go/bin/go /usr/bin/go
+RUN ln -s /opt/go/bin/gofmt /usr/bin/gofmt
 
 WORKDIR /opt/ucloud

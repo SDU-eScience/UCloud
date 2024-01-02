@@ -263,10 +263,6 @@ class AccountingController(
             ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
-        implement(AccountingV2.retrieveAllocationRecipient) {
-            ok(accounting.retrieveRecipient(actorAndProject, request))
-        }
-
         implementOrDispatch(AccountingV2.browseProviderAllocations) {
             ok(accounting.retrieveProviderAllocations(actorAndProject, request))
         }
@@ -279,10 +275,6 @@ class AccountingController(
 
         implement(Visualization.retrieveBreakdown) {
             ok(accounting.retrieveBreakdownV2(actorAndProject, request))
-        }
-
-        implement(Transactions.browse) {
-            ok(accounting.browseTransactions(actorAndProject, request))
         }
 
         implement(DepositNotifications.retrieve) {

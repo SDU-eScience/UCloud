@@ -79,7 +79,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
         registerCli()
         if (!config.shouldRunServerCode()) return
         productAllocationResolved.forEach {
-            if (it.category.accountingFrequency == AccountingFrequency.ONCE) {
+            if (it.category.accountingFrequency == AccountingFrequency.ONCE && !it.category.freeToUse) {
                 error("Compute products cannot have single time use accounting frequency ")
             }
         }

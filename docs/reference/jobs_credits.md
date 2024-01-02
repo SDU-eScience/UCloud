@@ -24,7 +24,7 @@
 /* When the user creates the Job, they have enough credits */
 
 Wallets.browse.call(
-    AccountingV2.BrowseWallets.Request(
+    WalletBrowseRequest(
         consistency = null, 
         filterEmptyAllocations = null, 
         filterType = null, 

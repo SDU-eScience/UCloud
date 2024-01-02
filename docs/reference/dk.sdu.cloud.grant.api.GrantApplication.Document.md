@@ -12,7 +12,7 @@ data class Document(
     val recipient: GrantApplication.Recipient,
     val allocationRequests: List<GrantApplication.AllocationRequest>,
     val form: GrantApplication.Form,
-    val referenceId: String?,
+    val referenceIds: List<String>?,
     val revisionComment: String?,
     val parentProjectId: String?,
     val type: String /* "document" */,
@@ -65,7 +65,7 @@ Immutable after creation: No
 
 <details>
 <summary>
-<code>referenceId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A reference used for out-of-band book-keeping
+<code>referenceIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> A reference used for out-of-band bookkeeping
 </summary>
 
 

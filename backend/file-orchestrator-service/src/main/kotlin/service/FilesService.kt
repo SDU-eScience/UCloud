@@ -153,6 +153,22 @@ class FilesService(
         }
     }
 
+    private suspend fun providerFromPath(
+        actorAndProject: ActorAndProject,
+        path: String?,
+        permission: Permission
+    ): String {
+        if (path == null) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val collection = extractPathMetadata(path).collection
+        return fileCollections.retrieveBulk(
+            actorAndProject,
+            listOf(collection),
+            listOf(permission),
+            simpleFlags = SimpleResourceIncludeFlags(includeSupport = false)
+        ).singleOrNull()?.specification?.product?.provider ?: throw RPCException("File not found", HttpStatusCode.NotFound)
+    }
+
+
     private suspend fun collectionFromPath(
         actorAndProject: ActorAndProject,
         path: String?,

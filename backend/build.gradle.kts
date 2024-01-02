@@ -19,10 +19,6 @@ buildscript {
     }
 }
 
-plugins {
-    `record`
-}
-
 // https://guides.gradle.org/creating-multi-project-builds/
 // https://docs.gradle.org/current/userguide/multi_project_builds.html
 subprojects {
@@ -207,7 +203,7 @@ subprojects {
                 "ucloud-" + groupBuilder.reversed().joinToString("-")
             }
 
-            archiveName = "$name.jar"
+            archiveBaseName.set(name)
         }
     }
 
@@ -273,14 +269,14 @@ subprojects {
         }
 
         tasks.withType<Jar> {
-            val metadata = archiveName.substringAfterLast("-").removeSuffix(".jar")
+            val metadata = archiveBaseName.get().substringAfterLast("-").removeSuffix(".jar")
             val name = if (groupBuilder.isEmpty()) {
                 "ucloud"
             } else {
                 "ucloud-" + groupBuilder.reversed().joinToString("-")
             }
 
-            archiveName = "$name-${metadata}.jar"
+            archiveBaseName.set("$name-${metadata}")
         }
     }
 
@@ -318,14 +314,14 @@ subprojects {
         }
 
         tasks.withType<Jar> {
-            val metadata = archiveName.substringAfterLast("-").removeSuffix(".jar")
+            val metadata = archiveBaseName.get().substringAfterLast("-").removeSuffix(".jar")
             val name = if (groupBuilder.isEmpty()) {
                 "ucloud"
             } else {
                 "ucloud-" + groupBuilder.reversed().joinToString("-")
             }
 
-            archiveName = "$name-${metadata}.jar"
+            archiveBaseName.set("$name-${metadata}.jar")
         }
     }
 }
