@@ -239,16 +239,17 @@ object Commands {
 
     fun importApps() {
         LoadingIndicator("Importing applications").use {
+            // NOTE(Dan): checksum is sha256 of the file
+            val checksum = "9a95b9527330b9d762a891127f2b0b1df53810136991ba712d3cd5153d242163"
             callService(
                 "backend",
                 "POST",
                 "http://localhost:8080/api/hpc/apps/devImport",
                 fetchAccessToken(),
-                // NOTE(Dan): checksum is sha256 of the file
                 """
                     {
-                        "endpoint": "https://launcher-assets.cloud.sdu.dk/apps.zip",
-                        "checksum": "a5b02af4f63acd060c3664b9c12f7ca9543893c0ae2f9bb8731d51d6efaef7ce"
+                        "endpoint": "https://launcher-assets.cloud.sdu.dk/$checksum.zip",
+                        "checksum": "$checksum"
                     }
                 """.trimIndent()
             ) ?: error("Failed to import applications (see backend logs). " +

@@ -58,7 +58,7 @@ data class Category(
         private set
 
     internal fun init() {
-        var c = cost ?: error("The category must have a cost at this point")
+        var c = cost
         if (c is ProductCost.Resource && c.unit == null && type == ProductType.COMPUTE) {
             cost = c.copy(unit = ComputeResourceType.Cpu.name)
             c = cost
@@ -78,7 +78,7 @@ data class Category(
                         }
                     },
                     floatingPoint = true,
-                    displaySuffix = true,
+                    displaySuffix = false,
                 )
                 is ProductCost.Resource -> accUnit(
                     c.selectPrettyUnitOrDefault(type),
@@ -89,7 +89,8 @@ data class Category(
                 ProductCost.Free -> AccountingFrequency.ONCE
                 is ProductCost.Money -> c.interval.toAccountingFrequency()
                 is ProductCost.Resource -> c.accountingInterval.toAccountingFrequency()
-            }
+            },
+            freeToUse = c == ProductCost.Free,
         )
 
         coreProducts = products.map { p ->

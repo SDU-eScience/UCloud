@@ -116,7 +116,7 @@ sealed class ComposeService {
         fun allProviders(): List<Provider> = listOf(
             Kubernetes,
             Slurm,
-            GRPCTest,
+            GoSlurm,
         )
     }
 
@@ -934,6 +934,7 @@ sealed class ComposeService {
                       cpu:
                         cost:
                           type: Resource
+                          interval: Minutely
                           unit: Cpu
                         template: 
                           cpu: [1, 2, 200]
@@ -1262,13 +1263,13 @@ sealed class ComposeService {
         }
     }
 
-    object GRPCTest : Provider() {
-        override val name = "grpc-test-provider"
-        override val title = "gRPC test provider"
+    object GoSlurm : Provider() {
+        override val name = "go-slurm"
+        override val title = "Slurm (Go test)"
         override val canRegisterProducts: Boolean = false
 
         override fun ComposeBuilder.build() {
-            val provider = environment.dataDirectory.child("grpc-test-provider").also { it.mkdirs() }
+            val provider = environment.dataDirectory.child("go-slurm").also { it.mkdirs() }
 
             val imDir = provider.child("im").also { it.mkdirs() }
             val imGradle = imDir.child("gradle").also { it.mkdirs() }
@@ -1304,15 +1305,15 @@ sealed class ComposeService {
             }
 
             service(
-                "grpc-test-provider",
-                "gRPC test provider",
+                "go-slurm",
+                "Slurm (Go test)",
                 Json(
                     //language=json
                     """
                       {
                         "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0",
                         "command": ["sleep", "inf"],
-                        "hostname": "grpc-test-provider",
+                        "hostname": "go-slurm",
                         "init": true,
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",
@@ -1331,7 +1332,7 @@ sealed class ComposeService {
         }
 
         override fun install(credentials: ProviderCredentials) {
-            val slurmProvider = currentEnvironment.child("grpc-test-provider").also { it.mkdirs() }
+            val slurmProvider = currentEnvironment.child("go-slurm").also { it.mkdirs() }
             val imDir = slurmProvider.child("im").also { it.mkdirs() }
             val imData = imDir.child("data").also { it.mkdirs() }
 
