@@ -3248,11 +3248,14 @@ export class ResourceBrowser<T> {
     }
 
     private addOptionsToFilter(filter: FilterWithOptions | MultiOptionFilter) {
-        const wrapper = document.createElement("div");
-        wrapper.style.display = "flex";
-        wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "24px";
-        wrapper.style.userSelect = "none";
+        const wrapper = createHTMLElements({
+            tagType: "div", style: {
+                display: "flex",
+                cursor: "pointer",
+                marginRight: "24px",
+                userSelect: "none"
+            }
+        });
 
         const valueFromStorage = getFilterStorageValue(this.resourceName, filter.type === "options" ? filter.key : filter.keys[0]);
         let iconName: IconName = filter.icon;
@@ -3268,9 +3271,11 @@ export class ResourceBrowser<T> {
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
 
-        const text = document.createElement("span");
-        text.style.marginRight = "5px";
-        text.innerText = filter.text;
+        const text = createHTMLElements({
+            tagType: "span",
+            style: {marginRight: "5px"},
+            innerText: filter.text
+        });
 
         if (valueFromStorage != null) {
             if (filter.type === "options") {
