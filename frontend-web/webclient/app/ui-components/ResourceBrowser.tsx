@@ -535,6 +535,7 @@ export class ResourceBrowser<T> {
             location.style.borderRadius = "5px";
             location.style.width = "100%";
             location.style.cursor = "pointer";
+            location.style.height = "35px";
             const ul = location.querySelector<HTMLUListElement>(":scope > ul")!;
             ul.style.marginTop = "-2px";
             ul.style.marginBottom = "-2px";
