@@ -44,7 +44,7 @@ The design and UCloud, throughout all of its components, follow these principles
 
 ## Methodology
 
-> ![NOTE]
+> [!NOTE]
 > TODO This section hasn't been updated for roughly a year. We may need to adjust this further before it is suitable.
 
 UCloud uses an _agile methodology_ for development and deployment, which will also be used for this project. The method
