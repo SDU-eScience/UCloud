@@ -40,8 +40,7 @@ export const ReservationParameter: React.FunctionComponent<{
     const projectId = useProjectId();
     useEffect(() => {
         fetchWallet(UCloud.accounting.products.browse({
-            filterUsable: true,
-            filterArea: "COMPUTE",
+            filterProductType: "COMPUTE",
             itemsPerPage: 250,
             includeBalance: true,
             includeMaxBalance: true

@@ -34,17 +34,17 @@ function Products(): JSX.Element {
             <Description />
 
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "STORAGE"} area={"STORAGE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "STORAGE"} productType={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "STORAGE"} area={"STORAGE"} />
+            <MachineView provider={"aau"} key={"aau" + "STORAGE"} productType={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "COMPUTE"} productType={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={"aau"} key={"aau" + "COMPUTE"} productType={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "INGRESS"} area={"INGRESS"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "INGRESS"} productType={"INGRESS"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "INGRESS"} area={"INGRESS"} />
+            <MachineView provider={"aau"} key={"aau" + "INGRESS"} productType={"INGRESS"} />
         </ContainerForText>
     );
 
@@ -70,14 +70,14 @@ const DetailedView = injectStyle("detailed-view", k => `
     }
 `);
 
-export const MachineView: React.FunctionComponent<{area: ProductType, provider: string; color?: string}> = ({area, provider, color = "var(--primary)"}) => {
+export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string; color?: string}> = ({productType, provider, color = "var(--primary)"}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
-        {...UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
+        {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
         emptyPage
     );
 
     const [activeMachine, setActiveMachine] = React.useState<Product | undefined>(undefined);
-    const isCompute = "COMPUTE" === area;
+    const isCompute = "COMPUTE" === productType;
 
     const machineCount = machines.data.items.length;
     const [hasPrice, setHasPrice] = React.useState(false);
@@ -101,14 +101,14 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
         >
             <Box style={{borderTop: `5px solid ${color}`}} />
             <Box p="0 25px 25px" height={"100%"}>
-                <Heading.h3 mb={"16px"}>{capitalized(area === "INGRESS" ? "public links" : area)}</Heading.h3>
+                <Heading.h3 mb={"16px"}>{capitalized(productType === "INGRESS" ? "public links" : productType)}</Heading.h3>
 
                 <Flex alignItems="center">
                     <ListV2
                         page={machines.data}
                         loading={machines.loading}
                         onLoadMore={() => refetch({...UCloud.accounting.products.browse({
-                            filterArea: area, filterProvider: provider, filterUsable: true, next: machines.data.next
+                            filterProductType: productType, filterProvider: provider, next: machines.data.next
                         }), unauthenticated: !Client.isLoggedIn})}
                         pageRenderer={items => (
                             <div className={MachineTypesWrapper}>
@@ -125,12 +125,12 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
                                     </TableHeader>
                                     <tbody>
                                         {items.map(machine => {
-                                            if (provider === UCLOUD_PROVIDER && area === "COMPUTE") {
+                                            if (provider === UCLOUD_PROVIDER && productType === "COMPUTE") {
                                                 // Note(Jonas): Why in the world would this ever happen?
                                                 if (machine === null) return null;
                                             }
                                             const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE", "UNITS_PER_MINUTE"].includes(machine.unitOfPrice);
-                                            const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
+                                            const computeProduct = productType === "COMPUTE" ? machine as ProductCompute : null;
                                             return <TableRow key={machine.name + machine.unitOfPrice} onClick={() => setActiveMachine(machine)}>
                                                 <TableCell>{machine.name}</TableCell>
                                                 {!computeProduct ? null :
@@ -171,7 +171,7 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
                                 <TableHeaderCell>Name</TableHeaderCell>
                                 <TableCell>{activeMachine.name}</TableCell>
                             </TableRow>
-                            {area !== "COMPUTE" || !("cpu" in activeMachine) ? null :
+                            {productType !== "COMPUTE" || !("cpu" in activeMachine) ? null :
                                 <>
                                     <TableRow>
                                         <th>vCPU</th>
@@ -212,7 +212,7 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
 function Description(): JSX.Element {
     return (<>
         Below is the available SKUs on the {CONF.PRODUCT_NAME} platform.
-        They are divided into different product areas, i.e. storage SKUs, compute SKUs, public link SKUs and license
+        They are divided into different product types, i.e. storage SKUs, compute SKUs, public link SKUs and license
         SKUs.
         The prices for compute will be visible when starting a job.
     </>);

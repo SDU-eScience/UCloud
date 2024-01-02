@@ -14,8 +14,8 @@ import dk.sdu.cloud.provider.api.basicTranslationToAccountingUnit
 import dk.sdu.cloud.provider.api.translateToAccountingFrequency
 import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
 class ProductService(
@@ -375,6 +375,8 @@ class ProductService(
                     val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(Actor.System, owner))
                         .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
                         ?.allocations
+                        ?.filter { Time.now() > it.startDate && Time.now() < it.endDate }
+                        ?.ifEmpty { return@mapNotNull null }
                         ?.sumOf { allocation -> allocation.quota }
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
                     quota - usage

@@ -231,8 +231,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
         supportRef.current = [];
 
         callAPI(UCloud.accounting.products.browse({
-            filterUsable: true,
-            filterArea: "COMPUTE",
+            filterProductType: "COMPUTE",
             itemsPerPage: 250,
             includeBalance: true,
             includeMaxBalance: true

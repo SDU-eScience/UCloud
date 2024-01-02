@@ -6097,9 +6097,9 @@ export interface ProductsBrowseRequest {
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
+    filterName?: string,
     filterProvider?: string,
-    filterArea?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
-    filterUsable?: boolean,
+    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     filterCategory?: string,
     includeBalance?: boolean,
     includeMaxBalance?: boolean,
@@ -6219,7 +6219,7 @@ export function browse(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/products" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterArea: request.filterArea, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
+        path: buildQueryString("/api/productsv2" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterProductType: request.filterProductType, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
         parameters: request,
         reloadId: Math.random(),
     };
