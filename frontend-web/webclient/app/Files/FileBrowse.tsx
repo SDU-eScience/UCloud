@@ -2,7 +2,7 @@ import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
 import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/ui-components/MainContainer";
 import {
@@ -115,6 +115,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
             collectionCacheForCompletion.invalidateAll();
         }
         lastActiveProject = Client.projectId;
+        
+        // Note(Jonas): If the user reloads the page to '/search', we don't have any info cached, so we navigate to '/drives' instead.
+        // ONLY on component mount.
+        if (getQueryParam(location.search, "path") === "/search") {
+            navigate("/drives");
+        }
     }, []);
 
     const isSelector = !!opts?.selection;
@@ -878,8 +884,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
-                            style: {marginRight: "6px"}
                         });
+                        providerIconWrapper.style.marginRight = "6px";
                         const url = browser.header.querySelector("div.header-first-row");
                         if (url) url.prepend(providerIconWrapper);
                         pIcon = providerIconWrapper;
@@ -887,8 +893,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     pIcon.replaceChildren();
 
-                    if (pIcon && collection) {
-                        const icon = providerIcon(collection.specification.product.provider, {
+                    if (pIcon) {
+                        const icon = providerIcon(collection?.specification.product.provider ?? "", {
                             fontSize: "22px", width: "30px", height: "30px"
                         });
                         icon.style.marginRight = "8px";
