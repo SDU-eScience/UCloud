@@ -596,6 +596,10 @@ interface SecondarySidebarProps {
     setSelectedPage: React.Dispatch<React.SetStateAction<string>>;
 }
 
+function isShare(d: FileCollection) {
+    return d.specification.product.id === "share";
+}
+
 function SecondarySidebar({
     hovered,
     clicked,
@@ -673,9 +677,9 @@ function SecondarySidebar({
                 <div>
                     <h3><Link to={"/drives/"}>Drives</Link></h3>
                     {drives.data.items.slice(0, 8).map(it =>
-                        <Link key={it.id} to={`/files?path=${it.id}`}>
+                        <Link height="31px" key={it.id} to={`/files?path=${it.id}`}>
                             <Flex>
-                                <Box mt="1px" mr="4px"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Box>
+                                <Box mt="1px" mr="4px">{isShare(it) ? <Icon mt="-4px" size={"20px"} name="ftSharesFolder" color2="FtFolderColor2" color="FtFolderColor" /> : <ProviderLogo providerId={it.specification.product.provider} size={20} />}</Box>
                                 <Truncate fontSize="14px" title={it.specification.title} maxWidth={"150px"} color="var(--fixedWhite)">
                                     {it.specification.title}
                                 </Truncate>
@@ -695,15 +699,18 @@ function SecondarySidebar({
 
                 <div>
                     <h3 className={"no-link"}>Favorite files</h3>
-                    {favoriteFiles.length === 0 ? <div>No favorite files</div> : null}
-                    {favoriteFiles.map(it =>
-                        <a href={"#"} key={it.path} onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
-                            <Flex alignItems={"center"}>
-                                <Icon name="heroStar" size={16} mr="4px" color="#fff" color2="#fff" />
-                                <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
-                            </Flex>
-                        </a>
-                    )}
+                    <ListMapper
+                        items={favoriteFiles}
+                        mapper={it =>
+                            <a href={"#"} key={it.path} onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
+                                <Flex alignItems={"center"}>
+                                    <Icon name="heroStar" size={16} mr="4px" color="#fff" color2="#fff" />
+                                    <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
+                                </Flex>
+                            </a>
+                        }
+                        emptyPage={<div>No favorite files</div>}
+                    />
                 </div>
 
                 {Client.hasActiveProject ? null : <div>
@@ -715,45 +722,43 @@ function SecondarySidebar({
 
         {active !== "Workspace" ? null : (<ProjectLinks />)}
 
-        {active !== "Applications" ? null :
-            <Flex flexDirection={"column"} gap="16px">
-                <div>
-                    {appStoreSections.data.sections.map(section =>
-                        <Link key={section.id} to={`/applications/full#section${section.id}`}>{section.name}</Link>
-                    )}
-                </div>
+        <Flex style={{display: active !== "Applications" ? "none" : undefined}} flexDirection={"column"} gap="16px">
+            <div>
+                {appStoreSections.data.sections.map(section =>
+                    <Link key={section.id} to={`/applications/full#section${section.id}`}>{section.name}</Link>
+                )}
+            </div>
 
-                <div>
-                    <h3 className={"no-link"}>Favorite apps</h3>
-
-                    {appFavorites.map(it =>
+            <div>
+                <h3 className={"no-link"}>Favorite apps</h3>
+                <ListMapper items={appFavorites}
+                    mapper={it =>
                         <AppTitleAndLogo
                             key={it.metadata.name + it.metadata.version}
                             to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
                             name={it.metadata.name}
                             title={it.metadata.title}
                         />
-                    )}
+                    }
+                    emptyPage={<Text fontSize="var(--secondaryText)">No app favorites.</Text>}
+                />
+            </div>
+        </Flex>
 
-                    {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
-                </div>
-            </Flex>
-        }
-
-        {active !== "Runs" ? null : (
-            <Flex flexDirection={"column"}>
-                <h3 className={"no-link"}>Running jobs</h3>
-                {recentRuns.map(it =>
+        <Flex style={{display: active !== "Runs" ? "none" : undefined}} flexDirection={"column"}>
+            <h3 className={"no-link"}>Running jobs</h3>
+            <ListMapper items={recentRuns}
+                mapper={it =>
                     <AppTitleAndLogo
                         key={it.id}
                         to={AppRoutes.jobs.view(it.id)}
                         name={it.specification.application.name}
                         title={`${it.specification.name ?? it.id} (${it.specification.application.name})`}
                     />
-                )}
-                {recentRuns.length !== 0 ? null : <div>No jobs running.</div>}
-            </Flex>
-        )}
+                }
+                emptyPage={<div>No jobs running.</div>}
+            />
+        </Flex>
 
         {active !== "Resources" ? null : (<ResourceLinks />)}
 
@@ -802,6 +807,13 @@ function Username({close}: {close(): void}): JSX.Element | null {
     >
         Click to copy {Client.username} to clipboard
     </Tooltip>
+}
+
+function ListMapper<T>({items, mapper, emptyPage}: {
+    items: T[], mapper: (el: T) => JSX.Element, emptyPage: React.ReactNode
+}): React.ReactNode {
+    if (items.length === 0) return emptyPage;
+    return items.map(mapper);
 }
 
 function ProjectID({close}: {close(): void}): JSX.Element | null {

@@ -604,7 +604,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
-                    if (Client.hasActiveProject) {return false;}
+                    if (Client.hasActiveProject) return false;
                     if (selected.length != 1) return false;
 
                     const support = cb.collection?.status.resolvedSupport?.support;
