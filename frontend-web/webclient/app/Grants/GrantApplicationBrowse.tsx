@@ -3,7 +3,6 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import AppRoutes from "@/Routes";
@@ -14,6 +13,7 @@ import {stateToIconAndColor} from ".";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addTrailingSlash, createHTMLElements} from "@/UtilityFunctions";
 import {ShortcutKey} from "@/ui-components/Operation";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -202,7 +202,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

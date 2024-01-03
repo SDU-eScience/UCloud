@@ -21,11 +21,10 @@ import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {ApplicationGroup, clearLogo, listGroups, setGroup, updateFlavor, updateGroup, uploadLogo} from "@/Applications/api";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 interface AppVersion {
     version: string;
@@ -187,14 +186,13 @@ export const App: React.FunctionComponent = () => {
     }, [apps.data.items]);
 
     useTitle("Application Studio | Applications");
-    usePrioritizedSearch("applications");
 
     const refresh = useCallback(() => {
         setAppParameters(UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}));
         setGroups(listGroups({}));
     }, [name]);
 
-    useRefreshFunction(refresh);
+    useSetRefreshFunction(refresh);
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;

@@ -7,7 +7,6 @@ import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
 import MainContainer from "@/ui-components/MainContainer";
 import TitledCard from "@/ui-components/HighlightedCard";
@@ -39,6 +38,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 // UI state management
 // ================================================================================
@@ -418,7 +418,7 @@ export const Overview: React.FunctionComponent = () => {
     }, [folders.length, devices.length, selectedProduct]);
 
     useTitle("File Synchronization");
-    useRefreshFunction(reload);
+    useSetRefreshFunction(reload);
 
     let main: JSX.Element;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {

@@ -3,7 +3,6 @@ import {useLocation, useNavigate} from "react-router";
 import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
 import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/ui-components/MainContainer";
 import {
     addContextSwitcherInPortal,
@@ -58,6 +57,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import {cheatsheetOperation} from "@/Playground/Playground";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 // Cached network data
 // =====================================================================================================================
@@ -1352,7 +1352,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     }, [location.search]);
 
     if (!opts?.isModal && !opts?.embedded) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

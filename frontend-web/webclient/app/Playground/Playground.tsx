@@ -25,6 +25,8 @@ import {SnackType} from "@/Snackbar/Snackbars";
 import {ResourceBrowseFeatures} from "@/ui-components/ResourceBrowser";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {refreshFunctionCache} from "@/ui-components/Sidebar";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -244,7 +246,7 @@ function SearchThing({enabled}): JSX.Element | null {
 }
 
 function RefreshThing(): JSX.Element | null {
-    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
+    const refresh = useRefresh();
     const spin = useSelector((it: ReduxObject) => it.loading);
     const loading = useSelector((it: ReduxObject) => it.status.loading);
     if (!refresh) return null;

@@ -18,6 +18,7 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {PageV2} from "@/UCloud";
 import AppRoutes from "@/Routes";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -75,7 +76,7 @@ export function ContextSwitcher({managed}: {
         setLocalProject: (project?: string) => void;
     }
 }): JSX.Element {
-    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
+    const refresh = useRefresh();
 
     const project = useProject();
     const projectId = useProjectId();

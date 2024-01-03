@@ -4,7 +4,6 @@ import {Box, Button, Checkbox, DataList, Flex, Icon, Input, Label, Relative, Tex
 import React, {useCallback, useEffect, useState} from "react";
 import {RetrieveGroupResponse, clearLogo, setGroup, retrieveGroup, updateGroup, uploadLogo} from "../api";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate, useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
@@ -19,6 +18,7 @@ import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import List, {ListRow} from "@/ui-components/List";
 import {CardClass} from "@/ui-components/Card";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = useParams<{id: string}>().id!;
@@ -69,7 +69,7 @@ export const AppGroup: React.FunctionComponent = () => {
 
     const navigate = useNavigate();
 
-    useRefreshFunction(refresh);
+    useSetRefreshFunction(refresh);
 
     return (
         !group.data ? <></> :

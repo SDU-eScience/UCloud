@@ -3,7 +3,6 @@ import {DependencyList, EventHandler, MouseEvent, useCallback, useEffect, useMem
 import {PageV2} from "@/UCloud";
 import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
 import {InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Pagination from "@/Pagination";
 import {PageRenderer} from "@/Pagination/PaginationV2";
 import {ToggleSetHook, useToggleSet} from "@/Utilities/ToggleSet";
@@ -20,6 +19,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "./MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -100,7 +100,7 @@ function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.
     useEffect(() => {reload().then(doNothing).catch(doNothing)}, [reload]);
 
     if (props.setRefreshFunction !== false) {
-        useRefreshFunction(reload);
+        useSetRefreshFunction(reload);
     }
 
     if (props.hide === true) return null;

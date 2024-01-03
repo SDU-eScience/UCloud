@@ -30,6 +30,7 @@ import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const maxChunkSize = 16 * 1000 * 1000;
@@ -162,7 +163,7 @@ const Uploader: React.FunctionComponent = () => {
     const [uploads, setUploads] = useGlobal("uploads", []);
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
 
-    const refresh = useSelector<ReduxObject, (() => void) | undefined>(state => state.header.refresh);
+    const refresh = useRefresh();
 
     const closeModal = useCallback(() => {
         setUploaderVisible(false);

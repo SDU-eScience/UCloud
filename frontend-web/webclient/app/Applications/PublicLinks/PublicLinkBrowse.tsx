@@ -2,7 +2,6 @@ import {Product, ProductIngress, productTypeToIcon} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -15,6 +14,7 @@ import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowser
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -348,7 +348,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
     }, [])
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

@@ -4,9 +4,6 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {
-    useRefreshFunction
-} from "@/Navigation/Redux/HeaderActions";
 import {useLoading} from "@/Navigation/Redux/StatusActions";
 import * as Pagination from "@/Pagination";
 import * as React from "react";
@@ -21,6 +18,7 @@ import {AppToolLogo} from "../AppToolLogo";
 import * as UCloud from "@/UCloud";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export const Tool: React.FunctionComponent = () => {
     const name = useParams<{name: string}>().name!;
@@ -40,7 +38,7 @@ export const Tool: React.FunctionComponent = () => {
         fetchApps(UCloud.compute.apps.findLatestByTool({tool: name, page: 0, itemsPerPage: 50}));
     }, [name]);
 
-    useRefreshFunction(refresh);
+    useSetRefreshFunction(refresh);
     useLoading(commandLoading || tool.loading || apps.loading);
 
     useEffect(() => {

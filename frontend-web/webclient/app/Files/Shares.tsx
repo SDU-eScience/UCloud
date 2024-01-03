@@ -19,7 +19,6 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
 import {injectStyleSimple} from "@/Unstyled";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
@@ -33,6 +32,7 @@ import {div} from "@/Utilities/HTMLUtilities";
 import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -580,7 +580,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     }, []);
 
     if (!opts?.isModal && !opts?.embedded) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

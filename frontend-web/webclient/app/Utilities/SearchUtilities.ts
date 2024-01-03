@@ -1,6 +1,3 @@
-import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
-import * as React from "react";
-import {useDispatch} from "react-redux";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 
 export function searchPage(priority: string, options: string | Record<string, string>): string {
@@ -12,11 +9,4 @@ export function searchPage(priority: string, options: string | Record<string, st
     }
 
     return buildQueryString(`/search/${encodeURIComponent(priority)}`, optionRecord);
-}
-
-export function usePrioritizedSearch(priority: "files" | "applications"): void {
-    const dispatch = useDispatch();
-    React.useEffect(() => {
-        dispatch(setPrioritizedSearch(priority));
-    }, []);
 }

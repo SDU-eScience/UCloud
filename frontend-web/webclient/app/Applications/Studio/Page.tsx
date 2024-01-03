@@ -16,15 +16,13 @@ import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";
 import Truncate from "@/ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
-import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import * as UCloud from "@/UCloud";
-import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Link} from "@/ui-components";
 import {useNavigate} from "react-router";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");
-    usePrioritizedSearch("applications");
     
     const navigate = useNavigate();
 
@@ -39,7 +37,7 @@ export const Studio: React.FunctionComponent = () => {
         setToolParameters(toolParameters);
     }, [toolParameters]);
 
-    setRefreshFunction(refresh);
+    useSetRefreshFunction(refresh);
 
     if (Client.userRole !== "ADMIN") return null;
 

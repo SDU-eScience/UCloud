@@ -1,6 +1,5 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
@@ -18,6 +17,7 @@ import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {Operation} from "@/ui-components/Operation";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -249,7 +249,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

@@ -10,7 +10,6 @@ import {ThemeColor} from "@/ui-components/theme";
 import {Box, Flex, Grid, Heading, Icon, Text} from "@/ui-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {
     browseWallets,
     ChargeType,
@@ -34,6 +33,7 @@ import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
 import {ProjectPageTitle} from "./Allocations";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const ANIMATION_DURATION = 1000;
 
@@ -106,7 +106,7 @@ const Resources: React.FunctionComponent = () => {
     }, [filters]);
 
     useTitle("Resources");
-    useRefreshFunction(reloadPage);
+    useSetRefreshFunction(reloadPage);
     useEffect(() => {
         if (filters.filterStartDate != null || filters.filterEndDate != null) {
             reloadPage();

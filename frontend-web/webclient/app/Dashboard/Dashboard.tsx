@@ -1,6 +1,5 @@
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -47,9 +46,10 @@ import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
+import {refreshFunctionCache, sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 function Dashboard(): JSX.Element {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -72,8 +72,6 @@ function Dashboard(): JSX.Element {
 
     React.useEffect(() => {
         reload();
-        reduxOps.setRefresh(() => reload());
-        return () => reduxOps.setRefresh();
     }, []);
 
     function reload(): void {
@@ -89,6 +87,8 @@ function Dashboard(): JSX.Element {
         sidebarFavoriteCache.fetch();
         fetchUsage(retrieveUsage({}));
     }
+
+    useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
@@ -545,7 +545,6 @@ const NewsClass = injectStyle("with-graphic", k => `
 function reduxOperations(dispatch: Dispatch): DashboardOperations {
     return {
         setAllLoading: loading => dispatch(setAllLoading(loading)),
-        setRefresh: refresh => dispatch(setRefreshFunction(refresh))
     };
 }
 
