@@ -48,8 +48,11 @@ import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListClass} from "@/ui-components/List";
-import {ProjectPageTitle} from "./Allocations";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+
+export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
+    return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
+}
 
 // UI state management
 // ================================================================================

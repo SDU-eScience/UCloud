@@ -45,7 +45,6 @@
         "react-transition-group": "4.4.5",
         "react-virtualized-auto-sizer": "1.0.20",
         "react-window": "1.8.10",
-        "recharts": "2.1.13",
         "redux": "4.2.1",
         "svgi": "1.1.2",
         "ua-parser-js": "1.0.37",

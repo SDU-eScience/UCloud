@@ -45,7 +45,6 @@ const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
-const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
@@ -205,8 +204,6 @@ const Core = (): React.JSX.Element => (
                             element={React.createElement(requireAuth(ProjectMembers))} />
                         <Route path={"/projects/invite/:id"}
                             element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
-
-                        <Route path="/subprojects/" element={React.createElement(requireAuth(SubprojectList))} />
 
                         {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
                         <Route path={AppRoutes.project.settings("")}
