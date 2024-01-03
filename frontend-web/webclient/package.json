@@ -18,7 +18,7 @@
     "dependencies": {
         "@ginkgo-bioworks/react-json-schema-form-builder": "2.10.2",
         "@novnc/novnc": "1.4.0",
-        "@reduxjs/toolkit": "^2.0.1",
+        "@reduxjs/toolkit": "2.0.1",
         "@rjsf/core": "4.2.3",
         "@svgr/cli": "5.5.0",
         "apexcharts": "3.45.0",
