@@ -1064,6 +1064,17 @@ export function searchSubAllocations(
     return apiSearch(request, baseContextV2, "subAllocations");
 }
 
+export interface RootAllocateRequestItem {
+    owner: WalletOwner;
+    productCategory: ProductCategoryId;
+    quota: number;
+    start: number;
+    end: number;
+}
+export function rootAllocate(request: BulkRequest<RootAllocateRequestItem>): APICallParameters {
+    return apiUpdate(request, baseContextV2, "rootAllocate");
+}
+
 export function updateAllocationV2(request: BulkRequest<{
     allocationId: string,
     newQuota?: number | null,

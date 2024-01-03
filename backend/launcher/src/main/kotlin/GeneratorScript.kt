@@ -128,7 +128,6 @@ fun generateCode() {
                         "Accounting",
                         listOf(
                             Chapter.Feature("allocations", "Accounting", AccountingV2),
-                            Chapter.Feature("visualization", "Visualization of Usage", Visualization)
                         )
                     ),
                     Chapter.Node(

@@ -112,8 +112,6 @@ class Server(
                 //SPECIFY HERE WHAT TO REINDEX NOT IN ARGS
                 val fromIndices = getListOfIndices(elasticClient, "*2022.12*")
                 val toIndices = fromIndices.map { it.replace("-2022.", "-2027.") }
-                println(fromIndices)
-                println(toIndices)
 
                 reindexService.reindexSpecificIndices(fromIndices, toIndices, elasticLowLevelClient)
                 exitProcess(0)
