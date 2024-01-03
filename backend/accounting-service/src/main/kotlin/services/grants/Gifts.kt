@@ -1,8 +1,6 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
@@ -10,7 +8,6 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.grant.api.*
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 
@@ -233,5 +230,101 @@ class GiftService(
                 "select \"grant\".delete_gift(:username, :id)"
             )
         }
+    }
+
+    suspend fun browse(
+        actorAndProject: ActorAndProject,
+        pagination: NormalizedPaginationRequestV2
+    ): PageV2<GiftWithCriteria> {
+        val itemsPerPage = pagination.itemsPerPage
+        if (actorAndProject.project == null) return PageV2(itemsPerPage, emptyList(), null)
+
+        val items = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", actorAndProject.project)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("next", pagination.next?.toLongOrNull())
+                },
+                """
+                    with
+                        gifts as (
+                            select g.id
+                            from
+                                project.project_members pm
+                                join "grant".gifts g on pm.project_id = g.resources_owned_by
+                            where
+                                pm.project_id = :project
+                                and pm.username = :username
+                                and (
+                                    pm.role = 'ADMIN'
+                                    or pm.role = 'PI'
+                                )
+                                and (
+                                    :next::int8 is null
+                                    or g.id > :next::int8
+                                )
+                            limit $itemsPerPage
+                        ),
+                        criteria_by_gift as (
+                            select
+                                g.id,
+                                 'criteria', jsonb_agg(jsonb_build_object(
+                                    'type', c.type,
+                                    case
+                                        when c.type = 'email' then 'domain'
+                                        when c.type = 'wayf' then 'org'
+                                        else 'ignored'
+                                    end,
+                                    c.applicant_id
+                                )) as criteria_arr
+                            from
+                                gifts g
+                                join "grant".gifts_user_criteria c on g.id = c.gift_id
+                            group by g.id
+                        ),
+                        resources_by_gift as (
+                            select
+                                g.id,
+                                jsonb_agg(jsonb_build_object(
+                                    'category', pc.category,
+                                    'provider', pc.provider,
+                                    'grantGiver', :project::text,
+                                    'balanceRequested', r.credits,
+                                    'period', jsonb_build_object('start', null::int8, 'end', null::int8)
+                                )) as resources_arr
+                            from
+                                gifts g
+                                join "grant".gift_resources r on g.id = r.gift_id
+                                join accounting.product_categories pc on r.product_category = pc.id
+                            group by g.id
+                        )
+                    select jsonb_build_object(
+                        'id', g.id,
+                        'title', g.title,
+                        'description', g.description,
+                        'resourcesOwnedBy', g.resources_owned_by,
+                        'resources', coalesce(r.resources_arr, '[]'::jsonb),
+                        'criteria', coalesce(c.criteria_arr, '[]'::jsonb)
+                    )
+                    from
+                        gifts rg
+                        join "grant".gifts g on rg.id = g.id
+                        left join criteria_by_gift c on c.id = g.id
+                        left join resources_by_gift r on r.id = g.id
+                    order by
+                        g.id
+                    limit $itemsPerPage
+                """
+            ).rows.map { defaultMapper.decodeFromString(GiftWithCriteria.serializer(), it.getString(0)!!) }
+        }
+
+        val next = if (items.size < itemsPerPage) {
+            null
+        } else {
+            items.last().id.toString()
+        }
+
+        return PageV2(itemsPerPage, items, next)
     }
 }

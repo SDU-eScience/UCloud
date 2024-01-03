@@ -2,7 +2,6 @@ import {browseWallets, ChargeType, explainAllocation, ProductCategoryId, Product
 import {apiBrowse, apiSearch, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {Box, Flex, Grid, Icon, Link, Text, Tooltip} from "@/ui-components";
@@ -23,6 +22,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "./cache";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {UtilityBar} from "@/Playground/Playground";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export interface SubAllocation {
     id: string;
@@ -95,7 +95,7 @@ function Allocations(): JSX.Element {
         reloadPage();
     }, [projectId]);
 
-    useRefreshFunction(reloadPage);
+    useSetRefreshFunction(reloadPage);
 
     const onSubAllocationQuery = useCallback(async (query: string) => {
         await fetchAllocations({...searchSubAllocations({query, itemsPerPage: 250}), projectOverride: projectId});

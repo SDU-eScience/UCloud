@@ -9,8 +9,8 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import AppRoutes from "@/Routes";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -172,7 +172,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

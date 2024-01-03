@@ -12,7 +12,6 @@ import {
     ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/ui-components/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
 import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
@@ -27,6 +26,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
@@ -410,7 +410,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

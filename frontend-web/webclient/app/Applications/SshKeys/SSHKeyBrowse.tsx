@@ -1,6 +1,5 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
@@ -8,6 +7,7 @@ import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {image} from "@/Utilities/HTMLUtilities";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -137,7 +137,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
-    useRefreshFunction(() => {
+    useSetRefreshFunction(() => {
         browserRef.current?.refresh();
     });
 

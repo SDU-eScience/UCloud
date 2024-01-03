@@ -1,6 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
@@ -12,6 +11,7 @@ import {TwoFactorSetup} from "./TwoFactorSetup";
 import {ChangeOptionalUserDetails, ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
 import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 import {CustomTheming} from "./CustomTheme";
+import {refreshFunctionCache} from "@/ui-components/Sidebar";
 
 function UserSettings(): React.ReactNode {
 
@@ -56,7 +56,7 @@ function UserSettings(): React.ReactNode {
                                     />
                                     <Sessions
                                         setLoading={setHeaderLoading}
-                                        setRefresh={fn => dispatch(setRefreshFunction(fn))}
+                                        setRefresh={fn => refreshFunctionCache.setRefreshFunction(fn ?? (() => undefined))}
                                     />
                                     <CustomTheming />
                                 </>

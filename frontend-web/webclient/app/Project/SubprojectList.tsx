@@ -13,9 +13,9 @@ import api, {isAdminOrPI, OldProjectRole, Project, projectRoleToStringIcon, useP
 import ProjectAPI from "@/Project/Api";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PaginationRequestV2} from "@/UCloud";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 // Note(Jonas): Endpoint missing from ProjectV2-api
 type ListSubprojectsRequest = PaginationRequestV2;
@@ -312,7 +312,7 @@ export default function SubprojectBrowse({opts}: {opts?: ResourceBrowserOpts<Mem
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

@@ -21,7 +21,6 @@ import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowser
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {Avatar} from "@/AvataaarLib";
 import {addShareModal, StateIconAndColor} from "./Shares";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import AppRoutes from "@/Routes";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {ButtonClass} from "@/ui-components/Button";
@@ -29,6 +28,7 @@ import {arrayToPage} from "@/Types";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -635,7 +635,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

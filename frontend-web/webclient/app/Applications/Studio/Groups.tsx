@@ -3,11 +3,11 @@ import {Box, Button, Flex, Icon, Input, List} from "@/ui-components";
 import React, {useCallback} from "react";
 import {ApplicationGroup, createGroup, deleteGroup, listGroups} from "../api";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
 import {AppToolLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 
 export const ApplicationGroups: React.FunctionComponent = () => {
@@ -31,7 +31,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
         , [allGroups.data, filter]);
 
 
-    useRefreshFunction(refresh);
+    useSetRefreshFunction(refresh);
 
     return (
         <MainContainer
