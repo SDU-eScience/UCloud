@@ -33,9 +33,9 @@ import {HiddenInputField} from "@/ui-components/Input";
 import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import WAYF from "@/Grants/wayf-idps.json";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {projectCache, projectTitleFromCache} from "./ContextSwitcher";
+import WAYF from "@/Grants/wayf-idps.json";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 

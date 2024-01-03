@@ -28,5 +28,9 @@ class GiftController(
             gifts.deleteGift(actorAndProject, request.giftId)
             ok(Unit)
         }
+
+        implement(Gifts.browse) {
+            ok(gifts.browse(actorAndProject, request.normalize()))
+        }
     }
 }

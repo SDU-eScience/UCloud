@@ -1389,10 +1389,10 @@ class AccountingProcessor(
 
     @Suppress("DEPRECATION")
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
-        if (!authorizeProvider(request.actor, request.productCategory)) return AccountingResponse.Error(
-            "Forbidden",
-            403
-        )
+        if (!authorizeProvider(request.actor, request.productCategory)) {
+            return AccountingResponse.Error("Forbidden", 403)
+        }
+
         if (request.dryRun) return check(request)
 
         when (request) {

@@ -685,6 +685,21 @@ export function usageExplainer(
 // =====================================================================================================================
 const baseContextV2 = "/api/accounting/v2";
 const visualizationContextV2 = "/api/accounting/v2/visualization";
+const productsContextV2 = "/api/products/v2";
+
+export function browseProductsV2(
+    request: PaginationRequestV2 & {
+        filterName?: string,
+        filterProvider?: string,
+        filterProductType?: ProductType,
+        filterCategory?: string,
+
+        includeBalance?: boolean,
+        includeMaxBalance?: boolean,
+    }
+): APICallParameters<unknown, PageV2<ProductV2>> {
+    return apiBrowse(request, productsContextV2);
+}
 
 export interface AccountingUnit {
     name: string;

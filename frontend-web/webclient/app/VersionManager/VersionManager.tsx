@@ -70,7 +70,6 @@ async function initialFetch(setInitial: (v: string) => void): Promise<void> {
         if (it.ok) {
             it.text().then(version => setInitial(version));
         } else {
-            console.warn("Failed to fetch version from backend. Retrying.");
             window.setTimeout(() => initialFetch(setInitial), TIMEOUT_DURATION);
         }
     }).catch(() => window.setTimeout(() => initialFetch(setInitial), TIMEOUT_DURATION));

@@ -129,6 +129,7 @@ export const Tree: React.FunctionComponent<{
         };
 
         const handler = (ev: KeyboardEvent) => {
+            if (ev.defaultPrevented) return;
             if (!isActive()) return;
 
             let action: TreeAction | null = null;

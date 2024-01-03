@@ -266,8 +266,8 @@ data class ProductsV2RetrieveRequest(
     override val includeMaxBalance: Boolean? = null,
 ) : ProductFlagsV2
 
-object ProductsV2 : CallDescriptionContainer("productsv2") {
-    const val baseContext = "/api/productsv2"
+object ProductsV2 : CallDescriptionContainer("products.v2") {
+    const val baseContext = "/api/products/v2"
 
     private const val browseUseCase = "browse"
     private const val browseByTypeUseCase = "browse-by-type"
