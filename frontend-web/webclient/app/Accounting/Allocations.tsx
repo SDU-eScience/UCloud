@@ -25,7 +25,7 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {Avatar} from "@/AvataaarLib";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
-import {doNothing, extractErrorCode, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {useNavigate} from "react-router";
@@ -40,7 +40,6 @@ import {MandatoryField} from "@/Applications/Jobs/Widgets";
 import * as Gifts from "./Gifts";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
@@ -111,6 +110,11 @@ interface State {
         resources: Record<string, number>;
     }
 
+    rootAllocations?: {
+        year: number;
+        resources: Record<string, number>;
+    }
+
     editControlsDisabled: boolean;
 }
 
@@ -144,6 +148,8 @@ type UIAction =
     | { type: "UpdateGift", data: Partial<State["gifts"]> }
     | { type: "GiftCreated", gift: Gifts.GiftWithCriteria }
     | { type: "GiftDeleted", id: number }
+    | { type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]> }
+    | { type: "ResetRootAllocation" }
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -178,7 +184,11 @@ function stateReducer(state: State, action: UIAction): State {
                 remoteData: {
                     ...state.remoteData,
                     managedProviders: action.providerIds,
-                }
+                },
+                rootAllocations: {
+                    year: new Date().getUTCFullYear(),
+                    resources: {},
+                },
             };
         }
 
@@ -229,6 +239,34 @@ function stateReducer(state: State, action: UIAction): State {
                         ...currentGifts.resources,
                         ...(action.data?.resources ?? {}),
                     },
+                }
+            };
+        }
+
+        case "UpdateRootAllocations": {
+            const currentRoot = state.rootAllocations ?? {
+                year: new Date().getUTCFullYear(),
+                resources: {},
+            };
+            return {
+                ...state,
+                rootAllocations: {
+                    ...currentRoot,
+                    ...action.data,
+                    resources: {
+                        ...currentRoot.resources,
+                        ...(action.data?.resources ?? {}),
+                    },
+                }
+            };
+        }
+
+        case "ResetRootAllocation": {
+            return {
+                ...state,
+                rootAllocations: {
+                    year: new Date().getUTCFullYear(),
+                    resources: {},
                 }
             };
         }
@@ -402,8 +440,7 @@ function stateReducer(state: State, action: UIAction): State {
 
         const walletsInPeriod = state.remoteData.wallets.map(wallet => {
             const newAllocations = wallet.allocations.filter(alloc =>
-                !wallet.paysFor.freeToUse &&
-                periodsOverlap({start: now, end: now}, allocationToPeriod(alloc))
+                !wallet.paysFor.freeToUse
             );
 
             return {...wallet, allocations: newAllocations};
@@ -916,9 +953,96 @@ const Allocations: React.FunctionComponent = () => {
         }
     }, [onEdit]);
 
+    const onRootAllocationInput = useCallback((ev: React.SyntheticEvent) => {
+        ev.stopPropagation();
+        const elem = ev.target as (HTMLInputElement | HTMLSelectElement);
+        const name = elem.getAttribute("name");
+        if (!name) return;
+        const value = elem.value;
+
+        switch (name) {
+            case "root-year": {
+                const year = parseInt(value);
+                dispatchEvent({
+                    type: "UpdateRootAllocations",
+                    data: { year }
+                });
+                break;
+            }
+        }
+
+        if (name.startsWith("root-resource-")) {
+            const resourceName = removePrefixFrom("root-resource-", name);
+            let amount = parseInt(value);
+            if (value === "") amount = 0;
+            if (!isNaN(amount)) {
+                const data = {resources: {}};
+                data.resources[resourceName] = amount;
+                dispatchEvent({type: "UpdateRootAllocations", data: data});
+            }
+        }
+    }, []);
+
+    const creatingRootAllocation = useRef(false);
+    const onCreateRootAllocation = useCallback(async (ev: React.SyntheticEvent) => {
+        ev.preventDefault();
+        if (creatingRootAllocation.current) return;
+        if (!state.rootAllocations) return;
+
+        const start = new Date();
+        const end = new Date();
+        {
+            const year = state.rootAllocations.year;
+            start.setUTCFullYear(year, 0, 1);
+            start.setUTCHours(0, 0, 0, 0);
+
+            end.setUTCFullYear(year, 11, 31);
+            end.setUTCHours(23, 59, 59, 999);
+        }
+
+        try {
+            const products = state.remoteData.managedProducts;
+            creatingRootAllocation.current = true;
+
+            const requests: Accounting.RootAllocateRequestItem[] = [];
+            for (const [categoryAndProvider, amount] of Object.entries(state.rootAllocations.resources)) {
+                const [category, provider] = categoryAndProvider.split("/");
+                const resolvedCategory = products[provider]?.find(it => it.name === category);
+                if (!resolvedCategory) {
+                    snackbarStore.addFailure("Internal failure while creating a root allocation. Try reloading the page!", false);
+                    return;
+                }
+
+                const unit = Accounting.explainUnit(resolvedCategory);
+
+                requests.push({
+                    owner: {
+                        type: "project",
+                        projectId: Client.projectId ?? ""
+                    },
+                    productCategory: {
+                        name: category,
+                        provider,
+                    },
+                    quota: amount * unit.invPriceFactor,
+                    start: start.getTime(),
+                    end: end.getTime(),
+                });
+            }
+
+            await callAPI(Accounting.rootAllocate(bulkRequestOf(...requests)));
+            dispatchEvent({type: "ResetRootAllocation"});
+            dispatchEvent({type: "Init"});
+        } catch (e) {
+            snackbarStore.addFailure("Failed to create root allocation: " + extractErrorMessage(e), false);
+            return;
+        } finally {
+            creatingRootAllocation.current = false;
+        }
+    }, [state.rootAllocations]);
+
     const onGiftInput = useCallback((ev: React.SyntheticEvent) => {
         ev.stopPropagation();
-        console.log(ev);
         const elem = ev.target as (HTMLInputElement | HTMLSelectElement);
         const name = elem.getAttribute("name");
         if (!name) return;
@@ -1097,49 +1221,63 @@ const Allocations: React.FunctionComponent = () => {
             </header>
 
             {state.remoteData.managedProviders.length > 0 && <>
-                <h3>Root allocations</h3>
-                <div>
-                    Root allocations are ordinary allocations from which all other allocations are created.
+                {state.rootAllocations && <>
+                    <h3>Root allocations</h3>
+                    <div>
+                        Root allocations are ordinary allocations from which all other allocations are created.
 
-                    <ul>
-                        <li>You can see this because you are part of a provider project</li>
-                        <li>You must create a root allocation to be able to use your provider</li>
-                        <li>Once created, you can see the root allocations in the "Your allocations" panel</li>
-                    </ul>
-                </div>
+                        <ul>
+                            <li>You can see this because you are part of a provider project</li>
+                            <li>You must create a root allocation to be able to use your provider</li>
+                            <li>Once created, you can see the root allocations in the "Your allocations" panel</li>
+                        </ul>
+                    </div>
 
-                <Accordion title={"Create a new root allocation"}>
-                    <h4>Step 1: Select a period</h4>
-                    <Select slim>
-                        <option value="none">------</option>
-                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
-                            const year = new Date().getUTCFullYear() + delta;
-                            return <option key={delta} value={year.toString()}>{year}</option>;
-                        })}
-                    </Select>
+                    <Accordion title={"Create a new root allocation"}>
+                        <h4>Step 1: Select a period</h4>
+                        <Select
+                            slim
+                            value={state.rootAllocations.year}
+                            onInput={onRootAllocationInput}
+                            onKeyDown={stopPropagation}
+                            name={"root-year"}
+                        >
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
+                                const year = new Date().getUTCFullYear() + delta;
+                                return <option key={delta} value={year.toString()}>{year}</option>;
+                            })}
+                        </Select>
 
-                    <h4>Step 2: Select allocation size</h4>
-                    <Tree>
-                        {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) => <React.Fragment
-                            key={providerId}>
-                            {page.map(cat => <TreeNode
-                                key={cat.name + cat.provider}
-                                left={<Flex gap={"4px"}>
-                                    <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
-                                    <code>{cat.name} / {cat.provider}</code>
-                                </Flex>}
-                                right={<Flex gap={"4px"}>
-                                    <Input height={20} placeholder={"0"}/>
-                                    <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
-                                </Flex>}
-                            />)}
-                        </React.Fragment>)}
-                    </Tree>
+                        <h4>Step 2: Select allocation size</h4>
+                        <Tree>
+                            {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) => <React.Fragment
+                                key={providerId}>
+                                {page.map(cat => <TreeNode
+                                    key={cat.name + cat.provider}
+                                    left={<Flex gap={"4px"}>
+                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                        <code>{cat.name} / {cat.provider}</code>
+                                    </Flex>}
+                                    right={<Flex gap={"4px"}>
+                                        <Input
+                                            height={20}
+                                            placeholder={"0"}
+                                            name={`root-resource-${cat.name}/${cat.provider}`}
+                                            value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                            onInput={onRootAllocationInput}
+                                            onKeyDown={stopPropagation}
+                                        />
+                                        <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                    </Flex>}
+                                />)}
+                            </React.Fragment>)}
+                        </Tree>
 
-                    <Button my={16}>Create root allocations</Button>
-                </Accordion>
+                        <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
+                    </Accordion>
 
-                <Box mt={32}/>
+                    <Box mt={32}/>
+                </>}
 
                 {state.gifts && <>
                     <h3>Gifts</h3>
@@ -1212,8 +1350,6 @@ const Allocations: React.FunctionComponent = () => {
                                 </TreeNode>
                             )}
                         </Tree>}
-
-
                     </Accordion>
 
                     <Accordion title={"Create a gift"}>

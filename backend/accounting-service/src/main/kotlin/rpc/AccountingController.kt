@@ -267,16 +267,6 @@ class AccountingController(
             ok(accounting.retrieveProviderAllocations(actorAndProject, request))
         }
 
-        implement(Visualization.retrieveUsage) {
-            val charts = accounting.retrieveUsageV2(actorAndProject, request)
-
-            ok(charts)
-        }
-
-        implement(Visualization.retrieveBreakdown) {
-            ok(accounting.retrieveBreakdownV2(actorAndProject, request))
-        }
-
         implement(DepositNotifications.retrieve) {
             ok(notifications.retrieveNotifications(actorAndProject))
         }
@@ -289,7 +279,6 @@ class AccountingController(
         implement(VisualizationV2.retrieveCharts) {
             ok(accounting.retrieveChartsV2(ctx.responseAllocator, actorAndProject, request))
         }
-
 
         if (micro.developmentModeEnabled) {
             GlobalScope.launch {

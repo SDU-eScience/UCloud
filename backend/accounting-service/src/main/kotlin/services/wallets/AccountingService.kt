@@ -2,22 +2,21 @@ package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.auth.api.AuthProviders
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.messages.BinaryAllocator
 import dk.sdu.cloud.messages.BinaryTypeList
+import dk.sdu.cloud.provider.api.ProviderIncludeFlags
 import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.StaticTimeProvider
 import dk.sdu.cloud.service.SystemTimeProvider
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlin.math.max
@@ -48,11 +47,13 @@ class AccountingService(
         owner: WalletOwner,
         categoryId: ProductCategoryIdV2
     ): List<WalletAllocationV2> {
-        return processor.retrieveAllocationsInternal(AccountingRequest.RetrieveAllocationsInternal(
-            actorAndProject.actor,
-            owner.toProcessorOwner(),
-            categoryId
-        )).allocations
+        return processor.retrieveAllocationsInternal(
+            AccountingRequest.RetrieveAllocationsInternal(
+                actorAndProject.actor,
+                owner.toProcessorOwner(),
+                categoryId
+            )
+        ).allocations
     }
 
     suspend fun findRelevantProviders(
@@ -76,10 +77,12 @@ class AccountingService(
     }
 
     suspend fun retrieveWalletsInternal(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<WalletV2> {
-        return processor.retrieveWalletsInternal((AccountingRequest.RetrieveWalletsInternal(
-            actorAndProject.actor,
-            walletOwner.toProcessorOwner()
-        ))).wallets
+        return processor.retrieveWalletsInternal(
+            (AccountingRequest.RetrieveWalletsInternal(
+                actorAndProject.actor,
+                walletOwner.toProcessorOwner()
+            ))
+        ).wallets
     }
 
     suspend fun charge(
@@ -165,7 +168,7 @@ class AccountingService(
     suspend fun subAllocate(
         actorAndProject: ActorAndProject,
         request: BulkRequest<SubAllocationRequestItem>,
-    ):List<FindByStringId> {
+    ): List<FindByStringId> {
         var isDry: Boolean? = null
         for (item in request.items) {
             if (isDry != null && item.dry != isDry) {
@@ -184,7 +187,10 @@ class AccountingService(
                 AccountingRequest.Deposit(
                     actorAndProject.actor,
                     deposit.owner.toProcessorOwner(),
-                    deposit.parentAllocation.toIntOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Root deposits should be made with rootAllocate call."),
+                    deposit.parentAllocation.toIntOrNull() ?: throw RPCException.fromStatusCode(
+                        HttpStatusCode.BadRequest,
+                        "Root deposits should be made with rootAllocate call."
+                    ),
                     deposit.quota,
                     deposit.start,
                     deposit.end,
@@ -202,17 +208,53 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<RootAllocationRequestItem>
     ): List<FindByStringId> {
+        val actor = actorAndProject.actor
+        if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        if (actor.principal.role != Role.ADMIN) {
+            val relevantProviders = request.items.map { it.productCategory.provider }.toSet()
+            // TODO(Dan): fragile?
+            db.withSession { session ->
+                val adminOf = session.sendPreparedStatement(
+                    {
+                        setParameter("providers", relevantProviders.toList())
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                    },
+                    """
+                        select p.unique_name
+                        from
+                            provider.providers p
+                            join provider.resource r on p.resource = r.id
+                            join project.project_members pm on pm.project_id = r.project
+                        where
+                            p.unique_name = some(:providers::text[])
+                            and pm.username = :username
+                            and (
+                                pm.role = 'PI'
+                                or pm.role = 'ADMIN'
+                            )
+                    """
+                ).rows.map { it.getString(0)!! }
+
+                if (relevantProviders.any { it !in adminOf }) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                }
+            }
+        }
+
         return request.items.map { deposit ->
             FindByStringId(
-                processor.rootDeposit(AccountingRequest.RootDeposit(
-                    Actor.System,
-                    deposit.owner.toProcessorOwner(),
-                    deposit.productCategory,
-                    deposit.quota,
-                    startDate = deposit.start,
-                    endDate = deposit.end,
-                    forcedSync = deposit.forcedSync
-                )).createdAllocation.toString()
+                processor.rootDeposit(
+                    AccountingRequest.RootDeposit(
+                        Actor.System,
+                        deposit.owner.toProcessorOwner(),
+                        deposit.productCategory,
+                        deposit.quota,
+                        startDate = deposit.start,
+                        endDate = deposit.end,
+                        forcedSync = deposit.forcedSync
+                    )
+                ).createdAllocation.toString()
             )
         }
     }
@@ -222,14 +264,16 @@ class AccountingService(
         request: BulkRequest<UpdateAllocationV2RequestItem>,
     ) {
         request.items.forEach { update ->
-            processor.update(AccountingRequest.Update(
-                //TODO(HENRIK) ADD TRANSACTIUO AND REASON
-                actorAndProject.actor,
-                update.allocationId.toIntOrNull() ?: return@forEach,
-                update.newQuota,
-                update.newStart,
-                update.newEnd,
-            ))
+            processor.update(
+                AccountingRequest.Update(
+                    //TODO(HENRIK) ADD TRANSACTIUO AND REASON
+                    actorAndProject.actor,
+                    update.allocationId.toIntOrNull() ?: return@forEach,
+                    update.newQuota,
+                    update.newStart,
+                    update.newEnd,
+                )
+            )
         }
     }
 
@@ -288,7 +332,8 @@ class AccountingService(
 
             rows.forEach {
                 var wallet = defaultMapper.decodeFromString(Wallet.serializer(), it.getString(0)!!)
-                val productPriceUnit = translateToProductPriceUnit(ProductType.valueOf(it.getString(2)!!), it.getString(3)!!)
+                val productPriceUnit =
+                    translateToProductPriceUnit(ProductType.valueOf(it.getString(2)!!), it.getString(3)!!)
                 items.add(wallet.copy(unit = productPriceUnit))
                 lastId = it.getLong(1)!!
             }
@@ -313,735 +358,6 @@ class AccountingService(
         )
 
         return PageV2.of(hits.allocations)
-    }
-
-    suspend fun retrieveUsageV2(
-        actorAndProject: ActorAndProject,
-        request: VisualizationRetrieveUsageRequest
-    ): VisualizationRetrieveUsageResponse {
-        return db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    val now = Time.now()
-                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 7)))
-                    setParameter("end_date", request.filterEndDate ?: now)
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
-                    setParameter("filter_provider", request.filterProvider)
-                    setParameter("filter_category", request.filterProductCategory)
-                    setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull())
-                    setParameter("filter_workspace", request.filterWorkspace)
-                    setParameter("filter_workspace_project", request.filterWorkspaceProject)
-                    setParameter("num_buckets", 30 as Int)
-                },
-                """
-                    with
-                        -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
-                        -- from the associated product category. The category is crucial to create charts which make sense.
-                        -- This section is also the only section which fetches data from an actual table. If this code needs optimization
-                        -- then this is most likely the place to look.
-                        all_transactions as (
-                            select
-                                t.created_at, t.new_local_usage, t.new_tree_usage, t.new_quota, t.affected_allocation,
-                                pc.category, pc.provider, pc.charge_type, pc.product_type
-                            from
-                                accounting.wallet_owner wo join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
-                                accounting.transaction_history t on t.affected_allocation = alloc.id join
-                                accounting.product_categories pc on w.category = pc.id left join
-                                project.project_members pm on
-                                    pm.project_id = wo.project_id and
-                                    (pm.role = 'ADMIN' or pm.role = 'PI')
-                            where
-                                t.action = 'CHARGE' and
-                                t.created_at >= to_timestamp(:start_date / 1000.0) and
-                                t.created_at <= to_timestamp(:end_date / 1000.0) and
-                                (
-                                    (wo.project_id = :project::text and pm.username = :username) or
-                                    (:project::text is null and wo.username = :username)
-                                ) and
-                                (
-                                    :filter_type::accounting.product_type is null or
-                                    pc.product_type = :filter_type::accounting.product_type
-                                ) and
-                                (
-                                    :filter_provider::text is null or
-                                    pc.provider = :filter_provider
-                                ) and
-                                (
-                                    :filter_category::text is null or
-                                    pc.category = :filter_category
-                                ) and
-                                (
-                                    :filter_allocation::bigint is null or
-                                    t.affected_allocation = :filter_allocation::bigint
-                                ) and
-                                (
-                                    :filter_workspace::text is null or
-                                    (
-                                        (
-                                            :filter_workspace_project::boolean = true and
-                                            wo.project_id = :filter_workspace
-                                        ) or
-                                        (
-                                            :filter_workspace_project::boolean is distinct from true and
-                                            wo.username = :filter_workspace
-                                        )
-                                    )
-                                )
-                        ),
-                        -- NOTE(Dan): Next we split up our data processing into two separate tracks, for a little while. The first
-                        -- track will process `DIFFERENTIAL_QUOTA`. This path will use the units to track actual usage recorded. Unlike
-                        -- the `ABSOLUTE` track, we will be picking the last recorded entry if multiple entries fall into the same bucket.
-                        -- To start with we will produce multiple results per bucket, these will be differentiated by the
-                        -- source_allocation_id. This allows us to capture usage from different sub-allocations.
-                        units_per_bucket as (
-                            select
-                                category, provider, charge_type, product_type,
-                                width_bucket(
-                                    provider.timestamp_to_unix(transaction.created_at),
-                                    :start_date,
-                                    :end_date,
-                                    :num_buckets - 1
-                                ) as bucket,
-                                provider.last(new_local_usage) as data_point
-                            from all_transactions transaction
-                            where charge_type = 'DIFFERENTIAL_QUOTA'
-                            group by category, provider, charge_type, product_type, new_local_usage, affected_allocation, bucket
-                        ),
-                        -- NOTE(Dan): We now combine the data from multiple sub-allocations into a single entry per bucket. We do this by
-                        -- simply summing the total usage in each bucket.
-                        units_per_bucket_sum as (
-                            select category, provider, charge_type, product_type, bucket, data_point
-                            from units_per_bucket
-                            group by category, provider, charge_type, product_type, bucket, data_point
-                            order by provider, category, bucket
-                        ),
-                        -- NOTE(Dan): We now switch our processing back to the `ABSOLUTE` type products. These products are a bit simpler
-                        -- given that we simply need to sum up all changes, we don't need to pick any specific recording from a bucket since
-                        -- all records in a bucket are relevant for us. This section will give us a data point which represents the total
-                        -- change inside of a single bucket.
-                        change_per_bucket as (
-                            select
-                                category, provider, charge_type, product_type,
-                                width_bucket(
-                                    provider.timestamp_to_unix(transaction.created_at),
-                                    :start_date,
-                                    :end_date,
-                                    :num_buckets - 1
-                                ) as bucket,
-                                provider.last(new_local_usage) as data_point
-                            from all_transactions transaction
-                            where charge_type = 'ABSOLUTE'
-                            group by category, provider, charge_type, product_type, new_local_usage, bucket
-                            order by provider, category, bucket
-                        ),
-
-                        -- NOTE(Dan): We now transform the change (which is negative) into usage (the inverse). At the same time we
-                        -- compute a rolling sum to get a chart which always trend up.
-                        change_per_bucket_sum as (
-                            select
-                                category, provider, charge_type, product_type, bucket,
-                                last_value(data_point) over (partition by category, provider order by bucket) * 1 as data_point
-                            from change_per_bucket
-                            order by provider, category, product_type, bucket
-                        ),
-
-                        -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
-                        -- the charts.
-                        all_entries as (
-                            select * from change_per_bucket_sum
-                            union
-                            select * from units_per_bucket_sum
-                        ),
-                        -- NOTE(Dan): The clients don't care about buckets, they care about concrete timestamps. In this section we convert
-                        -- the bucket index into an actual timestamp. While doing so, we fetch the total usage in the period, we can do this
-                        -- by simply picking the last data point.
-                        bucket_to_timestamp as (
-                            select
-                                ceil((bucket - 1) * ((:end_date - :start_date) / :num_buckets::double precision) + :start_date) as ts,
-                                data_point,
-                                l.period_usage,
-                                e.category, e.provider, e.charge_type, e.product_type
-                            from
-                                all_entries e join
-                                (
-                                    select category, provider, charge_type, provider.last(data_point) period_usage
-                                    from (select * from all_entries order by bucket) t
-                                    group by category, provider, charge_type
-                                ) l on
-                                    e.category = l.category and
-                                    e.provider = l.provider and
-                                    e.charge_type = l.charge_type
-                        ),
-                        -- NOTE(Dan): We now start our marshalling to JSON by first combining all data points into lines.
-                        point_aggregation as (
-                            select
-                                category, provider, charge_type, product_type, period_usage,
-                                array_agg(jsonb_build_object(
-                                    'timestamp', ts,
-                                    'value', data_point
-                                )) points
-                            from bucket_to_timestamp
-                            group by category, provider, charge_type, product_type, period_usage
-                        ),
-                        -- NOTE(Dan): The lines are then combined into complete charts.
-                        chart_aggregation as (
-                            select jsonb_build_object(
-                                'type', product_type,
-                                'chargeType', charge_type,
-                                'unit', accounting.recreate_product_price_unit(category, product_type),
-                                'periodUsage', sum(period_usage),
-                                'chart', jsonb_build_object(
-                                    'lines', array_agg(jsonb_build_object(
-                                        'name', category || ' / ' || provider,
-                                        'points', points
-                                    ))
-                                )
-                            ) chart
-                            from point_aggregation
-                            group by product_type, charge_type, category
-                        ),
-                        -- NOTE(Dan): And the charts are combined into a single output for consumption by UCloud/Core.
-                        combined_charts as (
-                            select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[])) result
-                            from chart_aggregation
-                        )
-                    select * from combined_charts;
-                """,
-                "Accounting Retrieve Usage",
-            )
-        }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
-            "No usage data found. Are you sure you are allowed to view the data?",
-            HttpStatusCode.NotFound
-        )
-    }
-
-    suspend fun retrieveUsage(
-        actorAndProject: ActorAndProject,
-        request: VisualizationRetrieveUsageRequest
-    ): VisualizationRetrieveUsageResponse {
-        return db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    val now = Time.now()
-                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 7)))
-                    setParameter("end_date", request.filterEndDate ?: now)
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
-                    setParameter("filter_provider", request.filterProvider)
-                    setParameter("filter_category", request.filterProductCategory)
-                    setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull())
-                    setParameter("filter_workspace", request.filterWorkspace)
-                    setParameter("filter_workspace_project", request.filterWorkspaceProject)
-                    setParameter("num_buckets", 30 as Int)
-                },
-                """
-                    with
-                        -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
-                        -- from the associated product category. The category is crucial to create charts which make sense.
-                        -- This section is also the only section which fetches data from an actual table. If this code needs optimization
-                        -- then this is most likely the place to look.
-                        all_transactions as (
-                            select
-                                t.created_at, t.change, t.units, t.source_allocation_id, pc.category, pc.provider, pc.charge_type,
-                                pc.product_type, pc.unit_of_price
-                            from
-                                accounting.wallet_owner wo join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
-                                accounting.transactions t on t.affected_allocation_id = alloc.id join
-                                accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
-                                accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
-                                accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
-                                accounting.product_categories pc on w.category = pc.id left join
-                                project.project_members pm on
-                                    pm.project_id = wo.project_id and
-                                    (pm.role = 'ADMIN' or pm.role = 'PI')
-                            where
-                                t.type = 'charge' and
-                                t.created_at >= to_timestamp(:start_date / 1000.0) and
-                                t.created_at <= to_timestamp(:end_date / 1000.0) and
-                                (
-                                    (wo.project_id = :project::text and pm.username = :username) or
-                                    (:project::text is null and wo.username = :username)
-                                ) and
-                                (
-                                    :filter_type::accounting.product_type is null or
-                                    pc.product_type = :filter_type::accounting.product_type
-                                ) and
-                                (
-                                    :filter_provider::text is null or
-                                    pc.provider = :filter_provider
-                                ) and
-                                (
-                                    :filter_category::text is null or
-                                    pc.category = :filter_category
-                                ) and
-                                (
-                                    :filter_allocation::bigint is null or
-                                    t.source_allocation_id = :filter_allocation::bigint
-                                ) and
-                                (
-                                    :filter_workspace::text is null or
-                                    (
-                                        (
-                                            :filter_workspace_project::boolean = true and
-                                            source_owner.project_id = :filter_workspace
-                                        ) or
-                                        (
-                                            :filter_workspace_project::boolean is distinct from true and
-                                            source_owner.username = :filter_workspace
-                                        )
-                                    )
-                                )
-                        ),
-                        -- NOTE(Dan): Next we split up our data processing into two separate tracks, for a little while. The first
-                        -- track will process `DIFFERENTIAL_QUOTA`. This path will use the units to track actual usage recorded. Unlike
-                        -- the `ABSOLUTE` track, we will be picking the last recorded entry if multiple entries fall into the same bucket.
-                        -- To start with we will produce multiple results per bucket, these will be differentiated by the
-                        -- source_allocation_id. This allows us to capture usage from different sub-allocations.
-                        units_per_bucket as (
-                            select
-                                category, provider, charge_type, product_type, unit_of_price,
-                                width_bucket(
-                                    provider.timestamp_to_unix(transaction.created_at),
-                                    :start_date,
-                                    :end_date,
-                                    :num_buckets - 1
-                                ) as bucket,
-                                provider.last(units) as data_point
-                            from all_transactions transaction
-                            where charge_type = 'DIFFERENTIAL_QUOTA'
-                            group by category, provider, charge_type, product_type, unit_of_price, source_allocation_id, bucket
-                        ),
-                        -- NOTE(Dan): We now combine the data from multiple sub-allocations into a single entry per bucket. We do this by
-                        -- simply summing the total usage in each bucket.
-                        units_per_bucket_sum as (
-                            select category, provider, charge_type, product_type, unit_of_price, bucket, sum(data_point) as data_point
-                            from units_per_bucket
-                            group by category, provider, charge_type, product_type, unit_of_price, bucket
-                            order by provider, category, bucket
-                        ),
-                        -- NOTE(Dan): We now switch our processing back to the `ABSOLUTE` type products. These products are a bit simpler
-                        -- given that we simply need to sum up all changes, we don't need to pick any specific recording from a bucket since
-                        -- all records in a bucket are relevant for us. This section will give us a data point which represents the total
-                        -- change inside of a single bucket.
-                        change_per_bucket as (
-                            select
-                                category, provider, charge_type, product_type, unit_of_price,
-                                width_bucket(
-                                    provider.timestamp_to_unix(transaction.created_at),
-                                    :start_date,
-                                    :end_date,
-                                    :num_buckets - 1
-                                ) as bucket,
-                                sum(change) as data_point
-                            from all_transactions transaction
-                            where charge_type = 'ABSOLUTE'
-                            group by category, provider, charge_type, product_type, unit_of_price, bucket
-                            order by provider, category, bucket
-                        ),
-                        -- NOTE(Dan): We now transform the change (which is negative) into usage (the inverse). At the same time we
-                        -- compute a rolling sum to get a chart which always trend up.
-                        change_per_bucket_sum as (
-                            select
-                                category, provider, charge_type, product_type, unit_of_price, bucket,
-                                sum(data_point) over (partition by category, provider order by bucket) * 1 as data_point
-                            from change_per_bucket
-                            order by provider, category, product_type, unit_of_price, bucket
-                        ),
-                        -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
-                        -- the charts.
-                        all_entries as (
-                            select * from change_per_bucket_sum
-                            union
-                            select * from units_per_bucket_sum
-                        ),
-                        -- NOTE(Dan): The clients don't care about buckets, they care about concrete timestamps. In this section we convert
-                        -- the bucket index into an actual timestamp. While doing so, we fetch the total usage in the period, we can do this
-                        -- by simply picking the last data point.
-                        bucket_to_timestamp as (
-                            select
-                                ceil((bucket - 1) * ((:end_date - :start_date) / :num_buckets::double precision) + :start_date) as ts,
-                                data_point,
-                                l.period_usage,
-                                e.category, e.provider, e.charge_type, e.product_type, e.unit_of_price
-                            from
-                                all_entries e join
-                                (
-                                    select category, provider, charge_type, provider.last(data_point) period_usage
-                                    from (select * from all_entries order by bucket) t
-                                    group by category, provider, charge_type
-                                ) l on
-                                    e.category = l.category and
-                                    e.provider = l.provider and
-                                    e.charge_type = l.charge_type
-                        ),
-                        -- NOTE(Dan): We now start our marshalling to JSON by first combining all data points into lines.
-                        point_aggregation as (
-                            select
-                                category, provider, charge_type, product_type, unit_of_price, period_usage,
-                                array_agg(jsonb_build_object(
-                                    'timestamp', ts,
-                                    'value', data_point
-                                )) points
-                            from bucket_to_timestamp
-                            group by category, provider, charge_type, product_type, unit_of_price, period_usage
-                        ),
-                        -- NOTE(Dan): The lines are then combined into complete charts.
-                        chart_aggregation as (
-                            select jsonb_build_object(
-                                'type', product_type,
-                                'chargeType', charge_type,
-                                'unit', accounting.recreate_product_price_unit(category, product_type),
-                                'periodUsage', sum(period_usage),
-                                'chart', jsonb_build_object(
-                                    'lines', array_agg(jsonb_build_object(
-                                        'name', category || ' / ' || provider,
-                                        'points', points
-                                    ))
-                                )
-                            ) chart
-                            from point_aggregation
-                            group by product_type, charge_type, unit_of_price, category
-                        ),
-                        -- NOTE(Dan): And the charts are combined into a single output for consumption by UCloud/Core.
-                        combined_charts as (
-                            select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[])) result
-                            from chart_aggregation
-                        )
-                    select * from combined_charts;
-                """,
-                "Accounting Retrieve Usage",
-            )
-        }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
-            "No usage data found. Are you sure you are allowed to view the data?",
-            HttpStatusCode.NotFound
-        )
-    }
-
-    suspend fun retrieveBreakdownV2(
-        actorAndProject: ActorAndProject,
-        request: VisualizationRetrieveBreakdownRequest
-    ): VisualizationRetrieveBreakdownResponse {
-        return db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    val now = Time.now()
-                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 30)))
-                    setParameter("end_date", request.filterEndDate ?: now)
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
-                    setParameter("filter_provider", request.filterProvider)
-                    setParameter("filter_category", request.filterProductCategory)
-                    setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull())
-                    setParameter("filter_workspace", request.filterWorkspace)
-                    setParameter("filter_workspace_project", request.filterWorkspaceProject)
-                },
-                """
-                     with
-                        -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
-                        -- from the associated product category. The category is crucial to create charts which make sense.
-                        -- This section is also the only section which fetches data from an actual table. If this code needs optimization
-                        -- then this is most likely the place to look.
-                        all_transactions as (
-                            select
-                                t.created_at, t.new_local_usage, t.new_tree_usage, t.new_quota, t.affected_allocation, 
-                                pc.category, pc.provider, pc.charge_type, pc.product_type
-                            from
-                                accounting.wallet_owner wo join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
-                                accounting.transaction_history t on t.affected_allocation = alloc.id join
-                                accounting.product_categories pc on w.category = pc.id left join
-                                project.project_members pm on
-                                    pm.project_id = wo.project_id and
-                                    (pm.role = 'ADMIN' or pm.role = 'PI')
-                            where
-                                t.action = 'CHARGE' and
-                                t.created_at >= to_timestamp(:start_date / 1000.0) and
-                                t.created_at <= to_timestamp(:end_date / 1000.0) and
-                                (
-                                    (wo.project_id = :project::text and pm.username = :username) or
-                                    (:project::text is null and wo.username = :username)
-                                ) and
-                                (
-                                    :filter_type::accounting.product_type is null or
-                                    pc.product_type = :filter_type::accounting.product_type
-                                ) and
-                                (
-                                    :filter_provider::text is null or
-                                    pc.provider = :filter_provider
-                                ) and
-                                (
-                                    :filter_category::text is null or
-                                    pc.category = :filter_category
-                                ) and
-                                (
-                                    :filter_allocation::bigint is null or
-                                    t.affected_allocation = :filter_allocation::bigint
-                                ) and
-                                (
-                                    :filter_workspace::text is null or
-                                    (
-                                        (
-                                            :filter_workspace_project::boolean = true and
-                                            wo.project_id = :filter_workspace
-                                        ) or
-                                        (
-                                            :filter_workspace_project::boolean is distinct from true and
-                                            wo.username = :filter_workspace
-                                        )
-                                    )
-                                )
-                        ),
-                        -- NOTE(Dan): We pick the latest recording for every source_allocation_id
-                        units_per_bucket as (
-                            select
-                                category, provider, charge_type, product_type,
-                                provider.last(new_local_usage) as data_point
-                            from all_transactions transaction
-                            where charge_type = 'DIFFERENTIAL_QUOTA'
-                            group by category, provider, charge_type, product_type, new_local_usage, affected_allocation
-                        ),
-                        -- NOTE(Dan): Similar to the usage, we need to sum these together
-                        units_per_bucket_sum as (
-                            select category, provider, charge_type, product_type, data_point
-                            from units_per_bucket
-                            group by category, provider, charge_type, product_type, data_point
-                        ),
-                        -- NOTE(Dan): As opposed to usage, we can take a more direct route to compute the concrete period usage
-                        change_per_bucket_sum as (
-                            select
-                                category, provider, charge_type, product_type,
-                                sum(new_local_usage) * 1 as data_point
-                            from all_transactions transaction
-                            where charge_type = 'ABSOLUTE'
-                            group by category, provider, charge_type, product_type
-                        ),
-                        -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
-                        -- the charts.
-                        all_entries as (
-                            select * from change_per_bucket_sum
-                            union
-                            select * from units_per_bucket_sum
-                        ),
-                        -- NOTE(Dan): We rank every row of every chart to determine the top-3 of every chart
-                        ranked_categories as (
-                            select
-                                e.category, e.provider, e.charge_type, e.product_type, e.data_point,
-                                row_number() over (partition by e.category, e.provider order by data_point desc) rank
-                            from all_entries e
-                        ),
-                        -- NOTE(Dan): We use this information to combine entries with rank > 3 into a single entry
-                        collapse_others as (
-                            select charge_type, product_type, data_point,
-                                category || ' / ' || provider as name, category
-                            from ranked_categories
-                            where rank <= 3
-                            union
-                            select charge_type, product_type, data_point, 'Other' as name, category
-                            from ranked_categories
-                            where rank > 3
-                            group by charge_type, product_type, category, data_point
-                        ),
-                        -- NOTE(Dan): Once we have this building the chart is straight-forward
-                        chart_aggregation as (
-                            select jsonb_build_object(
-                                'type', product_type,
-                                'chargeType', charge_type,
-                                'unit', accounting.recreate_product_price_unit(category, product_type),
-                                'chart', jsonb_build_object(
-                                    'points', array_agg(
-                                        jsonb_build_object(
-                                            'name', name,
-                                            'value', data_point
-                                        )
-                                    )
-                                )
-                            ) chart
-                            from collapse_others
-                            group by product_type, charge_type, category
-                        ),
-                        combined_charts as (
-                            select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[]))
-                            from chart_aggregation
-                        )
-                    select * from combined_charts;
-                """,
-                "Accounting Retrieve Breakdown"
-            ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
-                "No usage data found. Are you sure you are allowed to view the data?",
-                HttpStatusCode.NotFound
-            )
-        }
-    }
-
-    suspend fun retrieveBreakdown(
-        actorAndProject: ActorAndProject,
-        request: VisualizationRetrieveBreakdownRequest
-    ): VisualizationRetrieveBreakdownResponse {
-        return db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    val now = Time.now()
-                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 30)))
-                    setParameter("end_date", request.filterEndDate ?: now)
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
-                    setParameter("filter_provider", request.filterProvider)
-                    setParameter("filter_category", request.filterProductCategory)
-                    setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull())
-                    setParameter("filter_workspace", request.filterWorkspace)
-                    setParameter("filter_workspace_project", request.filterWorkspaceProject)
-                },
-                """
-                     with
-                        -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
-                        -- from the associated product category. The category is crucial to create charts which make sense.
-                        -- This section is also the only section which fetches data from an actual table. If this code needs optimization
-                        -- then this is most likely the place to look.
-                        all_transactions as (
-                            select
-                                t.created_at, t.change, t.units, t.source_allocation_id, pc.category, pc.provider, pc.charge_type,
-                                pc.product_type, pc.unit_of_price, p.name as product
-                            from
-                                accounting.wallet_owner wo join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
-                                accounting.transactions t on t.affected_allocation_id = alloc.id join
-                                accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
-                                accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
-                                accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
-                                accounting.products p on t.product_id = p.id join
-                                accounting.product_categories pc on p.category = pc.id left join
-                                project.project_members pm on
-                                    pm.project_id = wo.project_id and
-                                    (pm.role = 'ADMIN' or pm.role = 'PI')
-                            where
-                                t.type = 'charge' and
-                                t.created_at >= to_timestamp(:start_date / 1000.0) and
-                                t.created_at <= to_timestamp(:end_date / 1000.0) and
-                                (
-                                    (wo.project_id = :project::text and pm.username = :username) or
-                                    (:project::text is null and wo.username = :username)
-                                ) and
-                                (
-                                    :filter_type::accounting.product_type is null or
-                                    pc.product_type = :filter_type::accounting.product_type
-                                ) and
-                                (
-                                    :filter_provider::text is null or
-                                    pc.provider = :filter_provider
-                                ) and
-                                (
-                                    :filter_category::text is null or
-                                    pc.category = :filter_category
-                                ) and
-                                (
-                                    :filter_allocation::bigint is null or
-                                    t.source_allocation_id = :filter_allocation::bigint
-                                ) and
-                                (
-                                    :filter_workspace::text is null or
-                                    (
-                                        (
-                                            :filter_workspace_project::boolean = true and
-                                            source_owner.project_id = :filter_workspace
-                                        ) or
-                                        (
-                                            :filter_workspace_project::boolean is distinct from true and
-                                            source_owner.username = :filter_workspace
-                                        )
-                                    )
-                                )
-                        ),
-                        -- NOTE(Dan): We pick the latest recording for every source_allocation_id
-                        units_per_bucket as (
-                            select
-                                category, provider, charge_type, product_type, unit_of_price, product,
-                                provider.last(units) as data_point
-                            from all_transactions transaction
-                            where charge_type = 'DIFFERENTIAL_QUOTA'
-                            group by category, provider, charge_type, product_type, unit_of_price, product, source_allocation_id
-                        ),
-                        -- NOTE(Dan): Similar to the usage, we need to sum these together
-                        units_per_bucket_sum as (
-                            select category, provider, charge_type, product_type, unit_of_price, product, sum(data_point) as data_point
-                            from units_per_bucket
-                            group by category, provider, charge_type, product_type, unit_of_price, product
-                        ),
-                        -- NOTE(Dan): As opposed to usage, we can take a more direct route to compute the concrete period usage
-                        change_per_bucket_sum as (
-                            select
-                                category, provider, charge_type, product_type, unit_of_price, product,
-                                sum(change) * 1 as data_point
-                            from all_transactions transaction
-                            where charge_type = 'ABSOLUTE'
-                            group by category, provider, charge_type, product_type, unit_of_price, product
-                        ),
-                        -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
-                        -- the charts.
-                        all_entries as (
-                            select * from change_per_bucket_sum
-                            union
-                            select * from units_per_bucket_sum
-                        ),
-                        -- NOTE(Dan): We rank every row of every chart to determine the top-3 of every chart
-                        ranked_categories as (
-                            select
-                                e.category, e.provider, e.charge_type, e.product_type, e.unit_of_price, e.product, e.data_point,
-                                row_number() over (partition by e.category, e.provider order by data_point desc) rank
-                            from all_entries e
-                        ),
-                        -- NOTE(Dan): We use this information to combine entries with rank > 3 into a single entry
-                        collapse_others as (
-                            select charge_type, product_type, unit_of_price, data_point,
-                                product || ' / ' || category || ' / ' || provider as name, category
-                            from ranked_categories
-                            where rank <= 3
-                            union
-                            select charge_type, product_type, unit_of_price, sum(data_point), 'Other' as name, category
-                            from ranked_categories
-                            where rank > 3
-                            group by charge_type, product_type, unit_of_price, category
-                        ),
-                        -- NOTE(Dan): Once we have this building the chart is straight-forward
-                        chart_aggregation as (
-                            select jsonb_build_object(
-                                'type', product_type,
-                                'chargeType', charge_type,
-                                'unit', accounting.recreate_product_price_unit(category, product_type),
-                                'chart', jsonb_build_object(
-                                    'points', array_agg(
-                                        jsonb_build_object(
-                                            'name', name,
-                                            'value', data_point
-                                        )
-                                    )
-                                )
-                            ) chart
-                            from collapse_others
-                            group by product_type, charge_type, unit_of_price, category
-                        ),
-                        combined_charts as (
-                            select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[]))
-                            from chart_aggregation
-                        )
-                    select * from combined_charts;
-                """,
-                "Accounting Retrieve Breakdown"
-            ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
-                "No usage data found. Are you sure you are allowed to view the data?",
-                HttpStatusCode.NotFound
-            )
-        }
     }
 
     suspend fun retrieveRecipient(
@@ -1108,7 +424,7 @@ class AccountingService(
                 """,
                 "Accounting Retrieve Recipient"
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
-            ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
+                ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
         }
     }
 
@@ -1117,14 +433,16 @@ class AccountingService(
         request: WalletsRetrieveProviderSummaryRequest,
     ): PageV2<ProviderWalletSummaryV2> {
         val providerId = actorAndProject.actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
-        return processor.retrieveProviderAllocations(AccountingRequest.RetrieveProviderAllocations(
-            actorAndProject.actor,
-            providerId,
-            request.filterOwnerId,
-            request.filterOwnerIsProject,
-            request.filterCategory,
-            request.normalize(),
-        )).page
+        return processor.retrieveProviderAllocations(
+            AccountingRequest.RetrieveProviderAllocations(
+                actorAndProject.actor,
+                providerId,
+                request.filterOwnerId,
+                request.filterOwnerIsProject,
+                request.filterCategory,
+                request.normalize(),
+            )
+        ).page
     }
 
     suspend fun retrieveChartsV2(
@@ -1152,7 +470,8 @@ class AccountingService(
         var emptyBreakdownChart: BreakdownByProject? = null
         fun createEmptyBreakdownChart(): BreakdownByProject {
             if (emptyBreakdownChart != null) return emptyBreakdownChart!!
-            emptyBreakdownChart = BreakdownByProject(BinaryTypeList.Companion.create(BreakdownByProjectPoint, allocator, 0))
+            emptyBreakdownChart =
+                BreakdownByProject(BinaryTypeList.Companion.create(BreakdownByProjectPoint, allocator, 0))
             return emptyBreakdownChart!!
         }
 
@@ -1167,11 +486,13 @@ class AccountingService(
                     val usageOverTime = usageOverTimeCharts[key] ?: createEmptyUsageChart()
                     val breakdownByProject = breakdownByProjectCharts[key] ?: createEmptyBreakdownChart()
 
-                    charts.add(ChartsForCategory(
-                        categoryIdx,
-                        usageOverTime,
-                        breakdownByProject
-                    ))
+                    charts.add(
+                        ChartsForCategory(
+                            categoryIdx,
+                            usageOverTime,
+                            breakdownByProject
+                        )
+                    )
                 }
             }
 
@@ -1209,15 +530,17 @@ class AccountingService(
             categories.add(c.toBinary(allocator))
 
             for (alloc in wallet.allocations) {
-                allocations.add(WalletAllocationB(
-                    id = alloc.id.toLong(),
-                    usage = alloc.treeUsage ?: 0L,
-                    localUsage = alloc.localUsage,
-                    quota = alloc.quota,
-                    startDate = alloc.startDate,
-                    endDate = alloc.endDate,
-                    categoryIndex = walletIndex
-                ))
+                allocations.add(
+                    WalletAllocationB(
+                        id = alloc.id.toLong(),
+                        usage = alloc.treeUsage ?: 0L,
+                        localUsage = alloc.localUsage,
+                        quota = alloc.quota,
+                        startDate = alloc.startDate,
+                        endDate = alloc.endDate,
+                        categoryIndex = walletIndex
+                    )
+                )
             }
         }
 
@@ -1409,11 +732,13 @@ class AccountingService(
                             currentCategory = categoryId
                         }
 
-                        dataPoints.add(BreakdownByProjectPoint(
-                            title = workspaceTitle,
-                            projectId = projectId,
-                            usage = usage,
-                        ))
+                        dataPoints.add(
+                            BreakdownByProjectPoint(
+                                title = workspaceTitle,
+                                projectId = projectId,
+                                usage = usage,
+                            )
+                        )
                     }
                     flushChart()
                 }
@@ -1433,6 +758,7 @@ class AccountingService(
         val provider: String,
         val usage: Long,
     )
+
     suspend fun generateTestData(
         objects: List<TestDataObject>,
         spreadOverDays: Int = 3650,
@@ -1451,7 +777,7 @@ class AccountingService(
 
         var before = 0
         for (obj in objects) {
-            with (obj) {
+            with(obj) {
                 val allTimestamps = HashSet<Long>()
 
                 for (cluster in LongArray(clusterCount) { Random.nextLong(stepCount - 10) }) {

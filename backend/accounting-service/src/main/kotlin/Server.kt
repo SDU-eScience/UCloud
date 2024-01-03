@@ -38,6 +38,17 @@ class Server(
         val idCardService = IdCardService(db, micro.backgroundScope, client)
         val distributedLocks = DistributedLockFactory(micro)
 
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
+        val providerProviders =
+            dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
+        val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
+            providerProviders, client, fetchSupport = { emptyList() })
+        val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
+        val providerIntegrationService = ProviderIntegrationService(
+            db, providerService, client,
+            micro.developmentModeEnabled
+        )
+
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingProcessor = AccountingProcessor(
             db,
@@ -48,10 +59,10 @@ class Server(
             addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
             disableMasterElection = micro.commandLineArguments.contains("--single-instance")
         )
-        val accountingService = AccountingService(micro.developmentModeEnabled, db, simpleProviders, accountingProcessor)
+        val accountingService = AccountingService(micro.developmentModeEnabled, db, simpleProviders,
+            accountingProcessor)
 
         val productService = ProductService(db, accountingProcessor)
-        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
 
         val depositNotifications = DepositNotificationService(db)
         accountingProcessor.start()
@@ -71,15 +82,6 @@ class Server(
         val grants = GrantsV2Service(db, idCardService, accountingService, simpleProviders, projectNotifications,
             client, config.defaultTemplate)
 
-        val providerProviders =
-            dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
-        val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
-            providerProviders, client, fetchSupport = { emptyList() })
-        val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
-        val providerIntegrationService = ProviderIntegrationService(
-            db, providerService, client,
-            micro.developmentModeEnabled
-        )
 
         val scriptManager = micro.feature(ScriptManager)
         scriptManager.register(
