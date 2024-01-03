@@ -4,6 +4,7 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -12,11 +13,11 @@ import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import java.util.*
 
 class GiftService(
     private val db: DBContext,
     private val accountingService: AccountingService,
+    private val projectService: ProjectService
 ) {
     suspend fun claimGift(
         actorAndProject: ActorAndProject,
@@ -167,6 +168,25 @@ class GiftService(
         actorAndProject: ActorAndProject,
         gift: GiftWithCriteria
     ): Long {
+        val project = actorAndProject.project
+            ?: throw RPCException("Only projects are allowed to create gifts", HttpStatusCode.BadRequest)
+
+        if (gift.resourcesOwnedBy != project) {
+            throw RPCException("Cannot create gift on behalf of other project", HttpStatusCode.BadRequest)
+        }
+
+        val projectRole = projectService.findRoleOfMember(db, project, actorAndProject.actor.safeUsername())
+            ?: throw RPCException("Unknown Project", HttpStatusCode.BadRequest)
+
+        if (!projectRole.isAdmin()) {
+            throw RPCException("Only admins and PIs are allowed to create gifts", HttpStatusCode.Forbidden)
+        }
+
+        
+
+
+
+
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
                 {
