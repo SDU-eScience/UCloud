@@ -26,6 +26,8 @@ export function MainContainer({
     const mainXpad = pad;
 
     useEffect(() => {
+        // HACK(Dan): Under no circumstances should the body be scrolling if we are mounting this element.
+        document.body.style.overflow = "hidden";
         setHeaderSize(mainYpad);
     }, [mainYpad]);
 

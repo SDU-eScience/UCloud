@@ -49,6 +49,11 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
         this.pluginConfig = config as ConfigSchema.Plugins.FileCollections.Posix
+
+        val poorlyConfiguredProduct = productAllocationResolved.find { it.category.allowSubAllocations }
+        if (poorlyConfiguredProduct != null) {
+            error("Products in '${poorlyConfiguredProduct.category.name}' must have allowSubAllocations: false")
+        }
     }
 
     override suspend fun PluginContext.initialize() {

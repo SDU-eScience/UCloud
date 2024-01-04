@@ -35,6 +35,8 @@ chown -R $uid:$uid /home/ucloud
 chown -R $uid:$uid /etc/ucloud
 chown -R $uid:$uid /var/run/ucloud
 chown -R $uid:$uid /var/log/ucloud
+mkdir -p /home/ucloudalt
+chown -R 11042:11042 /home/ucloudalt
 mkdir -p /var/log/ucloud/structured
 chmod 777 /var/log/ucloud
 chmod 777 /var/log/ucloud/structured

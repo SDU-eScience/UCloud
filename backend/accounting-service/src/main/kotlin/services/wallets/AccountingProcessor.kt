@@ -710,7 +710,8 @@ class AccountingProcessor(
                         au.floating_point, 
                         au.display_frequency_suffix,
                         pc.accounting_frequency,
-                        pc.free_to_use
+                        pc.free_to_use,
+                        pc.allow_sub_allocations
                     from
                         accounting.wallets w join
                         accounting.wallet_owner wo
@@ -741,6 +742,7 @@ class AccountingProcessor(
                         )
                         val frequency = row.getString(11)!!
                         val freeToUse = row.getBoolean(12)!!
+                        val allowSubAllocations = row.getBoolean(13)!!
                         val emptySlots = id - wallets.size
                         require(emptySlots >= 0) { "Duplicate wallet detected (or bad logic): $id ${wallets.size} $emptySlots" }
                         repeat(emptySlots) { wallets.add(null) }
@@ -757,7 +759,8 @@ class AccountingProcessor(
                                     accountingUnit,
                                     AccountingFrequency.fromValue(frequency),
                                     emptyList(),
-                                    freeToUse = freeToUse
+                                    freeToUse = freeToUse,
+                                    allowSubAllocations = allowSubAllocations,
                                 ),
                                 allocationPolicy,
                             )
@@ -1295,6 +1298,8 @@ class AccountingProcessor(
             ?: createWallet(request.owner, request.productCategory)
             ?: return AccountingResponse.Error("Unknown product category.", 400)
 
+        val productAllowsSubAllocations = existingWallet.paysFor.allowSubAllocations
+
         val created = createAllocation(
             existingWallet.id,
             request.amount,
@@ -1302,8 +1307,12 @@ class AccountingProcessor(
             request.startDate,
             request.endDate,
             null,
+
+            // NOTE(Dan): Root allocations can always sub-allocate. We have an assumption that provider projects are
+            // always created with canConsumeResources = false, but this is technically not enforced.
+            // TODO(Dan): We should enforce that provider projects have canConsumResources = false.
             canAllocate = true,
-            allowSubAllocationsToAllocate = true
+            allowSubAllocationsToAllocate = productAllowsSubAllocations,
         ).id
 
         dirtyDeposits.add(DirtyDeposit(created, Time.now(), request.amount))

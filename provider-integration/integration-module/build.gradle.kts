@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "2023.3.7-accounting2-1"
+version = "2024.1.0-dev.1"
 
 repositories {
     mavenCentral()
@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2023.4.0-dev40"
+        val version = "2024.1.0-dev-8"
 
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
@@ -52,9 +52,9 @@ dependencies {
         ktor("websockets")
     }
 
-    implementation("ch.qos.logback:logback-classic:1.4.5")
+    implementation("ch.qos.logback:logback-classic:1.4.12")
     implementation("com.auth0:java-jwt:4.3.0")
-    implementation("com.charleskorn.kaml:kaml:0.47.0")
+    implementation("com.charleskorn.kaml:kaml:0.53.0")
 
     implementation(project(":embedded-postgres"))
     implementation("org.postgresql:postgresql:42.5.1")
