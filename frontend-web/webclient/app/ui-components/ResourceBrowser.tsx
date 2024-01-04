@@ -531,26 +531,23 @@ export class ResourceBrowser<T> {
         );
 
         if (this.features.locationBar) {
+            this.header.setAttribute("has-location-bar", "true");
             const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location")!;
-            location.style.flexGrow = "1";
-            location.style.border = "1px solid var(--black)";
-            location.style.marginLeft = "-6px";
-            location.style.borderRadius = "5px";
-            location.style.width = "100%";
-            location.style.cursor = "pointer";
-            location.style.height = "35px";
-            const ul = location.querySelector<HTMLUListElement>(":scope > ul")!;
-            ul.style.marginTop = "-2px";
-            ul.style.marginBottom = "-2px";
-
-            location.addEventListener("click", () => {
-                if (this.features.locationBar) { // We can toggle this value in the child component
-                    if (!this.isLocationBarVisible()) {
-                        this.toggleLocationBar();
-                        location.style.border = "";
-                    }
+            location.addEventListener("click", ev => {
+                ev.stopPropagation();
+                if (!this.isLocationBarVisible()) {
+                    this.setLocationBarVisibility(true);
                 }
             });
+            const listener = () => {
+                if (!location.isConnected) {
+                    document.body.removeEventListener("click", listener);
+                }
+                if (this.features.locationBar) { // We can toggle this value in the child component
+                    this.setLocationBarVisibility(false);
+                }
+            };
+            document.body.addEventListener("click", listener);
         }
 
         if (this.features.search) {
@@ -2635,8 +2632,6 @@ export class ResourceBrowser<T> {
                     const newPath = readValue();
                     if (newPath) {
                         this.setLocationBarVisibility(false);
-                        const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location");
-                        if (location) location.style.border = "1px solid var(--black)";
                         this.open(newPath);
                     }
                     break;
@@ -2644,8 +2639,6 @@ export class ResourceBrowser<T> {
 
                 case "Escape": {
                     this.setLocationBarVisibility(false);
-                    const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location");
-                    if (location) location.style.border = "1px solid var(--black)";
                     setValue(this.currentPath);
                     break;
                 }
@@ -2841,7 +2834,6 @@ export class ResourceBrowser<T> {
         if (ResourceBrowser.styleInjected) return;
         ResourceBrowser.styleInjected = true;
         const browserClass = makeClassName("browser");
-        //language=css
         unstyledInjectStyle("ignored", () => `
             body[data-cursor=not-allowed] * {
                 cursor: not-allowed !important;
@@ -2971,6 +2963,35 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 font-size: 120%;
                 height: 35px;
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location:hover {
+                border: 1px solid var(--gray);
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location {
+                flex-grow: 1;
+                border: 1px solid var(--midGray);
+                margin-left: -6px;
+                border-radius: 5px;
+                width: 100%;
+                cursor: pointer;
+                height: 35px;
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location input {
+                outline: none;
+                border: 0;
+                height: 32px;
+                margin-top: 1px;
+                margin-left: 5px;
+                background: transparent;
+                color: var(--text);
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location ul {
+                margin-top: -2px;
+                margin-bottom: -2px;
             }
             
             ${browserClass.dot} header > div > div > ul {
