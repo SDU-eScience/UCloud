@@ -29,7 +29,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {Product, usageExplainer} from "@/Accounting";
+import {ProductV2, explainUnit} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -89,7 +89,7 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number, product: Product | null}>({
+    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number, product: ProductV2 | null}>({
         cost: 0, balance: 0, product: null
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
@@ -372,8 +372,8 @@ export const Create: React.FunctionComponent = () => {
                                 right={
                                     <div>
                                         {estimatedCost.product ? <div className={EstimatesContainerClass}>
-                                            Estimated cost: {usageExplainer(estimatedCost.cost, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
-                                            Current balance: {usageExplainer(estimatedCost.balance, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
+                                            Estimated cost: {explainUnit(estimatedCost.product.category).priceFactor} {explainUnit(estimatedCost.product.category).name}<br />
+                                            Current balance: {explainUnit(estimatedCost.product.category).invPriceFactor} {explainUnit(estimatedCost.product.category).productType}<br />
                                         </div> : <></>}
 
                                         <Flex>

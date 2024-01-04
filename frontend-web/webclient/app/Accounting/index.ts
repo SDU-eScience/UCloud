@@ -778,7 +778,7 @@ interface ProductV2Storage extends ProductV2Base {
     type: "storage";
 }
 
-interface ProductV2Compute extends ProductV2Base {
+export interface ProductV2Compute extends ProductV2Base {
     type: "compute";
     cpu?: number | null;
     memoryInGigs?: number | null;

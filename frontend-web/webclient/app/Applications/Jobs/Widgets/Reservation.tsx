@@ -8,8 +8,8 @@ import {
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
-import {costOfDuration, Product, productCategoryEquals, ProductCompute} from "@/Accounting";
-import {emptyPageV2} from "@/DefaultObjects";
+import {costOfDuration, explainUnit, productCategoryEquals, ProductV2, ProductV2Compute} from "@/Accounting";
+import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
@@ -22,11 +22,11 @@ const reservationReplicas = "reservation-replicas";
 export const ReservationParameter: React.FunctionComponent<{
     application: UCloud.compute.Application;
     errors: ReservationErrors;
-    onEstimatedCostChange?: (cost: number, balance: number, product: Product | null) => void;
+    onEstimatedCostChange?: (cost: number, balance: number, product: ProductV2 | null) => void;
 }> = ({application, errors, onEstimatedCostChange}) => {
     // Estimated cost
-    const [selectedMachine, setSelectedMachine] = useState<ProductCompute | null>(null);
-    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductCompute>>({noop: true}, emptyPageV2);
+    const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
+    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
     // TODO
     const balance = !selectedMachine ?
         0 :
@@ -40,6 +40,7 @@ export const ReservationParameter: React.FunctionComponent<{
     const projectId = useProjectId();
     useEffect(() => {
         fetchWallet(UCloud.accounting.products.browse({
+            filterUsable: true,
             filterProductType: "COMPUTE",
             itemsPerPage: 250,
             includeBalance: true,
@@ -74,8 +75,9 @@ export const ReservationParameter: React.FunctionComponent<{
         if (options != null && options.timeAllocation != null) {
             let estimatedCost = 0;
             if (selectedMachine != null) {
-                estimatedCost = costOfDuration(options.timeAllocation.hours * 60 + options.timeAllocation.minutes,
-                    options.replicas, selectedMachine);
+                //estimatedCost = costOfDuration(options.timeAllocation.hours * 60 + options.timeAllocation.minutes,
+                //    options.replicas, selectedMachine);
+                estimatedCost = explainUnit(selectedMachine.category).invPriceFactor;
             }
             if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance, selectedMachine);
         }

@@ -10,7 +10,7 @@ import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useNavigate} from "react-router";
-import {Product, ProductCompute} from "@/Accounting";
+import {ProductV2, ProductV2Compute} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";
 import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
@@ -31,14 +31,14 @@ function findApplicationsByExtension(
 }
 
 export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<UCloud.compute.Application>}): React.ReactNode {
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<ProductV2 | null>(null);
     const browserRef = React.useRef<ResourceBrowser<UCloud.compute.Application> | null>(null);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const navigate = useNavigate();
     const supportRef = React.useRef<ResolvedSupport[]>([]);
-    const productsRef = React.useRef<ProductCompute[]>([]);
-    const walletsRef = React.useRef<UCloud.PageV2<ProductCompute>>(emptyPageV2)
+    const productsRef = React.useRef<ProductV2Compute[]>([]);
+    const walletsRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2)
     const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>();
 
     const activeProject = React.useRef(Client.projectId);
@@ -231,12 +231,13 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
         supportRef.current = [];
 
         callAPI(UCloud.accounting.products.browse({
+            filterUsable: true,
             filterProductType: "COMPUTE",
             itemsPerPage: 250,
             includeBalance: true,
             includeMaxBalance: true
         })).then((products) => {
-            walletsRef.current = products as unknown as UCloud.PageV2<ProductCompute>;
+            walletsRef.current = products as unknown as UCloud.PageV2<ProductV2Compute>;
 
             const providers = new Set(products.items.map(it => it.category.provider));
 

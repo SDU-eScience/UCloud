@@ -149,6 +149,7 @@ data class ProductCategoryRetrieveRequest(
     override val filterProvider: String,
 
     override val filterProductType: ProductType? = null,
+    override val filterUsable: Boolean? = null,
 
     override val includeBalance: Boolean? = null,
     override val includeMaxBalance: Boolean? = null,

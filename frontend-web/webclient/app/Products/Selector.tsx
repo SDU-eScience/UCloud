@@ -1,4 +1,4 @@
-import {priceExplainer, Product, productCategoryEquals, ProductCompute, ProductType} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2} from "@/Accounting";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {NoResultsCardBody} from "@/Dashboard/Dashboard";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
@@ -20,14 +20,14 @@ const NEED_CONNECT = "need-connection";
 const dropdownPortal = "product-selector-portal";
 
 export const ProductSelector: React.FunctionComponent<{
-    products: Product[];
+    products: ProductV2[];
     support?: ResolvedSupport[];
-    selected: Product | null;
+    selected: ProductV2 | null;
     type?: ProductType;
     slim?: boolean;
     loading?: boolean;
     omitBorder?: boolean;
-    onSelect: (product: Product) => void;
+    onSelect: (product: ProductV2) => void;
 }> = ({selected, ...props}) => {
     let portal = document.getElementById(dropdownPortal);
     if (!portal) {
@@ -38,7 +38,7 @@ export const ProductSelector: React.FunctionComponent<{
     }
 
     useUState(connectionState);
-    const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([]);
+    const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
     let productName = "product";
     switch (type) {
@@ -70,8 +70,8 @@ export const ProductSelector: React.FunctionComponent<{
         }));
     }, [props.products, props.onSelect]);
 
-    const categorizedProducts: (Product | string)[] = React.useMemo(() => {
-        const result: (Product | string)[] = [];
+    const categorizedProducts: (ProductV2 | string)[] = React.useMemo(() => {
+        const result: (ProductV2 | string)[] = [];
 
         const sortedProducts = filteredProducts.sort((a, b) => {
             const pCompare = a.category.provider.localeCompare(b.category.provider);
@@ -245,7 +245,7 @@ export const ProductSelector: React.FunctionComponent<{
                         <tbody>
                             <tr>
                                 <ProductStats product={selected} />
-                                <td>{priceExplainer(selected)}</td>
+                                <td>{explainUnit(selected.category).priceFactor}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -323,7 +323,7 @@ export const ProductSelector: React.FunctionComponent<{
                                             if (arrowKeyIndex.current === -1) return;
                                             const p = items.item(arrowKeyIndex.current).getAttribute("data-active") as string;
                                             try {
-                                                props.onSelect(categorizedProducts[parseInt(p, 10)] as Product);
+                                                props.onSelect(categorizedProducts[parseInt(p, 10)] as ProductV2);
                                                 onClose();
                                             } catch (e) {
                                                 console.warn("An error ocurred parsing index for array", e);
@@ -407,7 +407,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                 </TableCell>
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
-                                                <TableCell>{priceExplainer(p)}</TableCell>
+                                                <TableCell>{p.price} {explainUnit(p.category).priceFactor} {explainUnit(p.category).name}</TableCell>
                                             </TableRow>
                                         }
                                     })}
@@ -422,7 +422,7 @@ export const ProductSelector: React.FunctionComponent<{
     </>;
 };
 
-const ProductName: React.FunctionComponent<{product: Product}> = ({product}) => {
+const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
     return <>{product.name}</>;
 }
 
@@ -498,16 +498,17 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
     }
 `);
 
-const ProductStats: React.FunctionComponent<{product: Product}> = ({product}) => {
-    switch (product.productType) {
-        case "COMPUTE":
+const ProductStats: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
+    const computeProduct = product as ProductV2Compute;
+    switch (computeProduct.type) {
+        case "compute":
             return <>
-                <TableCell>{product.cpu} <HardwareModel model={product.cpuModel} /></TableCell>
-                <TableCell>{product.memoryInGigs} <HardwareModel model={product.memoryModel} /></TableCell>
+                <TableCell>{computeProduct.cpu} <HardwareModel model={computeProduct.cpuModel} /></TableCell>
+                <TableCell>{computeProduct.memoryInGigs} <HardwareModel model={computeProduct.memoryModel} /></TableCell>
                 <TableCell>
-                    {product.gpu === 0 || product.gpu == null ?
+                    {computeProduct.gpu === 0 || computeProduct.gpu == null ?
                         <span style={{color: "#a9b0b9"}}>None</span> :
-                        <>{product.gpu} <HardwareModel model={product.gpuModel} /></>
+                        <>{computeProduct.gpu} <HardwareModel model={computeProduct.gpuModel} /></>
                     }
                 </TableCell>
             </>
@@ -602,7 +603,7 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
 `);
 
 export const ProductSelectorPlayground: React.FunctionComponent = () => {
-    const [selected, setSelected] = React.useState<Product | null>(null);
+    const [selected, setSelected] = React.useState<ProductV2 | null>(null);
     return <>
         <Box height={50} width={400}>
             <ProductSelector
@@ -622,8 +623,8 @@ export const ProductSelectorPlayground: React.FunctionComponent = () => {
     </>
 };
 
-const products: ProductCompute[] = (() => {
-    let res: ProductCompute[] = [];
+const products: ProductV2Compute[] = (() => {
+    let res: ProductV2Compute[] = [];
     res = res.concat(generateProducts({
         baseName: "hm1",
         maxCpuCount: 128,
@@ -737,8 +738,8 @@ function generateProducts(
         payByCoreHours?: boolean,
         pricePerUnit?: number
     }
-): ProductCompute[] {
-    const result: ProductCompute[] = [];
+): ProductV2Compute[] {
+    const result: ProductV2Compute[] = [];
     let iteration = 1;
     let coreCount = 1;
     if (opts.maxGpuCount != null) {
@@ -746,26 +747,31 @@ function generateProducts(
     }
     while (coreCount <= opts.maxCpuCount) {
         const name = opts.maxGpuCount == null ? `${opts.baseName}-${coreCount}` : `${opts.baseName}-${iteration}`;
+        const category: ProductCategoryV2 = {
+            name: opts.baseName,
+            provider: opts.providerName,
+            productType: "COMPUTE",
+            accountingUnit: {
+                name: "",
+                namePlural: "",
+                floatingPoint: false,
+                displayFrequencySuffix: false
+            },
+            accountingFrequency: "ONCE",
+            freeToUse: false
+        };
+
         result.push({
             name,
-            category: {
-                name: opts.baseName,
-                provider: opts.providerName
-            },
-            chargeType: "ABSOLUTE",
-            pricePerUnit: opts.pricePerUnit ?? 1,
+            category: category,
             productType: "COMPUTE",
-            unitOfPrice: (opts.payByCoreHours ?? true) ? "UNITS_PER_MINUTE" : "CREDITS_PER_MINUTE",
             type: "compute",
             description: "foobar",
             hiddenInGrantApplications: false,
-            freeToUse: false,
-            balance: 1000,
             cpu: coreCount,
             gpu: opts.maxGpuCount == null ? 0 : iteration,
             memoryInGigs: coreCount * opts.memPerCore,
-            version: 1,
-            priority: 1,
+            price: explainUnit(category).priceFactor,
             cpuModel: opts.cpuModel,
             memoryModel: opts.memoryModel,
             gpuModel: opts.gpuModel,

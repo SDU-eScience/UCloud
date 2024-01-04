@@ -2,6 +2,7 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
+import {ProductV2} from "@/Accounting";
 import {ApplicationGroup} from "@/Applications/api";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 
@@ -6101,6 +6102,7 @@ export interface ProductsBrowseRequest {
     filterProvider?: string,
     filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     filterCategory?: string,
+    filterUsable?: boolean,
     includeBalance?: boolean,
     includeMaxBalance?: boolean,
 }
@@ -6215,11 +6217,11 @@ export function retrieveAllFromProvider(
 }
 export function browse(
     request: ProductsBrowseRequest
-): APICallParameters<ProductsBrowseRequest, PageV2<Product>> {
+): APICallParameters<ProductsBrowseRequest, PageV2<ProductV2>> {
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/productsv2" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterProductType: request.filterProductType, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
+        path: buildQueryString("/api/productsv2" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterProductType: request.filterProductType, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
         parameters: request,
         reloadId: Math.random(),
     };

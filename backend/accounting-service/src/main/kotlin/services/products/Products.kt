@@ -272,6 +272,7 @@ class ProductService(
             actorAndProject,
             ProductsV2BrowseRequest(
                 filterName = request.filterName,
+                filterUsable = request.filterUsable,
                 filterCategory = request.filterCategory,
                 filterProvider = request.filterProvider,
                 filterProductType = request.filterProductType,
@@ -375,7 +376,7 @@ class ProductService(
                     val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(Actor.System, owner))
                         .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
                         ?.allocations
-                        ?.filter { Time.now() > it.startDate && Time.now() < it.endDate }
+                        ?.filter { request.filterUsable == true && Time.now() > it.startDate && Time.now() < it.endDate }
                         ?.ifEmpty { return@mapNotNull null }
                         ?.sumOf { allocation -> allocation.quota }
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")

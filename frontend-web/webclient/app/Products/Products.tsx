@@ -1,8 +1,9 @@
 import {
+    explainUnit,
     priceExplainer,
-    Product,
     ProductType,
-    ProductCompute,
+    ProductV2,
+    ProductV2Compute,
     UCLOUD_PROVIDER
 } from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -71,20 +72,21 @@ const DetailedView = injectStyle("detailed-view", k => `
 `);
 
 export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string; color?: string}> = ({productType, provider, color = "var(--primary)"}) => {
-    const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
-        {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
+    const [machines, refetch] = useCloudAPI<UCloud.PageV2<ProductV2>>(
+        {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
         emptyPage
     );
 
-    const [activeMachine, setActiveMachine] = React.useState<Product | undefined>(undefined);
+    const [activeMachine, setActiveMachine] = React.useState<ProductV2 | undefined>(undefined);
     const isCompute = "COMPUTE" === productType;
 
     const machineCount = machines.data.items.length;
     const [hasPrice, setHasPrice] = React.useState(false);
     React.useEffect(() => {
-        setHasPrice(price => price || machines.data.items.some(it =>
+        // TODO(Brian)
+        /*setHasPrice(price => price || machines.data.items.some(it =>
             ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE"].includes(it.unitOfPrice)
-        ));
+        ));*/
     }, [machines.data]);
     if (machineCount === 0) return null;
 
@@ -108,7 +110,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                         page={machines.data}
                         loading={machines.loading}
                         onLoadMore={() => refetch({...UCloud.accounting.products.browse({
-                            filterProductType: productType, filterProvider: provider, next: machines.data.next
+                            filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
                         }), unauthenticated: !Client.isLoggedIn})}
                         pageRenderer={items => (
                             <div className={MachineTypesWrapper}>
@@ -129,16 +131,17 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                                                 // Note(Jonas): Why in the world would this ever happen?
                                                 if (machine === null) return null;
                                             }
-                                            const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE", "UNITS_PER_MINUTE"].includes(machine.unitOfPrice);
-                                            const computeProduct = productType === "COMPUTE" ? machine as ProductCompute : null;
-                                            return <TableRow key={machine.name + machine.unitOfPrice} onClick={() => setActiveMachine(machine)}>
+                                            // TODO(Brian)
+                                            //const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE", "UNITS_PER_MINUTE"].includes(machine.unitOfPrice);
+                                            const computeProduct = productType === "COMPUTE" ? machine as ProductV2Compute : null;
+                                            return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
                                                 <TableCell>{machine.name}</TableCell>
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                                {!hasPrice ? null : <TableCell>{showPrice ? priceExplainer(machine) : ""}</TableCell>}
+                                                {!hasPrice ? null : <TableCell>{explainUnit(machine.category).priceFactor}</TableCell>}
                                                 <td className={TruncatedTableCell}>{machine.description}</td>
                                             </TableRow>;
                                         })}
@@ -194,7 +197,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                             <TableRow>
                                 <th>Price</th>
                                 <TableCell>
-                                    {priceExplainer(activeMachine)}
+                                    {explainUnit(activeMachine.category).priceFactor} {explainUnit(activeMachine.category).name}
                                 </TableCell>
                             </TableRow>
                             <TableRow>
