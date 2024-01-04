@@ -54,7 +54,7 @@ function Modification(): React.JSX.Element {
                 </Button>
             </Box>
             {loading ? <Spinner /> : (
-                <Box maxWidth="720px" overflowY="scroll" maxHeight={"calc(100% - 197px - 32px)"} mx="auto" mb="16px">
+                <Box maxWidth="720px" overflowY="auto" maxHeight={"calc(100% - 197px - 32px)"} mx="auto" mb="16px">
                     <AvatarSelect
                         defaultValue={avatar.top}
                         update={top => setAvatar({...avatar, top})}

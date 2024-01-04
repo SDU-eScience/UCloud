@@ -403,7 +403,7 @@ const Uploader: React.FunctionComponent = () => {
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
                     <Text color="white">{uploadingText}</Text>
                 </div>
-                <div className="uploads" style={{overflowY: "scroll", width: "100%", maxHeight: "calc(80vh - 200px)"}}>
+                <div className="uploads" style={{overflowY: "auto", width: "100%", maxHeight: "calc(80vh - 200px)"}}>
                     {uploads.map((upload, idx) => (
                         <UploadRow
                             key={`${upload.row.rootEntry.name}-${idx}`}

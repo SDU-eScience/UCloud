@@ -53,7 +53,7 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                     <ListRow
                         onContextMenu={onContextMenu}
                         key={it.provider}
-                        icon={<ProviderLogo providerId={it.providerTitle} size={32} />}
+                        icon={<ProviderLogo providerId={it.providerTitle} size={20} />}
                         left={<Text fontSize={"16px"}><ProviderTitle providerId={it.providerTitle} /></Text>}
                         right={!canConnect ?
                             <>

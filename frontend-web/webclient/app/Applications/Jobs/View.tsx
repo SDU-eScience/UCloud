@@ -1135,7 +1135,7 @@ const RunningContent: React.FunctionComponent<{
 
             {ingresses.length === 0 ? null :
                 <TitledCard isLoading={false} title="Public links" icon="globeEuropeSolid">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
                         {ingresses.map(ingress => <PublicLinkEntry id={ingress.id} />)}
                     </Text>
                 </TitledCard>
@@ -1143,7 +1143,7 @@ const RunningContent: React.FunctionComponent<{
 
             {!supportsPeers || peers.length === 0 ? null :
                 <TitledCard isLoading={false} title="Connected jobs">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -1176,7 +1176,7 @@ const RunningContent: React.FunctionComponent<{
 
             {!sshAccess ? null :
                 <TitledCard isLoading={false} title="SSH access" icon="key">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
                         {sshAccess.success ? null : <Warning>
                             SSH was not configured successfully!
                         </Warning>}

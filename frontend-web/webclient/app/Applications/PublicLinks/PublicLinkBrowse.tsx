@@ -52,7 +52,12 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<PublicLink>(mount, "Public Links", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumnTitles([{name: "Domain"}, {name: "In use with"}, {name: ""}, {name: ""}]);
+                browser.setColumnTitles([
+                    {name: "Domain"},
+                    {name: ""},
+                    {name: ""},
+                    {name: "In use with"},
+                ]);
 
                 let startCreation: () => void = doNothing;
                 const ingressBeingCreated = "collectionBeingCreated$$___$$";
@@ -265,7 +270,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
 
                     if (link.status.boundTo.length === 1) {
                         const [boundTo] = link.status.boundTo;
-                        row.stat1.innerText = boundTo;
+                        row.stat3.innerText = boundTo;
                     }
 
                     if (opts?.selection) {

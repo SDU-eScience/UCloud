@@ -7,11 +7,11 @@ import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import * as Grants from ".";
 import {stateToIconAndColor} from ".";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {addTrailingSlash, createHTMLElements} from "@/UtilityFunctions";
+import {addTrailingSlash, createHTMLElements, timestampUnixMs} from "@/UtilityFunctions";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
@@ -132,6 +132,17 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         width: 32,
                     }).then(setStatus);
                     row.stat2.innerText = dateToString(key.currentRevision.createdAt);
+
+                    const simpleView = !!(opts?.embedded && !opts.isModal);
+                    if (!simpleView) {
+                        row.stat2.innerText = dateToString(key.currentRevision.createdAt ?? timestampUnixMs());
+                    } else {
+                        row.stat2.innerText = dateToDateStringOrTime(key.currentRevision.createdAt ?? timestampUnixMs());
+                    }
+
+                    status.style.margin = "0";
+                    status.style.width = "24px";
+                    status.style.height = "24px";
                     row.stat3.append(status);
                 });
 

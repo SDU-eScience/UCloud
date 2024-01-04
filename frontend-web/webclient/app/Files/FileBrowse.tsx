@@ -56,7 +56,7 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
-import {cheatsheetOperation} from "@/Playground/Playground";
+import {controlsOperation} from "@/Playground/Playground";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 // Cached network data
@@ -88,7 +88,7 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     search: true,
     sorting: true,
-    filters: true,
+    filters: false,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
@@ -575,7 +575,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
-                    if (inDevEnvironment()) ops.unshift(cheatsheetOperation(features, "files"));
+                    ops.unshift(controlsOperation(features, [{ name: "Rename", shortcut: { keys: "F2" }}]));
                     return ops;
                 });
 

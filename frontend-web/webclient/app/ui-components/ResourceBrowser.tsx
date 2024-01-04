@@ -30,6 +30,7 @@ import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {FlexClass} from "./Flex";
+import {features} from "monaco-editor/esm/metadata";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
@@ -448,7 +449,7 @@ export class ResourceBrowser<T> {
                     <img class="refresh-icon">
                 </div>
                 <div class="operations"></div>
-                <div style="display: flex; overflow-x: scroll;">
+                <div style="display: flex; overflow-x: auto;">
                     <div class="filters"></div>
                     <div class="session-filters"></div>
                     <div class="right-sort-filters"></div>
@@ -458,9 +459,11 @@ export class ResourceBrowser<T> {
             <div class="row rows-title">
                 <div class="favorite" style="width: 20px;"></div>
                 <div class="title"></div>
-                <div class="stat1"></div>
-                <div class="stat2"></div>
-                <div class="stat3"></div>
+                <div class="stat-wrapper">
+                    <div class="stat1"></div>
+                    <div class="stat2"></div>
+                    <div class="stat3"></div>
+                </div>
             </div>
             <div style="overflow-y: auto; position: relative;">
                 <div class="scrolling">
@@ -502,14 +505,14 @@ export class ResourceBrowser<T> {
 
         if (this.opts.embedded) {
             this.root.style.height = "auto";
-            this.emptyPageElement.container.style.marginTop = "80px";
+            this.emptyPageElement.container.style.marginTop = "0px";
             if (this.features.showHeaderInEmbedded !== true) this.header.style.display = "none";
         }
 
         if (this.isModal) {
             this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
             this.root.style.overflowY = "hidden";
-            this.scrolling.style.overflowY = "scroll";
+            this.scrolling.style.overflowY = "auto";
         }
 
         const unmountInterval = window.setInterval(() => {
@@ -603,6 +606,10 @@ export class ResourceBrowser<T> {
             titleRow["style"].display = "flex";
             titleRow["style"].height = titleRow["style"].maxHeight = "28px";
             titleRow["style"].paddingBottom = "6px";
+            if (!this.features.showStar) {
+                const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
+                star.remove();
+            }
             this.setColumnTitles(this.opts.columnTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
@@ -721,9 +728,11 @@ export class ResourceBrowser<T> {
             const row = div(`
                 <div class="favorite"></div>
                 <div class="title"></div>
-                <div class="stat1"></div>
-                <div class="stat2"></div>
-                <div class="stat3"></div>
+                <div class="stat-wrapper">
+                    <div class="stat1"></div>
+                    <div class="stat2"></div>
+                    <div class="stat3"></div>
+                </div>
             `);
             row.classList.add("row");
             const myIndex = i;
@@ -849,11 +858,6 @@ export class ResourceBrowser<T> {
             to consume any of these resources for testing purposes, then please allocate resources to a small
             separate test project. This can be done from the "Resource Allocations" menu in the project
             management interface.
-        </p>
-
-        <p>
-            <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
-            old resources to a new project, then please contact support.
         </p>
         `;
     }
@@ -1524,6 +1528,7 @@ export class ResourceBrowser<T> {
 
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
+                if (child["hackNotInTheContextMenu"]) continue;
                 if (!isOperation(child)) {
                     counter += renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
                     shortcutNumber = counter + 1;
@@ -3024,8 +3029,6 @@ export class ResourceBrowser<T> {
                 background: var(--tableRowHighlight);
             }
 
-        
-
             ${browserClass.dot} .row .title {
                 display: flex;
                 align-items: center;
@@ -3041,6 +3044,13 @@ export class ResourceBrowser<T> {
                     width: ${ResourceBrowser.rowTitleSizePercentage}%;
                 }
             }
+            
+            ${browserClass.dot} .stat-wrapper {
+                flex-grow: 1;
+                flex-shrink: 1;
+                display: flex;
+                gap: 8px;
+            }
 
             ${browserClass.dot} .row .stat2,
             ${browserClass.dot} .row .stat3  {
@@ -3055,7 +3065,7 @@ export class ResourceBrowser<T> {
                     display: flex;
                     justify-content: end;
                     text-align: end;
-                    width: 13%;
+                    width: 33%;
                 }
             }
 
@@ -3121,7 +3131,7 @@ export class ResourceBrowser<T> {
                 width: 400px;
                 display: none;
                 max-height: calc(40px * 8.5);
-                overflow-y: scroll;
+                overflow-y: auto;
                 transition: opacity 120ms, transform 60ms;
             }
 
