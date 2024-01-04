@@ -42,7 +42,7 @@ export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: 
     const fuse = new Fuse(
         array,
         {
-            threshold: 0.2,
+            threshold: 0.6,
             location: 0,
             distance: 100,
             minMatchCharLength: 1,

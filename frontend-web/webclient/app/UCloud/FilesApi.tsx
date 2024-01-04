@@ -442,7 +442,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
-                shortcut: ShortcutKey.N
+                shortcut: ShortcutKey.F
             },
             {
                 text: "Open with...",

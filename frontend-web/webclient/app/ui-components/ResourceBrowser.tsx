@@ -390,7 +390,10 @@ export class ResourceBrowser<T> {
     public static isAnyModalOpen = false;
     private isModal: boolean;
     private allowEventListenerAction(): boolean {
-        return !ResourceBrowser.isAnyModalOpen || this.isModal;
+        if (ResourceBrowser.isAnyModalOpen) return false;
+        if (this.isModal) return false;
+        if (this.opts.embedded) return false;
+        return true;
     }
 
 
@@ -535,7 +538,7 @@ export class ResourceBrowser<T> {
             const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location")!;
             location.addEventListener("click", ev => {
                 ev.stopPropagation();
-                if (!this.isLocationBarVisible()) {
+                if (!this.isLocationBarVisible() && this.features.locationBar) {
                     this.setLocationBarVisibility(true);
                 }
             });
@@ -2630,7 +2633,7 @@ export class ResourceBrowser<T> {
 
                 case "Enter": {
                     const newPath = readValue();
-                    if (newPath) {
+                    if (newPath && newPath !== "/search") {
                         this.setLocationBarVisibility(false);
                         this.open(newPath);
                     }
