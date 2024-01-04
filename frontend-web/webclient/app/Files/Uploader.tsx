@@ -19,7 +19,6 @@ import {BulkResponse} from "@/UCloud";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
-import {useSelector} from "react-redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -28,7 +27,7 @@ import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
-import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 
@@ -390,7 +389,12 @@ const Uploader: React.FunctionComponent = () => {
             onRequestClose={closeModal}
             className={CardClass}
         >
-            <div style={{maxHeight: "calc(80vh - 40px - 2px)", height: "calc(80vh - 40px - 2px)", overflowY: "hidden"}} className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
+            <div style={{
+                maxHeight: "calc(80vh - 20px)",
+                height: "calc(80vh - 20px)",
+                minHeight: defaultModalStyle.content?.minHeight,
+                overflowY: "hidden"
+            }} className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <div className="title" style={{height: "55px"}}>
                     <Flex onClick={closeModal}>
                         <Box ml="auto" />
@@ -402,7 +406,7 @@ const Uploader: React.FunctionComponent = () => {
                 <div className="uploads" style={{overflowY: "scroll", width: "100%", maxHeight: "calc(80vh - 200px)"}}>
                     {uploads.map((upload, idx) => (
                         <UploadRow
-                            key={`${"upload.row.rootEntry.name"}-${idx}`}
+                            key={`${upload.row.rootEntry.name}-${idx}`}
                             upload={upload}
                             callbacks={callbacks}
                         />

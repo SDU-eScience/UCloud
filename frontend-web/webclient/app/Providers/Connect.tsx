@@ -115,7 +115,7 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
         return <TitledCard
             icon={"heroCloud"}
             title={<Link to={"/providers/connect"}><Heading.h3>Providers</Heading.h3></Link>}
-            subtitle={<Link to="/providers/overview">Show all</Link>}
+            subtitle={<Link to="/providers/overview">View details</Link>}
         >
             {body}
         </TitledCard>;
