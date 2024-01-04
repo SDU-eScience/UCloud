@@ -139,6 +139,8 @@ const TallApplicationCard = injectStyle("tall-application-card", k => `
     ${k} > div.image {
         width: 75px;
         height: 75px;
+        min-width: 75px;
+        min-height: 75px;
         margin-bottom: 10px;
     }
     
@@ -224,6 +226,7 @@ export const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} > .${TitleAndDescriptionClass} > div:first-child {
         text-overflow: ellipsis;
         overflow: hidden;
+        white-space: nowrap;
     }
 
     ${k} > div.image {
@@ -267,7 +270,7 @@ export interface AppCardProps extends React.PropsWithChildren<ApplicationCardPro
 }
 
 const typeLineCount = {
-    [AppCardStyle.TALL]: 5,
+    [AppCardStyle.TALL]: 4,
     [AppCardStyle.EXTRA_TALL]: 4,
     [AppCardStyle.WIDE]: 4,
     [AppCardStyle.EXTRA_WIDE]: 9
@@ -278,7 +281,7 @@ export function AppCard(props: AppCardProps): JSX.Element {
         let lineCount = typeLineCount[props.cardStyle];
         let card: React.JSX.Element;
         const titleAndDescription =
-            <div className={TitleAndDescriptionClass}>
+            <div title={props.title} className={TitleAndDescriptionClass}>
                 <div><b>{props.title}</b></div>
                 <MultiLineTruncate lines={lineCount}>
                     <Markdown
