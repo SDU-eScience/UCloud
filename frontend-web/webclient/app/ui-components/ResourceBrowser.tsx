@@ -30,6 +30,7 @@ import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {FlexClass} from "./Flex";
+import {features} from "monaco-editor/esm/metadata";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
@@ -458,9 +459,11 @@ export class ResourceBrowser<T> {
             <div class="row rows-title">
                 <div class="favorite" style="width: 20px;"></div>
                 <div class="title"></div>
-                <div class="stat1"></div>
-                <div class="stat2"></div>
-                <div class="stat3"></div>
+                <div class="stat-wrapper">
+                    <div class="stat1"></div>
+                    <div class="stat2"></div>
+                    <div class="stat3"></div>
+                </div>
             </div>
             <div style="overflow-y: auto; position: relative;">
                 <div class="scrolling">
@@ -603,6 +606,10 @@ export class ResourceBrowser<T> {
             titleRow["style"].display = "flex";
             titleRow["style"].height = titleRow["style"].maxHeight = "28px";
             titleRow["style"].paddingBottom = "6px";
+            if (!this.features.showStar) {
+                const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
+                star.remove();
+            }
             this.setColumnTitles(this.opts.columnTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
@@ -721,9 +728,11 @@ export class ResourceBrowser<T> {
             const row = div(`
                 <div class="favorite"></div>
                 <div class="title"></div>
-                <div class="stat1"></div>
-                <div class="stat2"></div>
-                <div class="stat3"></div>
+                <div class="stat-wrapper">
+                    <div class="stat1"></div>
+                    <div class="stat2"></div>
+                    <div class="stat3"></div>
+                </div>
             `);
             row.classList.add("row");
             const myIndex = i;
@@ -3020,8 +3029,6 @@ export class ResourceBrowser<T> {
                 background: var(--tableRowHighlight);
             }
 
-        
-
             ${browserClass.dot} .row .title {
                 display: flex;
                 align-items: center;
@@ -3037,6 +3044,13 @@ export class ResourceBrowser<T> {
                     width: ${ResourceBrowser.rowTitleSizePercentage}%;
                 }
             }
+            
+            ${browserClass.dot} .stat-wrapper {
+                flex-grow: 1;
+                flex-shrink: 1;
+                display: flex;
+                gap: 8px;
+            }
 
             ${browserClass.dot} .row .stat2,
             ${browserClass.dot} .row .stat3  {
@@ -3051,7 +3065,7 @@ export class ResourceBrowser<T> {
                     display: flex;
                     justify-content: end;
                     text-align: end;
-                    width: 13%;
+                    width: 33%;
                 }
             }
 

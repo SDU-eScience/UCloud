@@ -68,7 +68,12 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
-                browser.setColumnTitles([{name: "Drive name", sortById: "title"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: ""}])
+                browser.setColumnTitles([
+                    {name: "Drive name", sortById: "title"},
+                    {name: ""},
+                    {name: "Created by", sortById: "createdBy"},
+                    {name: "Created at", sortById: "createdAt"},
+                ]);
 
                 // Load products and initialize dependencies
                 // =========================================================================================================
@@ -299,12 +304,13 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims, row)
                     row.title.append(title);
                     if (drive.owner.createdBy !== "_ucloud") {
-                        row.stat1.innerText = drive.owner.createdBy;
+                        row.stat2.innerText = drive.owner.createdBy;
                     }
-                    row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                     if (drive.id.startsWith(isCreatingPrefix)) {
-                        row.stat1.append(browser.createSpinner(30));
+                        row.stat2.append(browser.createSpinner(30));
                     }
+
+                    row.stat3.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                 });
 
 

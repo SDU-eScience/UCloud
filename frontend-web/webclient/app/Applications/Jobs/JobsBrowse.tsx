@@ -178,9 +178,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             color: statusIconColor,
                             color2: statusIconColor
                         }).then(setStatus);
+                        status.style.margin = "0";
+                        status.style.width = "24px";
+                        status.style.height = "24px";
                         row.stat3.append(status);
                     }
-
                 });
 
                 browser.setEmptyIcon("heroServer");
@@ -263,13 +265,13 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 }
 
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
-    IN_QUEUE: ["calendar", "iconColor"],
-    RUNNING: ["chrono", "iconColor"],
-    SUCCESS: ["check", "green"],
-    FAILURE: ["close", "red"],
-    EXPIRED: ["chrono", "orange"],
-    SUSPENDED: ["pauseSolid", "iconColor"],
-    CANCELING: ["close", "red"]
+    IN_QUEUE: ["heroCalendar", "iconColor"],
+    RUNNING: ["heroClock", "iconColor"],
+    SUCCESS: ["heroCheck", "green"],
+    FAILURE: ["heroXMark", "red"],
+    EXPIRED: ["heroClock", "orange"],
+    SUSPENDED: ["heroPause", "iconColor"],
+    CANCELING: ["heroXMark", "red"]
 };
 
 export default JobBrowse;
