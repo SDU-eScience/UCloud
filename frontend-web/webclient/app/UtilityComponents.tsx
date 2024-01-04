@@ -59,7 +59,7 @@ export function addStandardDialog({
                 >
                     {confirmText}
                 </Button>
-                <Button onClick={dialogStore.failure} color={cancelButtonColor}>{cancelText}</Button>
+                <Button onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor}>{cancelText}</Button>
             </Flex>
         </div>
     ), onCancel, addToFront);
@@ -134,7 +134,7 @@ export async function addStandardInputDialog({
                 />
             </div>
             <Flex mt="20px">
-                <Button type={"button"} onClick={dialogStore.failure} color={cancelButtonColor} mr="5px">{cancelText}</Button>
+                <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor} mr="5px">{cancelText}</Button>
                 <Button type={"submit"} color={confirmButtonColor}>
                     {confirmText}
                 </Button>

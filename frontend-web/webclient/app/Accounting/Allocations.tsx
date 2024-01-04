@@ -3,7 +3,7 @@ import * as React from "react";
 import {
     Accordion,
     Box,
-    Button, DataList,
+    Button, Checkbox, DataList, Divider,
     Flex,
     Icon,
     Input, Label,
@@ -25,7 +25,7 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {Avatar} from "@/AvataaarLib";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
-import {extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {useNavigate} from "react-router";
@@ -41,6 +41,9 @@ import * as Gifts from "./Gifts";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {dialogStore} from "@/Dialog/DialogStore";
+import * as Heading from "@/ui-components/Heading";
+import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -846,21 +849,52 @@ const Allocations: React.FunctionComponent = () => {
     }, [state.yourAllocations]);
 
     const onNewSubProject = useCallback(async () => {
-        try {
-            const title = (await addStandardInputDialog({
-                title: "What should we call your new sub-project?",
-                confirmText: "Create sub-project"
-            })).result;
+        dialogStore.addDialog(
+            <form onSubmit={ev => {
+                ev.preventDefault();
 
-            navigate(AppRoutes.grants.grantGiverInitiatedEditor({
-                title,
-                start: timestampUnixMs(),
-                end: currentPeriodEnd,
-                piUsernameHint: Client.username ?? "?",
-            }));
-        } catch (ignored) {
-        }
-    }, [currentPeriodEnd]);
+                const name = document.querySelector<HTMLInputElement>("#subproject-name");
+                if (!name) return;
+                if (!name.value) {
+                    snackbarStore.addFailure("Missing name", false);
+                    return;
+                }
+
+                const subAllocatorCheckbox = document.querySelector<HTMLInputElement>("#subproject-suballocator");
+                const subAllocator = subAllocatorCheckbox?.checked === true;
+
+                dialogStore.success();
+                navigate(AppRoutes.grants.grantGiverInitiatedEditor({
+                    title: name.value,
+                    start: timestampUnixMs(),
+                    end: currentPeriodEnd,
+                    piUsernameHint: Client.username ?? "?",
+                    subAllocator,
+                }));
+            }}>
+                <div>
+                    <Heading.h3>New sub-project</Heading.h3>
+                    <Divider/>
+                    <Label>
+                        Project title
+                        <Input id={"subproject-name"} autoFocus/>
+                    </Label>
+                    {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
+                        <Label>
+                            <Checkbox id={"subproject-suballocator"}/>
+                            This sub-project is a sub-allocator
+                        </Label> : null
+                    }
+                </div>
+                <Flex mt="20px">
+                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"red"}
+                            mr="5px">Cancel</Button>
+                    <Button type={"submit"} color={"green"}>Create sub-project</Button>
+                </Flex>
+            </form>,
+            doNothing
+        );
+    }, [currentPeriodEnd, state.remoteData.managedProviders.length]);
 
     const onEdit = useCallback((elem: HTMLElement) => {
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
@@ -965,7 +999,7 @@ const Allocations: React.FunctionComponent = () => {
                 const year = parseInt(value);
                 dispatchEvent({
                     type: "UpdateRootAllocations",
-                    data: { year }
+                    data: {year}
                 });
                 break;
             }
@@ -1183,7 +1217,7 @@ const Allocations: React.FunctionComponent = () => {
         if (isNaN(id)) return;
 
         try {
-            await callAPI(Gifts.remove({ giftId: id }));
+            await callAPI(Gifts.remove({giftId: id}));
         } catch (e) {
             snackbarStore.addFailure("Failed to delete gift: " + extractErrorMessage(e), false);
             return;
@@ -1250,27 +1284,28 @@ const Allocations: React.FunctionComponent = () => {
 
                         <h4>Step 2: Select allocation size</h4>
                         <Tree>
-                            {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) => <React.Fragment
-                                key={providerId}>
-                                {page.map(cat => <TreeNode
-                                    key={cat.name + cat.provider}
-                                    left={<Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
-                                        <code>{cat.name} / {cat.provider}</code>
-                                    </Flex>}
-                                    right={<Flex gap={"4px"}>
-                                        <Input
-                                            height={20}
-                                            placeholder={"0"}
-                                            name={`root-resource-${cat.name}/${cat.provider}`}
-                                            value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
-                                            onInput={onRootAllocationInput}
-                                            onKeyDown={stopPropagation}
-                                        />
-                                        <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
-                                    </Flex>}
-                                />)}
-                            </React.Fragment>)}
+                            {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) =>
+                                <React.Fragment
+                                    key={providerId}>
+                                    {page.map(cat => <TreeNode
+                                        key={cat.name + cat.provider}
+                                        left={<Flex gap={"4px"}>
+                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                            <code>{cat.name} / {cat.provider}</code>
+                                        </Flex>}
+                                        right={<Flex gap={"4px"}>
+                                            <Input
+                                                height={20}
+                                                placeholder={"0"}
+                                                name={`root-resource-${cat.name}/${cat.provider}`}
+                                                value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                                onInput={onRootAllocationInput}
+                                                onKeyDown={stopPropagation}
+                                            />
+                                            <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                        </Flex>}
+                                    />)}
+                                </React.Fragment>)}
                         </Tree>
 
                         <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
@@ -1314,7 +1349,8 @@ const Allocations: React.FunctionComponent = () => {
                                                             case "anyone":
                                                                 return <li key={c.type}>All UCloud users</li>
                                                             case "wayf":
-                                                                return <li key={c.org + "wayf"}>Users from <i>{c.org}</i></li>
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
                                                             case "email":
                                                                 return <li key={c.domain + "email"}>@{c.domain}</li>
                                                         }
@@ -1586,6 +1622,7 @@ const Allocations: React.FunctionComponent = () => {
                                         projectId: recipient.owner.reference.projectId,
                                         start: timestampUnixMs(),
                                         end: recipient.allocations.reduce((prev, it) => Math.min(prev, it.end), NO_EXPIRATION_FALLBACK),
+                                        subAllocator: false,
                                     })}
                                 >
                                     <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}

@@ -194,7 +194,6 @@ class AccountingService(
                     deposit.quota,
                     deposit.start,
                     deposit.end,
-                    isProject = deposit.owner is WalletOwner.Project,
                     grantedIn = deposit.grantedIn
                 )
             ).createdAllocation
