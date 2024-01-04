@@ -289,7 +289,7 @@ class EventController(
     }
 
     private suspend fun synchronizeProjects(projects: List<Project>): List<Boolean> {
-        val projectPlugin = controllerContext.configuration.plugins.projects ?: return emptyList()
+        val projectPlugin = controllerContext.configuration.plugins.projects ?: return projects.map { true }
 
         val projectsToIgnore = HashSet<String>()
         val acknowledgedEvents = ArrayList<Boolean>()

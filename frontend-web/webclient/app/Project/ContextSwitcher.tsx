@@ -184,7 +184,7 @@ export function ContextSwitcher({managed}: {
                             }
                         }} onKeyUp={e => setTitleFilter("value" in e.target ? e.target.value as string : "")} type="text" />
                         <Relative right="28px" top="5px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
-                    <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
+                    <div ref={divRef} style={{overflowY: "auto", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
                         {activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
                             <div
                                 key={"My Workspace"}

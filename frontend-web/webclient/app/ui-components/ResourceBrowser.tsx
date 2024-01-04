@@ -448,7 +448,7 @@ export class ResourceBrowser<T> {
                     <img class="refresh-icon">
                 </div>
                 <div class="operations"></div>
-                <div style="display: flex; overflow-x: scroll;">
+                <div style="display: flex; overflow-x: auto;">
                     <div class="filters"></div>
                     <div class="session-filters"></div>
                     <div class="right-sort-filters"></div>
@@ -502,14 +502,14 @@ export class ResourceBrowser<T> {
 
         if (this.opts.embedded) {
             this.root.style.height = "auto";
-            this.emptyPageElement.container.style.marginTop = "80px";
+            this.emptyPageElement.container.style.marginTop = "0px";
             if (this.features.showHeaderInEmbedded !== true) this.header.style.display = "none";
         }
 
         if (this.isModal) {
             this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
             this.root.style.overflowY = "hidden";
-            this.scrolling.style.overflowY = "scroll";
+            this.scrolling.style.overflowY = "auto";
         }
 
         const unmountInterval = window.setInterval(() => {
@@ -849,11 +849,6 @@ export class ResourceBrowser<T> {
             to consume any of these resources for testing purposes, then please allocate resources to a small
             separate test project. This can be done from the "Resource Allocations" menu in the project
             management interface.
-        </p>
-
-        <p>
-            <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
-            old resources to a new project, then please contact support.
         </p>
         `;
     }
@@ -1524,6 +1519,7 @@ export class ResourceBrowser<T> {
 
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
+                if (child["hackNotInTheContextMenu"]) continue;
                 if (!isOperation(child)) {
                     counter += renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
                     shortcutNumber = counter + 1;
@@ -3121,7 +3117,7 @@ export class ResourceBrowser<T> {
                 width: 400px;
                 display: none;
                 max-height: calc(40px * 8.5);
-                overflow-y: scroll;
+                overflow-y: auto;
                 transition: opacity 120ms, transform 60ms;
             }
 

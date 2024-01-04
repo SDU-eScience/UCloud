@@ -16,7 +16,7 @@ const PopInClass = injectStyle("popin-class", k => `
     ${k} {
         transition: width 0.2s;
         height: 100vh;
-        overflow-y: scroll;
+        overflow-y: auto;
         position: absolute;
         top: 0;
         z-index: 120;

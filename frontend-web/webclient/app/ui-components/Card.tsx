@@ -34,7 +34,7 @@ export const CardClass = injectStyle("card", k => `
         border: 1px solid var(--midGray);
         background-color: var(--lightGray);
         color: var(--text);
-        padding: 10px 15px;
+        padding: 20px;
     }
 
     html.dark ${k} {

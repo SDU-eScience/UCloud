@@ -18,7 +18,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 
 class ParameterExportService {
     suspend fun exportParameters(parameters: JobSpecification): ExportedParameters {
-        val resolvedProduct = productCache.referenceToProduct(parameters.product) as? Product.Compute?
+        val resolvedProduct = productCache.referenceToProduct(parameters.product)?.toV1() as? Product.Compute?
             ?: throw RPCException("Unknown machine reservation", HttpStatusCode.BadRequest)
 
         return ExportedParameters(

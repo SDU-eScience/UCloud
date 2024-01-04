@@ -68,7 +68,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         flex-direction: column;
         transform: translate(-300px, 0);
         box-sizing: border-box;
-        overflow-y: scroll;
+        overflow-y: auto;
         overflow-x: hidden;
         height: 100vh;
         

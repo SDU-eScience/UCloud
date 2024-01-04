@@ -1348,7 +1348,7 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
         }
 
         ${k} > .left > .${ListClass} {
-            overflow-y: scroll;
+            overflow-y: auto;
             max-height: calc(100% - 48px - 48px - 10px);
         }
         

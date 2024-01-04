@@ -129,7 +129,7 @@ function NewsManagement(): JSX.Element | null {
                                 hidden={showPreview}
                             />
                             {showPreview ?
-                                <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="scroll">
+                                <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="auto">
                                     <Markdown unwrapDisallowed>
                                         {bodyRef.current?.value ?? ""}
                                     </Markdown>
