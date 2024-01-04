@@ -46,6 +46,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
+import {LogOutput} from "@/UtilityComponents";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -1597,18 +1598,5 @@ const ProviderUpdates: React.FunctionComponent<{
         <LogOutput updates={updates} maxHeight="200px" />
     </Box>
 };
-
-function LogOutput({updates, maxHeight}: {updates: string[], maxHeight: string}): React.JSX.Element {
-    return <pre
-        style={{
-            maxHeight,
-            overflowY: "scroll",
-            marginTop: 0,
-            marginBottom: 0,
-            fontSize: "16px",
-            lineHeight: "21px",
-            fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace"
-        }}>{updates}</pre>
-}
 
 export default View;

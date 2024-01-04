@@ -79,30 +79,30 @@ function Dashboard(): JSX.Element {
     const main = (<Box mx="auto" maxWidth={"1200px"}>
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <Box>
-            <DashboardNews news={news}/>
-            <Invites key={reloadIteration}/>
+            <DashboardNews news={news} />
+            <Invites key={reloadIteration} />
 
             <Box my={24}>
                 <TitledCard>
-                    <Flex><Icon mx="auto" my="-32px" name="deiCLogo" size="128px"/></Flex>
+                    <Flex><Icon mx="auto" my="-32px" name="deiCLogo" size="128px" /></Flex>
                 </TitledCard>
             </Box>
 
             <div className={GridClass}>
-                <DashboardFavoriteFiles/>
-                <DashboardRuns key={reloadIteration}/>
+                <DashboardFavoriteFiles />
+                <DashboardRuns key={reloadIteration} />
             </div>
             <DashboardResources wallets={wallets} />
             <div className={GridClass}>
-                <Connect embedded/>
-                <DashboardGrantApplications key={reloadIteration}/>
+                <Connect embedded />
+                <DashboardGrantApplications key={reloadIteration} />
             </div>
         </Box>
     </Box>);
 
     return (
         <div className={GradientWithPolygons}>
-            <MainContainer main={main}/>
+            <MainContainer main={main} />
         </div>
     );
 }
@@ -144,11 +144,12 @@ function Invites(): React.ReactNode {
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
         </DashboardCard>
     </Flex>
+    
+    function display(val: boolean): {display: "none" | undefined} {
+        return {display: val ? undefined : "none"}
+    }
 }
 
-function display(val: boolean): {display: "none" | undefined} {
-    return {display: val ? undefined : "none"}
-}
 
 function DashboardFavoriteFiles(): JSX.Element {
     const [, invokeCommand] = useCloudCommand();
@@ -292,7 +293,7 @@ function DashboardResources({wallets}: {
         const filtered = w.allocations.filter(a => now >= a.startDate && now <= a.endDate);
         const quota = filtered.reduce((a, b) => a + b.quota, 0);
         const used = filtered.reduce((a, b) => a + (b.treeUsage ?? b.localUsage), 0);
-        return { used, quota, category: w.paysFor };
+        return {used, quota, category: w.paysFor};
     }).filter(it => !it.category.freeToUse && it.quota > 0);
 
     mapped.sort((a, b) => {
@@ -327,21 +328,21 @@ function DashboardResources({wallets}: {
                 <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                     <Table>
                         <tbody>
-                        {mapped.slice(0, 7).map((n, i) => (
-                            <TableRow key={i}>
-                                <TableCell fontSize={FONT_SIZE}>
-                                    <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                        <ProviderLogo providerId={n.category.provider} size={20} />
-                                        <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
-                                    </Flex>
-                                </TableCell>
-                                <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                    {Accounting.balanceToString(n.category, n.used, { precision: 0, removeUnitIfPossible: true })}
-                                    {" "}/{" "}
-                                    {Accounting.balanceToString(n.category, n.quota, { precision: 0, removeUnitIfPossible: false })}
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                            {mapped.slice(0, 7).map((n, i) => (
+                                <TableRow key={i}>
+                                    <TableCell fontSize={FONT_SIZE}>
+                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                            <ProviderLogo providerId={n.category.provider} size={20} />
+                                            <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
+                                        </Flex>
+                                    </TableCell>
+                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                        {Accounting.balanceToString(n.category, n.used, {precision: 0, removeUnitIfPossible: true})}
+                                        {" "}/{" "}
+                                        {Accounting.balanceToString(n.category, n.quota, {precision: 0, removeUnitIfPossible: false})}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
                         </tbody>
                     </Table>
                     <Box flexGrow={1} />
