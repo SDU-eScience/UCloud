@@ -12,7 +12,6 @@ import {
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
@@ -24,13 +23,13 @@ import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useNavigate, useParams} from "react-router";
-import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {Truncate} from "@/ui-components";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -268,8 +267,7 @@ export function ResourceProperties<Res extends Resource>(
     if (props.embedded != true) {
         useTitle(props.api.title);
         useLoading(ownResource.loading);
-        useRefreshFunction(reload);
-        useResourceSearch(api);
+        useSetRefreshFunction(reload);
     }
 
     const renderer = api.renderer;

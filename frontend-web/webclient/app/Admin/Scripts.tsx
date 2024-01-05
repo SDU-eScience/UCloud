@@ -6,12 +6,12 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {PageV2} from "@/UCloud";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {format} from "date-fns";
 import {ResourceBrowseFeatures, ResourceBrowser, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {DATE_FORMAT} from "./NewsManagement";
 import {ButtonClass} from "@/ui-components/Button";
 import {createHTMLElements} from "@/UtilityFunctions";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const baseContext = "/api/scripts";
 
@@ -129,7 +129,7 @@ function Scripts(): React.ReactNode {
         }
     }, []);
 
-    useRefreshFunction(() => {
+    useSetRefreshFunction(() => {
         browserRef.current?.refresh();
     });
 

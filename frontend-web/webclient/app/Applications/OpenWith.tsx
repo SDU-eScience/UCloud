@@ -19,10 +19,10 @@ import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {logoDataUrls} from "./Jobs/JobsBrowse";
 import {AppLogo, hashF} from "./Card";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 function findApplicationsByExtension(
     request: {files: string[]} & PaginationRequestV2
@@ -163,7 +163,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     };
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

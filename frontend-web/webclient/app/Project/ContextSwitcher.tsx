@@ -18,6 +18,7 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {PageV2} from "@/UCloud";
 import AppRoutes from "@/Routes";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -75,7 +76,7 @@ export function ContextSwitcher({managed}: {
         setLocalProject: (project?: string) => void;
     }
 }): JSX.Element {
-    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
+    const refresh = useRefresh();
 
     const project = useProject();
     const projectId = useProjectId();
@@ -183,7 +184,7 @@ export function ContextSwitcher({managed}: {
                             }
                         }} onKeyUp={e => setTitleFilter("value" in e.target ? e.target.value as string : "")} type="text" />
                         <Relative right="28px" top="5px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
-                    <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
+                    <div ref={divRef} style={{overflowY: "auto", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
                         {activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
                             <div
                                 key={"My Workspace"}

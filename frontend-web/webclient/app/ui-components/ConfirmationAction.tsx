@@ -238,7 +238,8 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText?: string,
     icon?: IconName,
     align?: "left" | "center",
-    onAction?: () => void;
+    actionKey?: string;
+    onAction?: (actionKey?: string) => void;
     hoverColor?: ThemeColor;
     disabled?: boolean;
 }> = props => {
@@ -264,12 +265,12 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             button.classList.add("success");
             timeout.current = window.setTimeout(countUp, tickRate);
             setTimeout(() => {
-                if (props.onAction) props.onAction();
+                if (props.onAction) props.onAction(props.actionKey);
             }, actionDelay);
         } else {
             timeout.current = window.setTimeout(success, tickRate);
         }
-    }, [buttonRef.current, props.onAction]);
+    }, [buttonRef.current, props.onAction, props.actionKey]);
 
     const countUp = useCallback(() => {
         const button = buttonRef.current;

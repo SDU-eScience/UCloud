@@ -263,26 +263,8 @@ class AccountingController(
             ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
-        implement(AccountingV2.retrieveAllocationRecipient) {
-            ok(accounting.retrieveRecipient(actorAndProject, request))
-        }
-
         implementOrDispatch(AccountingV2.browseProviderAllocations) {
             ok(accounting.retrieveProviderAllocations(actorAndProject, request))
-        }
-
-        implement(Visualization.retrieveUsage) {
-            val charts = accounting.retrieveUsageV2(actorAndProject, request)
-
-            ok(charts)
-        }
-
-        implement(Visualization.retrieveBreakdown) {
-            ok(accounting.retrieveBreakdownV2(actorAndProject, request))
-        }
-
-        implement(Transactions.browse) {
-            ok(accounting.browseTransactions(actorAndProject, request))
         }
 
         implement(DepositNotifications.retrieve) {
@@ -297,7 +279,6 @@ class AccountingController(
         implement(VisualizationV2.retrieveCharts) {
             ok(accounting.retrieveChartsV2(ctx.responseAllocator, actorAndProject, request))
         }
-
 
         if (micro.developmentModeEnabled) {
             GlobalScope.launch {

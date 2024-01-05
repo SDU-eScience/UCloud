@@ -50,6 +50,7 @@ data class Category(
     val name: String,
     val type: ProductType,
     var cost: ProductCost,
+    val allowSubAllocations: Boolean,
     val products: List<IndividualProduct<*>> = ArrayList(),
 ) {
     lateinit var category: ProductCategory
@@ -58,7 +59,7 @@ data class Category(
         private set
 
     internal fun init() {
-        var c = cost ?: error("The category must have a cost at this point")
+        var c = cost
         if (c is ProductCost.Resource && c.unit == null && type == ProductType.COMPUTE) {
             cost = c.copy(unit = ComputeResourceType.Cpu.name)
             c = cost
@@ -78,7 +79,7 @@ data class Category(
                         }
                     },
                     floatingPoint = true,
-                    displaySuffix = true,
+                    displaySuffix = false,
                 )
                 is ProductCost.Resource -> accUnit(
                     c.selectPrettyUnitOrDefault(type),
@@ -89,7 +90,9 @@ data class Category(
                 ProductCost.Free -> AccountingFrequency.ONCE
                 is ProductCost.Money -> c.interval.toAccountingFrequency()
                 is ProductCost.Resource -> c.accountingInterval.toAccountingFrequency()
-            }
+            },
+            freeToUse = c == ProductCost.Free,
+            allowSubAllocations = allowSubAllocations,
         )
 
         coreProducts = products.map { p ->
@@ -345,11 +348,13 @@ private fun parseCategory(
 ): Category {
     val costNode = node.getChildNode<YamlMap>("cost") ?: parserError(node, "missing 'cost' in category")
     val cost = parseCost(costNode)
+    val allowSubAllocations = node.getChildNode<YamlScalar>("allowSubAllocations")?.asBoolean() ?: true
 
     val allProducts = ArrayList<IndividualProduct<*>>()
 
     for ((sectionName, section) in node.entries) {
         if (sectionName.content == "cost") continue
+        if (sectionName.content == "allowSubAllocations") continue
         val isTemplated = sectionName.content == "template"
 
         val sectionMap = assertNodeType<YamlMap>(section)
@@ -465,7 +470,7 @@ private fun parseCategory(
         allProducts.addAll(subsection.products)
     }
 
-    return Category(categoryName, type, cost, allProducts)
+    return Category(categoryName, type, cost, allowSubAllocations, allProducts)
 }
 
 private fun parseCost(node: YamlMap): ProductCost {

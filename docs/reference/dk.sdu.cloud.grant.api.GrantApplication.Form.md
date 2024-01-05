@@ -11,6 +11,7 @@
 sealed class Form {
     abstract val type: String /* "form" */
 
+    class GrantGiverInitiated : Form()
     class PlainText : Form()
 }
 ```

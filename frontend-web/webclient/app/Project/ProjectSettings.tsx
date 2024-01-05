@@ -9,7 +9,8 @@ import {
     Checkbox,
     TextArea,
     DataList,
-    Icon
+    Icon,
+    Card
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
@@ -33,9 +34,10 @@ import {HiddenInputField} from "@/ui-components/Input";
 import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import WAYF from "@/Grants/wayf-idps.json";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {projectCache, projectTitleFromCache} from "./ContextSwitcher";
+import {projectTitleFromCache} from "./ContextSwitcher";
+import WAYF from "@/Grants/wayf-idps.json";
+import {FlexClass} from "@/ui-components/Flex";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -44,15 +46,11 @@ const ActionContainer = injectStyle("action-container", k => `
         max-width: 1200px;
         margin-left: auto;
         margin-right: auto;
+        container-type: inline-size;
     }
 
-    ${k} > * {
+    ${k} > * {  
         margin-bottom: 16px;
-    }
-    
-    ${k} section {
-        border: 1px solid var(--gray);
-        padding: 8px;
     }
     
     ${k} label {
@@ -61,8 +59,24 @@ const ActionContainer = injectStyle("action-container", k => `
         margin-top: 16px;
     }
     
-    ${k} label > textarea {
-        max-width: 500px;
+    @container (min-width: 800px) {
+        ${k} form label {
+            width: 50%;
+        }
+
+        ${k} form > .${FlexClass} {
+            flex-direction: row;
+        }
+    }     
+
+    @container (max-width: 799px) {
+        ${k} form label {
+            width: 100%;
+        }
+
+        ${k} form > .${FlexClass} {
+            flex-direction: column;
+        }
     }
 `);
 
@@ -210,7 +224,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         }
         headerSize={64}
         main={<div className={ActionContainer}>
-            {!isAdminOrPI(status.myRole) ? (<section>
+            {!isAdminOrPI(status.myRole) ? (<Card>
                 <LeaveProject
                     onSuccess={() => navigate("/")}
                     projectTitle={project.specification.title}
@@ -218,8 +232,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     projectRole={status.myRole!}
                     showTitle
                 />
-            </section>) : <>
-                <section>
+            </Card>) : <>
+                <Card>
                     <Heading.h3>Project information</Heading.h3>
 
                     <ChangeProjectTitle
@@ -234,33 +248,37 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         setLoading={() => false}
                     />
 
-                </section>
+                </Card>
 
-                <section>
+                <Card>
                     <Heading.h3>Grant settings</Heading.h3>
 
                     <UpdateProjectLogo />
 
                     <form onSubmit={onSave}>
-                        <label>
-                            Project description <br />
-                            <TextArea width={"100%"} rows={5} inputRef={description} />
-                        </label>
+                        <Flex gap="32px">
+                            <label>
+                                Project description <br />
+                                <TextArea width="100%" rows={5} inputRef={description} />
+                            </label>
 
-                        <label>
-                            Template for personal projects <br />
-                            <TextArea width={"100%"} rows={5} inputRef={templatePersonal} />
-                        </label>
+                            <label>
+                                Template for personal projects <br />
+                                <TextArea width="100%" rows={5} inputRef={templatePersonal} />
+                            </label>
+                        </Flex>
 
-                        <label>
-                            Template for existing projects <br />
-                            <TextArea width={"100%"} rows={5} inputRef={templateExisting} />
-                        </label>
+                        <Flex gap="32px">
+                            <label>
+                                Template for existing projects <br />
+                                <TextArea rows={5} inputRef={templateExisting} />
+                            </label>
 
-                        <label>
-                            Template for new projects <br />
-                            <TextArea width={"100%"} rows={5} inputRef={templateNew} />
-                        </label>
+                            <label>
+                                Template for new projects <br />
+                                <TextArea rows={5} inputRef={templateNew} />
+                            </label>
+                        </Flex>
 
                         {settings.enabled && <>
                             <Flex flexDirection={"row"} gap={"32px"}>
@@ -292,9 +310,9 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             <Button type={"submit"} fullWidth>Save</Button>
                         </Flex>
                     </form>
-                </section>
+                </Card>
 
-                <section>
+                <Card>
                     <ArchiveSingleProject
                         isArchived={status.archived}
                         projectId={projectId}
@@ -302,16 +320,16 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         title={project.specification.title}
                         onSuccess={() => projectOps.reload()}
                     />
-                </section>
+                </Card>
 
-                <section>
+                <Card>
                     <LeaveProject
                         onSuccess={() => navigate("/")}
                         projectTitle={project.specification.title}
                         projectId={projectId}
                         projectRole={status.myRole!}
                     />
-                </section>
+                </Card>
             </>}
         </div>}
     />

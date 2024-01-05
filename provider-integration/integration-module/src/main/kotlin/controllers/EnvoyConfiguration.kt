@@ -98,7 +98,6 @@ class EnvoyConfigurationService(
                     add("--config-path")
                     add("$configDir/$configFile")
                 },
-                envs = listOf("ENVOY_VERSION=1.23.0"),
                 attachStdout = true,
                 attachStderr = true,
                 attachStdin = false,

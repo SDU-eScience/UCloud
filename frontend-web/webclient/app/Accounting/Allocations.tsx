@@ -3,20 +3,19 @@ import * as React from "react";
 import {
     Accordion,
     Box,
-    Button,
+    Button, Checkbox, DataList, Divider,
     Flex,
     Icon,
-    Input,
+    Input, Label,
     Link,
     MainContainer,
-    ProgressBarWithLabel,
-    Select
+    ProgressBarWithLabel, Select, TextArea,
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import { periodsOverlap, ProductType } from "@/Accounting";
+import {periodsOverlap, ProductType} from "@/Accounting";
 import {fuzzySearch, groupBy} from "@/Utilities/CollectionUtilities";
-import {ChangeEvent, useCallback, useEffect, useReducer, useRef} from "react";
+import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
@@ -24,10 +23,9 @@ import {fetchAll} from "@/Utilities/PageUtilities";
 import AppRoutes from "@/Routes";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {Avatar} from "@/AvataaarLib";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {useNavigate} from "react-router";
@@ -36,6 +34,18 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {Tree, TreeApi, TreeNode} from "@/ui-components/Tree";
+import ProvidersApi from "@/UCloud/ProvidersApi";
+import WAYF from "@/Grants/wayf-idps.json";
+import {MandatoryField} from "@/Applications/Jobs/Widgets";
+import * as Gifts from "./Gifts";
+import {removePrefixFrom} from "@/Utilities/TextUtilities";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {dialogStore} from "@/Dialog/DialogStore";
+import * as Heading from "@/ui-components/Heading";
+import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
+
+const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 // State
 // =====================================================================================================================
@@ -43,12 +53,9 @@ interface State {
     remoteData: {
         wallets: Accounting.WalletV2[];
         subAllocations: Accounting.SubAllocationV2[];
-    };
-
-    periodSelection: {
-        currentPeriodIdx: number;
-        availablePeriods: Period[];
-        periodSize: PeriodSize;
+        managedProviders: string[];
+        managedProducts: Record<string, Accounting.ProductCategoryV2[]>;
+        gifts: Gifts.GiftWithCriteria[];
     };
 
     yourAllocations: {
@@ -63,6 +70,9 @@ interface State {
                     grantedIn?: string;
                     usageAndQuota: UsageAndQuota;
                     note?: AllocationNote;
+
+                    start: number;
+                    end: number;
                 }[];
             }[];
         }
@@ -87,9 +97,26 @@ interface State {
                 category: Accounting.ProductCategoryV2;
                 note?: AllocationNote;
                 isEditing: boolean;
+
+                start: number;
+                end: number;
             }[];
         }[];
     };
+
+    gifts?: {
+        title: string;
+        description: string;
+        renewEvery: number;
+        domainAllow: string;
+        orgAllow: string;
+        resources: Record<string, number>;
+    }
+
+    rootAllocations?: {
+        year: number;
+        resources: Record<string, number>;
+    }
 
     editControlsDisabled: boolean;
 }
@@ -102,37 +129,30 @@ interface AllocationNote {
     text: string;
 }
 
-enum PeriodSize {
-    MONTHLY,
-    QUARTERLY,
-    HALF_YEARLY,
-    YEARLY
-}
-
 interface UsageAndQuota {
     usage: number;
     quota: number;
     unit: string;
 }
 
-interface Period {
-    start: number;
-    end: number;
-    title?: string;
-}
-
 // State reducer
 // =====================================================================================================================
 type UIAction =
     { type: "WalletsLoaded", wallets: Accounting.WalletV2[]; }
-    | { type: "PeriodUpdated", selectedIndex: number }
-    | { type: "PeriodSizeUpdated", selectedIndex: number }
     | { type: "SubAllocationsLoaded", subAllocations: Accounting.SubAllocationV2[] }
+    | { type: "ManagedProvidersLoaded", providerIds: string[] }
+    | { type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]> }
+    | { type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[] }
     | { type: "UpdateSearchQuery", newQuery: string }
     | { type: "SetEditing", recipientIdx: number, allocationIdx: number, isEditing: boolean }
     | { type: "UpdateAllocation", allocationIdx: number, recipientIdx: number, newQuota: number }
     | { type: "MergeSearchResults", subAllocations: Accounting.SubAllocationV2[] }
     | { type: "UpdateSearchInflight", delta: number }
+    | { type: "UpdateGift", data: Partial<State["gifts"]> }
+    | { type: "GiftCreated", gift: Gifts.GiftWithCriteria }
+    | { type: "GiftDeleted", id: number }
+    | { type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]> }
+    | { type: "ResetRootAllocation" }
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -161,18 +181,125 @@ function stateReducer(state: State, action: UIAction): State {
             return rebuildTree(newState);
         }
 
-        case "PeriodUpdated": {
-            return selectPeriod(state, action.selectedIndex);
+        case "ManagedProvidersLoaded": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    managedProviders: action.providerIds,
+                },
+                rootAllocations: {
+                    year: new Date().getUTCFullYear(),
+                    resources: {},
+                },
+            };
         }
 
-        case "PeriodSizeUpdated": {
-            return rebuildTree({
+        case "ManagedProductsLoaded": {
+            return {
                 ...state,
-                periodSelection: {
-                    ...state.periodSelection,
-                    periodSize: action.selectedIndex
+                remoteData: {
+                    ...state.remoteData,
+                    managedProducts: action.products,
                 }
+            };
+        }
+
+        case "GiftsLoaded": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    gifts: action.gifts
+                },
+                gifts: {
+                    title: "",
+                    description: "",
+                    renewEvery: 0,
+                    domainAllow: "",
+                    orgAllow: "",
+                    resources: {},
+                },
+            };
+        }
+
+        case "UpdateGift": {
+            const currentGifts = (state.gifts ?? {
+                title: "",
+                description: "",
+                renewEvery: 0,
+                domainAllow: "",
+                orgAllow: "",
+                resources: {}
             });
+
+            return {
+                ...state,
+                gifts: {
+                    ...currentGifts,
+                    ...action.data,
+                    resources: {
+                        ...currentGifts.resources,
+                        ...(action.data?.resources ?? {}),
+                    },
+                }
+            };
+        }
+
+        case "UpdateRootAllocations": {
+            const currentRoot = state.rootAllocations ?? {
+                year: new Date().getUTCFullYear(),
+                resources: {},
+            };
+            return {
+                ...state,
+                rootAllocations: {
+                    ...currentRoot,
+                    ...action.data,
+                    resources: {
+                        ...currentRoot.resources,
+                        ...(action.data?.resources ?? {}),
+                    },
+                }
+            };
+        }
+
+        case "ResetRootAllocation": {
+            return {
+                ...state,
+                rootAllocations: {
+                    year: new Date().getUTCFullYear(),
+                    resources: {},
+                }
+            };
+        }
+
+        case "GiftCreated": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    gifts: [...state.remoteData.gifts, action.gift]
+                },
+                gifts: {
+                    title: "",
+                    description: "",
+                    renewEvery: 0,
+                    domainAllow: "",
+                    orgAllow: "",
+                    resources: {}
+                }
+            };
+        }
+
+        case "GiftDeleted": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    gifts: state.remoteData.gifts.filter(it => it.id !== action.id)
+                }
+            };
         }
 
         case "UpdateSearchQuery": {
@@ -274,134 +401,12 @@ function stateReducer(state: State, action: UIAction): State {
         return null;
     }
 
-    function calculateIdealPeriods(size: PeriodSize, until: number): Period[] {
-        const result: Period[] = [];
-
-        const now = new Date();
-        now.setUTCHours(0, 0, 0, 0); // Always reset to start of day
-
-        switch (size) {
-            case PeriodSize.MONTHLY: {
-                now.setUTCDate(1); // Go to the start of this month before we change anything
-
-                while (now.getTime() < until && result.length < 120) {
-                    const title = `${now.getUTCFullYear()} ${monthNames[now.getUTCMonth()]}`;
-                    const start = now.getTime();
-                    now.setUTCMonth(now.getUTCMonth() + 1);
-                    const end = now.getTime() - 1;
-
-                    result.push({start, end, title});
-                }
-                break;
-            }
-
-            case PeriodSize.QUARTERLY: {
-                now.setUTCMonth(((now.getUTCMonth() / 3) | 0) * 3);
-                now.setUTCDate(1);
-
-                while (now.getTime() < until && result.length < 40) {
-                    const quarter = ((now.getUTCMonth() / 3) | 0) + 1;
-                    const title = `${now.getUTCFullYear()} Q${quarter}`;
-                    const start = now.getTime();
-                    now.setUTCMonth(now.getUTCMonth() + 3);
-                    const end = now.getTime() - 1;
-
-                    result.push({start, end, title});
-                }
-
-                break;
-            }
-
-            case PeriodSize.HALF_YEARLY: {
-                now.setUTCMonth(((now.getUTCMonth() / 6) | 0) * 6);
-                now.setUTCDate(1);
-
-                while (now.getTime() < until && result.length < 20) {
-                    const half = ((now.getUTCMonth() / 6) | 0) + 1;
-                    const title = `${now.getUTCFullYear()} H${half}`;
-                    const start = now.getTime();
-                    now.setUTCMonth(now.getUTCMonth() + 6);
-                    const end = now.getTime() - 1;
-
-                    result.push({start, end, title});
-                }
-                break;
-            }
-
-            case PeriodSize.YEARLY: {
-                now.setUTCMonth(0);
-                now.setUTCDate(1);
-
-                while (now.getTime() < until && result.length < 10) {
-                    const title = `${now.getUTCFullYear()}`;
-                    const start = now.getTime();
-                    now.setUTCFullYear(now.getUTCFullYear() + 1);
-                    const end = now.getTime() - 1;
-
-                    result.push({start, end, title});
-                }
-                break;
-            }
-        }
-
-        return result;
-    }
-
     function rebuildTree(state: State): State {
-        const maxEndDate = state.remoteData.wallets
-            .flatMap(w => w.allocations.map(a => a.endDate ?? Number.MAX_SAFE_INTEGER))
-            .reduce((p, a) => Math.max(p, a), Number.MIN_SAFE_INTEGER);
-
-        const idealPeriods = calculateIdealPeriods(state.periodSelection.periodSize, maxEndDate);
-        const periods = idealPeriods.filter(p => {
-            return state.remoteData.wallets.some(w => w.allocations.some(a => {
-                return periodsOverlap(p, allocationToPeriod(a));
-            }));
-        });
-
-        const oldPeriod = getOrNull(state.periodSelection.availablePeriods, state.periodSelection.currentPeriodIdx);
-
-        let selectedIndex = -1;
-        if (oldPeriod) selectedIndex = periods.findIndex(it => it.start === oldPeriod.start && it.end === oldPeriod.end);
-        if (selectedIndex === -1 && periods.length > 0) {
-            const thisYear = new Date().getUTCFullYear();
-            selectedIndex = periods.findIndex(it => new Date(it.start).getUTCFullYear() === thisYear)
-            if (selectedIndex === -1) {
-                selectedIndex = periods.findIndex(it => new Date(it.end).getUTCFullYear() === thisYear)
-                if (selectedIndex === -1) {
-                    selectedIndex = 0;
-                }
-            }
-        }
-
-        return selectPeriod(
-            {
-                ...state,
-                periodSelection: {
-                    ...state.periodSelection,
-                    availablePeriods: periods
-                }
-            },
-            selectedIndex
-        );
-    }
-
-    function selectPeriod(state: State, periodIndex: number): State {
-        const period = getOrNull(state.periodSelection.availablePeriods, periodIndex);
-
-        let now = timestampUnixMs();
-        if (period && period.start > now) {
-            // Assume that 'now' is at the start of the period, if the period itself is in the future.
-            // This means that we do not grey out rows which start when the period starts.
-            now = period.start;
-        }
+        const now = timestampUnixMs();
 
         function allocationNote(
             alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2
         ): AllocationNote | undefined {
-            if (!period) return undefined;
-            const p = normalizePeriodForComparison(period);
-
             // NOTE(Dan): We color code and potentially grey out rows when the end-user should be aware of something
             // on the allocation.
             //
@@ -433,37 +438,12 @@ function stateReducer(state: State, action: UIAction): State {
                 };
             }
 
-            if (allocPeriod.end < p.end) {
-                return {
-                    rowShouldBeGreyedOut: false,
-                    icon,
-                    iconColor: colorForTheFuture,
-                    text: `Expires early (${Accounting.utcDate(allocPeriod.end)})`
-                };
-            }
-
             return undefined;
-        }
-
-        if (!period) {
-            return {
-                ...state,
-                periodSelection: {
-                    ...state.periodSelection,
-                    currentPeriodIdx: -1,
-                },
-                yourAllocations: {},
-                subAllocations: {
-                    ...state.subAllocations,
-                    recipients: [],
-                },
-            };
         }
 
         const walletsInPeriod = state.remoteData.wallets.map(wallet => {
             const newAllocations = wallet.allocations.filter(alloc =>
-                !wallet.paysFor.freeToUse &&
-                periodsOverlap(period, allocationToPeriod(alloc))
+                !wallet.paysFor.freeToUse
             );
 
             return {...wallet, allocations: newAllocations};
@@ -483,7 +463,7 @@ function stateReducer(state: State, action: UIAction): State {
 
         const subAllocationsInPeriod = filteredSubAllocations.filter(alloc =>
             !alloc.productCategory.freeToUse &&
-            periodsOverlap(period, allocationToPeriod(alloc))
+            periodsOverlap({start: now, end: now}, allocationToPeriod(alloc))
         );
 
         // Build the "your allocations" tree
@@ -559,7 +539,9 @@ function stateReducer(state: State, action: UIAction): State {
                                 usage: (alloc.treeUsage ?? 0) * unit.priceFactor,
                                 quota: alloc.quota * unit.priceFactor,
                                 unit: usage?.[0]?.unit ?? unit.name,
-                            }
+                            },
+                            start: alloc.startDate,
+                            end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
                         })),
                     });
                 }
@@ -609,6 +591,8 @@ function stateReducer(state: State, action: UIAction): State {
                     },
                     note: allocationNote(alloc),
                     isEditing: false,
+                    start: alloc.startDate,
+                    end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
                 });
             }
 
@@ -650,10 +634,6 @@ function stateReducer(state: State, action: UIAction): State {
 
         return {
             ...state,
-            periodSelection: {
-                ...state.periodSelection,
-                currentPeriodIdx: periodIndex,
-            },
             yourAllocations,
             subAllocations,
         };
@@ -690,6 +670,41 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
                     callAPI(Accounting.browseSubAllocations({itemsPerPage: 250, next}))
                 ).then(subAllocations => {
                     dispatch({type: "SubAllocationsLoaded", subAllocations});
+                });
+
+                fetchManagedProviders().then(providers => {
+                    dispatch({type: "ManagedProvidersLoaded", providerIds: providers});
+
+                    Promise.all(
+                        providers.map(provider =>
+                            fetchAll(next => callAPI(Accounting.browseProductsV2({
+                                filterProvider: provider,
+                                next,
+                                itemsPerPage: 250,
+                            }))).then(it => [provider, it]) as Promise<[string, Accounting.ProductV2[]]>
+                        )
+                    ).then(results => {
+                        const merged: Record<string, Accounting.ProductCategoryV2[]> = {};
+                        for (const [providerId, page] of results) {
+                            const categories: Accounting.ProductCategoryV2[] = [];
+                            for (const product of page) {
+                                if (product.category.freeToUse) continue;
+                                if (categories.some(it => Accounting.categoryComparator(it, product.category) === 0)) {
+                                    continue;
+                                }
+
+                                categories.push(product.category);
+                            }
+
+                            merged[providerId] = categories;
+                        }
+
+                        dispatch({type: "ManagedProductsLoaded", products: merged});
+                    });
+
+                    fetchAll(next => callAPI(Gifts.browse({itemsPerPage: 250, next}))).then(gifts => {
+                        dispatch({type: "GiftsLoaded", gifts});
+                    });
                 });
 
                 break;
@@ -737,6 +752,24 @@ const AllocationsStyle = injectStyle("allocations", k => `
     }
 `);
 
+const giftClass = injectStyle("gift", k => `
+    ${k} th, ${k} td {
+        padding-bottom: 10px;
+    }
+
+    ${k} th {
+        vertical-align: top;
+        text-align: left;
+        padding-right: 20px;
+    }
+    
+    ${k} ul {
+        margin: 0;
+        padding: 0;
+        padding-left: 1em;
+    }
+`);
+
 // User-interface
 // =====================================================================================================================
 const Allocations: React.FunctionComponent = () => {
@@ -749,10 +782,6 @@ const Allocations: React.FunctionComponent = () => {
     const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
-
-    const currentPeriod = state.periodSelection.availablePeriods[state.periodSelection.currentPeriodIdx];
-    const currentPeriodStart = currentPeriod?.start ?? timestampUnixMs();
-    const currentPeriodEnd = currentPeriod?.end ?? timestampUnixMs();
 
     useEffect(() => {
         dispatchEvent({type: "Init"});
@@ -791,9 +820,8 @@ const Allocations: React.FunctionComponent = () => {
                     if (ev.ctrlKey || ev.metaKey) {
                         ev.preventDefault();
                         const box = searchBox.current;
-                        console.log(box);
                         if (box) {
-                            box.scrollIntoView({ block: "nearest" });
+                            box.scrollIntoView({block: "nearest"});
                             box.focus();
                         }
                     }
@@ -805,36 +833,75 @@ const Allocations: React.FunctionComponent = () => {
         document.body.addEventListener("keydown", handler);
         return () => document.body.removeEventListener("keydown", handler);
     }, []);
-    const onPeriodSelect = useCallback((ev: ChangeEvent) => {
-        const target = ev.target as HTMLSelectElement;
-        dispatchEvent({type: "PeriodUpdated", selectedIndex: target.selectedIndex});
-    }, [dispatchEvent]);
 
-    const onPeriodSizeSelect = useCallback((ev: ChangeEvent) => {
-        const target = ev.target as HTMLSelectElement;
-        dispatchEvent({type: "PeriodSizeUpdated", selectedIndex: target.selectedIndex});
-    }, [dispatchEvent]);
+    const currentPeriodEnd = useMemo(() => {
+        let currentMinimum = NO_EXPIRATION_FALLBACK;
+        for (const v of Object.values(state.yourAllocations)) {
+            for (const wallet of v.wallets) {
+                for (const alloc of wallet.allocations) {
+                    if (alloc.end < currentMinimum) {
+                        currentMinimum = alloc.end;
+                    }
+                }
+            }
+        }
+        return currentMinimum;
+    }, [state.yourAllocations]);
 
     const onNewSubProject = useCallback(async () => {
-        const title = (await addStandardInputDialog({
-            title: "What should we call your new sub-project?",
-            confirmText: "Create sub-project"
-        })).result;
+        dialogStore.addDialog(
+            <form onSubmit={ev => {
+                ev.preventDefault();
 
-        navigate(AppRoutes.grants.grantGiverInitiatedEditor({
-            title,
-            start: currentPeriodStart,
-            end: currentPeriodEnd,
-            piUsernameHint: Client.username ?? "?",
-        }));
-    }, [currentPeriodStart, currentPeriodEnd]);
+                const name = document.querySelector<HTMLInputElement>("#subproject-name");
+                if (!name) return;
+                if (!name.value) {
+                    snackbarStore.addFailure("Missing name", false);
+                    return;
+                }
+
+                const subAllocatorCheckbox = document.querySelector<HTMLInputElement>("#subproject-suballocator");
+                const subAllocator = subAllocatorCheckbox?.checked === true;
+
+                dialogStore.success();
+                navigate(AppRoutes.grants.grantGiverInitiatedEditor({
+                    title: name.value,
+                    start: timestampUnixMs(),
+                    end: currentPeriodEnd,
+                    piUsernameHint: Client.username ?? "?",
+                    subAllocator,
+                }));
+            }}>
+                <div>
+                    <Heading.h3>New sub-project</Heading.h3>
+                    <Divider/>
+                    <Label>
+                        Project title
+                        <Input id={"subproject-name"} autoFocus/>
+                    </Label>
+                    {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
+                        <Label>
+                            <Checkbox id={"subproject-suballocator"}/>
+                            This sub-project is a sub-allocator
+                        </Label> : null
+                    }
+                </div>
+                <Flex mt="20px">
+                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"red"}
+                            mr="5px">Cancel</Button>
+                    <Button type={"submit"} color={"green"}>Create sub-project</Button>
+                </Flex>
+            </form>,
+            doNothing
+        );
+    }, [currentPeriodEnd, state.remoteData.managedProviders.length]);
 
     const onEdit = useCallback((elem: HTMLElement) => {
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
         const ridx = parseInt(elem.getAttribute("data-ridx") ?? "");
         if (isNaN(idx) || isNaN(ridx)) return;
 
-        dispatchEvent({ type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: true });
+        dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: true});
     }, []);
 
     const onEditKey = useCallback(async (ev: React.KeyboardEvent) => {
@@ -864,13 +931,13 @@ const Allocations: React.FunctionComponent = () => {
                         });
                     }
 
-                    dispatchEvent({ type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false });
+                    dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false});
                 }
                 break;
             }
 
             case "Escape": {
-                dispatchEvent({ type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false });
+                dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false});
                 break;
             }
         }
@@ -880,18 +947,18 @@ const Allocations: React.FunctionComponent = () => {
         const elem = ev.target as HTMLInputElement;
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
         const ridx = parseInt(elem.getAttribute("data-ridx") ?? "");
-        dispatchEvent({ type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false });
+        dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false});
     }, [dispatchEvent]);
 
     const onSearchInput = useCallback((ev: React.SyntheticEvent) => {
         const input = ev.target as HTMLInputElement;
         const newQuery = input.value;
-        dispatchEvent({ type: "UpdateSearchQuery", newQuery });
+        dispatchEvent({type: "UpdateSearchQuery", newQuery});
 
         window.clearTimeout(searchTimeout.current);
         searchTimeout.current = window.setTimeout(async () => {
             if (input.disabled) return;
-            dispatchEvent({ type: "UpdateSearchInflight", delta: 1 });
+            dispatchEvent({type: "UpdateSearchInflight", delta: 1});
             try {
                 const page = await callAPI(Accounting.searchSubAllocations({
                     query: newQuery,
@@ -900,7 +967,7 @@ const Allocations: React.FunctionComponent = () => {
 
                 dispatchEvent({type: "MergeSearchResults", subAllocations: page.items});
             } finally {
-                dispatchEvent({ type: "UpdateSearchInflight", delta: -1 });
+                dispatchEvent({type: "UpdateSearchInflight", delta: -1});
             }
         }, 200);
     }, [dispatchEvent]);
@@ -919,6 +986,245 @@ const Allocations: React.FunctionComponent = () => {
             onEdit(target);
         }
     }, [onEdit]);
+
+    const onRootAllocationInput = useCallback((ev: React.SyntheticEvent) => {
+        ev.stopPropagation();
+        const elem = ev.target as (HTMLInputElement | HTMLSelectElement);
+        const name = elem.getAttribute("name");
+        if (!name) return;
+        const value = elem.value;
+
+        switch (name) {
+            case "root-year": {
+                const year = parseInt(value);
+                dispatchEvent({
+                    type: "UpdateRootAllocations",
+                    data: {year}
+                });
+                break;
+            }
+        }
+
+        if (name.startsWith("root-resource-")) {
+            const resourceName = removePrefixFrom("root-resource-", name);
+            let amount = parseInt(value);
+            if (value === "") amount = 0;
+            if (!isNaN(amount)) {
+                const data = {resources: {}};
+                data.resources[resourceName] = amount;
+                dispatchEvent({type: "UpdateRootAllocations", data: data});
+            }
+        }
+    }, []);
+
+    const creatingRootAllocation = useRef(false);
+    const onCreateRootAllocation = useCallback(async (ev: React.SyntheticEvent) => {
+        ev.preventDefault();
+        if (creatingRootAllocation.current) return;
+        if (!state.rootAllocations) return;
+
+        const start = new Date();
+        const end = new Date();
+        {
+            const year = state.rootAllocations.year;
+            start.setUTCFullYear(year, 0, 1);
+            start.setUTCHours(0, 0, 0, 0);
+
+            end.setUTCFullYear(year, 11, 31);
+            end.setUTCHours(23, 59, 59, 999);
+        }
+
+        try {
+            const products = state.remoteData.managedProducts;
+            creatingRootAllocation.current = true;
+
+            const requests: Accounting.RootAllocateRequestItem[] = [];
+            for (const [categoryAndProvider, amount] of Object.entries(state.rootAllocations.resources)) {
+                const [category, provider] = categoryAndProvider.split("/");
+                const resolvedCategory = products[provider]?.find(it => it.name === category);
+                if (!resolvedCategory) {
+                    snackbarStore.addFailure("Internal failure while creating a root allocation. Try reloading the page!", false);
+                    return;
+                }
+
+                const unit = Accounting.explainUnit(resolvedCategory);
+
+                requests.push({
+                    owner: {
+                        type: "project",
+                        projectId: Client.projectId ?? ""
+                    },
+                    productCategory: {
+                        name: category,
+                        provider,
+                    },
+                    quota: amount * unit.invPriceFactor,
+                    start: start.getTime(),
+                    end: end.getTime(),
+                });
+            }
+
+            await callAPI(Accounting.rootAllocate(bulkRequestOf(...requests)));
+            dispatchEvent({type: "ResetRootAllocation"});
+            dispatchEvent({type: "Init"});
+        } catch (e) {
+            snackbarStore.addFailure("Failed to create root allocation: " + extractErrorMessage(e), false);
+            return;
+        } finally {
+            creatingRootAllocation.current = false;
+        }
+    }, [state.rootAllocations]);
+
+    const onGiftInput = useCallback((ev: React.SyntheticEvent) => {
+        ev.stopPropagation();
+        const elem = ev.target as (HTMLInputElement | HTMLSelectElement);
+        const name = elem.getAttribute("name");
+        if (!name) return;
+        const value = elem.value;
+        switch (name) {
+            case "gift-title": {
+                dispatchEvent({
+                    type: "UpdateGift",
+                    data: {title: value}
+                });
+                break;
+            }
+
+            case "gift-description": {
+                dispatchEvent({
+                    type: "UpdateGift",
+                    data: {description: value}
+                });
+                break;
+            }
+
+            case "gift-renewal": {
+                dispatchEvent({
+                    type: "UpdateGift",
+                    data: {renewEvery: parseInt(value)}
+                });
+                break;
+            }
+
+            case "gift-allow-domain": {
+                dispatchEvent({
+                    type: "UpdateGift",
+                    data: {domainAllow: value}
+                });
+                break;
+            }
+        }
+
+        if (name.startsWith("gift-resource-")) {
+            const resourceName = removePrefixFrom("gift-resource-", name);
+            let amount = parseInt(value);
+            if (value === "") amount = 0;
+            if (!isNaN(amount)) {
+                const data = {resources: {}};
+                data.resources[resourceName] = amount;
+                dispatchEvent({type: "UpdateGift", data: data});
+            }
+        }
+    }, []);
+
+    const onGiftOrgInput = useCallback((orgId: string) => {
+        dispatchEvent({type: "UpdateGift", data: {orgAllow: orgId}});
+    }, []);
+
+    const creatingGift = useRef(false);
+    const onCreateGift = useCallback(async (ev: React.SyntheticEvent) => {
+        ev.preventDefault();
+        if (!state.gifts) return;
+        if (creatingGift.current) return;
+        const gift: Gifts.GiftWithCriteria = {
+            id: 0,
+            criteria: [],
+            description: state.gifts.description,
+            resources: [],
+            resourcesOwnedBy: Client.projectId ?? "",
+            title: state.gifts.title,
+        };
+
+        if (state.gifts.domainAllow) {
+            const domains = state.gifts.domainAllow.split(",").map(it => it.trim());
+            for (const domain of domains) {
+                if (domain === "all-ucloud-users") {
+                    // NOTE(Dan): undocumented because most people really should not do this
+                    gift.criteria.push({type: "anyone"});
+                } else {
+                    gift.criteria.push({
+                        type: "email",
+                        domain: domain,
+                    });
+                }
+            }
+        }
+
+        if (state.gifts.orgAllow) {
+            gift.criteria.push({
+                type: "wayf",
+                org: state.gifts.orgAllow
+            });
+        }
+
+        const products = state.remoteData.managedProducts;
+        for (const [categoryAndProvider, amount] of Object.entries(state.gifts.resources)) {
+            const [category, provider] = categoryAndProvider.split("/");
+            const resolvedCategory = products[provider]?.find(it => it.name === category);
+            if (!resolvedCategory) {
+                snackbarStore.addFailure("Internal failure while creating gift. Try reloading the page!", false);
+                return;
+            }
+            const unit = Accounting.explainUnit(resolvedCategory);
+            const actualAmount = amount * unit.invPriceFactor;
+            if (actualAmount === 0) continue;
+
+            gift.resources.push({
+                balanceRequested: actualAmount,
+                category: category,
+                provider: provider,
+                grantGiver: "",
+                period: {start: 0, end: 0},
+                sourceAllocation: null,
+            });
+        }
+
+        if (gift.criteria.length === 0) {
+            snackbarStore.addFailure("Missing user criteria. You must define at least one!", false);
+            return;
+        }
+
+        if (gift.resources.length === 0) {
+            snackbarStore.addFailure("A gift must contain at least one resource!", false);
+            return;
+        }
+
+        try {
+            creatingGift.current = true;
+            const {id} = await callAPI(Gifts.create(gift));
+            gift.id = id;
+            dispatchEvent({type: "GiftCreated", gift});
+        } catch (e) {
+            snackbarStore.addFailure("Failed to create a gift: " + extractErrorMessage(e), false);
+        } finally {
+            creatingGift.current = false;
+        }
+    }, [state.gifts]);
+
+    const onDeleteGift = useCallback(async (giftIdString?: string) => {
+        if (!giftIdString) return;
+        const id = parseInt(giftIdString);
+        if (isNaN(id)) return;
+
+        try {
+            await callAPI(Gifts.remove({giftId: id}));
+        } catch (e) {
+            snackbarStore.addFailure("Failed to delete gift: " + extractErrorMessage(e), false);
+            return;
+        }
+
+        dispatchEvent({type: "GiftDeleted", id});
+    }, []);
 
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -948,30 +1254,240 @@ const Allocations: React.FunctionComponent = () => {
                 <ContextSwitcher/>
             </header>
 
-            <h3>Filters</h3>
-            <Flex alignItems={"center"} flexDirection={"row"} gap={"4px"}>
-                <Box width={"200px"}>
-                    <Select slim value={state.periodSelection.periodSize} onChange={onPeriodSizeSelect}>
-                        <option value={PeriodSize.MONTHLY}>Month</option>
-                        <option value={PeriodSize.QUARTERLY}>Quarter</option>
-                        <option value={PeriodSize.HALF_YEARLY}>Half-year</option>
-                        <option value={PeriodSize.YEARLY}>Year</option>
-                    </Select>
-                </Box>
+            {state.remoteData.managedProviders.length > 0 && <>
+                {state.rootAllocations && <>
+                    <h3>Root allocations</h3>
+                    <div>
+                        Root allocations are ordinary allocations from which all other allocations are created.
 
-                <Box width={"200px"}>
-                    <Select slim value={state.periodSelection.currentPeriodIdx} onChange={onPeriodSelect}>
-                        {state.periodSelection.availablePeriods.length === 0 &&
-                            <option>{new Date().getUTCFullYear()}</option>}
+                        <ul>
+                            <li>You can see this because you are part of a provider project</li>
+                            <li>You must create a root allocation to be able to use your provider</li>
+                            <li>Once created, you can see the root allocations in the "Your allocations" panel</li>
+                        </ul>
+                    </div>
 
-                        {state.periodSelection.availablePeriods.map((it, idx) =>
-                            <option key={idx} value={idx.toString()}>{it.title}</option>
-                        )}
-                    </Select>
-                </Box>
-            </Flex>
+                    <Accordion title={"Create a new root allocation"}>
+                        <h4>Step 1: Select a period</h4>
+                        <Select
+                            slim
+                            value={state.rootAllocations.year}
+                            onInput={onRootAllocationInput}
+                            onKeyDown={stopPropagation}
+                            name={"root-year"}
+                        >
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
+                                const year = new Date().getUTCFullYear() + delta;
+                                return <option key={delta} value={year.toString()}>{year}</option>;
+                            })}
+                        </Select>
+
+                        <h4>Step 2: Select allocation size</h4>
+                        <Tree>
+                            {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) =>
+                                <React.Fragment
+                                    key={providerId}>
+                                    {page.map(cat => <TreeNode
+                                        key={cat.name + cat.provider}
+                                        left={<Flex gap={"4px"}>
+                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                            <code>{cat.name} / {cat.provider}</code>
+                                        </Flex>}
+                                        right={<Flex gap={"4px"}>
+                                            <Input
+                                                height={20}
+                                                placeholder={"0"}
+                                                name={`root-resource-${cat.name}/${cat.provider}`}
+                                                value={state.rootAllocations?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                                onInput={onRootAllocationInput}
+                                                onKeyDown={stopPropagation}
+                                            />
+                                            <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                        </Flex>}
+                                    />)}
+                                </React.Fragment>)}
+                        </Tree>
+
+                        <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
+                    </Accordion>
+
+                    <Box mt={32}/>
+                </>}
+
+                {state.gifts && <>
+                    <h3>Gifts</h3>
+                    <div>
+                        Gifts are free resources which are automatically claimed by active UCloud users fulfilling
+                        certain
+                        criteria.
+                        <ul>
+                            <li>As a provider, you can see your gifts and define new gifts</li>
+                            <li>You can delete gifts, but this will not retract the gifts that have already been claimed
+                            </li>
+                        </ul>
+                    </div>
+
+                    <Accordion title={`View existing gifts (${state.remoteData.gifts.length})`}>
+                        {state.remoteData.gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
+                            {state.remoteData.gifts.map(g =>
+                                <TreeNode
+                                    key={g.id}
+                                    left={g.title}
+                                >
+                                    <table className={giftClass}>
+                                        <tbody>
+                                        <tr>
+                                            <th>Description</th>
+                                            <td>{g.description}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Criteria</th>
+                                            <td>
+                                                <ul>
+                                                    {g.criteria.map(c => {
+                                                        switch (c.type) {
+                                                            case "anyone":
+                                                                return <li key={c.type}>All UCloud users</li>
+                                                            case "wayf":
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
+                                                            case "email":
+                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                        }
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Resources</th>
+                                            <td>
+                                                <ul>
+                                                    {g.resources.map(r => {
+                                                        const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
+                                                        if (!pc) return null;
+                                                        return <li>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delete</th>
+                                            <td>
+                                                <ConfirmationButton
+                                                    actionText={"Delete"}
+                                                    icon={"heroTrash"}
+                                                    onAction={onDeleteGift}
+                                                    actionKey={g.id.toString()}
+                                                />
+                                            </td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </TreeNode>
+                            )}
+                        </Tree>}
+                    </Accordion>
+
+                    <Accordion title={"Create a gift"}>
+                        <form onSubmit={onCreateGift}>
+                            <Flex gap={"8px"} flexDirection={"column"}>
+                                <Label>
+                                    Title <MandatoryField/>
+                                    <Input
+                                        name={"gift-title"}
+                                        value={state.gifts.title}
+                                        onInput={onGiftInput}
+                                        onKeyDown={stopPropagation}
+                                        placeholder={"For example: Gift for employees at SDU"}
+                                    />
+                                </Label>
+                                <Label>
+                                    Description:
+
+                                    <TextArea
+                                        name={"gift-description"}
+                                        value={state.gifts.description}
+                                        rows={3}
+                                        onInput={onGiftInput}
+                                        onKeyDown={stopPropagation}
+                                    />
+                                </Label>
+                                <Label>
+                                    Is this gift periodically renewed or a one-time grant? <MandatoryField/>
+                                    <Select
+                                        name={"gift-renewal"}
+                                        slim
+                                        value={state.gifts.renewEvery}
+                                        onInput={onGiftInput}
+                                        onKeyDown={stopPropagation}
+                                    >
+                                        <option value={"0"}>One-time per-user grant</option>
+                                        <option value={"1"}>Renew every month</option>
+                                        <option value={"6"}>Renew every 6 months</option>
+                                        <option value={"12"}>Renew every 12 months</option>
+                                    </Select>
+                                </Label>
+                                <Label>
+                                    Allow if user belongs to this organization
+                                    <DataList
+                                        options={wayfIdpsPairs}
+                                        onSelect={onGiftOrgInput}
+                                        placeholder={"Type to search..."}
+                                    />
+                                </Label>
+                                <Label>
+                                    Allow if email domain matches any of the following (comma-separated)
+                                    <Input
+                                        name={"gift-allow-domain"}
+                                        placeholder={"For example: sdu.dk, cloud.sdu.dk"}
+                                        onInput={onGiftInput}
+                                        value={state.gifts.domainAllow}
+                                        onKeyDown={stopPropagation}
+                                    />
+                                </Label>
+
+                                <Label>Resources</Label>
+                                <Tree>
+                                    {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) =>
+                                        <React.Fragment
+                                            key={providerId}>
+                                            {page.map(cat => <TreeNode
+                                                key={cat.name + cat.provider}
+                                                left={<Flex gap={"4px"}>
+                                                    <Icon name={Accounting.productTypeToIcon(cat.productType)}
+                                                          size={20}/>
+                                                    <code>{cat.name} / {cat.provider}</code>
+                                                </Flex>}
+                                                right={<Flex gap={"4px"}>
+                                                    <Input
+                                                        height={20}
+                                                        placeholder={"0"}
+                                                        name={`gift-resource-${cat.name}/${cat.provider}`}
+                                                        onInput={onGiftInput}
+                                                        value={state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
+                                                        onKeyDown={stopPropagation}
+                                                    />
+                                                    <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                                </Flex>}
+                                            />)}
+                                        </React.Fragment>)}
+                                </Tree>
+                            </Flex>
+                            <Button type={"submit"}>
+                                Create gift
+                            </Button>
+                        </form>
+                    </Accordion>
+
+                    <Box mt={32}/>
+                </>}
+            </>}
 
             <h3>Your allocations</h3>
+            {sortedAllocations.length !== 0 ? null : <>
+                You do not have any allocations at the moment. You can apply for resources{" "}
+                <Link to={AppRoutes.grants.editor()}>here</Link>.
+            </>}
             <Tree apiRef={allocationTree}>
                 {sortedAllocations.map(([rawType, tree]) => {
                     const type = rawType as ProductType;
@@ -1017,7 +1533,7 @@ const Allocations: React.FunctionComponent = () => {
                                             key={alloc.id}
                                             className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                             left={<>
-                                                <Icon name={"heroBanknotes"} mr={4} />
+                                                <Icon name={"heroBanknotes"} mr={4}/>
                                                 <b>Allocation ID:</b> {alloc.id}
                                                 {alloc.grantedIn && <>
                                                     {" "}
@@ -1033,7 +1549,7 @@ const Allocations: React.FunctionComponent = () => {
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
                                                 {alloc.note && <>
                                                     <TooltipV2 tooltip={alloc.note.text}>
-                                                        <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
+                                                        <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
                                                     </TooltipV2>
                                                 </>}
                                                 <ProgressBarWithLabel
@@ -1053,9 +1569,9 @@ const Allocations: React.FunctionComponent = () => {
 
             <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
                 <h3 style={{margin: 0}}>Sub-allocations</h3>
-                <Box flexGrow={1} />
+                <Box flexGrow={1}/>
                 <Button height={35} onClick={onNewSubProject}>
-                    <Icon name={"heroPlus"} mr={8} />
+                    <Icon name={"heroPlus"} mr={8}/>
                     New sub-project
                 </Button>
 
@@ -1072,13 +1588,18 @@ const Allocations: React.FunctionComponent = () => {
                     <div style={{position: "relative"}}>
                         <div style={{position: "absolute", top: "-30px", right: "11px"}}>
                             {state.subAllocations.searchInflight === 0 ?
-                                <Icon name={"heroMagnifyingGlass"} />
-                                : <HexSpin size={18} margin={"0"} />
+                                <Icon name={"heroMagnifyingGlass"}/>
+                                : <HexSpin size={18} margin={"0"}/>
                             }
                         </div>
                     </div>
                 </Box>
             </Flex>
+
+            {state.subAllocations.recipients.length !== 0 ? null : <>
+                You do not have any sub-allocations at the moment. You can create a sub-project by clicking{" "}
+                <a href="#" onClick={onNewSubProject}>here</a>.
+            </>}
 
             <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
                 {state.subAllocations.recipients.map((recipient, recipientIdx) =>
@@ -1086,7 +1607,8 @@ const Allocations: React.FunctionComponent = () => {
                         key={recipientIdx}
                         left={<Flex gap={"4px"} alignItems={"center"}>
                             <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
-                                <Avatar {...avatars.avatar(recipient.owner.primaryUsername)} style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
+                                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                         avatarStyle={"Circle"}/>
                             </TooltipV2>
                             {recipient.owner.title}
@@ -1098,12 +1620,13 @@ const Allocations: React.FunctionComponent = () => {
                                         title: recipient.owner.title,
                                         piUsernameHint: recipient.owner.primaryUsername,
                                         projectId: recipient.owner.reference.projectId,
-                                        start: currentPeriodStart,
-                                        end: currentPeriodEnd,
+                                        start: timestampUnixMs(),
+                                        end: recipient.allocations.reduce((prev, it) => Math.min(prev, it.end), NO_EXPIRATION_FALLBACK),
+                                        subAllocator: false,
                                     })}
                                 >
                                     <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
-                                                     subColor1={"white"} subColor2={"white"} />
+                                                     subColor1={"white"} subColor2={"white"}/>
                                 </Link>
                             }
 
@@ -1139,11 +1662,11 @@ const Allocations: React.FunctionComponent = () => {
                                             <SmallIconButton
                                                 icon={"heroPencil"} onClick={onEdit}
                                                 disabled={state.editControlsDisabled}
-                                                data-ridx={recipientIdx} data-idx={idx} />
+                                                data-ridx={recipientIdx} data-idx={idx}/>
                                         }
                                         {alloc.note && <>
                                             <TooltipV2 tooltip={alloc.note.text}>
-                                                <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
+                                                <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
                                             </TooltipV2>
                                         </>}
 
@@ -1179,21 +1702,6 @@ const Allocations: React.FunctionComponent = () => {
 // Utility components
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
-const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December"
-];
-
 const productTypesByPriority: ProductType[] = [
     "COMPUTE",
     "STORAGE",
@@ -1221,15 +1729,20 @@ function allocationIsActive(
     alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2,
     now: number,
 ): boolean {
-    return periodsOverlap(allocationToPeriod(alloc), { start: now, end: now });
+    return periodsOverlap(allocationToPeriod(alloc), {start: now, end: now});
+}
+
+interface Period {
+    start: number;
+    end: number;
 }
 
 function allocationToPeriod(alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2): Period {
-    return { start: alloc.startDate, end: alloc.endDate ?? Number.MAX_SAFE_INTEGER };
+    return {start: alloc.startDate, end: alloc.endDate ?? NO_EXPIRATION_FALLBACK};
 }
 
 function normalizePeriodForComparison(period: Period): Period {
-    return { start: ((period.start / 1000) | 0) * 1000, end: ((period.end / 1000) | 0) * 1000, title: period.title };
+    return {start: Math.floor(period.start / 1000) * 1000, end: Math.floor(period.end / 1000) * 1000};
 }
 
 const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
@@ -1292,24 +1805,30 @@ const SmallIconButton: React.FunctionComponent<{
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
-        <Icon name={props.icon} hoverColor={"white"} />
+        <Icon name={props.icon} hoverColor={"white"}/>
         {props.subIcon &&
             <div className={"sub"}>
                 <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
-                      color2={props.subColor2} />
+                      color2={props.subColor2}/>
             </div>
         }
     </Button>;
 };
 
+async function fetchManagedProviders(): Promise<string[]> {
+    const items = await fetchAll(next => callAPI(ProvidersApi.browse({itemsPerPage: 250, next})));
+    return items.map(it => it.specification.id);
+}
+
 // Initial state
 // =====================================================================================================================
 const initialState: State = {
-    periodSelection: {availablePeriods: [], currentPeriodIdx: 0, periodSize: PeriodSize.YEARLY},
-    remoteData: {subAllocations: [], wallets: [] },
+    remoteData: {subAllocations: [], wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
     subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
     yourAllocations: {},
     editControlsDisabled: false,
 };
+
+const NO_EXPIRATION_FALLBACK = 4102444800353;
 
 export default Allocations;

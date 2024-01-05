@@ -68,11 +68,6 @@ export interface StatusReduxObject {
     loading: boolean;
 }
 
-export interface HeaderSearchReduxObject {
-    prioritizedSearch: HeaderSearchType;
-    refresh?: () => void;
-}
-
 export type HeaderSearchType = "files" | "applications" | "projects";
 
 /**
@@ -82,9 +77,6 @@ export interface HookStore {
     uploaderVisible?: boolean;
     uploads?: Upload[];
     uploadPath?: string;
-
-    searchPlaceholder?: string;
-    onSearch?: (query: string, navigate: NavigateFunction) => void;
 
     projectCache?: ProjectCache;
     computeProducts?: APICallStateWithParams<Page<Product>>;
@@ -99,7 +91,6 @@ interface LegacyReduxObject {
     hookStore: HookStore;
     dashboard: DashboardStateProps;
     status: StatusReduxObject;
-    header: HeaderSearchReduxObject;
     avatar: AvatarReduxObject;
     project: ProjectRedux.State;
     terminal: TerminalState;
@@ -111,12 +102,6 @@ interface LegacyReduxObject {
 declare global {
     export type ReduxObject =
         LegacyReduxObject;
-}
-
-export function initHeader(): HeaderSearchReduxObject {
-    return ({
-        prioritizedSearch: "files"
-    });
 }
 
 export function initStatus(): StatusReduxObject {
@@ -135,7 +120,6 @@ export function initObject(): ReduxObject {
         hookStore: {},
         dashboard: initDashboard(),
         status: initStatus(),
-        header: initHeader(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
@@ -154,27 +138,3 @@ export function initAvatar(): AvatarReduxObject {
 }
 
 export const defaultSearchPlaceholder = "Search files and applications..."
-
-export function defaultSearch(query: string, navigate: NavigateFunction) {
-    navigate(buildQueryString("/files/search", {q: query}));
-}
-
-export function useSearch(onSearch: (query: string, navigate: NavigateFunction) => void): void {
-    const [, setOnSearch] = useGlobal("onSearch", defaultSearch);
-    useEffect(() => {
-        setOnSearch(() => onSearch);
-        return () => {
-            setOnSearch(() => defaultSearch);
-        };
-    }, [setOnSearch, onSearch]);
-}
-
-export function useSearchPlaceholder(searchPlaceholder: string): void {
-    const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
-    useEffect(() => {
-        setSearchPlaceholder(searchPlaceholder);
-        return () => {
-            setSearchPlaceholder(defaultSearchPlaceholder);
-        };
-    }, [setSearchPlaceholder, searchPlaceholder]);
-}

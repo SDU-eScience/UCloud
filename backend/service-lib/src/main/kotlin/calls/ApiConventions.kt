@@ -220,9 +220,7 @@ fun <R : Any> CallDescription<R, *, *>.httpRetrieve(
 
         path {
             using(baseContext)
-            +"${UCloudApi.RETRIEVE}${subResource?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: ""}".also {
-                if (baseContext.contains("v2")) println("$baseContext $it")
-            }
+            +"${UCloudApi.RETRIEVE}${subResource?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: ""}"
         }
 
         if (serializer != Unit.serializer()) {

@@ -13,8 +13,8 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    api("jline:jline:2.14.6")
-    api("org.fusesource.jansi:jansi:1.11")
+    api(project(":jline2"))
+    api("org.fusesource.jansi:jansi:2.4.1")
 }
 
 tasks.test {

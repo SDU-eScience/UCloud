@@ -54,9 +54,7 @@ class BinaryTypeList<T : BinaryType>(val companion: BinaryTypeCompanion<T>, over
     override fun removeAt(index: Int): T = throw UnsupportedOperationException("BinaryTypeLists cannot change size")
 
     override fun set(index: Int, element: T): T {
-        buffer.data.putInt((buffer.offset + (1 + index) * 4).also {
-            println("set($index, $element) at offset $it")
-        }, element.buffer.offset)
+        buffer.data.putInt((buffer.offset + (1 + index) * 4), element.buffer.offset)
         return element
     }
 

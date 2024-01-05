@@ -36,7 +36,6 @@ import BaseLink from "@/ui-components/BaseLink";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useTitle, useLoading} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
 import {emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -49,7 +48,11 @@ import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListClass} from "@/ui-components/List";
-import {ProjectPageTitle} from "./Allocations";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+
+export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
+    return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
+}
 
 // UI state management
 // ================================================================================
@@ -563,7 +566,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     }, [inspectingGroup?.status?.members]);
 
     useTitle("Member and Group Management");
-    useRefreshFunction(reload);
+    useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
     if (!project) return null;
@@ -1345,7 +1348,7 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
         }
 
         ${k} > .left > .${ListClass} {
-            overflow-y: scroll;
+            overflow-y: auto;
             max-height: calc(100% - 48px - 48px - 10px);
         }
         

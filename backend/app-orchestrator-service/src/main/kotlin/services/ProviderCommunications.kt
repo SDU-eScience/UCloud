@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.AsyncCache
+import dk.sdu.cloud.accounting.util.ProductCache
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.accounting.util.checkOrRefresh
 import dk.sdu.cloud.auth.api.JwtRefresher
@@ -324,7 +325,7 @@ class ProviderCommunications(
             for (elem in elements) {
                 @Suppress("UNCHECKED_CAST")
                 val product = productCache.referenceToProductId(elem.product)?.let {
-                    productCache.productIdToProduct(it) as? P?
+                    productCache.productIdToProduct(it)?.toV1() as? P?
                 }
 
                 if (product == null) {

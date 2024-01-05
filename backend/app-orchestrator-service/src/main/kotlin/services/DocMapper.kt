@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.IdCard
+import dk.sdu.cloud.accounting.util.ProductCache
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
 import dk.sdu.cloud.app.orchestrator.api.Jobs

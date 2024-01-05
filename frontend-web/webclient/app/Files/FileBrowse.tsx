@@ -2,8 +2,7 @@ import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
 import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {
     addContextSwitcherInPortal,
@@ -57,7 +56,8 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
-import {cheatsheetOperation} from "@/Playground/Playground";
+import {controlsOperation} from "@/Playground/Playground";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 // Cached network data
 // =====================================================================================================================
@@ -88,7 +88,7 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     search: true,
     sorting: true,
-    filters: true,
+    filters: false,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
@@ -115,6 +115,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
             collectionCacheForCompletion.invalidateAll();
         }
         lastActiveProject = Client.projectId;
+        
+        // Note(Jonas): If the user reloads the page to '/search', we don't have any info cached, so we navigate to '/drives' instead.
+        // ONLY on component mount.
+        if (getQueryParam(location.search, "path") === "/search") {
+            navigate("/drives");
+        }
     }, []);
 
     const isSelector = !!opts?.selection;
@@ -569,7 +575,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
-                    if (inDevEnvironment()) ops.unshift(cheatsheetOperation(features, "files"));
+                    ops.unshift(controlsOperation(features, [{ name: "Rename", shortcut: { keys: "F2" }}]));
                     return ops;
                 });
 
@@ -855,8 +861,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 // =========================================================================================================
                 browser.on("generateBreadcrumbs", path => {
                     if (path === SEARCH) {
+                        // Disallow locationbar when we are in search-mode.
+                        browser.features.locationBar = false;
                         return [{absolutePath: SEARCH, title: `Search results for "${browser.searchQuery}"`}]
                     }
+
+                    // Note(Jonas): Allow locationbar as we are not in search mode.
+                    browser.features.locationBar = true;
+
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const collectionName = collection ?
@@ -878,8 +890,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
-                            style: {marginRight: "6px"}
                         });
+                        providerIconWrapper.style.marginRight = "6px";
                         const url = browser.header.querySelector("div.header-first-row");
                         if (url) url.prepend(providerIconWrapper);
                         pIcon = providerIconWrapper;
@@ -887,8 +899,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     pIcon.replaceChildren();
 
-                    if (pIcon && collection) {
-                        const icon = providerIcon(collection.specification.product.provider, {
+                    if (pIcon) {
+                        const icon = providerIcon(collection?.specification.product.provider ?? "", {
                             fontSize: "22px", width: "30px", height: "30px"
                         });
                         icon.style.marginRight = "8px";
@@ -1340,7 +1352,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     }, [location.search]);
 
     if (!opts?.isModal && !opts?.embedded) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

@@ -10,7 +10,7 @@
 ```kotlin
 data class CreateTagsRequest(
     val tags: List<String>,
-    val applicationName: String,
+    val groupId: Int,
 )
 ```
 
@@ -32,7 +32,7 @@ data class CreateTagsRequest(
 
 <details>
 <summary>
-<code>applicationName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>groupId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 

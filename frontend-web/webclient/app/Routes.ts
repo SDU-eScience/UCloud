@@ -95,6 +95,7 @@ const grants = {
         piUsernameHint: string,
         start: number,
         end: number,
+        subAllocator: boolean,
     }) => buildQueryString("/grants", { ...opts, type: "grantGiverInitiated" })
 }
 

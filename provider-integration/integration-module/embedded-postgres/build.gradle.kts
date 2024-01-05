@@ -20,6 +20,8 @@ dependencies {
         pgBinary("darwin-amd64")
         pgBinary("linux-amd64")
         pgBinary("linux-amd64-alpine")
+        pgBinary("linux-arm64v8")
+        pgBinary("linux-arm64v8-alpine")
     }
 
     implementation("org.slf4j:slf4j-api:2.0.1")

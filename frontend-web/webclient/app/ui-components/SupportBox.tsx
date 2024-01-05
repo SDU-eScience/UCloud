@@ -2,7 +2,7 @@ import * as React from "react";
 import {useRef, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as Heading from "@/ui-components/Heading";
-import {errorMessageOrDefault} from "@/UtilityFunctions";
+import {doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";
@@ -60,7 +60,7 @@ export default function Support(): JSX.Element {
         const controller = new AbortController();
         fetch("https://status.cloud.sdu.dk/health/", {signal: controller.signal}).then(it =>
             it.text().then(it => setUCloudStatus(it as SystemStatus)).catch(e => console.warn(e))
-        ).catch(e => console.warn(e));
+        ).catch(doNothing);
         return controller;
     }, []);
 

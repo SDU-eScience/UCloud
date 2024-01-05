@@ -1,10 +1,8 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.messages.BinaryAllocator
 import kotlinx.serialization.Contextual
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 
@@ -62,6 +60,7 @@ data class ProductCategory(
     val productType: ProductType,       //e.g. STORAGE
     val accountingUnit: AccountingUnit,
     val accountingFrequency: AccountingFrequency,
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     val conversionTable: List<AccountingUnitConversion> = emptyList(),
     @UCloudApiDoc(
         """
@@ -71,7 +70,8 @@ data class ProductCategory(
         has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
     """
     )
-    val freeToUse: Boolean = false
+    val freeToUse: Boolean = false,
+    val allowSubAllocations: Boolean = true,
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
 }
@@ -116,77 +116,6 @@ data class ProductCategoryIdV2(
     }
 }
 
-interface ProductCategoryFlags {
-    val filterName: String?
-    val filterProductType: ProductType?
-    val filterProvider: String?
-    val filterCategory: String?
-    val includeBalance: Boolean?
-    val includeMaxBalance: Boolean?
-}
-
-@Serializable
-data class ProductCategoriesBrowseRequest(
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-
-    override val filterName: String? = null,
-    override val filterProvider: String? = null,
-    override val filterProductType: ProductType? = null,
-    override val filterCategory: String? = null,
-
-    override val includeBalance: Boolean? = null,
-    override val includeMaxBalance: Boolean? = null
-) : WithPaginationRequestV2, ProductCategoryFlags
-typealias ProductCategoriesBrowseResponse = PageV2<ProductCategory>
-
-@Serializable
-data class ProductCategoryRetrieveRequest(
-    override val filterName: String,
-    override val filterCategory: String,
-    override val filterProvider: String,
-
-    override val filterProductType: ProductType? = null,
-    override val filterUsable: Boolean? = null,
-
-    override val includeBalance: Boolean? = null,
-    override val includeMaxBalance: Boolean? = null,
-) : ProductFlagsV2
-
 object ProductCategories : CallDescriptionContainer("product_categories") {
-    const val baseContext = "/api/product_categories"
 
-    val retrieve = call(
-        "retrieve",
-        ProductCategoryRetrieveRequest.serializer(),
-        ProductCategory.serializer(),
-        CommonErrorMessage.serializer()
-    ) {
-        httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
-
-        documentation {
-            summary = "Retrieve a single product category"
-        }
-    }
-
-    val browse = call(
-        "browse",
-        {
-            httpBrowse(baseContext, roles = Roles.PUBLIC)
-
-            documentation {
-                summary = "Browse a set of products categories"
-                description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
-                        "of $TYPE_REF ProductCategory ."
-            }
-        },
-        ProductCategoriesBrowseRequest.serializer(),
-        PageV2.serializer(ProductCategory.serializer()),
-        CommonErrorMessage.serializer(),
-        typeOfIfPossible<ProductCategoriesBrowseRequest>(),
-        typeOfIfPossible<ProductCategoriesBrowseResponse>(),
-        typeOfIfPossible<CommonErrorMessage>()
-    )
 }

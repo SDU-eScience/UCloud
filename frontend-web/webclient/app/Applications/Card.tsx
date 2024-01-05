@@ -203,7 +203,7 @@ export const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} > div > span {
         text-align: left;
         font-size: var(--secondaryText);
-        overflow-y: scroll;
+        overflow-y: auto;
         padding-left: 8px;
         padding-right: 8px;
         height: 90px;

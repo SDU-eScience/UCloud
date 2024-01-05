@@ -1,8 +1,6 @@
 package dk.sdu.cloud.grant.api
 
-import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
@@ -188,5 +186,24 @@ ${ApiConventions.nonConformingApiWarning}
             summary = "Deletes a Gift by its DeleteGiftRequest.giftId"
             description = "Only project administrators of `Gift.resourcesOwnedBy` can delete the $TYPE_REF Gift ."
         }
+    }
+
+    val browse = Browse.call
+    object Browse {
+        @Serializable
+        data class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ) : WithPaginationRequestV2
+
+        val call = call(
+            "browse",
+            Request.serializer(),
+            PageV2.serializer(GiftWithCriteria.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = { httpBrowse(baseContext) }
+        )
     }
 }

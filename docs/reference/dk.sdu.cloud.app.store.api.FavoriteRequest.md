@@ -10,7 +10,6 @@
 ```kotlin
 data class FavoriteRequest(
     val appName: String,
-    val appVersion: String,
 )
 ```
 
@@ -22,17 +21,6 @@ data class FavoriteRequest(
 <details>
 <summary>
 <code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

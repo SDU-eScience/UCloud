@@ -45,7 +45,6 @@ const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
-const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
@@ -58,17 +57,15 @@ import Uploader from "@/Files/Uploader";
 import Snackbars from "@/Snackbar/Snackbars";
 import {Dialog} from "@/Dialog/Dialog";
 import {Navigate, Route, Routes} from "react-router-dom";
-import {USER_LOGIN} from "@/Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {CONTEXT_SWITCH, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
-import {Provider} from "react-redux";
+import {Provider, useDispatch} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 import {Flex, UIGlobalStyle} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
-import {store} from "@/Utilities/ReduxUtilities";
+import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT, store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {OutgoingSharesBrowse} from "@/Files/SharesOutgoing";
@@ -86,6 +83,7 @@ import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "./Applications/PublicLinks/Router";
 import SharesApi from "./UCloud/SharesApi";
 import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
+import {Dispatch} from "redux";
 
 const NotFound = (): React.JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -207,8 +205,6 @@ const Core = (): React.JSX.Element => (
                         <Route path={"/projects/invite/:id"}
                             element={React.createElement(requireAuth(ProjectAcceptInviteLink))} />
 
-                        <Route path="/subprojects/" element={React.createElement(requireAuth(SubprojectList))} />
-
                         {/* Nullable paths args aren't supported (yet?) so we duplicate. */}
                         <Route path={AppRoutes.project.settings("")}
                             element={React.createElement(requireAuth(ProjectSettings))} />
@@ -222,9 +218,9 @@ const Core = (): React.JSX.Element => (
                             element={React.createElement(requireAuth(GrantApplicationBrowse))} />
 
                         <Route path={AppRoutes.accounting.usage()}
-                               element={React.createElement(requireAuth(ResourceUsage))} />
+                            element={React.createElement(requireAuth(ResourceUsage))} />
                         <Route path={AppRoutes.accounting.allocations()}
-                               element={React.createElement(requireAuth(ResourceAllocations))} />
+                            element={React.createElement(requireAuth(ResourceAllocations))} />
 
                         <Route
                             path="/sla"
@@ -284,23 +280,24 @@ const RouteWrapperClass = injectStyleSimple("route-wrapper", `
     overflow-y: auto;
 `);
 
-const LoginSuccess = (): React.JSX.Element => {
+function LoginSuccess(): React.JSX.Element {
+    const dispatch = useDispatch();
     React.useEffect(() => {
-        dispatchUserAction(USER_LOGIN);
-        onLogin();
+        dispatchUserAction(dispatch, USER_LOGIN);
+        onLogin(dispatch);
     }, []);
 
     const path = sessionStorage.getItem(LOGIN_REDIRECT_KEY) ?? "/";
     return <Navigate to={path} />;
 };
 
-export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
-    store.dispatch({type});
+export function dispatchUserAction(dispatch: Dispatch, type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
+    dispatch({type});
 }
 
-export async function onLogin(): Promise<void> {
+export async function onLogin(dispatch: Dispatch): Promise<void> {
     const action = await findAvatar();
-    if (action !== null) store.dispatch(action);
+    if (action !== null) dispatch(action);
 }
 
 injectStyle("ignored", () => `

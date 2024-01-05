@@ -47,7 +47,7 @@ export interface WebsocketResponse<T = any> {
 interface WebsocketRequest<T = any> {
     call: string;
     streamId: string;
-    bearer: string;
+    bearer?: string | null;
     payload: T | null;
     project?: string;
     signedIntent?: string;

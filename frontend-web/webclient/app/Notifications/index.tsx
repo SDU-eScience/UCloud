@@ -17,10 +17,11 @@ import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {Location, NavigateFunction, useLocation, useNavigate} from "react-router";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -285,13 +286,13 @@ export const Notifications: React.FunctionComponent = () => {
     const rerender = useForcedRender();
     const [notificationsVisible, setNotificationsVisible] = React.useState(false);
 
-    const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
+    const globalRefresh = useRefresh();
     const globalRefreshRef = React.useRef<(() => void) | undefined>(undefined);
     React.useEffect(() => {
         globalRefreshRef.current = globalRefresh;
     }, [globalRefresh]);
 
-    const toggleNotifications = React.useCallback((ev?: React.SyntheticEvent) => {
+    const toggleNotifications = React.useCallback((ev: React.SyntheticEvent) => {
         ev?.stopPropagation();
         setNotificationsVisible(prev => !prev);
     }, []);

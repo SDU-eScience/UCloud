@@ -1,7 +1,6 @@
 import {TaskUpdate} from "@/Services/BackgroundTasks/api";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis} from "recharts";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
 import * as Heading from "@/ui-components/Heading";
@@ -65,25 +64,6 @@ const DetailedTask: React.FunctionComponent<{task: TaskUpdate}> = ({task}) => {
                                     {lastElement.asText}
                                 </div>
                             </Flex>
-                            <ResponsiveContainer className={Container} aspect={16 / 9} maxHeight={200}>
-                                <AreaChart data={speeds}>
-                                    <XAxis
-                                        dataKey="clientTimestamp"
-                                        type={"number"}
-                                        domain={["dataMin", "dataMax"]}
-                                        tickFormatter={() => ""}
-                                    />
-                                    <YAxis dataKey="speed" type={"number"} />
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <Area
-                                        isAnimationActive={false}
-                                        type="monotone"
-                                        stroke="#8884d8"
-                                        dataKey="speed"
-                                        name={lastElement.title}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
                         </>
                     );
                 })}

@@ -1,21 +1,28 @@
 import dashboard from "@/Dashboard/Redux/DashboardReducer";
 import {initObject} from "@/DefaultObjects";
-import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import status from "@/Navigation/Redux/StatusReducer";
 import * as ProjectRedux from "@/Project/Redux";
-import {Action, AnyAction, combineReducers, legacy_createStore, Store} from "redux";
-import {composeWithDevTools} from "redux-devtools-extension";
+import {Action, AnyAction, combineReducers, compose} from "redux";
 import avatar from "@/UserSettings/Redux/AvataaarReducer";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
 import sidebar from "@/Applications/Redux/Reducer";
+import {EnhancedStore, configureStore} from "@reduxjs/toolkit";
+import {useEffect} from "react";
+import {refreshFunctionCache} from "@/ui-components/Sidebar";
+import {noopCall} from "@/Authentication/DataHook";
+
+export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
+export const USER_LOGIN = "USER_LOGIN";
+export const USER_LOGOUT = "USER_LOGOUT";
+
 
 export function confStore(
     initialObject: ReduxObject,
     reducers,
     enhancers?
-): Store<ReduxObject> {
+): EnhancedStore<ReduxObject> {
     const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {
@@ -23,12 +30,11 @@ export function confStore(
         }
         return combinedReducers(state, action);
     };
-    return legacy_createStore<ReduxObject, AnyAction, {}, {}>(rootReducer, initialObject, composeWithDevTools(enhancers));
+    return configureStore<ReduxObject>({reducer: rootReducer, preloadedState: initialObject, enhancers: compose(enhancers)});
 }
 
 export const store = confStore(initObject(), {
     dashboard,
-    header,
     status,
     hookStore,
     sidebar,
@@ -48,4 +54,17 @@ function loading(state = false, action: {type: string}): boolean {
         default:
             return state;
     }
+}
+
+export function useSetRefreshFunction(refreshFn: () => void): void {
+    useEffect(() => {
+        refreshFunctionCache.setRefreshFunction(refreshFn);
+        return () => {
+            refreshFunctionCache.setRefreshFunction(noopCall);
+        };
+    }, [refreshFn]);
+}
+
+export function useRefresh(): () => void {
+    return refreshFunctionCache.getSnapshot();
 }

@@ -16,16 +16,14 @@ import * as Heading from "@/ui-components/Heading";
 import {HiddenInputField} from "@/ui-components/Input";
 import Truncate from "@/ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
-import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
 import * as UCloud from "@/UCloud";
-import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {Link} from "@/ui-components";
 import {useNavigate} from "react-router";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");
-    usePrioritizedSearch("applications");
-    
+
     const navigate = useNavigate();
 
     const [tools, setToolParameters, toolParameters] = useCloudAPI(
@@ -39,7 +37,7 @@ export const Studio: React.FunctionComponent = () => {
         setToolParameters(toolParameters);
     }, [toolParameters]);
 
-    setRefreshFunction(refresh);
+    useSetRefreshFunction(refresh);
 
     if (Client.userRole !== "ADMIN") return null;
 
@@ -149,7 +147,7 @@ export const Studio: React.FunctionComponent = () => {
                                     key={tool.description.info.name}
                                     to={`/applications/studio/t/${tool.description.info.name}`}>
                                     <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--black)"}}>
-                                        <AppToolLogo type={"TOOL"} name={tool.description.info.name} />
+                                        <div style={{borderRadius: "6px", padding: "2px", backgroundColor: "white"}}><AppToolLogo type={"TOOL"} name={tool.description.info.name} /></div>
                                         <Box ml={8}>
                                             <Truncate width={300} cursor={"pointer"}>
                                                 <b>{tool.description.title}</b>
