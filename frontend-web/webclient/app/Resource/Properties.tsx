@@ -11,12 +11,13 @@ import {
 } from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
+import {appendToXterm, useXTerm} from "@/Applications/Jobs/XTermLib";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";

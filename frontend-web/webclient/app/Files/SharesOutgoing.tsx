@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState} from "@/UCloud/SharesApi";
 import MainContainer from "@/ui-components/MainContainer";
 import {prettyFilePath} from "@/Files/FilePath";

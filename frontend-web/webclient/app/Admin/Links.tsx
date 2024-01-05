@@ -1,7 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import AppRoutes from "@/Routes";
-import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
+import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarComponents";
 
 const linkInfo: LinkInfo[] = [
     {to: AppRoutes.admin.userCreation(), text: "User creation", icon: "heroUser"},

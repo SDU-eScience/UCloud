@@ -95,7 +95,9 @@ export class WebSocketConnection {
         const streamId = (this.nextStreamId++).toString();
         const bearer = this.settings.includeAuthentication !== false ?
             await this.client.receiveAccessTokenOrRefreshIt() : undefined;
-        const signedIntent = signIntentToCall(call) ?? undefined;
+        const username = this.client.activeUsername ?? "";
+        const projectId = this.client.projectId ?? null;
+        const signedIntent = signIntentToCall(username, projectId, call) ?? undefined;
 
         return new Promise((resolve) => {
             this.handlers.set(streamId, message => {

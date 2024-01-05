@@ -1,6 +1,6 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";

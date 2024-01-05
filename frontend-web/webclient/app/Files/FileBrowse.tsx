@@ -48,7 +48,7 @@ import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";

@@ -1,7 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Avatar} from "@/AvataaarLib";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -10,7 +10,7 @@ import {Box, Button, Flex, Label, Select} from "@/ui-components";
 import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import * as Options from "./AvatarOptions";
-import {saveAvatar} from "./Redux/AvataaarActions";
+import {saveAvatar} from "./Redux";
 import {avatarState} from "@/AvataaarLib/hook";
 
 function Modification(): React.JSX.Element {

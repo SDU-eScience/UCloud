@@ -1,7 +1,6 @@
 import {BoxProps} from "./Box";
 import * as React from "react";
-import {IconName} from "@/ui-components/Icon";
-import {Icon} from "@/ui-components/index";
+import {IconName, default as Icon} from "@/ui-components/Icon";
 import {ThemeColor} from "./theme";
 import {Cursor} from "@/ui-components/Types";
 import {EventHandler, MouseEvent, useCallback} from "react";

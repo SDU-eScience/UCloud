@@ -53,7 +53,7 @@ import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {injectStyle} from "@/Unstyled";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");

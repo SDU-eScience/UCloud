@@ -2,7 +2,7 @@ import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowser
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import AppRoutes from "@/Routes";

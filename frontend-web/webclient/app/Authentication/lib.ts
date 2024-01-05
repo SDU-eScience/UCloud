@@ -1,9 +1,33 @@
 import {Store} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "@/UtilityFunctions";
-import {setStoredProject} from "@/Project/Redux";
+import {b64DecodeUnicode, inRange, inSuccessRange, is5xxStatusCode, onDevSite} from "@/UtilityFunctions";
+import {setStoredProject} from "@/Project/ReduxState";
 import {CallParameters} from "./CallParameters";
 import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
+
+/**
+ * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as
+ * a an object.
+ * @param encodedJWT The JWT sent from the backend, in the form of a string.
+ */
+export function parseJWT(encodedJWT: string): JWT | null {
+    const [, right] = encodedJWT.split(".");
+    if (right == null) return null;
+
+    const decoded = b64DecodeUnicode(right);
+    const parsed = JSON.parse(decoded);
+    const isValid = "sub" in parsed &&
+        "aud" in parsed &&
+        "role" in parsed &&
+        "iss" in parsed &&
+        "exp" in parsed &&
+        "extendedByChain" in parsed &&
+        "iat" in parsed &&
+        "principalType" in parsed;
+    if (!isValid) return null;
+
+    return parsed;
+}
 
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
@@ -130,7 +154,7 @@ export class HttpClient {
                         accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
                     );
 
-                    const signedIntent = signIntentToCall(params);
+                    const signedIntent = signIntentToCall(this.username ?? "", this.projectId ?? null, params);
                     if (signedIntent !== null) {
                         req.setRequestHeader("UCloud-Signed-Intent", signedIntent);
                     }

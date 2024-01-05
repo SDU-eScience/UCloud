@@ -35,7 +35,7 @@ import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import BaseLink from "@/ui-components/BaseLink";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {useTitle, useLoading} from "@/Navigation/Redux/StatusActions";
+import {useTitle, useLoading} from "@/Navigation/Redux";
 import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
 import {emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";

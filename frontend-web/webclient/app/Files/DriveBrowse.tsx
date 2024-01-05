@@ -23,7 +23,7 @@ import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/R
 import {Product, ProductStorage} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";

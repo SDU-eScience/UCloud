@@ -1,7 +1,7 @@
 import * as React from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import {ResourceOptions} from "@/Resource/ResourceOptions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import SshKeyApi from "@/UCloud/SshKeyApi";
 import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";

@@ -2,7 +2,7 @@ import {ColumnTitleList, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowse
 import * as React from "react";
 import api, {ProjectInvite} from "./Api";
 import {callAPI} from "@/Authentication/DataHook";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {format} from "date-fns";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";

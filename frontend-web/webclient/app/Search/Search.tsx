@@ -1,5 +1,5 @@
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import * as React from "react";
 import {useLocation, useMatch, useNavigate} from "react-router";
 import {searchPage} from "@/Utilities/SearchUtilities";

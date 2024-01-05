@@ -2,7 +2,7 @@ import {Product, ProductNetworkIP, productTypeToIcon} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";

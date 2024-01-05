@@ -3,7 +3,7 @@ import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
-import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/Redux";
+import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -187,7 +187,7 @@ export function ContextSwitcher({managed}: {
                         <Input
                             autoFocus
                             className={filterInputClass}
-                            placeholder="Search..."
+                            placeholder="Search for a workspace..."
                             defaultValue={filter}
                                 onKeyDown={e => {
                                 if (["Escape"].includes(e.key) && e.target["value"]) {

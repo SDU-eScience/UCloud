@@ -4,7 +4,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback} from "react";

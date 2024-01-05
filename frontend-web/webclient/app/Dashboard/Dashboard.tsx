@@ -1,6 +1,6 @@
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
@@ -9,7 +9,7 @@ import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations} from ".";
-import {setAllLoading} from "./Redux/DashboardActions";
+import {setAllLoading} from "./Redux";
 import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";

@@ -1,12 +1,12 @@
 import * as React from "react";
-import {useXTerm} from "@/Applications/Jobs/xterm";
+import {useXTerm} from "@/Applications/Jobs/XTermLib";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
 import {Box, Button} from "@/ui-components";
-import {shortUUID, useNoFrame} from "@/UtilityFunctions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {shortUUID} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf, bulkResponseOf} from "@/DefaultObjects";
 import {default as JobsApi, InteractiveSession} from "@/UCloud/JobsApi";
@@ -25,7 +25,6 @@ export const Shell: React.FunctionComponent = () => {
 
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
-    useNoFrame();
     useTitle(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
 
     useEffect(() => {

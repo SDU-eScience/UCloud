@@ -1,9 +1,9 @@
-import dashboard from "@/Dashboard/Redux/DashboardReducer";
+import {dashboardReducer} from "@/Dashboard/Redux";
 import {initObject} from "@/DefaultObjects";
-import status from "@/Navigation/Redux/StatusReducer";
-import * as ProjectRedux from "@/Project/Redux";
+import {statusReducer} from "@/Navigation/Redux";
+import * as ProjectRedux from "@/Project/ReduxState";
 import {Action, AnyAction, combineReducers, compose} from "redux";
-import avatar from "@/UserSettings/Redux/AvataaarReducer";
+import {avatarReducer} from "@/UserSettings/Redux";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
@@ -34,11 +34,11 @@ export function confStore(
 }
 
 export const store = confStore(initObject(), {
-    dashboard,
-    status,
+    dashboard: dashboardReducer,
+    status: statusReducer,
     hookStore,
     sidebar,
-    avatar,
+    avatar: avatarReducer,
     terminal: terminalReducer,
     loading,
     project: ProjectRedux.reducer,

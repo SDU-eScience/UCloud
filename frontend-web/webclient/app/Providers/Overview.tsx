@@ -1,5 +1,5 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {Box, Flex, Link, theme} from "@/ui-components";
 import {GridCardGroup} from "@/ui-components/Grid";
 import * as React from "react";

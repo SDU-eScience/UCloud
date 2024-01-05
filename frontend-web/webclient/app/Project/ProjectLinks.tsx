@@ -1,5 +1,5 @@
 import * as React from "react";
-import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
+import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarComponents";
 import {useProjectId} from "./Api";
 import AppRoutes from "@/Routes";
 import {useProject} from "./cache";

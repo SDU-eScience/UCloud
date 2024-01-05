@@ -1,7 +1,7 @@
 import {callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import MainContainer from "@/ui-components/MainContainer";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as UCloud from "@/UCloud";

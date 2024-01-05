@@ -54,7 +54,7 @@ const ResourceAllocations = React.lazy(() => import("@/Accounting/Allocations"))
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
-import Snackbars from "@/Snackbar/Snackbars";
+import Snackbars from "@/Snackbar";
 import {Dialog} from "@/Dialog/Dialog";
 import {Navigate, Route, Routes} from "react-router-dom";
 import {inDevEnvironment} from "@/UtilityFunctions";
@@ -64,7 +64,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {Provider, useDispatch} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 import {Flex, UIGlobalStyle} from "@/ui-components";
-import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
+import {findAvatar} from "@/UserSettings/Redux";
 import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT, store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";

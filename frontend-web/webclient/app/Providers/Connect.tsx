@@ -10,7 +10,7 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "./ConnectionState";

@@ -1,8 +1,7 @@
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
-import {Box} from "@/ui-components";
+import Box from "./Box";
 import * as Heading from "@/ui-components/Heading";
-import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect} from "react";
 import {injectStyleSimple} from "@/Unstyled";
 
@@ -19,7 +18,6 @@ export function MainContainer({
     header,
     headerSize = 64
 }: MainContainerProps): JSX.Element {
-    const [, setHeaderSize] = useGlobal("mainContainerHeaderSize", headerSize);
     const pad = 16; // padding unit
 
     const mainYpad = header ? headerSize : pad;
@@ -28,7 +26,6 @@ export function MainContainer({
     useEffect(() => {
         // HACK(Dan): Under no circumstances should the body be scrolling if we are mounting this element.
         document.body.style.overflow = "hidden";
-        setHeaderSize(mainYpad);
     }, [mainYpad]);
 
     return (

@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarLink";
+import {LinkInfo, SidebarLinkColumn} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 
 export enum ResourceOptions {

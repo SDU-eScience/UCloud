@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {SetStatusLoading} from "@/Navigation/Redux/StatusActions";
+import {SetStatusLoading} from "@/Navigation/Redux";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Divider, ExternalLink, Flex, Input} from "@/ui-components";

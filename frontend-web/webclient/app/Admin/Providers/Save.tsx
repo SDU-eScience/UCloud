@@ -7,7 +7,7 @@ import Loading from "@/LoadingIcon/LoadingIcon";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {useNavigate, useParams} from "react-router";
 import RS from "@/Products/CreateProduct";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useCloudAPI} from "@/Authentication/DataHook";

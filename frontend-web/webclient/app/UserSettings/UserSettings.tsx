@@ -1,6 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {Box, Flex} from "@/ui-components";

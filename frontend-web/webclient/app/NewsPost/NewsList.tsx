@@ -13,7 +13,7 @@ import {format} from "date-fns";
 import {Tag} from "@/Applications/Card";
 import {capitalized} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {colorFromTitle} from "@/ui-components/theme";
 

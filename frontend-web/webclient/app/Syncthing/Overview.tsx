@@ -2,7 +2,7 @@ import * as React from "react";
 import {NavigateFunction, useNavigate} from "react-router";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";

@@ -9,7 +9,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import {NewsPost} from "@/Dashboard/Dashboard";
 import {Tag} from "@/Applications/Card";
 import {format} from "date-fns";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Spacer} from "@/ui-components/Spacer";
 import {DatePicker} from "@/ui-components/DatePicker";

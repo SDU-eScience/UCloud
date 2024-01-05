@@ -26,9 +26,8 @@ import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
 import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {navigateByFileType, NewsPost} from "@/Dashboard/Dashboard";
-import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
+import {findAvatar} from "@/UserSettings/Redux";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import ClickableDropdown from "./ClickableDropdown";
 import Divider from "./Divider";
@@ -422,7 +421,7 @@ function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
     FileMetadataAttached[]
 ] {
-    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, emptyPageV2);
+    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, {items: [], itemsPerPage: 0});
 
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
@@ -642,7 +641,7 @@ function SecondarySidebar({
 
     const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
         compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
-        emptyPage,
+        { items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
     );
 
     const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
@@ -879,7 +878,7 @@ function ProjectID({close}: {close(): void}): JSX.Element | null {
 }
 
 function Downtimes(): JSX.Element | null {
-    const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, emptyPage);
+    const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0});
     const [intervalId, setIntervalId] = React.useState(-1);
 
     React.useEffect(() => {

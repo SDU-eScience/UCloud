@@ -18,7 +18,7 @@ import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentic
 import {useNavigate} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";

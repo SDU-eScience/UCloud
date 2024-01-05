@@ -16,7 +16,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
 import {addThemeListener, removeThemeListener} from "@/Core";
-import {addProjectListener, removeProjectListener} from "@/Project/Redux";
+import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
