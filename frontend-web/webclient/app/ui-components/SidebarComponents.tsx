@@ -1,32 +1,48 @@
 import * as React from "react";
-import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import Box from "./Box";
+import {Flex, Truncate} from "@/ui-components";
 
 export interface LinkInfo {
     to: string;
     text: string;
-    icon: IconName;
+    icon: IconName | React.ReactNode;
     disabled?: boolean;
     removed?: boolean;
 }
 
 export function SidebarLinkColumn({links}: { links: LinkInfo[] }): React.ReactNode {
-    return <Flex flexDirection="column">
-        {links.map(it => it.removed ? null : it.disabled ?
-            <Box key={it.text} mb="8px" cursor="not-allowed" color={"gray"}>
-                <Icon size="18px" name={it.icon} color="gray" color2="gray" mr={"4px"}/>
-                {it.text}
-            </Box> :
-            <Link key={it.text} mb="8px" to={it.to}>
-                <Icon size="18px" name={it.icon} color="#fff" mr={"4px"}/>
-                {it.text}
-            </Link>
-        )}
-    </Flex>
+    return <>
+        {links.map(l => <SidebarEntry {...l} key={l.text} />)}
+    </>
 }
 
-export const SidebarSectionHeader: React.FunctionComponent<{ children: React.ReactNode }> = ({children}) => {
-    return null;
+export const SidebarEntry: React.FunctionComponent<LinkInfo> = (info) => {
+    const icon = typeof info.icon === "string" ?
+        <Icon name={info.icon as IconName} color={"fixedWhite"} color2={"fixedWhite"} /> :
+        info.icon;
+
+    return <Link key={info.text} to={info.to}>
+        <Flex flexDirection={"row"} gap={"4px"}>
+            {icon}
+            <Truncate fontSize="14px" title={info.text} maxWidth={"150px"} color="var(--fixedWhite)">
+                {info.text}
+            </Truncate>
+        </Flex>
+    </Link>;
+}
+
+export const SidebarSectionHeader: React.FunctionComponent<{
+    to?: string;
+    children: React.ReactNode
+}> = ({to, children}) => {
+    if (to) {
+        return <Link to={to} className={"heading"}><h3>{children}</h3></Link>;
+    } else {
+        return <h3 className={"no-link"}>{children}</h3>
+    }
+}
+
+export const SidebarEmpty: React.FunctionComponent<{ children: React.ReactNode }> = ({children}) => {
+    return <i>{children}</i>;
 }

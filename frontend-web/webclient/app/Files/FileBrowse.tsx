@@ -855,6 +855,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             break;
                         }
                     }
+
+                    if (reason.information === "Invalid file type") {
+                        navigate(AppRoutes.files.preview(browser.currentPath));
+                    }
                 });
 
                 // Rendering of breadcrumbs and the location bar

@@ -40,7 +40,7 @@ const project = {
     usage: () => accounting.usage(),
     allocations: () => accounting.allocations(),
     settings: (page: string) => `/project/settings/${page}`,
-    subprojects: () => "/subprojects/",
+    subprojects: () => accounting.allocations(),
 }
 
 const syncthing = {
@@ -49,10 +49,10 @@ const syncthing = {
 
 const apps = {
     landing: () => "/applications",
+    section: (sectionId: number) => `/applications/full#section${sectionId}`,
     overview: () => "/applications/full",
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
-    byTag: (tag: string) => buildQueryString("applications", {tag, itemsPerPage: 25, page: 0}),
     studio: () => "/applications/studio",
     studioGroups: () => "/applications/studio/groups",
     studioTool: (tool: string) => `/applications/studio/t/${tool}`,
@@ -104,6 +104,13 @@ const accounting = {
     allocations: () => "/allocations",
 }
 
+const files = {
+    drives: () => "/drives",
+    drive: (driveId: string) => buildQueryString("/files", {path: "/" + driveId}),
+    path: (path: string) => buildQueryString("/files", {path}),
+    preview: (path: string) => "/files/properties/" + encodeURIComponent(path)
+}
+
 const AppRoutes = {
     apps,
     news,
@@ -118,7 +125,8 @@ const AppRoutes = {
     jobs,
     syncthing,
     grants,
-    accounting
+    accounting,
+    files,
 };
 
 export default AppRoutes;
