@@ -9,7 +9,7 @@ import {
     RadioTilesContainer,
     Tooltip
 } from "@/ui-components";
-import {capitalized, displayErrorMessageOrDefault, doNothing, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {capitalized, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useLocation, useNavigate} from "react-router";
@@ -19,7 +19,6 @@ import {avatarState} from "@/AvataaarLib/hook";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {Avatar} from "@/AvataaarLib";
 import {addShareModal, StateIconAndColor} from "./Shares";
 import AppRoutes from "@/Routes";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
@@ -29,6 +28,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import Avatar from "@/AvataaarLib/avatar";
 
 enum ShareValidateState {
     NOT_VALIDATED,

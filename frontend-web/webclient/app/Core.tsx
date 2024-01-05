@@ -1,4 +1,8 @@
 import * as React from "react";
+import {Navigate, Route, Routes} from "react-router-dom";
+import {Dispatch} from "redux";
+import {Provider, useDispatch} from "react-redux";
+import {BrowserRouter} from "react-router-dom";
 
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
@@ -56,13 +60,10 @@ import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
 import Snackbars from "@/Snackbar";
 import {Dialog} from "@/Dialog/Dialog";
-import {Navigate, Route, Routes} from "react-router-dom";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Provider, useDispatch} from "react-redux";
-import {BrowserRouter} from "react-router-dom";
 import {Flex, UIGlobalStyle} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux";
 import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT, store} from "@/Utilities/ReduxUtilities";
@@ -83,7 +84,6 @@ import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "./Applications/PublicLinks/Router";
 import SharesApi from "./UCloud/SharesApi";
 import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
-import {Dispatch} from "redux";
 
 const NotFound = (): React.JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -291,11 +291,11 @@ function LoginSuccess(): React.JSX.Element {
     return <Navigate to={path} />;
 };
 
-export function dispatchUserAction(dispatch: Dispatch, type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
+function dispatchUserAction(dispatch: Dispatch, type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
     dispatch({type});
 }
 
-export async function onLogin(dispatch: Dispatch): Promise<void> {
+async function onLogin(dispatch: Dispatch): Promise<void> {
     const action = await findAvatar();
     if (action !== null) dispatch(action);
 }

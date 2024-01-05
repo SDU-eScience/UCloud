@@ -1,7 +1,6 @@
 import {DashboardStateProps} from "@/Dashboard";
 import * as ProjectRedux from "@/Project/ReduxState";
 import {Upload} from "@/Files/Upload";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectCache} from "@/Project/cache";
 import {APICallStateWithParams} from "@/Authentication/DataHook";
 import {Product} from "@/Accounting";
@@ -12,6 +11,7 @@ import {initTerminalState, TerminalState} from "@/Terminal/State";
 import {PopInArgs} from "./ui-components/PopIn";
 import {SidebarStateProps} from "./Applications/Redux/Reducer";
 import {getUserThemePreference} from "./UtilityFunctions";
+import {defaultAvatar} from "./AvataaarLib";
 
 export enum KeyCode {
     ENTER = 13,

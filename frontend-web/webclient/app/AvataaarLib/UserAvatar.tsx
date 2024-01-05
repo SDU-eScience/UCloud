@@ -1,7 +1,7 @@
-import {Avatar} from "@/AvataaarLib";
 import * as React from "react";
 import Flex from "@/ui-components/Flex";
-import {AvatarType} from "@/UserSettings/Avataaar";
+import {AvatarType} from ".";
+import Avatar from "./avatar";
 
 interface UserAvatar {
     mr?: string;

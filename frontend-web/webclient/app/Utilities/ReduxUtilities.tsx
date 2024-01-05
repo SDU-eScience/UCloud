@@ -1,15 +1,16 @@
+import {useEffect} from "react";
+import {Action, AnyAction, combineReducers, compose} from "redux";
+
 import {dashboardReducer} from "@/Dashboard/Redux";
 import {initObject} from "@/DefaultObjects";
 import {statusReducer} from "@/Navigation/Redux";
 import * as ProjectRedux from "@/Project/ReduxState";
-import {Action, AnyAction, combineReducers, compose} from "redux";
 import {avatarReducer} from "@/UserSettings/Redux";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
 import sidebar from "@/Applications/Redux/Reducer";
 import {EnhancedStore, configureStore} from "@reduxjs/toolkit";
-import {useEffect} from "react";
 import {refreshFunctionCache} from "@/ui-components/Sidebar";
 import {noopCall} from "@/Authentication/DataHook";
 

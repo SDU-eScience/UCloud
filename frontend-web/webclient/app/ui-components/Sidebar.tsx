@@ -26,13 +26,12 @@ import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
 import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {navigateByFileType, NewsPost} from "@/Dashboard/Dashboard";
+import {navigateByFileType} from "@/Dashboard/Dashboard";
 import {findAvatar} from "@/UserSettings/Redux";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import ClickableDropdown from "./ClickableDropdown";
 import Divider from "./Divider";
 import {ThemeToggler} from "./ThemeToggle";
-import {AvatarType} from "@/UserSettings/Avataaar";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {Page, PageV2, compute} from "@/UCloud";
@@ -57,6 +56,8 @@ import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {isJobStateTerminal} from "@/Applications/Jobs";
 import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
+import {AvatarType} from "@/AvataaarLib";
+import {NewsPost} from "@/NewsPost";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {

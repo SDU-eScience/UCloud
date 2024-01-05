@@ -42,6 +42,12 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as Accounting from "@/Accounting";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
+import {NewsPost} from "@/NewsPost";
+
+interface NewsRequestProps extends PaginationRequest {
+    filter?: string;
+    withHidden: boolean;
+}
 
 function Dashboard(): JSX.Element {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -222,23 +228,6 @@ export async function navigateByFileType(file: FileMetadataAttached, invokeComma
     } else {
         navigate(buildQueryString("/files", {path: file.path}))
     }
-}
-
-export interface NewsPost {
-    id: number;
-    title: string;
-    subtitle: string;
-    body: string;
-    postedBy: string;
-    showFrom: number;
-    hideFrom: number | null;
-    hidden: boolean;
-    category: string;
-}
-
-interface NewsRequestProps extends PaginationRequest {
-    filter?: string;
-    withHidden: boolean;
 }
 
 export function newsRequest(payload: NewsRequestProps): APICallParameters<PaginationRequest> {

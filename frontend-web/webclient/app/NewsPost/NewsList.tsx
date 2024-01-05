@@ -3,7 +3,6 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import {Link, Text, Flex, Box, Icon, Grid} from "@/ui-components";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {NewsPost} from "@/Dashboard/Dashboard";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {emptyPage} from "@/DefaultObjects";
 import {useNavigate, useParams} from "react-router";
@@ -16,6 +15,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {colorFromTitle} from "@/ui-components/theme";
+import {NewsPost} from ".";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;

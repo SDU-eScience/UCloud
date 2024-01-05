@@ -25,7 +25,6 @@ import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowser
 import {dateToString} from "@/Utilities/DateUtilities";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {div} from "@/Utilities/HTMLUtilities";
@@ -33,6 +32,7 @@ import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import Avatar from "@/AvataaarLib/avatar";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},

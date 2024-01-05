@@ -1,10 +1,11 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {default as ReactModal} from "react-modal";
+import {useLocation} from "react-router";
+
 import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
-import {useLocation} from "react-router";
 
 export const Dialog: React.FunctionComponent = (): JSX.Element | null => {
     const [dialogs, setDialogs] = useState<IDialog[]>([]);

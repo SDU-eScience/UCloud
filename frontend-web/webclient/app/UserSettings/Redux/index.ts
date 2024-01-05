@@ -1,10 +1,10 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {AvatarType} from "@/UserSettings/Avataaar";
 import {findAvatarQuery, saveAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {initAvatar} from "@/DefaultObjects";
+import {AvatarType} from "@/AvataaarLib";
 
 export type AvatarActions = SaveAvataaar | SetAvatarError;
 

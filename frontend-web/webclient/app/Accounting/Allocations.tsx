@@ -22,12 +22,10 @@ import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import AppRoutes from "@/Routes";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {Avatar} from "@/AvataaarLib";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
 import {doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {addStandardInputDialog} from "@/UtilityComponents";
 import {useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useAvatars} from "@/AvataaarLib/hook";
@@ -44,6 +42,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
+import Avatar from "@/AvataaarLib/avatar";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 

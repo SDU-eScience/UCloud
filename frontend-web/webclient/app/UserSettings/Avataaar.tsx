@@ -1,5 +1,4 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {Avatar} from "@/AvataaarLib";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux";
 import PromiseKeeper from "@/PromiseKeeper";
@@ -12,6 +11,8 @@ import {errorMessageOrDefault} from "@/UtilityFunctions";
 import * as Options from "./AvatarOptions";
 import {saveAvatar} from "./Redux";
 import {avatarState} from "@/AvataaarLib/hook";
+import {AvatarType, defaultAvatar} from "@/AvataaarLib";
+import Avatar from "@/AvataaarLib/avatar";
 
 function Modification(): React.JSX.Element {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
@@ -192,22 +193,4 @@ function AvatarSelect<T1 extends string, T2 extends Object>({
     );
 }
 
-const defaultAvatar = ({
-    top: Options.Top.NoHair,
-    topAccessory: Options.TopAccessory.Blank,
-    hatColor: Options.HatColor.Black,
-    hairColor: Options.HairColor.Auburn,
-    facialHair: Options.FacialHair.Blank,
-    facialHairColor: Options.FacialHairColor.Auburn,
-    clothes: Options.Clothes.BlazerShirt,
-    colorFabric: Options.ColorFabric.Black,
-    clothesGraphic: Options.ClothesGraphic.Bat,
-    eyes: Options.Eyes.Default,
-    eyebrows: Options.Eyebrows.DefaultNatural,
-    mouthTypes: Options.MouthTypes.Default,
-    skinColors: Options.SkinColors.Pale
-});
-
-type AvatarType = typeof defaultAvatar;
 export default Modification;
-export {defaultAvatar, AvatarType};

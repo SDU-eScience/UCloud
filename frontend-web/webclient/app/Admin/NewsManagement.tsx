@@ -14,12 +14,12 @@ import {DatePicker} from "@/ui-components/DatePicker";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
 import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "@/UtilityFunctions";
-import {NewsPost} from "@/Dashboard/Dashboard";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import Fuse from "fuse.js";
 import {addStandardDialog} from "@/UtilityComponents";
 import AppRoutes from "@/Routes";
+import {NewsPost} from "@/NewsPost";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 

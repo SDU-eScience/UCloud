@@ -6,7 +6,6 @@ import Loading from "@/LoadingIcon/LoadingIcon";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {NewsPost} from "@/Dashboard/Dashboard";
 import {Tag} from "@/Applications/Card";
 import {format} from "date-fns";
 import {useTitle} from "@/Navigation/Redux";
@@ -20,6 +19,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import Fuse from "fuse.js";
 import {colorFromTitle} from "@/ui-components/theme";
 import {Toggle} from "@/ui-components/Toggle";
+import {NewsPost} from ".";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
