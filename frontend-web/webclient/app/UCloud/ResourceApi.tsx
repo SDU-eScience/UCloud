@@ -8,8 +8,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "@/Resource/Filter";
-import {IconName} from "@/ui-components/Icon";
+import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, TextFilter} from "@/Resource/Filter";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
@@ -129,18 +128,6 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     supportByProvider: SupportByProvider; // As of today (Nov 8th, 2023) only FileCollectionsApi uses this in callbacks.
     isWorkspaceAdmin: boolean;
     creationDisabled?: boolean;
-}
-
-export interface SortFlags {
-    sortBy?: string;
-    sortDirection?: "ascending" | "descending";
-}
-
-export interface SortEntry {
-    icon: IconName;
-    title: string;
-    column: string;
-    helpText?: string;
 }
 
 export abstract class ResourceApi<Res extends Resource,

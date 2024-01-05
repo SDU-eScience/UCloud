@@ -6,7 +6,7 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate, SortFlags
+    ResourceUpdate 
 } from "./ResourceApi";
 import {Box, Button, Divider, Icon, Input} from "@/ui-components";
 import * as React from "react";
@@ -16,7 +16,7 @@ import {ProductStorage} from "@/Accounting";
 import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
+import {CheckboxFilter, ConditionalFilter, SortFlags} from "@/Resource/Filter";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";

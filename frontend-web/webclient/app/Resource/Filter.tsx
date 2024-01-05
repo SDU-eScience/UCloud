@@ -13,9 +13,20 @@ import {Toggle} from "@/ui-components/Toggle";
 import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
-import {SortEntry} from "@/UCloud/ResourceApi";
 import {BrowseType} from "./BrowseType";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+
+export interface SortFlags {
+    sortBy?: string;
+    sortDirection?: "ascending" | "descending";
+}
+
+export interface SortEntry {
+    icon: IconName;
+    title: string;
+    column: string;
+    helpText?: string;
+}
 
 export interface FilterWidgetProps {
     properties: Record<string, string>;
