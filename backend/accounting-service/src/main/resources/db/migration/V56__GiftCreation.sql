@@ -13,14 +13,14 @@ drop function "grant".create_gift(
     resources_quota_in bigint[]
 );
 
-alter table "grant".gifts add column renewal_policy text default 'NEVER';
+alter table "grant".gifts add column renewal_policy int default 0;
 
 create or replace function "grant".create_gift(
     actor_in text,
     gift_resources_owned_by_in text,
     title_in text,
     description_in text,
-    renewal text,
+    renewal int,
 
     criteria_type_in text[],
     criteria_entity_in text[],

@@ -6,13 +6,6 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
-enum class GiftRenewal{
-    NEVER,
-    MONTH,
-    HALF_YEAR,
-    YEAR
-}
-
 interface Gift {
     @UCloudApiDoc(
         """
@@ -51,7 +44,7 @@ interface Gift {
             Renewal policy for the gift
         """
     )
-    val renewsEvery: GiftRenewal
+    val renewEvery: Int
 }
 
 @UCloudApiInternal(InternalLevel.STABLE)
@@ -63,7 +56,7 @@ data class GiftWithCriteria(
     override val title: String,
     override val description: String,
     override val resources: List<GrantApplication.AllocationRequest>,
-    override val renewsEvery: GiftRenewal,
+    override val renewEvery: Int,
     val criteria: List<UserCriteria>
 ) : Gift {
     init {

@@ -197,7 +197,7 @@ class GiftService(
                     setParameter("title", gift.title)
                     setParameter("description", gift.description)
                     setParameter("resources_owned_by", gift.resourcesOwnedBy)
-                    setParameter("renewal", gift.renewsEvery.name)
+                    setParameter("renewal", gift.renewEvery)
 
                     gift.criteria.split {
                         into("criteria_type") { it.type }

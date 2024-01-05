@@ -1142,6 +1142,7 @@ const Allocations: React.FunctionComponent = () => {
             resources: [],
             resourcesOwnedBy: Client.projectId ?? "",
             title: state.gifts.title,
+            renewEvery: state.gifts.renewEvery
         };
 
         if (state.gifts.domainAllow) {
