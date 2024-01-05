@@ -511,7 +511,7 @@ data class GrantApplication(
 
         @Serializable
         @SerialName("grant_giver_initiated")
-        data class GrantGiverInitiated(override val text: String) : Form(), WithText
+        data class GrantGiverInitiated(override val text: String, val subAllocator: Boolean = false) : Form(), WithText
 
         interface WithText {
             val text: String

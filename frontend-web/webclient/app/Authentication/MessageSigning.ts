@@ -2,7 +2,6 @@ import {CallParameters} from "@/Authentication/CallParameters";
 import {estimateRpcName} from "@/Authentication/RpcNameTable";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {KEYUTIL, KJUR} from "jsrsasign";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
 
 const SIGNING_ALGORITHM = "RS256";
@@ -61,7 +60,7 @@ export function markSigningKeyAsUploadedToProvider(provider: string) {
     keyUploadedToCache.update(current);
 }
 
-export function signIntentToCall(parameters: CallParameters | string): string | null {
+export function signIntentToCall(username: string, projectId: string | null, parameters: CallParameters | string): string | null {
     const privateKey = retrievePrivateKey();
     if (privateKey == null) return null;
 
@@ -73,8 +72,8 @@ export function signIntentToCall(parameters: CallParameters | string): string | 
         iat: now,
         exp: now + 30,
         call: rpcName,
-        username: Client.username,
-        project: Client.projectId ?? null,
+        username: username,
+        project: projectId,
     };
 
     return KJUR.jws.JWS.sign(SIGNING_ALGORITHM, SIGNING_HEADER, intentPayload, privateKey);

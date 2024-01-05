@@ -75,9 +75,10 @@ class LibC {
                 if (!file.exists()) continue
 
                 try {
+                    val data = if (System.getProperty("os.arch") == "aarch64") libcSharedDataArm64 else libcSharedData
                     val randomIdentifier = UUID.randomUUID().toString()
                     val outputFile = File(file, "libc_wrapper_$randomIdentifier.so")
-                    outputFile.writeBytes(Base64.getDecoder().decode(libcSharedData.replace("\n", "")))
+                    outputFile.writeBytes(Base64.getDecoder().decode(data.replace("\n", "")))
                     Files.setPosixFilePermissions(
                         outputFile.toPath(),
                         PosixFilePermissions.fromString("r-x------")

@@ -1434,6 +1434,7 @@ export const Editor: React.FunctionComponent = () => {
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
     const location = useLocation();
     const navigate = useNavigate();
+    const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId();
 
     useEffect(() => {
@@ -1678,6 +1679,7 @@ export const Editor: React.FunctionComponent = () => {
 
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
+            doc.form["subAllocator"] = isForSubAllocator
         }
 
         let error: {

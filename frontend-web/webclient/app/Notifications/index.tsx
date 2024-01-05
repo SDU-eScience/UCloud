@@ -292,7 +292,7 @@ export const Notifications: React.FunctionComponent = () => {
         globalRefreshRef.current = globalRefresh;
     }, [globalRefresh]);
 
-    const toggleNotifications = React.useCallback((ev?: React.SyntheticEvent) => {
+    const toggleNotifications = React.useCallback((ev: React.SyntheticEvent) => {
         ev?.stopPropagation();
         setNotificationsVisible(prev => !prev);
     }, []);

@@ -1,11 +1,10 @@
 import {BulkRequest, FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand, useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI} from "@/Authentication/DataHook";
 import {useSelector} from "react-redux";
 import {IconName} from "@/ui-components/Icon";
 import {useLocation, useParams} from "react-router";
 import {useCallback, useEffect, useState} from "react";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {emptyProject} from "./cache";
 
 export enum OldProjectRole {
     PI = "PI",
@@ -343,6 +342,21 @@ export function useSubprojectFromURL(request: ProjectFlags): {project: Project; 
     }, [request])
 
     return {project: project.data, projectId: subprojectFromQuery, reload};
+}
+
+export function emptyProject(): Project {
+    return {
+        id: "",
+        createdAt: new Date().getTime(),
+        specification: {
+            title: "",
+            canConsumeResources: true
+        },
+        status: {
+            archived: false,
+            needsVerification: false,
+        }
+    }
 }
 
 const api = new ProjectApi();

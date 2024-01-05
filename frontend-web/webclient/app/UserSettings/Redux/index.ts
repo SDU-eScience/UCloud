@@ -1,10 +1,10 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {AvatarType} from "@/UserSettings/Avataaar";
 import {findAvatarQuery, saveAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
-import {AVATAR_ERROR, AVATAR_SAVE} from "./AvataaarReducer";
+import {initAvatar} from "@/DefaultObjects";
+import {AvatarType} from "@/AvataaarLib";
 
 export type AvatarActions = SaveAvataaar | SetAvatarError;
 
@@ -45,3 +45,17 @@ export async function findAvatar(): Promise<SaveAvataaar | null> {
         return null;
     }
 };
+
+export const AVATAR_SAVE = "AVATAR_SAVE";
+export const AVATAR_ERROR = "AVATAR_ERROR";
+
+export const avatarReducer = (state: AvatarType = initAvatar(), action: AvatarActions) => {
+    switch (action.type) {
+        case AVATAR_SAVE:
+            return {...state, ...action.payload.avatar, loading: false};
+        case AVATAR_ERROR:
+        default:
+            return state;
+    }
+};
+

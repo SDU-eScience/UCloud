@@ -50,6 +50,7 @@ data class Category(
     val name: String,
     val type: ProductType,
     var cost: ProductCost,
+    val allowSubAllocations: Boolean,
     val products: List<IndividualProduct<*>> = ArrayList(),
 ) {
     lateinit var category: ProductCategory
@@ -91,6 +92,7 @@ data class Category(
                 is ProductCost.Resource -> c.accountingInterval.toAccountingFrequency()
             },
             freeToUse = c == ProductCost.Free,
+            allowSubAllocations = allowSubAllocations,
         )
 
         coreProducts = products.map { p ->
@@ -346,11 +348,13 @@ private fun parseCategory(
 ): Category {
     val costNode = node.getChildNode<YamlMap>("cost") ?: parserError(node, "missing 'cost' in category")
     val cost = parseCost(costNode)
+    val allowSubAllocations = node.getChildNode<YamlScalar>("allowSubAllocations")?.asBoolean() ?: true
 
     val allProducts = ArrayList<IndividualProduct<*>>()
 
     for ((sectionName, section) in node.entries) {
         if (sectionName.content == "cost") continue
+        if (sectionName.content == "allowSubAllocations") continue
         val isTemplated = sectionName.content == "template"
 
         val sectionMap = assertNodeType<YamlMap>(section)
@@ -466,7 +470,7 @@ private fun parseCategory(
         allProducts.addAll(subsection.products)
     }
 
-    return Category(categoryName, type, cost, allProducts)
+    return Category(categoryName, type, cost, allowSubAllocations, allProducts)
 }
 
 private fun parseCost(node: YamlMap): ProductCost {

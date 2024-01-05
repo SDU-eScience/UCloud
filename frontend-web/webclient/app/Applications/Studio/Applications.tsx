@@ -20,7 +20,7 @@ import {PropType, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {ApplicationGroup, clearLogo, listGroups, setGroup, updateFlavor, updateGroup, uploadLogo} from "@/Applications/api";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";

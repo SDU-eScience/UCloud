@@ -1,4 +1,4 @@
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {Feature, hasFeature} from "@/Features";
 import * as React from "react";
 import Providers from "@/Assets/provider_info.json";

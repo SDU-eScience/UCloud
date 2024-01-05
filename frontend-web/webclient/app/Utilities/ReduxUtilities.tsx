@@ -1,16 +1,16 @@
-import dashboard from "@/Dashboard/Redux/DashboardReducer";
-import {initObject} from "@/DefaultObjects";
-import status from "@/Navigation/Redux/StatusReducer";
-import * as ProjectRedux from "@/Project/Redux";
+import {useEffect} from "react";
 import {Action, AnyAction, combineReducers, compose} from "redux";
-import avatar from "@/UserSettings/Redux/AvataaarReducer";
+
+import {dashboardReducer} from "@/Dashboard/Redux";
+import {initObject} from "@/DefaultObjects";
+import {statusReducer} from "@/Navigation/Redux";
+import * as ProjectRedux from "@/Project/ReduxState";
+import {avatarReducer} from "@/UserSettings/Redux";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
 import sidebar from "@/Applications/Redux/Reducer";
 import {EnhancedStore, configureStore} from "@reduxjs/toolkit";
-import {useEffect} from "react";
-import {refreshFunctionCache} from "@/ui-components/Sidebar";
 import {noopCall} from "@/Authentication/DataHook";
 
 export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
@@ -34,11 +34,11 @@ export function confStore(
 }
 
 export const store = confStore(initObject(), {
-    dashboard,
-    status,
+    dashboard: dashboardReducer,
+    status: statusReducer,
     hookStore,
     sidebar,
-    avatar,
+    avatar: avatarReducer,
     terminal: terminalReducer,
     loading,
     project: ProjectRedux.reducer,
@@ -53,6 +53,33 @@ function loading(state = false, action: {type: string}): boolean {
             return false;
         default:
             return state;
+    }
+}
+
+export const refreshFunctionCache = new class {
+    private refresh: () => void = () => void 0;
+    private subscribers: (() => void)[] = [];
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public getSnapshot(): () => void {
+        return this.refresh;
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public setRefreshFunction(refreshFn: () => void): void {
+        this.refresh = refreshFn;
+        this.emitChange();
     }
 }
 

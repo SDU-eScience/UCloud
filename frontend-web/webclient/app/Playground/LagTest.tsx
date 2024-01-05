@@ -1,7 +1,7 @@
 import * as React from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import * as Heading from "@/ui-components/Heading";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {Button, Icon, Input, List} from "@/ui-components";
 import {useCallback, useMemo, useState} from "react";
 import {ListRow, ListRowStat} from "@/ui-components/List";

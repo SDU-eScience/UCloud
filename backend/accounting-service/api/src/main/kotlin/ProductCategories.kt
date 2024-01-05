@@ -60,6 +60,7 @@ data class ProductCategory(
     val productType: ProductType,       //e.g. STORAGE
     val accountingUnit: AccountingUnit,
     val accountingFrequency: AccountingFrequency,
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     val conversionTable: List<AccountingUnitConversion> = emptyList(),
     @UCloudApiDoc(
         """
@@ -69,7 +70,8 @@ data class ProductCategory(
         has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
     """
     )
-    val freeToUse: Boolean = false
+    val freeToUse: Boolean = false,
+    val allowSubAllocations: Boolean = true,
 ) {
     fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
 }

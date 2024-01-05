@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "@/Navigation/Redux";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";

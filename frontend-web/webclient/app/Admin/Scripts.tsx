@@ -5,7 +5,7 @@ import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {PageV2} from "@/UCloud";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {format} from "date-fns";
 import {ResourceBrowseFeatures, ResourceBrowser, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {DATE_FORMAT} from "./NewsManagement";

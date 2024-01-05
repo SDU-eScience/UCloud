@@ -1398,6 +1398,7 @@ class GrantsV2Service(
 
                     Action.GrantResources -> {
                         val doc = application.currentRevision.document
+                        val isSubAllocator = (doc.form as? GrantApplication.Form.GrantGiverInitiated)?.subAllocator == true
                         val walletOwner = when (val recipient = doc.recipient) {
                             is GrantApplication.Recipient.PersonalWorkspace -> WalletOwner.User(recipient.username)
                             is GrantApplication.Recipient.ExistingProject -> WalletOwner.Project(recipient.id)
@@ -1411,6 +1412,7 @@ class GrantsV2Service(
                                             {
                                                 setParameter("parent_id", doc.parentProjectId)
                                                 setParameter("pi", application.createdBy)
+                                                setParameter("is_sub_allocator", isSubAllocator)
                                                 setParameter(
                                                     "title",
                                                     buildString {
@@ -1425,8 +1427,8 @@ class GrantsV2Service(
                                             """ 
                                                 -- noinspection SqlUnusedCte
                                                 with created_project as (
-                                                    insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable)
-                                                    select uuid_generate_v4()::text, now(), now(), :title, false, :parent_id, null, false
+                                                    insert into project.projects (id, created_at, modified_at, title, archived, parent, dmp, subprojects_renameable, can_consume_resources)
+                                                    select uuid_generate_v4()::text, now(), now(), :title, false, :parent_id, null, false, not :is_sub_allocator
                                                     on conflict do nothing
                                                     returning id
                                                 ),

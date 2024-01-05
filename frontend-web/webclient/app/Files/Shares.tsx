@@ -6,7 +6,7 @@ import {useEffect, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {LinkInfo} from "@/ui-components/SidebarLink";
+import {LinkInfo} from "@/ui-components/SidebarComponents";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
@@ -20,12 +20,11 @@ import AppRoutes from "@/Routes";
 import {injectStyleSimple} from "@/Unstyled";
 import MainContainer from "@/ui-components/MainContainer";
 import {useDispatch} from "react-redux";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {div} from "@/Utilities/HTMLUtilities";
@@ -33,6 +32,7 @@ import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import Avatar from "@/AvataaarLib/avatar";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},

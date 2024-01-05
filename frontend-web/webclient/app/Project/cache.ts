@@ -4,27 +4,13 @@
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useCallback, useEffect, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
-import ProjectAPI, {Project, useProjectId} from "./Api";
-import {dispatchSetProjectAction, getStoredProject, setStoredProject} from "./Redux";
+import ProjectAPI, {Project, useProjectId, emptyProject} from "./Api";
+import {dispatchSetProjectAction, getStoredProject, setStoredProject} from "./ReduxState";
 import { useDispatch } from "react-redux";
 
 // This needs to be global
 let cacheIsLoading = false;
 
-export function emptyProject(): Project {
-    return {
-        id: "",
-        createdAt: new Date().getTime(),
-        specification: {
-            title: "",
-            canConsumeResources: true
-        },
-        status: {
-            archived: false,
-            needsVerification: false,
-        }
-    }
-}
 
 export function useProject(): {fetch(): Project; reload(): void; loading: boolean; error: string;} {
     const [cache, setCache] = useGlobal(

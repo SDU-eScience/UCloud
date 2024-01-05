@@ -2,7 +2,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {format} from "date-fns";
 import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import * as Pagination from "@/Pagination";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
@@ -14,12 +14,12 @@ import {DatePicker} from "@/ui-components/DatePicker";
 import * as Heading from "@/ui-components/Heading";
 import {Spacer} from "@/ui-components/Spacer";
 import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "@/UtilityFunctions";
-import {NewsPost} from "@/Dashboard/Dashboard";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import Fuse from "fuse.js";
 import {addStandardDialog} from "@/UtilityComponents";
 import AppRoutes from "@/Routes";
+import {NewsPost} from "@/NewsPost";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
@@ -129,7 +129,7 @@ function NewsManagement(): JSX.Element | null {
                                 hidden={showPreview}
                             />
                             {showPreview ?
-                                <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="scroll">
+                                <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="auto">
                                     <Markdown unwrapDisallowed>
                                         {bodyRef.current?.value ?? ""}
                                     </Markdown>

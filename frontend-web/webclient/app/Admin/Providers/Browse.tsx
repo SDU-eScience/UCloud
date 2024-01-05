@@ -4,7 +4,7 @@ import {useNavigate} from "react-router";
 import MainContainer from "@/ui-components/MainContainer";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";

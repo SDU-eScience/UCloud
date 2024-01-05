@@ -3,8 +3,8 @@ import * as UCloud from "@/UCloud";
 import jobs = UCloud.compute.jobs;
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {errorMessageOrDefault, isAbsoluteUrl, shortUUID, useNoFrame} from "@/UtilityFunctions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {errorMessageOrDefault, isAbsoluteUrl, shortUUID} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
@@ -32,7 +32,6 @@ export const Vnc: React.FunctionComponent = () => {
 
     const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
     useTitle(`Remote Desktop: ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
-    useNoFrame();
 
     useEffect(() => {
         if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {

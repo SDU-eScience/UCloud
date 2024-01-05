@@ -25,40 +25,47 @@
 */
 
 import * as React from "react";
-import {
-    Clothes,
-    ClothesGraphic,
-    ColorFabric,
-    Eyebrows,
-    Eyes,
-    FacialHair,
-    FacialHairColor,
-    HairColor,
-    HatColor,
-    MouthTypes,
-    SkinColors,
-    Top,
-    TopAccessory
-} from "@/UserSettings/AvatarOptions";
-import {AvatarType} from "@/UserSettings/Avataaar";
-export {default as Avatar, AvatarStyle} from "./avatar";
+import * as Options from "@/UserSettings/AvatarOptions";
+
+export const defaultAvatar = ({
+    top: Options.Top.NoHair,
+    topAccessory: Options.TopAccessory.Blank,
+    hatColor: Options.HatColor.Black,
+    hairColor: Options.HairColor.Auburn,
+    facialHair: Options.FacialHair.Blank,
+    facialHairColor: Options.FacialHairColor.Auburn,
+    clothes: Options.Clothes.BlazerShirt,
+    colorFabric: Options.ColorFabric.Black,
+    clothesGraphic: Options.ClothesGraphic.Bat,
+    eyes: Options.Eyes.Default,
+    eyebrows: Options.Eyebrows.DefaultNatural,
+    mouthTypes: Options.MouthTypes.Default,
+    skinColors: Options.SkinColors.Pale
+});
+
+export type AvatarType = typeof defaultAvatar;
+
+export enum AvatarStyle {
+    Circle = "Circle",
+    Transparent = "Transparent"
+}
 
 export interface AvatarComponentProps {
     avatarStyle: "Circle" | "Transparent";
     style?: React.CSSProperties;
-    top: Top;
-    topAccessory: TopAccessory;
-    hairColor: HairColor;
-    facialHair: FacialHair;
-    facialHairColor: FacialHairColor;
-    clothes: Clothes;
-    colorFabric: ColorFabric;
-    eyes: Eyes;
-    eyebrows: Eyebrows;
-    mouthTypes: MouthTypes;
-    skinColors: SkinColors;
-    clothesGraphic: ClothesGraphic;
-    hatColor: HatColor;
+    top: Options.Top;
+    topAccessory: Options.TopAccessory;
+    hairColor: Options.HairColor;
+    facialHair: Options.FacialHair;
+    facialHairColor: Options.FacialHairColor;
+    clothes: Options.Clothes;
+    colorFabric: Options.ColorFabric;
+    eyes: Options.Eyes;
+    eyebrows: Options.Eyebrows;
+    mouthTypes: Options.MouthTypes;
+    skinColors: Options.SkinColors;
+    clothesGraphic: Options.ClothesGraphic;
+    hatColor: Options.HatColor;
     pieceType?: string;
     pieceSize?: string;
     viewBox?: string;

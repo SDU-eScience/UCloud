@@ -4,7 +4,7 @@ import {ResourceRouter} from "@/Resource/Router";
 import Create from "@/Files/Metadata/Templates/Create";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
 import {callAPI} from "@/Authentication/DataHook";

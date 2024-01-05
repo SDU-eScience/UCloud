@@ -1,21 +1,17 @@
 import {DashboardStateProps} from "@/Dashboard";
-import * as ProjectRedux from "@/Project/Redux";
+import * as ProjectRedux from "@/Project/ReduxState";
 import {Upload} from "@/Files/Upload";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectCache} from "@/Project/cache";
 import {APICallStateWithParams} from "@/Authentication/DataHook";
 import {Product} from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
-import {useEffect} from "react";
-import {useGlobal} from "@/Utilities/ReduxHooks";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
-import {buildQueryString} from "@/Utilities/URIUtilities";
-import {NavigateFunction} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
 import {PopInArgs} from "./ui-components/PopIn";
 import {SidebarStateProps} from "./Applications/Redux/Reducer";
 import {getUserThemePreference} from "./UtilityFunctions";
+import {defaultAvatar} from "./AvataaarLib";
 
 export enum KeyCode {
     ENTER = 13,
@@ -82,7 +78,6 @@ export interface HookStore {
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
-    cloudApiCache?: Record<string, {expiresAt: number, cached: any}>;
 
     mainContainerHeaderSize?: number;
 }

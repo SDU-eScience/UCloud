@@ -183,6 +183,7 @@ interface PlainTextForm {
 interface GrantGiverInitiatedForm {
     type: "grant_giver_initiated";
     text: string;
+    subAllocator: boolean;
 }
 
 export type Recipient =

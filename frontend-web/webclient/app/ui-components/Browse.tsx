@@ -1,7 +1,6 @@
 import * as React from "react";
 import {DependencyList, EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {PageV2} from "@/UCloud";
-import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
 import {InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
 import * as Pagination from "@/Pagination";
 import {PageRenderer} from "@/Pagination/PaginationV2";
@@ -15,7 +14,7 @@ import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
 import {NavigateFunction, useNavigate} from "react-router";
 import {Box, List} from "@/ui-components/index";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "./MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
@@ -39,12 +38,12 @@ interface BrowseProps<T> {
 
 function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
     const hasPreloadedResources = !!props.preloadedResources;
-    const [remoteResources, setRemoteResources] = useState<PageV2<T>>(emptyPageV2);
+    const [remoteResources, setRemoteResources] = useState<PageV2<T>>({ items: [], itemsPerPage: 0 });
     const [error, setError] = useState<string | undefined>(undefined)
     const [loading, invokeCommand] = useCloudCommand();
     const [infScroll, setInfScroll] = useState(0);
     const resources = useMemo(() =>
-        hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources,
+        hasPreloadedResources ? { items: props.preloadedResources!, itemsPerPage: 250 } : remoteResources,
         [props.preloadedResources, remoteResources]);
 
     useEffect(() => {

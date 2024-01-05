@@ -4,7 +4,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback} from "react";
@@ -23,7 +23,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");
-    
+
     const navigate = useNavigate();
 
     const [tools, setToolParameters, toolParameters] = useCloudAPI(
@@ -147,7 +147,7 @@ export const Studio: React.FunctionComponent = () => {
                                     key={tool.description.info.name}
                                     to={`/applications/studio/t/${tool.description.info.name}`}>
                                     <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--black)"}}>
-                                        <AppToolLogo type={"TOOL"} name={tool.description.info.name} />
+                                        <div style={{borderRadius: "6px", padding: "2px", backgroundColor: "white"}}><AppToolLogo type={"TOOL"} name={tool.description.info.name} /></div>
                                         <Box ml={8}>
                                             <Truncate width={300} cursor={"pointer"}>
                                                 <b>{tool.description.title}</b>

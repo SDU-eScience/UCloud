@@ -20,7 +20,7 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import * as UCloud from "@/UCloud";
 import CONF from "../../site.config.json";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";

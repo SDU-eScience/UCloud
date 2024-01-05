@@ -14,7 +14,6 @@ export interface XtermHook {
 export function useXTerm(props: {autofit?: boolean} = {}): XtermHook {
     const didMount = useRef(false);
 
-
     const fitAddon = React.useMemo(() => new FitAddon(), []);
     const term = React.useMemo(() => {
         const term = new Terminal({

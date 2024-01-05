@@ -1,9 +1,10 @@
+import {PRODUCT_NAME} from "../../../site.config.json";
 import {SetLoadingAction} from "@/Types";
-import {SET_STATUS_LOADING, UPDATE_PAGE_TITLE} from "./StatusReducer";
 import {useDispatch} from "react-redux";
 import {useEffect} from "react";
+import {initStatus, StatusReduxObject} from "@/DefaultObjects";
 
-export type StatusActions = UpdatePageTitleAction | SetLoading;
+export type Index = UpdatePageTitleAction | SetLoading;
 
 export type UpdatePageTitleAction = PayloadAction<typeof UPDATE_PAGE_TITLE, {title: string}>;
 /**
@@ -41,3 +42,20 @@ export function useLoading(loading: boolean): void {
         dispatch(setLoading(loading));
     }, [loading]);
 }
+
+export const UPDATE_PAGE_TITLE = "UPDATE_PAGE_TITLE";
+export const SET_STATUS_LOADING = "SET_STATUS_LOADING";
+
+export const statusReducer = (state: StatusReduxObject = initStatus(), action: Index): StatusReduxObject => {
+    switch (action.type) {
+        case UPDATE_PAGE_TITLE:
+            document.title = `${PRODUCT_NAME} | ${action.payload.title}`;
+            return {...state, ...action.payload};
+        case SET_STATUS_LOADING:
+            return {...state, ...action.payload};
+        default: {
+            return state;
+        }
+    }
+};
+

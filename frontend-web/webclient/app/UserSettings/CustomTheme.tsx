@@ -1,5 +1,6 @@
-import {Box, Flex, Heading} from "@/ui-components";
 import * as React from "react";
+
+import {Box, Flex, Heading} from "@/ui-components";
 
 // TODO(Jonas): {
 //      - add gradient colors;    

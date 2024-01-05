@@ -71,8 +71,8 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
 
     ${k}[data-no-y-padding="false"] > div {
-        padding-top: 5px;
-        padding-bottom: 5px;
+        padding-top: 0px;
+        padding-bottom: 0px;
     }
 
     ${k} > div:first-child {

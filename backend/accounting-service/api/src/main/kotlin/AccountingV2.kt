@@ -130,7 +130,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             BulkResponse.serializer(FindByStringId.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "rootAllocate", roles = Roles.ADMIN)
+                httpUpdate(baseContext, "rootAllocate")
             }
         )
     }

@@ -1,13 +1,9 @@
-import {AvatarComponentProps} from "@/AvataaarLib";
 import * as React from "react";
+
 import Clothe from "./clothes";
 import Face from "./face";
+import {AvatarComponentProps, AvatarStyle} from "@/AvataaarLib";
 import Top, {Accessories} from "./top";
-
-export enum AvatarStyle {
-    Circle = "Circle",
-    Transparent = "Transparent"
-}
 
 export default function Avatar(props: AvatarComponentProps): JSX.Element {
     const {avatarStyle} = props;

@@ -4,7 +4,7 @@ import {useCallback, useEffect, useState} from "react";
 import {Box, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {AppCardStyle} from "./Card";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";

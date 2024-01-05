@@ -1,6 +1,5 @@
 import * as React from "react";
 import {SpaceProps} from "styled-system";
-import Bug from "./Bug";
 import * as icons from "./icons";
 import theme, {ThemeColor} from "./theme";
 import {Cursor} from "./Types";
@@ -89,6 +88,23 @@ export const EveryIcon = (): JSX.Element => (
         )}
     </>
 );
+
+
+// bug icon
+const randomInt = (min: number, max: number): number => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+function Bug({size, color2, spin, ...props}: Omit<IconBaseProps, "name">): JSX.Element {
+    const bugs: string[] = ["bug1", "bug2", "bug3", "bug4", "bug5", "bug6"];
+    const [idx] = React.useState(randomInt(0, bugs.length - 1));
+
+    const Component = icons[bugs[idx]];
+
+    return (
+        <Component width={size} height={size} color2={color2 ? `var(--${color2})` : undefined} {...props} />
+    );
+}
 
 export type IconName = Exclude<keyof typeof icons, "bug1" | "bug2" | "bug3" | "bug4" | "bug5" | "bug6"> | "bug";
 
