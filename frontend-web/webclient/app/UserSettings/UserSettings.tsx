@@ -11,7 +11,7 @@ import {TwoFactorSetup} from "./TwoFactorSetup";
 import {ChangeOptionalUserDetails, ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
 import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 import {CustomTheming} from "./CustomTheme";
-import {refreshFunctionCache} from "@/ui-components/Sidebar";
+import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 
 function UserSettings(): React.ReactNode {
 

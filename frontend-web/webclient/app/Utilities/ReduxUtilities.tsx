@@ -11,7 +11,6 @@ import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
 import sidebar from "@/Applications/Redux/Reducer";
 import {EnhancedStore, configureStore} from "@reduxjs/toolkit";
-import {refreshFunctionCache} from "@/ui-components/Sidebar";
 import {noopCall} from "@/Authentication/DataHook";
 
 export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
@@ -54,6 +53,33 @@ function loading(state = false, action: {type: string}): boolean {
             return false;
         default:
             return state;
+    }
+}
+
+export const refreshFunctionCache = new class {
+    private refresh: () => void = () => void 0;
+    private subscribers: (() => void)[] = [];
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public getSnapshot(): () => void {
+        return this.refresh;
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public setRefreshFunction(refreshFn: () => void): void {
+        this.refresh = refreshFn;
+        this.emitChange();
     }
 }
 

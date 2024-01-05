@@ -447,32 +447,6 @@ function useSidebarFilesPage(): [
     ];
 }
 
-export const refreshFunctionCache = new class {
-    private refresh: () => void = () => void 0;
-    private subscribers: (() => void)[] = [];
-
-    public subscribe(subscription: () => void) {
-        this.subscribers = [...this.subscribers, subscription];
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== subscription);
-        }
-    }
-
-    public getSnapshot(): () => void {
-        return this.refresh;
-    }
-
-    public emitChange(): void {
-        for (const sub of this.subscribers) {
-            sub();
-        }
-    }
-
-    public setRefreshFunction(refreshFn: () => void): void {
-        this.refresh = refreshFn;
-        this.emitChange();
-    }
-}
 
 export const sidebarFavoriteCache = new class {
     private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}

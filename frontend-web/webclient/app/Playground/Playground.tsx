@@ -10,7 +10,7 @@ import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
-import {capitalized, timestampUnixMs} from "@/UtilityFunctions";
+import {timestampUnixMs} from "@/UtilityFunctions";
 import {ProductSelectorPlayground} from "@/Products/Selector";
 import * as icons from "@/ui-components/icons";
 import {BinaryAllocator, loadMessage, messageTest} from "@/UCloud/Messages";
@@ -26,7 +26,6 @@ import {SnackType} from "@/Snackbar/Snackbars";
 import {ResourceBrowseFeatures} from "@/ui-components/ResourceBrowser";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {refreshFunctionCache} from "@/ui-components/Sidebar";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {injectStyle} from "@/Unstyled";
 
