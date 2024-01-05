@@ -4,7 +4,7 @@ import {useTitle} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
+import {Absolute, Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
@@ -88,17 +88,10 @@ function Dashboard(): JSX.Element {
             <DashboardNews news={news} />
             <Invites key={reloadIteration} />
 
-            <Box my={24}>
-                <TitledCard>
-                    <Flex><Icon mx="auto" my="-32px" name="deiCLogo" size="128px" /></Flex>
-                </TitledCard>
-            </Box>
-
             <div className={GridClass}>
-                <DashboardFavoriteFiles />
+                <DashboardResources wallets={wallets} />
                 <DashboardRuns key={reloadIteration} />
             </div>
-            <DashboardResources wallets={wallets} />
             <div className={GridClass}>
                 <Connect embedded />
                 <DashboardGrantApplications key={reloadIteration} />
@@ -157,77 +150,21 @@ function Invites(): React.ReactNode {
 }
 
 
-function DashboardFavoriteFiles(): JSX.Element {
-    const [, invokeCommand] = useCloudCommand();
-
-    const [favoriteTemplateId, setId] = React.useState("");
-    React.useEffect(() => {
-        fetchTemplate();
-    }, []);
-
-    const navigate = useNavigate();
-
-    const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
-
-    return (
-        <DashboardCard
-            icon="heroStar"
-            title="Favorites"
-        >
-            {favorites.items.length !== 0 ? null : (
-                <NoResultsCardBody title={"No favorites"}>
-                    As you add favorites, they will appear here.
-                    <Link to={"/drives"} mt={8}>
-                        <Button mt={8}>Explore files</Button>
-                    </Link>
-                </NoResultsCardBody>
-            )}
-            <List>
-                {favorites.items.slice(0, 10).map(it => (<Flex key={it.path} height="55px">
-                    <Icon ml="8px" cursor="pointer" mr="8px" my="auto" name="starFilled" color="primary" onClick={async () => {
-                        if (!favoriteTemplateId) return;
-                        try {
-                            await invokeCommand(
-                                metadataApi.delete(bulkRequestOf({
-                                    changeLog: "Remove favorite",
-                                    id: it.metadata.id
-                                })),
-                                {defaultErrorHandler: false}
-                            );
-                            sidebarFavoriteCache.remove(it.path);
-                        } catch (e) {
-                            snackbarStore.addFailure("Failed to unfavorite", false);
-                        }
-                    }} />
-                    <Text cursor="pointer" fontSize={FONT_SIZE} my="auto" onClick={() => navigateByFileType(it, invokeCommand, navigate)}>{fileName(it.path)}</Text>
-                </Flex>))}
-            </List>
-        </DashboardCard>
-    );
-
-    async function fetchTemplate() {
-        const page = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(
-            MetadataNamespaceApi.browse(({filterName: "favorite", itemsPerPage: 50}))
-        );
-        const ns = page?.items?.[0];
-        if (ns) {
-            setId(ns.id);
-        }
-    }
+export interface NewsPost {
+    id: number;
+    title: string;
+    subtitle: string;
+    body: string;
+    postedBy: string;
+    showFrom: number;
+    hideFrom: number | null;
+    hidden: boolean;
+    category: string;
 }
 
-export async function navigateByFileType(file: FileMetadataAttached, invokeCommand: InvokeCommand, navigate: NavigateFunction): Promise<void> {
-    const result = await invokeCommand<UFile>(FilesApi.retrieve({id: file.path}));
-
-    if (!result) {
-        return;
-    }
-
-    if (result?.status.type === "FILE") {
-        navigate(buildQueryString("/files", {path: getParentPath(file.path)}));
-    } else {
-        navigate(buildQueryString("/files", {path: file.path}))
-    }
+interface NewsRequestProps extends PaginationRequest {
+    filter?: string;
+    withHidden: boolean;
 }
 
 export function newsRequest(payload: NewsRequestProps): APICallParameters<PaginationRequest> {
@@ -390,15 +327,22 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                             </Box>
                         </Box>
                     }
-
-                    {news.data.items.length === 0 ? null : (
-                        <Spacer
-                            left={null}
-                            right={<Link to="/news/list/">View more</Link>}
-                        />)}
                 </div>
-                <img src={ucloudImage} />
+                <img src={ucloudImage} style={{zIndex: "1000"}} />
             </div>
+
+            <Relative>
+            <div className={DeicBanner}>
+                <Box flexGrow={1}/>
+                    <ExternalLink href={"https://deic.dk"}>
+                        <div>UCloud is delivered by the Danish e-Infrastrucure Consortium</div>
+                    </ExternalLink>
+                    <ExternalLink href={"https://deic.dk"}>
+                        <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
+                    </ExternalLink>
+                <Box flexGrow={1}/>
+            </div>
+            </Relative>
         </DashboardCard>
     );
 }
@@ -436,6 +380,35 @@ const NewsClass = injectStyle("with-graphic", k => `
         width: 100%;
     }
 }
+`);
+
+const DeicBanner = injectStyle("deic-banner", k => `
+    ${k} {
+        height: 42px;
+        position: absolute;
+        width: calc(100% + 40px);
+        left: -20px;
+        top: -21px;
+        border-bottom-right-radius: 8px;
+        border-bottom-left-radius: 8px;
+        text-align: center;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        
+        border-top: 1px solid var(--midGray);
+        background: rgba(0, 0, 0, 5%);
+    }
+   
+    ${k} svg {
+        position: relative;
+        top: -4px;
+    }
+    
+    ${k} a, ${k} svg {
+        z-index: 10000;
+    }
 `);
 
 function reduxOperations(dispatch: Dispatch): DashboardOperations {
