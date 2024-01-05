@@ -67,7 +67,7 @@ class Server(
         val projectQueryService = ProjectQueryService(projectService)
         val favoriteProjects = FavoriteProjectService(projectsV2)
 
-        val giftService = GiftService(db, accountingService)
+        val giftService = GiftService(db, accountingService, projectService)
         val grants = GrantsV2Service(db, idCardService, accountingService, simpleProviders, projectNotifications,
             client, config.defaultTemplate)
 

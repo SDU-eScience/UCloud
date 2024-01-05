@@ -179,10 +179,16 @@ class GiftService(
             throw RPCException("Only admins and PIs are allowed to create gifts", HttpStatusCode.Forbidden)
         }
 
-        
+        val providersAvailable = accountingService.retrieveWalletsInternal(
+            actorAndProject,
+            WalletOwner.Project(project)
+        ).map { it.paysFor.provider }.toSet()
 
-
-
+        gift.resources.forEach { resource ->
+            if (!providersAvailable.contains(resource.provider)) {
+                throw RPCException("Requesting resources from unknown provider", HttpStatusCode.BadRequest)
+            }
+        }
 
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
@@ -191,6 +197,7 @@ class GiftService(
                     setParameter("title", gift.title)
                     setParameter("description", gift.description)
                     setParameter("resources_owned_by", gift.resourcesOwnedBy)
+                    setParameter("renewal", gift.renewsEvery.name)
 
                     gift.criteria.split {
                         into("criteria_type") { it.type }
@@ -207,7 +214,7 @@ class GiftService(
                 },
                 """
                     select "grant".create_gift(
-                        :username, :resources_owned_by, :title, :description,
+                        :username, :resources_owned_by, :title, :description, :renewal,
                         :criteria_type, :criteria_id,
                         :resource_cat_name, :resource_provider, :credits, :quota
                     )
