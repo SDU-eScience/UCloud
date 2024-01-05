@@ -2370,7 +2370,7 @@ export class ResourceBrowser<T> {
                         if (newClipboard.length) {
                             const key = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "Ctrl + ";
                             snackbarStore.addInformation(
-                                `${newClipboard.length} copied to clipboard.Use ${key}V to insert.`,
+                                `${newClipboard.length} copied to clipboard. Use ${key}V to insert.`,
                                 false
                             );
                         }
