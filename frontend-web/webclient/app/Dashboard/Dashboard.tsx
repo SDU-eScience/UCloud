@@ -20,8 +20,6 @@ import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
 import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {NavigateFunction, useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
 import {isAdminOrPI} from "@/Project/Api";
@@ -42,7 +40,6 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as Accounting from "@/Accounting";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
-import {NewsPost} from "@/NewsPost";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
