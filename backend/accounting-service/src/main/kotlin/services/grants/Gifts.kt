@@ -131,6 +131,15 @@ class GiftService(
                 },
 
                 """
+                    with not_allowed_reclaims as (
+                        select gc.gift_id, gc.user_id
+                        from "grant".gifts_claimed gc join "grant".gifts g on g.id = gc.gift_id
+                        where 
+                            gc.user_id = :userId and 
+                            g.renewal_policy = 0 and
+                            (extract(year from age(gc.claimed_at, now())) * 12 
+                                    + extract(month from age(gc.claimed_at, now()))) < g.renewal_policy
+                    )
                     select distinct g.id
                     from
                         "grant".gifts g join
@@ -140,10 +149,10 @@ class GiftService(
                         -- If giftId is specified it must match the gift we are looking for
                         (g.id = :giftId::bigint or :giftId::bigint is null) and
 
-                        -- User must not have claimed this gift already
+                        -- User must not have claimed this gift already or attempt to claim to 
                         not exists(
                             select gc.user_id
-                            from "grant".gifts_claimed gc
+                            from "grant".gifts_claimed gc join not_allowed_reclaims nar on nar.user_id = gc.user_id and nar.gift_id = gc.gift_id
                             where gc.user_id = :userId and gc.gift_id = g.id
                         ) and
 
@@ -312,7 +321,8 @@ class GiftService(
                         'description', g.description,
                         'resourcesOwnedBy', g.resources_owned_by,
                         'resources', coalesce(r.resources_arr, '[]'::jsonb),
-                        'criteria', coalesce(c.criteria_arr, '[]'::jsonb)
+                        'criteria', coalesce(c.criteria_arr, '[]'::jsonb),
+                        'renewEvery', g.renewal_policy
                     )
                     from
                         gifts rg

@@ -14,6 +14,7 @@ drop function "grant".create_gift(
 );
 
 alter table "grant".gifts add column renewal_policy int default 0;
+alter table "grant".gifts_claimed add column claimed_at timestamptz default now();
 
 create or replace function "grant".create_gift(
     actor_in text,
