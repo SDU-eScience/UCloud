@@ -4,7 +4,6 @@ import {useDispatch, useSelector} from "react-redux";
 import {
     copyToClipboard,
     displayErrorMessageOrDefault,
-    errorMessageOrDefault,
     joinToString,
     useFrameHidden
 } from "@/UtilityFunctions";
@@ -36,7 +35,6 @@ import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollection
 import {Page, PageV2, compute} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router";
@@ -54,6 +52,7 @@ import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List
 import {SidebarEmpty, SidebarEntry, SidebarLinkColumn, SidebarSectionHeader} from "@/ui-components/SidebarComponents";
 import {AvatarType} from "@/AvataaarLib";
 import {NewsPost} from "@/NewsPost";
+import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -205,7 +204,7 @@ enum SidebarTabId {
     ADMIN = "Admin",
 }
 
-export const sideBarMenuElements: [
+const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
 ] = [
@@ -441,12 +440,7 @@ function useSidebarFilesPage(): [
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
     React.useEffect(() => {
-        callAPI(metadataApi.browse({
-            filterActive: true,
-            filterTemplate: "Favorite",
-            itemsPerPage: 10
-        })).then(result => sidebarFavoriteCache.setCache(result))
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch favorites."));
+        sidebarFavoriteCache.fetch();
     }, []);
 
     const projectId = useProjectId();
@@ -459,80 +453,6 @@ function useSidebarFilesPage(): [
         drives,
         favorites.items.slice(0, 10)
     ];
-}
-
-
-export const sidebarFavoriteCache = new class {
-    private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}
-    private subscribers: (() => void)[] = [];
-    private isDirty: boolean = false;
-    public loading = false;
-    public error = "";
-
-    public async fetch() {
-        this.loading = true;
-        try {
-            this.setCache(await callAPI(metadataApi.browse({
-                filterActive: true,
-                filterTemplate: "Favorite",
-                itemsPerPage: 10
-            })));
-        } catch (error) {
-            this.error = errorMessageOrDefault(error, "Failed to fetch favorite files.");
-        }
-        this.loading = false;
-    }
-
-    public renameInCached(oldPath: string, newPath: string): void {
-        const file = this.cache.items.find(it => it.path === oldPath);
-        if (!file) return;
-
-        file.path = newPath;
-        this.isDirty = true;
-        this.emitChange();
-    }
-
-    public subscribe(subscription: () => void) {
-        this.subscribers = [...this.subscribers, subscription];
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== subscription);
-        }
-    }
-
-    public add(file: FileMetadataAttached) {
-        this.isDirty = true;
-        this.cache.items.unshift(file);
-
-        this.emitChange();
-    }
-
-    public remove(filePath: string) {
-        this.isDirty = true;
-        this.cache.items = this.cache.items.filter(it => it.path !== filePath);
-
-        this.emitChange();
-    }
-
-    public setCache(page: PageV2<FileMetadataAttached>) {
-        this.isDirty = true;
-        this.cache = page;
-
-        this.emitChange();
-    }
-
-    public emitChange(): void {
-        for (const sub of this.subscribers) {
-            sub();
-        }
-    }
-
-    public getSnapshot(): Readonly<PageV2<FileMetadataAttached>> {
-        if (this.isDirty) {
-            this.isDirty = false;
-            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
-        }
-        return this.cache;
-    }
 }
 
 export const sidebarJobCache = new class {

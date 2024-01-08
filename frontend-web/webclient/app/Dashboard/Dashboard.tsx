@@ -19,7 +19,6 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
 import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
@@ -27,7 +26,6 @@ import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -36,6 +34,7 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
+import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;

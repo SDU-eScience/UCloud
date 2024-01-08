@@ -54,9 +54,9 @@ import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
+import {sidebarFavoriteCache} from "./FavoriteCache";
 
 // Cached network data
 // =====================================================================================================================
