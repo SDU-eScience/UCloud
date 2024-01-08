@@ -2,7 +2,7 @@ import * as React from "react";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import {useState} from "react";
-import {appLogoCache} from "@/Applications/AppToolLogo";
+import {AppLogo, appLogoCache, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
@@ -22,10 +22,9 @@ import {
     ResourceBrowserOpts,
     addContextSwitcherInPortal,
     checkCanConsumeResources,
-    EmptyReason, EmptyReasonTag
+    EmptyReasonTag
 } from "@/ui-components/ResourceBrowser";
 import {logoDataUrls} from "./Jobs/JobsBrowse";
-import {AppLogo, hashF} from "./Card";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UFile} from "@/UCloud/UFile";

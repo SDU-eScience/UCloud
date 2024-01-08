@@ -1,8 +1,8 @@
 import * as React from "react";
 import {useState} from "react";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {AppLogo, hashF} from "@/Applications/Card";
 import {buildQueryString} from "@/Utilities/URIUtilities";
+import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 
 interface LogoProps {
     projectId: string;
