@@ -3,7 +3,6 @@ import * as React from "react";
 import {useEffect} from "react";
 import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Grid, Box, Button, Flex} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
 import {ThemeColor} from "@/ui-components/theme";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
@@ -23,11 +22,7 @@ import {useSelector} from "react-redux";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
-import {ResourceBrowseFeatures} from "@/ui-components/ResourceBrowser";
-import {dialogStore} from "@/Dialog/DialogStore";
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
-import {injectStyle} from "@/Unstyled";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -153,128 +148,6 @@ export const ProjectPlayground: React.FunctionComponent = () => {
         return <>Project is still loading...</>;
     }
 }
-
-const ARROW_UP = "↑";
-const ARROW_DOWN = "↓";
-const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "alt";
-const CTRL_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "ctrl";
-const ShortcutClass = injectStyle("shortcut", k => `
-    ${k} {
-        border-radius: 5px;
-        border: 1px solid var(--black);
-        font-size: 12px;
-        min-width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 5px;
-    }
-`);
-
-interface ShortcutProps {
-    name: string;
-    ctrl?: boolean;
-    alt?: boolean;
-    shift?: boolean;
-    keys: string | string[];
-}
-
-const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
-    const normalizedKeys = typeof props.keys === "string" ? [props.keys] : props.keys;
-    return <tr>
-        <td>{props.name}</td>
-        <td>
-            <Flex gap={"4px"} justifyContent={"end"}>
-                {normalizedKeys.map(((k, i) =>
-                    <React.Fragment key={i}>
-                        {i > 0 && <> or </>}
-                        {props.ctrl && <div className={ShortcutClass}>{CTRL_KEY}</div>}
-                        {props.alt && <div className={ShortcutClass}>{ALT_KEY}</div>}
-                        {props.shift && <div className={ShortcutClass}>Shift</div>}
-                        <div className={ShortcutClass}>{k}</div>
-                    </React.Fragment>
-                ))}
-            </Flex>
-        </td>
-    </tr>;
-}
-
-const ControlsClass = injectStyle("controls", k => `
-    ${k} table {
-        margin: 16px 0;
-        width: 100%;
-    }
-    
-    ${k} td:first-child, ${k} th:first-child {
-        border-left: 1px solid var(--borderGray);
-    }
-    
-    ${k} td:last-child, ${k} th:last-child {
-        border-right: 1px solid var(--borderGray);
-    }
-    
-    ${k} td, ${k} th {
-        padding: 8px;
-        border-top: 1px solid var(--borderGray);
-        border-bottom: 1px solid var(--borderGray);
-    }
-    
-    ${k} td:last-child {
-        text-align: right;
-    }
-`);
-
-interface ControlDescription {
-    name: string;
-    shortcut?: Partial<ShortcutProps>;
-    description?: string;
-}
-
-function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, custom?: ControlDescription[]}) {
-    return <div className={ControlsClass}>
-        <Heading.h4>Controls and keyboard shortcuts</Heading.h4>
-        <table>
-            <tbody>
-            <Shortcut name={"Move selection up/down (Movement keys)"} keys={[ARROW_UP, "Home", "PgUp", ARROW_DOWN, "End", "PgDown"]}/>
-            <Shortcut name={"Select multiple (in a row)"} shift keys={["Movement key", "Left click"]}/>
-            <Shortcut name={"Select multiple (individual)"} ctrl keys={["Left click"]}/>
-            <tr>
-                <td>Go to row</td>
-                <td>Type part of name</td>
-            </tr>
-            <Shortcut name={"Open selection"} keys={"Enter"}/>
-            <Shortcut name={"Delete"} keys={"Delete"}/>
-            {(features.supportsMove || features.supportsCopy) && <>
-                <Shortcut name={"Undo"} ctrl keys={"Z"}/>
-                <Shortcut name={"Copy"} ctrl keys={"C"}/>
-                <Shortcut name={"Cut"} ctrl keys={"X"}/>
-                <Shortcut name={"Paste"} ctrl keys={"V"}/>
-            </>}
-
-            {(custom ?? []).map((c, i) => <React.Fragment key={i}>
-                {c.shortcut && <Shortcut name={c.name} keys={[]} {...c.shortcut} />}
-                {c.description && <tr>
-                    <td>{c.name}</td>
-                    <td>{c.description}</td>
-                </tr>}
-            </React.Fragment>)}
-            </tbody>
-        </table>
-    </div>
-}
-
-export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, unknown> & any {
-    return {
-        text: "",
-        icon: "heroBolt",
-        onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, () => {}),
-        enabled: () => true,
-        shortcut: ShortcutKey.Z,
-        hackNotInTheContextMenu: true
-    };
-}
-
 const colors: ThemeColor[] = [
     "black",
     "white",

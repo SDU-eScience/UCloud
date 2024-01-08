@@ -16,7 +16,8 @@ import {
     ResourceBrowserOpts,
     ColumnTitleList,
     SelectionMode,
-    checkCanConsumeResources
+    checkCanConsumeResources,
+    controlsOperation
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -56,7 +57,6 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
-import {controlsOperation} from "@/Playground/Playground";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 // Cached network data
