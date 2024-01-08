@@ -29,6 +29,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
                     id={widgetId(props.parameter) + "name"}
                     value={props.parameter.title.length !== 0 ? props.parameter.name : undefined}
                     disabled={props.parameter.title.length !== 0}
+                    height={39}
                 />
             </Label>
         </div>

@@ -92,7 +92,8 @@ export const InputClass = injectStyle("input", k => `
 `);
 
 const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cursor?: Cursor}> = props => {
-    const style = unbox(props);
+    let style = unbox(props);
+    if (props.style) style = {...style, ...props.style};
     if (props.overrideDisabledColor) style["--inputDisabledColor"] = `var(--${props.overrideDisabledColor})`;
     const evHandlers = extractEventHandlers(props);
 
@@ -110,6 +111,9 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["placeholder"] = props.placeholder;
     inputProps["defaultValue"] = props.defaultValue;
     inputProps["value"] = props.value;
+    inputProps["step"] = props.step;
+    inputProps["min"] = props.min;
+    inputProps["max"] = props.max;
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;

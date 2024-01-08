@@ -1566,134 +1566,136 @@ const Allocations: React.FunctionComponent = () => {
                 })}
             </Tree>
 
-            <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                <h3 style={{margin: 0}}>Sub-allocations</h3>
-                <Box flexGrow={1}/>
-                <Button height={35} onClick={onNewSubProject}>
-                    <Icon name={"heroPlus"} mr={8}/>
-                    New sub-project
-                </Button>
+            {projectId !== undefined && <>
+                <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
+                    <h3 style={{margin: 0}}>Sub-allocations</h3>
+                    <Box flexGrow={1}/>
+                    <Button height={35} onClick={onNewSubProject}>
+                        <Icon name={"heroPlus"} mr={8}/>
+                        New sub-project
+                    </Button>
 
-                <Box width={"300px"}>
-                    <Input
-                        placeholder={"Search in your sub-allocations"}
-                        height={35}
-                        value={state.subAllocations.searchQuery}
-                        onInput={onSearchInput}
-                        onKeyDown={onSearchKey}
-                        disabled={state.editControlsDisabled}
-                        inputRef={searchBox}
-                    />
-                    <div style={{position: "relative"}}>
-                        <div style={{position: "absolute", top: "-30px", right: "11px"}}>
-                            {state.subAllocations.searchInflight === 0 ?
-                                <Icon name={"heroMagnifyingGlass"}/>
-                                : <HexSpin size={18} margin={"0"}/>
-                            }
+                    <Box width={"300px"}>
+                        <Input
+                            placeholder={"Search in your sub-allocations"}
+                            height={35}
+                            value={state.subAllocations.searchQuery}
+                            onInput={onSearchInput}
+                            onKeyDown={onSearchKey}
+                            disabled={state.editControlsDisabled}
+                            inputRef={searchBox}
+                        />
+                        <div style={{position: "relative"}}>
+                            <div style={{position: "absolute", top: "-30px", right: "11px"}}>
+                                {state.subAllocations.searchInflight === 0 ?
+                                    <Icon name={"heroMagnifyingGlass"}/>
+                                    : <HexSpin size={18} margin={"0"}/>
+                                }
+                            </div>
                         </div>
-                    </div>
-                </Box>
-            </Flex>
+                    </Box>
+                </Flex>
 
-            {state.subAllocations.recipients.length !== 0 ? null : <>
-                You do not have any sub-allocations at the moment. You can create a sub-project by clicking{" "}
-                <a href="#" onClick={onNewSubProject}>here</a>.
-            </>}
+                {state.subAllocations.recipients.length !== 0 ? null : <>
+                    You do not have any sub-allocations at the moment. You can create a sub-project by clicking{" "}
+                    <a href="#" onClick={onNewSubProject}>here</a>.
+                </>}
 
-            <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
-                {state.subAllocations.recipients.map((recipient, recipientIdx) =>
-                    <TreeNode
-                        key={recipientIdx}
-                        left={<Flex gap={"4px"} alignItems={"center"}>
-                            <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
-                                <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
-                                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                                        avatarStyle={"Circle"}/>
-                            </TooltipV2>
-                            {recipient.owner.title}
-                        </Flex>}
-                        right={<div className={"sub-alloc"}>
-                            {recipient.owner.reference.type === "project" &&
-                                <Link
-                                    to={AppRoutes.grants.grantGiverInitiatedEditor({
-                                        title: recipient.owner.title,
-                                        piUsernameHint: recipient.owner.primaryUsername,
-                                        projectId: recipient.owner.reference.projectId,
-                                        start: timestampUnixMs(),
-                                        end: recipient.allocations.reduce((prev, it) => Math.min(prev, it.end), NO_EXPIRATION_FALLBACK),
-                                        subAllocator: false,
-                                    })}
-                                >
-                                    <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
-                                                     subColor1={"white"} subColor2={"white"}/>
-                                </Link>
-                            }
+                <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
+                    {state.subAllocations.recipients.map((recipient, recipientIdx) =>
+                        <TreeNode
+                            key={recipientIdx}
+                            left={<Flex gap={"4px"} alignItems={"center"}>
+                                <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
+                                    <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
+                                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                            avatarStyle={"Circle"}/>
+                                </TooltipV2>
+                                {recipient.owner.title}
+                            </Flex>}
+                            right={<div className={"sub-alloc"}>
+                                {recipient.owner.reference.type === "project" &&
+                                    <Link
+                                        to={AppRoutes.grants.grantGiverInitiatedEditor({
+                                            title: recipient.owner.title,
+                                            piUsernameHint: recipient.owner.primaryUsername,
+                                            projectId: recipient.owner.reference.projectId,
+                                            start: timestampUnixMs(),
+                                            end: recipient.allocations.reduce((prev, it) => Math.min(prev, it.end), NO_EXPIRATION_FALLBACK),
+                                            subAllocator: false,
+                                        })}
+                                    >
+                                        <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
+                                                         subColor1={"white"} subColor2={"white"}/>
+                                    </Link>
+                                }
 
-                            {recipient.usageAndQuota.map((uq, idx) =>
-                                <ProgressBarWithLabel
-                                    key={idx}
-                                    value={(uq.usage / uq.quota) * 100}
-                                    text={progressText(uq.type, uq)}
-                                    width={`${baseProgress}px`}
-                                />
-                            )}
-                        </div>}
-                    >
-                        {recipient.allocations
-                            .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage || alloc.usageAndQuota.usage > 0)
-                            .map((alloc, idx) =>
-                                <TreeNode
-                                    key={idx}
-                                    className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                    data-ridx={recipientIdx} data-idx={idx}
-                                    left={<Flex gap={"4px"}>
-                                        <Flex gap={"4px"} width={"200px"}>
-                                            <ProviderLogo providerId={alloc.category.provider} size={20}/>
-                                            <Icon name={Accounting.productTypeToIcon(alloc.category.productType)}
-                                                  size={20}/>
-                                            <code>{alloc.category.name}</code>
-                                        </Flex>
-
-                                        {alloc.allocationId && <span> <b>Allocation ID:</b> {alloc.allocationId}</span>}
-                                    </Flex>}
-                                    right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
-                                            <SmallIconButton
-                                                icon={"heroPencil"} onClick={onEdit}
-                                                disabled={state.editControlsDisabled}
-                                                data-ridx={recipientIdx} data-idx={idx}/>
-                                        }
-                                        {alloc.note && <>
-                                            <TooltipV2 tooltip={alloc.note.text}>
-                                                <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
-                                            </TooltipV2>
-                                        </>}
-
-                                        {alloc.isEditing ?
-                                            <Flex gap={"4px"} width={"250px"}>
-                                                <Input
-                                                    height={"24px"}
-                                                    defaultValue={alloc.usageAndQuota.quota}
-                                                    autoFocus
-                                                    onKeyDown={onEditKey}
-                                                    onBlur={onEditBlur}
-                                                    data-ridx={recipientIdx} data-idx={idx}
-                                                />
-                                                {alloc.usageAndQuota.unit}
+                                {recipient.usageAndQuota.map((uq, idx) =>
+                                    <ProgressBarWithLabel
+                                        key={idx}
+                                        value={(uq.usage / uq.quota) * 100}
+                                        text={progressText(uq.type, uq)}
+                                        width={`${baseProgress}px`}
+                                    />
+                                )}
+                            </div>}
+                        >
+                            {recipient.allocations
+                                .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage || alloc.usageAndQuota.usage > 0)
+                                .map((alloc, idx) =>
+                                    <TreeNode
+                                        key={idx}
+                                        className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                        data-ridx={recipientIdx} data-idx={idx}
+                                        left={<Flex gap={"4px"}>
+                                            <Flex gap={"4px"} width={"200px"}>
+                                                <ProviderLogo providerId={alloc.category.provider} size={20}/>
+                                                <Icon name={Accounting.productTypeToIcon(alloc.category.productType)}
+                                                      size={20}/>
+                                                <code>{alloc.category.name}</code>
                                             </Flex>
-                                            : <ProgressBarWithLabel
-                                                value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
-                                                text={progressText(alloc.category.productType, alloc.usageAndQuota)}
-                                                width={`${baseProgress}px`}
-                                            />
-                                        }
-                                    </Flex>}
-                                />
-                            )
-                        }
-                    </TreeNode>
-                )}
-            </Tree>
+
+                                            {alloc.allocationId && <span> <b>Allocation ID:</b> {alloc.allocationId}</span>}
+                                        </Flex>}
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
+                                                <SmallIconButton
+                                                    icon={"heroPencil"} onClick={onEdit}
+                                                    disabled={state.editControlsDisabled}
+                                                    data-ridx={recipientIdx} data-idx={idx}/>
+                                            }
+                                            {alloc.note && <>
+                                                <TooltipV2 tooltip={alloc.note.text}>
+                                                    <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
+                                                </TooltipV2>
+                                            </>}
+
+                                            {alloc.isEditing ?
+                                                <Flex gap={"4px"} width={"250px"}>
+                                                    <Input
+                                                        height={"24px"}
+                                                        defaultValue={alloc.usageAndQuota.quota}
+                                                        autoFocus
+                                                        onKeyDown={onEditKey}
+                                                        onBlur={onEditBlur}
+                                                        data-ridx={recipientIdx} data-idx={idx}
+                                                    />
+                                                    {alloc.usageAndQuota.unit}
+                                                </Flex>
+                                                : <ProgressBarWithLabel
+                                                    value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
+                                                    text={progressText(alloc.category.productType, alloc.usageAndQuota)}
+                                                    width={`${baseProgress}px`}
+                                                />
+                                            }
+                                        </Flex>}
+                                    />
+                                )
+                            }
+                        </TreeNode>
+                    )}
+                </Tree>
+        </>}
         </div>}
     />;
 };

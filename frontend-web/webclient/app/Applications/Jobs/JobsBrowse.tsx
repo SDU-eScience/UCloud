@@ -62,7 +62,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
     const dateRanges = dateRangeFilters("Created");
 
-    const simpleView = !!(opts?.embedded && !opts.isModal);
+    const simpleView = !!(opts?.embedded && !opts.isModal) || opts?.selection !== undefined;
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -79,6 +79,15 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 };
 
                 browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource && opts?.selection) {
+                        const doShow = opts.selection.show ?? (() => true);
+                        if (doShow(resource)) {
+                            opts.selection.onClick(resource);
+                        }
+                        browser.open(oldPath, true);
+                        return;
+                    }
+
                     if (resource) {
                         navigate(AppRoutes.jobs.view(resource.id));
                         return;

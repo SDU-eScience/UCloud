@@ -35,7 +35,7 @@ import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
@@ -746,7 +746,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
                         ));
                     }
-                    row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
+
+                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
+                    if (opts?.selection) {
+                        row.stat2.innerText = dateToDateStringOrTime(modifiedAt);
+                    } else {
+                        row.stat2.innerText = dateToString(modifiedAt);
+                    }
 
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, file);
@@ -1090,6 +1096,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
+                        if (opts?.selection) {
+                            const doShow = opts.selection.show ?? (() => true);
+                            if (doShow(resource)) {
+                                opts.selection.onClick(resource);
+                            }
+                            browser.open(oldPath, true);
+                            return;
+                        }
                         navigate(`/files/properties/${encodeURIComponent(resource.id)}/`)
                         return;
                     }

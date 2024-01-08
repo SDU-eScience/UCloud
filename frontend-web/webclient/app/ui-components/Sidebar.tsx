@@ -761,6 +761,12 @@ function SecondarySidebar({
                     text={"Grant applications"}
                     icon={"heroDocumentText"}
                 />
+
+                <SidebarEntry
+                    to={AppRoutes.grants.editor()}
+                    text={"Apply for resources"}
+                    icon={"heroPencilSquare"}
+                />
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>

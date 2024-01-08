@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {Flex, Input, Label} from "@/ui-components";
+import {Button, Flex, Input, Label} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
     findRelevantMachinesForApplication, Machines, setMachineReservationFromRef, validateMachineReservation
@@ -11,6 +11,9 @@ import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
 import {costOfDuration, explainUnit, productCategoryEquals, ProductV2, ProductV2Compute} from "@/Accounting";
 import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
+import {costOfDuration, Product, productCategoryEquals, ProductCompute} from "@/Accounting";
+import {emptyPageV2} from "@/DefaultObjects";
+import {joinToString, preventDefault} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {classConcat, injectStyle} from "@/Unstyled";
@@ -90,9 +93,39 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const toolBackend = application.invocation.tool.tool?.description?.backend ?? "DOCKER";
 
+    const adjustHours = useCallback((ev: React.SyntheticEvent) => {
+        const target = ev.target as HTMLElement;
+        if (!target) return;
+        const amount = parseInt(target.getAttribute("data-amount") ?? "invalid");
+        if (isNaN(amount)) return;
+        const hours = document.querySelector<HTMLInputElement>(`#${reservationHours}`);
+        if (!hours) return;
+        let existing = parseInt(hours.value);
+        if (isNaN(existing)) existing = 0;
+        if (existing < amount && amount !== 1) existing = 0;
+        hours.value = (existing + amount).toString();
+        recalculateCost();
+    }, [recalculateCost]);
+
+    useEffect(() => {
+        // Chrome (and others?) have this annoying feature that if you scroll on an input field you scroll both the page
+        // and the value. This has lead to a lot of people accidentally changing the resources requested. We now
+        // intercept these events and simply blur the element before the value is changed.
+        const stupidChromeListener = () => {
+            if (document.activeElement?.["type"] === "number") {
+                (document.activeElement as HTMLInputElement).blur();
+            }
+        };
+
+        document.addEventListener("wheel", stupidChromeListener);
+        return () => {
+            document.removeEventListener("wheel", stupidChromeListener);
+        };
+    }, []);
+
     return <div>
         <Flex justifyContent="space-between" gap="15px">
-            <Label mb={"4px"}>
+            <Label>
                 Job name
                 <Input
                     className={classConcat(JobCreateInput, "name-kind")}
@@ -102,7 +135,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
             </Label>
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
-                <>
+                <Flex gap={"8px"} alignItems={"end"}>
                     <Label>
                         Hours<MandatoryField />
                         <Input
@@ -113,9 +146,13 @@ export const ReservationParameter: React.FunctionComponent<{
                             min={1}
                             onBlur={recalculateCost}
                             defaultValue={Math.max(1, application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1)}
+                            style={{minWidth: "100px"}}
                         />
                     </Label>
-                </>
+                    <Button data-amount={1} onClick={adjustHours}>+1</Button>
+                    <Button data-amount={8} onClick={adjustHours}>+8</Button>
+                    <Button data-amount={24} onClick={adjustHours}>+24</Button>
+                </Flex>
                 : null}
         </Flex>
         {toolBackend === "VIRTUAL_MACHINE" ?

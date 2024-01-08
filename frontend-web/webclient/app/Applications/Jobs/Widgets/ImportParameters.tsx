@@ -72,6 +72,7 @@ export const ImportParameters: React.FunctionComponent<{
                 // Do nothing
             } else {
                 onImport(result.output!);
+                onImportDialogClose();
             }
         }
     }, [])
@@ -118,7 +119,7 @@ export const ImportParameters: React.FunctionComponent<{
 
     return <Box>
         <Flex flexDirection="row" minWidth="180px" flexWrap="wrap">
-            <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
+            <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (

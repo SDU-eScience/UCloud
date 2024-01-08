@@ -192,7 +192,6 @@ function DashboardResources({wallets}: {
 }): JSX.Element | null {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
-    const wallets2 = wallets.data.items;
 
     const now = timestampUnixMs();
     const mapped = wallets.data.items.map(w => {
@@ -239,7 +238,7 @@ function DashboardResources({wallets}: {
                                     <TableCell fontSize={FONT_SIZE}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                             <ProviderLogo providerId={n.category.provider} size={20} />
-                                            <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
+                                            <code>{n.category.name}</code>
                                         </Flex>
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>

@@ -17,7 +17,13 @@ import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
+import {
+    ResourceBrowser,
+    ResourceBrowserOpts,
+    addContextSwitcherInPortal,
+    checkCanConsumeResources,
+    EmptyReason, EmptyReasonTag
+} from "@/ui-components/ResourceBrowser";
 import {logoDataUrls} from "./Jobs/JobsBrowse";
 import {AppLogo, hashF} from "./Card";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
@@ -132,7 +138,27 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     }
                 });
 
-                browser.on("renderEmptyPage", reason => browser.defaultEmptyPage("applications", reason, {}));
+                browser.on("renderEmptyPage", reason => {
+                    const e = browser.emptyPageElement;
+                    switch (reason.tag) {
+                        case EmptyReasonTag.LOADING: {
+                            e.reason.append(`We are fetching applications...`);
+                            break;
+                        }
+
+                        case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS:
+                        case EmptyReasonTag.EMPTY: {
+                            e.reason.append("Couldn't find any suitable applications for this file.")
+                            break;
+                        }
+
+                        case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                            e.reason.append(`We are currently unable to show any applications. Try again later.`);
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+                    }
+                });
                 browser.on("unhandledShortcut", () => void 0);
                 browser.on("generateBreadcrumbs", path => browser.defaultBreadcrumbs());
                 browser.on("fetchOperationsCallback", () => ({}));
