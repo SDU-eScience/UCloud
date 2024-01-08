@@ -1,4 +1,4 @@
-import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, frequencyToSuffix, balanceToString, explainPrice2} from "@/Accounting";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {NoResultsCardBody} from "@/Dashboard/Dashboard";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
@@ -245,7 +245,7 @@ export const ProductSelector: React.FunctionComponent<{
                         <tbody>
                             <tr>
                                 <ProductStats product={selected} />
-                                <td>{explainUnit(selected.category).priceFactor}</td>
+                                <td>{explainPrice2(selected, 1, 60)}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -407,7 +407,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                 </TableCell>
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
-                                                <TableCell>{p.price} {explainUnit(p.category).priceFactor} {explainUnit(p.category).name}</TableCell>
+                                                <TableCell>{explainPrice2(p, 1, 60)}</TableCell>
                                             </TableRow>
                                         }
                                     })}

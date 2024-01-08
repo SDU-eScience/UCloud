@@ -1,4 +1,5 @@
 import {
+    explainPrice2,
     explainUnit,
     priceExplainer,
     ProductType,
@@ -83,10 +84,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
     const machineCount = machines.data.items.length;
     const [hasPrice, setHasPrice] = React.useState(false);
     React.useEffect(() => {
-        // TODO(Brian)
-        /*setHasPrice(price => price || machines.data.items.some(it =>
-            ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE"].includes(it.unitOfPrice)
-        ));*/
+        setHasPrice(machines.data.items.some(it => it.price));
     }, [machines.data]);
     if (machineCount === 0) return null;
 
@@ -131,8 +129,6 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                                                 // Note(Jonas): Why in the world would this ever happen?
                                                 if (machine === null) return null;
                                             }
-                                            // TODO(Brian)
-                                            //const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE", "UNITS_PER_MINUTE"].includes(machine.unitOfPrice);
                                             const computeProduct = productType === "COMPUTE" ? machine as ProductV2Compute : null;
                                             return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
                                                 <TableCell>{machine.name}</TableCell>
@@ -141,7 +137,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                                {!hasPrice ? null : <TableCell>{explainUnit(machine.category).priceFactor}</TableCell>}
+                                                {!hasPrice ? null : <TableCell>{explainPrice2(machine, 1)}</TableCell>}
                                                 <td className={TruncatedTableCell}>{machine.description}</td>
                                             </TableRow>;
                                         })}

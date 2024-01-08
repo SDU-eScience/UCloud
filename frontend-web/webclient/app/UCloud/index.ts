@@ -6221,7 +6221,7 @@ export function browse(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/productsv2" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterProductType: request.filterProductType, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
+        path: buildQueryString("/api/products/v2" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterProductType: request.filterProductType, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
         parameters: request,
         reloadId: Math.random(),
     };
