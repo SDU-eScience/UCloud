@@ -1,10 +1,17 @@
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {JWT} from "@/Authentication/lib";
-import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
-import {Client} from "./Authentication/HttpClientInstance";
+
+// HACK(Dan): Breaks a circular dependency between the snackstore and utility functions
+let successCallback: (message: string) => void = doNothing;
+let failureCallback: (message: string) => void = doNothing;
+export function hackySetFailureCallback(callback: (message: string) => void) {
+    failureCallback = callback;
+}
+
+export function hackySetSuccessCallback(callback: (message: string) => void) {
+    successCallback = callback;
+}
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -310,7 +317,7 @@ export function defaultErrorHandler(
 
     if (request) {
         const why = extractErrorMessage(error)
-        snackbarStore.addFailure(why, false);
+        failureCallback(why);
         return request.status;
     }
     return 500;
@@ -371,7 +378,7 @@ interface CopyToClipboard {
  */
 export async function copyToClipboard({value, message}: CopyToClipboard): Promise<void> {
     await navigator.clipboard.writeText(value ?? "");
-    if (message) snackbarStore.addSuccess(message, false);
+    if (message) successCallback(message);
 }
 
 export function errorMessageOrDefault(
@@ -406,28 +413,6 @@ export function delay(ms: number): Promise<void> {
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
 export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
     || window.location.hostname === "127.0.0.1";
-
-// Note(Jonas): This code adds an event listener on localhost and the dev site. With my current setup, I get logged out on
-// retrieving a new JWT, so this solution will allow me to more quickly fetch the token values from `dev`, and copy them to my
-// localhost run on my machine.
-if (onDevSite()) {
-    document.body.addEventListener("keydown", async e => {
-        if (e.altKey) {
-            if (e.code === "KeyK") {
-                await Client.receiveAccessTokenOrRefreshIt();
-                await navigator.clipboard.writeText(`localStorage.accessToken="${localStorage.accessToken}";localStorage.csrfToken="${localStorage.csrfToken}";`);
-                snackbarStore.addFailure("Copied CSRF and access token to clipboard", false);
-            } else if (e.code === "KeyL") {
-
-                // Not allowed on Firefox!
-                // const [accessToken, csrfToken] = (await navigator.clipboard.readText()).split("\n");
-                // localStorage.setItem("accessToken", accessToken);
-                // localStorage.setItem("csrfToken", csrfToken);
-                // window.location.reload();
-            }
-        }
-    });
-}
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
@@ -471,30 +456,22 @@ export function stopPropagationAndPreventDefault(e: {preventDefault(): void; sto
 }
 
 export function displayErrorMessageOrDefault(e: any, fallback: string): void {
-    snackbarStore.addFailure(errorMessageOrDefault(e, fallback), false);
+    failureCallback(errorMessageOrDefault(e, fallback));
 }
 
 /**
  * Used to know to hide the header and sidebar in some cases.
  */
 export function useFrameHidden(): boolean {
-    const [frameHidden] = useGlobal("frameHidden", false);
-    const legacyHide =
-        ["/app/login", "/app/login/wayf"].includes(window.location.pathname) ||
-        window.location.search === "?dav=true" ||
-        window.location.search.indexOf("?hide-frame") === 0;
-    return legacyHide || frameHidden;
-}
-
-export function useNoFrame(): void {
-    const [frameHidden, setFrameHidden] = useGlobal("frameHidden", false);
-    useEffect(() => {
-        const wasFrameHidden = frameHidden;
-        setFrameHidden(true);
-        return () => {
-            setFrameHidden(wasFrameHidden);
-        };
-    }, []);
+    return [
+        "/app/login",
+        "/app/login/wayf",
+        "/app/applications/shell/",
+        "/app/applications/web/",
+        "/app/applications/vnc/",
+    ].includes(window.location.pathname) ||
+    window.location.search === "?dav=true" ||
+    window.location.search.indexOf("?hide-frame") === 0;
 }
 
 /**
@@ -507,7 +484,7 @@ export function getUserThemePreference(): "light" | "dark" {
     return "light";
 }
 
-function b64DecodeUnicode(str: string) {
+export function b64DecodeUnicode(str: string) {
     // Going backwards: from bytestream, to percent-encoding, to original string.
     return decodeURIComponent(atob(str).split('').map(function (c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
@@ -518,29 +495,6 @@ export function merge<T>(a: T, b: T): T {
     return {...a, ...b};
 }
 
-/**
- * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as
- * a an object.
- * @param encodedJWT The JWT sent from the backend, in the form of a string.
- */
-export function parseJWT(encodedJWT: string): JWT | null {
-    const [, right] = encodedJWT.split(".");
-    if (right == null) return null;
-
-    const decoded = b64DecodeUnicode(right);
-    const parsed = JSON.parse(decoded);
-    const isValid = "sub" in parsed &&
-        "aud" in parsed &&
-        "role" in parsed &&
-        "iss" in parsed &&
-        "exp" in parsed &&
-        "extendedByChain" in parsed &&
-        "iat" in parsed &&
-        "principalType" in parsed;
-    if (!isValid) return null;
-
-    return parsed;
-}
 
 export type EmptyObject = {
     [K in any]: never

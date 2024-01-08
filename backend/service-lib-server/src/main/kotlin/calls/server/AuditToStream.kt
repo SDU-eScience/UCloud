@@ -99,7 +99,6 @@ class AuditToEventStream(
                 val eventProducer = httpEventProducer(call)
                 val auditProducer = auditProducer(call)
 
-                val bearerToken = context.bearer
                 val requestContentLength =
                     (context as? HttpCall)?.ktor?.call?.request?.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
                 val causedBy = context.causedBy
@@ -114,10 +113,7 @@ class AuditToEventStream(
                 val responseCode = result.statusCode.value
 
                 val token = run {
-                    val principalFromBearerToken = bearerToken
-                        ?.let { tokenValidation.validateOrNull(it) }
-                        ?.let { tokenValidation.decodeToken(it) }
-
+                    val principalFromBearerToken = context.securityTokenOrNull
                     val principalFromOverride = auditData.securityPrincipalTokenToAudit
                     principalFromOverride ?: principalFromBearerToken
                 }

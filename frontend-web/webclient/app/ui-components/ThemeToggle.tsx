@@ -3,8 +3,8 @@ import Relative from "./Relative";
 import {injectStyle} from "@/Unstyled";
 import {useDispatch} from "react-redux";
 import {toggleThemeRedux} from "@/Applications/Redux/Actions";
-import {toggleTheme} from "@/Core";
 import {isLightThemeStored} from "@/UtilityFunctions";
+import {toggleTheme} from "./theme";
 
 /*!
 

@@ -1,8 +1,10 @@
 import {
+    explainPrice2,
+    explainUnit,
     priceExplainer,
-    Product,
     ProductType,
-    ProductCompute,
+    ProductV2,
+    ProductV2Compute,
     UCLOUD_PROVIDER
 } from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -20,7 +22,7 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import * as UCloud from "@/UCloud";
 import CONF from "../../site.config.json";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
@@ -34,17 +36,17 @@ function Products(): JSX.Element {
             <Description />
 
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "STORAGE"} area={"STORAGE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "STORAGE"} productType={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "STORAGE"} area={"STORAGE"} />
+            <MachineView provider={"aau"} key={"aau" + "STORAGE"} productType={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "COMPUTE"} productType={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={"aau"} key={"aau" + "COMPUTE"} productType={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "INGRESS"} area={"INGRESS"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "INGRESS"} productType={"INGRESS"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "INGRESS"} area={"INGRESS"} />
+            <MachineView provider={"aau"} key={"aau" + "INGRESS"} productType={"INGRESS"} />
         </ContainerForText>
     );
 
@@ -70,21 +72,19 @@ const DetailedView = injectStyle("detailed-view", k => `
     }
 `);
 
-export const MachineView: React.FunctionComponent<{area: ProductType, provider: string; color?: string}> = ({area, provider, color = "var(--primary)"}) => {
-    const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
-        {...UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
+export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string; color?: string}> = ({productType, provider, color = "var(--primary)"}) => {
+    const [machines, refetch] = useCloudAPI<UCloud.PageV2<ProductV2>>(
+        {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
         emptyPage
     );
 
-    const [activeMachine, setActiveMachine] = React.useState<Product | undefined>(undefined);
-    const isCompute = "COMPUTE" === area;
+    const [activeMachine, setActiveMachine] = React.useState<ProductV2 | undefined>(undefined);
+    const isCompute = "COMPUTE" === productType;
 
     const machineCount = machines.data.items.length;
     const [hasPrice, setHasPrice] = React.useState(false);
     React.useEffect(() => {
-        setHasPrice(price => price || machines.data.items.some(it =>
-            ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE"].includes(it.unitOfPrice)
-        ));
+        setHasPrice(machines.data.items.some(it => it.price));
     }, [machines.data]);
     if (machineCount === 0) return null;
 
@@ -101,14 +101,14 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
         >
             <Box style={{borderTop: `5px solid ${color}`}} />
             <Box p="0 25px 25px" height={"100%"}>
-                <Heading.h3 mb={"16px"}>{capitalized(area === "INGRESS" ? "public links" : area)}</Heading.h3>
+                <Heading.h3 mb={"16px"}>{capitalized(productType === "INGRESS" ? "public links" : productType)}</Heading.h3>
 
                 <Flex alignItems="center">
                     <ListV2
                         page={machines.data}
                         loading={machines.loading}
                         onLoadMore={() => refetch({...UCloud.accounting.products.browse({
-                            filterArea: area, filterProvider: provider, filterUsable: true, next: machines.data.next
+                            filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
                         }), unauthenticated: !Client.isLoggedIn})}
                         pageRenderer={items => (
                             <div className={MachineTypesWrapper}>
@@ -125,20 +125,19 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
                                     </TableHeader>
                                     <tbody>
                                         {items.map(machine => {
-                                            if (provider === UCLOUD_PROVIDER && area === "COMPUTE") {
+                                            if (provider === UCLOUD_PROVIDER && productType === "COMPUTE") {
                                                 // Note(Jonas): Why in the world would this ever happen?
                                                 if (machine === null) return null;
                                             }
-                                            const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE", "UNITS_PER_MINUTE"].includes(machine.unitOfPrice);
-                                            const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
-                                            return <TableRow key={machine.name + machine.unitOfPrice} onClick={() => setActiveMachine(machine)}>
+                                            const computeProduct = productType === "COMPUTE" ? machine as ProductV2Compute : null;
+                                            return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
                                                 <TableCell>{machine.name}</TableCell>
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                                {!hasPrice ? null : <TableCell>{showPrice ? priceExplainer(machine) : ""}</TableCell>}
+                                                {!hasPrice ? null : <TableCell>{explainPrice2(machine, 1)}</TableCell>}
                                                 <td className={TruncatedTableCell}>{machine.description}</td>
                                             </TableRow>;
                                         })}
@@ -171,7 +170,7 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
                                 <TableHeaderCell>Name</TableHeaderCell>
                                 <TableCell>{activeMachine.name}</TableCell>
                             </TableRow>
-                            {area !== "COMPUTE" || !("cpu" in activeMachine) ? null :
+                            {productType !== "COMPUTE" || !("cpu" in activeMachine) ? null :
                                 <>
                                     <TableRow>
                                         <th>vCPU</th>
@@ -194,7 +193,7 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
                             <TableRow>
                                 <th>Price</th>
                                 <TableCell>
-                                    {priceExplainer(activeMachine)}
+                                    {explainUnit(activeMachine.category).priceFactor} {explainUnit(activeMachine.category).name}
                                 </TableCell>
                             </TableRow>
                             <TableRow>
@@ -212,7 +211,7 @@ export const MachineView: React.FunctionComponent<{area: ProductType, provider: 
 function Description(): JSX.Element {
     return (<>
         Below is the available SKUs on the {CONF.PRODUCT_NAME} platform.
-        They are divided into different product areas, i.e. storage SKUs, compute SKUs, public link SKUs and license
+        They are divided into different product types, i.e. storage SKUs, compute SKUs, public link SKUs and license
         SKUs.
         The prices for compute will be visible when starting a job.
     </>);

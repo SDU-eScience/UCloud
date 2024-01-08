@@ -3,7 +3,6 @@ import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Box, Button, Flex, Icon} from "@/ui-components";
-import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
@@ -17,13 +16,12 @@ import {default as JobsApi} from "@/UCloud/JobsApi";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
-import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
-import {ButtonClass} from "@/ui-components/Button";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import JobBrowse from "../JobsBrowse";
 import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {ShortcutKey} from "@/ui-components/Operation";
+import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -74,6 +72,7 @@ export const ImportParameters: React.FunctionComponent<{
                 // Do nothing
             } else {
                 onImport(result.output!);
+                onImportDialogClose();
             }
         }
     }, [])
@@ -120,7 +119,7 @@ export const ImportParameters: React.FunctionComponent<{
 
     return <Box>
         <Flex flexDirection="row" minWidth="180px" flexWrap="wrap">
-            <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="importIcon" /> Import parameters</Button>
+            <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (
@@ -172,7 +171,7 @@ export const ImportParameters: React.FunctionComponent<{
                         input.click();
                         document.body.removeChild(input);
                     },
-                    text: "Upload job-file",
+                    text: "Upload JobParameters.json",
                     shortcut: ShortcutKey.U,
                     icon: "upload"
                 }, {

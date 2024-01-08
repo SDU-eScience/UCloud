@@ -1,7 +1,6 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
@@ -18,6 +17,7 @@ import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {Operation} from "@/ui-components/Operation";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -62,7 +62,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
     const dateRanges = dateRangeFilters("Created");
 
-    const simpleView = !!(opts?.embedded && !opts.isModal);
+    const simpleView = !!(opts?.embedded && !opts.isModal) || opts?.selection !== undefined;
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -79,6 +79,15 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 };
 
                 browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource && opts?.selection) {
+                        const doShow = opts.selection.show ?? (() => true);
+                        if (doShow(resource)) {
+                            opts.selection.onClick(resource);
+                        }
+                        browser.open(oldPath, true);
+                        return;
+                    }
+
                     if (resource) {
                         navigate(AppRoutes.jobs.view(resource.id));
                         return;
@@ -178,9 +187,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             color: statusIconColor,
                             color2: statusIconColor
                         }).then(setStatus);
+                        status.style.margin = "0";
+                        status.style.width = "24px";
+                        status.style.height = "24px";
                         row.stat3.append(status);
                     }
-
                 });
 
                 browser.setEmptyIcon("heroServer");
@@ -249,7 +260,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }
@@ -263,13 +274,13 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 }
 
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
-    IN_QUEUE: ["calendar", "iconColor"],
-    RUNNING: ["chrono", "iconColor"],
-    SUCCESS: ["check", "green"],
-    FAILURE: ["close", "red"],
-    EXPIRED: ["chrono", "orange"],
-    SUSPENDED: ["pauseSolid", "iconColor"],
-    CANCELING: ["close", "red"]
+    IN_QUEUE: ["heroCalendar", "iconColor"],
+    RUNNING: ["heroClock", "iconColor"],
+    SUCCESS: ["heroCheck", "green"],
+    FAILURE: ["heroXMark", "red"],
+    EXPIRED: ["heroClock", "orange"],
+    SUSPENDED: ["heroPause", "iconColor"],
+    CANCELING: ["heroXMark", "red"]
 };
 
 export default JobBrowse;

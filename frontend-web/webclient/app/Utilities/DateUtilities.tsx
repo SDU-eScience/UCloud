@@ -1,4 +1,4 @@
-import {format, isToday} from "date-fns/esm";
+import {format, isToday} from "date-fns";
 
 // Could potentially cause issues with time if user is outside CEST
 export const dateToStringNoTime = (date: number): string => format(date, "dd/MM/yyyy");

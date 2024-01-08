@@ -1,5 +1,5 @@
 import {Snack, SnackType} from "@/Snackbar/Snackbars";
-import {timestampUnixMs} from "@/UtilityFunctions";
+import {hackySetFailureCallback, hackySetSuccessCallback, timestampUnixMs} from "@/UtilityFunctions";
 
 type SnackbarSubscriber = (activeSnack?: Snack) => void;
 
@@ -84,4 +84,11 @@ class SnackbarStore {
     }
 }
 
+
 export const snackbarStore = new SnackbarStore();
+hackySetSuccessCallback(msg => {
+    snackbarStore.addSuccess(msg, false);
+});
+hackySetFailureCallback(msg => {
+    snackbarStore.addFailure(msg, false);
+});

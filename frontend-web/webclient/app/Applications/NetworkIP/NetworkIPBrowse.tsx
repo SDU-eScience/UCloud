@@ -2,8 +2,7 @@ import {Product, ProductNetworkIP, productTypeToIcon} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
@@ -15,6 +14,7 @@ import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowser
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -25,7 +25,6 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     sorting: true,
     breadcrumbsSeparatedBySlashes: false,
-    contextSwitcher: true,
     showColumnTitles: true,
     dragToSelect: true,
 };
@@ -51,7 +50,12 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumnTitles([{name: "IP address"}, {name: "In use with"}, {name: ""}, {name: ""}]);
+                browser.setColumnTitles([
+                    {name: "IP address"},
+                    {name: ""},
+                    {name: ""},
+                    {name: "In use with"},
+                ]);
 
                 var startCreation = function () { };
 
@@ -199,7 +203,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
 
                     if (ip.status.boundTo.length === 1) {
                         const [boundTo] = ip.status.boundTo;
-                        row.stat1.innerText = boundTo;
+                        row.stat3.innerText = boundTo;
                     }
                 });
 
@@ -267,7 +271,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

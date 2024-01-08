@@ -2,19 +2,21 @@ import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {accounting} from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
-import {Product, productCategoryEquals, ProductCompute} from "@/Accounting";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductCompute} from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import {ProductSelector} from "@/Products/Selector";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {emptyPageV2} from "@/DefaultObjects";
+import {useCloudAPI} from "@/Authentication/DataHook";
 
 export const reservationMachine = "reservation-machine";
 
 export function findRelevantMachinesForApplication(
     application: UCloud.compute.Application,
     machineSupport: UCloud.compute.JobsRetrieveProductsResponse,
-    wallets: UCloud.PageV2<ProductCompute>
-): ProductCompute[] {
-    return ([] as ProductCompute[]).concat.apply(
+    wallets: UCloud.PageV2<ProductV2Compute>
+): ProductV2Compute[] {
+    const supportedProducts: ProductCompute[] = ([] as ProductCompute[]).concat.apply(
         [],
         Object.values(machineSupport.productsByProvider).map(products => {
             return products
@@ -42,15 +44,30 @@ export function findRelevantMachinesForApplication(
                 .map(it => it.product);
         })
     );
+
+    var result: ProductV2Compute[] = [];
+
+    for (var oldProduct of supportedProducts) {
+        if (!oldProduct) continue;
+        const newProduct = wallets.items.find(it =>
+            `${it.category.provider}-${it.category.name}-${it.name}` === `${oldProduct.category.provider}-${oldProduct.category.name}-${oldProduct.name}`
+        ) as ProductV2Compute;
+
+        if (newProduct) {
+            result.push(newProduct);
+        }
+    }
+
+    return result;
 }
 
 export const Machines: React.FunctionComponent<{
-    machines: ProductCompute[];
+    machines: ProductV2Compute[];
     support: ResolvedSupport[];
     loading: boolean;
-    onMachineChange?: (product: ProductCompute) => void;
+    onMachineChange?: (product: ProductV2Compute) => void;
 }> = props => {
-    const [selected, setSelectedOnlyByListener] = useState<ProductCompute | null>(null);
+    const [selected, setSelectedOnlyByListener] = useState<ProductV2Compute | null>(null);
     const filteredMachines = useMemo(() => {
         return props.machines.filter(it => it.name !== "syncthing");
     }, [props.machines]);
@@ -102,7 +119,7 @@ export const Machines: React.FunctionComponent<{
 };
 
 
-export function setMachineReservation(compute: Product | null): void {
+export function setMachineReservation(compute: ProductV2 | null): void {
     const valueInput = document.getElementById(reservationMachine) as HTMLInputElement | null;
     if (valueInput === null) throw "Component is no longer mounted but setSelected was called";
     if (compute === null) {

@@ -1,8 +1,8 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Grid, Box, Button, Flex} from "@/ui-components";
+import {EveryIcon, IconName} from "@/ui-components/Icon";
+import {Grid, Button} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
@@ -17,15 +17,13 @@ import {
     AppParameterFile,
     Wrapper
 } from "@/UCloud/Scratch";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {useSelector} from "react-redux";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
-export const Playground: React.FunctionComponent = () => {
+const Playground: React.FunctionComponent = () => {
     const main = (
         <>
             <Button onClick={() => {
@@ -115,7 +113,7 @@ export const Playground: React.FunctionComponent = () => {
 
             <Grid
                 gridTemplateColumns="repeat(10, 1fr)"
-                style={{overflowY: "scroll"}}
+                style={{overflowY: "auto"}}
                 mb={"32px"}
             >
                 {colors.map((c: ThemeColor) => (
@@ -128,14 +126,13 @@ export const Playground: React.FunctionComponent = () => {
                     </div>
                 ))}
             </Grid>
-
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
         </>
     );
     return <MainContainer main={main} />;
 };
 
-export const ProjectPlayground: React.FunctionComponent = () => {
+const ProjectPlayground: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const [project, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
     useEffect(() => {
@@ -191,27 +188,5 @@ const colors: ThemeColor[] = [
     "appCard",
     "wayfGreen",
 ];
-
-export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
-    return (<Flex zIndex={"1"} alignItems={"center"}>
-        <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
-        <Box width="32px" mr={10}><RefreshThing /></Box>
-        <ContextSwitcher />
-    </Flex>);
-}
-
-function SearchThing({enabled}): JSX.Element | null {
-    if (!enabled) return null;
-    return <Icon size={20} color="var(--primary)" name="heroMagnifyingGlass" />
-}
-
-function RefreshThing(): JSX.Element | null {
-    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
-    const spin = useSelector((it: ReduxObject) => it.loading);
-    const loading = useSelector((it: ReduxObject) => it.status.loading);
-    if (!refresh) return null;
-    return <Icon cursor="pointer" size={24} onClick={refresh} spin={spin || loading} hoverColor="blue"
-        color="var(--primary)" name="heroArrowPath" />
-}
 
 export default Playground;

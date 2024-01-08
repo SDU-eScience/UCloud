@@ -4,7 +4,26 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+
+
+typealias UpdateRequest = Avatar
+typealias UpdateResponse = Unit
+typealias FindRequest = Unit
+typealias FindResponse = Avatar
+
+@Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
+data class FindBulkRequest(
+    val usernames: List<String>
+)
+
+@Serializable
+@UCloudApiInternal(InternalLevel.STABLE)
+data class FindBulkResponse(
+    val avatars: Map<String, Avatar>
+)
 
 typealias Avatars = AvatarDescriptions
 
@@ -29,7 +48,7 @@ working in projects.
         """.trimIndent()
     }
 
-    val update = call("update", Avatar.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val update = call("update", UpdateRequest.serializer(), UpdateResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -50,7 +69,7 @@ working in projects.
         }
     }
 
-    val findAvatar = call("findAvatar", Unit.serializer(), Avatar.serializer(), CommonErrorMessage.serializer()) {
+    val findAvatar = call("findAvatar", FindRequest.serializer(), FindResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -65,9 +84,9 @@ working in projects.
             }
         }
 
-       documentation {
-           summary = "Request the avatar of the current user."
-       }
+        documentation {
+            summary = "Request the avatar of the current user."
+        }
     }
 
     val findBulk = call("findBulk", FindBulkRequest.serializer(), FindBulkResponse.serializer(), CommonErrorMessage.serializer()) {

@@ -15,12 +15,12 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import {ListRowStat} from "@/ui-components/List";
 import {deviceBreakpoint} from "@/ui-components/Hide";
-import {UFile} from "@/UCloud/FilesApi";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {injectStyle} from "@/Unstyled";
+import {UFile} from "@/UCloud/UFile";
 
 export const History: React.FunctionComponent<{
     file: UFile;

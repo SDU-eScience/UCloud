@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
-import {Flex, Input, Label} from "@/ui-components";
+import {Button, Flex, Input, Label} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
     findRelevantMachinesForApplication, Machines, setMachineReservationFromRef, validateMachineReservation
@@ -8,12 +8,13 @@ import {
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
-import {costOfDuration, Product, productCategoryEquals, ProductCompute} from "@/Accounting";
+import {productCategoryEquals, ProductV2, ProductV2Compute} from "@/Accounting";
 import {emptyPageV2} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {classConcat, injectStyle} from "@/Unstyled";
+import * as Accounting from "@/Accounting";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -22,15 +23,18 @@ const reservationReplicas = "reservation-replicas";
 export const ReservationParameter: React.FunctionComponent<{
     application: UCloud.compute.Application;
     errors: ReservationErrors;
-    onEstimatedCostChange?: (cost: number, balance: number, product: Product | null) => void;
+    onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, product: ProductV2 | null) => void;
 }> = ({application, errors, onEstimatedCostChange}) => {
     // Estimated cost
-    const [selectedMachine, setSelectedMachine] = useState<ProductCompute | null>(null);
-    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductCompute>>({noop: true}, emptyPageV2);
-    // TODO
-    const balance = !selectedMachine ?
-        0 :
-        wallet.data.items.find(it => productCategoryEquals(it.category, selectedMachine.category))?.["balance"] ?? 0;
+    const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
+    const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
+    const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
+    const allocations = !selectedMachine ?
+        [] :
+        wallets.data.items.find(it => productCategoryEquals(it.paysFor, selectedMachine.category))?.allocations ?? [];
+    const balance = allocations
+        .filter(it => Accounting.allocationIsValidNow(it))
+        .reduce((sum, alloc) => sum + (alloc.quota - (alloc.treeUsage ?? 0)), 0);
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
@@ -39,9 +43,10 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallet(UCloud.accounting.products.browse({
+        fetchWallets(Accounting.browseWalletsV2({ itemsPerPage: 250 }));
+        fetchProducts(UCloud.accounting.products.browse({
             filterUsable: true,
-            filterArea: "COMPUTE",
+            filterProductType: "COMPUTE",
             itemsPerPage: 250,
             includeBalance: true,
             includeMaxBalance: true
@@ -49,16 +54,16 @@ export const ReservationParameter: React.FunctionComponent<{
     }, [projectId]);
     useEffect(() => {
         const s = new Set<string>();
-        wallet.data.items.forEach(it => s.add(it.category.provider));
+        products.data.items.forEach(it => s.add(it.category.provider));
 
         if (s.size > 0) {
             fetchMachineSupport(UCloud.compute.jobs.retrieveProducts({
                 providers: joinToString(Array.from(s), ",")
             }));
         }
-    }, [wallet]);
+    }, [products]);
 
-    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, wallet.data);
+    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, products.data);
     const support = useMemo(() => {
         const items: ResolvedSupport[] = [];
         let productsByProvider = machineSupport.data.productsByProvider;
@@ -73,12 +78,9 @@ export const ReservationParameter: React.FunctionComponent<{
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
         if (options != null && options.timeAllocation != null) {
-            let estimatedCost = 0;
-            if (selectedMachine != null) {
-                estimatedCost = costOfDuration(options.timeAllocation.hours * 60 + options.timeAllocation.minutes,
-                    options.replicas, selectedMachine);
+            if (onEstimatedCostChange) {
+                onEstimatedCostChange(options.timeAllocation?.hours * 60 + options.timeAllocation?.minutes, options.replicas, balance, selectedMachine);
             }
-            if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance, selectedMachine);
         }
     }, [selectedMachine, balance, onEstimatedCostChange]);
 
@@ -88,9 +90,39 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const toolBackend = application.invocation.tool.tool?.description?.backend ?? "DOCKER";
 
+    const adjustHours = useCallback((ev: React.SyntheticEvent) => {
+        const target = ev.target as HTMLElement;
+        if (!target) return;
+        const amount = parseInt(target.getAttribute("data-amount") ?? "invalid");
+        if (isNaN(amount)) return;
+        const hours = document.querySelector<HTMLInputElement>(`#${reservationHours}`);
+        if (!hours) return;
+        let existing = parseInt(hours.value);
+        if (isNaN(existing)) existing = 0;
+        if (existing < amount && amount !== 1) existing = 0;
+        hours.value = (existing + amount).toString();
+        recalculateCost();
+    }, [recalculateCost]);
+
+    useEffect(() => {
+        // Chrome (and others?) have this annoying feature that if you scroll on an input field you scroll both the page
+        // and the value. This has lead to a lot of people accidentally changing the resources requested. We now
+        // intercept these events and simply blur the element before the value is changed.
+        const stupidChromeListener = () => {
+            if (document.activeElement?.["type"] === "number") {
+                (document.activeElement as HTMLInputElement).blur();
+            }
+        };
+
+        document.addEventListener("wheel", stupidChromeListener);
+        return () => {
+            document.removeEventListener("wheel", stupidChromeListener);
+        };
+    }, []);
+
     return <div>
         <Flex justifyContent="space-between" gap="15px">
-            <Label mb={"4px"}>
+            <Label>
                 Job name
                 <Input
                     className={classConcat(JobCreateInput, "name-kind")}
@@ -100,7 +132,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
             </Label>
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
-                <>
+                <Flex gap={"8px"} alignItems={"end"}>
                     <Label>
                         Hours<MandatoryField />
                         <Input
@@ -111,9 +143,13 @@ export const ReservationParameter: React.FunctionComponent<{
                             min={1}
                             onBlur={recalculateCost}
                             defaultValue={Math.max(1, application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1)}
+                            style={{minWidth: "100px"}}
                         />
                     </Label>
-                </>
+                    <Button data-amount={1} onClick={adjustHours}>+1</Button>
+                    <Button data-amount={8} onClick={adjustHours}>+8</Button>
+                    <Button data-amount={24} onClick={adjustHours}>+24</Button>
+                </Flex>
                 : null}
         </Flex>
         {toolBackend === "VIRTUAL_MACHINE" ?

@@ -3,8 +3,8 @@ import * as UCloud from "@/UCloud";
 import jobs = UCloud.compute.jobs;
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {isAbsoluteUrl, useNoFrame} from "@/UtilityFunctions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {isAbsoluteUrl} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {useEffect} from "react";
 import {bulkRequestOf} from "@/DefaultObjects";
@@ -50,7 +50,6 @@ export const Web: React.FunctionComponent = () => {
     );
 
     useTitle("Redirecting to web interface")
-    useNoFrame();
 
     useEffect(() => {
         if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {

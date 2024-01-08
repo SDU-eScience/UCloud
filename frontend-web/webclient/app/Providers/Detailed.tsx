@@ -1,4 +1,4 @@
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {Feature, hasFeature} from "@/Features";
 import * as React from "react";
 import Providers from "@/Assets/provider_info.json";
@@ -56,9 +56,9 @@ export default function DetailedProvider() {
                 </TitledCard>
             </Box>
         )}
-        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "STORAGE"} area="STORAGE" />
+        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "STORAGE"} productType="STORAGE" />
         <Box my="32px" />
-        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "COMPUTE"} area="COMPUTE" />
+        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "COMPUTE"} productType="COMPUTE" />
     </Box>;
 
     if (!Client.isLoggedIn) return (<>

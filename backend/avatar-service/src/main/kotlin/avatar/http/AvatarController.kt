@@ -23,11 +23,11 @@ class AvatarController(
         }
 
         implement(AvatarDescriptions.findAvatar) {
-            ok(avatarService.findByUser(ctx.responseAllocator, actorAndProject.actor.username))
+            ok(avatarService.findByUser(actorAndProject.actor.username))
         }
 
         implement(AvatarDescriptions.findBulk) {
-            ok(avatarService.bulkFind(ctx.responseAllocator, request.usernames.map { it.decode() }))
+            ok(avatarService.bulkFind(request.usernames))
         }
     }
 

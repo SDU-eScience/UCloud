@@ -11,26 +11,26 @@ import {
 } from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
-import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
+import {appendToXterm, useXTerm} from "@/Applications/Jobs/XTermLib";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useNavigate, useParams} from "react-router";
-import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI, useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {Truncate} from "@/ui-components";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {LogOutput} from "@/UtilityComponents";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -268,8 +268,7 @@ export function ResourceProperties<Res extends Resource>(
     if (props.embedded != true) {
         useTitle(props.api.title);
         useLoading(ownResource.loading);
-        useRefreshFunction(reload);
-        useResourceSearch(api);
+        useSetRefreshFunction(reload);
     }
 
     const renderer = api.renderer;
@@ -360,21 +359,20 @@ export function ResourceProperties<Res extends Resource>(
 }
 
 const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => {
-    const {termRef, terminal} = useXTerm({autofit: true});
+    const [updates, setUpdates] = React.useState<string[]>([])
 
     const appendUpdate = useCallback((update: ResourceUpdate) => {
         if (update.status) {
-            appendToXterm(
-                terminal,
+            setUpdates(u => [
+                ...u,
                 `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
-            );
+            ]);
         }
-    }, [terminal]);
+    }, []);
 
     useLayoutEffect(() => {
-        terminal.reset();
         if (resource.updates.length === 0) {
-            appendToXterm(terminal, "No messages about this resource");
+            setUpdates(u => [...u, "No messages about this resource\n"]);
         } else {
             for (const update of resource.updates) {
                 appendUpdate(update)
@@ -382,7 +380,9 @@ const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => 
         }
     }, [resource]);
 
-    return <Box height={"200px"} divRef={termRef} />
+    return <Box height={"200px"} overflowY={"scroll"}>
+        <LogOutput updates={updates} maxHeight="" />
+    </Box>
 };
 
 function canEditPermission(support: ProductSupport | undefined, namespace: string): boolean {

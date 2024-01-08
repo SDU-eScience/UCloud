@@ -1,5 +1,5 @@
 import {defineConfig, UserConfigExport} from "vite";
-import reactRefresh from "@vitejs/plugin-react-refresh";
+import react from "@vitejs/plugin-react";
 //@ts-ignore
 import path from "path";
 import {DEV_SITE} from "./site.config.json";
@@ -48,7 +48,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             DEVELOPMENT_ENV: mode !== "production",
         },
         mode: mode === "production" ? "production" : "development",
-        plugins: [reactRefresh()],
+        plugins: [react()],
         resolve: {
             alias: {
                 //@ts-ignore

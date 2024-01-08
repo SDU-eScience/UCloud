@@ -8,12 +8,12 @@
 
 
 ```kotlin
-sealed class AppStoreSection {
-    abstract val name: String
-
-    class Tag : AppStoreSection()
-    class Tool : AppStoreSection()
-}
+data class AppStoreSection(
+    val id: Int,
+    val name: String,
+    val featured: List<ApplicationGroup>,
+    val items: List<ApplicationGroup>,
+)
 ```
 
 <details>
@@ -23,7 +23,40 @@ sealed class AppStoreSection {
 
 <details>
 <summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>featured</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>items</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code></code>
 </summary>
 
 

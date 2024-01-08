@@ -1,7 +1,7 @@
 version = rootProject.file("./version.txt").readText().trim()
 
 application {
-    mainClassName = "dk.sdu.cloud.notification.MainKt"
+    mainClass.set("dk.sdu.cloud.notification.MainKt")
 }
 
 kotlin.sourceSets {

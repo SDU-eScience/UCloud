@@ -3,9 +3,8 @@ import {default as Api, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNa
 import {ResourceRouter} from "@/Resource/Router";
 import Create from "@/Files/Metadata/Templates/Create";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, addContextSwitcherInPortal, checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
 import {callAPI} from "@/Authentication/DataHook";
@@ -13,6 +12,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -180,7 +180,7 @@ export function MetadataNamespacesBrowse({opts}: {opts?: ResourceBrowserOpts<Fil
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

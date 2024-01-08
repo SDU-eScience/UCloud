@@ -33,7 +33,6 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val updateAllocation = UpdateAllocation.call
     val browseSubAllocations = BrowseSubAllocations.call
     val searchSubAllocations = SearchSubAllocations.call
-    val retrieveAllocationRecipient = RetrieveAllocationRecipient.call
     val browseAllocationsInternal = BrowseAllocationsInternal.call
 
     private fun StringBuilder.documentationAllocations() {
@@ -131,7 +130,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             BulkResponse.serializer(FindByStringId.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "rootAllocate", roles = Roles.ADMIN)
+                httpUpdate(baseContext, "rootAllocate")
             }
         )
     }
@@ -229,7 +228,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
 
         val call = call(
             "searchSubAllocations",
-            WalletsSearchSubAllocationsV2Request.serializer(),
+            Request.serializer(),
             PageV2.serializer(SubAllocationV2.serializer()),
             CommonErrorMessage.serializer()
         ) {

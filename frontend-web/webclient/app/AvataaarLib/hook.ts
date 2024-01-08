@@ -1,6 +1,5 @@
-import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
 import {callAPI} from "@/Authentication/DataHook";
-import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "@/AvataaarLib/index";
+import {AvatarType, defaultAvatar, fetchBulkAvatars, FetchBulkAvatarsResponse} from "@/AvataaarLib/index";
 import {useUState, UState} from "@/Utilities/UState";
 
 class AvatarState extends UState<AvatarState> {

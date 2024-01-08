@@ -3,10 +3,11 @@ import {
     OverflowProps, TextAlignProps, WidthProps, ZIndexProps, BackgroundProps, JustifyContentProps,
     BorderRadiusProps, VerticalAlignProps, FontSizeProps, SpaceProps
 } from "styled-system";
+import * as React from "react";
+
 import {Cursor} from "./Types";
 import {extractEventHandlers, injectStyleSimple, unbox, unboxDataTags, WithEventHandlers} from "@/Unstyled";
-import * as React from "react";
-import {CSSProperties} from "react";
+
 
 export type BoxProps =
     SpaceProps &
@@ -44,7 +45,7 @@ const Box: React.FunctionComponent<BoxProps & {
     children?: React.ReactNode;
     divRef?: React.RefObject<HTMLDivElement>;
     title?: string;
-    style?: CSSProperties;
+    style?: React.CSSProperties;
     className?: string;
 }> = props => {
     return <div

@@ -6,7 +6,7 @@
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves a logo associated with an Application_
+_Retrieves a logo associated with a group_
 
 | Request | Response | Error |
 |---------|----------|-------|

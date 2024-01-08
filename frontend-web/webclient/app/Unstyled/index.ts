@@ -1,7 +1,7 @@
-import {BoxProps} from "@/ui-components/Box";
-import {CSSProperties} from "react";
-import {ResponsiveValue, SpaceProps} from "styled-system";
 import * as React from "react";
+import {ResponsiveValue, SpaceProps} from "styled-system";
+
+import {BoxProps} from "@/ui-components/Box";
 
 export function extractSize(size: ResponsiveValue<any>): string {
     if (typeof size === "string") return size;
@@ -55,8 +55,8 @@ export function unboxDataTags(props: Record<string, string>): Record<string, str
     return result;
 }
 
-export function unbox(props: BoxProps | SpaceProps): CSSProperties {
-    let result: CSSProperties = {};
+export function unbox(props: BoxProps | SpaceProps): React.CSSProperties {
+    let result: React.CSSProperties = {};
 
     const px = props.px ?? props.paddingX;
     const py = props.py ?? props.paddingY;

@@ -1,9 +1,9 @@
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as React from "react";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
-import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/Redux";
+import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -11,13 +11,14 @@ import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
 import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
-import {TextH3} from "@/ui-components/Text";
 import {injectStyle} from "@/Unstyled";
 import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {PageV2} from "@/UCloud";
 import AppRoutes from "@/Routes";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
+import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -75,7 +76,7 @@ export function ContextSwitcher({managed}: {
         setLocalProject: (project?: string) => void;
     }
 }): JSX.Element {
-    const refresh = useSelector((it: ReduxObject) => it.header.refresh);
+    const refresh = useRefresh();
 
     const project = useProject();
     const projectId = useProjectId();
@@ -132,9 +133,14 @@ export function ContextSwitcher({managed}: {
 
     const [filter, setTitleFilter] = React.useState("");
 
-    const filteredProjects = React.useMemo(() =>
-        projectList.items.filter(it => it.specification.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
-        , [projectList, filter]);
+    const filteredProjects: Project[] = React.useMemo(() => {
+        if (filter === "") return projectList.items;
+
+        const searchResults = fuzzySearch(projectList.items.map(it => it.specification), ["title"], filter, { sort: true });
+        return searchResults
+            .map(it => projectList.items.find(p => it.title === p.specification.title))
+            .filter(it => it !== undefined) as Project[];
+    }, [projectList, filter]);
 
     const divRef = React.useRef<HTMLDivElement>(null);
 
@@ -146,6 +152,9 @@ export function ContextSwitcher({managed}: {
             onProjectUpdated(navigate, () => setProject(id), refresh, id ?? "")
         }
     }, [refresh]);
+
+    const showMyWorkspace =
+        activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase());
 
     return (
         <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
@@ -159,7 +168,7 @@ export function ContextSwitcher({managed}: {
                 rightAligned
                 paddingControlledByContent
                 arrowkeyNavigationKey="data-active"
-                hoverColor={"midGray"}
+                hoverColor={"tableRowHighlight"}
                 onSelect={el => {
                     const id = el?.getAttribute("data-project") ?? undefined;
                     setActiveProject(id)
@@ -172,19 +181,36 @@ export function ContextSwitcher({managed}: {
                 onTriggerClick={reload}
                 width="500px"
             >
-                <div style={{maxHeight: "385px", paddingLeft: "10px", paddingRight: "10px"}}>
-                    <TextH3 bold mt="4px" mb="8px">Select workspace</TextH3>
+                <div style={{maxHeight: "385px"}}>
                     <Flex>
-                        <Input autoFocus className={"filter-input"} placeholder="Search..." defaultValue={filter} onKeyDown={e => {
-                            if (["Escape"].includes(e.key) && e.target["value"]) {
-                                setTitleFilter("");
-                                e.target["value"] = "";
+                        <Input
+                            autoFocus
+                            className={filterInputClass}
+                            placeholder="Search for a workspace..."
+                            defaultValue={filter}
+                                onKeyDown={e => {
+                                if (["Escape"].includes(e.key) && e.target["value"]) {
+                                    setTitleFilter("");
+                                    e.target["value"] = "";
+                                    e.stopPropagation();
+                                }
+                            }}
+                            onKeyUp={e => {
                                 e.stopPropagation();
-                            }
-                        }} onKeyUp={e => setTitleFilter("value" in e.target ? e.target.value as string : "")} type="text" />
-                        <Relative right="28px" top="5px" width="0px" height="0px"><Icon name="search" /></Relative></Flex>
-                    <div ref={divRef} style={{overflowY: "scroll", maxHeight: "285px", marginTop: "6px", lineHeight: "2em"}}>
-                        {activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase()) ? (
+                                setTitleFilter("value" in e.target ? e.target.value as string : "");
+                            }}
+                            type="text"
+                        />
+
+                        <Relative right="24px" top="5px" width="0px" height="0px">
+                            <Icon name="search" />
+                        </Relative>
+                    </Flex>
+
+                    <div ref={divRef} style={{overflowY: "auto", maxHeight: "285px", lineHeight: "2em"}}>
+                        <Error error={error} />
+
+                        {showMyWorkspace ? (
                             <div
                                 key={"My Workspace"}
                                 style={{width: "100%"}}
@@ -210,11 +236,8 @@ export function ContextSwitcher({managed}: {
                             </div>
                         )}
 
-                        <Box mt="8px">
-                            <Error error={error} />
-                        </Box>
-                        {filteredProjects.length !== 0 || error ? null : (
-                            <Box mt="8px" textAlign="center">No workspaces found</Box>
+                        {filteredProjects.length !== 0 || showMyWorkspace|| error ? null : (
+                            <Box my="32px" textAlign="center">No workspaces found</Box>
                         )}
                     </div>
                 </div>
@@ -268,7 +291,7 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
 
 const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
     ${k}:hover {
-        background-color: var(--midGray);
+        background-color: var(--tableRowHighlight);
     }
     
     ${k}[data-active="true"] {
@@ -278,6 +301,27 @@ const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
     ${k} {
         transition: 0.1s background-color;
         display: flex;
-        border-bottom: 0.5px solid var(--primary);
+        border-bottom: 0.5px solid var(--borderGray);
     }
 `);
+
+
+const filterInputClass = injectStyle("filter-input", k => `
+    ${k}:focus {
+        border: 0;
+        border-bottom: 1px solid var(--borderGray);
+        box-shadow: unset;
+    }
+    
+    ${k} {
+        box-shadow: none;
+        border: 0;
+        border-radius: 0;
+        width: calc(100%);
+        flex-shrink: 0;
+        border-bottom: 1px solid var(--borderGray);
+        background: transparent;
+        color: var(--text);
+        outline: none;
+    }
+`)

@@ -1,9 +1,7 @@
 import * as React from "react";
-import {useEffect, useState} from "react";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useState} from "react";
 import {Box, Flex, Icon, Text} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
-import {Snackbar} from "@/ui-components/Snackbar";
 import {ThemeColor} from "@/ui-components/theme";
 import {copyToClipboard} from "@/UtilityFunctions";
 
@@ -25,13 +23,13 @@ interface SnackProps<SnackType> {
     onCancel(): void;
 }
 
-const CustomSnack: React.FC<SnackProps<CustomSnack>> = ({snack, onCancel}) => {
+export const CustomSnack: React.FC<SnackProps<CustomSnack>> = ({snack, onCancel}) => {
     return <SnackBody snack={snack} onCancel={onCancel}>
         <Icon mt="4px" mr="8px" size="14px" color="white" color2="white" name={snack.icon} />
     </SnackBody>;
 }
 
-const DefaultSnack: React.FC<SnackProps<DefaultSnack>> = ({snack, onCancel}) => {
+export const DefaultSnack: React.FC<SnackProps<DefaultSnack>> = ({snack, onCancel}) => {
     const icon = iconNameAndColorFromSnack[snack.type];
     return <SnackBody snack={snack} onCancel={onCancel}>
         <Icon mt="4px" mr="8px" size="14px" {...icon} />
@@ -58,34 +56,6 @@ const SnackBody: React.FC<SnackProps<Exclude<Snack, "icon">> & {children: React.
     </Flex>;
 }
 
-const Snackbars: React.FunctionComponent = () => {
-    const [activeSnack, setActiveSnack] = useState<Snack | undefined>(undefined);
-
-    useEffect(() => {
-        const subscriber = (snack: Snack): void => {
-            if (snack?.addAsNotification === true) return;
-            setActiveSnack(snack);
-        };
-
-        snackbarStore.subscribe(subscriber);
-        return () => snackbarStore.unsubscribe(subscriber);
-    }, []);
-
-    if (activeSnack === undefined) {
-        return null;
-    }
-
-    const snackElement = activeSnack.type === SnackType.Custom ?
-        <CustomSnack onCancel={onCancellation} snack={activeSnack} /> :
-        <DefaultSnack onCancel={onCancellation} snack={activeSnack} />;
-
-    return <Snackbar key={activeSnack.message}>{snackElement}</Snackbar>;
-
-    function onCancellation(): void {
-        snackbarStore.requestCancellation();
-    }
-};
-
 export const enum SnackType {
     Success,
     Information,
@@ -111,4 +81,3 @@ interface CustomSnack {
 }
 
 export type Snack = CustomSnack | DefaultSnack;
-export default Snackbars;

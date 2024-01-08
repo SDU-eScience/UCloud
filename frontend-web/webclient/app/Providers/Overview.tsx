@@ -1,5 +1,5 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {Box, Flex, Link, theme} from "@/ui-components";
 import {GridCardGroup} from "@/ui-components/Grid";
 import * as React from "react";
@@ -21,7 +21,11 @@ interface ProviderType {
     description: string;
 }
 
-export function ProviderEntry(props: {provider: ProviderType}): React.ReactElement {
+const devProviders = ["k8", "slurm"];
+
+export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode {
+    if (devProviders.indexOf(props.provider.id) !== -1) return null;
+
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
             <div className={classConcat(CardClass, ApplicationCardClass, ProviderCard)}>

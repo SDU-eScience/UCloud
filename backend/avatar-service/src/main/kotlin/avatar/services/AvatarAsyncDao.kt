@@ -30,7 +30,7 @@ object AvatarTable : SQLTable("avatars") {
     val hatColor = text("hat_color", notNull = true)
 }
 
-private fun BinaryAllocator.defaultAvatar(): Avatar =
+private fun defaultAvatar(): Avatar =
     Avatar(
         Top.NO_HAIR,
         TopAccessory.BLANK,
@@ -48,20 +48,20 @@ private fun BinaryAllocator.defaultAvatar(): Avatar =
     )
 
 // NOTE(Dan): Deals also with old avatars which might use a different encoding.
-private fun rowToAvatar(allocator: BinaryAllocator, row: RowData) = allocator.Avatar(
-    row.getField(AvatarTable.top).let { field -> runCatching { Top.fromSerialName(field) }.getOrNull() ?: Top.valueOf(field) },
-    row.getField(AvatarTable.topAccessory).let { field -> runCatching { TopAccessory.fromSerialName(field) }.getOrNull() ?: TopAccessory.valueOf(field) },
-    row.getField(AvatarTable.hairColor).let { field -> runCatching { HairColor.fromSerialName(field) }.getOrNull() ?: HairColor.valueOf(field) },
-    row.getField(AvatarTable.facialHair).let { field -> runCatching { FacialHair.fromSerialName(field) }.getOrNull() ?: FacialHair.valueOf(field) },
-    row.getField(AvatarTable.facialHairColor).let { field -> runCatching { FacialHairColor.fromSerialName(field) }.getOrNull() ?: FacialHairColor.valueOf(field) },
-    row.getField(AvatarTable.clothes).let { field -> runCatching { Clothes.fromSerialName(field) }.getOrNull() ?: Clothes.valueOf(field) },
-    row.getField(AvatarTable.colorFabric).let { field -> runCatching { ColorFabric.fromSerialName(field) }.getOrNull() ?: ColorFabric.valueOf(field) },
-    row.getField(AvatarTable.eyes).let { field -> runCatching { Eyes.fromSerialName(field) }.getOrNull() ?: Eyes.valueOf(field) },
-    row.getField(AvatarTable.eyebrows).let { field -> runCatching { Eyebrows.fromSerialName(field) }.getOrNull() ?: Eyebrows.valueOf(field) },
-    row.getField(AvatarTable.mouthTypes).let { field -> runCatching { MouthTypes.fromSerialName(field) }.getOrNull() ?: MouthTypes.valueOf(field) },
-    row.getField(AvatarTable.skinColors).let { field -> runCatching { SkinColors.fromSerialName(field) }.getOrNull() ?: SkinColors.valueOf(field) },
-    row.getField(AvatarTable.clothesGraphic).let { field -> runCatching { ClothesGraphic.fromSerialName(field) }.getOrNull() ?: ClothesGraphic.valueOf(field) },
-    row.getField(AvatarTable.hatColor).let { field -> runCatching { HatColor.fromSerialName(field) }.getOrNull() ?: HatColor.valueOf(field) },
+private fun rowToAvatar(row: RowData) = Avatar(
+    row.getField(AvatarTable.top).let { field -> runCatching { Top.fromString(field) }.getOrNull() ?: Top.valueOf(field) },
+    row.getField(AvatarTable.topAccessory).let { field -> runCatching { TopAccessory.fromString(field) }.getOrNull() ?: TopAccessory.valueOf(field) },
+    row.getField(AvatarTable.hairColor).let { field -> runCatching { HairColor.fromString(field) }.getOrNull() ?: HairColor.valueOf(field) },
+    row.getField(AvatarTable.facialHair).let { field -> runCatching { FacialHair.fromString(field) }.getOrNull() ?: FacialHair.valueOf(field) },
+    row.getField(AvatarTable.facialHairColor).let { field -> runCatching { FacialHairColor.fromString(field) }.getOrNull() ?: FacialHairColor.valueOf(field) },
+    row.getField(AvatarTable.clothes).let { field -> runCatching { Clothes.fromString(field) }.getOrNull() ?: Clothes.valueOf(field) },
+    row.getField(AvatarTable.colorFabric).let { field -> runCatching { ColorFabric.fromString(field) }.getOrNull() ?: ColorFabric.valueOf(field) },
+    row.getField(AvatarTable.eyes).let { field -> runCatching { Eyes.fromString(field) }.getOrNull() ?: Eyes.valueOf(field) },
+    row.getField(AvatarTable.eyebrows).let { field -> runCatching { Eyebrows.fromString(field) }.getOrNull() ?: Eyebrows.valueOf(field) },
+    row.getField(AvatarTable.mouthTypes).let { field -> runCatching { MouthTypes.fromString(field) }.getOrNull() ?: MouthTypes.valueOf(field) },
+    row.getField(AvatarTable.skinColors).let { field -> runCatching { SkinColors.fromString(field) }.getOrNull() ?: SkinColors.valueOf(field) },
+    row.getField(AvatarTable.clothesGraphic).let { field -> runCatching { ClothesGraphic.fromString(field) }.getOrNull() ?: ClothesGraphic.valueOf(field) },
+    row.getField(AvatarTable.hatColor).let { field -> runCatching { HatColor.fromString(field) }.getOrNull() ?: HatColor.valueOf(field) },
 )
 
 class AvatarStore(private val db: DBContext,) {
@@ -74,19 +74,19 @@ class AvatarStore(private val db: DBContext,) {
             session.sendPreparedStatement(
                 {
                     setParameter("username", user)
-                    setParameter("top", avatar.top.serialName)
-                    setParameter("top_accessory", avatar.topAccessory.serialName)
-                    setParameter("hair_color", avatar.hairColor.serialName)
-                    setParameter("facial_hair", avatar.facialHair.serialName)
-                    setParameter("facial_hair_color", avatar.facialHairColor.serialName)
-                    setParameter("clothes", avatar.clothes.serialName)
-                    setParameter("color_fabric", avatar.colorFabric.serialName)
-                    setParameter("eyes", avatar.eyes.serialName)
-                    setParameter("eyebrows", avatar.eyebrows.serialName)
-                    setParameter("mouth_types", avatar.mouthTypes.serialName)
-                    setParameter("skin_colors", avatar.skinColors.serialName)
-                    setParameter("clothes_graphic", avatar.clothesGraphic.serialName)
-                    setParameter("hat_color", avatar.hatColor.serialName)
+                    setParameter("top", avatar.top.string)
+                    setParameter("top_accessory", avatar.topAccessory.string)
+                    setParameter("hair_color", avatar.hairColor.string)
+                    setParameter("facial_hair", avatar.facialHair.string)
+                    setParameter("facial_hair_color", avatar.facialHairColor.string)
+                    setParameter("clothes", avatar.clothes.string)
+                    setParameter("color_fabric", avatar.colorFabric.string)
+                    setParameter("eyes", avatar.eyes.string)
+                    setParameter("eyebrows", avatar.eyebrows.string)
+                    setParameter("mouth_types", avatar.mouthTypes.string)
+                    setParameter("skin_colors", avatar.skinColors.string)
+                    setParameter("clothes_graphic", avatar.clothesGraphic.string)
+                    setParameter("hat_color", avatar.hatColor.string)
                 },
                 """
                     insert into avatar.avatars
@@ -114,7 +114,6 @@ class AvatarStore(private val db: DBContext,) {
     }
 
     suspend fun findByUser(
-        allocator: BinaryAllocator,
         user: String,
         ctx: DBContext = db,
     ): Avatar {
@@ -125,27 +124,24 @@ class AvatarStore(private val db: DBContext,) {
                     "select * from avatar.avatars where username = :username"
                 ).rows
                 .singleOrNull()
-                ?.let { rowToAvatar(allocator, it) }
-                ?: allocator.defaultAvatar()
+                ?.let { rowToAvatar(it) }
+                ?: defaultAvatar()
         }
     }
 
     suspend fun bulkFind(
-        allocator: BinaryAllocator,
         users: List<String>,
         ctx: DBContext = db,
     ): FindBulkResponse {
-        with(allocator) {
-            return ctx.withSession { session ->
-                val avatars = session
-                    .sendPreparedStatement(
-                        { setParameter("usernames", users) },
-                        "select * from avatar.avatars where username = some(:usernames::text[])"
-                    ).rows
-                    .map { it.getField(AvatarTable.username) to rowToAvatar(allocator, it) }
+        return ctx.withSession { session ->
+            val avatars = session
+                .sendPreparedStatement(
+                    { setParameter("usernames", users) },
+                    "select * from avatar.avatars where username = some(:usernames::text[])"
+                ).rows
+                .associate { it.getField(AvatarTable.username) to rowToAvatar(it) }
 
-                FindBulkResponse(dictOf(Avatar, avatars))
-            }
+            FindBulkResponse(avatars)
         }
     }
 }

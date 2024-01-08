@@ -5,7 +5,7 @@ import * as Heading from "@/ui-components/Heading";
 import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
 import ApplicationParameter = compute.ApplicationParameter;
-import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Markdown, Relative, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
 import {EllipsedText, TextClass, TextP, TextSpan} from "@/ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -125,6 +125,23 @@ const InactiveWidgetClass = injectStyle("inactive-widget", k => `
     }
 `);
 
+const MarkdownWrapper = injectStyle("md-wrapper", k => `
+    ${k} {
+        margin-top: 8px;
+        color: var(--gray);
+        font-style: italic;
+        user-select: none;
+    }
+    
+    ${k} p:first-child {
+        margin-top: 0;
+    }
+    
+    ${k} p:last-child {
+        margin-bottom: 0;
+    }
+`);
+
 export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = props => {
     const error = props.errors[props.parameter.name];
     const parameter = props.parameter;
@@ -133,9 +150,15 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
         setOpen(o => !o);
     }, []);
 
+    let body = <WidgetBody {...props} />;
+    const moveUp = parameter.type === "peer" && (parameter.optional || props.onRemove);
+    if (moveUp) {
+        body = <Relative top={"-25px"}>{body}</Relative>;
+    }
+
     if (props.active !== false) {
         return <Box data-param-type={props.parameter.type} data-component={`app-parameter`}>
-            <Label htmlFor={parameter.name}>
+            <Label htmlFor={`app-param-${parameter.name}`} style={{display: "block"}}>
                 <Flex>
                     <Flex data-component={"param-title"}>
                         {parameter.title}
@@ -145,19 +168,19 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                         <>
                             <Box ml="auto" />
                             <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
-                                data-component={"param-remove"}>
+                                data-component={"param-remove"} zIndex={1000}>
                                 Remove
-                                <Icon ml="6px" size={16} name="close" />
+                                <Icon ml="6px" size={16} name="heroXMark" />
                             </Text>
                         </>
                     )}
                 </Flex>
             </Label>
-            <WidgetBody {...props} />
+            {body}
             {error ? <TextP color={"red"}>{error}</TextP> : null}
-            <Markdown>
-                {parameter.description}
-            </Markdown>
+            <div className={MarkdownWrapper}>
+                <Markdown>{parameter.description}</Markdown>
+            </div>
         </Box>;
     } else {
         return <Box data-param-type={props.parameter.type} data-component={"app-parameter"}>
@@ -182,7 +205,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     Use
                 </Button>
             </InactiveWidget>
-            {open ? <Markdown>{parameter.description}</Markdown> : null}
+            {open ? <div className={MarkdownWrapper}><Markdown>{parameter.description}</Markdown></div> : null}
         </Box>;
     }
 };

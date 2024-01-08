@@ -1787,7 +1787,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         Unit.serializer(),
         CommonErrorMessage.serializer()
     ) {
-        httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
+        httpUpdate(baseContext, "rootDeposit")
     }
 
     val findRelevantProviders = call(

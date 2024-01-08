@@ -14,8 +14,8 @@ import dk.sdu.cloud.provider.api.basicTranslationToAccountingUnit
 import dk.sdu.cloud.provider.api.translateToAccountingFrequency
 import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
 class ProductService(
@@ -115,7 +115,6 @@ class ProductService(
         }
 
         db.withSession(remapExceptions = true) { session ->
-
             for (req in request.items) {
                 session.sendPreparedStatement(
                     {
@@ -132,38 +131,46 @@ class ProductService(
                         setParameter("free_to_use", req.category.freeToUse)
                         //TODO(HENRIK) There is no need for this in the future
                         setParameter("charge_type", translateToChargeType(req.category).name)
+                        setParameter("allow_sub_allocations", req.category.allowSubAllocations)
                     },
                     """
-                        with acinsert as (
-                            insert into accounting.accounting_units 
-                            (name, name_plural, floating_point, display_frequency_suffix)
-                            values (
-                                :acname,
-                                :name_plural,
-                                :floating,
-                                :display
-                            ) on conflict (name, name_plural, floating_point, display_frequency_suffix)
-                            do update set name_plural = :name_plural
-                            returning id 
-                        ), inserts as (
-                            select 
-                                :provider provider, 
-                                :category category, 
-                                :product_type::accounting.product_type product_type, 
-                                ac.id accounting_unit,
-                                :frequency frequency,
-                                :charge_type::accounting.charge_type charge_t,
-                                :free_to_use::bool free
-                            from acinsert ac
-                        )
+                        with
+                            acinsert as (
+                                insert into accounting.accounting_units 
+                                    (name, name_plural, floating_point, display_frequency_suffix)
+                                values
+                                    (:acname, :name_plural, :floating, :display) 
+                                on conflict
+                                    (name, name_plural, floating_point, display_frequency_suffix)
+                                do update set
+                                    name_plural = :name_plural
+                                returning
+                                    id 
+                            ),
+                            inserts as (
+                                select 
+                                    :provider provider, 
+                                    :category category, 
+                                    :product_type::accounting.product_type product_type, 
+                                    ac.id accounting_unit,
+                                    :frequency frequency,
+                                    :charge_type::accounting.charge_type charge_t,
+                                    :free_to_use::bool free,
+                                    :allow_sub_allocations::bool allow_sub_allocations
+                                from acinsert ac
+                            )
                         insert into accounting.product_categories
-                        (provider, category, product_type, accounting_unit, accounting_frequency, charge_type, free_to_use) 
-                            select provider, category, product_type, accounting_unit, frequency, charge_t, free
-                            from inserts
+                            (provider, category, product_type, accounting_unit, accounting_frequency, charge_type,
+                             free_to_use, allow_sub_allocations) 
+                        select
+                            provider, category, product_type, accounting_unit, frequency, charge_t,
+                            free, allow_sub_allocations
+                        from inserts
                         on conflict (provider, category)  
                         do update set
-                            product_type = excluded.product_type
-                    """
+                            product_type = excluded.product_type,
+                            allow_sub_allocations = excluded.allow_sub_allocations
+                    """,
                 )
             }
 
@@ -272,6 +279,7 @@ class ProductService(
             actorAndProject,
             ProductsV2BrowseRequest(
                 filterName = request.filterName,
+                filterUsable = request.filterUsable,
                 filterCategory = request.filterCategory,
                 filterProvider = request.filterProvider,
                 filterProductType = request.filterProductType,
@@ -375,6 +383,8 @@ class ProductService(
                     val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(Actor.System, owner))
                         .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
                         ?.allocations
+                        ?.filter { request.filterUsable == true && Time.now() > it.startDate && Time.now() < it.endDate }
+                        ?.ifEmpty { return@mapNotNull null }
                         ?.sumOf { allocation -> allocation.quota }
                         ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
                     quota - usage

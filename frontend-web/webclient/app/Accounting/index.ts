@@ -4,6 +4,7 @@ import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/Dat
 import { BulkRequest, PageV2, PaginationRequestV2 } from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AccountingB from "./AccountingBinary";
+import {timestampUnixMs} from "@/UtilityFunctions";
 
 export const UCLOUD_PROVIDER = "ucloud";
 
@@ -685,6 +686,21 @@ export function usageExplainer(
 // =====================================================================================================================
 const baseContextV2 = "/api/accounting/v2";
 const visualizationContextV2 = "/api/accounting/v2/visualization";
+const productsContextV2 = "/api/products/v2";
+
+export function browseProductsV2(
+    request: PaginationRequestV2 & {
+        filterName?: string,
+        filterProvider?: string,
+        filterProductType?: ProductType,
+        filterCategory?: string,
+
+        includeBalance?: boolean,
+        includeMaxBalance?: boolean,
+    }
+): APICallParameters<unknown, PageV2<ProductV2>> {
+    return apiBrowse(request, productsContextV2);
+}
 
 export interface AccountingUnit {
     name: string;
@@ -778,7 +794,7 @@ interface ProductV2Storage extends ProductV2Base {
     type: "storage";
 }
 
-interface ProductV2Compute extends ProductV2Base {
+export interface ProductV2Compute extends ProductV2Base {
     type: "compute";
     cpu?: number | null;
     memoryInGigs?: number | null;
@@ -891,16 +907,19 @@ export interface FrontendAccountingUnit {
     priceFactor: number;
     invPriceFactor: number;
     productType: ProductType;
+    frequencyFactor: number;
+    desiredFrequency: AccountingFrequency;
 }
 
 export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit {
     const unit = category.accountingUnit;
     let priceFactor = 1;
+    let frequencyFactor = 1;
     let unitName = unit.namePlural;
     let suffix = "";
+    let desiredFrequency: AccountingFrequency = "ONCE";
 
-    if (unit.displayFrequencySuffix && category.accountingFrequency !== "ONCE") {
-        let desiredFrequency: AccountingFrequency;
+    if (category.accountingFrequency !== "ONCE") {
         switch (category.productType) {
             case "COMPUTE":
                 desiredFrequency = "PERIODIC_HOUR";
@@ -912,14 +931,34 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
         }
 
         const actualFrequency = category.accountingFrequency;
-        priceFactor = frequencyToMillis(actualFrequency) / frequencyToMillis(desiredFrequency);
-        suffix = "-" + frequencyToSuffix(desiredFrequency, true);
-        unitName = unit.name;
+        frequencyFactor = frequencyToMillis(actualFrequency) / frequencyToMillis(desiredFrequency);
+        priceFactor = frequencyFactor;
+
+        if (unit.displayFrequencySuffix) {
+            suffix = "-" + frequencyToSuffix(desiredFrequency, true);
+            unitName = unit.name;
+        }
     }
 
     if (unit.floatingPoint) priceFactor *= 1 / 1000000;
 
-    return { name: unitName + suffix, priceFactor, invPriceFactor: 1 / priceFactor, productType: category.productType };
+    return { name: unitName + suffix, priceFactor, invPriceFactor: 1 / priceFactor, productType: category.productType, frequencyFactor, desiredFrequency};
+}
+
+export function explainPrice2(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: { showSuffix: boolean }): string {
+    const unit = explainUnit(product.category);
+    const pricePerUnitPerFrequency = product.price * unit.frequencyFactor;
+    const durationInMinutesOrDefault = durationInMinutes ?? frequencyToMillis(unit.desiredFrequency) / frequencyToMillis("PERIODIC_MINUTE");
+    const normalizedDuration = durationInMinutesOrDefault * (frequencyToMillis("PERIODIC_MINUTE") / frequencyToMillis(unit.desiredFrequency));
+
+    const totalPrice = normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.priceFactor;
+
+    let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice);
+    if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
+        return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
+    } else {
+        return withoutSuffix;
+    }
 }
 
 const standardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
@@ -1049,6 +1088,17 @@ export function searchSubAllocations(
     return apiSearch(request, baseContextV2, "subAllocations");
 }
 
+export interface RootAllocateRequestItem {
+    owner: WalletOwner;
+    productCategory: ProductCategoryId;
+    quota: number;
+    start: number;
+    end: number;
+}
+export function rootAllocate(request: BulkRequest<RootAllocateRequestItem>): APICallParameters {
+    return apiUpdate(request, baseContextV2, "rootAllocate");
+}
+
 export function updateAllocationV2(request: BulkRequest<{
     allocationId: string,
     newQuota?: number | null,
@@ -1137,6 +1187,11 @@ export function subAllocationOwner(alloc: SubAllocationV2): WalletOwner {
     } else {
         return { type: "user", username: alloc.workspaceId };
     }
+}
+
+export function allocationIsValidNow(allocation: WalletAllocationV2) {
+    const now = timestampUnixMs();
+    return now >= allocation.startDate && now <= allocation.endDate;
 }
 
 export function utcDate(ts: number): string {

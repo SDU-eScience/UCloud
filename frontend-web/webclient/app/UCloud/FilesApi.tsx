@@ -1,16 +1,11 @@
 import {
     CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
-    Resource,
     ResourceApi, ResourceBrowseCallbacks,
-    ResourceIncludeFlags,
-    ResourceSpecification,
-    ResourceStatus,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
-import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Flex, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {Box, Button, Error, Flex, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -23,16 +18,13 @@ import {
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
-import {FilePreview} from "@/Files/Preview";
 import {addStandardDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -49,11 +41,11 @@ import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {ShareModal} from "@/Files/Shares";
+import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {injectStyle} from "@/Unstyled";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -65,75 +57,7 @@ export function normalizeDownloadEndpoint(endpoint: string): string {
     }
 }
 
-export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
-export interface UFileStatus extends ResourceStatus {
-    type: FileType;
-    icon?: FileIconHint;
-    sizeInBytes?: number;
-    sizeIncludingChildrenInBytes?: number;
-    modifiedAt?: number;
-    accessedAt?: number;
-    unixMode?: number;
-    unixOwner?: number;
-    unixGroup?: number;
-    metadata?: FileMetadataHistory;
-}
-
-export interface UFileSpecification extends ResourceSpecification {
-    collection: string;
-}
-
-export interface UFileIncludeFlags extends ResourceIncludeFlags {
-    includePermissions?: boolean;
-    includeTimestamps?: boolean;
-    includeSizes?: boolean;
-    includeUnixInfo?: boolean;
-    includeMetadata?: boolean;
-    allowUnsupportedInclude?: boolean;
-    path?: string;
-}
-
-export interface FilesMoveRequestItem {
-    oldId: string;
-    newId: string;
-    conflictPolicy: WriteConflictPolicy;
-}
-
-type FilesCopyRequestItem = FilesMoveRequestItem;
-
-export interface FilesCreateFolderRequestItem {
-    id: string;
-    conflictPolicy: WriteConflictPolicy;
-}
-
-export interface FilesCreateUploadRequestItem {
-    id: string;
-    supportedProtocols: UploadProtocol[];
-    conflictPolicy: WriteConflictPolicy;
-}
-
-export interface FilesCreateUploadResponseItem {
-    endpoint: string;
-    protocol: UploadProtocol;
-    token: string;
-}
-
-export interface FilesCreateDownloadRequestItem {
-    id: string;
-}
-
-export interface FilesCreateDownloadResponseItem {
-    endpoint: string;
-}
-
-interface FilesTrashRequestItem {
-    id: string;
-}
-
-interface FilesEmptyTrashRequestItem {
-    id: string;
-}
 
 export interface ExtraFileCallbacks {
     collection?: FileCollection;
@@ -318,7 +242,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         if (fileData.loading) return <PredicatedLoadingSpinner loading />
 
-        if (!file) return <h1>INVALID DATA! TODO! FIX THIS!</h1>;
+        if (fileData.error) return <Error error={fileData.error.why} />;
+        if (!file) return <></>;
 
         return <Flex className={FilePropertiesLayout}>
             <div className="A">
@@ -441,7 +366,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
-                shortcut: ShortcutKey.N
+                shortcut: ShortcutKey.F
             },
             {
                 text: "Open with...",
@@ -528,6 +453,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                         );
                                         cb.reload();
                                         dialogStore.success();
+                                        snackbarStore.addSuccess("Files copied", false);
                                     } catch (e) {
                                         displayErrorMessageOrDefault(e, "Failed to move to folder");
                                     }
@@ -561,7 +487,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(<>
+                    dialogStore.addDialog(
                         <FileBrowse opts={{
                             isModal: true, selection: {
                                 text: "Move to",
@@ -582,6 +508,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                         );
                                         cb.reload();
                                         dialogStore.success();
+                                        snackbarStore.addSuccess("Files moved", false);
                                     } catch (e) {
                                         displayErrorMessageOrDefault(e, "Failed to move to folder");
                                     }
@@ -589,8 +516,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             },
                             initialPath: pathRef.current,
                             additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }} />
-                    </>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -602,7 +528,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
-                    if (Client.hasActiveProject) {return false;}
+                    if (Client.hasActiveProject) return false;
                     if (selected.length != 1) return false;
 
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -629,13 +555,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: async (selected, cb) => {
-                    dialogStore.addDialog(
-                        <ShareModal
-                            selected={{path: selected[0].id, product: selected[0].specification.product}}
-                            cb={cb}
-                        />,
-                        doNothing, true
-                    );
+                    addShareModal({path: selected[0].id, product: selected[0].specification.product}, cb);
                 },
                 shortcut: ShortcutKey.S
             },
@@ -644,7 +564,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) { }
+                    if ((support as FileCollectionSupport)) { /* ??? */}
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
@@ -1059,6 +979,270 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
 }
 
 const api = new FilesApi();
+
+
+import {ExtensionType, extensionFromPath, extensionType, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
+import {Markdown} from "@/ui-components";
+import {classConcat, injectStyleSimple} from "@/Unstyled";
+import fileType from "magic-bytes.js";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {useSelector} from "react-redux";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
+import {FilesCopyRequestItem, FilesCreateDownloadRequestItem, FilesCreateDownloadResponseItem, FilesCreateFolderRequestItem, FilesCreateUploadRequestItem, FilesEmptyTrashRequestItem, FilesMoveRequestItem, FilesTrashRequestItem, UFile, UFileIncludeFlags, UFileSpecification, UFileStatus} from "./UFile";
+
+const monacoCache = new AsyncCache<any>();
+
+async function getMonaco(): Promise<any> {
+    return monacoCache.retrieve("", async () => {
+        const monaco = await (import("monaco-editor"));
+        self.MonacoEnvironment = {
+            getWorker: function (workerId, label) {
+                switch (label) {
+                    case 'json':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', label);
+                    case 'css':
+                    case 'scss':
+                    case 'less':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', label);
+                    case 'html':
+                    case 'handlebars':
+                    case 'razor':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', label);
+                    case 'typescript':
+                    case 'javascript':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', label);
+                    default:
+                        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
+                }
+
+
+                function getWorkerModule(moduleUrl, label) {
+                    return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
+                        name: label,
+                        type: 'module'
+                    });
+                };
+            }
+        };
+        return monaco;
+    })
+}
+
+export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
+
+export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React.MutableRefObject<Uint8Array>}): React.ReactNode {
+    let oldOnResize: typeof window.onresize;
+
+    React.useEffect(() => {
+        oldOnResize = window.onresize;
+        return () => {window.onresize = oldOnResize}
+    }, [])
+    const [type, setType] = useState<ExtensionType>(null);
+    const [loading, invokeCommand] = useCloudCommand();
+
+    const codePreview = React.useRef<HTMLDivElement>(null);
+
+    const [data, setData] = useState("");
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchData = React.useCallback(async () => {
+        const size = file.status.sizeInBytes;
+        if (file.status.type !== "FILE") return;
+        if (!loading && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
+            try {
+                const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
+                    api.createDownload(bulkRequestOf({id: file.id})),
+                    {defaultErrorHandler: false}
+                );
+                const downloadEndpoint = download?.responses[0]?.endpoint.replace("integration-module:8889", "localhost:9000");
+                if (!downloadEndpoint) {
+                    setError("Unable to display preview. Try again later or with a different file.");
+                    return;
+                }
+                const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
+                const contentBlob = await content.blob();
+                const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
+
+                const foundFileType = fileType(contentBuffer);
+                if (contentRef) contentRef.current = contentBuffer;
+                if (foundFileType.length === 0) {
+                    const text = tryDecodeText(contentBuffer);
+                    if (text !== null) {
+                        if ([".md", ".markdown"].some(ending => file.id.endsWith(ending))) {
+                            setType("markdown")
+                        } else setType("text");
+                        setData(text);
+                        setError(null);
+                    } else {
+                        setError("Preview is not supported for this file.");
+                    }
+                } else {
+                    const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
+
+                    switch (typeFromFileType) {
+                        case "image":
+                        case "audio":
+                        case "video":
+                        case "pdf":
+                            setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
+                            setError(null);
+                            break;
+                        case "code":
+                        case "text":
+                        case "application":
+                        case "markdown":
+                        default:
+                            const text = tryDecodeText(contentBuffer);
+                            if (text !== null) {
+                                setType("text");
+                                setData(text);
+                                setError(null);
+                            } else {
+                                setError("Preview is not supported for this file.");
+                            }
+                            break;
+                    }
+
+                    setType(typeFromFileType);
+                }
+            } catch (e) {
+                setError("Unable to display preview. Try again later or with a different file.");
+            }
+        } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
+            setError("File is too large to preview");
+        } else if (!size || size <= 0) {
+            setError("File is empty");
+        } else {
+            setError("Preview is not supported for this file.");
+        }
+    }, [file]);
+
+    useEffect(() => {
+        fetchData();
+    }, [file]);
+
+    const lightTheme = useSelector((red: ReduxObject) => red.sidebar.theme)
+    React.useEffect(() => {
+        if (type === "text" || type === "code") {
+            const theme = lightTheme === "light" ? "light" : "vs-dark";
+            getMonaco().then(monaco => monaco.editor.setTheme(theme));
+        }
+    }, [lightTheme, type]);
+
+    React.useLayoutEffect(() => {
+        const node = codePreview.current;
+        if (!node) return;
+        if (type === "text" || type === "code") {
+            getMonaco().then(monaco => {
+                const count = monaco.editor.getEditors().length;
+                if (count > 0) return;
+                monaco.editor.create(node, {
+                    value: data,
+                    language: languageFromExtension(extensionFromPath(file.id)),
+                    readOnly: true,
+                    minimap: {enabled: false},
+                    theme: isLightThemeStored() ? "light" : "vs-dark",
+                });
+                window.onresize = () => {
+                    monaco.editor.getEditors().forEach(it => it.layout());
+                };
+            });
+            return () => {
+                getMonaco().then(monaco => monaco.editor.getEditors().forEach(it => it.dispose()));
+            }
+        }
+        return () => void 0;
+    }, [type, data]);
+
+    if (file.status.type !== "FILE") return null;
+    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
+
+    let node: JSX.Element | null;
+
+    switch (type) {
+        case "text":
+        case "code":
+            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
+            break;
+        case "image":
+            node = <img className={Image} alt={fileName(file.id)} src={data} />
+            break;
+        case "audio":
+            node = <audio className={Audio} controls src={data} />;
+            break;
+        case "video":
+            node = <video className={Video} src={data} controls />;
+            break;
+        case "pdf":
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data} />;
+            break;
+        case "markdown":
+            node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
+            break;
+        default:
+            node = <div />
+            break;
+    }
+
+    if (error !== null) {
+        node = <div>{error}</div>;
+    }
+
+    return <div className={ItemWrapperClass}>{node}</div>;
+}
+
+const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
+const HEIGHT = "calc(100vh - 30px);"
+
+const MarkdownStyling = injectStyleSimple("markdown-styling", `
+    max-width: ${MAX_HEIGHT};
+    width: 100%;
+`);
+
+const Audio = injectStyleSimple("preview-audio", `
+    margin-top: auto;
+    margin-bottom: auto;
+`);
+
+const Editor = injectStyleSimple("m-editor", `
+    height: ${HEIGHT}
+    width: 100%;
+`);
+
+const Image = injectStyleSimple("preview-image", `
+    object-fit: contain;
+    max-width: ${MAX_HEIGHT}
+    max-height: ${HEIGHT}
+`);
+
+const Video = injectStyleSimple("preview-video", `
+    max-width: ${MAX_HEIGHT}
+`);
+
+const PreviewObject = injectStyleSimple("preview-pdf", `
+    max-width: ${MAX_HEIGHT}
+    width: 100%;
+    max-height: ${HEIGHT}
+`)
+
+const ItemWrapperClass = injectStyle("item-wrapper", k => `
+    ${k} {
+        display: flex;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+    }
+`);
+
+function tryDecodeText(buf: Uint8Array): string | null {
+    try {
+        const d = new TextDecoder("utf-8", {fatal: true});
+        return d.decode(buf);
+    } catch (e) {
+        return null;
+    }
+}
 
 export {api};
 export default api;

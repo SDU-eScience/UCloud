@@ -4,8 +4,21 @@ import * as UCloud from "@/UCloud";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {AppHeader, Information} from "@/Applications/View";
-import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Grid, Icon, Link, Markdown, Tooltip} from "@/ui-components";
+import {AppHeader} from "@/Applications/View";
+import {
+    Box,
+    Button,
+    Card,
+    ContainerForText,
+    ExternalLink,
+    Flex,
+    Grid,
+    Icon,
+    Label,
+    Link,
+    Markdown, Select,
+    Tooltip
+} from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
@@ -18,39 +31,54 @@ import {
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode, prettierString} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, extractErrorCode, prettierString, useDidMount} from "@/UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {Product, usageExplainer} from "@/Accounting";
+import {ProductV2, balanceToString, explainPrice2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
 import {flushSync} from "react-dom";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {validateMachineReservation} from "./Widgets/Machines";
-import {Resource} from "@/UCloud/ResourceApi";
 import {Spacer} from "@/ui-components/Spacer";
-import {UtilityBar} from "@/Playground/Playground";
-import {injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 import {RetrieveGroupResponse, retrieveGroup} from "../api";
+import {UtilityBar} from "@/Navigation/UtilityBar";
+import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
+import {Resource} from "@/UCloud/ResourceApi";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 interface InsufficientFunds {
     why?: string;
     errorCode?: string;
 }
 
-const EstimatesContainerClass = injectStyleSimple("estimates-container", `
-    padding-bottom: 20px;
-    text-align: right;
+const EstimatesContainerClass = injectStyle("estimates-container", k => `
+    ${k} {
+        margin-top: 20px;
+    }
+    
+    ${k} table {
+        width: 100%;
+    }
+    
+    ${k} th {
+        text-align: left;
+        padding-right: 10px;
+    }
+    
+    ${k} td {
+        font-family: var(--monospace);
+        text-align: right;
+    }
 `);
 
 const PARAMETER_TYPE_FILTER = ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"];
@@ -67,6 +95,7 @@ export const Create: React.FunctionComponent = () => {
         return null;
     }
 
+    const isInitialMount = !useDidMount();
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
@@ -89,8 +118,8 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number, product: Product | null}>({
-        cost: 0, balance: 0, product: null
+    const [estimatedCost, setEstimatedCost] = useState<{durationInMinutes: number, balance: number, numberOfNodes: number, product: ProductV2 | null}>({
+        durationInMinutes: 0, balance: 0, numberOfNodes: 1, product: null
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -289,7 +318,7 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [application, folders, peers, ingress, networks]);
 
-    if (applicationResp.loading) return <MainContainer main={<LoadingIcon size={36} />} />;
+    if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 
     if (application == null) {
         return (
@@ -327,27 +356,27 @@ export const Create: React.FunctionComponent = () => {
                         left={
                             <AppHeader
                                 title={appGroup?.data?.group.title ?? application.metadata.title}
-                                slim application={application}
+                                application={application}
                                 flavors={appGroup?.data?.applications ?? []}
                                 allVersions={previousResp.data?.items ?? []}
                             />}
                         right={<>
                             {!application.metadata.website ? null : (
-                                <Flex my="auto">
-                                    <Tooltip
-                                        trigger={<ExternalLink title="Documentation" href={application.metadata.website}>
-                                            <Icon name="documentation" color="primary" />
-                                        </ExternalLink>}>
-                                        View documentation
-                                    </Tooltip>
-                                </Flex>
+                                <Box my={"auto"} mr={"18px"}>
+                                    <ExternalLink href={application.metadata.website}>
+                                        <Button>
+                                            <Icon name="heroArrowTopRightOnSquare" color="white" />
+                                            Documentation
+                                        </Button>
+                                    </ExternalLink>
+                                </Box>
                             )}
                             <UtilityBar searchEnabled={false} />
                         </>}
                     />
                 </Box>
                 <ContainerForText>
-                    <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
+                    <Grid gridTemplateColumns={"1fr"} gap={"24px"} width={"100%"} mb={"24px"} mt={"24px"}>
                         {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
                         {isMissingConnection ?
                             <Box mt={32}>
@@ -357,25 +386,32 @@ export const Create: React.FunctionComponent = () => {
                                 </Link>
                             </Box> :
                             <Spacer
-                                left={<Flex maxWidth="800px">
-                                    <Markdown
-                                        unwrapDisallowed
-                                        disallowedElements={[
-                                            "image",
-                                            "heading"
-                                        ]}
-                                    >
-                                        {application.metadata.description}
-                                    </Markdown>
-                                    <Information simple application={application} />
+                                left={<Flex maxWidth="800px" flexDirection={"column"}>
+                                    <div className={MarkdownWrapper}>
+                                        <Markdown
+                                            unwrapDisallowed
+                                            disallowedElements={[
+                                                "image",
+                                                "heading"
+                                            ]}
+                                        >
+                                            {application.metadata.description}
+                                        </Markdown>
+                                    </div>
+
+                                    <Box flexGrow={1} />
+
+                                    <Label mt={"16px"}>
+                                        E-mail notification settings
+                                        <Select width={"300px"}>
+                                            <option value="never">Do not notify me</option>
+                                            <option value="start">Notify me when a job starts</option>
+                                            <option value="ends">Notify me when a job starts or stops</option>
+                                        </Select>
+                                    </Label>
                                 </Flex>}
                                 right={
                                     <div>
-                                        {estimatedCost.product ? <div className={EstimatesContainerClass}>
-                                            Estimated cost: {usageExplainer(estimatedCost.cost, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
-                                            Current balance: {usageExplainer(estimatedCost.balance, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
-                                        </div> : <></>}
-
                                         <Flex>
                                             <ImportParameters application={application} onImport={onLoadParameters}
                                                 importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
@@ -384,7 +420,7 @@ export const Create: React.FunctionComponent = () => {
                                             {anyError ?
                                                 <Tooltip trigger={
                                                     <Button ml={"10px"} type="button" color={"green"} disabled>
-                                                        <Icon name="play" />
+                                                        <Icon name="heroPlay" />
                                                         Submit
                                                     </Button>
                                                 }>
@@ -398,11 +434,26 @@ export const Create: React.FunctionComponent = () => {
                                                     disabled={isLoading || !sshValid || isMissingConnection}
                                                     onClick={() => submitJob(false)}
                                                 >
-                                                    <Icon name="play" />
+                                                    <Icon name="heroPlay" />
                                                     Submit
                                                 </Button>
                                             }
                                         </Flex>
+
+                                        <div className={EstimatesContainerClass}>
+                                            <table>
+                                                <tbody>
+                                                <tr>
+                                                    <th>Estimated cost</th>
+                                                    <td>{!estimatedCost.product ? "-" : explainPrice2(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, { showSuffix: false })}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Current balance</th>
+                                                    <td>{!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.balance)}</td>
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 }
                             />
@@ -411,15 +462,21 @@ export const Create: React.FunctionComponent = () => {
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
-                                onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
+                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, balance, product) =>
+                                    setEstimatedCost({durationInMinutes, balance, numberOfNodes, product})}
                             />
                         </Card>
+
+                        <FolderResource
+                            {...folders}
+                            application={application}
+                        />
 
                         {/* Parameters */}
                         {mandatoryParameters.length === 0 ? null : (
                             <Card>
                                 <Heading.h4>Mandatory Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"} mt="-20px">
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             setErrors={setErrors}
@@ -431,7 +488,7 @@ export const Create: React.FunctionComponent = () => {
                         {activeParameters.length === 0 ? null : (
                             <Card>
                                 <Heading.h4>Additional Parameters</Heading.h4>
-                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {activeParameters.map(param => (
                                         <Widget
                                             key={param.name} parameter={param} errors={errors} provider={provider}
@@ -469,11 +526,6 @@ export const Create: React.FunctionComponent = () => {
 
                         {/* Resources */}
 
-                        <FolderResource
-                            {...folders}
-                            application={application}
-                        />
-
                         <IngressResource
                             {...ingress}
                             application={application}
@@ -483,7 +535,6 @@ export const Create: React.FunctionComponent = () => {
                             {...peers}
                             application={application}
                         />
-
 
                         <NetworkIPResource
                             {...networks}
@@ -583,5 +634,16 @@ function countMandatoryAndOptionalErrors(params: string[], errors: Record<string
     }
     return count;
 }
+
+const MarkdownWrapper = injectStyle("md-wrapper", k => `
+    ${k} p:first-child {
+        margin-top: 0;
+    }
+
+    ${k} p:last-child {
+        margin-bottom: 0;
+    }
+`);
+
 
 export default Create;

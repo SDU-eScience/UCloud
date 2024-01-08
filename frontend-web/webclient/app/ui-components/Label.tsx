@@ -7,7 +7,6 @@ export const LabelClass = injectStyle("label", k => `
     ${k} {
         width: 100%;
         color: var(--black);
-        line-height: 2em;
         padding-left: 2px;
     }
 

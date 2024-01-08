@@ -196,20 +196,19 @@ _Update the avatar of the current user._
 
 ```kotlin
 data class Avatar(
-    val buffer: Unit,
-    val clothes: Clothes,
-    val clothesGraphic: ClothesGraphic,
-    val colorFabric: ColorFabric,
-    val eyebrows: Eyebrows,
-    val eyes: Eyes,
-    val facialHair: FacialHair,
-    val facialHairColor: FacialHairColor,
-    val hairColor: HairColor,
-    val hatColor: HatColor,
-    val mouthTypes: MouthTypes,
-    val skinColors: SkinColors,
     val top: Top,
     val topAccessory: TopAccessory,
+    val hairColor: HairColor,
+    val facialHair: FacialHair,
+    val facialHairColor: FacialHairColor,
+    val clothes: Clothes,
+    val colorFabric: ColorFabric,
+    val eyes: Eyes,
+    val eyebrows: Eyebrows,
+    val mouthTypes: MouthTypes,
+    val skinColors: SkinColors,
+    val clothesGraphic: ClothesGraphic,
+    val hatColor: HatColor,
 )
 ```
 
@@ -220,7 +219,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>buffer</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code></code>
+<code>top</code>: <code><code><a href='#top'>Top</a></code></code>
 </summary>
 
 
@@ -231,7 +230,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>clothes</code>: <code><code><a href='#clothes'>Clothes</a></code></code>
+<code>topAccessory</code>: <code><code><a href='#topaccessory'>TopAccessory</a></code></code>
 </summary>
 
 
@@ -242,40 +241,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>clothesGraphic</code>: <code><code><a href='#clothesgraphic'>ClothesGraphic</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>colorFabric</code>: <code><code><a href='#colorfabric'>ColorFabric</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>eyebrows</code>: <code><code><a href='#eyebrows'>Eyebrows</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>eyes</code>: <code><code><a href='#eyes'>Eyes</a></code></code>
+<code>hairColor</code>: <code><code><a href='#haircolor'>HairColor</a></code></code>
 </summary>
 
 
@@ -308,7 +274,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>hairColor</code>: <code><code><a href='#haircolor'>HairColor</a></code></code>
+<code>clothes</code>: <code><code><a href='#clothes'>Clothes</a></code></code>
 </summary>
 
 
@@ -319,7 +285,29 @@ data class Avatar(
 
 <details>
 <summary>
-<code>hatColor</code>: <code><code><a href='#hatcolor'>HatColor</a></code></code>
+<code>colorFabric</code>: <code><code><a href='#colorfabric'>ColorFabric</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>eyes</code>: <code><code><a href='#eyes'>Eyes</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>eyebrows</code>: <code><code><a href='#eyebrows'>Eyebrows</a></code></code>
 </summary>
 
 
@@ -352,7 +340,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>top</code>: <code><code><a href='#top'>Top</a></code></code>
+<code>clothesGraphic</code>: <code><code><a href='#clothesgraphic'>ClothesGraphic</a></code></code>
 </summary>
 
 
@@ -363,7 +351,7 @@ data class Avatar(
 
 <details>
 <summary>
-<code>topAccessory</code>: <code><code><a href='#topaccessory'>TopAccessory</a></code></code>
+<code>hatColor</code>: <code><code><a href='#hatcolor'>HatColor</a></code></code>
 </summary>
 
 
@@ -2650,14 +2638,13 @@ enum class TopAccessory {
 
 ### `FindBulkRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
 data class FindBulkRequest(
-    val buffer: Unit,
-    val usernames: Unit,
+    val usernames: List<String>,
 )
 ```
 
@@ -2668,18 +2655,7 @@ data class FindBulkRequest(
 
 <details>
 <summary>
-<code>buffer</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>usernames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code></code>
+<code>usernames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
 </summary>
 
 
@@ -2698,14 +2674,13 @@ data class FindBulkRequest(
 
 ### `FindBulkResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Stable](https://img.shields.io/static/v1?label=API&message=Internal/Stable&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
 data class FindBulkResponse(
-    val buffer: Unit,
-    val avatars: Unit,
+    val avatars: JsonObject,
 )
 ```
 
@@ -2716,18 +2691,7 @@ data class FindBulkResponse(
 
 <details>
 <summary>
-<code>buffer</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>avatars</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code></code>
+<code>avatars</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a></code></code>
 </summary>
 
 

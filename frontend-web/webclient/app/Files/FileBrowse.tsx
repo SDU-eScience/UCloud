@@ -2,8 +2,7 @@ import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
 import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {
     addContextSwitcherInPortal,
@@ -17,27 +16,26 @@ import {
     ResourceBrowserOpts,
     ColumnTitleList,
     SelectionMode,
-    checkCanConsumeResources
+    checkCanConsumeResources,
+    controlsOperation
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion, FilesMoveRequestItem,
+    FileSensitivityVersion,
     isSensitivitySupported,
-    UFile,
-    UFileIncludeFlags
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, inDevEnvironment, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
@@ -49,7 +47,7 @@ import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";
@@ -57,6 +55,8 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 
 // Cached network data
 // =====================================================================================================================
@@ -87,12 +87,13 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     search: true,
     sorting: true,
-    filters: true,
+    filters: false,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
 }
 
+let lastActiveProject: string | undefined = "";
 const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", sortById: "MODIFIED_AT"}, {name: "Size", sortById: "SIZE"}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
@@ -107,11 +108,23 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
         isInitialMount.current = false;
+
+        // Invalidate cache if necessary on active project changes
+        if (lastActiveProject !== Client.projectId) {
+            collectionCacheForCompletion.invalidateAll();
+        }
+        lastActiveProject = Client.projectId;
+
+        // Note(Jonas): If the user reloads the page to '/search', we don't have any info cached, so we navigate to '/drives' instead.
+        // ONLY on component mount.
+        if (getQueryParam(location.search, "path") === "/search") {
+            navigate("/drives");
+        }
     }, []);
 
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
-    const activeProject = useRef(opts?.isModal ? Client.projectId : undefined);
+    const activeProject = useRef(Client.projectId);
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
         return baseCallAPI({
@@ -560,7 +573,9 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    return groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
+                    const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
+                    ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
+                    return ops;
                 });
 
                 browser.on("fetchOperationsCallback", () => {
@@ -731,7 +746,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
                         ));
                     }
-                    row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
+
+                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
+                    if (opts?.selection) {
+                        row.stat2.innerText = dateToDateStringOrTime(modifiedAt);
+                    } else {
+                        row.stat2.innerText = dateToString(modifiedAt);
+                    }
 
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, file);
@@ -839,14 +860,24 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             break;
                         }
                     }
+
+                    if (reason.information === "Invalid file type") {
+                        navigate(AppRoutes.files.preview(browser.currentPath));
+                    }
                 });
 
                 // Rendering of breadcrumbs and the location bar
                 // =========================================================================================================
                 browser.on("generateBreadcrumbs", path => {
                     if (path === SEARCH) {
+                        // Disallow locationbar when we are in search-mode.
+                        browser.features.locationBar = false;
                         return [{absolutePath: SEARCH, title: `Search results for "${browser.searchQuery}"`}]
                     }
+
+                    // Note(Jonas): Allow locationbar as we are not in search mode.
+                    browser.features.locationBar = true;
+
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const collectionName = collection ?
@@ -865,8 +896,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     var pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
                     if (!pIcon) {
-                        const providerIconWrapper = document.createElement("div");
-                        providerIconWrapper.className = "provider-icon";
+                        const providerIconWrapper = createHTMLElements({
+                            tagType: "div",
+                            className: "provider-icon",
+                        });
+                        providerIconWrapper.style.marginRight = "6px";
                         const url = browser.header.querySelector("div.header-first-row");
                         if (url) url.prepend(providerIconWrapper);
                         pIcon = providerIconWrapper;
@@ -874,8 +908,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     pIcon.replaceChildren();
 
-                    if (pIcon && collection) {
-                        const icon = providerIcon(collection.specification.product.provider, {
+                    if (pIcon) {
+                        const icon = providerIcon(collection?.specification.product.provider ?? "", {
                             fontSize: "22px", width: "30px", height: "30px"
                         });
                         icon.style.marginRight = "8px";
@@ -1062,6 +1096,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
+                        if (opts?.selection) {
+                            const doShow = opts.selection.show ?? (() => true);
+                            if (doShow(resource)) {
+                                opts.selection.onClick(resource);
+                            }
+                            browser.open(oldPath, true);
+                            return;
+                        }
                         navigate(`/files/properties/${encodeURIComponent(resource.id)}/`)
                         return;
                     }
@@ -1069,7 +1111,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        if (!isInitialMount.current) navigate("/files?path=" + encodeURIComponent(newPath));
+                        if (!isInitialMount.current && oldPath !== newPath) navigate("/files?path=" + encodeURIComponent(newPath));
                     }
 
                     if (newPath == SEARCH) {
@@ -1327,7 +1369,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     }, [location.search]);
 
     if (!opts?.isModal && !opts?.embedded) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }
@@ -1371,6 +1413,7 @@ function isReadonly(entries: Permission[]): boolean {
 
 export default FileBrowse;
 
+// Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
 function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
     const collections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
     const filteredCollections = collections;

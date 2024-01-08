@@ -5,7 +5,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
@@ -14,7 +14,6 @@ import {IconName} from "@/ui-components/Icon";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
-import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {MarginProps} from "styled-system";
@@ -35,7 +34,7 @@ import {
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {costOfDuration, ProductCompute, usageExplainer} from "@/Accounting";
+import {costOfDuration, explainPrice2, ProductCompute, usageExplainer} from "@/Accounting";
 import {prettyFilePath} from "@/Files/FilePath";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {SillyParser} from "@/Utilities/SillyParser";
@@ -47,6 +46,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
+import {LogOutput} from "@/UtilityComponents";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -1136,7 +1136,7 @@ const RunningContent: React.FunctionComponent<{
 
             {ingresses.length === 0 ? null :
                 <TitledCard isLoading={false} title="Public links" icon="globeEuropeSolid">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
                         {ingresses.map(ingress => <PublicLinkEntry id={ingress.id} />)}
                     </Text>
                 </TitledCard>
@@ -1144,7 +1144,7 @@ const RunningContent: React.FunctionComponent<{
 
             {!supportsPeers || peers.length === 0 ? null :
                 <TitledCard isLoading={false} title="Connected jobs">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -1177,7 +1177,7 @@ const RunningContent: React.FunctionComponent<{
 
             {!sshAccess ? null :
                 <TitledCard isLoading={false} title="SSH access" icon="key">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
                         {sshAccess.success ? null : <Warning>
                             SSH was not configured successfully!
                         </Warning>}
@@ -1197,9 +1197,9 @@ const RunningContent: React.FunctionComponent<{
 
         {!supportsLogs ? null :
             <div className={RunningJobsWrapper}>
-                {Array(job.specification.replicas).fill(0).map((_, i) => {
-                    return <RunningJobRank key={i} job={job} rank={i} state={state} />;
-                })}
+                {Array(job.specification.replicas).fill(0).map((_, i) =>
+                    <RunningJobRank key={i} job={job} rank={i} state={state} />
+                )}
             </div>
         }
     </>;
@@ -1232,6 +1232,7 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     }
 
     ${k} .term {
+        overflow-y: scroll;
         height: 100%;
     }
 
@@ -1287,17 +1288,15 @@ const RunningJobRank: React.FunctionComponent<{
     rank: number,
     state: React.RefObject<JobUpdates>,
 }> = ({job, rank, state}) => {
-    const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const [updates, setUpdates] = useState<string[]>([]);
+
     const [expanded, setExpanded] = useState(false);
     const toggleExpand = useCallback((autoScroll = true) => {
         setExpanded(!expanded);
-        const targetView = termRef.current?.parentElement;
+        const targetView = wrapperRef.current?.parentElement;
         if (targetView != null) {
             setTimeout(() => {
-                // FIXME(Dan): Work around a weird resizing bug in xterm.js
-                fitAddon.fit();
-                fitAddon.fit();
-                fitAddon.fit();
                 if (autoScroll) {
                     window.scrollTo({
                         top: targetView.getBoundingClientRect().top - 100 + window.scrollY,
@@ -1305,7 +1304,7 @@ const RunningJobRank: React.FunctionComponent<{
                 }
             }, 0);
         }
-    }, [expanded, termRef]);
+    }, [expanded, wrapperRef]);
 
     useEffect(() => {
         const listener = () => {
@@ -1315,8 +1314,14 @@ const RunningJobRank: React.FunctionComponent<{
             const newLogQueue: LogMessage[] = [];
             for (const l of s.logQueue) {
                 if (l.rank === rank) {
-                    if (l.stderr != null) appendToXterm(terminal, l.stderr);
-                    if (l.stdout != null) appendToXterm(terminal, l.stdout);
+                    if (l.stderr != null) {
+                        const stderr = l.stderr;
+                        setUpdates(u => [...u, stderr]);
+                    }
+                    if (l.stdout != null) {
+                        const stdout = l.stdout;
+                        setUpdates(u => [...u, stdout]);
+                    }
                 } else {
                     newLogQueue.push(l);
                 }
@@ -1340,7 +1345,9 @@ const RunningJobRank: React.FunctionComponent<{
                     <Heading.h3>Node</Heading.h3>
                 </div>
 
-                <div className={"term"} ref={termRef} />
+                <Box divRef={wrapperRef} className="term">
+                    <LogOutput updates={updates} maxHeight="" />
+                </Box>
 
                 {job.specification.replicas === 1 ? null : (
                     <RunningButtonGroup job={job} rank={rank} expanded={expanded}
@@ -1524,21 +1531,15 @@ const ProviderUpdates: React.FunctionComponent<{
     job: Job;
     state: React.RefObject<JobUpdates>;
 }> = ({job, state}) => {
-    const {termRef, terminal} = useXTerm({autofit: true});
+    const [updates, setUpdates] = useState<string[]>([])
 
     const appendUpdate = useCallback((update: JobUpdate) => {
         if (update.status && update.status.startsWith("SSH:")) return;
 
         if (!update.status && !update.state) {
-            appendToXterm(
-                terminal,
-                `[${dateToTimeOfDayString(update.timestamp)}] Job is preparing\n`
-            );
+            setUpdates(u => [...u, `[${dateToTimeOfDayString(update.timestamp)}] Job is preparing\n`]);
         } else if (update.status) {
-            appendToXterm(
-                terminal,
-                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
-            );
+            setUpdates(u => [...u, `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`]);
         } else if (update.state) {
             let message = "Your job is now: " + stateToTitle(update.state);
             switch (update.state) {
@@ -1561,12 +1562,12 @@ const ProviderUpdates: React.FunctionComponent<{
                     message = "Your job is now running";
                     break;
             }
-            appendToXterm(
-                terminal,
+            setUpdates(u => [
+                ...u,
                 `[${dateToTimeOfDayString(update.timestamp)}] ${message}\n`
-            );
+            ]);
         }
-    }, [terminal]);
+    }, []);
 
     useLayoutEffect(() => {
         for (const update of job.updates) {
@@ -1593,7 +1594,9 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [state]);
-    return <Box height={"200px"} divRef={termRef} />
+    return <Box height={"200px"} overflowY="scroll">
+        <LogOutput updates={updates} maxHeight="200px" />
+    </Box>
 };
 
 export default View;

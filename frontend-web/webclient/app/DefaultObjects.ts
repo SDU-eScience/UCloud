@@ -1,21 +1,17 @@
 import {DashboardStateProps} from "@/Dashboard";
-import * as ProjectRedux from "@/Project/Redux";
+import * as ProjectRedux from "@/Project/ReduxState";
 import {Upload} from "@/Files/Upload";
-import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {ProjectCache} from "@/Project/cache";
 import {APICallStateWithParams} from "@/Authentication/DataHook";
 import {Product} from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
-import {useEffect} from "react";
-import {useGlobal} from "@/Utilities/ReduxHooks";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
-import {buildQueryString} from "@/Utilities/URIUtilities";
-import {NavigateFunction} from "react-router";
 import {initTerminalState, TerminalState} from "@/Terminal/State";
 import {PopInArgs} from "./ui-components/PopIn";
 import {SidebarStateProps} from "./Applications/Redux/Reducer";
 import {getUserThemePreference} from "./UtilityFunctions";
+import {defaultAvatar} from "./AvataaarLib";
 
 export enum KeyCode {
     ENTER = 13,
@@ -68,11 +64,6 @@ export interface StatusReduxObject {
     loading: boolean;
 }
 
-export interface HeaderSearchReduxObject {
-    prioritizedSearch: HeaderSearchType;
-    refresh?: () => void;
-}
-
 export type HeaderSearchType = "files" | "applications" | "projects";
 
 /**
@@ -83,14 +74,10 @@ export interface HookStore {
     uploads?: Upload[];
     uploadPath?: string;
 
-    searchPlaceholder?: string;
-    onSearch?: (query: string, navigate: NavigateFunction) => void;
-
     projectCache?: ProjectCache;
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
-    cloudApiCache?: Record<string, {expiresAt: number, cached: any}>;
 
     mainContainerHeaderSize?: number;
 }
@@ -99,7 +86,6 @@ interface LegacyReduxObject {
     hookStore: HookStore;
     dashboard: DashboardStateProps;
     status: StatusReduxObject;
-    header: HeaderSearchReduxObject;
     avatar: AvatarReduxObject;
     project: ProjectRedux.State;
     terminal: TerminalState;
@@ -111,12 +97,6 @@ interface LegacyReduxObject {
 declare global {
     export type ReduxObject =
         LegacyReduxObject;
-}
-
-export function initHeader(): HeaderSearchReduxObject {
-    return ({
-        prioritizedSearch: "files"
-    });
 }
 
 export function initStatus(): StatusReduxObject {
@@ -135,7 +115,6 @@ export function initObject(): ReduxObject {
         hookStore: {},
         dashboard: initDashboard(),
         status: initStatus(),
-        header: initHeader(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
@@ -154,27 +133,3 @@ export function initAvatar(): AvatarReduxObject {
 }
 
 export const defaultSearchPlaceholder = "Search files and applications..."
-
-export function defaultSearch(query: string, navigate: NavigateFunction) {
-    navigate(buildQueryString("/files/search", {q: query}));
-}
-
-export function useSearch(onSearch: (query: string, navigate: NavigateFunction) => void): void {
-    const [, setOnSearch] = useGlobal("onSearch", defaultSearch);
-    useEffect(() => {
-        setOnSearch(() => onSearch);
-        return () => {
-            setOnSearch(() => defaultSearch);
-        };
-    }, [setOnSearch, onSearch]);
-}
-
-export function useSearchPlaceholder(searchPlaceholder: string): void {
-    const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
-    useEffect(() => {
-        setSearchPlaceholder(searchPlaceholder);
-        return () => {
-            setSearchPlaceholder(defaultSearchPlaceholder);
-        };
-    }, [setSearchPlaceholder, searchPlaceholder]);
-}

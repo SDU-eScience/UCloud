@@ -363,8 +363,7 @@ class PuhuriPlugin : ProjectPlugin {
                         request.ucloudUsername,
                         request.puhuriCuid,
                         email = request.puhuriCuid
-                    )
-                )
+                    ) )
             })
         }
     }
@@ -542,6 +541,13 @@ class PuhuriComputePlugin : EmptyComputePlugin() {
     override val pluginTitle = "Puhuri"
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
+
+    override fun configure(config: ConfigSchema.Plugins.Jobs) {
+        val poorlyConfiguredProduct = productAllocationResolved.find { it.category.allowSubAllocations }
+        if (poorlyConfiguredProduct != null) {
+            error("Products in '${poorlyConfiguredProduct.category.name}' must have allowSubAllocations: false")
+        }
+    }
 }
 
 class PuhuriClient(

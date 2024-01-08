@@ -14,7 +14,7 @@ import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import Link from "./Link";
-import Text, {EllipsedText, TextSpan} from "./Text";
+import {EllipsedText, TextSpan} from "./Text";
 import Tooltip from "./Tooltip";
 import {useCallback, useEffect} from "react";
 import {useProjectId} from "@/Project/Api";
@@ -26,28 +26,21 @@ import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
 import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
-import {navigateByFileType, NewsPost} from "@/Dashboard/Dashboard";
-import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
+import {findAvatar} from "@/UserSettings/Redux";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import ClickableDropdown from "./ClickableDropdown";
 import Divider from "./Divider";
 import {ThemeToggler} from "./ThemeToggle";
-import {AvatarType} from "@/UserSettings/Avataaar";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {Page, PageV2, compute} from "@/UCloud";
-import AdminLinks from "@/Admin/Links";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import Truncate from "./Truncate";
 import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
 import {useNavigate} from "react-router";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
-import {ProjectLinks} from "@/Project/ProjectLinks";
-import {ResourceLinks} from "@/Resource/ResourceOptions";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import Absolute from "./Absolute";
@@ -58,6 +51,9 @@ import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {isJobStateTerminal} from "@/Applications/Jobs";
 import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
+import {SidebarEmpty, SidebarEntry, SidebarLinkColumn, SidebarSectionHeader} from "@/ui-components/SidebarComponents";
+import {AvatarType} from "@/AvataaarLib";
+import {NewsPost} from "@/NewsPost";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -68,7 +64,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         flex-direction: column;
         transform: translate(-300px, 0);
         box-sizing: border-box;
-        overflow-y: scroll;
+        overflow-y: auto;
         overflow-x: hidden;
         height: 100vh;
         
@@ -103,7 +99,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} header {
         display: flex;
         align-items: center;
-        margin-bottom: 15px;
     }
     
     ${k} header h1 {
@@ -124,6 +119,10 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     
     ${k} h3 {
         font-size: 16px;
+    }
+    
+    ${k} a.heading, ${k} h3.no-link  {
+        margin-top: 15px;
     }
     
     ${k} a, ${k} h3.no-link  {
@@ -180,13 +179,13 @@ interface SidebarElement {
     icon: IconName;
 }
 
-function SidebarElement({icon}: SidebarElement): JSX.Element {
+function SidebarTab({icon}: SidebarElement): JSX.Element {
     return <Icon name={icon} hoverColor="fixedWhite" color="fixedWhite" color2="fixedWhite" size={"24"} />
 }
 
 interface MenuElement {
     icon: IconName;
-    label: string;
+    label: SidebarTabId;
     to: string | (() => string);
     show?: () => boolean;
 }
@@ -196,20 +195,35 @@ interface SidebarMenuElements {
     predicate: () => boolean;
 }
 
+enum SidebarTabId {
+    NONE = "",
+    FILES = "Files",
+    WORKSPACE = "Workspace",
+    RESOURCES = "Resources",
+    APPLICATIONS = "Applications",
+    RUNS = "Runs",
+    ADMIN = "Admin",
+}
+
 export const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
 ] = [
         {
             items: [
-                {icon: "heroFolder", label: "Files", to: "/drives/"},
-                {icon: "heroUserGroup", label: "Workspace", to: AppRoutes.project.usage()},
-                {icon: "heroSquaresPlus", label: "Resources", to: AppRoutes.resources.publicIps()},
-                {icon: "heroShoppingBag", label: "Applications", to: AppRoutes.apps.landing()},
-                {icon: "heroServer", label: "Runs", to: "/jobs/"}
-            ], predicate: () => Client.isLoggedIn
+                {icon: "heroFolder", label: SidebarTabId.FILES, to: "/drives/"},
+                {icon: "heroUserGroup", label: SidebarTabId.WORKSPACE, to: AppRoutes.project.usage()},
+                {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicIps()},
+                {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
+                {icon: "heroServer", label: SidebarTabId.RUNS, to: "/jobs/"}
+            ],
+            predicate: () => Client.isLoggedIn
         },
-        {items: [{icon: "heroBolt", label: "Admin", to: AppRoutes.admin.userCreation()}], predicate: () => Client.userIsAdmin}
+        {
+            items: [
+                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
+            ],
+            predicate: () => Client.userIsAdmin}
     ];
 
 interface SidebarStateProps {
@@ -325,8 +339,8 @@ export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
 
-    const [selectedPage, setSelectedPage] = React.useState("");
-    const [hoveredPage, setHoveredPage] = React.useState("");
+    const [selectedPage, setSelectedPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
+    const [hoveredPage, setHoveredPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
 
     const dispatch = useDispatch();
     React.useEffect(() => {
@@ -354,7 +368,7 @@ export function Sidebar(): JSX.Element | null {
                     className={SidebarItemsClass}
                     onMouseLeave={e => {
                         if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) {
-                            setHoveredPage("")
+                            setHoveredPage(SidebarTabId.NONE)
                         }
                     }}
                 >
@@ -371,7 +385,7 @@ export function Sidebar(): JSX.Element | null {
                                     }}
                                     className={SidebarMenuItem}
                                 >
-                                    <SidebarElement icon={icon} />
+                                    <SidebarTab icon={icon} />
                                 </div>
                             </Link>) : <div
                                 key={label}
@@ -384,7 +398,7 @@ export function Sidebar(): JSX.Element | null {
                                 onMouseEnter={() => setHoveredPage(label)}
                                 className={SidebarMenuItem}
                             >
-                            <SidebarElement icon={icon} />
+                            <SidebarTab icon={icon} />
                         </div>
                     )}
                 </div>
@@ -411,8 +425,8 @@ export function Sidebar(): JSX.Element | null {
                 hovered={hoveredPage}
                 clicked={selectedPage}
                 setSelectedPage={setSelectedPage}
-                clearHover={() => setHoveredPage("")}
-                clearClicked={() => setSelectedPage("")}
+                clearHover={() => setHoveredPage(SidebarTabId.NONE)}
+                clearClicked={() => setSelectedPage(SidebarTabId.NONE)}
             />
         </Flex>
     );
@@ -422,7 +436,7 @@ function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
     FileMetadataAttached[]
 ] {
-    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, emptyPageV2);
+    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, {items: [], itemsPerPage: 0});
 
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
@@ -446,6 +460,7 @@ function useSidebarFilesPage(): [
         favorites.items.slice(0, 10)
     ];
 }
+
 
 export const sidebarFavoriteCache = new class {
     private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}
@@ -589,11 +604,15 @@ function useSidebarRunsPage(): Job[] {
 }
 
 interface SecondarySidebarProps {
-    hovered: string;
-    clicked: string;
+    hovered: SidebarTabId;
+    clicked: SidebarTabId;
     clearHover(): void;
     clearClicked(): void;
     setSelectedPage: React.Dispatch<React.SetStateAction<string>>;
+}
+
+function isShare(d: FileCollection) {
+    return d.specification.product.id === "share";
 }
 
 function SecondarySidebar({
@@ -605,13 +624,15 @@ function SecondarySidebar({
 }: SecondarySidebarProps): React.JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
+    const activeProjectId = useProjectId();
+    const isPersonalWorkspace = !activeProjectId;
 
     const navigate = useNavigate();
     const [, invokeCommand] = useCloudCommand();
 
     const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
         compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
-        emptyPage,
+        { items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
     );
 
     const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
@@ -668,119 +689,191 @@ function SecondarySidebar({
             </Relative>
         </header>
 
-        {active !== "Files" || !canConsume ? null : (
-            <Flex flexDirection={"column"} gap={"16px"}>
-                <div>
-                    <h3><Link to={"/drives/"}>Drives</Link></h3>
-                    {drives.data.items.slice(0, 8).map(it =>
-                        <Link key={it.id} to={`/files?path=${it.id}`}>
-                            <Flex>
-                                <Box mt="1px" mr="4px"><ProviderLogo providerId={it.specification.product.provider} size={20} /></Box>
-                                <Truncate fontSize="14px" title={it.specification.title} maxWidth={"150px"} color="var(--fixedWhite)">
-                                    {it.specification.title}
-                                </Truncate>
-                            </Flex>
-                        </Link>
-                    )}
-                    {drives.data.items.length < 8 ? null :
-                        <Link to={`/drives/`}>
-                            <Flex>
-                                <Text mx="auto" fontSize="14px" maxWidth={"150px"} color="var(--fixedWhite)">
-                                    View all drives
-                                </Text>
-                            </Flex>
-                        </Link>
-                    }
-                </div>
+        <Flex flexDirection={"column"} gap={"5px"}>
+            {active !== SidebarTabId.FILES ? null : <>
+                <SidebarSectionHeader to={AppRoutes.files.drives()}>Drives</SidebarSectionHeader>
+                {(!canConsume || drives.data.items.length === 0) && <>
+                    <SidebarEmpty>No drives available</SidebarEmpty>
+                </>}
 
-                <div>
-                    <h3 className={"no-link"}>Favorite files</h3>
-                    {favoriteFiles.length === 0 ? <div>No favorite files</div> : null}
-                    {favoriteFiles.map(it =>
-                        <a href={"#"} key={it.path} onClick={() => navigateByFileType(it, invokeCommand, navigate)}>
-                            <Flex alignItems={"center"}>
-                                <Icon name="heroStar" size={16} mr="4px" color="#fff" color2="#fff" />
-                                <Truncate fontSize={"14px"} color="#fff">{fileName(it.path)}</Truncate>
-                            </Flex>
-                        </a>
-                    )}
-                </div>
-
-                {Client.hasActiveProject ? null : <div>
-                    <h3 className={"no-link"}>Shared files</h3>
-                    {sharesLinksInfo.map(it => <Link key={it.text} to={it.to}>{it.text}</Link>)}
-                </div>}
-            </Flex>
-        )}
-
-        {active !== "Workspace" ? null : (<ProjectLinks />)}
-
-        {active !== "Applications" ? null :
-            <Flex flexDirection={"column"} gap="16px">
-                <div>
-                    {appStoreSections.data.sections.map(section =>
-                        <Link key={section.id} to={`/applications/full#section${section.id}`}>{section.name}</Link>
-                    )}
-                </div>
-
-                <div>
-                    <h3 className={"no-link"}>Favorite apps</h3>
-
-                    {appFavorites.map(it =>
-                        <AppTitleAndLogo
-                            key={it.metadata.name + it.metadata.version}
-                            to={AppRoutes.jobs.create(it.metadata.name, it.metadata.version)}
-                            name={it.metadata.name}
-                            title={it.metadata.title}
-                        />
-                    )}
-
-                    {appFavorites.length !== 0 ? null : <Text fontSize="var(--secondaryText)">No app favorites.</Text>}
-                </div>
-            </Flex>
-        }
-
-        {active !== "Runs" ? null : (
-            <Flex flexDirection={"column"}>
-                <h3 className={"no-link"}>Running jobs</h3>
-                {recentRuns.map(it =>
-                    <AppTitleAndLogo
-                        key={it.id}
-                        to={AppRoutes.jobs.view(it.id)}
-                        name={it.specification.application.name}
-                        title={`${it.specification.name ?? it.id} (${it.specification.application.name})`}
+                {canConsume && drives.data.items.slice(0, 8).map(drive =>
+                    <SidebarEntry
+                        text={drive.specification.title}
+                        icon={isShare(drive) ? "ftSharesFolder" : <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
+                        to={AppRoutes.files.drive(drive.id)}
                     />
                 )}
-                {recentRuns.length !== 0 ? null : <div>No jobs running.</div>}
-            </Flex>
-        )}
 
-        {active !== "Resources" ? null : (<ResourceLinks />)}
+                {canConsume && favoriteFiles.length > 0 && <>
+                    <SidebarSectionHeader>Starred files</SidebarSectionHeader>
+                    {favoriteFiles.map(file =>
+                        <SidebarEntry
+                            to={AppRoutes.files.path(file.path)}
+                            icon={"heroStar"}
+                            text={fileName(file.path)}
+                        />
+                    )}
+                </>}
 
-        {active !== "Admin" ? null : (<AdminLinks />)}
-    </div >;
+                {canConsume && sharesLinksInfo.length > 0 && <>
+                    <SidebarSectionHeader>Shared files</SidebarSectionHeader>
+                    <SidebarLinkColumn links={sharesLinksInfo} />
+                </>}
+            </>}
+
+            {active !== SidebarTabId.WORKSPACE ? null : <>
+                {!isPersonalWorkspace && <>
+                    <SidebarSectionHeader to={AppRoutes.project.members()}>Management</SidebarSectionHeader>
+                    <SidebarEntry
+                        to={AppRoutes.project.members()}
+                        text={"Members"}
+                        icon={"heroUsers"}
+                    />
+
+                    <SidebarEntry
+                        to={AppRoutes.project.subprojects()}
+                        icon={"heroUserGroup"}
+                        text={"Sub-projects"}
+                    />
+
+                    <SidebarEntry
+                        to={AppRoutes.project.settings("")}
+                        text={"Settings"}
+                        icon={"heroWrenchScrewdriver"}
+                    />
+                </>}
+
+                <SidebarSectionHeader to={AppRoutes.accounting.allocations()}>Resources</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.accounting.allocations()}
+                    text={"Allocations"}
+                    icon={"heroBanknotes"}
+                />
+
+                <SidebarEntry
+                    to={AppRoutes.accounting.usage()}
+                    text={"Usage"}
+                    icon={"heroPresentationChartLine"}
+                />
+
+                <SidebarEntry
+                    to={AppRoutes.grants.outgoing()}
+                    text={"Grant applications"}
+                    icon={"heroDocumentText"}
+                />
+
+                <SidebarEntry
+                    to={AppRoutes.grants.editor()}
+                    text={"Apply for resources"}
+                    icon={"heroPencilSquare"}
+                />
+            </>}
+
+            {active !== SidebarTabId.RESOURCES ? null : <>
+                <SidebarSectionHeader to={AppRoutes.resources.publicLinks()}>Networking</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.resources.publicLinks()}
+                    text={"Links"}
+                    icon={"heroLink"}
+                />
+                <SidebarEntry
+                    to={AppRoutes.resources.publicIps()}
+                    text={"IP addresses"}
+                    icon={"heroGlobeEuropeAfrica"}
+                />
+
+                <SidebarSectionHeader to={AppRoutes.resources.sshKeys()}>Security & keys</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.resources.sshKeys()}
+                    text={"SSH keys"}
+                    icon={"heroKey"}
+                />
+
+                <SidebarSectionHeader to={AppRoutes.resources.licenses()}>Software</SidebarSectionHeader>
+                <SidebarEntry
+                    to={AppRoutes.resources.licenses()}
+                    text={"Licenses"}
+                    icon={"heroDocumentCheck"}
+                />
+            </>}
+
+            {active !== SidebarTabId.APPLICATIONS ? null : <>
+                <SidebarSectionHeader to={AppRoutes.apps.landing()}>Categories</SidebarSectionHeader>
+                {appStoreSections.data.sections.length === 0 && <>
+                    <SidebarEmpty>No applications found</SidebarEmpty>
+                </>}
+
+                {appStoreSections.data.sections.map(section =>
+                    <SidebarEntry
+                        key={section.id}
+                        to={AppRoutes.apps.section(section.id)}
+                        text={section.name}
+                        icon={"heroCpuChip"}
+                    />
+                )}
+
+                {appFavorites.length > 0 && <>
+                    <SidebarSectionHeader>Starred applications</SidebarSectionHeader>
+                    {appFavorites.map((fav, i) =>
+                        <SidebarEntry
+                            key={i}
+                            to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
+                            text={fav.metadata.title}
+                            icon={<AppLogo name={fav.metadata.name}/>}
+                        />
+                    )}
+                </>}
+            </>}
+
+            {active !== SidebarTabId.RUNS ? null : <>
+                <SidebarSectionHeader>Running jobs</SidebarSectionHeader>
+                {recentRuns.length === 0 && <>
+                    <SidebarEmpty>No running jobs</SidebarEmpty>
+                </>}
+                {recentRuns.map(run => {
+                    let name = run.specification.name;
+                    if (!name) {
+                        const appName = run.status.resolvedApplication?.metadata?.title ?? run.specification.application.name;
+                        name = `${run.id} (${appName})`;
+                    }
+
+                    return <SidebarEntry
+                        key={run.id}
+                        to={AppRoutes.jobs.view(run.id)}
+                        text={name}
+                        icon={<AppLogo name={run.specification.application.name} />}
+                    />
+                })}
+            </>}
+
+            {active !== SidebarTabId.ADMIN ? null : <>
+                <SidebarSectionHeader>Tools</SidebarSectionHeader>
+                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"}/>
+                <SidebarEntry to={AppRoutes.admin.applicationStudio()} text={"Application studio"}
+                              icon={"heroBuildingStorefront"}/>
+                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}/>
+                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}/>
+                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}/>
+            </>}
+        </Flex>
+    </div>;
 }
 
-function AppTitleAndLogo({name, title, to}): JSX.Element {
-    return <Link to={to}>
-        <Flex alignItems={"center"}>
-            <Flex
-                p="2px"
-                mr="4px"
-                justifyContent="center"
-                alignItems="center"
-                backgroundColor="var(--fixedWhite)"
-                width="16px"
-                height="16px"
-                borderRadius="4px"
-            >
-                <AppToolLogo size="12px" name={name} type="APPLICATION" />
-            </Flex>
-            <Truncate color="#fff">
-                {title}
-            </Truncate>
+function AppLogo({name}): JSX.Element {
+    return <Flex alignItems={"center"}>
+        <Flex
+            p="2px"
+            mr="4px"
+            justifyContent="center"
+            alignItems="center"
+            backgroundColor="var(--fixedWhite)"
+            width="16px"
+            height="16px"
+            borderRadius="4px"
+        >
+            <AppToolLogo size="12px" name={name} type="APPLICATION" />
         </Flex>
-    </Link>
+    </Flex>;
 }
 
 function Username({close}: {close(): void}): JSX.Element | null {
@@ -802,6 +895,13 @@ function Username({close}: {close(): void}): JSX.Element | null {
     >
         Click to copy {Client.username} to clipboard
     </Tooltip>
+}
+
+function ListMapper<T>({items, mapper, emptyPage}: {
+    items: T[], mapper: (el: T) => JSX.Element, emptyPage: React.ReactNode
+}): React.ReactNode {
+    if (items.length === 0) return emptyPage;
+    return items.map(mapper);
 }
 
 function ProjectID({close}: {close(): void}): JSX.Element | null {
@@ -840,7 +940,7 @@ function ProjectID({close}: {close(): void}): JSX.Element | null {
 }
 
 function Downtimes(): JSX.Element | null {
-    const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, emptyPage);
+    const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0});
     const [intervalId, setIntervalId] = React.useState(-1);
 
     React.useEffect(() => {

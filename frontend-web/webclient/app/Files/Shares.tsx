@@ -6,12 +6,12 @@ import {useEffect, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {LinkInfo} from "@/ui-components/SidebarLink";
+import {LinkInfo} from "@/ui-components/SidebarComponents";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, doNothing, stopPropagation, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -19,19 +19,20 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
 import {injectStyleSimple} from "@/Unstyled";
 import MainContainer from "@/ui-components/MainContainer";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {Avatar} from "@/AvataaarLib";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {div} from "@/Utilities/HTMLUtilities";
 import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import Avatar from "@/AvataaarLib/avatar";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -46,9 +47,34 @@ function inviteLinkFromToken(token: string): string {
     return window.location.origin + "/app/shares/invite/" + token;
 }
 
-export const ShareModal: React.FunctionComponent<{
-    selected: {path: string; product: accounting.ProductReference},
-    cb: {invokeCommand: InvokeCommand, navigate: NavigateFunction}
+const ShareModalStyle = {
+    ...defaultModalStyle,
+    content: {...defaultModalStyle.content, minHeight: undefined, top: "25%"}
+}
+
+interface SelectedShare {
+    path: string;
+    product: accounting.ProductReference
+}
+
+interface ShareCallbacks {
+    invokeCommand: InvokeCommand;
+    navigate: NavigateFunction;
+}
+
+export function addShareModal(selected: SelectedShare, cb: ShareCallbacks): void {
+    dialogStore.addDialog(
+        <ShareModal
+            selected={selected}
+            cb={cb}
+        />,
+        doNothing, true, ShareModalStyle
+    );
+}
+
+const ShareModal: React.FunctionComponent<{
+    selected: SelectedShare,
+    cb: ShareCallbacks
 }> = ({selected, cb}) => {
 
     const [inviteLinks, fetchLinks] = useCloudAPI<PageV2<ShareLink>>({noop: true}, emptyPageV2);
@@ -278,6 +304,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
                 browser.setColumnTitles([{name: "Filename"}, {name: "Share state"}, {name: "Last updated"}, {name: "Shared by"}]);
 
+                browser.on("beforeOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy &&share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(buildQueryString("/files", {path: resource.status.shareAvailableAt}));
@@ -553,7 +580,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     }, []);
 
     if (!opts?.isModal && !opts?.embedded) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

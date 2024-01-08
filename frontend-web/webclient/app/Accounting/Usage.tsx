@@ -24,6 +24,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import Warning from "@/ui-components/Warning";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 // State
 // =====================================================================================================================
@@ -31,6 +32,7 @@ interface State {
     remoteData: {
         chartData?: AccountingB.Charts;
         jobStatistics?: Jobs.JobStatistics;
+        requestsInFlight: number;
     },
 
     summaries: {
@@ -77,10 +79,21 @@ type UIAction =
     | { type: "LoadJobStats", statistics: Jobs.JobStatistics, }
     | { type: "SelectTab", tabIndex: number }
     | { type: "UpdateSelectedPeriod", period: Period }
+    | { type: "UpdateRequestsInFlight", delta: number }
     ;
 
 function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
+        case "UpdateRequestsInFlight": {
+            return {
+                ...state,
+                remoteData: {
+                    ...state.remoteData,
+                    requestsInFlight: state.remoteData.requestsInFlight + action.delta
+                }
+            };
+        }
+
         case "LoadCharts": {
             // TODO Move this into selectChart
             function translateBreakdown(category: Accounting.ProductCategoryV2, chart: AccountingB.BreakdownByProject): BreakdownChart {
@@ -368,12 +381,21 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
             doDispatch(ev);
         }
 
+        async function invokeAPI<T>(
+            parameters: (APICallParameters<unknown, T> | APICallParametersBinary<T>)
+        ): Promise<T> {
+            dispatch({ type: "UpdateRequestsInFlight", delta: 1 });
+            return callAPI(parameters).finally(() => {
+                dispatch({ type: "UpdateRequestsInFlight", delta: -1 });
+            });
+        }
+
         async function doLoad(start: number, end: number) {
-            callAPI(Jobs.retrieveStatistics({start, end})).then(statistics => {
+            invokeAPI(Jobs.retrieveStatistics({start, end})).then(statistics => {
                 dispatch({type: "LoadJobStats", statistics});
             });
 
-            callAPI(Accounting.retrieveChartsV2({start, end})).then(charts => {
+            invokeAPI(Accounting.retrieveChartsV2({start, end})).then(charts => {
                 dispatch({type: "LoadCharts", charts});
             });
         }
@@ -469,6 +491,10 @@ const Visualization: React.FunctionComponent = props => {
     // -----------------------------------------------------------------------------------------------------------------
     const activeCategory = state.activeDashboard?.category;
     const hasChart3And4 = activeCategory?.productType === "COMPUTE";
+    const isAnyLoading = state.remoteData.requestsInFlight !== 0;
+    const hasNoMeaningfulData =
+        state.activeDashboard === undefined ||
+        state.activeDashboard.usageOverTime.dataPoints.every(it => it.usage === 0);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -492,6 +518,14 @@ const Visualization: React.FunctionComponent = props => {
         <div style={{padding: "13px 16px 16px 16px"}}>
             <h3>Resource usage</h3>
 
+            {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight && <>
+                <HexSpin size={64} />
+            </>}
+
+            {state.summaries.length === 0 && state.remoteData.requestsInFlight === 0 && <>
+                Could not find any usage data!
+            </>}
+
             <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingBottom={"26px"}>
                 {state.summaries.map(s =>
                     <SmallUsageCard
@@ -511,25 +545,29 @@ const Visualization: React.FunctionComponent = props => {
             </Flex>
 
             {state.activeDashboard &&
-                <div className="panels">
-                    <div className="panel-grid">
-                        <CategoryDescriptorPanel
-                            category={state.activeDashboard.category}
-                            usage={state.activeDashboard.currentAllocation.usage}
-                            quota={state.activeDashboard.currentAllocation.quota}
-                            expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                            nextAllocationAt={state.activeDashboard.nextAllocation?.startsAt}
-                            nextAllocation={state.activeDashboard.nextAllocation?.quota}
-                        />
-                        <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject}/>
-                        <UsageOverTimePanel chart={state.activeDashboard.usageOverTime}/>
-                        {activeCategory?.productType === "COMPUTE" && <>
-                            <UsageByUsers data={state.activeDashboard.jobUsageByUsers}/>
-                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications}/>
-                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics}/>
-                        </>}
-                    </div>
-                </div>
+                <>
+                    {hasNoMeaningfulData ? "No usage data found" :
+                        <div className="panels">
+                            <div className="panel-grid">
+                                <CategoryDescriptorPanel
+                                    category={state.activeDashboard.category}
+                                    usage={state.activeDashboard.currentAllocation.usage}
+                                    quota={state.activeDashboard.currentAllocation.quota}
+                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                                    nextAllocationAt={state.activeDashboard.nextAllocation?.startsAt}
+                                    nextAllocation={state.activeDashboard.nextAllocation?.quota}
+                                />
+                                <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject}/>
+                                <UsageOverTimePanel chart={state.activeDashboard.usageOverTime}/>
+                                {activeCategory?.productType === "COMPUTE" && <>
+                                    <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers}/>
+                                    <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications}/>
+                                    <JobSubmissionPanel data={state.activeDashboard.submissionStatistics}/>
+                                </>}
+                            </div>
+                        </div>
+                    }
+                </>
             }
         </div>
     </div>;
@@ -1091,46 +1129,50 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
     }
 `);
 
-const UsageByUsers: React.FunctionComponent<{ data?: JobUsageByUsers }> = ({data}) => {
-    if (data === undefined) return null;
-
+const UsageByUsers: React.FunctionComponent<{ loading: boolean, data?: JobUsageByUsers }> = ({loading, data}) => {
     const dataPoints = useMemo(() => {
-        return data.dataPoints.map(it => ({ key: it.username, value: it.usage }));
-    }, [data.dataPoints]);
+        return data?.dataPoints?.map(it => ({ key: it.username, value: it.usage }));
+    }, [data?.dataPoints]);
     const formatter = useCallback((val: number) => {
+        if (!data) return "";
         return Accounting.addThousandSeparators(val.toFixed(2)) + " " + data.unit;
-    }, [data.unit]);
+    }, [data?.unit]);
+
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <div className="panel-title">
             <h4>Usage by users</h4>
         </div>
 
-        <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
+        {data !== undefined && dataPoints !== undefined ? <>
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
 
-        <div className="table-wrapper">
-            <table>
-                <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>
-                        Estimated usage
-                        {" "}
-                        <TooltipV2
-                            tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
-                            <Icon name={"heroQuestionMarkCircle"}/>
-                        </TooltipV2>
-                    </th>
-                </tr>
-                </thead>
-                <tbody>
-                {data.dataPoints.map(it => <tr key={it.username}>
-                    <td>{it.username}</td>
-                    <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
-                </tr>)}
-                </tbody>
-            </table>
-        </div>
+            <div className="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>
+                            Estimated usage
+                            {" "}
+                            <TooltipV2
+                                tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
+                                <Icon name={"heroQuestionMarkCircle"}/>
+                            </TooltipV2>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {data.dataPoints.map(it => <tr key={it.username}>
+                        <td>{it.username}</td>
+                        <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
+                    </tr>)}
+                    </tbody>
+                </table>
+            </div>
+        </> : <>
+            {loading ? <HexSpin size={32} /> : "No usage data found"}
+        </>}
     </div>;
 };
 
@@ -2152,12 +2194,12 @@ const VisualizationStyle = injectStyle("visualization", k => `
 // Initial state
 // =====================================================================================================================
 const initialState: State = {
-    remoteData: {},
+    remoteData: { requestsInFlight: 0 },
     summaries: [],
     selectedPeriod: {
         type: "relative",
-        distance: 12,
-        unit: "month"
+        distance: 7,
+        unit: "day"
     }
 };
 

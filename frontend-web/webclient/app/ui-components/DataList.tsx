@@ -61,7 +61,8 @@ export class DataList extends React.PureComponent<DataListProps, {
                             onChange={({target}) => {
                                 this.setState(() => ({text: target.value}));
                             }}
-                            onKeyUp={() => {
+                            onKeyUp={ev => {
+                                ev.stopPropagation();
                                 if (this.props.onChange) {
                                     this.props.onChange(this.state.text);
                                 }

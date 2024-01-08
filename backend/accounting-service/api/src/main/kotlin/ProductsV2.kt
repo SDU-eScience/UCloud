@@ -233,6 +233,7 @@ interface ProductFlagsV2 {
     val filterProductType: ProductType?
     val filterProvider: String?
     val filterCategory: String?
+    val filterUsable: Boolean?
     val includeBalance: Boolean?
     val includeMaxBalance: Boolean?
 }
@@ -248,6 +249,7 @@ data class ProductsV2BrowseRequest(
     override val filterProvider: String? = null,
     override val filterProductType: ProductType? = null,
     override val filterCategory: String? = null,
+    override val filterUsable: Boolean? = null,
 
     override val includeBalance: Boolean? = null,
     override val includeMaxBalance: Boolean? = null
@@ -261,13 +263,14 @@ data class ProductsV2RetrieveRequest(
     override val filterProvider: String,
 
     override val filterProductType: ProductType? = null,
+    override val filterUsable: Boolean? = null,
 
     override val includeBalance: Boolean? = null,
     override val includeMaxBalance: Boolean? = null,
 ) : ProductFlagsV2
 
-object ProductsV2 : CallDescriptionContainer("productsv2") {
-    const val baseContext = "/api/productsv2"
+object ProductsV2 : CallDescriptionContainer("products.v2") {
+    const val baseContext = "/api/products/v2"
 
     private const val browseUseCase = "browse"
     private const val browseByTypeUseCase = "browse-by-type"

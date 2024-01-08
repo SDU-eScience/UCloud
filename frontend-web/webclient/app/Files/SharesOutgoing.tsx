@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState} from "@/UCloud/SharesApi";
 import MainContainer from "@/ui-components/MainContainer";
 import {prettyFilePath} from "@/Files/FilePath";
@@ -9,7 +9,7 @@ import {
     RadioTilesContainer,
     Tooltip
 } from "@/ui-components";
-import {capitalized, displayErrorMessageOrDefault, doNothing, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {capitalized, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useLocation, useNavigate} from "react-router";
@@ -19,17 +19,16 @@ import {avatarState} from "@/AvataaarLib/hook";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {Avatar} from "@/AvataaarLib";
-import {ShareModal, StateIconAndColor} from "./Shares";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {addShareModal, StateIconAndColor} from "./Shares";
 import AppRoutes from "@/Routes";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
-import {dialogStore} from "@/Dialog/DialogStore";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {fileName} from "@/Utilities/FileUtilities";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import Avatar from "@/AvataaarLib/avatar";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -579,14 +578,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         enabled(selected) {return selected.length === 1 && !isViewingShareGroupPreview(selected[0])},
                         onClick(selected, cb) {
                             const [share] = selected;
-                            if (!isViewingShareGroupPreview(share))
-                                dialogStore.addDialog(
-                                    <ShareModal
-                                        selected={{path: share.sourceFilePath, product: share.storageProduct}}
-                                        cb={cb}
-                                    />,
-                                    doNothing, true
-                                );
+                            if (!isViewingShareGroupPreview(share)) {
+                                addShareModal({path: share.sourceFilePath, product: share.storageProduct}, cb);
+                            }
                         },
                         shortcut: ShortcutKey.I // Note(Jonas): Or S?
                     }, {
@@ -641,7 +635,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

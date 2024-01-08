@@ -3,8 +3,7 @@ import {useLocation, useNavigate} from "react-router";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useLoading, useTitle} from "@/Navigation/Redux";
 import MainContainer from "@/ui-components/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
 import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid, theme} from "@/ui-components";
@@ -17,6 +16,7 @@ import {JsonSchemaForm} from "../JsonSchemaForm";
 import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {injectStyle} from "@/Unstyled";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 enum Stage {
     INFO,
@@ -169,7 +169,7 @@ const Create: React.FunctionComponent = () => {
         }
         useTitle(title);
         useLoading(latestTemplate.loading || namespace.loading);
-        useRefreshFunction(reload);
+        useSetRefreshFunction(reload);
     }
 
     return <MainContainer

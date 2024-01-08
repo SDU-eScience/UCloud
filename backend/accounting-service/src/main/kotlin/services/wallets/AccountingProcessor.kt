@@ -22,7 +22,6 @@ import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
@@ -44,7 +43,6 @@ import kotlin.collections.ArrayList
 import kotlin.math.*
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.seconds
 
 const val doDebug = false
 const val allocationIdCutoff = 5900
@@ -172,7 +170,6 @@ sealed class AccountingRequest {
         val notAfter: Long?,
         override var id: Long = -1,
         val grantedIn: Long? = null,
-        val isProject: Boolean
     ) : AccountingRequest()
 
     data class Sync(override val actor: Actor = Actor.System, override var id: Long = -1L) : AccountingRequest()
@@ -713,7 +710,8 @@ class AccountingProcessor(
                         au.floating_point, 
                         au.display_frequency_suffix,
                         pc.accounting_frequency,
-                        pc.free_to_use
+                        pc.free_to_use,
+                        pc.allow_sub_allocations
                     from
                         accounting.wallets w join
                         accounting.wallet_owner wo
@@ -744,6 +742,7 @@ class AccountingProcessor(
                         )
                         val frequency = row.getString(11)!!
                         val freeToUse = row.getBoolean(12)!!
+                        val allowSubAllocations = row.getBoolean(13)!!
                         val emptySlots = id - wallets.size
                         require(emptySlots >= 0) { "Duplicate wallet detected (or bad logic): $id ${wallets.size} $emptySlots" }
                         repeat(emptySlots) { wallets.add(null) }
@@ -760,7 +759,8 @@ class AccountingProcessor(
                                     accountingUnit,
                                     AccountingFrequency.fromValue(frequency),
                                     emptyList(),
-                                    freeToUse = freeToUse
+                                    freeToUse = freeToUse,
+                                    allowSubAllocations = allowSubAllocations,
                                 ),
                                 allocationPolicy,
                             )
@@ -949,7 +949,6 @@ class AccountingProcessor(
                                 notBefore = allocRequest.period.start ?: Time.now(),
                                 notAfter = allocRequest.period.end,
                                 grantedIn = application.id.toLong(),
-                                isProject = type != GrantApplication.Recipient.PersonalWorkspace
                             )
                         )
                     }
@@ -1027,7 +1026,6 @@ class AccountingProcessor(
                                 balance,
                                 notBefore = now,
                                 notAfter = null,
-                                isProject = false //TODO(HENRIK) Can gifts be given to other than users?
                             )
                         )
                     }
@@ -1300,6 +1298,8 @@ class AccountingProcessor(
             ?: createWallet(request.owner, request.productCategory)
             ?: return AccountingResponse.Error("Unknown product category.", 400)
 
+        val productAllowsSubAllocations = existingWallet.paysFor.allowSubAllocations
+
         val created = createAllocation(
             existingWallet.id,
             request.amount,
@@ -1307,8 +1307,12 @@ class AccountingProcessor(
             request.startDate,
             request.endDate,
             null,
+
+            // NOTE(Dan): Root allocations can always sub-allocate. We have an assumption that provider projects are
+            // always created with canConsumeResources = false, but this is technically not enforced.
+            // TODO(Dan): We should enforce that provider projects have canConsumResources = false.
             canAllocate = true,
-            allowSubAllocationsToAllocate = true
+            allowSubAllocationsToAllocate = productAllowsSubAllocations,
         ).id
 
         dirtyDeposits.add(DirtyDeposit(created, Time.now(), request.amount))
@@ -1367,6 +1371,19 @@ class AccountingProcessor(
             ?: createWallet(request.owner, category)
             ?: return AccountingResponse.Error("Internal error - Product category no longer exists ${parentWallet.paysFor}")
 
+        val isProject = PROJECT_REGEX.matches(request.owner)
+        val info = projects.retrieveProjectInfoFromId(request.owner)
+        val canAllocate = if (isProject) {
+            parent.allowSubAllocationsToAllocate || !info.first.canConsumeResources
+        } else {
+            false
+        }
+        val allowSubAllocationsToAllocate = if (isProject) {
+            parent.allowSubAllocationsToAllocate
+        } else {
+            false
+        }
+
         val created = createAllocation(
             existingWallet.id,
             request.amount,
@@ -1374,8 +1391,8 @@ class AccountingProcessor(
             notBefore,
             notAfter,
             request.grantedIn,
-            canAllocate = if (request.isProject) parent.allowSubAllocationsToAllocate else false,
-            allowSubAllocationsToAllocate = if (request.isProject) parent.allowSubAllocationsToAllocate else false,
+            canAllocate = canAllocate,
+            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate,
         ).id
 
         dirtyDeposits.add(DirtyDeposit(created, Time.now(), request.amount))
@@ -1389,10 +1406,10 @@ class AccountingProcessor(
 
     @Suppress("DEPRECATION")
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
-        if (!authorizeProvider(request.actor, request.productCategory)) return AccountingResponse.Error(
-            "Forbidden",
-            403
-        )
+        if (!authorizeProvider(request.actor, request.productCategory)) {
+            return AccountingResponse.Error("Forbidden", 403)
+        }
+
         if (request.dryRun) return check(request)
 
         when (request) {
@@ -2454,7 +2471,7 @@ private class ProjectCache(private val db: DBContext) {
     private data class ProjectMember(val username: String, val project: String, val role: ProjectRole)
 
     private val projectMembers = AtomicReference<List<ProjectMember>>(emptyList())
-    private val projects = AtomicReference<List<Pair<ProjectWithTitle, String>>>(emptyList())
+    private val projects = AtomicReference<List<Pair<ProjectInfo, String>>>(emptyList())
     private val fillMutex = Mutex()
 
     suspend fun fillCache() {
@@ -2467,7 +2484,7 @@ private class ProjectCache(private val db: DBContext) {
 
             val projectMembers = ArrayList<ProjectMember>()
             //Project with title and PI
-            val projects = ArrayList<Pair<ProjectWithTitle, String>>()
+            val projects = ArrayList<Pair<ProjectInfo, String>>()
 
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -2501,10 +2518,10 @@ private class ProjectCache(private val db: DBContext) {
                     {},
                     """
                         declare project_curs cursor for 
-                        select p.id, p.title, pm.username, p.pid
+                        select p.id, p.title, pm.username, p.pid, p.can_consume_resources
                         from project.projects p join project.project_members pm on p.id = pm.project_id
                         where pm.role = 'PI'
-                    """.trimIndent()
+                    """
                 )
 
                 while (true) {
@@ -2516,7 +2533,8 @@ private class ProjectCache(private val db: DBContext) {
                         val projectTitle = row.getString(1)!!
                         val pi = row.getString(2)!!
                         val pid = row.getInt(3)!!
-                        projects.add(Pair(ProjectWithTitle(projectId, pid, projectTitle), pi))
+                        val canConsumeResources = row.getBoolean(4)!!
+                        projects.add(Pair(ProjectInfo(projectId, pid, projectTitle, canConsumeResources), pi))
                     }
                 }
 
@@ -2532,15 +2550,15 @@ private class ProjectCache(private val db: DBContext) {
     suspend fun retrieveProjectInfoFromId(
         id: String,
         allowCacheRefill: Boolean = true
-    ): Pair<ProjectWithTitle, String> {
-        if (!id.matches(PROJECT_REGEX)) return Pair(ProjectWithTitle(id, -1, id), id)
+    ): Pair<ProjectInfo, String> {
+        if (!id.matches(PROJECT_REGEX)) return Pair(ProjectInfo(id, -1, id, true), id)
 
         val project = projects.get().find { it.first.projectId == id }
         if (project == null && allowCacheRefill) {
             fillCache()
             return retrieveProjectInfoFromId(id, false)
         }
-        return project ?: Pair(ProjectWithTitle(id, -1, id), id)
+        return project ?: Pair(ProjectInfo(id, -1, id, true), id)
     }
 
     suspend fun retrieveProjectRole(username: String, project: String, allowCacheRefill: Boolean = true): ProjectRole? {
@@ -2759,4 +2777,9 @@ private fun <T> Sequence<T>.takeIfNotEmpty(): Sequence<T>? {
     return Sequence { iterator }
 }
 
-private data class ProjectWithTitle(val projectId: String, val numericPid: Int, val title: String)
+private data class ProjectInfo(
+    val projectId: String,
+    val numericPid: Int,
+    val title: String,
+    val canConsumeResources: Boolean,
+)

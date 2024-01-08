@@ -24,7 +24,7 @@ import {ProductCompute} from "@/Accounting";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {BrowseType} from "@/Resource/BrowseType";
-import {formatDistanceToNow} from "date-fns/esm";
+import {formatDistanceToNow} from "date-fns";
 import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";

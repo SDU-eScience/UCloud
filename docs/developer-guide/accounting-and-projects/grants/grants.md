@@ -1,13 +1,13 @@
 <p align='center'>
 <a href='/docs/developer-guide/accounting-and-projects/accounting/visualization.md'>« Previous section</a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/grants/grant-admin.md'>Next section »</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/grants/gifts.md'>Next section »</a>
 </p>
 
 
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Grants](/docs/developer-guide/accounting-and-projects/grants/README.md) / Allocation Process
 # Allocation Process
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Grants provide a way for users of UCloud to apply for resources._
 
@@ -20,12 +20,12 @@ credits or by receiving them from a project.
 Grants acts as a more user-friendly gateway to receiving resources from a project. Every
 `GrantApplication` goes through the following steps:
 
-1. User submits application to relevant project using `Grants.submitApplication`
-2. All grant approvers must review the application
-   - User and reviewer can comment on the application via `GrantComments.createComment`
-   - User and reviewer can perform edits to the application via `Grants.editApplication`
-3. Reviewer either performs `Grants.updateApplicationState` to approve or reject
-4. If the `GrantApplication` was approved then resources are granted to the `GrantApplication.recipient`
+1. User submits application to relevant project
+2. All grant givers must review the application
+   - User and reviewer can comment on the application
+   - User and reviewer can perform edits to the application
+3. Reviewer either approve or reject
+4. If the `GrantApplication` was approved then resources are granted to the recipient
 
 ## Table of Contents
 <details>
@@ -39,48 +39,52 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#browseaffiliationsbyresource'><code>browseAffiliationsByResource</code></a></td>
+<td><a href='#browse'><code>browse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#browseapplications'><code>browseApplications</code></a></td>
-<td>List active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)s</td>
-</tr>
-<tr>
-<td><a href='#browseproducts'><code>browseProducts</code></a></td>
+<td><a href='#retrieve'><code>retrieve</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#browseprojects'><code>browseProjects</code></a></td>
-<td>Endpoint for users to browse projects which they can send a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to</td>
-</tr>
-<tr>
-<td><a href='#retrieveaffiliations'><code>retrieveAffiliations</code></a></td>
+<td><a href='#retrievelogo'><code>retrieveLogo</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#viewapplication'><code>viewApplication</code></a></td>
-<td>Retrieves an active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
+<td><a href='#retrieverequestsettings'><code>retrieveRequestSettings</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#closeapplication'><code>closeApplication</code></a></td>
-<td>Closes an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
+<td><a href='#deletecomment'><code>deleteComment</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#editapplication'><code>editApplication</code></a></td>
-<td>Performs an edit to an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)</td>
+<td><a href='#postcomment'><code>postComment</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#submitapplication'><code>submitApplication</code></a></td>
-<td>Submits a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to a project</td>
+<td><a href='#retrievegrantgivers'><code>retrieveGrantGivers</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#transferapplication'><code>transferApplication</code></a></td>
-<td>Transfers allocation request to other root project</td>
+<td><a href='#submitrevision'><code>submitRevision</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#updateapplicationstate'><code>updateApplicationState</code></a></td>
-<td>Approves or rejects an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)  If accepted by all grant givers this will trigger granting of resources to the `GrantApplication.Document.recipient`.</td>
+<td><a href='#transfer'><code>transfer</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updaterequestsettings'><code>updateRequestSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updatestate'><code>updateState</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
+<td><i>No description</i></td>
 </tr>
 </tbody></table>
 
@@ -98,26 +102,6 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#usercriteria'><code>UserCriteria</code></a></td>
-<td>Describes some criteria which match a user</td>
-</tr>
-<tr>
-<td><a href='#usercriteria.anyone'><code>UserCriteria.Anyone</code></a></td>
-<td>Matches any user</td>
-</tr>
-<tr>
-<td><a href='#usercriteria.emaildomain'><code>UserCriteria.EmailDomain</code></a></td>
-<td>Matches any user with an email domain equal to `domain`</td>
-</tr>
-<tr>
-<td><a href='#usercriteria.wayforganization'><code>UserCriteria.WayfOrganization</code></a></td>
-<td>Matches any user with an organization matching `org`</td>
-</tr>
-<tr>
-<td><a href='#createapplication'><code>CreateApplication</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#grantapplication'><code>GrantApplication</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -131,6 +115,10 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 </tr>
 <tr>
 <td><a href='#grantapplication.form'><code>GrantApplication.Form</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantapplication.form.grantgiverinitiated'><code>GrantApplication.Form.GrantGiverInitiated</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -178,55 +166,91 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#projectwithtitle'><code>ProjectWithTitle</code></a></td>
+<td><a href='#grantgiver'><code>GrantGiver</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#updateapplicationstate'><code>UpdateApplicationState</code></a></td>
+<td><a href='#templates'><code>Templates</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#browseapplicationsrequest'><code>BrowseApplicationsRequest</code></a></td>
-<td>The base type for requesting paginated content.</td>
-</tr>
-<tr>
-<td><a href='#browseprojectsrequest'><code>BrowseProjectsRequest</code></a></td>
-<td>The base type for requesting paginated content.</td>
-</tr>
-<tr>
-<td><a href='#closeapplicationrequest'><code>CloseApplicationRequest</code></a></td>
+<td><a href='#templates.plaintext'><code>Templates.PlainText</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#editapplicationrequest'><code>EditApplicationRequest</code></a></td>
-<td><i>No description</i></td>
+<td><a href='#usercriteria'><code>UserCriteria</code></a></td>
+<td>Describes some criteria which match a user</td>
+</tr>
+<tr>
+<td><a href='#usercriteria.anyone'><code>UserCriteria.Anyone</code></a></td>
+<td>Matches any user</td>
+</tr>
+<tr>
+<td><a href='#usercriteria.emaildomain'><code>UserCriteria.EmailDomain</code></a></td>
+<td>Matches any user with an email domain equal to `domain`</td>
+</tr>
+<tr>
+<td><a href='#usercriteria.wayforganization'><code>UserCriteria.WayfOrganization</code></a></td>
+<td>Matches any user with an organization matching `org`</td>
 </tr>
 <tr>
 <td><a href='#grantapplication.allocationrequest'><code>GrantApplication.AllocationRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#grantsbrowseaffiliationsbyresourcerequest'><code>GrantsBrowseAffiliationsByResourceRequest</code></a></td>
+<td><a href='#grantrequestsettings'><code>GrantRequestSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.browse.request'><code>GrantsV2.Browse.Request</code></a></td>
 <td>The base type for requesting paginated content.</td>
 </tr>
 <tr>
-<td><a href='#grantsbrowseaffiliationsrequest'><code>GrantsBrowseAffiliationsRequest</code></a></td>
-<td>The base type for requesting paginated content.</td>
-</tr>
-<tr>
-<td><a href='#grantsbrowseproductsrequest'><code>GrantsBrowseProductsRequest</code></a></td>
+<td><a href='#grantsv2.deletecomment.request'><code>GrantsV2.DeleteComment.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#retrieveapplicationrequest'><code>RetrieveApplicationRequest</code></a></td>
+<td><a href='#grantsv2.postcomment.request'><code>GrantsV2.PostComment.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#transferapplicationrequest'><code>TransferApplicationRequest</code></a></td>
+<td><a href='#grantsv2.retrievegrantgivers.request'><code>GrantsV2.RetrieveGrantGivers.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#grantsbrowseproductsresponse'><code>GrantsBrowseProductsResponse</code></a></td>
+<td><a href='#grantsv2.retrievegrantgivers.request.existingapplication'><code>GrantsV2.RetrieveGrantGivers.Request.ExistingApplication</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.retrievegrantgivers.request.existingproject'><code>GrantsV2.RetrieveGrantGivers.Request.ExistingProject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.retrievegrantgivers.request.newproject'><code>GrantsV2.RetrieveGrantGivers.Request.NewProject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.retrievegrantgivers.request.personalworkspace'><code>GrantsV2.RetrieveGrantGivers.Request.PersonalWorkspace</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.retrievelogo.request'><code>GrantsV2.RetrieveLogo.Request</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.submitrevision.request'><code>GrantsV2.SubmitRevision.Request</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.transfer.request'><code>GrantsV2.Transfer.Request</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.updatestate.request'><code>GrantsV2.UpdateState.Request</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#grantsv2.retrievegrantgivers.response'><code>GrantsV2.RetrieveGrantGivers.Response</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -237,361 +261,164 @@ Grants acts as a more user-friendly gateway to receiving resources from a projec
 
 ## Remote Procedure Calls
 
-### `browseAffiliationsByResource`
+### `browse`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#grantsbrowseaffiliationsbyresourcerequest'>GrantsBrowseAffiliationsByResourceRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#grantsv2.browse.request'>GrantsV2.Browse.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#grantapplication'>GrantApplication</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `browseApplications`
+### `retrieve`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_List active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)s_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#browseapplicationsrequest'>BrowseApplicationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#grantapplication'>GrantApplication</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-Lists active `GrantApplication`s which are relevant to a project. By using
-                    [`BrowseApplicationFlags`](/docs/reference/dk.sdu.cloud.grant.api.BrowseApplicationFlags.md)  it is possible to filter on ingoing and/or outgoing.
-
-
-### `browseProducts`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#grantsbrowseproductsrequest'>GrantsBrowseProductsRequest</a></code>|<code><a href='#grantsbrowseproductsresponse'>GrantsBrowseProductsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='#grantapplication'>GrantApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `browseProjects`
+### `retrieveLogo`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#grantsv2.retrievelogo.request'>GrantsV2.RetrieveLogo.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveRequestSettings`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Endpoint for users to browse projects which they can send a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#browseprojectsrequest'>BrowseProjectsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-Concretely, this will return a list for which the user matches the criteria listed in
-`ProjectApplicationSettings.allowRequestsFrom`.
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#grantrequestsettings'>GrantRequestSettings</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
-### `retrieveAffiliations`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+### `deleteComment`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#grantsbrowseaffiliationsrequest'>GrantsBrowseAffiliationsRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#projectwithtitle'>ProjectWithTitle</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#grantsv2.deletecomment.request'>GrantsV2.DeleteComment.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `viewApplication`
+### `postComment`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves an active [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#retrieveapplicationrequest'>RetrieveApplicationRequest</a></code>|<code><a href='#grantapplication'>GrantApplication</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-Only the creator and grant reviewers are allowed to view any given [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)
+|<code><a href='#grantsv2.postcomment.request'>GrantsV2.PostComment.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
-### `closeApplication`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+### `retrieveGrantGivers`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Closes an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#closeapplicationrequest'>CloseApplicationRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This action is identical to rejecting the [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  using `updateApplicationState` except it can be performed by the [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  creator.
+|<code><a href='#grantsv2.retrievegrantgivers.request'>GrantsV2.RetrieveGrantGivers.Request</a></code>|<code><a href='#grantsv2.retrievegrantgivers.response'>GrantsV2.RetrieveGrantGivers.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
-### `editApplication`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+### `submitRevision`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Performs an edit to an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#editapplicationrequest'>EditApplicationRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-Both the creator and any of the grant reviewers are allowed to edit the application.
+|<code><a href='#grantsv2.submitrevision.request'>GrantsV2.SubmitRevision.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
-### `submitApplication`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+### `transfer`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Submits a [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.md)  to a project_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#createapplication'>CreateApplication</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-In order for the user to submit an application they must match any criteria in
-`ProjectApplicationSettings.allowRequestsFrom`. If they are not the request will fail.
+|<code><a href='#grantsv2.transfer.request'>GrantsV2.Transfer.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
-### `transferApplication`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+### `updateRequestSettings`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: USER, ADMIN, SERVICE](https://img.shields.io/static/v1?label=Auth&message=USER,+ADMIN,+SERVICE&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Transfers allocation request to other root project_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#transferapplicationrequest'>TransferApplicationRequest</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#grantrequestsettings'>GrantRequestSettings</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `updateApplicationState`
+### `updateState`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Approves or rejects an existing [`GrantApplication`](/docs/reference/dk.sdu.cloud.grant.api.GrantApplication..md)  If accepted by all grant givers this will trigger granting of resources to the `GrantApplication.Document.recipient`._
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#updateapplicationstate'>UpdateApplicationState</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#grantsv2.updatestate.request'>GrantsV2.UpdateState.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-Only the grant reviewer can perform this action.
+
+
+### `uploadLogo`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
 
 
 
 ## Data Models
-
-### `UserCriteria`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Describes some criteria which match a user_
-
-```kotlin
-sealed class UserCriteria {
-    class Anyone : UserCriteria()
-    class EmailDomain : UserCriteria()
-    class WayfOrganization : UserCriteria()
-}
-```
-This is used in conjunction with actions that require authorization.
-
-
-
----
-
-### `UserCriteria.Anyone`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Matches any user_
-
-```kotlin
-data class Anyone(
-    val type: String /* "anyone" */,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "anyone" */</code></code> The type discriminator
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `UserCriteria.EmailDomain`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Matches any user with an email domain equal to `domain`_
-
-```kotlin
-data class EmailDomain(
-    val domain: String,
-    val type: String /* "email" */,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>domain</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "email" */</code></code> The type discriminator
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `UserCriteria.WayfOrganization`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Matches any user with an organization matching `org`_
-
-```kotlin
-data class WayfOrganization(
-    val org: String,
-    val type: String /* "wayf" */,
-)
-```
-The organization is currently derived from the information we receive from WAYF.
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>org</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "wayf" */</code></code> The type discriminator
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `CreateApplication`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class CreateApplication(
-    val document: GrantApplication.Document,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>document</code>: <code><code><a href='#grantapplication.document'>GrantApplication.Document</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
 
 ### `GrantApplication`
 
@@ -675,7 +502,7 @@ closed.
 
 <details>
 <summary>
-<code>status</code>: <code><code><a href='#grantapplication.status'>GrantApplication.Status</a></code></code> Status information about the application in its entireity
+<code>status</code>: <code><code><a href='#grantapplication.status'>GrantApplication.Status</a></code></code> Status information about the application in its entirety
 </summary>
 
 
@@ -787,7 +614,7 @@ data class Document(
     val recipient: GrantApplication.Recipient,
     val allocationRequests: List<GrantApplication.AllocationRequest>,
     val form: GrantApplication.Form,
-    val referenceId: String?,
+    val referenceIds: List<String>?,
     val revisionComment: String?,
     val parentProjectId: String?,
     val type: String /* "document" */,
@@ -840,7 +667,7 @@ Immutable after creation: No
 
 <details>
 <summary>
-<code>referenceId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A reference used for out-of-band book-keeping
+<code>referenceIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> A reference used for out-of-band bookkeeping
 </summary>
 
 
@@ -904,6 +731,7 @@ Immutable after creation: No. First revision must always be null.
 sealed class Form {
     abstract val type: String /* "form" */
 
+    class GrantGiverInitiated : Form()
     class PlainText : Form()
 }
 ```
@@ -916,6 +744,54 @@ sealed class Form {
 <details>
 <summary>
 <code>type</code>: <code><code>String /* "form" */</code></code> The type discriminator
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `GrantApplication.Form.GrantGiverInitiated`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class GrantGiverInitiated(
+    val text: String,
+    val type: String /* "grant_giver_initiated" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>text</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "grant_giver_initiated" */</code></code> The type discriminator
 </summary>
 
 
@@ -1628,16 +1504,19 @@ enum class GrantApplicationFilter {
 
 ---
 
-### `ProjectWithTitle`
+### `GrantGiver`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class ProjectWithTitle(
-    val projectId: String,
+data class GrantGiver(
+    val id: String,
     val title: String,
+    val description: String,
+    val templates: Templates,
+    val categories: List<ProductCategory>,
 )
 ```
 
@@ -1648,7 +1527,7 @@ data class ProjectWithTitle(
 
 <details>
 <summary>
-<code>projectId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -1668,6 +1547,39 @@ data class ProjectWithTitle(
 
 </details>
 
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>templates</code>: <code><code><a href='#templates'>Templates</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>categories</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md'>ProductCategory</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -1676,17 +1588,34 @@ data class ProjectWithTitle(
 
 ---
 
-### `UpdateApplicationState`
+### `Templates`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class UpdateApplicationState(
-    val applicationId: Long,
-    val newState: GrantApplication.State,
-    val notify: Boolean?,
+sealed class Templates {
+    class PlainText : Templates()
+}
+```
+
+
+
+---
+
+### `Templates.PlainText`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class PlainText(
+    val personalProject: String,
+    val newProject: String,
+    val existingProject: String,
+    val type: String /* "plain_text" */,
 )
 ```
 
@@ -1697,7 +1626,7 @@ data class UpdateApplicationState(
 
 <details>
 <summary>
-<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>personalProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is a personal project
 </summary>
 
 
@@ -1708,7 +1637,7 @@ data class UpdateApplicationState(
 
 <details>
 <summary>
-<code>newState</code>: <code><code><a href='#grantapplication.state'>GrantApplication.State</a></code></code>
+<code>newProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is a new project
 </summary>
 
 
@@ -1719,7 +1648,7 @@ data class UpdateApplicationState(
 
 <details>
 <summary>
-<code>notify</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>existingProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The template provided for new grant applications when the grant requester is an existing project
 </summary>
 
 
@@ -1728,61 +1657,44 @@ data class UpdateApplicationState(
 
 </details>
 
-
-
-</details>
-
-
-
----
-
-### `BrowseApplicationsRequest`
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "plain_text" */</code></code> The type discriminator
+</summary>
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_The base type for requesting paginated content._
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `UserCriteria`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Describes some criteria which match a user_
 
 ```kotlin
-data class BrowseApplicationsRequest(
-    val filter: GrantApplicationFilter?,
-    val includeIngoingApplications: Boolean?,
-    val includeOutgoingApplications: Boolean?,
-    val itemsPerPage: Int?,
-    val next: String?,
-    val consistency: PaginationRequestV2Consistency?,
-    val itemsToSkip: Long?,
-)
+sealed class UserCriteria {
+    abstract val id: String?
+    abstract val type: String
+
+    class Anyone : UserCriteria()
+    class EmailDomain : UserCriteria()
+    class WayfOrganization : UserCriteria()
+}
 ```
-Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-semantics of the call:
-
-| Consistency | Description |
-|-------------|-------------|
-| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-
-The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-must contain all the items, in the correct order and without duplicates.
-
-If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-consistent.
-
-The results might become inconsistent if the client either takes too long, or a service instance goes down while
-fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-
----
-
-__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-paginate through the results.
-
----
+This is used in conjunction with actions that require authorization.
 
 <details>
 <summary>
@@ -1791,9 +1703,10 @@ paginate through the results.
 
 <details>
 <summary>
-<code>filter</code>: <code><code><a href='#grantapplicationfilter'>GrantApplicationFilter</a>?</code></code>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1802,64 +1715,10 @@ paginate through the results.
 
 <details>
 <summary>
-<code>includeIngoingApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>type</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeOutgoingApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
-</summary>
-
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1874,117 +1733,18 @@ paginate through the results.
 
 ---
 
-### `BrowseProjectsRequest`
+### `UserCriteria.Anyone`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_The base type for requesting paginated content._
+_Matches any user_
 
 ```kotlin
-data class BrowseProjectsRequest(
-    val itemsPerPage: Int?,
-    val next: String?,
-    val consistency: PaginationRequestV2Consistency?,
-    val itemsToSkip: Long?,
-)
-```
-Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-semantics of the call:
-
-| Consistency | Description |
-|-------------|-------------|
-| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-
-The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-must contain all the items, in the correct order and without duplicates.
-
-If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-consistent.
-
-The results might become inconsistent if the client either takes too long, or a service instance goes down while
-fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-
----
-
-__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-paginate through the results.
-
----
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `CloseApplicationRequest`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class CloseApplicationRequest(
-    val applicationId: String,
+data class Anyone(
+    val id: String?,
+    val type: String,
+    val type: String /* "anyone" */,
 )
 ```
 
@@ -1995,7 +1755,31 @@ data class CloseApplicationRequest(
 
 <details>
 <summary>
-<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "anyone" */</code></code> The type discriminator
 </summary>
 
 
@@ -2012,16 +1796,19 @@ data class CloseApplicationRequest(
 
 ---
 
-### `EditApplicationRequest`
+### `UserCriteria.EmailDomain`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Matches any user with an email domain equal to `domain`_
 
 ```kotlin
-data class EditApplicationRequest(
-    val applicationId: Long,
-    val document: GrantApplication.Document,
+data class EmailDomain(
+    val domain: String,
+    val id: String?,
+    val type: String,
+    val type: String /* "email" */,
 )
 ```
 
@@ -2032,7 +1819,7 @@ data class EditApplicationRequest(
 
 <details>
 <summary>
-<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>domain</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -2043,7 +1830,107 @@ data class EditApplicationRequest(
 
 <details>
 <summary>
-<code>document</code>: <code><code><a href='#grantapplication.document'>GrantApplication.Document</a></code></code>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "email" */</code></code> The type discriminator
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `UserCriteria.WayfOrganization`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Matches any user with an organization matching `org`_
+
+```kotlin
+data class WayfOrganization(
+    val org: String,
+    val id: String?,
+    val type: String,
+    val type: String /* "wayf" */,
+)
+```
+The organization is currently derived from the information we receive from WAYF.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>org</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "wayf" */</code></code> The type discriminator
 </summary>
 
 
@@ -2168,20 +2055,106 @@ data class AllocationRequest(
 
 ---
 
-### `GrantsBrowseAffiliationsByResourceRequest`
+### `GrantRequestSettings`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class GrantRequestSettings(
+    val enabled: Boolean,
+    val description: String,
+    val allowRequestsFrom: List<UserCriteria>,
+    val excludeRequestsFrom: List<UserCriteria>,
+    val templates: Templates,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>enabled</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allowRequestsFrom</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#usercriteria'>UserCriteria</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>excludeRequestsFrom</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#usercriteria'>UserCriteria</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>templates</code>: <code><code><a href='#templates'>Templates</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `GrantsV2.Browse.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
 
 ```kotlin
-data class GrantsBrowseAffiliationsByResourceRequest(
+data class Request(
     val itemsPerPage: Int?,
     val next: String?,
     val consistency: PaginationRequestV2Consistency?,
     val itemsToSkip: Long?,
-    val applicationId: String,
+    val filter: GrantApplicationFilter?,
+    val includeIngoingApplications: Boolean?,
+    val includeOutgoingApplications: Boolean?,
 )
 ```
 Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
@@ -2262,6 +2235,65 @@ paginate through the results.
 
 
 </details>
+
+<details>
+<summary>
+<code>filter</code>: <code><code><a href='#grantapplicationfilter'>GrantApplicationFilter</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeIngoingApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeOutgoingApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `GrantsV2.DeleteComment.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Request(
+    val applicationId: String,
+    val commentId: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
 
 <details>
 <summary>
@@ -2274,6 +2306,17 @@ paginate through the results.
 
 </details>
 
+<details>
+<summary>
+<code>commentId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -2282,52 +2325,18 @@ paginate through the results.
 
 ---
 
-### `GrantsBrowseAffiliationsRequest`
+### `GrantsV2.PostComment.Request`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_The base type for requesting paginated content._
 
 ```kotlin
-data class GrantsBrowseAffiliationsRequest(
-    val itemsPerPage: Int?,
-    val next: String?,
-    val consistency: PaginationRequestV2Consistency?,
-    val itemsToSkip: Long?,
-    val recipientId: String?,
-    val recipientType: String?,
+data class Request(
+    val applicationId: String,
+    val comment: String,
 )
 ```
-Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-semantics of the call:
-
-| Consistency | Description |
-|-------------|-------------|
-| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-
-The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-must contain all the items, in the correct order and without duplicates.
-
-If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-consistent.
-
-The results might become inconsistent if the client either takes too long, or a service instance goes down while
-fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-
----
-
-__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-paginate through the results.
-
----
 
 <details>
 <summary>
@@ -2336,7 +2345,7 @@ paginate through the results.
 
 <details>
 <summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -2347,51 +2356,7 @@ paginate through the results.
 
 <details>
 <summary>
-<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>recipientId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>recipientType</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>comment</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -2408,18 +2373,218 @@ paginate through the results.
 
 ---
 
-### `GrantsBrowseProductsRequest`
+### `GrantsV2.RetrieveGrantGivers.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+sealed class Request {
+    class ExistingApplication : Request()
+    class ExistingProject : Request()
+    class NewProject : Request()
+    class PersonalWorkspace : Request()
+}
+```
+
+
+
+---
+
+### `GrantsV2.RetrieveGrantGivers.Request.ExistingApplication`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ExistingApplication(
+    val id: String,
+    val type: String /* "ExistingApplication" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "ExistingApplication" */</code></code> The type discriminator
+</summary>
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `GrantsV2.RetrieveGrantGivers.Request.ExistingProject`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
 ```kotlin
-data class GrantsBrowseProductsRequest(
+data class ExistingProject(
+    val id: String,
+    val type: String /* "ExistingProject" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "ExistingProject" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `GrantsV2.RetrieveGrantGivers.Request.NewProject`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class NewProject(
+    val title: String,
+    val type: String /* "NewProject" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "NewProject" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `GrantsV2.RetrieveGrantGivers.Request.PersonalWorkspace`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class PersonalWorkspace(
+    val type: String /* "PersonalWorkspace" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "PersonalWorkspace" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `GrantsV2.RetrieveLogo.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Request(
     val projectId: String,
-    val recipientType: String,
-    val recipientId: String,
-    val showHidden: Boolean?,
 )
 ```
 
@@ -2439,9 +2604,36 @@ data class GrantsBrowseProductsRequest(
 
 </details>
 
+
+
+</details>
+
+
+
+---
+
+### `GrantsV2.SubmitRevision.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Request(
+    val revision: GrantApplication.Document,
+    val comment: String,
+    val applicationId: String?,
+)
+```
+
 <details>
 <summary>
-<code>recipientType</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>revision</code>: <code><code><a href='#grantapplication.document'>GrantApplication.Document</a></code></code>
 </summary>
 
 
@@ -2452,7 +2644,7 @@ data class GrantsBrowseProductsRequest(
 
 <details>
 <summary>
-<code>recipientId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>comment</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -2463,7 +2655,7 @@ data class GrantsBrowseProductsRequest(
 
 <details>
 <summary>
-<code>showHidden</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -2480,15 +2672,17 @@ data class GrantsBrowseProductsRequest(
 
 ---
 
-### `RetrieveApplicationRequest`
+### `GrantsV2.Transfer.Request`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class RetrieveApplicationRequest(
-    val id: Long,
+data class Request(
+    val applicationId: String,
+    val target: String,
+    val comment: String,
 )
 ```
 
@@ -2499,7 +2693,29 @@ data class RetrieveApplicationRequest(
 
 <details>
 <summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>target</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>comment</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -2516,17 +2732,16 @@ data class RetrieveApplicationRequest(
 
 ---
 
-### `TransferApplicationRequest`
+### `GrantsV2.UpdateState.Request`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class TransferApplicationRequest(
-    val applicationId: Long,
-    val transferToProjectId: String,
-    val revisionComment: String,
+data class Request(
+    val applicationId: String,
+    val newState: GrantApplication.State,
 )
 ```
 
@@ -2537,7 +2752,7 @@ data class TransferApplicationRequest(
 
 <details>
 <summary>
-<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>applicationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -2548,18 +2763,7 @@ data class TransferApplicationRequest(
 
 <details>
 <summary>
-<code>transferToProjectId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>revisionComment</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>newState</code>: <code><code><a href='#grantapplication.state'>GrantApplication.State</a></code></code>
 </summary>
 
 
@@ -2576,15 +2780,15 @@ data class TransferApplicationRequest(
 
 ---
 
-### `GrantsBrowseProductsResponse`
+### `GrantsV2.RetrieveGrantGivers.Response`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class GrantsBrowseProductsResponse(
-    val availableProducts: List<Product>,
+data class Response(
+    val grantGivers: List<GrantGiver>,
 )
 ```
 
@@ -2595,7 +2799,7 @@ data class GrantsBrowseProductsResponse(
 
 <details>
 <summary>
-<code>availableProducts</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.md'>Product</a>&gt;</code></code>
+<code>grantGivers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#grantgiver'>GrantGiver</a>&gt;</code></code>
 </summary>
 
 

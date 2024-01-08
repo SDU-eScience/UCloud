@@ -12,7 +12,6 @@ import {
     ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import MainContainer from "@/ui-components/MainContainer";
 import {callAPI} from "@/Authentication/DataHook";
 import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
@@ -24,9 +23,10 @@ import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/R
 import {Product, ProductStorage} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
@@ -46,7 +46,7 @@ const FEATURES: ResourceBrowseFeatures = {
     locationBar: false,
     showStar: false,
     renderSpinnerWhenLoading: true,
-    breadcrumbsSeparatedBySlashes: true,
+    breadcrumbsSeparatedBySlashes: false,
     search: true,
     filters: true,
     sorting: true,
@@ -68,7 +68,12 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
-                browser.setColumnTitles([{name: "Drive name", sortById: "title"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: ""}])
+                browser.setColumnTitles([
+                    {name: "Drive name", sortById: "title"},
+                    {name: ""},
+                    {name: "Created by", sortById: "createdBy"},
+                    {name: "Created at", sortById: "createdAt"},
+                ]);
 
                 // Load products and initialize dependencies
                 // =========================================================================================================
@@ -299,12 +304,13 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims, row)
                     row.title.append(title);
                     if (drive.owner.createdBy !== "_ucloud") {
-                        row.stat1.innerText = drive.owner.createdBy;
+                        row.stat2.innerText = drive.owner.createdBy;
                     }
-                    row.stat2.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                     if (drive.id.startsWith(isCreatingPrefix)) {
-                        row.stat1.append(browser.createSpinner(30));
+                        row.stat2.append(browser.createSpinner(30));
                     }
+
+                    row.stat3.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                 });
 
 
@@ -343,7 +349,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 // =========================================================================================================
                 browser.on("open", (oldPath, newPath) => {
                     if (newPath !== "/") {
-                        navigate("/files/?path=" + encodeURIComponent(`/${newPath}`));
+                        const p = newPath.startsWith("/") ? newPath : "/" + newPath;
+                        navigate("/files?path=" + encodeURIComponent(p));
                         return;
                     }
 
@@ -409,7 +416,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useRefreshFunction(() => {
+        useSetRefreshFunction(() => {
             browserRef.current?.refresh();
         });
     }

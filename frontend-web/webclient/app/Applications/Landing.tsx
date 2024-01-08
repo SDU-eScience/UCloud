@@ -4,14 +4,13 @@ import {useCallback, useEffect, useState} from "react";
 import {Box, Button, Flex, Icon, Input} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {AppCardStyle} from "./Card";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useTitle} from "@/Navigation/Redux";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreSections = compute.AppStoreSections;
-import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
+import {ReducedApiInterface} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
@@ -22,6 +21,7 @@ import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationGroupToRowItem, ApplicationSummaryToRowItem} from "./ApplicationsRow";
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -145,15 +145,13 @@ const ApplicationsLanding: React.FunctionComponent = () => {
         fetchSections(UCloud.compute.apps.appStoreSections({page: "LANDING"}));
     }, [refreshId]);
 
-    useResourceSearch(ApiLike);
-
     const dispatch = useDispatch();
 
     useTitle("Applications");
     const refresh = useCallback(() => {
         setRefreshId(id => id + 1);
     }, []);
-    useRefreshFunction(refresh);
+    useSetRefreshFunction(refresh);
 
     const favorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 

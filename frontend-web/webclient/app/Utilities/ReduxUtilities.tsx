@@ -1,21 +1,28 @@
-import dashboard from "@/Dashboard/Redux/DashboardReducer";
+import {useEffect} from "react";
+import {Action, AnyAction, combineReducers, compose} from "redux";
+
+import {dashboardReducer} from "@/Dashboard/Redux";
 import {initObject} from "@/DefaultObjects";
-import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
-import status from "@/Navigation/Redux/StatusReducer";
-import * as ProjectRedux from "@/Project/Redux";
-import {Action, AnyAction, combineReducers, legacy_createStore, Store} from "redux";
-import {composeWithDevTools} from "redux-devtools-extension";
-import avatar from "@/UserSettings/Redux/AvataaarReducer";
+import {statusReducer} from "@/Navigation/Redux";
+import * as ProjectRedux from "@/Project/ReduxState";
+import {avatarReducer} from "@/UserSettings/Redux";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
 import sidebar from "@/Applications/Redux/Reducer";
+import {EnhancedStore, configureStore} from "@reduxjs/toolkit";
+import {noopCall} from "@/Authentication/DataHook";
+
+export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
+export const USER_LOGIN = "USER_LOGIN";
+export const USER_LOGOUT = "USER_LOGOUT";
+
 
 export function confStore(
     initialObject: ReduxObject,
     reducers,
     enhancers?
-): Store<ReduxObject> {
+): EnhancedStore<ReduxObject> {
     const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {
@@ -23,16 +30,15 @@ export function confStore(
         }
         return combinedReducers(state, action);
     };
-    return legacy_createStore<ReduxObject, AnyAction, {}, {}>(rootReducer, initialObject, composeWithDevTools(enhancers));
+    return configureStore<ReduxObject>({reducer: rootReducer, preloadedState: initialObject, enhancers: compose(enhancers)});
 }
 
 export const store = confStore(initObject(), {
-    dashboard,
-    header,
-    status,
+    dashboard: dashboardReducer,
+    status: statusReducer,
     hookStore,
     sidebar,
-    avatar,
+    avatar: avatarReducer,
     terminal: terminalReducer,
     loading,
     project: ProjectRedux.reducer,
@@ -48,4 +54,44 @@ function loading(state = false, action: {type: string}): boolean {
         default:
             return state;
     }
+}
+
+export const refreshFunctionCache = new class {
+    private refresh: () => void = () => void 0;
+    private subscribers: (() => void)[] = [];
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public getSnapshot(): () => void {
+        return this.refresh;
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public setRefreshFunction(refreshFn: () => void): void {
+        this.refresh = refreshFn;
+        this.emitChange();
+    }
+}
+
+export function useSetRefreshFunction(refreshFn: () => void): void {
+    useEffect(() => {
+        refreshFunctionCache.setRefreshFunction(refreshFn);
+        return () => {
+            refreshFunctionCache.setRefreshFunction(noopCall);
+        };
+    }, [refreshFn]);
+}
+
+export function useRefresh(): () => void {
+    return refreshFunctionCache.getSnapshot();
 }

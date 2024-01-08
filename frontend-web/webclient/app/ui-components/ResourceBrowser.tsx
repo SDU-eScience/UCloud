@@ -1,6 +1,6 @@
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor, addThemeListener, removeThemeListener} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -10,13 +10,12 @@ import {fileName, resolvePath} from "@/Utilities/FileUtilities";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
-import {makeClassName, injectStyle as unstyledInjectStyle} from "@/Unstyled";
+import {injectStyle, makeClassName, injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
-import {addThemeListener, removeThemeListener} from "@/Core";
-import {addProjectListener, removeProjectListener} from "@/Project/Redux";
+import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
@@ -29,10 +28,11 @@ import {ButtonClass} from "./Button";
 import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {FlexClass} from "./Flex";
+import Flex, {FlexClass} from "./Flex";
+import * as Heading from "@/ui-components/Heading";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
-const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
@@ -237,7 +237,6 @@ interface ResourceBrowserListenerMap<T> {
 
 interface ResourceBrowserRow {
     container: HTMLElement;
-    selected: HTMLInputElement;
     star: HTMLElement;
     title: HTMLElement;
     stat1: HTMLElement;
@@ -390,7 +389,10 @@ export class ResourceBrowser<T> {
     public static isAnyModalOpen = false;
     private isModal: boolean;
     private allowEventListenerAction(): boolean {
-        return !ResourceBrowser.isAnyModalOpen || this.isModal;
+        if (ResourceBrowser.isAnyModalOpen) return false;
+        if (this.isModal) return false;
+        if (this.opts.embedded) return false;
+        return true;
     }
 
 
@@ -449,7 +451,7 @@ export class ResourceBrowser<T> {
                     <img class="refresh-icon">
                 </div>
                 <div class="operations"></div>
-                <div style="display: flex; overflow-x: scroll;">
+                <div style="display: flex; overflow-x: auto;">
                     <div class="filters"></div>
                     <div class="session-filters"></div>
                     <div class="right-sort-filters"></div>
@@ -459,9 +461,11 @@ export class ResourceBrowser<T> {
             <div class="row rows-title">
                 <div class="favorite" style="width: 20px;"></div>
                 <div class="title"></div>
-                <div class="stat1"></div>
-                <div class="stat2"></div>
-                <div class="stat3"></div>
+                <div class="stat-wrapper">
+                    <div class="stat1"></div>
+                    <div class="stat2"></div>
+                    <div class="stat3"></div>
+                </div>
             </div>
             <div style="overflow-y: auto; position: relative;">
                 <div class="scrolling">
@@ -503,14 +507,14 @@ export class ResourceBrowser<T> {
 
         if (this.opts.embedded) {
             this.root.style.height = "auto";
-            this.emptyPageElement.container.style.marginTop = "80px";
+            this.emptyPageElement.container.style.marginTop = "0px";
             if (this.features.showHeaderInEmbedded !== true) this.header.style.display = "none";
         }
 
         if (this.isModal) {
             this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
             this.root.style.overflowY = "hidden";
-            this.scrolling.style.overflowY = "scroll";
+            this.scrolling.style.overflowY = "auto";
         }
 
         const unmountInterval = window.setInterval(() => {
@@ -529,25 +533,23 @@ export class ResourceBrowser<T> {
         );
 
         if (this.features.locationBar) {
+            this.header.setAttribute("has-location-bar", "true");
             const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location")!;
-            location.style.flexGrow = "1";
-            location.style.border = "1px solid var(--black)";
-            location.style.padding = "0 6px";
-            location.style.borderRadius = "4px";
-            location.style.width = "100%";
-            location.style.cursor = "pointer";
-            const ul = location.querySelector<HTMLUListElement>(":scope > ul")!;
-            ul.style.marginTop = "-2px";
-            ul.style.marginBottom = "-2px";
-
-            location.addEventListener("click", () => {
-                this.toggleLocationBar();
-                if (this.isLocationBarVisible()) {
-                    location["style"].border = "";
-                } else {
-                    location["style"].border = "1px solid var(--black)";
+            location.addEventListener("click", ev => {
+                ev.stopPropagation();
+                if (!this.isLocationBarVisible() && this.features.locationBar) {
+                    this.setLocationBarVisibility(true);
                 }
             });
+            const listener = () => {
+                if (!location.isConnected) {
+                    document.body.removeEventListener("click", listener);
+                }
+                if (this.features.locationBar) { // We can toggle this value in the child component
+                    this.setLocationBarVisibility(false);
+                }
+            };
+            document.body.addEventListener("click", listener);
         }
 
         if (this.features.search) {
@@ -603,6 +605,10 @@ export class ResourceBrowser<T> {
             titleRow["style"].display = "flex";
             titleRow["style"].height = titleRow["style"].maxHeight = "28px";
             titleRow["style"].paddingBottom = "6px";
+            if (!this.features.showStar) {
+                const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
+                star.remove();
+            }
             this.setColumnTitles(this.opts.columnTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
@@ -719,12 +725,13 @@ export class ResourceBrowser<T> {
         const rows: HTMLDivElement[] = [];
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
             const row = div(`
-                <input type="checkbox">
                 <div class="favorite"></div>
                 <div class="title"></div>
-                <div class="stat1"></div>
-                <div class="stat2"></div>
-                <div class="stat3"></div>
+                <div class="stat-wrapper">
+                    <div class="stat1"></div>
+                    <div class="stat2"></div>
+                    <div class="stat3"></div>
+                </div>
             `);
             row.classList.add("row");
             const myIndex = i;
@@ -751,23 +758,12 @@ export class ResourceBrowser<T> {
 
             const r = {
                 container: row,
-                selected: row.querySelector<HTMLInputElement>("input")!,
                 star: row.querySelector<HTMLElement>(".favorite")!,
                 title: row.querySelector<HTMLElement>(".title")!,
                 stat1: row.querySelector<HTMLElement>(".stat1")!,
                 stat2: row.querySelector<HTMLElement>(".stat2")!,
                 stat3: row.querySelector<HTMLElement>(".stat3")!,
             };
-
-            r.selected.addEventListener("pointerdown", e => {
-                e.preventDefault();
-                e.stopPropagation();
-            });
-
-            r.selected.addEventListener("click", e => {
-                e.stopPropagation();
-                this.select(parseInt(r.container.getAttribute("data-idx") ?? "-1"), SelectionMode.TOGGLE_SINGLE);
-            });
 
             r.star.addEventListener("pointerdown", e => {
                 e.preventDefault();
@@ -862,11 +858,6 @@ export class ResourceBrowser<T> {
             separate test project. This can be done from the "Resource Allocations" menu in the project
             management interface.
         </p>
-
-        <p>
-            <b>NOTE:</b> All resources created prior to this update are still available. If you need to transfer
-            old resources to a new project, then please contact support.
-        </p>
         `;
     }
 
@@ -946,8 +937,7 @@ export class ResourceBrowser<T> {
             row.container.removeAttribute("data-selected");
             row.container.removeAttribute("data-idx");
             row.container.style.position = "absolute";
-            row.selected.style.display = hasAnySelected || !this.features.showStar ? "block" : "none";
-            row.star.style.display = hasAnySelected || !this.features.showStar ? "none" : "block";
+            row.star.style.display = !this.features.showStar ? "none" : "block";
             const top = Math.min(totalSize - ResourceBrowser.rowSize, (firstRowToRender + i) * ResourceBrowser.rowSize);
             row.container.style.top = `${top}px`;
             row.title.innerHTML = "";
@@ -980,7 +970,6 @@ export class ResourceBrowser<T> {
 
             row.container.setAttribute("data-idx", i.toString());
             row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
-            row.selected.checked = (this.isSelected[i] !== 0);
             row.container.classList.remove("hidden");
 
             const x = this.scrollingContainerLeft + relativeX;
@@ -1538,6 +1527,7 @@ export class ResourceBrowser<T> {
 
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             for (const child of operations) {
+                if (child["hackNotInTheContextMenu"]) continue;
                 if (!isOperation(child)) {
                     counter += renderOperationsInContextMenu(child.operations, posX, posY, shortcutNumber, false);
                     shortcutNumber = counter + 1;
@@ -1548,11 +1538,9 @@ export class ResourceBrowser<T> {
                 const isDisabled = typeof text === "string";
 
                 var item = document.createElement("li");
+                const isConfirm = isOperation(child) && child.confirm;
 
                 if (isDisabled) {
-                    item.style.backgroundColor = "var(--midGray)";
-                    item.style.cursor = "not-allowed";
-                    item.style.filter = "opacity(25%)";
                     const d = document.createElement("div");
                     d.innerText = text;
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
@@ -1563,7 +1551,6 @@ export class ResourceBrowser<T> {
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
-                const isConfirm = isOperation(child) && child.confirm;
                 this.contextMenuHandlers.push(() => {
                     if (isDisabled) {
                         // No action
@@ -1603,7 +1590,8 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
-            element.classList.add(ButtonClass);
+            const isConfirmButton = isOperation(op) && op.confirm;
+            if (!isConfirmButton) element.classList.add(ButtonClass);
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
             const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
@@ -1612,8 +1600,10 @@ export class ResourceBrowser<T> {
             if (handleDisabled) {
                 const d = document.createElement("div");
                 d.innerText = enabled;
-                element.style.cursor = "not-allowed";
-                element.style.filter = "opacity(25%)";
+                if (isOperation(op) && !op.confirm) {
+                    element.style.cursor = "not-allowed";
+                    element.style.filter = "opacity(25%)";
+                }
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
@@ -2379,7 +2369,7 @@ export class ResourceBrowser<T> {
                         if (newClipboard.length) {
                             const key = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "Ctrl + ";
                             snackbarStore.addInformation(
-                                `${newClipboard.length} copied to clipboard.Use ${key}V to insert.`,
+                                `${newClipboard.length} copied to clipboard. Use ${key}V to insert.`,
                                 false
                             );
                         }
@@ -2642,7 +2632,7 @@ export class ResourceBrowser<T> {
 
                 case "Enter": {
                     const newPath = readValue();
-                    if (newPath) {
+                    if (newPath && newPath !== "/search") {
                         this.setLocationBarVisibility(false);
                         this.open(newPath);
                     }
@@ -2651,8 +2641,6 @@ export class ResourceBrowser<T> {
 
                 case "Escape": {
                     this.setLocationBarVisibility(false);
-                    const location = this.header.querySelector<HTMLDivElement>(".header-first-row > div.location");
-                    if (location) location.style.border = "1px solid var(--black)";
                     setValue(this.currentPath);
                     break;
                 }
@@ -2779,7 +2767,7 @@ export class ResourceBrowser<T> {
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         fetchFilters: () => [],
-        searchHidden: () => { },
+        searchHidden: () => {},
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};
@@ -2848,7 +2836,6 @@ export class ResourceBrowser<T> {
         if (ResourceBrowser.styleInjected) return;
         ResourceBrowser.styleInjected = true;
         const browserClass = makeClassName("browser");
-        //language=css
         unstyledInjectStyle("ignored", () => `
             body[data-cursor=not-allowed] * {
                 cursor: not-allowed !important;
@@ -2980,6 +2967,39 @@ export class ResourceBrowser<T> {
                 height: 35px;
             }
             
+            ${browserClass.dot} header[has-location-bar] .location:hover {
+                border: 1px solid var(--gray);
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location {
+                flex-grow: 1;
+                border: 1px solid var(--midGray);
+                margin-left: -6px;
+                border-radius: 5px;
+                width: 100%;
+                cursor: pointer;
+                height: 35px;
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location input {
+                outline: none;
+                border: 0;
+                height: 32px;
+                margin-top: 1px;
+                margin-left: 5px;
+                background: transparent;
+                color: var(--text);
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location ul {
+                margin-top: -2px;
+                margin-bottom: -2px;
+            }
+            
+            ${browserClass.dot} header > div > div > ul {
+                margin-left: 6px;
+            }
+            
             ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
                 display: inline-block;
                 content: unset;
@@ -3028,16 +3048,9 @@ export class ResourceBrowser<T> {
                 display: none;
             }
 
-            ${browserClass.dot} .row input[type=checkbox] {
-                height: 20px;
-                width: 20px;
-            }
-
             ${browserClass.dot} .row[data-selected="true"] {
                 background: var(--tableRowHighlight);
             }
-
-        
 
             ${browserClass.dot} .row .title {
                 display: flex;
@@ -3054,6 +3067,13 @@ export class ResourceBrowser<T> {
                     width: ${ResourceBrowser.rowTitleSizePercentage}%;
                 }
             }
+            
+            ${browserClass.dot} .stat-wrapper {
+                flex-grow: 1;
+                flex-shrink: 1;
+                display: flex;
+                gap: 8px;
+            }
 
             ${browserClass.dot} .row .stat2,
             ${browserClass.dot} .row .stat3  {
@@ -3068,7 +3088,7 @@ export class ResourceBrowser<T> {
                     display: flex;
                     justify-content: end;
                     text-align: end;
-                    width: 13%;
+                    width: 33%;
                 }
             }
 
@@ -3134,7 +3154,7 @@ export class ResourceBrowser<T> {
                 width: 400px;
                 display: none;
                 max-height: calc(40px * 8.5);
-                overflow-y: scroll;
+                overflow-y: auto;
                 transition: opacity 120ms, transform 60ms;
             }
 
@@ -3160,7 +3180,7 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} .context-menu li[data-selected=true] {
-                background: var(--tableRowHighlight);
+                background: var(--tableRowHighlight); /* TODO(Jonas): This should NOT work for disabled buttons */
             }
 
             ${browserClass.dot} .context-menu > ul > *:first-child,
@@ -3264,11 +3284,14 @@ export class ResourceBrowser<T> {
     }
 
     private addOptionsToFilter(filter: FilterWithOptions | MultiOptionFilter) {
-        const wrapper = document.createElement("div");
-        wrapper.style.display = "flex";
-        wrapper.style.cursor = "pointer";
-        wrapper.style.marginRight = "24px";
-        wrapper.style.userSelect = "none";
+        const wrapper = createHTMLElements({
+            tagType: "div", style: {
+                display: "flex",
+                cursor: "pointer",
+                marginRight: "24px",
+                userSelect: "none"
+            }
+        });
 
         const valueFromStorage = getFilterStorageValue(this.resourceName, filter.type === "options" ? filter.key : filter.keys[0]);
         let iconName: IconName = filter.icon;
@@ -3284,9 +3307,11 @@ export class ResourceBrowser<T> {
         icon.style.marginRight = "8px";
         wrapper.appendChild(icon);
 
-        const text = document.createElement("span");
-        text.style.marginRight = "5px";
-        text.innerText = filter.text;
+        const text = createHTMLElements({
+            tagType: "span",
+            style: {marginRight: "5px"},
+            innerText: filter.text
+        });
 
         if (valueFromStorage != null) {
             if (filter.type === "options") {
@@ -3730,3 +3755,123 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
     }
 }
 
+const ARROW_UP = "↑";
+const ARROW_DOWN = "↓";
+const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "alt";
+const CTRL_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "ctrl";
+const ShortcutClass = injectStyle("shortcut", k => `
+    ${k} {
+        border-radius: 5px;
+        border: 1px solid var(--black);
+        font-size: 12px;
+        min-width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 5px;
+    }
+`);
+
+interface ShortcutProps {
+    name: string;
+    ctrl?: boolean;
+    alt?: boolean;
+    shift?: boolean;
+    keys: string | string[];
+}
+
+const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
+    const normalizedKeys = typeof props.keys === "string" ? [props.keys] : props.keys;
+    return <tr>
+        <td>{props.name}</td>
+        <td>
+            <Flex gap={"4px"} justifyContent={"end"}>
+                {normalizedKeys.map(((k, i) =>
+                    <React.Fragment key={i}>
+                        {i > 0 && <> or </>}
+                        {props.ctrl && <div className={ShortcutClass}>{CTRL_KEY}</div>}
+                        {props.alt && <div className={ShortcutClass}>{ALT_KEY}</div>}
+                        {props.shift && <div className={ShortcutClass}>Shift</div>}
+                        <div className={ShortcutClass}>{k}</div>
+                    </React.Fragment>
+                ))}
+            </Flex>
+        </td>
+    </tr>;
+}
+
+const ControlsClass = injectStyle("controls", k => `
+    ${k} table {
+        margin: 16px 0;
+        width: 100%;
+    }
+    
+    ${k} td:first-child, ${k} th:first-child {
+        border-left: 1px solid var(--borderGray);
+    }
+    
+    ${k} td:last-child, ${k} th:last-child {
+        border-right: 1px solid var(--borderGray);
+    }
+    
+    ${k} td, ${k} th {
+        padding: 8px;
+        border-top: 1px solid var(--borderGray);
+        border-bottom: 1px solid var(--borderGray);
+    }
+    
+    ${k} td:last-child {
+        text-align: right;
+    }
+`);
+
+interface ControlDescription {
+    name: string;
+    shortcut?: Partial<ShortcutProps>;
+    description?: string;
+}
+
+function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, custom?: ControlDescription[]}) {
+    return <div className={ControlsClass}>
+        <Heading.h4>Controls and keyboard shortcuts</Heading.h4>
+        <table>
+            <tbody>
+                <Shortcut name={"Move selection up/down (Movement keys)"} keys={[ARROW_UP, "Home", "PgUp", ARROW_DOWN, "End", "PgDown"]} />
+                <Shortcut name={"Select multiple (in a row)"} shift keys={["Movement key", "Left click"]} />
+                <Shortcut name={"Select multiple (individual)"} ctrl keys={["Left click"]} />
+                <tr>
+                    <td>Go to row</td>
+                    <td>Type part of name</td>
+                </tr>
+                <Shortcut name={"Open selection"} keys={"Enter"} />
+                <Shortcut name={"Delete"} keys={"Delete"} />
+                {(features.supportsMove || features.supportsCopy) && <>
+                    <Shortcut name={"Undo"} ctrl keys={"Z"} />
+                    <Shortcut name={"Copy"} ctrl keys={"C"} />
+                    <Shortcut name={"Cut"} ctrl keys={"X"} />
+                    <Shortcut name={"Paste"} ctrl keys={"V"} />
+                </>}
+
+                {(custom ?? []).map((c, i) => <React.Fragment key={i}>
+                    {c.shortcut && <Shortcut name={c.name} keys={[]} {...c.shortcut} />}
+                    {c.description && <tr>
+                        <td>{c.name}</td>
+                        <td>{c.description}</td>
+                    </tr>}
+                </React.Fragment>)}
+            </tbody>
+        </table>
+    </div>
+}
+
+export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, unknown> & any {
+    return {
+        text: "",
+        icon: "heroBolt",
+        onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, () => {}),
+        enabled: () => true,
+        shortcut: ShortcutKey.Z,
+        hackNotInTheContextMenu: true
+    };
+}

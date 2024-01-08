@@ -2,7 +2,7 @@ import * as React from "react";
 import {useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useMemo} from "react";
 import {Icon} from "@/ui-components";
-import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
+import {appendToXterm, useXTerm} from "@/Applications/Jobs/XTermLib";
 import {Feature, hasFeature} from "@/Features";
 import {injectStyle} from "@/Unstyled";
 

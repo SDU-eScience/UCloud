@@ -59,7 +59,7 @@ export function addStandardDialog({
                 >
                     {confirmText}
                 </Button>
-                <Button onClick={dialogStore.failure} color={cancelButtonColor}>{cancelText}</Button>
+                <Button onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor}>{cancelText}</Button>
             </Flex>
         </div>
     ), onCancel, addToFront);
@@ -134,7 +134,7 @@ export async function addStandardInputDialog({
                 />
             </div>
             <Flex mt="20px">
-                <Button type={"button"} onClick={dialogStore.failure} color={cancelButtonColor} mr="5px">{cancelText}</Button>
+                <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor} mr="5px">{cancelText}</Button>
                 <Button type={"submit"} color={confirmButtonColor}>
                     {confirmText}
                 </Button>
@@ -320,7 +320,7 @@ const shakeKeyframes = makeKeyframe("shake", `
   }
 `);
 
-export const ShakingBox = injectStyle("shaking-box", k =>`
+export const ShakingBox = injectStyle("shaking-box", k => `
     ${k}.shaking {
         transform: translate3d(0, 0, 0);
         animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
@@ -429,7 +429,7 @@ function SensitivityBadge({bg, children}: React.PropsWithChildren<{bg: string}>)
     style["--bgColor"] = bg ?? "teal";
     return <div className={SensitivityBadgeClass} style={style}>
         {children}
-    </div> 
+    </div>
 }
 
 
@@ -446,3 +446,16 @@ const SensitivityBadgeClass = injectStyle("sensitivity-badge", k => `
         border-radius: 100%;
     }
 `);
+
+export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight: string}): React.JSX.Element {
+    return <pre
+        style={{
+            maxHeight,
+            overflowY: "scroll",
+            marginTop: 0,
+            marginBottom: 0,
+            fontSize: "16px",
+            lineHeight: "21px",
+            fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace"
+        }}>{updates}</pre>
+}
