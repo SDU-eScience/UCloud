@@ -67,7 +67,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {Flex, UIGlobalStyle} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux";
 import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT, store} from "@/Utilities/ReduxUtilities";
-import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
+import {removeExpiredFileUploads} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {OutgoingSharesBrowse} from "@/Files/SharesOutgoing";
 import {TerminalContainer} from "@/Terminal/Container";
@@ -307,27 +307,6 @@ injectStyle("ignored", () => `
 Client.initializeStore(store);
 removeExpiredFileUploads();
 findCustomThemeColorOnLaunch();
-
-const isLight = isLightThemeStored();
-toggleCssColors(isLight);
-
-export function toggleTheme(): void {
-    const isLight = isLightThemeStored();
-    toggleCssColors(!isLight);
-    setSiteTheme(!isLight);
-    for (const listener of Object.values(themeListeners)) {
-        listener();
-    }
-}
-
-const themeListeners: Record<string, () => void> = {};
-export function addThemeListener(key: string, op: () => void) {
-    themeListeners[key] = op;
-}
-
-export function removeThemeListener(key: string) {
-    delete themeListeners[key];
-}
 
 function MainApp({children}: {children?: React.ReactNode}): React.JSX.Element {
     return (

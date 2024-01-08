@@ -191,26 +191,4 @@ const colors: ThemeColor[] = [
     "wayfGreen",
 ];
 
-export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
-    return (<Flex zIndex={"1"} alignItems={"center"}>
-        <Box width="32px"><SearchThing enabled={props.searchEnabled} /></Box>
-        <Box width="32px" mr={10}><RefreshThing /></Box>
-        <ContextSwitcher />
-    </Flex>);
-}
-
-function SearchThing({enabled}): JSX.Element | null {
-    if (!enabled) return null;
-    return <Icon size={20} color="var(--primary)" name="heroMagnifyingGlass" />
-}
-
-function RefreshThing(): JSX.Element | null {
-    const refresh = useRefresh();
-    const spin = useSelector((it: ReduxObject) => it.loading);
-    const loading = useSelector((it: ReduxObject) => it.status.loading);
-    if (!refresh) return null;
-    return <Icon cursor="pointer" size={24} onClick={refresh} spin={spin || loading} hoverColor="blue"
-        color="var(--primary)" name="heroArrowPath" />
-}
-
 export default Playground;

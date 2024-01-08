@@ -1,6 +1,6 @@
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor, addThemeListener, removeThemeListener} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -15,7 +15,6 @@ import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
-import {addThemeListener, removeThemeListener} from "@/Core";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {Product, ProductType} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";

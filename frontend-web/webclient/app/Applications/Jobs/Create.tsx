@@ -39,9 +39,9 @@ import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {validateMachineReservation} from "./Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {Spacer} from "@/ui-components/Spacer";
-import {UtilityBar} from "@/Playground/Playground";
 import {injectStyleSimple} from "@/Unstyled";
 import {RetrieveGroupResponse, retrieveGroup} from "../api";
+import {UtilityBar} from "@/Navigation/UtilityBar";
 
 interface InsufficientFunds {
     why?: string;

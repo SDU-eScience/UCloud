@@ -1,13 +1,11 @@
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
-import {Absolute, Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import List from "@/ui-components/List";
-import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux";
 import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -16,9 +14,6 @@ import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {PageV2} from "@/UCloud";
-import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
-import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
-import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
@@ -28,7 +23,6 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
-import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
@@ -40,6 +34,8 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as Accounting from "@/Accounting";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
+import {UtilityBar} from "@/Navigation/UtilityBar";
+import {NewsPost} from "@/NewsPost";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -144,19 +140,6 @@ function Invites(): React.ReactNode {
     function display(val: boolean): {display: "none" | undefined} {
         return {display: val ? undefined : "none"}
     }
-}
-
-
-export interface NewsPost {
-    id: number;
-    title: string;
-    subtitle: string;
-    body: string;
-    postedBy: string;
-    showFrom: number;
-    hideFrom: number | null;
-    hidden: boolean;
-    category: string;
 }
 
 interface NewsRequestProps extends PaginationRequest {

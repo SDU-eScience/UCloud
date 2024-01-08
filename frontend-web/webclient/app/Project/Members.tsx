@@ -44,11 +44,11 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 import {dialogStore} from "@/Dialog/DialogStore";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {UtilityBar} from "@/Playground/Playground";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListClass} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {UtilityBar} from "@/Navigation/UtilityBar";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
