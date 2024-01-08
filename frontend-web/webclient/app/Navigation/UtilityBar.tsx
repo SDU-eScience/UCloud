@@ -8,7 +8,7 @@ import {useSelector} from "react-redux";
 
 export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
     return (<Flex zIndex={"1"} alignItems={"center"}>
-        <Box width="32px"><SearchIcon enabled={props.searchEnabled} /></Box>
+        {props.searchEnabled && <Box width="32px"><SearchIcon enabled={props.searchEnabled} /></Box>}
         <Box width="32px" mr={10}><RefreshIcon /></Box>
         <ContextSwitcher />
     </Flex>);
