@@ -29,7 +29,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {Product, usageExplainer} from "@/Accounting";
+import {ProductV2, balanceToString, explainPrice2, explainUnit} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -89,8 +89,8 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number, product: Product | null}>({
-        cost: 0, balance: 0, product: null
+    const [estimatedCost, setEstimatedCost] = useState<{durationInMinutes: number, balance: number, numberOfNodes: number, product: ProductV2 | null}>({
+        durationInMinutes: 0, balance: 0, numberOfNodes: 1, product: null
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -372,8 +372,8 @@ export const Create: React.FunctionComponent = () => {
                                 right={
                                     <div>
                                         {estimatedCost.product ? <div className={EstimatesContainerClass}>
-                                            Estimated cost: {usageExplainer(estimatedCost.cost, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
-                                            Current balance: {usageExplainer(estimatedCost.balance, estimatedCost.product.productType, estimatedCost.product.chargeType, estimatedCost.product.unitOfPrice)}<br />
+                                            Estimated cost: {explainPrice2(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, { showSuffix: false })} <br />
+                                            Current balance: {balanceToString(estimatedCost.product.category, estimatedCost.balance)}<br />
                                         </div> : <></>}
 
                                         <Flex>
@@ -411,7 +411,8 @@ export const Create: React.FunctionComponent = () => {
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
-                                onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
+                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, balance, product) => 
+                                    setEstimatedCost({durationInMinutes, balance, numberOfNodes, product})}
                             />
                         </Card>
 

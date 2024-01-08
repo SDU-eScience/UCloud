@@ -34,7 +34,7 @@ import {
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {costOfDuration, ProductCompute, usageExplainer} from "@/Accounting";
+import {costOfDuration, explainPrice2, ProductCompute, usageExplainer} from "@/Accounting";
 import {prettyFilePath} from "@/Files/FilePath";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {SillyParser} from "@/Utilities/SillyParser";
