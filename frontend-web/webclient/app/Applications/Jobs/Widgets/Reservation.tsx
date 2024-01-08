@@ -8,12 +8,9 @@ import {
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
-import {costOfDuration, explainUnit, productCategoryEquals, ProductV2, ProductV2Compute} from "@/Accounting";
-import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
-import {joinToString} from "@/UtilityFunctions";
-import {costOfDuration, Product, productCategoryEquals, ProductCompute} from "@/Accounting";
+import {productCategoryEquals, ProductV2, ProductV2Compute} from "@/Accounting";
 import {emptyPageV2} from "@/DefaultObjects";
-import {joinToString, preventDefault} from "@/UtilityFunctions";
+import {joinToString} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {classConcat, injectStyle} from "@/Unstyled";

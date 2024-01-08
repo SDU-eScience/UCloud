@@ -42,19 +42,19 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {ProductV2, balanceToString, explainPrice2, explainUnit} from "@/Accounting";
+import {ProductV2, balanceToString, explainPrice2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
 import {flushSync} from "react-dom";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {validateMachineReservation} from "./Widgets/Machines";
-import {Resource} from "@/UCloud/ResourceApi";
 import {Spacer} from "@/ui-components/Spacer";
 import {injectStyle} from "@/Unstyled";
 import {RetrieveGroupResponse, retrieveGroup} from "../api";
 import {UtilityBar} from "@/Navigation/UtilityBar";
+import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
+import {Resource} from "@/UCloud/ResourceApi";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 interface InsufficientFunds {
     why?: string;
@@ -445,7 +445,7 @@ export const Create: React.FunctionComponent = () => {
                                                 <tbody>
                                                 <tr>
                                                     <th>Estimated cost</th>
-                                                    <td>{!estimatedCost.product ? "-" : explainPrice2(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, { showSuffix: false })</td>
+                                                    <td>{!estimatedCost.product ? "-" : explainPrice2(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, { showSuffix: false })}</td>
                                                 </tr>
                                                 <tr>
                                                     <th>Current balance</th>
