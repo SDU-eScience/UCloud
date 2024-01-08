@@ -1,5 +1,4 @@
 import * as React from "react";
-import {UFile} from "@/UCloud/FilesApi";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import {useState} from "react";
@@ -23,6 +22,7 @@ import {logoDataUrls} from "./Jobs/JobsBrowse";
 import {AppLogo, hashF} from "./Card";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {UFile} from "@/UCloud/UFile";
 
 function findApplicationsByExtension(
     request: {files: string[]} & PaginationRequestV2

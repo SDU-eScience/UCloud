@@ -1,8 +1,8 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Grid, Box, Button, Flex} from "@/ui-components";
+import {EveryIcon, IconName} from "@/ui-components/Icon";
+import {Grid, Button} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
@@ -17,16 +17,13 @@ import {
     AppParameterFile,
     Wrapper
 } from "@/UCloud/Scratch";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {useSelector} from "react-redux";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
-import {useRefresh} from "@/Utilities/ReduxUtilities";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
-export const Playground: React.FunctionComponent = () => {
+const Playground: React.FunctionComponent = () => {
     const main = (
         <>
             <Button onClick={() => {
@@ -135,7 +132,7 @@ export const Playground: React.FunctionComponent = () => {
     return <MainContainer main={main} />;
 };
 
-export const ProjectPlayground: React.FunctionComponent = () => {
+const ProjectPlayground: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const [project, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
     useEffect(() => {
@@ -148,6 +145,7 @@ export const ProjectPlayground: React.FunctionComponent = () => {
         return <>Project is still loading...</>;
     }
 }
+
 const colors: ThemeColor[] = [
     "black",
     "white",

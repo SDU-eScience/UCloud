@@ -1,5 +1,4 @@
 import * as React from "react";
-import {UFile} from "@/UCloud/FilesApi";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useState} from "react";
 import {default as metadataApi} from "@/UCloud/MetadataDocumentApi";
@@ -7,6 +6,7 @@ import {default as metadataNsApi, FileMetadataTemplateNamespace} from "@/UCloud/
 import {bulkRequestOf} from "@/DefaultObjects";
 import {Icon} from "@/ui-components";
 import {PageV2} from "@/UCloud";
+import {UFile} from "@/UCloud/UFile";
 
 let favoriteTemplateId: string | undefined;
 const favoriteTemplateVersion = "1.0.0";

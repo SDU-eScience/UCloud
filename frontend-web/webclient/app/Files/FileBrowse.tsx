@@ -23,10 +23,8 @@ import FilesApi, {
     addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion, FilesMoveRequestItem,
+    FileSensitivityVersion,
     isSensitivitySupported,
-    UFile,
-    UFileIncludeFlags
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -58,6 +56,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 
 // Cached network data
 // =====================================================================================================================
@@ -115,7 +114,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
             collectionCacheForCompletion.invalidateAll();
         }
         lastActiveProject = Client.projectId;
-        
+
         // Note(Jonas): If the user reloads the page to '/search', we don't have any info cached, so we navigate to '/drives' instead.
         // ONLY on component mount.
         if (getQueryParam(location.search, "path") === "/search") {
@@ -575,7 +574,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
-                    ops.unshift(controlsOperation(features, [{ name: "Rename", shortcut: { keys: "F2" }}]));
+                    ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
                     return ops;
                 });
 
