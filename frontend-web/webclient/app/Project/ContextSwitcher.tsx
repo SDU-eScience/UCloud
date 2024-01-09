@@ -22,7 +22,7 @@ import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
-export const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
+const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
     includeFavorite: true,
     sortBy: "favorite" as const,

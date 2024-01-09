@@ -24,7 +24,7 @@ import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
-import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {findAvatar} from "@/UserSettings/Redux";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import ClickableDropdown from "./ClickableDropdown";
@@ -37,7 +37,6 @@ import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
-import {useNavigate} from "react-router";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
@@ -779,7 +778,7 @@ function SecondarySidebar({
     </div>;
 }
 
-function AppLogo({name}): JSX.Element {
+function AppLogo({name}: {name: string}): JSX.Element {
     return <Flex alignItems={"center"}>
         <Flex
             p="2px"

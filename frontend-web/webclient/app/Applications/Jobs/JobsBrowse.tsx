@@ -9,7 +9,6 @@ import * as React from "react";
 import {AppLogo, appLogoCache, hashF} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {AsyncCache} from "@/Utilities/AsyncCache";
 import {useNavigate} from "react-router";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
@@ -17,6 +16,7 @@ import AppRoutes from "@/Routes";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {logoDataUrls} from "./LogoDataCache";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -32,8 +32,6 @@ const FEATURES: ResourceBrowseFeatures = {
     search: true,
     showColumnTitles: true,
 };
-
-export const logoDataUrls = new AsyncCache<string>();
 
 const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Job name"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: "State"}];
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {

@@ -24,10 +24,10 @@ import {
     checkCanConsumeResources,
     EmptyReasonTag
 } from "@/ui-components/ResourceBrowser";
-import {logoDataUrls} from "./Jobs/JobsBrowse";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UFile} from "@/UCloud/UFile";
+import {logoDataUrls} from "./Jobs/LogoDataCache";
 
 function findApplicationsByExtension(
     request: {files: string[]} & PaginationRequestV2

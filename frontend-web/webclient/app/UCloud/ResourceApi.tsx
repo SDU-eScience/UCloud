@@ -21,11 +21,10 @@ import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, Tex
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {Product, ProductType, ProductV2, ProductV2License} from "@/Accounting";
+import {Product, ProductType, ProductV2} from "@/Accounting";
 import {NavigateFunction} from "react-router";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
-import LicenseApi from "@/UCloud/LicenseApi";
 
 export interface ProductSupport {
     product: ProductReference;
