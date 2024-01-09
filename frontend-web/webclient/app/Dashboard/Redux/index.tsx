@@ -32,4 +32,4 @@ export function dashboardReducer(state: DashboardStateProps = initDashboard(), a
             return state;
         }
     }
-};
+}

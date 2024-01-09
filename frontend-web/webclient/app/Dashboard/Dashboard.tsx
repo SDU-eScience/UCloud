@@ -1,45 +1,41 @@
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
-import {Absolute, Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import List from "@/ui-components/List";
-import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux";
-import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {PageV2} from "@/UCloud";
-import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
-import metadataApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
-import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
 import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
-import {UtilityBar} from "@/Playground/Playground";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as Accounting from "@/Accounting";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
+import {UtilityBar} from "@/Navigation/UtilityBar";
+import {NewsPost} from "@/NewsPost";
+import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
+import {NoResultsCardBody} from "@/UtilityComponents";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -146,19 +142,6 @@ function Invites(): React.ReactNode {
     }
 }
 
-
-export interface NewsPost {
-    id: number;
-    title: string;
-    subtitle: string;
-    body: string;
-    postedBy: string;
-    showFrom: number;
-    hideFrom: number | null;
-    hidden: boolean;
-    category: string;
-}
-
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
     withHidden: boolean;
@@ -171,21 +154,6 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
         path: buildQueryString("/news/list", payload)
     };
 }
-
-export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
-    <Flex
-        alignItems="center"
-        justifyContent="center"
-        height="calc(100% - 60px)"
-        minHeight="250px"
-        mt="-30px"
-        width="100%"
-        flexDirection="column"
-    >
-        <Heading.h4>{props.title}</Heading.h4>
-        {props.children}
-    </Flex>
-);
 
 function DashboardRuns(): JSX.Element {
     return <DashboardCard
@@ -209,7 +177,6 @@ function DashboardResources({wallets}: {
 }): JSX.Element | null {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
-    const wallets2 = wallets.data.items;
 
     const now = timestampUnixMs();
     const mapped = wallets.data.items.map(w => {
@@ -256,7 +223,7 @@ function DashboardResources({wallets}: {
                                     <TableCell fontSize={FONT_SIZE}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                             <ProviderLogo providerId={n.category.provider} size={20} />
-                                            <ProviderTitle providerId={n.category.provider} /> / {n.category.name}
+                                            <code>{n.category.name}</code>
                                         </Flex>
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
@@ -325,7 +292,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                         </Box>
                     }
                 </div>
-                <img src={ucloudImage} style={{zIndex: "1000"}} />
+                <img src={ucloudImage} />
             </div>
 
             <Relative>

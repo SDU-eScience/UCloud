@@ -1,3 +1,5 @@
+import {isLightThemeStored, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
+
 const createMinMediaQuery = (n: number): string => `@media screen and (min-width:${n}px)`;
 const createMaxMediaQuery = (n: number): string => `@media screen and (max-width:${n - 1}px)`;
 
@@ -520,6 +522,28 @@ export function selectHoverColor(inputColor: string | ThemeColor): string | Them
             return inputColor;
     }
 }
+
+const isLight = isLightThemeStored();
+toggleCssColors(isLight);
+
+export function toggleTheme(): void {
+    const isLight = isLightThemeStored();
+    toggleCssColors(!isLight);
+    setSiteTheme(!isLight);
+    for (const listener of Object.values(themeListeners)) {
+        listener();
+    }
+}
+
+const themeListeners: Record<string, () => void> = {};
+export function addThemeListener(key: string, op: () => void) {
+    themeListeners[key] = op;
+}
+
+export function removeThemeListener(key: string) {
+    delete themeListeners[key];
+}
+
 
 export type Theme = typeof theme;
 export default theme;

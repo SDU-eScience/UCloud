@@ -34,7 +34,7 @@ import {
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {costOfDuration, ProductCompute, usageExplainer} from "@/Accounting";
+import {ProductCompute} from "@/Accounting";
 import {prettyFilePath} from "@/Files/FilePath";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {SillyParser} from "@/Utilities/SillyParser";
@@ -732,33 +732,6 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
             {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}
         </InfoCard>
-        {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE" ?
-            null :
-            <InfoCard
-                stat={prettyTime}
-                statTitle={"Allocated"}
-                icon={"hourglass"}
-            >
-                {!isJobStateTerminal(status?.state) ? (<>
-                    {!time ? null : <>
-                        <b>Estimated price:</b>{" "}
-                        {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
-                        <br />
-                    </>}
-                    <b>Price per hour:</b>{" "}
-                    {job.status.resolvedSupport?.product.freeToUse ? "Free" :
-                        job.status.resolvedProduct ?
-                            usageExplainer(
-                                costOfDuration(60, job.specification.replicas, machine),
-                                "COMPUTE",
-                                machine.chargeType,
-                                machine.unitOfPrice
-                            )
-                            : "Unknown"
-                    }
-                </>) : null}
-            </InfoCard>
-        }
         <InfoCard
             stat={Object.keys(jobFiles(job.specification)).length.toString()}
             statTitle={Object.keys(jobFiles(job.specification)).length === 1 ? "Input file" : "Input files"}
@@ -1095,18 +1068,6 @@ const RunningContent: React.FunctionComponent<{
                             </Box>
                         </>
                     }
-                    <Box>
-                        <b>Estimated price per hour: </b>{" "}{job.status.resolvedSupport?.product.freeToUse ? "Free" :
-                            job.status.resolvedProduct ?
-                                usageExplainer(
-                                    costOfDuration(60, job.specification.replicas, resolvedProduct),
-                                    "COMPUTE",
-                                    resolvedProduct.chargeType,
-                                    resolvedProduct.unitOfPrice
-                                )
-                                : "Unknown"
-                        }
-                    </Box>
                     <Box flexGrow={1} />
                     <Box mb="12px">
                         {!expiresAt || !supportsExtension ? null : <>
@@ -1420,7 +1381,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
             opts={{initialPath: pathRef.current, embedded: true}}
         />
     </div>;
-};
+}
 
 
 const fadeInAnimation = makeKeyframe("fade-in-animation", `

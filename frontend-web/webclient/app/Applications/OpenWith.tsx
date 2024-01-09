@@ -1,16 +1,15 @@
 import * as React from "react";
-import {UFile} from "@/UCloud/FilesApi";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import {useState} from "react";
-import {appLogoCache} from "@/Applications/AppToolLogo";
+import {AppLogo, appLogoCache, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useNavigate} from "react-router";
-import {Product, ProductCompute} from "@/Accounting";
+import {ProductV2, ProductV2Compute} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";
 import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
@@ -18,11 +17,17 @@ import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
-import {logoDataUrls} from "./Jobs/JobsBrowse";
-import {AppLogo, hashF} from "./Card";
+import {
+    ResourceBrowser,
+    ResourceBrowserOpts,
+    addContextSwitcherInPortal,
+    checkCanConsumeResources,
+    EmptyReasonTag
+} from "@/ui-components/ResourceBrowser";
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {UFile} from "@/UCloud/UFile";
+import {logoDataUrls} from "./Jobs/LogoDataCache";
 
 function findApplicationsByExtension(
     request: {files: string[]} & PaginationRequestV2
@@ -31,14 +36,14 @@ function findApplicationsByExtension(
 }
 
 export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<UCloud.compute.Application>}): React.ReactNode {
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<ProductV2 | null>(null);
     const browserRef = React.useRef<ResourceBrowser<UCloud.compute.Application> | null>(null);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const navigate = useNavigate();
     const supportRef = React.useRef<ResolvedSupport[]>([]);
-    const productsRef = React.useRef<ProductCompute[]>([]);
-    const walletsRef = React.useRef<UCloud.PageV2<ProductCompute>>(emptyPageV2)
+    const productsRef = React.useRef<ProductV2Compute[]>([]);
+    const walletsRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2)
     const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>();
 
     const activeProject = React.useRef(Client.projectId);
@@ -132,7 +137,27 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     }
                 });
 
-                browser.on("renderEmptyPage", reason => browser.defaultEmptyPage("applications", reason, {}));
+                browser.on("renderEmptyPage", reason => {
+                    const e = browser.emptyPageElement;
+                    switch (reason.tag) {
+                        case EmptyReasonTag.LOADING: {
+                            e.reason.append(`We are fetching applications...`);
+                            break;
+                        }
+
+                        case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS:
+                        case EmptyReasonTag.EMPTY: {
+                            e.reason.append("Couldn't find any suitable applications for this file.")
+                            break;
+                        }
+
+                        case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                            e.reason.append(`We are currently unable to show any applications. Try again later.`);
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+                    }
+                });
                 browser.on("unhandledShortcut", () => void 0);
                 browser.on("generateBreadcrumbs", path => browser.defaultBreadcrumbs());
                 browser.on("fetchOperationsCallback", () => ({}));
@@ -232,12 +257,12 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
 
         callAPI(UCloud.accounting.products.browse({
             filterUsable: true,
-            filterArea: "COMPUTE",
+            filterProductType: "COMPUTE",
             itemsPerPage: 250,
             includeBalance: true,
             includeMaxBalance: true
         })).then((products) => {
-            walletsRef.current = products as unknown as UCloud.PageV2<ProductCompute>;
+            walletsRef.current = products as unknown as UCloud.PageV2<ProductV2Compute>;
 
             const providers = new Set(products.items.map(it => it.category.provider));
 

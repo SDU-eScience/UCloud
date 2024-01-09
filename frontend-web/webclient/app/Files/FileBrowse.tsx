@@ -16,27 +16,26 @@ import {
     ResourceBrowserOpts,
     ColumnTitleList,
     SelectionMode,
-    checkCanConsumeResources
+    checkCanConsumeResources,
+    controlsOperation
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion, FilesMoveRequestItem,
+    FileSensitivityVersion,
     isSensitivitySupported,
-    UFile,
-    UFileIncludeFlags
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, inDevEnvironment, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
@@ -55,9 +54,9 @@ import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
-import {controlsOperation} from "@/Playground/Playground";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
+import {sidebarFavoriteCache} from "./FavoriteCache";
 
 // Cached network data
 // =====================================================================================================================
@@ -115,7 +114,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
             collectionCacheForCompletion.invalidateAll();
         }
         lastActiveProject = Client.projectId;
-        
+
         // Note(Jonas): If the user reloads the page to '/search', we don't have any info cached, so we navigate to '/drives' instead.
         // ONLY on component mount.
         if (getQueryParam(location.search, "path") === "/search") {
@@ -575,7 +574,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
-                    ops.unshift(controlsOperation(features, [{ name: "Rename", shortcut: { keys: "F2" }}]));
+                    ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
                     return ops;
                 });
 
@@ -747,7 +746,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
                         ));
                     }
-                    row.stat2.innerText = dateToString(file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs());
+
+                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
+                    if (opts?.selection) {
+                        row.stat2.innerText = dateToDateStringOrTime(modifiedAt);
+                    } else {
+                        row.stat2.innerText = dateToString(modifiedAt);
+                    }
 
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, file);
@@ -1091,6 +1096,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
+                        if (opts?.selection) {
+                            const doShow = opts.selection.show ?? (() => true);
+                            if (doShow(resource)) {
+                                opts.selection.onClick(resource);
+                            }
+                            browser.open(oldPath, true);
+                            return;
+                        }
                         navigate(`/files/properties/${encodeURIComponent(resource.id)}/`)
                         return;
                     }

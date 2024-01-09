@@ -1,6 +1,6 @@
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import * as React from "react";
-import {useDispatch, useSelector} from "react-redux";
+import {useDispatch} from "react-redux";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
@@ -11,7 +11,6 @@ import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
 import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
-import {TextH3} from "@/ui-components/Text";
 import {injectStyle} from "@/Unstyled";
 import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -23,7 +22,7 @@ import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
-export const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
+const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
     includeFavorite: true,
     sortBy: "favorite" as const,

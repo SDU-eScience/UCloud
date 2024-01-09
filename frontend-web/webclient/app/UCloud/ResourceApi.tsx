@@ -2,19 +2,29 @@ import * as UCloud from ".";
 import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
-import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
+import {
+    apiBrowse,
+    apiCreate,
+    apiDelete,
+    apiRetrieve,
+    apiSearch,
+    apiUpdate,
+    callAPI,
+    InvokeCommand
+} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "@/Resource/Filter";
-import {IconName} from "@/ui-components/Icon";
+import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, TextFilter} from "@/Resource/Filter";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {Product, ProductType} from "@/Accounting";
+import {Product, ProductType, ProductV2} from "@/Accounting";
 import {NavigateFunction} from "react-router";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import * as Accounting from "@/Accounting";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -97,6 +107,38 @@ export interface FindById {
     id: string;
 }
 
+// NOTE(Dan): Due to time limitations we are sort of hacking this in via the frontend
+export interface SupportByProviderV2<P extends ProductV2 = ProductV2, S extends ProductSupport = ProductSupport> extends SupportByProvider<Product, S> {
+    newProducts: P[];
+}
+
+export function supportV2ProductMatch<P extends ProductV2 = ProductV2>(product: Product, support: SupportByProviderV2<P>): P {
+    // NOTE(Dan): This should never fail. In this case I think it is worth simplifying calling code by assuming that
+    // this either fails badly or not at all.
+    return support.newProducts.find(it =>
+        it.name === product.name &&
+        it.category.name === product.category.name &&
+        it.category.provider === product.category.provider
+    )!;
+}
+
+export async function retrieveSupportV2<P extends ProductV2 = ProductV2, S extends ProductSupport = ProductSupport>(
+    api: ResourceApi<any, any, any, any, any, any, S>
+): Promise<SupportByProviderV2<P, S>> {
+    const allProductsPromise = fetchAll(next =>
+        callAPI(Accounting.browseProductsV2({itemsPerPage: 250, filterProductType: api.productType, next}))
+    )
+    const supportPromise = callAPI(api.retrieveProducts());
+
+    const support = await supportPromise;
+    const allProducts = await allProductsPromise;
+
+    return {
+        ...support,
+        newProducts: allProducts as P[]
+    };
+}
+
 export interface SupportByProvider<P extends Product = Product, S extends ProductSupport = ProductSupport> {
     productsByProvider: Record<string, ResolvedSupport<P, S>[]>;
 }
@@ -129,18 +171,6 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     supportByProvider: SupportByProvider; // As of today (Nov 8th, 2023) only FileCollectionsApi uses this in callbacks.
     isWorkspaceAdmin: boolean;
     creationDisabled?: boolean;
-}
-
-export interface SortFlags {
-    sortBy?: string;
-    sortDirection?: "ascending" | "descending";
-}
-
-export interface SortEntry {
-    icon: IconName;
-    title: string;
-    column: string;
-    helpText?: string;
 }
 
 export abstract class ResourceApi<Res extends Resource,

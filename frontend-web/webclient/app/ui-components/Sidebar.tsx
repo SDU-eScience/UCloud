@@ -4,7 +4,6 @@ import {useDispatch, useSelector} from "react-redux";
 import {
     copyToClipboard,
     displayErrorMessageOrDefault,
-    errorMessageOrDefault,
     joinToString,
     useFrameHidden
 } from "@/UtilityFunctions";
@@ -25,8 +24,7 @@ import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
-import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {NewsPost} from "@/Dashboard/Dashboard";
+import {APICallState, callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {findAvatar} from "@/UserSettings/Redux";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import ClickableDropdown from "./ClickableDropdown";
@@ -37,10 +35,8 @@ import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollection
 import {Page, PageV2, compute} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
-import {useNavigate} from "react-router";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
@@ -54,6 +50,8 @@ import {isJobStateTerminal} from "@/Applications/Jobs";
 import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
 import {SidebarEmpty, SidebarEntry, SidebarLinkColumn, SidebarSectionHeader} from "@/ui-components/SidebarComponents";
 import {AvatarType} from "@/AvataaarLib";
+import {NewsPost} from "@/NewsPost";
+import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -205,7 +203,7 @@ enum SidebarTabId {
     ADMIN = "Admin",
 }
 
-export const sideBarMenuElements: [
+const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
 ] = [
@@ -223,7 +221,8 @@ export const sideBarMenuElements: [
             items: [
                 {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
             ],
-            predicate: () => Client.userIsAdmin}
+            predicate: () => Client.userIsAdmin
+        }
     ];
 
 interface SidebarStateProps {
@@ -430,7 +429,7 @@ export function Sidebar(): JSX.Element | null {
             />
         </Flex>
     );
-};
+}
 
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
@@ -441,12 +440,7 @@ function useSidebarFilesPage(): [
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
     React.useEffect(() => {
-        callAPI(metadataApi.browse({
-            filterActive: true,
-            filterTemplate: "Favorite",
-            itemsPerPage: 10
-        })).then(result => sidebarFavoriteCache.setCache(result))
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch favorites."));
+        sidebarFavoriteCache.fetch();
     }, []);
 
     const projectId = useProjectId();
@@ -459,80 +453,6 @@ function useSidebarFilesPage(): [
         drives,
         favorites.items.slice(0, 10)
     ];
-}
-
-
-export const sidebarFavoriteCache = new class {
-    private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}
-    private subscribers: (() => void)[] = [];
-    private isDirty: boolean = false;
-    public loading = false;
-    public error = "";
-
-    public async fetch() {
-        this.loading = true;
-        try {
-            this.setCache(await callAPI(metadataApi.browse({
-                filterActive: true,
-                filterTemplate: "Favorite",
-                itemsPerPage: 10
-            })));
-        } catch (error) {
-            this.error = errorMessageOrDefault(error, "Failed to fetch favorite files.");
-        }
-        this.loading = false;
-    }
-
-    public renameInCached(oldPath: string, newPath: string): void {
-        const file = this.cache.items.find(it => it.path === oldPath);
-        if (!file) return;
-
-        file.path = newPath;
-        this.isDirty = true;
-        this.emitChange();
-    }
-
-    public subscribe(subscription: () => void) {
-        this.subscribers = [...this.subscribers, subscription];
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== subscription);
-        }
-    }
-
-    public add(file: FileMetadataAttached) {
-        this.isDirty = true;
-        this.cache.items.unshift(file);
-
-        this.emitChange();
-    }
-
-    public remove(filePath: string) {
-        this.isDirty = true;
-        this.cache.items = this.cache.items.filter(it => it.path !== filePath);
-
-        this.emitChange();
-    }
-
-    public setCache(page: PageV2<FileMetadataAttached>) {
-        this.isDirty = true;
-        this.cache = page;
-
-        this.emitChange();
-    }
-
-    public emitChange(): void {
-        for (const sub of this.subscribers) {
-            sub();
-        }
-    }
-
-    public getSnapshot(): Readonly<PageV2<FileMetadataAttached>> {
-        if (this.isDirty) {
-            this.isDirty = false;
-            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
-        }
-        return this.cache;
-    }
 }
 
 export const sidebarJobCache = new class {
@@ -627,12 +547,9 @@ function SecondarySidebar({
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
 
-    const navigate = useNavigate();
-    const [, invokeCommand] = useCloudCommand();
-
     const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
         compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
-        { items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
+        {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
     );
 
     const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
@@ -698,6 +615,7 @@ function SecondarySidebar({
 
                 {canConsume && drives.data.items.slice(0, 8).map(drive =>
                     <SidebarEntry
+                        key={drive.id}
                         text={drive.specification.title}
                         icon={isShare(drive) ? "ftSharesFolder" : <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
                         to={AppRoutes.files.drive(drive.id)}
@@ -708,6 +626,7 @@ function SecondarySidebar({
                     <SidebarSectionHeader>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
+                            key={file.path}
                             to={AppRoutes.files.path(file.path)}
                             icon={"heroStar"}
                             text={fileName(file.path)}
@@ -761,6 +680,12 @@ function SecondarySidebar({
                     text={"Grant applications"}
                     icon={"heroDocumentText"}
                 />
+
+                <SidebarEntry
+                    to={AppRoutes.grants.editor()}
+                    text={"Apply for resources"}
+                    icon={"heroPencilSquare"}
+                />
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>
@@ -813,7 +738,7 @@ function SecondarySidebar({
                             key={i}
                             to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name}/>}
+                            icon={<AppLogo name={fav.metadata.name} />}
                         />
                     )}
                 </>}
@@ -842,18 +767,18 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.ADMIN ? null : <>
                 <SidebarSectionHeader>Tools</SidebarSectionHeader>
-                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"}/>
+                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"} />
                 <SidebarEntry to={AppRoutes.admin.applicationStudio()} text={"Application studio"}
-                              icon={"heroBuildingStorefront"}/>
-                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}/>
-                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}/>
-                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}/>
+                    icon={"heroBuildingStorefront"} />
+                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"} />
+                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"} />
+                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"} />
             </>}
         </Flex>
     </div>;
 }
 
-function AppLogo({name}): JSX.Element {
+function AppLogo({name}: {name: string}): JSX.Element {
     return <Flex alignItems={"center"}>
         <Flex
             p="2px"
@@ -863,6 +788,8 @@ function AppLogo({name}): JSX.Element {
             backgroundColor="var(--fixedWhite)"
             width="16px"
             height="16px"
+            minHeight="16px"
+            minWidth="16px"
             borderRadius="4px"
         >
             <AppToolLogo size="12px" name={name} type="APPLICATION" />
@@ -889,13 +816,6 @@ function Username({close}: {close(): void}): JSX.Element | null {
     >
         Click to copy {Client.username} to clipboard
     </Tooltip>
-}
-
-function ListMapper<T>({items, mapper, emptyPage}: {
-    items: T[], mapper: (el: T) => JSX.Element, emptyPage: React.ReactNode
-}): React.ReactNode {
-    if (items.length === 0) return emptyPage;
-    return items.map(mapper);
 }
 
 function ProjectID({close}: {close(): void}): JSX.Element | null {

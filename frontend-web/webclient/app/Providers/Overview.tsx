@@ -9,7 +9,7 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import Providers from "@/Assets/provider_info.json";
 import {Feature, hasFeature} from "@/Features";
-import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {ApplicationCardClass} from "@/Applications/Card";
 import {CardClass} from "@/ui-components/Card";
 
@@ -21,7 +21,11 @@ interface ProviderType {
     description: string;
 }
 
-export function ProviderEntry(props: {provider: ProviderType}): React.ReactElement {
+const devProviders = ["k8", "slurm"];
+
+export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode {
+    if (devProviders.indexOf(props.provider.id) !== -1) return null;
+
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
             <div className={classConcat(CardClass, ApplicationCardClass, ProviderCard)}>

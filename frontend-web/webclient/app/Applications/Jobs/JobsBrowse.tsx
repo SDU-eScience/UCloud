@@ -6,11 +6,9 @@ import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {appLogoCache} from "../AppToolLogo";
+import {AppLogo, appLogoCache, hashF} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {AsyncCache} from "@/Utilities/AsyncCache";
-import {AppLogo, hashF} from "../Card";
 import {useNavigate} from "react-router";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
@@ -18,6 +16,7 @@ import AppRoutes from "@/Routes";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {logoDataUrls} from "./LogoDataCache";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -33,8 +32,6 @@ const FEATURES: ResourceBrowseFeatures = {
     search: true,
     showColumnTitles: true,
 };
-
-export const logoDataUrls = new AsyncCache<string>();
 
 const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Job name"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: "State"}];
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {
@@ -62,7 +59,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
     const dateRanges = dateRangeFilters("Created");
 
-    const simpleView = !!(opts?.embedded && !opts.isModal);
+    const simpleView = !!(opts?.embedded && !opts.isModal) || opts?.selection !== undefined;
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -79,6 +76,15 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 };
 
                 browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource && opts?.selection) {
+                        const doShow = opts.selection.show ?? (() => true);
+                        if (doShow(resource)) {
+                            opts.selection.onClick(resource);
+                        }
+                        browser.open(oldPath, true);
+                        return;
+                    }
+
                     if (resource) {
                         navigate(AppRoutes.jobs.view(resource.id));
                         return;

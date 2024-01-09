@@ -12,13 +12,12 @@ import {
 } from "@/UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
-import {api as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
+import {api as FilesApi} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {BulkResponse} from "@/UCloud";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
-import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -30,6 +29,7 @@ import {Spacer} from "@/ui-components/Spacer";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
+import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const maxChunkSize = 16 * 1000 * 1000;

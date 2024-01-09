@@ -1,8 +1,6 @@
 import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import * as Accounting from "@/Accounting";
 import {FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
-import {WalletAllocation} from "@/Accounting";
-import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 
@@ -291,30 +289,11 @@ export enum ApplicationFilter {
     ACTIVE = "ACTIVE"
 }
 
-export function applicationFilterToString(filter: ApplicationFilter): string {
-    switch (filter) {
-        case ApplicationFilter.ACTIVE:
-            return "Active";
-        case ApplicationFilter.SHOW_ALL:
-            return "Show all";
-        case ApplicationFilter.INACTIVE:
-            return "Inactive";
-    }
-}
-
 export type UserCriteria =
     { type: "anyone" }
     | { type: "email", domain: string }
     | { type: "wayf", org: string }
     ;
-
-export function isAllocationSuitableForSubAllocation(alloc: WalletAllocation): boolean {
-    const now = timestampUnixMs();
-    return (alloc.endDate == null || now < alloc.endDate) &&
-        alloc.localBalance > 0 &&
-        alloc.canAllocate;
-}
-
 
 export function stateToIconAndColor(state: State): { icon: IconName, color: ThemeColor } {
     switch (state) {

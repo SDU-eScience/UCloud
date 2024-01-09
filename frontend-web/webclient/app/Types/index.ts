@@ -5,11 +5,6 @@ declare global {
     const DEVELOPMENT_ENV: boolean;
 }
 
-export interface SidebarOption {
-    name: string;
-}
-
-
 declare global {
     export interface PaginationRequest {
         itemsPerPage: number;

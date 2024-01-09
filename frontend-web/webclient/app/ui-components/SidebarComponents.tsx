@@ -19,7 +19,7 @@ export function SidebarLinkColumn({links}: { links: LinkInfo[] }): React.ReactNo
 
 export const SidebarEntry: React.FunctionComponent<LinkInfo> = (info) => {
     const icon = typeof info.icon === "string" ?
-        <Icon name={info.icon as IconName} color={"fixedWhite"} color2={"fixedWhite"} /> :
+        <Icon mt="2px" name={info.icon as IconName} color={"fixedWhite"} color2={"fixedWhite"} /> :
         info.icon;
 
     return <Link key={info.text} to={info.to}>

@@ -1,4 +1,4 @@
-import {Product, ProductIngress, productTypeToIcon} from "@/Accounting";
+import {productTypeToIcon, ProductV2, ProductV2Ingress} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/ui-components/MainContainer";
@@ -7,7 +7,12 @@ import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import PublicLinkApi, {PublicLink, PublicLinkSupport} from "@/UCloud/PublicLinkApi";
-import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {
+    ResourceBrowseCallbacks,
+    retrieveSupportV2,
+    SupportByProviderV2,
+    supportV2ProductMatch
+} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {createHTMLElements, doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
@@ -33,7 +38,7 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 
-const supportByProvider = new AsyncCache<SupportByProvider<ProductIngress, PublicLinkSupport>>({
+const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Ingress, PublicLinkSupport>>({
     globalTtl: 60_000
 });
 
@@ -73,18 +78,16 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     domain: ""
                 } as PublicLink;
 
-                const supportPromise = supportByProvider.retrieve("", () =>
-                    callAPI(PublicLinkApi.retrieveProducts())
-                );
+                const supportPromise = supportByProvider.retrieve("", () => retrieveSupportV2(PublicLinkApi));
 
                 supportPromise.then(res => {
                     browser.renderOperations();
 
-                    const creatableProducts: Product[] = [];
+                    const creatableProducts: ProductV2[] = [];
                     const ingressSupport: PublicLinkSupport[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
-                            creatableProducts.push(product);
+                            creatableProducts.push(supportV2ProductMatch(product, res));
                             ingressSupport.push(support);
                         }
                     }
@@ -323,7 +326,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: PublicLink): void { },
+                        startRenaming(): void { },
                         viewProperties(res: PublicLink): void {
                             navigate(AppRoutes.resource.properties("public-links", res.id));
                         },

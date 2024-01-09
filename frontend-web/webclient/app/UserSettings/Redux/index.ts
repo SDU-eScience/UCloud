@@ -44,7 +44,7 @@ export async function findAvatar(): Promise<SaveAvataaar | null> {
         );
         return null;
     }
-};
+}
 
 export const AVATAR_SAVE = "AVATAR_SAVE";
 export const AVATAR_ERROR = "AVATAR_ERROR";

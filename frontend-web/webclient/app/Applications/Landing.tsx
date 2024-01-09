@@ -10,7 +10,6 @@ import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import AppStoreSections = compute.AppStoreSections;
-import {ReducedApiInterface} from "@/Resource/Search";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
@@ -22,11 +21,6 @@ import ApplicationRow, {ApplicationGroupToRowItem, ApplicationSummaryToRowItem} 
 import { GradientWithPolygons } from "@/ui-components/GradientBackground";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-
-export const ApiLike: ReducedApiInterface = {
-    routingNamespace: "applications",
-    titlePlural: "Applications"
-};
 
 const LandingAppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {

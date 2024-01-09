@@ -2,8 +2,6 @@ import {DashboardStateProps} from "@/Dashboard";
 import * as ProjectRedux from "@/Project/ReduxState";
 import {Upload} from "@/Files/Upload";
 import {ProjectCache} from "@/Project/cache";
-import {APICallStateWithParams} from "@/Authentication/DataHook";
-import {Product} from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
@@ -54,17 +52,10 @@ export enum SensitivityLevelMap {
     SENSITIVE = "SENSITIVE"
 }
 
-export interface ComponentWithLoadingState {
-    loading: boolean;
-    error?: string;
-}
-
 export interface StatusReduxObject {
     title: string;
     loading: boolean;
 }
-
-export type HeaderSearchType = "files" | "applications" | "projects";
 
 /**
  * Global state created via useGlobal() similar to ReduxObject
@@ -75,8 +66,6 @@ export interface HookStore {
     uploadPath?: string;
 
     projectCache?: ProjectCache;
-    computeProducts?: APICallStateWithParams<Page<Product>>;
-    storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
 
     mainContainerHeaderSize?: number;
@@ -131,5 +120,3 @@ export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
 export function initAvatar(): AvatarReduxObject {
     return {...defaultAvatar, error: undefined};
 }
-
-export const defaultSearchPlaceholder = "Search files and applications..."

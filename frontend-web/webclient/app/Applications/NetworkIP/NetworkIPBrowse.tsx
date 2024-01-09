@@ -1,4 +1,4 @@
-import {Product, ProductNetworkIP, productTypeToIcon} from "@/Accounting";
+import {productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import MainContainer from "@/ui-components/MainContainer";
@@ -7,7 +7,12 @@ import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
-import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {
+    ResourceBrowseCallbacks,
+    retrieveSupportV2,
+    SupportByProviderV2,
+    supportV2ProductMatch
+} from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
@@ -31,7 +36,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const DUMMY_ENTRY_ID = "dummy";
 
-const supportByProvider = new AsyncCache<SupportByProvider<ProductNetworkIP, NetworkIPSupport>>({
+const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2NetworkIP, NetworkIPSupport>>({
     globalTtl: 60_000
 });
 
@@ -57,15 +62,13 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     {name: "In use with"},
                 ]);
 
-                var startCreation = function () { };
+                let startCreation = doNothing;
 
-                supportByProvider.retrieve("", () =>
-                    callAPI(NetworkIPApi.retrieveProducts())
-                ).then(res => {
-                    const creatableProducts: Product[] = [];
+                supportByProvider.retrieve("", () => retrieveSupportV2(NetworkIPApi)).then(res => {
+                    const creatableProducts: ProductV2[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
-                        for (const {product, support} of provider) {
-                            creatableProducts.push(product);
+                        for (const {product} of provider) {
+                            creatableProducts.push(supportV2ProductMatch(product, res));
                         }
                     }
 
@@ -96,7 +99,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                                 specification: {
                                     product: productReference
                                 },
-                                owner: {createdBy: "", },
+                                owner: {createdBy: ""},
                             } as NetworkIP;
 
                             browser.insertEntryIntoCurrentPage(activatedLicense);
@@ -128,7 +131,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     setProductSelectorPortal(resourceCreator.portal);
                 });
 
-                browser.on("open", (oldPath, newPath, resource) => {
+                browser.on("open", (_oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.resource.properties("public-ips", resource.id));
                         return;
@@ -144,7 +147,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     })
                 });
 
-                browser.on("unhandledShortcut", () => { });
+                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(

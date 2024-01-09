@@ -6,24 +6,22 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate, SortFlags
+    ResourceUpdate 
 } from "./ResourceApi";
 import {Box, Button, Divider, Icon, Input} from "@/ui-components";
 import * as React from "react";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage} from "@/Accounting";
 import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
+import {CheckboxFilter, ConditionalFilter, SortFlags} from "@/Resource/Filter";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {NavigateFunction} from "react-router";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -239,10 +237,6 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
             },
             ...baseOperations
         ]
-    }
-
-    navigateToChildren(navigate: NavigateFunction, resource: FileCollection) {
-        navigate(buildQueryString("/files", {path: `/${resource.id}`}))
     }
 
     rename(request: BulkRequest<{id: string; newTitle: string;}>): APICallParameters {

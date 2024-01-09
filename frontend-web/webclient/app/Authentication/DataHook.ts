@@ -1,7 +1,8 @@
-import {Client} from "@/Authentication/HttpClientInstance";
-import {useCallback, useEffect, useReducer, useRef, useState} from "react";
-import {defaultErrorHandler, removeTrailingSlash} from "@/UtilityFunctions";
 import * as React from "react";
+import {useCallback, useEffect, useReducer, useRef, useState} from "react";
+
+import {defaultErrorHandler, removeTrailingSlash} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
 import * as Messages from "@/UCloud/Messages";
 import {BufferAndOffset, loadMessage} from "@/UCloud/Messages";
 import {buildQueryString} from "@/Utilities/URIUtilities";

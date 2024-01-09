@@ -203,7 +203,7 @@ export const ItemRow = <T, CB>(
     />;
 }
 
-export const ItemRowMemo = React.memo(ItemRow) as typeof ItemRow;
+const ItemRowMemo = React.memo(ItemRow) as typeof ItemRow;
 
 interface RenamingState<T> {
     setRenaming: (item: T) => void;

@@ -1,6 +1,6 @@
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor, addThemeListener, removeThemeListener} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -10,14 +10,13 @@ import {fileName, resolvePath} from "@/Utilities/FileUtilities";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
-import {makeClassName, injectStyle as unstyledInjectStyle} from "@/Unstyled";
+import {injectStyle, makeClassName, injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
-import {addThemeListener, removeThemeListener} from "@/Core";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {Product, ProductType} from "@/Accounting";
+import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -29,11 +28,11 @@ import {ButtonClass} from "./Button";
 import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {FlexClass} from "./Flex";
-import {features} from "monaco-editor/esm/metadata";
+import Flex, {FlexClass} from "./Flex";
+import * as Heading from "@/ui-components/Heading";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
-const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "Alt + ";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
@@ -448,8 +447,8 @@ export class ResourceBrowser<T> {
                     </div>
                     <div style="flex-grow: 1;"></div>
                     <input class="${InputClass} search-field" hidden>
-                    <img class="search-icon">
-                    <img class="refresh-icon">
+                    <img alt="search" class="search-icon">
+                    <img alt="refresh" class="refresh-icon">
                 </div>
                 <div class="operations"></div>
                 <div style="display: flex; overflow-x: auto;">
@@ -553,12 +552,13 @@ export class ResourceBrowser<T> {
             document.body.addEventListener("click", listener);
         }
 
+        const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
         if (this.features.search) {
-            const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
-            icon.setAttribute("data-shown", "");
-            icon.src = placeholderImage;
+            searchIcon.setAttribute("data-shown", "");
+            searchIcon.src = placeholderImage;
+            searchIcon.style.display = "block";
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
-                .then(url => icon.src = url);
+                .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
             input.placeholder = "Search...";
@@ -573,7 +573,7 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            icon.onclick = () => {
+            searchIcon.onclick = () => {
                 if (!input) return;
                 input.toggleAttribute("hidden");
                 if (input.hasAttribute("hidden")) {
@@ -582,6 +582,8 @@ export class ResourceBrowser<T> {
                     input.focus()
                 }
             }
+        } else {
+            searchIcon.style.display = "none";
         }
 
         if (this.features.filters) {
@@ -665,7 +667,7 @@ export class ResourceBrowser<T> {
                 }
             });
 
-            this.locationBar.addEventListener("input", ev => {
+            this.locationBar.addEventListener("input", () => {
                 this.onLocationBarKeyDown("input");
             });
 
@@ -746,7 +748,7 @@ export class ResourceBrowser<T> {
             row.addEventListener("dblclick", () => {
                 this.onRowDoubleClicked(myIndex);
             });
-            row.addEventListener("mousemove", e => {
+            row.addEventListener("mousemove", () => {
                 this.onRowMouseMove(myIndex);
             });
             row.addEventListener("contextmenu", e => {
@@ -796,7 +798,7 @@ export class ResourceBrowser<T> {
 
                 this.open(path, true);
             })
-        };
+        }
     }
 
     public canConsumeResources = true;
@@ -1608,7 +1610,7 @@ export class ResourceBrowser<T> {
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
-            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY}${op.shortcut.replace("Key", "")}]` : undefined);
+            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY} + ${op.shortcut.replace("Key", "")}]` : undefined);
 
             {
                 // ...and the handlers
@@ -2061,7 +2063,7 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const releaseHandler = (e: Event) => {
+            const releaseHandler = () => {
                 document.removeEventListener("mousemove", moveHandler);
                 document.removeEventListener("pointerup", releaseHandler);
                 if (!this.root.isConnected) return;
@@ -2370,7 +2372,7 @@ export class ResourceBrowser<T> {
                         if (newClipboard.length) {
                             const key = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "Ctrl + ";
                             snackbarStore.addInformation(
-                                `${newClipboard.length} copied to clipboard.Use ${key}V to insert.`,
+                                `${newClipboard.length} copied to clipboard. Use ${key}V to insert.`,
                                 false
                             );
                         }
@@ -2597,7 +2599,7 @@ export class ResourceBrowser<T> {
             );
 
             if ("then" in entries) {
-                return entries.then(it => {
+                return entries.then(() => {
                     if (readValue() !== path) return;
                     return doTabComplete(false);
                 });
@@ -3383,7 +3385,7 @@ export class ResourceBrowser<T> {
         input.onkeydown = e => {
             e.stopPropagation();
         };
-        input.onkeyup = e => {
+        input.onkeyup = () => {
             if (input.value) {
                 this.browseFilters[filter.key] = input.value;
             } else {
@@ -3580,13 +3582,13 @@ export function addContextSwitcherInPortal<T>(
 
 export function resourceCreationWithProductSelector<T>(
     browser: ResourceBrowser<T>,
-    products: Product[],
+    products: ProductV2[],
     dummyEntry: T,
-    onCreate: (product: Product) => void,
+    onCreate: (product: ProductV2) => void,
     type: ProductType,
     // Note(Jonas): Used in the event that the product contains info that the browser component needs.
-    // See PublicLinks usage for an example of it's usage.
-    onSelect?: (product: Product) => void,
+    // See PublicLinks usage for an example of its usage.
+    onSelect?: (product: ProductV2) => void,
 ): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
@@ -3602,7 +3604,7 @@ export function resourceCreationWithProductSelector<T>(
         />;
     };
 
-    let selectedProduct: Product | null = null;
+    let selectedProduct: ProductV2 | null = null;
 
     const portal = createPortal(<Component />, productSelector);
 
@@ -3642,7 +3644,7 @@ export function resourceCreationWithProductSelector<T>(
         browser.renderRows();
     };
 
-    const onProductSelected = (product: Product) => {
+    const onProductSelected = (product: ProductV2) => {
         onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
@@ -3665,7 +3667,7 @@ export function resourceCreationWithProductSelector<T>(
         }
     };
 
-    const onOutsideClick = (ev: MouseEvent) => {
+    const onOutsideClick = () => {
         if (selectedProduct === null && isSelectingProduct()) {
             cancelCreation();
         }
@@ -3756,3 +3758,123 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
     }
 }
 
+const ARROW_UP = "↑";
+const ARROW_DOWN = "↓";
+const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "alt";
+const CTRL_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "ctrl";
+const ShortcutClass = injectStyle("shortcut", k => `
+    ${k} {
+        border-radius: 5px;
+        border: 1px solid var(--black);
+        font-size: 12px;
+        min-width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 5px;
+    }
+`);
+
+interface ShortcutProps {
+    name: string;
+    ctrl?: boolean;
+    alt?: boolean;
+    shift?: boolean;
+    keys: string | string[];
+}
+
+const Shortcut: React.FunctionComponent<ShortcutProps> = props => {
+    const normalizedKeys = typeof props.keys === "string" ? [props.keys] : props.keys;
+    return <tr>
+        <td>{props.name}</td>
+        <td>
+            <Flex gap={"4px"} justifyContent={"end"}>
+                {normalizedKeys.map(((k, i) =>
+                    <React.Fragment key={i}>
+                        {i > 0 && <> or </>}
+                        {props.ctrl && <div className={ShortcutClass}>{CTRL_KEY}</div>}
+                        {props.alt && <div className={ShortcutClass}>{ALT_KEY}</div>}
+                        {props.shift && <div className={ShortcutClass}>Shift</div>}
+                        <div className={ShortcutClass}>{k}</div>
+                    </React.Fragment>
+                ))}
+            </Flex>
+        </td>
+    </tr>;
+}
+
+const ControlsClass = injectStyle("controls", k => `
+    ${k} table {
+        margin: 16px 0;
+        width: 100%;
+    }
+    
+    ${k} td:first-child, ${k} th:first-child {
+        border-left: 1px solid var(--borderGray);
+    }
+    
+    ${k} td:last-child, ${k} th:last-child {
+        border-right: 1px solid var(--borderGray);
+    }
+    
+    ${k} td, ${k} th {
+        padding: 8px;
+        border-top: 1px solid var(--borderGray);
+        border-bottom: 1px solid var(--borderGray);
+    }
+    
+    ${k} td:last-child {
+        text-align: right;
+    }
+`);
+
+interface ControlDescription {
+    name: string;
+    shortcut?: Partial<ShortcutProps>;
+    description?: string;
+}
+
+function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, custom?: ControlDescription[]}) {
+    return <div className={ControlsClass}>
+        <Heading.h4>Controls and keyboard shortcuts</Heading.h4>
+        <table>
+            <tbody>
+                <Shortcut name={"Move selection up/down (Movement keys)"} keys={[ARROW_UP, "Home", "PgUp", ARROW_DOWN, "End", "PgDown"]} />
+                <Shortcut name={"Select multiple (in a row)"} shift keys={["Movement key", "Left click"]} />
+                <Shortcut name={"Select multiple (individual)"} ctrl keys={["Left click"]} />
+                <tr>
+                    <td>Go to row</td>
+                    <td>Type part of name</td>
+                </tr>
+                <Shortcut name={"Open selection"} keys={"Enter"} />
+                <Shortcut name={"Delete"} keys={"Delete"} />
+                {(features.supportsMove || features.supportsCopy) && <>
+                    <Shortcut name={"Undo"} ctrl keys={"Z"} />
+                    <Shortcut name={"Copy"} ctrl keys={"C"} />
+                    <Shortcut name={"Cut"} ctrl keys={"X"} />
+                    <Shortcut name={"Paste"} ctrl keys={"V"} />
+                </>}
+
+                {(custom ?? []).map((c, i) => <React.Fragment key={i}>
+                    {c.shortcut && <Shortcut name={c.name} keys={[]} {...c.shortcut} />}
+                    {c.description && <tr>
+                        <td>{c.name}</td>
+                        <td>{c.description}</td>
+                    </tr>}
+                </React.Fragment>)}
+            </tbody>
+        </table>
+    </div>
+}
+
+export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, unknown> & any {
+    return {
+        text: "",
+        icon: "heroBolt",
+        onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, () => {}),
+        enabled: () => true,
+        shortcut: ShortcutKey.Z,
+        hackNotInTheContextMenu: true
+    };
+}

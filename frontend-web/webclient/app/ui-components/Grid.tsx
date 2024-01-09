@@ -12,6 +12,7 @@ import {CSSProperties} from "react";
 export type GridProps =
     BoxProps &
     GridGapProps &
+    { gap?: string } &
     GridTemplateColumnsProps &
     GridAutoFlowProps &
     GridTemplateRowsProps &
@@ -30,6 +31,7 @@ const GridClass = injectStyle("grid", k => `
 const Grid: React.FunctionComponent<GridProps> = props => {
     const style: CSSProperties = {...unbox(props), ...(props.style ?? {})};
     if (props.gridGap) style.gap = extractSize(props.gridGap);
+    if (props.gap) style.gap = extractSize(props.gap);
     if (props.gridTemplateColumns) style.gridTemplateColumns = props.gridTemplateColumns.toString();
     if (props.gridAutoFlow) style.gridAutoFlow = props.gridAutoFlow.toString();
     if (props.gridTemplateRows) style.gridTemplateRows = props.gridTemplateRows.toString();

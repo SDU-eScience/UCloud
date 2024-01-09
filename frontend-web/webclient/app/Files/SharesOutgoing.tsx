@@ -119,7 +119,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     );
 
                     shouldRemoveFakeDirectory = true;
-                };
+                }
 
                 function insertFakeEntry(dummyId: string): void {
                     browser.insertEntryIntoCurrentPage({permissions: ["READ"], shareId: dummyId, sharedWith: "", state: "PENDING"} as OutgoingShareGroupPreview);
@@ -627,7 +627,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         share.permissions = isEditing ? ["READ"] : ["READ", "EDIT"];
                         browser.renderRows();
                     }
-                };
+                }
             });
 
             browserRef.current!.renameField.style.marginLeft = "18px";
