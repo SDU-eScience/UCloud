@@ -6,8 +6,6 @@ import {ProductV2, productCategoryEquals, ProductV2Compute, ProductCompute} from
 import * as UCloud from "@/UCloud";
 import {ProductSelector} from "@/Products/Selector";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
-import {emptyPageV2} from "@/DefaultObjects";
-import {useCloudAPI} from "@/Authentication/DataHook";
 
 export const reservationMachine = "reservation-machine";
 

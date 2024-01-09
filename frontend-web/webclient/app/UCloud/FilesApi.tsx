@@ -1022,7 +1022,7 @@ async function getMonaco(): Promise<any> {
                         name: label,
                         type: 'module'
                     });
-                };
+                }
             }
         };
         return monaco;

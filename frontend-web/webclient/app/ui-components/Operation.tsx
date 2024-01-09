@@ -1,6 +1,6 @@
 import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Flex, Icon, Tooltip} from "@/ui-components/index";
-import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef, useState} from "react";
+import {PropsWithChildren, useCallback, useRef, useState} from "react";
 import * as React from "react";
 import {TextSpan} from "@/ui-components/Text";
 import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
@@ -56,7 +56,7 @@ export enum ShortcutKey {
     Z = "KeyZ",
     Backspace = "Backspace",
     Enter = "Enter"
-}; 
+}
 
 export interface Operation<T, R = undefined> {
     text: string | ((selected: T[], extra: R) => string);
@@ -350,13 +350,3 @@ const InRowPrimaryButtonsClass = injectStyle("in-row-primary-buttons", k => `
         max-width: 150px;
     }
 `);
-
-export function useOperationOpener(): [React.MutableRefObject<(left: number, top: number) => void>, EventHandler<MouseEvent<never>>] {
-    const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);
-    const onContextMenu = useCallback<EventHandler<MouseEvent<never>>>((e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        openOperationsRef.current(e.clientX, e.clientY);
-    }, []);
-    return [openOperationsRef, onContextMenu];
-}

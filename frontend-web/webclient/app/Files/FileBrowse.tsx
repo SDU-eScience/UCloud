@@ -29,7 +29,7 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, inDevEnvironment, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";

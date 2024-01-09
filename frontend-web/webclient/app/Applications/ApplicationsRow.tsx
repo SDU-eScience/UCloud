@@ -2,7 +2,7 @@ import {injectStyle} from "@/Unstyled";
 import {ApplicationGroup} from "./api";
 import {AppCard, AppCardType, AppCardStyle} from "./Card";
 import React, {useEffect, useState} from "react";
-import {Absolute, Icon, Link, Relative} from "@/ui-components";
+import {Absolute, Icon, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;

@@ -2,7 +2,7 @@
 // GENERATED CODE - DO NOT MODIFY - See StatisticsModel.msg
 // GENERATED CODE - DO NOT MODIFY - See StatisticsModel.msg
 
-import { BinaryAllocator, UBinaryType, BinaryTypeCompanion, UText, UTextCompanion, BufferAndOffset, BinaryTypeList, BinaryTypeDictionary } from "@/UCloud/Messages";
+import { BinaryAllocator, UBinaryType, BinaryTypeCompanion, UText, BufferAndOffset, BinaryTypeList } from "@/UCloud/Messages";
 import { ProductCategoryB, ProductCategoryBCompanion } from "@/Accounting/AccountingBinary";
 
 // import dk.sdu.cloud.accounting.api.*

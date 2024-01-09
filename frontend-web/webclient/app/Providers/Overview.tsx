@@ -9,7 +9,7 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import Providers from "@/Assets/provider_info.json";
 import {Feature, hasFeature} from "@/Features";
-import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {ApplicationCardClass} from "@/Applications/Card";
 import {CardClass} from "@/ui-components/Card";
 

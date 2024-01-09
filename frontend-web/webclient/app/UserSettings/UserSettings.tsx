@@ -68,6 +68,6 @@ function UserSettings(): React.ReactNode {
             </Box>
         </Flex>
     );
-};
+}
 
 export default UserSettings;

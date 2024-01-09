@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo} from "react";
 import {
     CREATE_TAG,
     PERMISSIONS_TAG,

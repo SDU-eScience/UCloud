@@ -1381,7 +1381,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
             opts={{initialPath: pathRef.current, embedded: true}}
         />
     </div>;
-};
+}
 
 
 const fadeInAnimation = makeKeyframe("fade-in-animation", `

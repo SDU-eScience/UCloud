@@ -8,7 +8,7 @@ import {Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} f
 import * as Heading from "@/ui-components/Heading";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux";
-import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
@@ -35,6 +35,7 @@ import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
 import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
+import {NoResultsCardBody} from "@/UtilityComponents";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -153,21 +154,6 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
         path: buildQueryString("/news/list", payload)
     };
 }
-
-export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
-    <Flex
-        alignItems="center"
-        justifyContent="center"
-        height="calc(100% - 60px)"
-        minHeight="250px"
-        mt="-30px"
-        width="100%"
-        flexDirection="column"
-    >
-        <Heading.h4>{props.title}</Heading.h4>
-        {props.children}
-    </Flex>
-);
 
 function DashboardRuns(): JSX.Element {
     return <DashboardCard

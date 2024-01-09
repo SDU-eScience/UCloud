@@ -17,7 +17,6 @@ import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
-import {appendToXterm, useXTerm} from "@/Applications/Jobs/XTermLib";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";

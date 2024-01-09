@@ -146,7 +146,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                 if (newTitle === "") {
                                     snackbarStore.addFailure("Title cannot be empty", false);
                                     return
-                                };
+                                }
 
                                 const descriptionField = groupDescriptionField.current;
                                 if (descriptionField === null) return;

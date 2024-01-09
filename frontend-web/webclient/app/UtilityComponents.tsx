@@ -459,3 +459,18 @@ export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight: s
             fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace"
         }}>{updates}</pre>
 }
+
+export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
+    <Flex
+        alignItems="center"
+        justifyContent="center"
+        height="calc(100% - 60px)"
+        minHeight="250px"
+        mt="-30px"
+        width="100%"
+        flexDirection="column"
+    >
+        <Heading.h4>{props.title}</Heading.h4>
+        {props.children}
+    </Flex>
+);

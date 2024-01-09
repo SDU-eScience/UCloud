@@ -429,7 +429,7 @@ export function Sidebar(): JSX.Element | null {
             />
         </Flex>
     );
-};
+}
 
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,

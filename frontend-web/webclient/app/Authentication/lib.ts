@@ -343,24 +343,12 @@ export class HttpClient {
         return `/projects/${this.projectId}`;
     }
 
-    public get activeHomeFolder(): string {
-        if (!this.hasActiveProject) {
-            return this.homeFolder;
-        } else {
-            return this.currentProjectFolder;
-        }
-    }
-
     public get sharesFolder(): string {
         return `${this.homeFolder}Shares`;
     }
 
     public get favoritesFolder(): string {
         return `${this.homeFolder}Favorites`;
-    }
-
-    public get fakeFolders(): string[] {
-        return [this.sharesFolder, this.favoritesFolder];
     }
 
     public get isLoggedIn(): boolean {

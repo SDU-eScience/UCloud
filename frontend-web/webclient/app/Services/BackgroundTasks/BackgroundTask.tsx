@@ -19,7 +19,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {UploadState} from "@/Files/Upload";
 import {CardClass} from "@/ui-components/Card";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 
 function insertTimestamps(speeds: Speed[]): Speed[] {
     return speeds.map(it => {

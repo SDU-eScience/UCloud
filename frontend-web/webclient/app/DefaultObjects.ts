@@ -120,5 +120,3 @@ export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
 export function initAvatar(): AvatarReduxObject {
     return {...defaultAvatar, error: undefined};
 }
-
-export const defaultSearchPlaceholder = "Search files and applications..."

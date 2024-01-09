@@ -15,7 +15,7 @@ function CodeBlock(props: {lang?: string; inline?: boolean; children: React.Reac
 
 function LinkBlock(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
     return <ExternalLink color={"darkBlue"} href={props.href}>{props.children}</ExternalLink>;
-};
+}
 
 function Markdown(props: Options): React.ReactNode {
 
@@ -26,6 +26,6 @@ function Markdown(props: Options): React.ReactNode {
             code: CodeBlock
         }}
     />
-};
+}
 
 export default Markdown;
