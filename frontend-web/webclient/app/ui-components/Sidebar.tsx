@@ -222,7 +222,8 @@ const sideBarMenuElements: [
             items: [
                 {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
             ],
-            predicate: () => Client.userIsAdmin}
+            predicate: () => Client.userIsAdmin
+        }
     ];
 
 interface SidebarStateProps {
@@ -547,12 +548,9 @@ function SecondarySidebar({
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
 
-    const navigate = useNavigate();
-    const [, invokeCommand] = useCloudCommand();
-
     const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
         compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
-        { items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
+        {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
     );
 
     const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
@@ -618,6 +616,7 @@ function SecondarySidebar({
 
                 {canConsume && drives.data.items.slice(0, 8).map(drive =>
                     <SidebarEntry
+                        key={drive.id}
                         text={drive.specification.title}
                         icon={isShare(drive) ? "ftSharesFolder" : <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
                         to={AppRoutes.files.drive(drive.id)}
@@ -628,6 +627,7 @@ function SecondarySidebar({
                     <SidebarSectionHeader>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
+                            key={file.path}
                             to={AppRoutes.files.path(file.path)}
                             icon={"heroStar"}
                             text={fileName(file.path)}
@@ -739,7 +739,7 @@ function SecondarySidebar({
                             key={i}
                             to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name}/>}
+                            icon={<AppLogo name={fav.metadata.name} />}
                         />
                     )}
                 </>}
@@ -768,12 +768,12 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.ADMIN ? null : <>
                 <SidebarSectionHeader>Tools</SidebarSectionHeader>
-                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"}/>
+                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"} />
                 <SidebarEntry to={AppRoutes.admin.applicationStudio()} text={"Application studio"}
-                              icon={"heroBuildingStorefront"}/>
-                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}/>
-                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}/>
-                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}/>
+                    icon={"heroBuildingStorefront"} />
+                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"} />
+                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"} />
+                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"} />
             </>}
         </Flex>
     </div>;
@@ -789,6 +789,8 @@ function AppLogo({name}): JSX.Element {
             backgroundColor="var(--fixedWhite)"
             width="16px"
             height="16px"
+            minHeight="16px"
+            minWidth="16px"
             borderRadius="4px"
         >
             <AppToolLogo size="12px" name={name} type="APPLICATION" />
@@ -815,13 +817,6 @@ function Username({close}: {close(): void}): JSX.Element | null {
     >
         Click to copy {Client.username} to clipboard
     </Tooltip>
-}
-
-function ListMapper<T>({items, mapper, emptyPage}: {
-    items: T[], mapper: (el: T) => JSX.Element, emptyPage: React.ReactNode
-}): React.ReactNode {
-    if (items.length === 0) return emptyPage;
-    return items.map(mapper);
 }
 
 function ProjectID({close}: {close(): void}): JSX.Element | null {
