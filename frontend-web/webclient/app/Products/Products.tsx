@@ -1,7 +1,5 @@
 import {
-    explainPrice2,
-    explainUnit,
-    priceExplainer,
+    priceToString,
     ProductType,
     ProductV2,
     ProductV2Compute,
@@ -89,65 +87,53 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
     if (machineCount === 0) return null;
 
     return (<>
-        <Card
-            my="8px"
-            backgroundColor={"var(--white)"}
-            width={1}
-            padding={"0 0 0 0"}
-            overflow="hidden"
-            boxShadow="sm"
-            borderWidth={0}
-            borderRadius={6}
-        >
-            <Box style={{borderTop: `5px solid ${color}`}} />
-            <Box p="0 25px 25px" height={"100%"}>
-                <Heading.h3 mb={"16px"}>{capitalized(productType === "INGRESS" ? "public links" : productType)}</Heading.h3>
+        <Card>
+            <Heading.h3 mb={"16px"}>{capitalized(productType === "INGRESS" ? "public links" : productType)}</Heading.h3>
 
-                <Flex alignItems="center">
-                    <ListV2
-                        page={machines.data}
-                        loading={machines.loading}
-                        onLoadMore={() => refetch({...UCloud.accounting.products.browse({
-                            filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
-                        }), unauthenticated: !Client.isLoggedIn})}
-                        pageRenderer={items => (
-                            <div className={MachineTypesWrapper}>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHeaderCell>Name</TableHeaderCell>
-                                            {!isCompute ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
-                                            {!isCompute ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
-                                            {!isCompute ? null : <TableHeaderCell>GPU</TableHeaderCell>}
-                                            {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
-                                            <TableHeaderCell>Description</TableHeaderCell>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <tbody>
-                                        {items.map(machine => {
-                                            if (provider === UCLOUD_PROVIDER && productType === "COMPUTE") {
-                                                // Note(Jonas): Why in the world would this ever happen?
-                                                if (machine === null) return null;
-                                            }
-                                            const computeProduct = productType === "COMPUTE" ? machine as ProductV2Compute : null;
-                                            return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
-                                                <TableCell>{machine.name}</TableCell>
-                                                {!computeProduct ? null :
-                                                    <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
-                                                {!computeProduct ? null :
-                                                    <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
-                                                {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                                {!hasPrice ? null : <TableCell>{explainPrice2(machine, 1)}</TableCell>}
-                                                <td className={TruncatedTableCell}>{machine.description}</td>
-                                            </TableRow>;
-                                        })}
-                                    </tbody>
-                                </Table>
-                            </div>
-                        )}
-                    />
-                </Flex>
-            </Box>
+            <Flex alignItems="center">
+                <ListV2
+                    page={machines.data}
+                    loading={machines.loading}
+                    onLoadMore={() => refetch({...UCloud.accounting.products.browse({
+                        filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
+                    }), unauthenticated: !Client.isLoggedIn})}
+                    pageRenderer={items => (
+                        <div className={MachineTypesWrapper}>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell>Name</TableHeaderCell>
+                                        {!isCompute ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
+                                        {!isCompute ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
+                                        {!isCompute ? null : <TableHeaderCell>GPU</TableHeaderCell>}
+                                        {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
+                                        <TableHeaderCell>Description</TableHeaderCell>
+                                    </TableRow>
+                                </TableHeader>
+                                <tbody>
+                                    {items.map(machine => {
+                                        if (provider === UCLOUD_PROVIDER && productType === "COMPUTE") {
+                                            // Note(Jonas): Why in the world would this ever happen?
+                                            if (machine === null) return null;
+                                        }
+                                        const computeProduct = productType === "COMPUTE" ? machine as ProductV2Compute : null;
+                                        return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
+                                            <TableCell>{machine.name}</TableCell>
+                                            {!computeProduct ? null :
+                                                <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
+                                            {!computeProduct ? null :
+                                                <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
+                                            {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
+                                            {!hasPrice ? null : <TableCell>{priceToString(machine, 1)}</TableCell>}
+                                            <td className={TruncatedTableCell}>{machine.description}</td>
+                                        </TableRow>;
+                                    })}
+                                </tbody>
+                            </Table>
+                        </div>
+                    )}
+                />
+            </Flex>
         </Card>
         <ReactModal
             ariaHideApp={false}
@@ -193,7 +179,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                             <TableRow>
                                 <th>Price</th>
                                 <TableCell>
-                                    {explainUnit(activeMachine.category).priceFactor} {explainUnit(activeMachine.category).name}
+                                    {priceToString(activeMachine, 1)}
                                 </TableCell>
                             </TableRow>
                             <TableRow>

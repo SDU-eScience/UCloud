@@ -19,8 +19,13 @@ import {AsyncCache} from "@/Utilities/AsyncCache";
 import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
-import {DELETE_TAG, ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
-import {Product, ProductStorage} from "@/Accounting";
+import {
+    DELETE_TAG,
+    ResourceBrowseCallbacks,
+    retrieveSupportV2,
+    SupportByProviderV2, supportV2ProductMatch
+} from "@/UCloud/ResourceApi";
+import {ProductV2, ProductV2Storage} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useTitle} from "@/Navigation/Redux";
@@ -29,7 +34,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
-const supportByProvider = new AsyncCache<SupportByProvider<ProductStorage, FileCollectionSupport>>({
+const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
     globalTtl: 60_000
 });
 
@@ -90,18 +95,16 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     permissions: {myself: []}
                 };
 
-                const supportPromise = supportByProvider.retrieve("", () =>
-                    callAPI(FileCollectionsApi.retrieveProducts())
-                );
+                const supportPromise = supportByProvider.retrieve("", () => retrieveSupportV2(FileCollectionsApi));
 
                 supportPromise.then(res => {
                     browser.renderOperations();
 
-                    const creatableProducts: Product[] = [];
+                    const creatableProducts: ProductV2[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product, support} of provider) {
                             if (support.collection.usersCanCreate) {
-                                creatableProducts.push(product);
+                                creatableProducts.push(supportV2ProductMatch(product, res));
                             }
                         }
                     }

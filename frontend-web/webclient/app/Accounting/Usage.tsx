@@ -1,16 +1,15 @@
 import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
-import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import theme, {ThemeColor} from "@/ui-components/theme";
-import {Flex, Icon, Input, Radio, Select} from "@/ui-components";
+import {classConcat, injectStyle} from "@/Unstyled";
+import theme from "@/ui-components/theme";
+import {Flex, Icon, Input, Radio} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {translateBinaryProductCategory} from ".";
-import {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import { doNothing, timestampUnixMs } from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -425,7 +424,7 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 
 // User-interface
 // =====================================================================================================================
-const Visualization: React.FunctionComponent = props => {
+const Visualization: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
@@ -1176,146 +1175,8 @@ const UsageByUsers: React.FunctionComponent<{ loading: boolean, data?: JobUsageB
     </div>;
 };
 
-const StorageUsageExplorerStyle = injectStyle("storage-usage-explorer", k => `
-    ${k} .entry:first-child {
-        margin-left: 0;
-    }
-    
-    ${k} .entry {
-        margin-left: 27px;
-        user-select: none;
-    }
-    
-    ${k} .entry .row {
-        cursor: pointer;
-        display: flex;
-        flex-direction: row;
-        gap: 8px;
-        margin-bottom: 8px;
-    }
-    
-    ${k} .bar {
-        width: 150px;
-        height: 25px;
-        border-radius: 5px;
-        border: 1px solid var(--midGray);
-    }
-    
-    ${k} .bar-fill {
-        background: var(--green);
-        height: 100%;
-    }
-`);
-
-const UsageEntry: React.FunctionComponent<{
-    icon: IconName;
-    title: string;
-    usage: string;
-    percentage: number;
-    depth: number;
-    children?: React.ReactNode;
-}> = props => {
-    const [open, setOpen] = useState(props.depth < 3);
-    const toggleOpen = useCallback(() => {
-        setOpen(prev => !prev);
-    }, []);
-    return <div className={"entry"}>
-        <div className="row" onClick={toggleOpen}>
-            {props.depth === 0 ? null : props.children === undefined ?
-                <div style={{width: "16px"}}/> :
-                <Icon name={open ? "heroMinusSmall" : "heroPlusSmall"}/>
-            }
-            <Icon name={props.icon} color={"gray"}/>
-            <div style={{flexGrow: 1}}>{props.title}</div>
-            <div>{props.usage}</div>
-            <div className={"bar"} style={{width: `${150 - (10 * props.depth)}px`}}>
-                <div className="bar-fill" style={{width: `${props.percentage}%`}}/>
-            </div>
-        </div>
-
-        {open && props.children}
-    </div>;
-};
-
-const StorageUsageExplorerPanel: React.FunctionComponent = props => {
-    return <div className={classConcat(PanelClass, CardClass, StorageUsageExplorerStyle)}>
-        <div className="panel-title">
-            <h4>Usage breakdown</h4>
-        </div>
-
-        <div>
-            You are viewing an old snapshot from <code>23/11/2023 12:25</code>{" "}
-            (click <a href="#">here</a> to generate a new one). This breakdown can only show you usage from your own
-            drives. Usage from your sub-allocations are not shown here.
-        </div>
-
-        <div>
-            <UsageEntry icon={"heroBanknotes"} title={"Allocation"} usage={"340TB"} percentage={34} depth={0}>
-                <UsageEntry icon={"heroServer"} title={"Home/"} usage={"300TB"} percentage={88.23} depth={1}>
-                    <UsageEntry icon={"ftFolder"} title={"Folder 1/"} usage={"100TB"} percentage={33.33} depth={2}/>
-                    <UsageEntry icon={"ftFolder"} title={"Folder 2/"} usage={"200TB"} percentage={66.66} depth={2}>
-                        <UsageEntry icon={"ftFolder"} title={"A/B/C/D/"} usage={"200TB"} percentage={100} depth={3}>
-                            <UsageEntry icon={"ftFolder"} title={"1/"} usage={"50TB"} percentage={25} depth={4}/>
-                            <UsageEntry icon={"ftFolder"} title={"2/"} usage={"50TB"} percentage={25} depth={4}/>
-                            <UsageEntry icon={"ftFolder"} title={"3/"} usage={"50TB"} percentage={25} depth={4}/>
-                            <UsageEntry icon={"ftFolder"} title={"4/"} usage={"50TB"} percentage={25} depth={4}/>
-                        </UsageEntry>
-                    </UsageEntry>
-                </UsageEntry>
-
-                <UsageEntry icon={"heroServer"} title={"Code/"} usage={"40TB"} percentage={11.76} depth={1}>
-                    <UsageEntry icon={"ftFolder"} title={"Folder 1/"} usage={"10TB"} percentage={25} depth={2}/>
-                    <UsageEntry icon={"ftFolder"} title={"Folder 2/"} usage={"20TB"} percentage={50} depth={2}/>
-                    <UsageEntry icon={"ftFolder"} title={"Folder 3/"} usage={"10TB"} percentage={25} depth={2}/>
-                </UsageEntry>
-            </UsageEntry>
-        </div>
-    </div>;
-};
-
 // Utility components
 // =====================================================================================================================
-// Various helper components used by the main user-interface.
-function dummyChart(): UsageChart {
-    const result: UsageChart = {dataPoints: [], unit: "DKK"};
-    const d = new Date();
-    d.setHours(0, 0, 0);
-    d.setDate(d.getDate() - 7);
-    let currentUsage = 30000;
-    for (let i = 0; i < 4 * 7; i++) {
-        result.dataPoints.push({timestamp: d.getTime(), usage: currentUsage, quota: 0});
-        if (i % 2 === 0 && Math.random() >= 0.5) {
-            currentUsage += Math.random() * 5000;
-        } else if (i % 2 === 0 && Math.random() >= 0.5) {
-            currentUsage += Math.random() * 400;
-        } else if (i % 2 === 1 && Math.random() >= 0.3) {
-            currentUsage += Math.random() * 200;
-        }
-        d.setHours(d.getHours() + 6);
-    }
-    return result;
-}
-
-function dummyChartQuota() {
-    const result: UsageChart = {dataPoints: [], unit: "GB"};
-    const d = new Date();
-    d.setHours(0, 0, 0);
-    d.setDate(d.getDate() - 7);
-    let currentUsage = 50;
-    for (let i = 0; i < 4 * 7; i++) {
-        result.dataPoints.push({timestamp: d.getTime(), usage: currentUsage, quota: 0});
-        if (i % 2 === 0 && Math.random() >= 0.5) {
-            currentUsage += 20 - (Math.random() * 40);
-            currentUsage = Math.max(10, currentUsage);
-        }
-        d.setHours(d.getHours() + 6);
-    }
-    return result;
-}
-
-const cpuChart1 = dummyChart();
-const cpuChart2 = dummyChart();
-const storageChart1 = dummyChartQuota();
 
 const fieldOfResearch = {
     "sections": [
@@ -1475,20 +1336,15 @@ interface SubmissionStatistics {
         averageQueueInSeconds: number;
     }[];
 }
-const emptySubmisssionStatistics: SubmissionStatistics = { dataPoints: [] };
 
 interface MostUsedApplications {
     dataPoints: { applicationTitle: string; count: number; }[],
 }
 
-const emptyMostUsedApplications: MostUsedApplications = { dataPoints: [] };
-
 interface JobUsageByUsers {
     unit: string,
     dataPoints: { username: string; usage: number; }[],
 }
-
-const emptyJobUsageByUsers: JobUsageByUsers = { unit: "", dataPoints: [] };
 
 interface BreakdownChart {
     unit: string,

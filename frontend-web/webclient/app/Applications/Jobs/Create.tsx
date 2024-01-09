@@ -42,7 +42,7 @@ import {bulkRequestOf} from "@/DefaultObjects";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {ProductV2, balanceToString, explainPrice2} from "@/Accounting";
+import {ProductV2, balanceToString, priceToString} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -445,7 +445,7 @@ export const Create: React.FunctionComponent = () => {
                                                 <tbody>
                                                 <tr>
                                                     <th>Estimated cost</th>
-                                                    <td>{!estimatedCost.product ? "-" : explainPrice2(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, { showSuffix: false })}</td>
+                                                    <td>{!estimatedCost.product ? "-" : priceToString(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, { showSuffix: false })}</td>
                                                 </tr>
                                                 <tr>
                                                     <th>Current balance</th>

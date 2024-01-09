@@ -6,11 +6,15 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import LicenseApi, {License, LicenseSupport} from "@/UCloud/LicenseApi";
-import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
+import {
+    ResourceBrowseCallbacks, retrieveSupportV2,
+    SupportByProviderV2,
+    supportV2ProductMatch
+} from "@/UCloud/ResourceApi";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {Product, ProductLicense, productTypeToIcon} from "@/Accounting";
+import {productTypeToIcon, ProductV2, ProductV2License} from "@/Accounting";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
@@ -32,7 +36,7 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
 };
 
-const supportByProvider = new AsyncCache<SupportByProvider<ProductLicense, LicenseSupport>>({
+const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2License, LicenseSupport>>({
     globalTtl: 60_000
 });
 
@@ -51,17 +55,15 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
-                var startCreation = function () { };
+                let startCreation = doNothing;
 
                 browser.setColumnTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);
 
-                supportByProvider.retrieve("", () =>
-                    callAPI(LicenseApi.retrieveProducts())
-                ).then(res => {
-                    const creatableProducts: Product[] = [];
+                supportByProvider.retrieve("", () => retrieveSupportV2(LicenseApi)).then(res => {
+                    const creatableProducts: ProductV2[] = [];
                     for (const provider of Object.values(res.productsByProvider)) {
                         for (const {product} of provider) {
-                            creatableProducts.push(product);
+                            creatableProducts.push(supportV2ProductMatch(product, res));
                         }
                     }
 

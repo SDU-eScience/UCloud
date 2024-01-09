@@ -56,9 +56,9 @@ export default function DetailedProvider() {
                 </TitledCard>
             </Box>
         )}
-        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "STORAGE"} productType="STORAGE" />
+        <MachineView provider={entry.id} key={entry.id + "STORAGE"} productType="STORAGE" />
         <Box my="32px" />
-        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "COMPUTE"} productType="COMPUTE" />
+        <MachineView provider={entry.id} key={entry.id + "COMPUTE"} productType="COMPUTE" />
     </Box>;
 
     if (!Client.isLoggedIn) return (<>

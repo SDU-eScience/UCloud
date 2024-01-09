@@ -16,7 +16,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {Product, ProductType} from "@/Accounting";
+import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -447,8 +447,8 @@ export class ResourceBrowser<T> {
                     </div>
                     <div style="flex-grow: 1;"></div>
                     <input class="${InputClass} search-field" hidden>
-                    <img class="search-icon">
-                    <img class="refresh-icon">
+                    <img alt="search" class="search-icon">
+                    <img alt="refresh" class="refresh-icon">
                 </div>
                 <div class="operations"></div>
                 <div style="display: flex; overflow-x: auto;">
@@ -552,12 +552,13 @@ export class ResourceBrowser<T> {
             document.body.addEventListener("click", listener);
         }
 
+        const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
         if (this.features.search) {
-            const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
-            icon.setAttribute("data-shown", "");
-            icon.src = placeholderImage;
+            searchIcon.setAttribute("data-shown", "");
+            searchIcon.src = placeholderImage;
+            searchIcon.style.display = "block";
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
-                .then(url => icon.src = url);
+                .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
             input.placeholder = "Search...";
@@ -572,7 +573,7 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            icon.onclick = () => {
+            searchIcon.onclick = () => {
                 if (!input) return;
                 input.toggleAttribute("hidden");
                 if (input.hasAttribute("hidden")) {
@@ -581,6 +582,8 @@ export class ResourceBrowser<T> {
                     input.focus()
                 }
             }
+        } else {
+            searchIcon.style.display = "none";
         }
 
         if (this.features.filters) {
@@ -664,7 +667,7 @@ export class ResourceBrowser<T> {
                 }
             });
 
-            this.locationBar.addEventListener("input", ev => {
+            this.locationBar.addEventListener("input", () => {
                 this.onLocationBarKeyDown("input");
             });
 
@@ -745,7 +748,7 @@ export class ResourceBrowser<T> {
             row.addEventListener("dblclick", () => {
                 this.onRowDoubleClicked(myIndex);
             });
-            row.addEventListener("mousemove", e => {
+            row.addEventListener("mousemove", () => {
                 this.onRowMouseMove(myIndex);
             });
             row.addEventListener("contextmenu", e => {
@@ -795,7 +798,7 @@ export class ResourceBrowser<T> {
 
                 this.open(path, true);
             })
-        };
+        }
     }
 
     public canConsumeResources = true;
@@ -2060,7 +2063,7 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const releaseHandler = (e: Event) => {
+            const releaseHandler = () => {
                 document.removeEventListener("mousemove", moveHandler);
                 document.removeEventListener("pointerup", releaseHandler);
                 if (!this.root.isConnected) return;
@@ -2596,7 +2599,7 @@ export class ResourceBrowser<T> {
             );
 
             if ("then" in entries) {
-                return entries.then(it => {
+                return entries.then(() => {
                     if (readValue() !== path) return;
                     return doTabComplete(false);
                 });
@@ -3382,7 +3385,7 @@ export class ResourceBrowser<T> {
         input.onkeydown = e => {
             e.stopPropagation();
         };
-        input.onkeyup = e => {
+        input.onkeyup = () => {
             if (input.value) {
                 this.browseFilters[filter.key] = input.value;
             } else {
@@ -3579,13 +3582,13 @@ export function addContextSwitcherInPortal<T>(
 
 export function resourceCreationWithProductSelector<T>(
     browser: ResourceBrowser<T>,
-    products: Product[],
+    products: ProductV2[],
     dummyEntry: T,
-    onCreate: (product: Product) => void,
+    onCreate: (product: ProductV2) => void,
     type: ProductType,
     // Note(Jonas): Used in the event that the product contains info that the browser component needs.
-    // See PublicLinks usage for an example of it's usage.
-    onSelect?: (product: Product) => void,
+    // See PublicLinks usage for an example of its usage.
+    onSelect?: (product: ProductV2) => void,
 ): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
@@ -3601,7 +3604,7 @@ export function resourceCreationWithProductSelector<T>(
         />;
     };
 
-    let selectedProduct: Product | null = null;
+    let selectedProduct: ProductV2 | null = null;
 
     const portal = createPortal(<Component />, productSelector);
 
@@ -3641,7 +3644,7 @@ export function resourceCreationWithProductSelector<T>(
         browser.renderRows();
     };
 
-    const onProductSelected = (product: Product) => {
+    const onProductSelected = (product: ProductV2) => {
         onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
@@ -3664,7 +3667,7 @@ export function resourceCreationWithProductSelector<T>(
         }
     };
 
-    const onOutsideClick = (ev: MouseEvent) => {
+    const onOutsideClick = () => {
         if (selectedProduct === null && isSelectingProduct()) {
             cancelCreation();
         }
