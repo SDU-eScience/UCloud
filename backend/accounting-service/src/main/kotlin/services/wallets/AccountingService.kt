@@ -42,6 +42,20 @@ class AccountingService(
         return processor.retrieveActiveProcessor()
     }
 
+    suspend fun retrieveTimeFittingAllocations(actorAndProject: ActorAndProject, owner: WalletOwner,  category: ProductCategoryIdV2, start: Long, end: Long): List<WalletAllocationV2> {
+        return processor.retrieveAllocationsInternal(
+            AccountingRequest.RetrieveAllocationsInternal(actorAndProject.actor, owner.toProcessorOwner(), category)
+        ).allocations.filter {
+            //Every alloc that start before start of period, but ends within
+            (it.startDate <= start && it.endDate > start)
+            //Every alloc that starts within time limit of period but also ends within time limit of period
+                    || (it.startDate >= start && it.endDate <= end)
+            //Every alloc that starts within time limit of period but ends after gift period
+                    || (it.startDate <= end && it.endDate >= end)
+            //Every alloc that spans the entire period without starting and ending
+                    || (it.startDate <= start && it.endDate >= end)
+        }
+    }
     suspend fun retrieveAllocationsInternal(
         actorAndProject: ActorAndProject,
         owner: WalletOwner,
