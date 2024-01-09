@@ -99,7 +99,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                                 specification: {
                                     product: productReference
                                 },
-                                owner: {createdBy: "", },
+                                owner: {createdBy: ""},
                             } as NetworkIP;
 
                             browser.insertEntryIntoCurrentPage(activatedLicense);
@@ -147,7 +147,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     })
                 });
 
-                browser.on("unhandledShortcut", () => { });
+                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(

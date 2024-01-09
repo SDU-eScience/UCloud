@@ -1610,7 +1610,7 @@ export class ResourceBrowser<T> {
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
-            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY}${op.shortcut.replace("Key", "")}]` : undefined);
+            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY} + ${op.shortcut.replace("Key", "")}]` : undefined);
 
             {
                 // ...and the handlers
