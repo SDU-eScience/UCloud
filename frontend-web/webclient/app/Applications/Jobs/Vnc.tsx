@@ -13,7 +13,7 @@ import RFB from "@novnc/novnc/core/rfb";
 import * as VncLog from '@novnc/novnc/core/util/logging.js';
 import {Box, Button} from "@/ui-components";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 
 interface ConnectionDetails {
     url: string;

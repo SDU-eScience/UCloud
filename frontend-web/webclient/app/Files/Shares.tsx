@@ -12,7 +12,7 @@ import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -33,6 +33,7 @@ import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},

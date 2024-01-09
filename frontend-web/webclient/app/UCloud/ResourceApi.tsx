@@ -16,7 +16,7 @@ import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, TextFilter} from "@/Resource/Filter";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
@@ -379,3 +379,8 @@ export const DELETE_TAG = "delete";
 export const PROPERTIES_TAG = "properties";
 export const CREATE_TAG = "create";
 export const UCLOUD_CORE = "ucloud_core";
+
+export function placeholderProduct(): {id: "", category: "", provider: string} {
+    return {"id": "", "category": "", "provider": UCLOUD_CORE};
+}
+

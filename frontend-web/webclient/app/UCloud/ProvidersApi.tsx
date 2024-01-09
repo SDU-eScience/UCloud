@@ -26,12 +26,12 @@ import {doNothing} from "@/UtilityFunctions";
 import {apiUpdate, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud/index";
 import {BulkRequest, PageV2} from "@/UCloud/index";
-import {emptyPageV2} from "@/DefaultObjects";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 export interface ProviderSpecification extends ResourceSpecification {
     id: string;

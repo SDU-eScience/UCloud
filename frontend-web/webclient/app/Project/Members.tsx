@@ -26,7 +26,7 @@ import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {IconName} from "@/ui-components/Icon";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {ItemRenderer, ItemRow, useRenamingState} from "@/ui-components/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
@@ -37,7 +37,6 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useTitle, useLoading} from "@/Navigation/Redux";
 import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
-import {emptyPageV2} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
@@ -49,6 +48,7 @@ import {Spacer} from "@/ui-components/Spacer";
 import {ListClass} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UtilityBar} from "@/Navigation/UtilityBar";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>

@@ -23,7 +23,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {OldProjectRole, isAdminOrPI, useProjectId} from "@/Project/Api";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";

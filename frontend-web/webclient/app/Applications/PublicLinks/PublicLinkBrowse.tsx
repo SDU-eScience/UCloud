@@ -1,6 +1,6 @@
 import {productTypeToIcon, ProductV2, ProductV2Ingress} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";

@@ -1,4 +1,3 @@
-import {KeyCode} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -14,6 +13,12 @@ import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
+
+enum KeyCode {
+    ENTER = 13,
+    ESC = 27
+}
+
 
 interface StandardDialog {
     title?: string;

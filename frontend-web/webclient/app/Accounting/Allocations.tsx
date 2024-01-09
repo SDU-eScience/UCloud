@@ -29,7 +29,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {Tree, TreeApi, TreeNode} from "@/ui-components/Tree";
 import ProvidersApi from "@/UCloud/ProvidersApi";

@@ -2,7 +2,7 @@ import * as React from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {PageV2} from "@/UCloud";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {useTitle} from "@/Navigation/Redux";

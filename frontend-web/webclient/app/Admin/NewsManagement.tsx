@@ -1,6 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {format} from "date-fns";
-import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux";
 import * as Pagination from "@/Pagination";
@@ -20,6 +19,7 @@ import Fuse from "fuse.js";
 import {addStandardDialog} from "@/UtilityComponents";
 import AppRoutes from "@/Routes";
 import {NewsPost} from "@/NewsPost";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 

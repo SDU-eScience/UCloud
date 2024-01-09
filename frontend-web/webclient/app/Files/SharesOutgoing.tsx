@@ -26,7 +26,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {fileName} from "@/Utilities/FileUtilities";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
 

@@ -5,10 +5,10 @@ import {PageV2} from "@/UCloud";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
-import {emptyPageV2} from "@/DefaultObjects";
 import {Card, Checkbox, Label, Link} from "@/ui-components";
 import Warning from "@/ui-components/Warning";
 import {Feature, hasFeature} from "@/Features";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 export const SshWidget: React.FunctionComponent<{
     application: UCloud.compute.Application;

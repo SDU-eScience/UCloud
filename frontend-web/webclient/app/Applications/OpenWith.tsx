@@ -5,7 +5,7 @@ import {useState} from "react";
 import {AppLogo, appLogoCache, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useNavigate} from "react-router";
@@ -28,6 +28,7 @@ import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UFile} from "@/UCloud/UFile";
 import {logoDataUrls} from "./Jobs/LogoDataCache";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 function findApplicationsByExtension(
     request: {files: string[]} & PaginationRequestV2

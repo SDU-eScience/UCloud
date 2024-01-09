@@ -4,7 +4,7 @@ import {useCallback, useEffect} from "react";
 import {Box, Button, Checkbox, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {mail} from "@/UCloud";
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;

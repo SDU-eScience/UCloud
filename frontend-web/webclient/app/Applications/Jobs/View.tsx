@@ -19,7 +19,8 @@ import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import {MarginProps} from "styled-system";
 import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {bulkRequestOf, pageV2Of} from "@/DefaultObjects";
+import {pageV2Of} from "@/UtilityFunctions";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {
     api as JobsApi,
     Job,

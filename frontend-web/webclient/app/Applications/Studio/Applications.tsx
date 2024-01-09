@@ -2,7 +2,6 @@ import * as UCloud from "@/UCloud";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useCallback, useEffect} from "react";
@@ -25,6 +24,7 @@ import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 interface AppVersion {
     version: string;

@@ -1,4 +1,4 @@
-import {emptyPage} from "@/DefaultObjects";
+import {emptyPage} from "@/Utilities/PageUtilities";
 import {Action} from "redux";
 
 declare global {

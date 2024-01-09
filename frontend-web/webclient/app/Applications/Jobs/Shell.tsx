@@ -8,7 +8,7 @@ import {Box, Button} from "@/ui-components";
 import {shortUUID} from "@/UtilityFunctions";
 import {useTitle} from "@/Navigation/Redux";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
-import {bulkRequestOf, bulkResponseOf} from "@/DefaultObjects";
+import {bulkResponseOf, bulkRequestOf} from "@/UtilityFunctions";
 import {default as JobsApi, InteractiveSession} from "@/UCloud/JobsApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {BulkResponse} from "@/UCloud";

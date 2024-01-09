@@ -2,7 +2,7 @@ import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
 import {Box, Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
 import {useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {useCallback, useEffect, useState} from "react";
 import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";

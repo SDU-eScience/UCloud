@@ -1,7 +1,6 @@
 import {updateLanding, updateOverview, uploadDocument} from "@/Applications/api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useLoading, useTitle} from "@/Navigation/Redux";
@@ -20,6 +19,7 @@ import * as UCloud from "@/UCloud";
 import {Link} from "@/ui-components";
 import {useNavigate} from "react-router";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");

@@ -14,7 +14,7 @@ import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";

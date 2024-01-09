@@ -1,6 +1,5 @@
 import * as React from "react";
 import * as Heading from "@/ui-components/Heading";
-import {emptyPage} from "@/DefaultObjects";
 import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";
 import {useCallback, useEffect} from "react";
@@ -19,6 +18,7 @@ import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `

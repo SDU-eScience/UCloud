@@ -1,4 +1,3 @@
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux";
 import * as React from "react";
@@ -36,6 +35,7 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
 import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 import {NoResultsCardBody} from "@/UtilityComponents";
+import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;

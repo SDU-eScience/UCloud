@@ -15,7 +15,7 @@ import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {productTypeToIcon, ProductV2, ProductV2License} from "@/Accounting";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";

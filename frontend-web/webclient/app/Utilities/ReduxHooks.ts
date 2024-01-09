@@ -1,6 +1,18 @@
-import {HookStore} from "@/DefaultObjects";
 import {useDispatch, useSelector} from "react-redux";
 import {useCallback} from "react";
+import {Upload} from "@/Files/Upload";
+import {ProjectCache} from "@/Project/cache";
+
+export interface HookStore {
+    uploaderVisible?: boolean;
+    uploads?: Upload[];
+    uploadPath?: string;
+
+    projectCache?: ProjectCache;
+    frameHidden?: boolean;
+
+    mainContainerHeaderSize?: number;
+}
 
 type Action = GenericSetAction | GenericMergeAction;
 

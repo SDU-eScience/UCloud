@@ -22,7 +22,7 @@ import {View} from "@/Applications/Jobs/View";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductCompute} from "@/Accounting";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {BrowseType} from "@/Resource/BrowseType";
 import {formatDistanceToNow} from "date-fns";
 import {ListRowStat} from "@/ui-components/List";

@@ -26,7 +26,7 @@ import {
     SupportByProviderV2, supportV2ProductMatch
 } from "@/UCloud/ResourceApi";
 import {ProductV2, ProductV2Storage} from "@/Accounting";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";

@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {BulkRequest, BulkResponse, PageV2} from "./UCloud";
 
 // HACK(Dan): Breaks a circular dependency between the snackstore and utility functions
 let successCallback: (message: string) => void = doNothing;
@@ -615,5 +616,12 @@ export function createHTMLElements<T extends HTMLElement>({children = [], ...roo
         }
     }
 }
-
-
+export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
+    return {"type": "bulk", items};
+}
+export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
+    return {responses: items};
+}
+export function pageV2Of<T>(...items: T[]): PageV2<T> {
+    return {items, itemsPerPage: items.length, next: undefined};
+}

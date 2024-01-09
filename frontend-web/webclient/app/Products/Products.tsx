@@ -6,7 +6,6 @@ import {
     UCLOUD_PROVIDER
 } from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {emptyPage} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {ListV2} from "@/Pagination";
 import {Card, Box, Flex, Icon, Text, ContainerForText} from "@/ui-components";
@@ -24,6 +23,7 @@ import {useTitle} from "@/Navigation/Redux";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 function Products(): JSX.Element {
     useTitle("SKUs");

@@ -38,7 +38,7 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";

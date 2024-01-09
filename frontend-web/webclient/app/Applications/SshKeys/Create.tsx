@@ -7,7 +7,7 @@ import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea
 import {TextP} from "@/ui-components/Text";
 import {MandatoryField} from "@/Applications/Jobs/Widgets";
 import {useCallback, useMemo, useState} from "react";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {callAPI} from "@/Authentication/DataHook";
 import {extractErrorMessage} from "@/UtilityFunctions";
 import {useNavigate} from "react-router";

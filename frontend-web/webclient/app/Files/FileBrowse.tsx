@@ -25,6 +25,7 @@ import FilesApi, {
     FileSensitivityNamespace,
     FileSensitivityVersion,
     isSensitivitySupported,
+    SensitivityLevelMap,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -39,7 +40,7 @@ import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
@@ -57,6 +58,15 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
+
+export enum SensitivityLevel {
+    "INHERIT" = "Inherit",
+    "PRIVATE" = "Private",
+    "CONFIDENTIAL" = "Confidential",
+    "SENSITIVE" = "Sensitive"
+}
+
+
 
 // Cached network data
 // =====================================================================================================================

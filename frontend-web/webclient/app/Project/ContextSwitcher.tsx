@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
@@ -19,6 +19,7 @@ import AppRoutes from "@/Routes";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 

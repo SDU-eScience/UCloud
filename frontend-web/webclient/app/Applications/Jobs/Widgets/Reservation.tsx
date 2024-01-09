@@ -9,12 +9,12 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
 import {productCategoryEquals, ProductV2, ProductV2Compute} from "@/Accounting";
-import {emptyPageV2} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {classConcat, injectStyle} from "@/Unstyled";
 import * as Accounting from "@/Accounting";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";

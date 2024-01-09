@@ -6,7 +6,7 @@ import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
 import {apiBrowse, apiCreate, apiDelete, apiRetrieve} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Icon} from "@/ui-components";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 
 export interface SSHKey {
     id: string;
