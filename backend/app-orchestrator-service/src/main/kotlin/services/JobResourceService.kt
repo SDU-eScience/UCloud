@@ -39,6 +39,8 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -49,7 +51,6 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
 import java.util.concurrent.CancellationException
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
 import kotlin.math.min
 import kotlin.random.Random
@@ -89,7 +90,9 @@ data class JobNotificationInfo(
 class JobResourceService(
     private val serviceClient: AuthenticatedClient
 ) {
-    private val jobNotifications = AtomicReference(mutableMapOf<String, MutableList<JobNotificationInfo>>())
+    private val jobNotifications = mutableMapOf<String, MutableList<JobNotificationInfo>>()
+    private val jobMailNotifications = mutableMapOf<String, MutableList<JobNotificationInfo>>()
+    private val notificationMutex = Mutex()
 
     // Listeners and lifetime events
     // =================================================================================================================
@@ -429,14 +432,31 @@ class JobResourceService(
                                     job.specification
                                 )
 
-                                var timeUntilSend = 10_000
+                                var timer = 0
+                                var timeUntilSendNotifications = 10_000
+                                var timeUntilSendMails = 15_000
 
-                                while (timeUntilSend > 0 && jobNotifications.get().isNotEmpty()) {
-                                    delay(1_000)
-                                    timeUntilSend -= 1_000
+                                notificationMutex.withLock {
+                                    while (timer < timeUntilSendNotifications && jobNotifications.isNotEmpty()) {
+                                        log.debug("notification: timer=$timer")
+                                        delay(1_000)
+                                        timer += 1_000
 
-                                    if (timeUntilSend <= 0 && jobNotifications.get().isNotEmpty()) {
-                                        sendNotifications()
+                                        if (timer >= timeUntilSendNotifications && jobNotifications.isNotEmpty()) {
+                                            sendNotifications()
+                                            timer = timeUntilSendNotifications
+                                        }
+                                    }
+
+                                    while (timer < timeUntilSendMails && jobNotifications.isNotEmpty()) {
+                                        log.debug("notification: mail=$timer")
+                                        delay(1_000)
+                                        timer += 1_000
+
+                                        if (timer >= timeUntilSendMails && jobNotifications.isNotEmpty()) {
+                                            sendMails()
+                                            timer = timeUntilSendMails
+                                        }
                                     }
                                 }
                             }
@@ -519,19 +539,17 @@ class JobResourceService(
     }
 
     private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
+        log.debug("Adding notification $jobId")
         if (user == null) return;
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
 
-        if (!jobNotifications.get().containsKey(user)) {
-            val new = jobNotifications.get()
-            new[user] = mutableListOf()
-            jobNotifications.set(new)
+        if (!jobNotifications.containsKey(user)) {
+            jobNotifications[user] = mutableListOf()
+            jobMailNotifications[user] = mutableListOf()
         }
 
-        val newNotifications = jobNotifications.get()
-
-        newNotifications[user]!!.add(
+        jobNotifications[user]!!.add(
             JobNotificationInfo(
                 newState,
                 jobId,
@@ -540,46 +558,54 @@ class JobResourceService(
             )
         )
 
-        jobNotifications.set(newNotifications)
-
-
+        jobMailNotifications[user]!!.add(
+            JobNotificationInfo(
+                newState,
+                jobId,
+                appTitle,
+                jobSpecification.name,
+            )
+        )
     }
 
     private suspend fun sendNotifications() {
-        val handledTypes = mutableListOf<JobState>()
-
-        for (user in jobNotifications.get().keys) {
-            val notifications = jobNotifications.get()[user] ?: continue
+        log.debug("Sending notifications ${jobNotifications.size}")
+        val sentNotifications = mutableListOf<String>()
+        for (user in jobNotifications.keys) {
+            val handledTypes = mutableListOf<JobState>()
+            val notifications = jobNotifications[user] ?: continue
 
             val summarizedNotifications: List<Notification> = notifications.mapNotNull { notification ->
-                if (!handledTypes.contains(notification.type)) {
-                    val sameType = notifications.filter { notification.type == it.type }
-                    handledTypes.add(notification.type)
+                if (!handledTypes.contains(notification.type)) return@mapNotNull null
 
-                    val jobIds = sameType.map { JsonPrimitive(it.jobId) }
-                    val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
+                val sameType = notifications.filter { notification.type == it.type }
+                handledTypes.add(notification.type)
 
-                    val type = when (notification.type) {
-                        JobState.SUCCESS -> "JOB_COMPLETED"
-                        JobState.RUNNING -> "JOB_STARTED"
-                        JobState.FAILURE -> "JOB_FAILED"
-                        JobState.EXPIRED -> "JOB_EXPIRED"
-                        else -> return;
-                    }
+                sameType.forEach {
+                    sentNotifications.add("$user-${it.type.name}-${it.jobId}")
+                }
 
-                    Notification(
-                        type,
-                        "",
-                        meta = JsonObject(
-                            mapOf(
-                                "jobIds" to JsonArray(jobIds),
-                                "appTitles" to JsonArray(appTitles),
-                            )
+                val jobIds = sameType.map { JsonPrimitive(it.jobId) }
+                val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
+
+                val type = when (notification.type) {
+                    JobState.SUCCESS -> "JOB_COMPLETED"
+                    JobState.RUNNING -> "JOB_STARTED"
+                    JobState.FAILURE -> "JOB_FAILED"
+                    JobState.EXPIRED -> "JOB_EXPIRED"
+                    else -> return;
+                }
+
+                Notification(
+                    type,
+                    "",
+                    meta = JsonObject(
+                        mapOf(
+                            "jobIds" to JsonArray(jobIds),
+                            "appTitles" to JsonArray(appTitles),
                         )
                     )
-                } else {
-                    null
-                }
+                )
             }
 
             summarizedNotifications.forEach { notification ->
@@ -591,33 +617,48 @@ class JobResourceService(
                     serviceClient
                 )
             }
+        }
 
-            handledTypes.clear()
+        log.debug("Removing $sentNotifications")
+        sentNotifications.forEach { sent ->
+            for (user in jobNotifications.keys) {
+                jobNotifications[user]?.removeIf { "$user-${it.type.name}-${it.jobId}" == sent}
+            }
+        }
+    }
 
+    private suspend fun sendMails() {
+        log.debug("Sending mails ${jobMailNotifications.size}")
+        val sentNotifications = mutableListOf<String>()
+        for (user in jobMailNotifications.keys) {
+            val handledTypes = mutableListOf<JobState>()
+            val notifications = jobMailNotifications[user] ?: continue
             val summarizedMails = notifications.mapNotNull { notification ->
-                if (!handledTypes.contains(notification.type)) {
-                    val sameType = notifications.filter { notification.type == it.type }
-                    handledTypes.add(notification.type)
+                if (handledTypes.contains(notification.type)) return@mapNotNull null
 
-                    val jobIds = sameType.map {
-                        if (it.jobName != null) {
-                            "${it.jobName} (${it.jobId})"
-                        } else {
-                            it.jobId
-                        }
+                val sameType = notifications.filter { notification.type == it.type }
+                handledTypes.add(notification.type)
+
+                val jobIds = sameType.map {
+                    if (it.jobName != null) {
+                        "${it.jobName} (${it.jobId})"
+                    } else {
+                        it.jobId
                     }
+                }
 
-                    val appTitles = sameType.map { it.appTitle }
+                sameType.forEach {
+                    sentNotifications.add("$user-${it.type.name}-${it.jobId}")
+                }
 
-                    when (notification.type) {
-                        JobState.SUCCESS -> Mail.JobCompleted(jobIds, appTitles)
-                        JobState.RUNNING -> Mail.JobStarted(jobIds, appTitles)
-                        JobState.FAILURE -> Mail.JobFailed(jobIds, appTitles)
-                        JobState.EXPIRED -> Mail.JobExpired(jobIds, appTitles)
-                        else -> return
-                    }
-                } else {
-                    null
+                val appTitles = sameType.map { it.appTitle }
+
+                when (notification.type) {
+                    JobState.SUCCESS -> Mail.JobCompleted(jobIds, appTitles)
+                    JobState.RUNNING -> Mail.JobStarted(jobIds, appTitles)
+                    JobState.FAILURE -> Mail.JobFailed(jobIds, appTitles)
+                    JobState.EXPIRED -> Mail.JobExpired(jobIds, appTitles)
+                    else -> return
                 }
             }
 
@@ -632,8 +673,13 @@ class JobResourceService(
                     serviceClient
                 )
             }
+        }
 
-            jobNotifications.set(mutableMapOf())
+        log.debug("Removing $sentNotifications")
+        sentNotifications.forEach { sent ->
+            for (user in jobMailNotifications.keys) {
+                jobMailNotifications[user]?.removeIf { "$user-${it.type.name}-${it.jobId}" == sent}
+            }
         }
     }
 
