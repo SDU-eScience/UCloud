@@ -437,23 +437,21 @@ class JobResourceService(
                                 var timeUntilSendMails = 15_000
 
                                 notificationMutex.withLock {
-                                    while (timer < timeUntilSendNotifications && jobNotifications.isNotEmpty()) {
-                                        log.debug("notification: timer=$timer")
+                                    while (timer < timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
                                         delay(1_000)
                                         timer += 1_000
 
-                                        if (timer >= timeUntilSendNotifications && jobNotifications.isNotEmpty()) {
+                                        if (timer >= timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
                                             sendNotifications()
                                             timer = timeUntilSendNotifications
                                         }
                                     }
 
-                                    while (timer < timeUntilSendMails && jobNotifications.isNotEmpty()) {
-                                        log.debug("notification: mail=$timer")
+                                    while (timer < timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
                                         delay(1_000)
                                         timer += 1_000
 
-                                        if (timer >= timeUntilSendMails && jobNotifications.isNotEmpty()) {
+                                        if (timer >= timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
                                             sendMails()
                                             timer = timeUntilSendMails
                                         }
@@ -539,7 +537,6 @@ class JobResourceService(
     }
 
     private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
-        log.debug("Adding notification $jobId")
         if (user == null) return;
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
@@ -569,14 +566,13 @@ class JobResourceService(
     }
 
     private suspend fun sendNotifications() {
-        log.debug("Sending notifications ${jobNotifications.size}")
         val sentNotifications = mutableListOf<String>()
         for (user in jobNotifications.keys) {
             val handledTypes = mutableListOf<JobState>()
             val notifications = jobNotifications[user] ?: continue
 
             val summarizedNotifications: List<Notification> = notifications.mapNotNull { notification ->
-                if (!handledTypes.contains(notification.type)) return@mapNotNull null
+                if (handledTypes.contains(notification.type)) return@mapNotNull null
 
                 val sameType = notifications.filter { notification.type == it.type }
                 handledTypes.add(notification.type)
@@ -619,7 +615,6 @@ class JobResourceService(
             }
         }
 
-        log.debug("Removing $sentNotifications")
         sentNotifications.forEach { sent ->
             for (user in jobNotifications.keys) {
                 jobNotifications[user]?.removeIf { "$user-${it.type.name}-${it.jobId}" == sent}
@@ -628,7 +623,6 @@ class JobResourceService(
     }
 
     private suspend fun sendMails() {
-        log.debug("Sending mails ${jobMailNotifications.size}")
         val sentNotifications = mutableListOf<String>()
         for (user in jobMailNotifications.keys) {
             val handledTypes = mutableListOf<JobState>()
@@ -675,7 +669,6 @@ class JobResourceService(
             }
         }
 
-        log.debug("Removing $sentNotifications")
         sentNotifications.forEach { sent ->
             for (user in jobMailNotifications.keys) {
                 jobMailNotifications[user]?.removeIf { "$user-${it.type.name}-${it.jobId}" == sent}
