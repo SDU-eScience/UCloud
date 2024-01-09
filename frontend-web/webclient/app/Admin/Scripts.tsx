@@ -63,6 +63,7 @@ function Scripts(): React.ReactNode {
         if (mount && !browserRef.current) {
             new ResourceBrowser<ScriptInfo>(mount, "Scripts", {}).init(browserRef, FEATURES, "", browser => {
                 browser.setColumnTitles(ROW_TITLES);
+                browser.on("beforeOpen", (oldPath, newPath, res) => res != null)
                 browser.on("open", (oldPath, newPath, res) => {
                     if (res) return;
                     callAPI(apiBrowse({itemsPerPage: 250}, baseContext)).then((it: PageV2<ScriptInfo>) => {

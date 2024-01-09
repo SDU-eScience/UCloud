@@ -1,4 +1,3 @@
-import {LogoType} from "@/Applications/api";
 import * as localForage from "localforage";
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
@@ -10,6 +9,8 @@ interface AppToolLogoProps {
     size?: string;
     type: LogoType;
 }
+
+export type LogoType = "APPLICATION" | "TOOL" | "GROUP";
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     const size = props.size !== undefined ? props.size : "48px";
