@@ -358,9 +358,9 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
             const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
             return (
                 <Box mb="8px">
-                    <Heading.h4 mb="20px" color="#000">You do not have enough {computeOrStorage} credits.</Heading.h4>
+                    <Heading.h4 mb="20px">You do not have enough {computeOrStorage} credits.</Heading.h4>
                     <Spacer
-                        left={<Text color="#000">Apply for more {computeOrStorage} resources.</Text>}
+                        left={<Text>Apply for more {computeOrStorage} resources.</Text>}
                         right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                     />
                 </Box>
@@ -369,9 +369,9 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
         case NOT_ENOUGH_LICENSE_CREDITS: {
             return (
                 <Box mb="8px">
-                    <Heading.h4 mb="20px" color="#000">You do not have enough license credits.</Heading.h4>
+                    <Heading.h4 mb="20px">You do not have enough license credits.</Heading.h4>
                     <Spacer
-                        left={<Text color="#000">You do not have enough credits to use this license. Even free licenses
+                        left={<Text>You do not have enough credits to use this license. Even free licenses
                             requires a non-zero positive balance.</Text>}
                         right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                     />
@@ -381,11 +381,11 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
         case EXCEEDED_STORAGE_QUOTA:
             return (
                 <>
-                    <Heading.h4 mb="20px" color="#000">You do not have enough storage credit. To get more storage, you
+                    <Heading.h4 mb="20px">You do not have enough storage credit. To get more storage, you
                         could do one of the following:</Heading.h4>
                     <Box mb="8px">
                         <Spacer
-                            left={<Text color="#000">Delete files. Your personal workspace files, including job results
+                            left={<Text>Delete files. Your personal workspace files, including job results
                                 and trash also count towards your storage quota.</Text>}
                             right={<Link to={"/files/"}><Button width="150px" height="30px">Workspace
                                 files</Button></Link>}
@@ -393,14 +393,14 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
                     </Box>
                     <Box mb="8px">
                         <Spacer
-                            left={<Text color="#000">Empty your trash folder.</Text>}
+                            left={<Text>Empty your trash folder.</Text>}
                             right={<Link to={"/files/"}><Button width="150px" height="30px">To trash
                                 folder</Button></Link>}
                         />
                     </Box>
                     <Box mb="8px">
                         <Spacer
-                            left={<Text color="#000">Apply for more storage resources.</Text>}
+                            left={<Text>Apply for more storage resources.</Text>}
                             right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                         />
                     </Box>
