@@ -1345,6 +1345,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
             });
         }
+
+        const b = browserRef.current;
+        if (b) {
+            b.renameField.style.left = "60px";
+        }
+
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
     }, []);
 

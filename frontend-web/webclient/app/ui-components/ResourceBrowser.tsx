@@ -923,15 +923,6 @@ export class ResourceBrowser<T> {
             return this.rows[rowNumber];
         }
 
-        // Check if any item has been selected
-        let hasAnySelected = false;
-        const selection = this.isSelected;
-        for (let i = 0; i < selection.length; i++) {
-            if (selection[i] !== 0) {
-                hasAnySelected = true;
-                break;
-            }
-        }
 
         // Reset rows and place them accordingly
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
@@ -3208,7 +3199,7 @@ export class ResourceBrowser<T> {
                 color: var(--text);
                 z-index: 1;
                 top: 0;
-                left: 60px;
+                left: 12px;
             }
 
             ${browserClass.dot} .page-empty {
@@ -3615,6 +3606,7 @@ export function resourceCreationWithProductSelector<T>(
     browser.on("renderRow", (entry, row, dims) => {
         if (entry !== dummyEntry) return;
         if (selectedProduct !== null) return;
+        dims.x -= 52;
 
         browser.placeTitleComponent(productSelector, dims);
     });

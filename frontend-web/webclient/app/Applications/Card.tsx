@@ -85,6 +85,8 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
     ${k} > div.image {
         width: 75px;
         height: 75px;
+        min-width: 75px;
+        min-height: 75px;
         margin-top: auto;
         margin-bottom: auto;
         text-align: center;
