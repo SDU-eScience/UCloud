@@ -386,16 +386,9 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
                     <Box mb="8px">
                         <Spacer
                             left={<Text>Delete files. Your personal workspace files, including job results
-                                and trash also count towards your storage quota.</Text>}
-                            right={<Link to={"/files/"}><Button width="150px" height="30px">Workspace
+                                and trash also count towards your storage quota, and so does the contents of your trash folder.</Text>}
+                            right={<Link to={"/drives/"}><Button width="150px" height="30px">Workspace
                                 files</Button></Link>}
-                        />
-                    </Box>
-                    <Box mb="8px">
-                        <Spacer
-                            left={<Text>Empty your trash folder.</Text>}
-                            right={<Link to={"/files/"}><Button width="150px" height="30px">To trash
-                                folder</Button></Link>}
                         />
                     </Box>
                     <Box mb="8px">
