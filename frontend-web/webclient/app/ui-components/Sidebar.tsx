@@ -547,6 +547,11 @@ function SecondarySidebar({
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
 
+    const onClear = useCallback(() => {
+        clearHover();
+        clearClicked();
+    }, [clearHover, clearClicked]);
+
     const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
         compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
         {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
@@ -586,6 +591,16 @@ function SecondarySidebar({
         document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
     }, [isOpen, asPopOver]);
 
+    const onMenuClick = useCallback((ev: React.SyntheticEvent) => {
+        function isAnchor(elem: HTMLElement): boolean {
+            if (elem.tagName === "A") return true;
+            if (elem.parentElement === null) return false;
+            return isAnchor(elem.parentElement);
+        }
+        const target = ev.target as HTMLElement;
+        if (isAnchor(target)) clearHover();
+    }, [clearHover]);
+
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {
@@ -593,13 +608,14 @@ function SecondarySidebar({
         }}
         data-open={isOpen}
         data-as-pop-over={!!asPopOver}
+        onClick={onMenuClick}
     >
         <header>
             <h1>{active}</h1>
 
             <Relative top="16px" right="2px" height={0} width={0}>
                 <Absolute>
-                    <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? clearClicked : () => setSelectedPage(hovered)}>
+                    <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
                         <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="blue" />
                     </Flex>
                 </Absolute>

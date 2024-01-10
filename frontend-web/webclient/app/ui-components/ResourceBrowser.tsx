@@ -2352,7 +2352,9 @@ export class ResourceBrowser<T> {
 
                 case "KeyX":
                 case "KeyC": {
-                    if (!this.features.supportsMove || !this.features.supportsCopy) {
+                    if (ev.shiftKey || ev.altKey) {
+                        didHandle = false;
+                    } else if (!this.features.supportsMove || !this.features.supportsCopy) {
                         didHandle = false;
                     } else {
                         if (this.contextMenuHandlers.length) return;
@@ -2965,13 +2967,22 @@ export class ResourceBrowser<T> {
                 border: 1px solid var(--gray);
             }
             
+            ${browserClass.dot} header[has-location-bar] .location li:hover {
+                user-select: none;
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location li:hover {
+                cursor: pointer;
+                text-decoration: underline;
+            }
+            
             ${browserClass.dot} header[has-location-bar] .location {
                 flex-grow: 1;
                 border: 1px solid var(--midGray);
                 margin-left: -6px;
                 border-radius: 5px;
                 width: 100%;
-                cursor: pointer;
+                cursor: text;
                 height: 35px;
             }
             
@@ -3004,6 +3015,7 @@ export class ResourceBrowser<T> {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;
+                text-decoration: none !important;
             }
 
             ${browserClass.dot} header div ul li {
@@ -3166,6 +3178,10 @@ export class ResourceBrowser<T> {
                 display: flex;
                 align-items: center;
                 gap: 8px;
+            }
+            
+            ${browserClass.dot} kbd {
+                font-family: var(--sansSerif);
             }
 
             ${browserClass.dot} .context-menu li kbd {

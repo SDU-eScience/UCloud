@@ -128,6 +128,7 @@ html {
     /* FONT-SIZES end */
 
     --monospace: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
+    --sansSerif: 'Inter', sans-serif;
     
 
     /* REWRITE-VARS end */
