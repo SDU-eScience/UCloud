@@ -434,7 +434,7 @@ class JobResourceService(
 
                                 var timer = 0
                                 var timeUntilSendNotifications = 10_000
-                                var timeUntilSendMails = 15_000
+                                var timeUntilSendMails = 60_000 * 10
 
                                 notificationMutex.withLock {
                                     while (timer < timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {

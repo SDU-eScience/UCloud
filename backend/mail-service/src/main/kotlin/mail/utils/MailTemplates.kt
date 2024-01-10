@@ -235,6 +235,7 @@ fun jobEventsTemplate(
     appTitles: List<String>,
     events: List<String>
 ): String {
+    val notificationLimit = 25
     fun jobEventString(app: String, id: String, event: String, name: String? = null): String  {
         val nameOrId = name ?: id
 
@@ -260,11 +261,20 @@ fun jobEventsTemplate(
     """.trimIndent()
 
     for (i in events.indices) {
+        if (i >= notificationLimit) {
+            break
+        }
+
         message += "<li>${jobEventString(appTitles[i], jobIds[i], events[i], jobNames[i])}</li>"
     }
 
+    message += "</ul>"
+
+    if (events.size > notificationLimit) {
+        message += """<p>.. and <a href="https://cloud.sdu.dk/app/jobs/">${events.size - notificationLimit} other updates</a>.</p>"""
+    }
+
     message += """
-        </ul>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
