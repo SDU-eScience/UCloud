@@ -647,9 +647,25 @@ class JobResourceService(
             }
 
             val subject = if (types.size > 1) {
-                "The state of your job on UCloud has changed"
+                if (notifications.all { it.type == JobState.RUNNING }) {
+                    "${notifications.size} of your jobs on UCloud have started"
+                } else if (notifications.all { it.type == JobState.SUCCESS }) {
+                    "${notifications.size} of your jobs on UCloud have completed"
+                } else if (notifications.all { it.type == JobState.FAILURE }) {
+                    "${notifications.size} of your jobs on UCloud have failed"
+                } else if (notifications.all { it.type == JobState.EXPIRED }) {
+                    "${notifications.size} of your jobs on UCloud have expired"
+                } else {
+                    "The state of ${notifications.size} of your jobs on UCloud has changed"
+                }
             } else {
-                "The state of ${types.size} of your jobs on UCloud has changed"
+                when (notifications.first().type) {
+                    JobState.RUNNING -> "One of your jobs on UCloud has started"
+                    JobState.SUCCESS -> "One of your jobs on UCloud has completed"
+                    JobState.FAILURE -> "One of your jobs on UCloud has failed"
+                    JobState.EXPIRED -> "One of your jobs on UCloud has expired"
+                    else -> "The state of one of your jobs on UCloud has changed"
+                }
             }
 
             MailDescriptions.sendToUser.call(
