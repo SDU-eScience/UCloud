@@ -5,7 +5,7 @@ import dk.sdu.cloud.calls.client.urlEncode
 import dk.sdu.cloud.service.escapeHtml
 
 const val NO_NOTIFICATIONS_DISCLAIMER = """<p>If you do not want to receive these email notifications, 
-    you can unsubscribe to non-critical emails in your <a href="https://cloud.sdu.dk/app/users/settings">personal settings</a> on UCloud</p>"""
+    you can unsubscribe from non-critical emails in your <a href="https://cloud.sdu.dk/app/users/settings">personal settings</a> on UCloud</p>"""
 
 fun transferOfApplication(receiver: String, senderProject: String, receiverProject: String, applicationProjectTitle: String) =
     """
@@ -228,100 +228,47 @@ fun lowResourcesTemplate(
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
-fun jobStartedTemplate(
+fun jobEventsTemplate(
     recipient: String,
     jobIds: List<String>,
-    appTitles: List<String>
+    jobNames: List<String?>,
+    appTitles: List<String>,
+    events: List<String>
 ): String {
-    return if (jobIds.length > 1) {
-        """
-            <p>Dear ${escapeHtml(recipient)}</p>
-            <p>
-                ${jobIds.length} of your jobs have started successfully, and is now running.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
-    } else {
-        """
-            <p>Dear ${escapeHtml(recipient)}</p>
-            <p>
-                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} have started successfully, and is now running.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
-    }
-}
+    fun jobEventString(app: String, id: String, event: String, name: String? = null): String  {
+        val nameOrId = name ?: id
 
-fun jobCompletedTemplate(
-    recipient: String,
-    jobIds: List<String>,
-    appTitles: List<String>
-): String {
-    return if (jobIds.length > 1) {
-        """
-            <p>Dear ${escapeHtml(recipient)}</p>
-            <p>
-                ${jobIds.length} of your jobs has completed successfully.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
-    } else {
-        """
-            <p>Dear ${escapeHtml(recipient)}</p>
-            <p>
-                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} has completed successfully.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
-    }
-}
+        val link = """<a href="https://cloud.sdu.dk/app/jobs/properties/${escapeHtml(id)}">${escapeHtml(nameOrId)}</a>"""
 
-fun jobFailedTemplate(
-    recipient: String,
-    jobIds: List<String>,
-    appTitles: List<String>
-): String {
-    return if (jobIds.length > 1) {
-        """
-            <p>Dear ${escapeHtml(recipient)}</p>
-            <p>
-                ${jobIds.length} jobs failed unexpectedly, and has been terminated.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
-    } else {
-        """
-            <p>Dear ${escapeHtml(recipient)}</p>
-            <p>
-                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} failed unexpectedly, and has been terminated.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
+        return when (event) {
+            "JOB_STARTED" -> "$link: ${escapeHtml(app)} has started successfully, and is now running."
+            "JOB_COMPLETED" -> "$link: ${escapeHtml(app)} has completed successfully."
+            "JOB_FAILED" -> "$link: ${escapeHtml(app)} failed unexpectedly, and has been terminated."
+            "JOB_EXPIRED" -> "$link: ${escapeHtml(app)} has reached its time limit, and has been terminated."
+            else -> "$link: Unknown event"
+        }
     }
-}
 
-fun jobExpiredTemplate(
-    recipient: String,
-    jobIds: List<String>,
-    appTitles: List<String>
-): String {
-    return if (jobIds.length > 1) {
-        """
-             <p>Dear ${escapeHtml(recipient)}</p>
-             <p>
-                ${jobIds.length} jobs has reached their time limit, and has been terminated.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
-    } else {
-        """
-             <p>Dear ${escapeHtml(recipient)}</p>
-             <p>
-                Your ${escapeHtml(appTitles[0])} job ${escapeHtml(jobIds[0])} has reached its time limit, and has been terminated.
-            </p>
-            $NO_NOTIFICATIONS_DISCLAIMER
-        """.trimIndent()
+    val jobOrJobs = if (jobIds.length > 1) { "${jobIds.length} of your jobs" } else { "your job" }
+
+    var message = """
+        <p>Dear ${escapeHtml(recipient)}</p>
+        <p>
+            The state of $jobOrJobs on UCloud has changed.
+        </p>
+        <ul>
+    """.trimIndent()
+
+    for (i in events.indices) {
+        message += "<li>${jobEventString(appTitles[i], jobIds[i], events[i], jobNames[i])}</li>"
     }
+
+    message += """
+        </ul>
+        $NO_NOTIFICATIONS_DISCLAIMER
+    """.trimIndent()
+
+    return message;
 }
 
 fun verifyEmailAddress(

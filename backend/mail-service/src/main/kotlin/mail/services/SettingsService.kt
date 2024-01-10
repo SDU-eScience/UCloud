@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.mail.api.EmailSettings
 import dk.sdu.cloud.mail.api.Mail
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.encodeToJsonElement
@@ -78,10 +79,10 @@ class SettingsService(
             is Mail.UserRemovedMailToUser -> settings.projectUserRemoved
             is Mail.UserRoleChangeMail -> settings.userRoleChange
             is Mail.VerificationReminderMail -> settings.verificationReminder
-            is Mail.JobStarted -> settings.jobStarted
-            is Mail.JobFailed -> settings.jobStopped
-            is Mail.JobCompleted -> settings.jobStopped
-            is Mail.JobExpired -> settings.jobStopped
+            is Mail.JobEvents -> {
+                (mail.events.contains("JOB_STARTED") && settings.jobStarted) ||
+                    (mail.events.intersect(listOf("JOB_FAILED", "JOB_COMPLETED", "JOB_EXPIRED")).isNotEmpty() && settings.jobStopped)
+            }
             else -> {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.InternalServerError, "Mapping from mail to setting not found"

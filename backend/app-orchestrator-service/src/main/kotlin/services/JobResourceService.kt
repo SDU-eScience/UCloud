@@ -625,48 +625,48 @@ class JobResourceService(
     private suspend fun sendMails() {
         val sentNotifications = mutableListOf<String>()
         for (user in jobMailNotifications.keys) {
-            val handledTypes = mutableListOf<JobState>()
             val notifications = jobMailNotifications[user] ?: continue
-            val summarizedMails = notifications.mapNotNull { notification ->
-                if (handledTypes.contains(notification.type)) return@mapNotNull null
+            if (notifications.isEmpty()) continue
 
-                val sameType = notifications.filter { notification.type == it.type }
-                handledTypes.add(notification.type)
+            val jobIds = notifications.map {it.jobId }
+            val jobNames = notifications.map { it.jobName }
+            val appTitles = notifications.map { it.appTitle }
 
-                val jobIds = sameType.map {
-                    if (it.jobName != null) {
-                        "${it.jobName} (${it.jobId})"
-                    } else {
-                        it.jobId
-                    }
-                }
-
-                sameType.forEach {
-                    sentNotifications.add("$user-${it.type.name}-${it.jobId}")
-                }
-
-                val appTitles = sameType.map { it.appTitle }
-
+            val types = notifications.mapNotNull { notification ->
                 when (notification.type) {
-                    JobState.SUCCESS -> Mail.JobCompleted(jobIds, appTitles)
-                    JobState.RUNNING -> Mail.JobStarted(jobIds, appTitles)
-                    JobState.FAILURE -> Mail.JobFailed(jobIds, appTitles)
-                    JobState.EXPIRED -> Mail.JobExpired(jobIds, appTitles)
-                    else -> return
+                    JobState.SUCCESS -> "JOB_COMPLETED"
+                    JobState.RUNNING -> "JOB_STARTED"
+                    JobState.FAILURE -> "JOB_FAILED"
+                    JobState.EXPIRED -> "JOB_EXPIRED"
+                    else -> null;
                 }
             }
 
-            summarizedMails.forEach { mail ->
-                MailDescriptions.sendToUser.call(
-                    bulkRequestOf(
-                        SendRequestItem(
-                            user,
-                            mail
-                        )
-                    ),
-                    serviceClient
-                )
+            notifications.forEach {
+                sentNotifications.add("$user-${it.type.name}-${it.jobId}")
             }
+
+            val subject = if (types.size > 1) {
+                "The state of your job on UCloud has changed"
+            } else {
+                "The state of ${types.size} of your jobs on UCloud has changed"
+            }
+
+            MailDescriptions.sendToUser.call(
+                bulkRequestOf(
+                    SendRequestItem(
+                        user,
+                        Mail.JobEvents(
+                            jobIds,
+                            jobNames,
+                            appTitles,
+                            types,
+                            subject = subject
+                        )
+                    )
+                ),
+                serviceClient
+            )
         }
 
         sentNotifications.forEach { sent ->

@@ -177,7 +177,7 @@ class MailService(
             val wantsEmails = settingsService.wantEmail(recipient, mail)
 
             if (!wantsEmails) {
-                log.info("User: ${principal.username} does not want to receive emails")
+                log.info("User: $recipient does not want to receive emails")
                 return
             }
         }
@@ -310,20 +310,8 @@ class MailService(
                 verifyEmailAddress(letter.verifyType, letter.username ?: recipientName, letter.token)
             }
 
-            is Mail.JobStarted -> {
-                jobStartedTemplate(recipientName, letter.jobIds, letter.appTitles)
-            }
-
-            is Mail.JobCompleted -> {
-                jobCompletedTemplate(recipientName, letter.jobIds, letter.appTitles)
-            }
-
-            is Mail.JobFailed -> {
-                jobFailedTemplate(recipientName, letter.jobIds, letter.appTitles)
-            }
-
-            is Mail.JobExpired-> {
-                jobExpiredTemplate(recipientName, letter.jobIds, letter.appTitles)
+            is Mail.JobEvents -> {
+                jobEventsTemplate(recipientName, letter.jobIds, letter.jobNames, letter.appTitles, letter.events)
             }
 
             else -> {
