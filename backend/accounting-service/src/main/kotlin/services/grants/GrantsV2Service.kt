@@ -531,7 +531,6 @@ class GrantsV2Service(
                 ActorAndProject(Actor.System, null),
                 WalletOwner.Project(alloc.id)
             )
-
             val categories = wallets.mapNotNull { w ->
                 if (!w.allocations.any { it.isActive() }) return@mapNotNull null
                 if (w.paysFor.freeToUse) return@mapNotNull null

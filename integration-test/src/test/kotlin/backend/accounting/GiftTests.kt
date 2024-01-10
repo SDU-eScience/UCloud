@@ -7,7 +7,6 @@ import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.utils.*
-import dk.sdu.cloud.service.Time
 import java.util.*
 
 class GiftTest : IntegrationTest() {
@@ -39,11 +38,11 @@ class GiftTest : IntegrationTest() {
                     val createdProject = initializeNormalProject(root)
                     for (simplifiedGift in input.gifts) {
                         val gift = GiftWithCriteria(
-                            0L,
-                            createdProject.projectId,
-                            "My gift ${UUID.randomUUID()}",
-                            "Description",
-                            listOf(
+                            id = 0L,
+                            resourcesOwnedBy = createdProject.projectId,
+                            title = "My gift ${UUID.randomUUID()}",
+                            description = "Description",
+                            resources = listOf(
                                 GrantApplication.AllocationRequest(
                                     sampleCompute.category.name,
                                     sampleCompute.category.provider,
@@ -51,14 +50,13 @@ class GiftTest : IntegrationTest() {
                                     1000,
                                     null,
                                     GrantApplication.Period(
-                                        //Is ignored by backend. Backend sets period to start now and end 1 year later. Works til year 2100
-                                        //Data is never saved to DB. Requires migration
-                                        Time.now()+1000,
-                                        Time.now()+1000000
+                                        null,
+                                        null
                                     )
                                 )
                             ),
-                            simplifiedGift.criteria
+                            criteria = simplifiedGift.criteria,
+                            renewEvery = 0
                         )
 
                         Gifts.createGift.call(gift, evilUser.client).assertUserError()

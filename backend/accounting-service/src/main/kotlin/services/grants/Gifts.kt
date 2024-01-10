@@ -119,7 +119,7 @@ class GiftService(
                 }
             }
             grantsV2Service.submitRevision(
-                actorAndProject,
+                ActorAndProject(Actor.System, null),
                 GrantsV2.SubmitRevision.Request(
                     revision = GrantApplication.Document(
                         GrantApplication.Recipient.PersonalWorkspace(actorAndProject.actor.safeUsername()),
