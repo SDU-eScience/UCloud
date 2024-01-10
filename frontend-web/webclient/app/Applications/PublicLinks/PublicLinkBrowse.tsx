@@ -166,7 +166,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     })
                 });
 
-                browser.on("unhandledShortcut", () => { });
+                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
@@ -235,14 +235,16 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                 const newPrefix = createHTMLElements({
                                     tagType: "span",
                                     className: "PREFIX",
+                                    innerText: browser.renamePrefix,
                                     style: {
                                         position: "absolute",
                                         top: inputField.style.top,
-                                        left: inputField.getBoundingClientRect().left - 120 + "px"
+                                        left: 10 + "px"
                                     }
                                 });
-                                newPrefix.innerText = browser.renamePrefix;
                                 parent.prepend(newPrefix);
+                                const prefixRect = newPrefix.getBoundingClientRect();
+                                inputField.style.left = (prefixRect.right - 80) + "px";
                             }
                             if (!postfix) {
                                 const newPostfix = createHTMLElements({
@@ -326,7 +328,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                             startCreation();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(): void { },
+                        startRenaming(): void {},
                         viewProperties(res: PublicLink): void {
                             navigate(AppRoutes.resource.properties("public-links", res.id));
                         },
@@ -347,10 +349,6 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
 
                 browser.on("pathToEntry", entry => entry.id);
             });
-        }
-        const renameField = browserRef.current?.root.querySelector(".rename-field") as HTMLInputElement | null;
-        if (renameField) {
-            renameField.style.left = "90px";
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, [])
