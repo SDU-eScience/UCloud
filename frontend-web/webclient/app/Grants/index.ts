@@ -194,7 +194,7 @@ export interface AllocationRequest {
     provider: string;
     grantGiver: string;
     balanceRequested: number;
-    sourceAllocation: string | null;
+    sourceAllocation: number | null;
     period: Period,
 }
 

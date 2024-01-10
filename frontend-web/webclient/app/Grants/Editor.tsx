@@ -846,7 +846,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 category.resourceSplits[request.grantGiver] = arr;
                 arr.push({
                     balanceRequested: request.balanceRequested * priceFactor,
-                    sourceAllocation: request.sourceAllocation ?? undefined,
+                    sourceAllocation: request.sourceAllocation?.toString() ?? undefined,
                     originalRequest: request,
                 });
             }
@@ -1969,7 +1969,8 @@ export const Editor: React.FunctionComponent = () => {
         for (const [, categories] of Object.entries(state.resources)) {
             const categoriesAreFilled = categories.every(cat => {
                 for (const split of Object.values(cat.resourceSplits)) {
-                    if (!split.every(it => !it.balanceRequested || it.sourceAllocation)) {
+                    // Note(Jonas): `it.sourceAllocation` is a number. The 0th sourceAllocation will evaluate to false, even though it's valid
+                    if (!split.every(it => !it.balanceRequested || it.sourceAllocation != null)) {
                         return false;
                     }
                 }
@@ -3006,7 +3007,7 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                             balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
                             grantGiver: allocator,
                             period,
-                            sourceAllocation: split.sourceAllocation ?? null,
+                            sourceAllocation: split.sourceAllocation != null ? parseInt(split.sourceAllocation, 10) : null,
                         });
                     }
                 }
