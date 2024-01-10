@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {useLocation, useNavigate, useParams} from "react-router";
+import {useLocation, useParams} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
@@ -8,9 +8,8 @@ import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
+import {Absolute, Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {IconName} from "@/ui-components/Icon";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
@@ -27,7 +26,6 @@ import {
     JobUpdate,
     JobStatus,
     ComputeSupport,
-    JobSpecification,
     DockerSupport,
     NativeSupport,
     VirtualMachineSupport
@@ -35,19 +33,19 @@ import {
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {ProductCompute} from "@/Accounting";
-import {prettyFilePath} from "@/Files/FilePath";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {chain, classConcat, injectStyle, injectStyleSimple, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
-import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {LogOutput} from "@/UtilityComponents";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import CodeSnippet from "@/ui-components/CodeSnippet";
+import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -91,17 +89,15 @@ const header = makeClassName("headers");
 const headerText = makeClassName("header-text");
 const dataExitActive = makeClassName("data-exit-active");
 const dataExit = makeClassName("data-exit");
-const inQueue = makeClassName("in-queue");
 const logo = makeClassName("logo");
 const running = makeClassName("running");
 const topButtons = makeClassName("top-buttons");
 
-const Container = injectStyle("container", k => `
+const Container = injectStyle("job-container", k => `
     ${k} {
         --logoScale: 1;
-        --logoBaseSize: 200px;
-        --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
-        margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
+        --logoSize: 128px;
+        margin: 32px;
         max-width: 2200px;
     }
 
@@ -172,8 +168,10 @@ const Container = injectStyle("container", k => `
 
   ${k} ${headerText.dot} {
     margin-left: 32px;
-    margin-top: calc(var(--logoScale) * 16px);
-    width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
+    width: calc(100% - var(--logoSize) - 32px);
+    height: var(--logoSize);
+    display: flex;
+    flex-direction: column;
   }
 
   ${deviceBreakpoint({maxWidth: "1000px"})} {
@@ -196,8 +194,12 @@ const Container = injectStyle("container", k => `
     }
   }
 
-  ${k}${inQueue.dot} ${logo.dot} {
+  ${k}.IN_QUEUE ${logo.dot} {
     animation: 2s ${enterAnimation} infinite;
+  }
+  
+  ${k}.RUNNING {
+    --logoSize: 96px;
   }
 
   ${chain(k, running)} {
@@ -265,10 +267,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
     // Note: This might not match the real app name
     const location = useLocation();
-    const navigate = useNavigate();
     const appNameHint = getQueryParamOrElse(location.search, "app", "");
-    const action = getQueryParamOrElse(location.search, "action", "view");
-    const delayInitialAnim = action === "start";
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
 
@@ -288,8 +287,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     }, [id]);
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
-    const [logoAnimationAllowed, setLogoAnimationAllowed] = useState<boolean>(false);
     const [status, setStatus] = useState<JobStatus | null>(null);
+    const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
 
     useEffect(() => {
         if (useFakeState) {
@@ -305,6 +304,14 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                         jobParametersJson: {}
                     });
                 }
+
+                for (let i = 0; i < (job?.specification?.replicas ?? 1); i++) {
+                    jobUpdateState.current.logQueue.push({
+                        rank: i,
+                        stdout: `[Node ${i + 1}] Test message: ${timestampUnixMs()}\n`
+                    });
+                }
+                jobUpdateState.current.subscriptions.forEach(it => it());
             }, 100);
 
             return () => {
@@ -318,29 +325,15 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     }, [status]);
 
     useEffect(() => {
-
         let t1: number | undefined;
-        let t2: number | undefined;
         if (job) {
             t1 = window.setTimeout(() => {
                 setDataAnimationAllowed(true);
-
-                // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
-                if (!props.embedded) {
-                    navigate(buildQueryString(location.pathname, {app: appNameHint}), {replace: true});
-                }
-            }, delayInitialAnim ? 3000 : 400);
-
-            if (!props.embedded) {
-                t2 = window.setTimeout(() => {
-                    setLogoAnimationAllowed(true);
-                }, delayInitialAnim ? 2200 : 0);
-            }
+            }, 400);
         }
 
         return () => {
             if (t1 != undefined) clearTimeout(t1);
-            if (t2 != undefined) clearTimeout(t2);
         };
     }, [job, props.embedded]);
 
@@ -360,7 +353,6 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
         }
     }, [status?.state])
 
-    const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
     useEffect(() => {
         jobUpdateState.current.subscriptions.push(() => {
             const s = jobUpdateState.current;
@@ -416,12 +408,12 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
     const main = (
         <div className={classConcat(Container, status?.state ?? "state-loading")}>
-            <div className={`${logoWrapper.class} ${logoAnimationAllowed && status ? active.class : ""}`}>
+            <div className={`${logoWrapper.class} ${active.class}`}>
                 <div className={logoScale.class}>
                     <div className="logo">
                         <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
-                            size={"200px"} />
+                            size={"var(--logoSize)"} />
                     </div>
                 </div>
             </div>
@@ -438,20 +430,17 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                     <div className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={fakeLogo.class} />
-                            <div className={"header-text"}>
-                                {status?.state === "IN_QUEUE" ? <InQueueText job={job} /> : null}
+                            <div className={headerText.class}>
+                                <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
                             </div>
                         </Flex>
 
                         <div className={Content}>
-                            <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
+                            <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
                                 <TitledCard>
-                                    <Box py={"16px"}>
-                                        <ProviderUpdates job={job} state={jobUpdateState} />
-                                    </Box>
+                                    <ProviderUpdates job={job} state={jobUpdateState} addOverflow={true} />
                                 </TitledCard>
                             </Box>
-                            <InfoCards job={job} status={status} />
                         </div>
                     </div>
                 </CSSTransition>
@@ -505,12 +494,8 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
         </div>
     );
 
-    if (props.embedded) {
-        return main;
-    }
-    return <MainContainer
-        main={main}
-    />;
+    if (props.embedded) return main;
+    return <MainContainer main={main}/>;
 }
 
 const CompletedContent: React.FunctionComponent<{
@@ -521,51 +506,64 @@ const CompletedContent: React.FunctionComponent<{
     const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
         "My Workspace" : "My Workspace";
 
-    const fileInfo = useJobFiles(job.specification);
-
     return <div className={Content}>
-        <div className={RunningInfoWrapper}>
-            <TitledCard isLoading={false} title={"Job info"} icon={"properties"}>
-                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
-                    <Box><b>ID:</b> {shortUUID(job.id)}</Box>
-                    <Box>
-                        <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider} />
-                        {" "}/{" "}
-                        {job.specification.product.id}{" "}
-                        (x{job.specification.replicas})
-                    </Box>
-                    <Box><b>Input:</b> {fileInfo}</Box>
-                    <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
-                </Flex>
-            </TitledCard>
+        <TabbedCard style={{flexBasis: "300px"}}>
+            <TabbedCardTab icon={"heroServerStack"} name={"Job info"}>
+            <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
+                <Box><b>ID:</b> {shortUUID(job.id)}</Box>
+                <Box>
+                    <b>Reservation:</b>{" "}
+                    <ProviderTitle providerId={job.specification.product.provider} />
+                    {" "}/{" "}
+                    {job.specification.product.id}{" "}
+                    (x{job.specification.replicas})
+                </Box>
+                <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
+            </Flex>
+            </TabbedCardTab>
+        </TabbedCard>
 
-            <TitledCard isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} state={state} />
-            </TitledCard>
-        </div>
+        <TabbedCard style={{flexBasis: "600px"}}>
+            <StandardPanelBody>
+                <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
+                    <ProviderUpdates job={job} state={state} addOverflow={false} />
+                </TabbedCardTab>
+            </StandardPanelBody>
+        </TabbedCard>
     </div>
 };
 
-const Content = injectStyleSimple("content", `
-  display: flex;
-  align-items: center;
-  flex-direction: column;
+const Content = injectStyle("content", k => `
+    ${k} {
+        margin-top: 32px;
+        display: flex;
+        gap: 16px;
+    }
+    
+    ${k} > * {
+        flex-grow: 1;
+        flex-shrink: 0;
+    }
 `);
 
 function PublicLinkEntry({id}: {id: string}): JSX.Element {
     const [publicLink] = useCloudAPI<PublicLink | null>(PublicLinkApi.retrieve({id}), null);
-    if (publicLink.data == null) return <div />
-    const {domain} = publicLink.data.specification;
+    if (!id.startsWith("fake-") && publicLink.data == null) return <div />
+    let domain: string;
+    if (id.startsWith("fake")) {
+        domain = "https://fake-public-link.example.com";
+    } else if (publicLink.data == null) {
+        return <li/>;
+    } else {
+        domain = publicLink.data.specification.domain;
+    }
 
     const httpDomain = domain.startsWith("https://") ? domain : "https://" + domain;
-    return <Truncate width={1}>
-        <ExternalLink title={domain} href={httpDomain}>{domain}</ExternalLink>
-    </Truncate>
+    return <li><a target={"_blank"} title={domain} href={httpDomain}>{domain}</a></li>;
 }
 
-const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
+const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const [utilization, setUtilization] = useCloudAPI<compute.JobsRetrieveUtilizationResponse | null>(
         {noop: true},
         null
@@ -583,84 +581,79 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     }, [job]);
 
     return <>
-        <Heading.h2>Your job is being prepared</Heading.h2>
-        <Heading.h3>
-            {job.specification.name ?
-                (<>
-                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                    {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
-                </>) :
-                (<>
-                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                    {" "}(ID: {shortUUID(job.id)})
-                </>)
+        <Heading.h2>
+            {state === "IN_QUEUE" ?
+                <>
+                    {job.specification.name ?
+                        (<>
+                            Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
+                        </>) :
+                        (<>
+                            Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {" "}(ID: {shortUUID(job.id)})
+                        </>)
+                    }
+                </> :
+                "Your job is temporarily suspended"
             }
-        </Heading.h3>
-        <Busy job={job} utilization={utilization.data} />
+        </Heading.h2>
+        {state === "SUSPENDED" &&
+            <Heading.h3>
+                {job.specification.name ?
+                    (<>
+                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                        {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
+                    </>) :
+                    (<>
+                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                        {" "}(ID: {shortUUID(job.id)})
+                    </>)
+                }
+            </Heading.h3>
+        }
+        <Busy job={job} state={state} utilization={utilization.data} />
     </>;
 };
 
 const BusyWrapper = injectStyle("busy-wrapper", k => `
     ${k} {
         display: none;
+        flex-direction: column;
+        flex-grow: 1;
     }
 
     ${k}${active.dot} {
         animation: 1s ${busyAnim};
-        display: block;
+        display: flex;
     }
 `);
 
 const Busy: React.FunctionComponent<{
     job: Job;
+    state: JobState;
     utilization: compute.JobsRetrieveUtilizationResponse | null
-}> = ({job, utilization}) => {
-    const ref = useRef<HTMLDivElement>(null);
-    const clusterUtilization = utilization ?
-        Math.floor((utilization.usedCapacity.cpu / utilization.capacity.cpu) * 100) : 0;
-
+}> = ({job, state}) => {
+    const [isActive, setActive] = useState(false);
     useEffect(() => {
         const t = setTimeout(() => {
-            ref.current?.classList.add("active");
+            setActive(true);
         }, 6000);
+
         return () => {
             clearTimeout(t);
         };
     }, []);
 
-    return <Box className={BusyWrapper} divRef={ref}>
-        <Box mt={"16px"}>
-            <Box mb={"16px"}>
-                {clusterUtilization > 80 ? (
-                    <>
-                        Due to high resource utilization, it might take longer than normal to prepare the machine you
-                        requested.<br />
-                        {utilization ? (
-                            <>
-                                Cluster utilization is currently at {clusterUtilization}%
-                                with {utilization.queueStatus.running} jobs
-                                running and {utilization.queueStatus.pending} in the queue.
-                            </>
-                        ) : null}
-                    </>
-                ) : (
-                    <>We are currently preparing your job. This step might take a few
-                        minutes.</>
-                )}
-            </Box>
+    return <Box className={classConcat(BusyWrapper, isActive ? active.class : undefined)}>
+        {state === "IN_QUEUE" &&
+            <Box>We are currently preparing your job. This step might take a few minutes.</Box>
+        }
 
-            <CancelButton job={job} state={"IN_QUEUE"} />
-        </Box>
+        <Box flexGrow={1}/>
+        <Box><CancelButton job={job} state={"IN_QUEUE"} /></Box>
     </Box>;
 };
-
-const InfoCardsContainer = injectStyleSimple("info-card-container", `
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 380px));
-  grid-gap: 16px;
-  justify-content: center;
-`);
 
 function isSupported(jobBackend: string | undefined, support: ComputeSupport | undefined, flag: keyof DockerSupport | keyof NativeSupport | keyof VirtualMachineSupport): boolean {
     switch (jobBackend) {
@@ -677,140 +670,36 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
-const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job, status}) => {
-    const fileInfo = useJobFiles(job.specification);
-    let time = job.specification.timeAllocation;
-    if (status.expiresAt && status.startedAt) {
-        const msTime = status.expiresAt - status.startedAt;
-        time = {
-            hours: Math.floor(msTime / (1000 * 3600)),
-            minutes: Math.floor((msTime % (1000 * 3600)) / (1000 * 60)),
-            seconds: Math.floor((msTime % (1000 * 60)) / (1000))
-        };
-    }
-
-    let prettyTime = "No job deadline";
-    if (time) {
-        prettyTime = "";
-        if (time.hours > 0) {
-            prettyTime += time.hours;
-            if (time.hours > 1) prettyTime += " hours";
-            else prettyTime += " hour";
-        }
-        if (time.minutes > 0) {
-            if (prettyTime !== "") prettyTime += " ";
-            prettyTime += time.minutes;
-            if (time.minutes > 1) prettyTime += " minutes";
-            else prettyTime += " minute";
-        }
-
-        if (prettyTime === "") {
-            prettyTime = "< 1 minute";
-        }
-    }
-
-    const workspaceTitle = projectTitleFromCache(job.owner.project);
-
-    const machine = job.status.resolvedProduct! as unknown as ProductCompute;
-    const pricePerUnit = machine?.pricePerUnit ?? 0;
-    const estimatedCost = time ?
-        (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
-        0;
-
-    return <div className={InfoCardsContainer}>
-        <InfoCard
-            stat={job.specification.replicas.toString()}
-            statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
-            icon={"cpu"}
-        >
-            <b><ProviderTitle providerId={job.specification.product.provider} /> / {job.specification.product.id}
-            </b><br />
-            {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
-
-            {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
-            {!machine?.memoryInGigs ? null : <>{machine?.memoryInGigs}GB RAM</>}
-
-            {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
-            {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}
-        </InfoCard>
-        <InfoCard
-            stat={Object.keys(jobFiles(job.specification)).length.toString()}
-            statTitle={Object.keys(jobFiles(job.specification)).length === 1 ? "Input file" : "Input files"}
-            icon={"ftFolder"}
-        >
-            {fileInfo}
-        </InfoCard>
-        <InfoCard stat={workspaceTitle} statTitle={"Project"} icon={"projects"}>
-            <b>Launched by:</b> {job.owner.createdBy}
-        </InfoCard>
-    </div>;
-};
-
-const InfoCardContainer = injectStyle("info-card-container", k => `
-    ${k} {
-        margin: 15px 10px;
-        text-align: center;
-    }
-
-    ${k} .stat {
-        font-size: 250%;
-        line-height: 150%;
-    }
-
-    ${k} .stat-title {
-        font-size: 150%;
-    }
-
-    ${k} .content {
-        margin-top: 30px;
-        text-align: left;
-    }
-`);
-
-const InfoCard: React.FunctionComponent<{
-    stat: string,
-    statTitle: string,
-    icon: IconName,
-    children: React.ReactNode;
-}> = props => {
-    return <TitledCard isLoading={false}>
-        <div className={InfoCardContainer}>
-            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
-            <div className={"stat"}>{props.stat}</div>
-            <div className={"stat-title"}>{props.statTitle}</div>
-            <div className={"content"}>
-                {props.children}
-            </div>
-        </div>
-    </TitledCard>;
-};
-
 const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
-        <Flex justifyContent={"space-between"}>
-            <Box>
+        <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
+            <Flex flexDirection={"column"}>
                 <Heading.h2>
-                    {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
+                    {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now running
+                    {" "}
+                    <Box style={{display: "inline"}} color={"gray"}>(ID: {job.id})</Box>
                 </Heading.h2>
-                <Heading.h3>
-                    {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                    {" "}{job.specification.application.version}
-                </Heading.h3>
-            </Box>
-            {job.specification.replicas > 1 ? null : (
-                <RunningButtonGroup job={job} rank={0} />
-            )}
+                <Box flexGrow={1}/>
+                <div><CancelButton job={job} state={"RUNNING"} /></div>
+            </Flex>
+            <RunningButtonGroup job={job} rank={0} isAtTop={true} />
         </Flex>
     </>;
 };
 
-const RunningInfoWrapper = injectStyleSimple("running-info-wrapper", `
-  margin-top: 32px;
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(580px, 1fr));
-  grid-gap: 16px;
-  justify-content: center;
+const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
+    ${k} {
+        margin-top: 32px;
+        margin-bottom: 16px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    ${k} > * {
+        flex-basis: 300px;
+        flex-grow: 1;
+    }
 `);
 
 function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} & MarginProps>) {
@@ -835,51 +724,6 @@ AltButtonGroup.defaultProps = {
     marginTop: "8px",
     marginBottom: "8px"
 };
-
-function jobFiles(parameters: JobSpecification): Record<string, AppParameterValueNS.File> {
-    const result: Record<string, AppParameterValueNS.File> = {};
-    const userParams = parameters.parameters ?? {};
-
-    for (const paramName of Object.keys(parameters.parameters ?? {})) {
-        const value = userParams[paramName];
-        if (value.type !== "file") continue;
-        result[paramName] = value as AppParameterValueNS.File;
-    }
-
-    let i = 0;
-    const randomString = Math.random().toString();
-    for (const resource of parameters.resources ?? []) {
-        if (resource.type !== "file") continue;
-        result[`${randomString}_resourceParam${i++}`] = resource as AppParameterValueNS.File;
-    }
-
-    return result;
-}
-
-function useJobFiles(spec: JobSpecification): string {
-    const [fileInfo, setFileInfo] = useState("No files");
-    useEffect(() => {
-        let cancelled = false;
-
-        (async () => {
-            const files = Object.values(jobFiles(spec));
-            if (files.length === 0) {
-                setFileInfo("No files");
-                return;
-            }
-
-            const result = await Promise.all(files.map(it => prettyFilePath(it.path)));
-            if (cancelled) return;
-            setFileInfo(result.join(", "));
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [spec]);
-
-    return fileInfo;
-}
 
 interface ParsedSshAccess {
     success: boolean;
@@ -946,12 +790,14 @@ const RunningContent: React.FunctionComponent<{
     state: React.RefObject<JobUpdates>;
     status: JobStatus;
 }> = ({job, state, status}) => {
-    const fileInfo = useJobFiles(job.specification);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
     const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
-    const workspaceTitle = projectTitleFromCache(job.owner.project);
+    const messagesRef = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    useScrollToBottom(scrollRef);
+    useScrollToBottom(messagesRef);
     const extendJob = useCallback(async (duration: number) => {
         if (!commandLoading && expiresAt) {
             setExpiresAt(expiresAt + (3600 * 1000 * duration));
@@ -1015,8 +861,19 @@ const RunningContent: React.FunctionComponent<{
     const supportsSuspend = isSupported(backendType, support, "suspension");
     const supportsPeers = isSupported(backendType, support, "peers");
 
-    const sshAccess = useMemo(() => {
-        return parseUpdatesForAccess(job.updates);
+    const sshAccess: ParsedSshAccess | null = useMemo(() => {
+        const res = parseUpdatesForAccess(job.updates);
+        if (res) return res;
+        if (localStorage.getItem("fakeSsh")) {
+            return {
+                success: true,
+                command: "ssh example@ssh.example.com -P 41231",
+                message: "SSH configured successfully",
+                aauLegacy: false,
+            }
+        } else {
+            return null;
+        }
     }, [job.updates.length]);
 
     useEffect(() => {
@@ -1025,156 +882,153 @@ const RunningContent: React.FunctionComponent<{
         }, 1000);
     });
 
-    const resolvedProduct = job.status.resolvedProduct as unknown as ProductCompute;
-
-
     const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
     const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
 
+    if (localStorage.getItem("fakeLinks")) {
+        ingresses.push({
+            id: "fake-link",
+            type: "ingress"
+        });
+    }
+
+    if (localStorage.getItem("fakePeers")) {
+        for (let i = 1; i <= 15; i++) {
+            peers.push({
+                hostname: "fake-peer-" + i,
+                jobId: `5${i}00000`,
+                type: "peer"
+            });
+        }
+    }
+
     return <>
         <div className={RunningInfoWrapper}>
-            <TitledCard isLoading={false} title={"Job info"} icon={"properties"}>
-                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
-                    <Box><b>ID:</b> {shortUUID(job.id)}</Box>
-                    <Box>
-                        <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider} />
-                        {" "}/{" "}
-                        {job.specification.product.id}{" "}
-                        (x{job.specification.replicas})
-                    </Box>
-                    <Box><b>Input:</b> {fileInfo}</Box>
-                    <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
-                    <Box flexGrow={1} />
-                    <Box mt={"16px"}>
-                        <CancelButton job={job} state={"RUNNING"} fullWidth />
-                    </Box>
-                </Flex>
-            </TitledCard>
-            <TitledCard isLoading={false} title={"Time allocation"} icon={"hourglass"}>
-                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    <Box>
-                        <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
-                    </Box>
-                    {!expiresAt ? null :
-                        <>
-                            <Box>
-                                <b>Job expiry: </b> {dateToString(expiresAt)}
-                            </Box>
-                            <Box>
-                                <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
-                                :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
-                                :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
-                            </Box>
-                        </>
-                    }
-                    <Box flexGrow={1} />
-                    <Box mb="12px">
-                        {!expiresAt || !supportsExtension ? null : <>
-                            Extend allocation (hours):
-                            <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                <Button onClick={() => extendJob(1)}>+1</Button>
-                                <Button onClick={() => extendJob(6)}>+6</Button>
-                                <Button onClick={() => extendJob(12)}>+12</Button>
-                                <Button onClick={() => extendJob(24)}>+24</Button>
-                                <Button onClick={() => extendJob(48)}>+48</Button>
-                            </AltButtonGroup>
-                        </>}
-                        {!supportsSuspend ? null :
-                            suspended ?
-                                <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
-                                    onAction={unsuspendJob} /> :
-                                <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
-                                    onAction={suspendJob} />
-
+            <TabbedCard style={{flexBasis: "300px"}}>
+                <StandardPanelBody>
+                <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
+                    <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                        <Box>
+                            <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
+                        </Box>
+                        {!expiresAt && !localStorage.getItem("useFakeState") ? null :
+                            <>
+                                <Box>
+                                    <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
+                                </Box>
+                                <Box>
+                                    <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
+                                    :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
+                                    :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
+                                </Box>
+                            </>
                         }
-                    </Box>
-                </Flex>
-            </TitledCard>
-            <TitledCard isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} state={state} />
-            </TitledCard>
+                        <Box flexGrow={1} />
+                        <Box mb="12px">
+                            {(!expiresAt || !supportsExtension) && !localStorage.getItem("useFakeState") ? null : <>
+                                Extend allocation (hours):
+                                <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
+                                    <Button onClick={() => extendJob(1)}>+1</Button>
+                                    <Button onClick={() => extendJob(8)}>+8</Button>
+                                    <Button onClick={() => extendJob(24)}>+24</Button>
+                                </AltButtonGroup>
+                            </>}
+                            {!supportsSuspend ? null :
+                                suspended ?
+                                    <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
+                                                        onAction={unsuspendJob} /> :
+                                    <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
+                                                        onAction={suspendJob} />
 
-            {ingresses.length === 0 ? null :
-                <TitledCard isLoading={false} title="Public links" icon="globeEuropeSolid">
-                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
-                        {ingresses.map(ingress => <PublicLinkEntry id={ingress.id} />)}
-                    </Text>
-                </TitledCard>
-            }
+                            }
+                        </Box>
+                    </Flex>
+                </TabbedCardTab>
+                </StandardPanelBody>
+            </TabbedCard>
 
-            {!supportsPeers || peers.length === 0 ? null :
-                <TitledCard isLoading={false} title="Connected jobs">
-                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHeaderCell textAlign="left">
-                                        Hostname
-                                    </TableHeaderCell>
-                                    <TableHeaderCell textAlign="left">
-                                        Job ID
-                                    </TableHeaderCell>
-                                </TableRow>
-                            </TableHeader>
-                            <tbody>
-                                {peers.map(it =>
-                                    <TableRow key={it.jobId}>
-                                        <TableCell textAlign="left">
-                                            <Truncate width={1}>{it.hostname}</Truncate>
-                                        </TableCell>
-                                        <TableCell textAlign="left">
-                                            <Link to={`/jobs/properties/${it.jobId}?app=`}>
-                                                <Truncate width={1}>{it.jobId}</Truncate>
-                                            </Link>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </tbody>
-                        </Table>
-                    </Text>
-                </TitledCard>
-            }
-
-            {!sshAccess ? null :
-                <TitledCard isLoading={false} title="SSH access" icon="key">
-                    <Text style={{overflowY: "auto"}} mt="6px" fontSize={"18px"}>
+            <TabbedCard style={{flexBasis: "600px"}}>
+                <StandardPanelBody>
+                {!sshAccess ? null :
+                    <TabbedCardTab icon={"heroKey"} name={"SSH"}>
                         {sshAccess.success ? null : <Warning>
                             SSH was not configured successfully!
                         </Warning>}
-                        {!sshAccess.command ? null : <>
-                            Access the SSH server associated with this job using:
-                            <pre><code>{sshAccess.command}</code></pre>
-                        </>}
                         {!sshAccess.message ? null : <>{sshAccess.message}</>}
-                        {sshAccess.aauLegacy ? null : <p>
-                            This requires an SSH key to be uploaded. You can upload one{" "}
-                            <Link to={"/ssh-keys"} target="_blank">here</Link>.
-                        </p>}
-                    </Text>
-                </TitledCard>
-            }
+                        {!sshAccess.command ? null : <>
+                            <CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet>
+                        </>}
+                    </TabbedCardTab>
+                }
+
+                {!supportsPeers || peers.length === 0 ? null :
+                    <TabbedCardTab icon={"heroServerStack"} name={`Connected jobs (${peers.length})`}>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHeaderCell textAlign="left" width={"120px"}>Job ID</TableHeaderCell>
+                                    <TableHeaderCell textAlign="left">Hostname</TableHeaderCell>
+                                </TableRow>
+                            </TableHeader>
+                            <tbody>
+                            {peers.map(it =>
+                                <TableRow key={it.jobId}>
+                                    <TableCell textAlign="left" width={"120px"}>
+                                        <Link to={`/jobs/properties/${it.jobId}?app=`} target={"_blank"}>
+                                            {it.jobId}
+                                            {" "}
+                                            <Icon name={"heroArrowTopRightOnSquare"} mt={"-5px"}/>
+                                        </Link>
+                                    </TableCell>
+
+                                    <TableCell textAlign="left">
+                                        <code><Truncate width={1}>{it.hostname}</Truncate></code>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            </tbody>
+                        </Table>
+                    </TabbedCardTab>
+                }
+
+                {ingresses.length === 0 ? null :
+                    <TabbedCardTab icon={"heroGlobeEuropeAfrica"} name={`Links (${ingresses.length})`}>
+                        This job is publicly available through:
+                        <ul style={{paddingLeft: "2em"}}>
+                            {ingresses.map(ingress => <PublicLinkEntry key={ingress.id} id={ingress.id} />)}
+                        </ul>
+                    </TabbedCardTab>
+                }
+                </StandardPanelBody>
+            </TabbedCard>
+
+            <TabbedCard style={{flexBasis: "600px"}}>
+                <StandardPanelBody divRef={messagesRef}>
+                    <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
+                        <ProviderUpdates job={job} state={state} addOverflow={false} />
+                    </TabbedCardTab>
+                </StandardPanelBody>
+            </TabbedCard>
         </div>
 
         {!supportsLogs ? null :
-            <div className={RunningJobsWrapper}>
-                {Array(job.specification.replicas).fill(0).map((_, i) =>
-                    <RunningJobRank key={i} job={job} rank={i} state={state} />
-                )}
-            </div>
+            <TabbedCard>
+                <Box height={"calc(100vh - 785px)"} minHeight={"300px"} overflowY={"scroll"} divRef={scrollRef}>
+                    {Array(job.specification.replicas).fill(0).map((_, i) =>
+                        <RunningJobRank key={i} job={job} rank={i} state={state} />
+                    )}
+                </Box>
+            </TabbedCard>
         }
     </>;
 };
 
-const RunningJobsWrapper = injectStyleSimple("running-jobs-wrapper", `
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  margin-top: 32px;
-
-  margin-bottom: 32px;
-  grid-gap: 32px;
-`);
+const StandardPanelBody: React.FunctionComponent<{
+    children: React.ReactNode;
+    divRef?: React.RefObject<HTMLDivElement>;
+}> = ({divRef, children}) => {
+    return <div style={{height: "150px", overflowY: "auto"}} ref={divRef}>{children}</div>;
+};
 
 const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     ${k} {
@@ -1182,7 +1036,7 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
         margin-bottom: 16px;
 
         display: grid;
-        grid-template-columns: 80px 1fr 200px;
+        grid-template-columns: 1fr 200px;
         grid-template-rows: 1fr auto;
         grid-gap: 16px;
     }
@@ -1253,21 +1107,6 @@ const RunningJobRank: React.FunctionComponent<{
     const wrapperRef = useRef<HTMLDivElement>(null);
     const [updates, setUpdates] = useState<string[]>([]);
 
-    const [expanded, setExpanded] = useState(false);
-    const toggleExpand = useCallback((autoScroll = true) => {
-        setExpanded(!expanded);
-        const targetView = wrapperRef.current?.parentElement;
-        if (targetView != null) {
-            setTimeout(() => {
-                if (autoScroll) {
-                    window.scrollTo({
-                        top: targetView.getBoundingClientRect().top - 100 + window.scrollY,
-                    });
-                }
-            }, 0);
-        }
-    }, [expanded, wrapperRef]);
-
     useEffect(() => {
         const listener = () => {
             const s = state.current;
@@ -1293,40 +1132,24 @@ const RunningJobRank: React.FunctionComponent<{
         };
         state.current?.subscriptions?.push(listener);
         listener();
-
-        if (job.specification.replicas === 1) {
-            toggleExpand(false)
-        }
     }, [job.id, rank]);
 
     return <>
-        <TitledCard isLoading={false}>
-            <div className={classConcat(RunningJobRankWrapper, expanded ? "expanded" : undefined)}>
-                <div className="rank">
-                    <Heading.h2>{rank + 1}</Heading.h2>
-                    <Heading.h3>Node</Heading.h3>
-                </div>
-
+        <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
+            <div className={RunningJobRankWrapper}>
                 <Box divRef={wrapperRef} className="term">
                     <LogOutput updates={updates} maxHeight="" />
                 </Box>
 
                 {job.specification.replicas === 1 ? null : (
-                    <RunningButtonGroup job={job} rank={rank} expanded={expanded}
-                        toggleExpand={toggleExpand} />
+                    <Absolute right={"32px"}>
+                        <RunningButtonGroup job={job} rank={rank} isAtTop={false}/>
+                    </Absolute>
                 )}
             </div>
-        </TitledCard>
+        </TabbedCardTab>
     </>;
 };
-
-const CompletedTextWrapper = injectStyle("completed-text", k => `
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${k} > ${AltButtonGroupClass} {
-      justify-content: center;
-    }
-  }
-`);
 
 function jobStateToText(state: JobState) {
     switch (state) {
@@ -1345,7 +1168,7 @@ function jobStateToText(state: JobState) {
 
 const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const app = job.specification.application;
-    return <div className={CompletedTextWrapper}>
+    return <Flex flexDirection={"column"} flexGrow={1}>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         {state === "FAILURE" ?
             <Heading.h3>
@@ -1361,14 +1184,13 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
+        <Box flexGrow={1}/>
         {app.name === "unknown" ? null :
-            <AltButtonGroup minButtonWidth={"200px"}>
-                <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
-                    <Button>Run application again</Button>
-                </Link>
-            </AltButtonGroup>
+            <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
+                <Button>Run application again</Button>
+            </Link>
         }
-    </div>;
+    </Flex>;
 };
 
 function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | null {
@@ -1377,13 +1199,12 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
-    return <div className={FadeInDiv} style={{width: "100%", marginTop: "18px"}}>
+    return <Card className={FadeInDiv} p={"0px"} height={"calc(100vh - 530px)"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{initialPath: pathRef.current, embedded: true}}
         />
-    </div>;
+    </Card>;
 }
-
 
 const fadeInAnimation = makeKeyframe("fade-in-animation", `
   from {
@@ -1403,7 +1224,6 @@ const fadeInAnimation = makeKeyframe("fade-in-animation", `
 const FadeInDiv = injectStyle("fade-in-div", k => `
     ${k} {
         width: 100%;
-        margin-top: 18px;
         animation: 1.6s ${fadeInAnimation};
     }
 `);
@@ -1413,11 +1233,10 @@ function getAppType(job: Job): string {
 }
 
 const RunningButtonGroup: React.FunctionComponent<{
-    job: Job,
-    rank: number,
-    expanded?: boolean | false,
-    toggleExpand?: () => void | undefined
-}> = ({job, rank, expanded, toggleExpand}) => {
+    job: Job;
+    rank: number;
+    isAtTop: boolean;
+}> = ({job, rank, isAtTop}) => {
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
@@ -1428,7 +1247,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
 
-    return <div className={job.specification.replicas > 1 ? "buttons" : topButtons.class}>
+    return <div className={!isAtTop ? "buttons" : topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
@@ -1440,13 +1259,13 @@ const RunningButtonGroup: React.FunctionComponent<{
                 );
             }}>
                 <Button type={"button"}>
-                    Open terminal
+                    <Icon name={"heroCommandLine"} /> Open terminal
                 </Button>
             </Link>
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                <Button>Open interface</Button>
+                <Button><Icon name={"heroArrowTopRightOnSquare"}/> Open interface</Button>
             </Link>
         )}
         {appType !== "VNC" || !supportsInterface ? null : (
@@ -1459,14 +1278,9 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=450,status=no"
                 );
             }}>
-                <Button>Open interface</Button>
+                <Button><Icon name={"heroArrowTopRightOnSquare"}/> Open interface</Button>
             </Link>
         )}
-        {job.specification.replicas === 1 ? null :
-            <Button className={"expand-btn"} onClick={toggleExpand}>
-                {expanded ? "Shrink" : "Expand"} output
-            </Button>
-        }
     </div>
 };
 
@@ -1474,8 +1288,7 @@ const RunningButtonGroup: React.FunctionComponent<{
 const CancelButton: React.FunctionComponent<{
     job: Job,
     state: JobState,
-    fullWidth?: boolean
-}> = ({job, state, fullWidth}) => {
+}> = ({job, state}) => {
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
@@ -1484,7 +1297,7 @@ const CancelButton: React.FunctionComponent<{
     }, [loading]);
 
     return <ConfirmationButton
-        color={"red"} icon={"trash"} mb="12px" onAction={onCancel} fullWidth={fullWidth}
+        color={"red"} icon={"trash"} onAction={onCancel} fullWidth={false}
         actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     />;
 };
@@ -1492,14 +1305,27 @@ const CancelButton: React.FunctionComponent<{
 const ProviderUpdates: React.FunctionComponent<{
     job: Job;
     state: React.RefObject<JobUpdates>;
-}> = ({job, state}) => {
+    addOverflow: boolean;
+}> = ({job, state, addOverflow}) => {
     const [updates, setUpdates] = useState<string[]>([])
 
     const appendUpdate = useCallback((update: JobUpdate) => {
         if (update.status && update.status.startsWith("SSH:")) return;
 
         if (!update.status && !update.state) {
-            setUpdates(u => [...u, `[${dateToTimeOfDayString(update.timestamp)}] Job is preparing\n`]);
+            setUpdates(u => {
+                let text = `[${dateToTimeOfDayString(update.timestamp)}] `;
+                text += job.owner.createdBy;
+                text += " has requested ";
+                text += job.specification.replicas;
+                text += "x ";
+                text += job.specification.product.id;
+                text += " from ";
+                text += getProviderTitle(job.specification.product.provider);
+                text += "\n";
+
+                return [...u, text];
+            });
         } else if (update.status) {
             setUpdates(u => [...u, `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`]);
         } else if (update.state) {
@@ -1556,9 +1382,14 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [state]);
-    return <Box height={"200px"} overflowY="scroll">
-        <LogOutput updates={updates} maxHeight="200px" />
-    </Box>
+
+    if (addOverflow) {
+        return <Box height={"200px"} overflowY="scroll">
+            <LogOutput updates={updates} maxHeight="200px" />
+        </Box>
+    } else {
+        return <LogOutput updates={updates} />;
+    }
 };
 
 export default View;

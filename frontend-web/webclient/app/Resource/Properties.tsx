@@ -99,7 +99,6 @@ const Container = injectStyle("container", k => `
 
     ${k} .header-text {
         margin-left: 32px;
-        margin-top: calc(var(--logoScale) * 16px);
         width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
         display: grid;
         grid-template-columns: 1fr 400px;

@@ -452,17 +452,18 @@ const SensitivityBadgeClass = injectStyle("sensitivity-badge", k => `
     }
 `);
 
-export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight: string}): React.JSX.Element {
-    return <pre
-        style={{
-            maxHeight,
-            overflowY: "scroll",
-            marginTop: 0,
-            marginBottom: 0,
-            fontSize: "16px",
-            lineHeight: "21px",
-            fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace"
-        }}>{updates}</pre>
+const LogOutputClass = injectStyle("log-outout", k => `
+    ${k} {
+        margin-top: 0;
+        margin-bottom: 0;
+        overflow-y: scroll;
+        font-family: var(--monospace);
+        text-wrap: wrap;
+    }
+`);
+
+export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight?: string}): React.JSX.Element {
+    return <pre className={LogOutputClass} style={{maxHeight}}>{updates}</pre>;
 }
 
 export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (

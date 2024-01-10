@@ -20,6 +20,7 @@ import {
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -127,6 +128,20 @@ const Playground: React.FunctionComponent = () => {
                 ))}
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
+
+            <TabbedCard>
+                <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
+                    These are the messages!
+                </TabbedCardTab>
+
+                <TabbedCardTab icon={"heroGlobeEuropeAfrica"} name={"Public links"}>
+                    Public links go here!
+                </TabbedCardTab>
+
+                <TabbedCardTab icon={"heroServerStack"} name={"Connected jobs"}>
+                    Connections!
+                </TabbedCardTab>
+            </TabbedCard>
         </>
     );
     return <MainContainer main={main} />;
