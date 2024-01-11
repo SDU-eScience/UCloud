@@ -196,6 +196,10 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     );
                 };
 
+                browser.on("beforeOpen", (oldPath, newPath, drive) =>
+                    drive?.id === dummyEntry.id
+                );
+
                 browser.on("fetchFilters", () => {
                     if (Client.hasActiveProject) {
                         return [{type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"}];
