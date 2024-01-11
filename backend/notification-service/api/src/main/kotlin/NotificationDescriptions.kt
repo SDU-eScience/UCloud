@@ -52,12 +52,6 @@ data class NotificationSettings(
 )
 
 @Serializable
-data class NotificationSettingsItem(
-    val username: String,
-    val settings: NotificationSettings
-)
-
-@Serializable
 data class RetrieveSettingsRequest(
     val username: String? = null
 )
@@ -66,7 +60,6 @@ data class RetrieveSettingsRequest(
 data class RetrieveSettingsResponse(
     val settings: NotificationSettings
 )
-
 
 @TSTopLevel
 object NotificationDescriptions : CallDescriptionContainer("notifications") {
@@ -291,7 +284,7 @@ automatically delivered to any connected frontend via websockets.
         websocket(baseContext)
     }
 
-    val updateSettings = call("updateSettings", BulkRequest.serializer(NotificationSettingsItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val updateSettings = call("updateSettings", NotificationSettings.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(
             baseContext,
             "settings"

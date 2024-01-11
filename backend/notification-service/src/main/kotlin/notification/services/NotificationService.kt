@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.notification.api.*
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
@@ -114,25 +115,22 @@ class NotificationService(
 
     suspend fun updateSettings(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<NotificationSettingsItem>
+        request: NotificationSettings
     ) {
-        request.items.forEach { notificationSettings ->
-            val json = defaultMapper.encodeToJsonElement(notificationSettings)
-            db.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("json", json.toString())
-                            setParameter("username", actorAndProject.actor.username)
-                        },
-                        """
-                            INSERT INTO notification_settings (username, settings) 
-                            VALUES (:username, :json::jsonb) 
-                            ON CONFLICT (username)
-                            DO UPDATE SET settings = :json::jsonb
-                        """
-                    )
-            }
+        val json = defaultMapper.encodeToJsonElement(request)
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                setParameter("json", json.toString())
+                setParameter("username", actorAndProject.actor.safeUsername())
+                },
+                """
+                    INSERT INTO notification_settings (username, settings) 
+                    VALUES (:username, :json::jsonb) 
+                    ON CONFLICT (username)
+                    DO UPDATE SET settings = :json::jsonb
+                """
+            )
         }
     }
 
