@@ -650,7 +650,7 @@ function SecondarySidebar({
                     )}
                 </>}
 
-                {canConsume && sharesLinksInfo.length > 0 && <>
+                {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace && <>
                     <SidebarSectionHeader>Shared files</SidebarSectionHeader>
                     <SidebarLinkColumn links={sharesLinksInfo} />
                 </>}

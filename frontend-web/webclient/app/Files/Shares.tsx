@@ -34,6 +34,7 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {useProjectId} from "@/Project/Api";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
@@ -276,6 +277,15 @@ interface SetShowBrowserHack {
 }
 
 export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): JSX.Element {
+
+    //Projects should now show this page
+    const activeProjectId = useProjectId();
+    React.useEffect(() => {
+        if (activeProjectId) {
+            navigate(AppRoutes.dashboard.dashboardA());
+        }
+    },[activeProjectId])
+
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Share> | null>(null);
     const navigate = useNavigate();
