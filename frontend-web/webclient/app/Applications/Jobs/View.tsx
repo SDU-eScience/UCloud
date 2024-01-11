@@ -30,7 +30,7 @@ import {
     NativeSupport,
     VirtualMachineSupport
 } from "@/UCloud/JobsApi";
-import {compute} from "@/UCloud";
+import {PageV2, compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
@@ -41,11 +41,64 @@ import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {chain, classConcat, injectStyle, injectStyleSimple, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
-import {sidebarJobCache} from "@/ui-components/Sidebar";
 import {LogOutput} from "@/UtilityComponents";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
+
+export const jobCache = new class {
+    private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
+    private subscribers: (() => void)[] = [];
+    private isDirty: boolean = false;
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        };
+    }
+
+    public updateCache(page: PageV2<Job>, doClear = false) {
+        this.isDirty = true;
+        if (doClear) {
+            this.cache = {items: [], itemsPerPage: 100};
+        }
+
+        const runningJobs = page.items.filter(it => it.status.state === "RUNNING");
+        for (const job of runningJobs) {
+            const duplicate = this.cache.items.find(it => it.id === job.id);
+            if (duplicate) {
+                duplicate.status === job.status;
+            } else {
+                this.cache.items.unshift(job);
+            }
+        }
+
+        const endedJobs = page.items.filter(it => isJobStateTerminal(it.status.state));
+        for (const endedJob of endedJobs) {
+            const job = this.cache.items.find(it => it.id === endedJob.id);
+            if (job) {
+                this.cache.items = this.cache.items.filter(it => it.id !== job.id);
+            }
+        }
+
+        this.emitChange();
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public getSnapshot(): Readonly<PageV2<Job>> {
+        if (this.isDirty) {
+            this.isDirty = false;
+            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
+        }
+        return this.cache;
+    }
+}();
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -388,7 +441,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                 if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
                     const j = {...job};
                     j.status.state = update.state;
-                    sidebarJobCache.updateCache(pageV2Of(j));
+                    jobCache.updateCache(pageV2Of(j));
                 }
             }
         }

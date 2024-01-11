@@ -16,7 +16,6 @@ import {PageV2} from "@/UCloud";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
-import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
@@ -36,6 +35,7 @@ import {NewsPost} from "@/NewsPost";
 import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
+import {isAdminOrPI} from "@/Project";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;

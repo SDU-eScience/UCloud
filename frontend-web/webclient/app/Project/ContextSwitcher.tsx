@@ -10,7 +10,7 @@ import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
-import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
+import ProjectAPI, {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
 import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -20,6 +20,7 @@ import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {Project} from ".";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 

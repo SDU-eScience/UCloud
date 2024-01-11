@@ -24,12 +24,13 @@ import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useNavigate, useParams} from "react-router";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
-import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {Truncate} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {LogOutput} from "@/UtilityComponents";
+import {isAdminOrPI} from "@/Project";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {

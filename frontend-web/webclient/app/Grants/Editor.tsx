@@ -33,6 +33,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import { periodsOverlap } from "@/Accounting";
+import {Project, isAdminOrPI} from "@/Project";
 
 // State model
 // =====================================================================================================================
@@ -1010,7 +1011,7 @@ function useStateReducerMiddleware(
 
                         const projectsToFetchAllocationsFor = projectPage.items
                             .filter(it =>
-                                Projects.isAdminOrPI(it.status.myRole!) && allRelevantAllocators.has(it.id))
+                                isAdminOrPI(it.status.myRole!) && allRelevantAllocators.has(it.id))
                             .map(it => it.id);
 
                         const pWallets = projectsToFetchAllocationsFor.map(projectOverride =>
@@ -1040,7 +1041,7 @@ function useStateReducerMiddleware(
                     type: "ProjectsReloaded",
                     projects: [{id: null as (string | null), title: "My workspace"}].concat(
                         projectPage.items
-                            .filter(it => Projects.isAdminOrPI(it.status.myRole!))
+                            .filter(it => isAdminOrPI(it.status.myRole!))
                             .map(it => ({id: it.id, title: it.specification.title}))
                     )
                 });
@@ -1048,7 +1049,7 @@ function useStateReducerMiddleware(
             }
 
             case "InitGrantGiverInitiated": {
-                const pProject = callAPI<Projects.Project>(Projects.api.retrieve({ id: Client.projectId ?? "" }));
+                const pProject = callAPI<Project>(Projects.api.retrieve({ id: Client.projectId ?? "" }));
                 const pWallets = fetchAll(next => callAPI(Accounting.browseWalletsV2({itemsPerPage: 250, next})));
                 const project = await pProject;
                 const wallets = (await pWallets).filter(it => !it.paysFor.freeToUse);

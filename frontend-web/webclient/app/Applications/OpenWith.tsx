@@ -277,7 +277,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     for (const provider of Object.keys(productsByProvider)) {
                         const providerProducts = productsByProvider[provider];
                         // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
-                        for (const item of providerProducts) items.push((item as unknown) as ResolvedSupport);
+                        for (const item of providerProducts) items.push(item as unknown as ResolvedSupport);
                     }
                     supportRef.current = items;
                 }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch support."));

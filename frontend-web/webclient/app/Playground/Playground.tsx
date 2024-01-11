@@ -5,7 +5,7 @@ import {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Grid, Button} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
+import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
@@ -21,6 +21,7 @@ import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {Project} from "@/Project";
 
 const iconsNames = Object.keys(icons) as IconName[];
 

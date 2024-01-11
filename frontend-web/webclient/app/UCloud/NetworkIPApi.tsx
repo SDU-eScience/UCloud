@@ -110,7 +110,7 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
         ));
     }
 
-    public retrieveOperations(): Operation<NetworkIP, ResourceBrowseCallbacks<NetworkIP>>[] {    
+    public retrieveOperations(): Operation<NetworkIP, ResourceBrowseCallbacks<NetworkIP>>[] {
         const ops = super.retrieveOperations();
         const create = ops.find(it => it.tag === "create");
         if (create) {

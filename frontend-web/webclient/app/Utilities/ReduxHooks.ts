@@ -1,7 +1,7 @@
 import {useDispatch, useSelector} from "react-redux";
 import {useCallback} from "react";
 import {Upload} from "@/Files/Upload";
-import {ProjectCache} from "@/Project/cache";
+import {ProjectCache} from "@/Project";
 
 export interface HookStore {
     uploaderVisible?: boolean;

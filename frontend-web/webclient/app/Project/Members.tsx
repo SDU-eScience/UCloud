@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
-import {default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite, ProjectRole, isAdminOrPI, OldProjectRole, ProjectInviteLink, useProjectId} from "./Api";
+import {default as Api, ProjectInvite, ProjectInviteLink, useProjectId} from "./Api";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import MainContainer from "@/ui-components/MainContainer";
 import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
@@ -49,6 +49,7 @@ import {ListClass} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from ".";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
