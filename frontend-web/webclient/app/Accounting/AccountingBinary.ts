@@ -826,7 +826,7 @@ export const BreakdownByProjectPointCompanion: BinaryTypeCompanion<BreakdownByPr
             title = valueForJsonDecode;
             if (title === null) throw "Did not expect 'title' to be null!";
         }
-        let projectId: string | null | null = null;
+        let projectId: string | null = null;
         {
             const valueForJsonDecode = element['projectId'];
             if (valueForJsonDecode === null) projectId = null;

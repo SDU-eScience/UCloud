@@ -44,7 +44,7 @@ export default function DetailedProvider() {
                     <Flex>
                         {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
-                            <img style={{height: "150px", objectFit: "scale-down"}} src={text.image} />
+                            <img alt={`Logo for the provider`}  style={{height: "150px", objectFit: "scale-down"}} src={text.image} />
                             <Box flexGrow={1} />
                         </Flex> : <Box />}
                         <div>

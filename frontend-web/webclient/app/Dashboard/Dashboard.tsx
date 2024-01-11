@@ -292,7 +292,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                         </Box>
                     }
                 </div>
-                <img src={ucloudImage} />
+                <img alt={"UCloud logo"} src={ucloudImage} />
             </div>
 
             <Relative>

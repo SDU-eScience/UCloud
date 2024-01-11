@@ -360,7 +360,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     </DropdownLike>
                 )}
             </Box>
-            <Box mx="auto" mt="auto" width="280px"><img src={ucloudBlue} /> </Box>
+            <Box mx="auto" mt="auto" width="280px"><img alt="UCloud logo" src={ucloudBlue} /> </Box>
             <Flex height="60px" minHeight="60px" backgroundColor="#cecfd1">
                 <Text color="#000" mx="auto" my="auto" fontSize={12}>
                     Delivered by the Danish e-Infrastrucure Consortium
