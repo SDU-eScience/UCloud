@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {BulkRequest, BulkResponse, PageV2} from "./UCloud";
 
 // HACK(Dan): Breaks a circular dependency between the snackstore and utility functions
 let successCallback: (message: string) => void = doNothing;
@@ -36,7 +37,7 @@ export function setSiteTheme(isLightTheme: boolean): void {
     const lightTheme = isLightTheme ? "light" : "dark";
     toggleCssColors(lightTheme === "light");
     window.localStorage.setItem("theme", lightTheme);
-};
+}
 
 /**
  * Returns whether the value "light" or "dark" is stored.
@@ -60,7 +61,7 @@ export const extensionTypeFromPath = (path: string): ExtensionType => extensionT
 export function extensionFromPath(path: string): string {
     const splitString = path.split(".");
     return splitString[splitString.length - 1];
-};
+}
 
 export type ExtensionType =
     | null
@@ -227,7 +228,7 @@ export function extensionType(ext: string): ExtensionType {
         default:
             return null;
     }
-};
+}
 
 export function isExtPreviewSupported(ext: string): boolean {
     return extensionType(ext) !== null;
@@ -244,7 +245,7 @@ export const removeTrailingSlash = (path: string): string => path.endsWith("/") 
 export function addTrailingSlash(path: string): string {
     if (!path) return path;
     else return path.endsWith("/") ? path : `${path}/`;
-};
+}
 
 export const looksLikeUUID = (uuid: string): boolean =>
     /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/.test(uuid);
@@ -615,5 +616,12 @@ export function createHTMLElements<T extends HTMLElement>({children = [], ...roo
         }
     }
 }
-
-
+export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
+    return {"type": "bulk", items};
+}
+export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
+    return {responses: items};
+}
+export function pageV2Of<T>(...items: T[]): PageV2<T> {
+    return {items, itemsPerPage: items.length, next: undefined};
+}

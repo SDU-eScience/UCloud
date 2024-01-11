@@ -1,14 +1,9 @@
-import {emptyPage} from "@/DefaultObjects";
+import {emptyPage} from "@/Utilities/PageUtilities";
 import {Action} from "redux";
 
 declare global {
     const DEVELOPMENT_ENV: boolean;
 }
-
-export interface SidebarOption {
-    name: string;
-}
-
 
 declare global {
     export interface PaginationRequest {

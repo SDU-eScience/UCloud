@@ -7,7 +7,7 @@ import {isAbsoluteUrl} from "@/UtilityFunctions";
 import {useTitle} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {useEffect} from "react";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 
 interface SessionType {
     jobId: string;

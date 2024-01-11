@@ -12,14 +12,14 @@ import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
 import ProgressBar from "@/ui-components/Progress";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {emptyPage} from "@/DefaultObjects";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {associateBy, takeLast} from "@/Utilities/CollectionUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {UploadState} from "@/Files/Upload";
 import {CardClass} from "@/ui-components/Card";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 function insertTimestamps(speeds: Speed[]): Speed[] {
     return speeds.map(it => {

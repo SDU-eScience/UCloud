@@ -3,7 +3,7 @@ import MainContainer from "@/ui-components/MainContainer";
 import {Box, Button, Flex, Input} from "@/ui-components";
 import {useCallback} from "react";
 import {apiUpdate, callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 
 interface TestScript {

@@ -16,7 +16,7 @@ import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import ProductReference = accounting.ProductReference;
 import {ValuePill} from "@/Resource/Filter";
 

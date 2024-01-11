@@ -1,7 +1,6 @@
 import {clearLogo, uploadLogo} from "@/Applications/api";
 import {useCloudCommand, useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useLoading} from "@/Navigation/Redux";
@@ -19,6 +18,7 @@ import * as UCloud from "@/UCloud";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 export const Tool: React.FunctionComponent = () => {
     const name = useParams<{name: string}>().name!;

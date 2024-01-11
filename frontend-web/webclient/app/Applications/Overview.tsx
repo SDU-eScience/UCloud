@@ -9,17 +9,11 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {compute} from "@/UCloud";
 import AppStoreSections = compute.AppStoreSections;
-import {ReducedApiInterface} from "@/Resource/Search";
 import {useLocation} from "react-router";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationGroupToRowItem} from "./ApplicationsRow";
 import {AppSearchBox} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-
-export const ApiLike: ReducedApiInterface = {
-    routingNamespace: "applications",
-    titlePlural: "Applications"
-};
 
 const ApplicationsOverview: React.FunctionComponent = () => {
     const [sections, fetchSections] = useCloudAPI<AppStoreSections>(

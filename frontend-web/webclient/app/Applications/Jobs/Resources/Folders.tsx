@@ -54,7 +54,7 @@ export const FolderResource: React.FunctionComponent<{
                         <>
                             If you need to use your {" "}
                             <Link
-                                to={"/files/"}
+                                to={"/drives/"}
                                 target="_blank"
                             >
                                 files

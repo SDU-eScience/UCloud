@@ -4,7 +4,7 @@ import api, {ProjectInvite} from "./Api";
 import {callAPI} from "@/Authentication/DataHook";
 import {useTitle} from "@/Navigation/Redux";
 import {format} from "date-fns";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {createHTMLElements} from "@/UtilityFunctions";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";

@@ -1,4 +1,3 @@
-import {KeyCode} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -14,6 +13,12 @@ import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
+
+enum KeyCode {
+    ENTER = 13,
+    ESC = 27
+}
+
 
 interface StandardDialog {
     title?: string;
@@ -353,9 +358,9 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
             const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
             return (
                 <Box mb="8px">
-                    <Heading.h4 mb="20px" color="#000">You do not have enough {computeOrStorage} credits.</Heading.h4>
+                    <Heading.h4 mb="20px">You do not have enough {computeOrStorage} credits.</Heading.h4>
                     <Spacer
-                        left={<Text color="#000">Apply for more {computeOrStorage} resources.</Text>}
+                        left={<Text>Apply for more {computeOrStorage} resources.</Text>}
                         right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                     />
                 </Box>
@@ -364,9 +369,9 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
         case NOT_ENOUGH_LICENSE_CREDITS: {
             return (
                 <Box mb="8px">
-                    <Heading.h4 mb="20px" color="#000">You do not have enough license credits.</Heading.h4>
+                    <Heading.h4 mb="20px">You do not have enough license credits.</Heading.h4>
                     <Spacer
-                        left={<Text color="#000">You do not have enough credits to use this license. Even free licenses
+                        left={<Text>You do not have enough credits to use this license. Even free licenses
                             requires a non-zero positive balance.</Text>}
                         right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                     />
@@ -376,26 +381,19 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
         case EXCEEDED_STORAGE_QUOTA:
             return (
                 <>
-                    <Heading.h4 mb="20px" color="#000">You do not have enough storage credit. To get more storage, you
+                    <Heading.h4 mb="20px">You do not have enough storage credit. To get more storage, you
                         could do one of the following:</Heading.h4>
                     <Box mb="8px">
                         <Spacer
-                            left={<Text color="#000">Delete files. Your personal workspace files, including job results
-                                and trash also count towards your storage quota.</Text>}
-                            right={<Link to={"/files/"}><Button width="150px" height="30px">Workspace
+                            left={<Text>Delete files. Your personal workspace files, including job results
+                                and trash also count towards your storage quota, and so does the contents of your trash folder.</Text>}
+                            right={<Link to={"/drives/"}><Button width="150px" height="30px">Workspace
                                 files</Button></Link>}
                         />
                     </Box>
                     <Box mb="8px">
                         <Spacer
-                            left={<Text color="#000">Empty your trash folder.</Text>}
-                            right={<Link to={"/files/"}><Button width="150px" height="30px">To trash
-                                folder</Button></Link>}
-                        />
-                    </Box>
-                    <Box mb="8px">
-                        <Spacer
-                            left={<Text color="#000">Apply for more storage resources.</Text>}
+                            left={<Text>Apply for more storage resources.</Text>}
                             right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                         />
                     </Box>
@@ -447,15 +445,31 @@ const SensitivityBadgeClass = injectStyle("sensitivity-badge", k => `
     }
 `);
 
-export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight: string}): React.JSX.Element {
-    return <pre
-        style={{
-            maxHeight,
-            overflowY: "scroll",
-            marginTop: 0,
-            marginBottom: 0,
-            fontSize: "16px",
-            lineHeight: "21px",
-            fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace"
-        }}>{updates}</pre>
+const LogOutputClass = injectStyle("log-outout", k => `
+    ${k} {
+        margin-top: 0;
+        margin-bottom: 0;
+        overflow-y: scroll;
+        font-family: var(--monospace);
+        text-wrap: wrap;
+    }
+`);
+
+export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight?: string}): React.JSX.Element {
+    return <pre className={LogOutputClass} style={{maxHeight}}>{updates}</pre>;
 }
+
+export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
+    <Flex
+        alignItems="center"
+        justifyContent="center"
+        height="calc(100% - 60px)"
+        minHeight="250px"
+        mt="-30px"
+        width="100%"
+        flexDirection="column"
+    >
+        <Heading.h4>{props.title}</Heading.h4>
+        {props.children}
+    </Flex>
+);

@@ -13,7 +13,7 @@ import AppParameterValue = compute.AppParameterValue;
 import {TextP} from "@/ui-components/Text";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {default as JobsApi} from "@/UCloud/JobsApi";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
 import {getQueryParam} from "@/Utilities/URIUtilities";

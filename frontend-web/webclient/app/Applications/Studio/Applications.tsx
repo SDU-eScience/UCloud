@@ -2,7 +2,6 @@ import * as UCloud from "@/UCloud";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {emptyPage} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useCallback, useEffect} from "react";
@@ -19,12 +18,13 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, stopPropagation} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {ApplicationGroup, clearLogo, listGroups, setGroup, updateFlavor, updateGroup, uploadLogo} from "@/Applications/api";
+import {ApplicationGroup, clearLogo, listGroups, setGroup, updateFlavor, uploadLogo} from "@/Applications/api";
 import {useLoading, useTitle} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 interface AppVersion {
     version: string;

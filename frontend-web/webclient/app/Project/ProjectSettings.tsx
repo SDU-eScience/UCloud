@@ -22,8 +22,8 @@ import {useTitle} from "@/Navigation/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import ProjectAPI, {OldProjectRole, isAdminOrPI, useProjectId} from "@/Project/Api";
-import {bulkRequestOf} from "@/DefaultObjects";
+import ProjectAPI, {useProjectId} from "@/Project/Api";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
@@ -38,6 +38,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {projectTitleFromCache} from "./ContextSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
+import {OldProjectRole, isAdminOrPI} from ".";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 

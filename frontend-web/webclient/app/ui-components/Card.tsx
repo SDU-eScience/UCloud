@@ -12,6 +12,7 @@ import {
 import {BoxProps} from "./Box";
 import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import theme from "./theme";
+import {CSSProperties} from "react";
 
 export interface CardProps extends HeightProps,
     BoxProps,
@@ -26,6 +27,7 @@ export interface CardProps extends HeightProps,
     onClick?: (e: React.SyntheticEvent) => void;
     onContextMenu?: (e: React.SyntheticEvent) => void;
     className?: string;
+    style?: CSSProperties;
 }
 
 export const CardClass = injectStyle("card", k => `
@@ -50,7 +52,7 @@ export const CardClass = injectStyle("card", k => `
 
 export const Card: React.FunctionComponent<CardProps> = props => {
     return <div
-        style={unbox(props)}
+        style={{...unbox(props), ...(props.style ?? {})}}
         className={classConcat(CardClass, props.className)}
         onClick={props.onClick}
         onContextMenu={props.onContextMenu}

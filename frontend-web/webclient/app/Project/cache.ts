@@ -4,9 +4,10 @@
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useCallback, useEffect, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
-import ProjectAPI, {Project, useProjectId, emptyProject} from "./Api";
+import ProjectAPI, {useProjectId, emptyProject} from "./Api";
 import {dispatchSetProjectAction, getStoredProject, setStoredProject} from "./ReduxState";
-import { useDispatch } from "react-redux";
+import {useDispatch} from "react-redux";
+import {Project} from ".";
 
 // This needs to be global
 let cacheIsLoading = false;
@@ -73,11 +74,6 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
     }, [projectId, cache.project.id])
 
     return {fetch, reload, loading, error};
-}
-
-export interface ProjectCache {
-    expiresAt: number;
-    project: Project;
 }
 
 const cacheMaxAge = 1000 * 60 * 3;

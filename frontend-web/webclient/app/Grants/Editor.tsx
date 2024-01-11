@@ -33,6 +33,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import { periodsOverlap } from "@/Accounting";
+import {Project, isAdminOrPI} from "@/Project";
 
 // State model
 // =====================================================================================================================
@@ -846,7 +847,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 category.resourceSplits[request.grantGiver] = arr;
                 arr.push({
                     balanceRequested: request.balanceRequested * priceFactor,
-                    sourceAllocation: request.sourceAllocation ?? undefined,
+                    sourceAllocation: request.sourceAllocation?.toString() ?? undefined,
                     originalRequest: request,
                 });
             }
@@ -1010,7 +1011,7 @@ function useStateReducerMiddleware(
 
                         const projectsToFetchAllocationsFor = projectPage.items
                             .filter(it =>
-                                Projects.isAdminOrPI(it.status.myRole!) && allRelevantAllocators.has(it.id))
+                                isAdminOrPI(it.status.myRole!) && allRelevantAllocators.has(it.id))
                             .map(it => it.id);
 
                         const pWallets = projectsToFetchAllocationsFor.map(projectOverride =>
@@ -1040,7 +1041,7 @@ function useStateReducerMiddleware(
                     type: "ProjectsReloaded",
                     projects: [{id: null as (string | null), title: "My workspace"}].concat(
                         projectPage.items
-                            .filter(it => Projects.isAdminOrPI(it.status.myRole!))
+                            .filter(it => isAdminOrPI(it.status.myRole!))
                             .map(it => ({id: it.id, title: it.specification.title}))
                     )
                 });
@@ -1048,7 +1049,7 @@ function useStateReducerMiddleware(
             }
 
             case "InitGrantGiverInitiated": {
-                const pProject = callAPI<Projects.Project>(Projects.api.retrieve({ id: Client.projectId ?? "" }));
+                const pProject = callAPI<Project>(Projects.api.retrieve({ id: Client.projectId ?? "" }));
                 const pWallets = fetchAll(next => callAPI(Accounting.browseWalletsV2({itemsPerPage: 250, next})));
                 const project = await pProject;
                 const wallets = (await pWallets).filter(it => !it.paysFor.freeToUse);
@@ -1969,7 +1970,8 @@ export const Editor: React.FunctionComponent = () => {
         for (const [, categories] of Object.entries(state.resources)) {
             const categoriesAreFilled = categories.every(cat => {
                 for (const split of Object.values(cat.resourceSplits)) {
-                    if (!split.every(it => !it.balanceRequested || it.sourceAllocation)) {
+                    // Note(Jonas): `it.sourceAllocation` is a number. The 0th sourceAllocation will evaluate to false, even though it's valid
+                    if (!split.every(it => !it.balanceRequested || it.sourceAllocation != null)) {
                         return false;
                     }
                 }
@@ -3006,7 +3008,7 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                             balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
                             grantGiver: allocator,
                             period,
-                            sourceAllocation: split.sourceAllocation ?? null,
+                            sourceAllocation: split.sourceAllocation != null ? parseInt(split.sourceAllocation, 10) : null,
                         });
                     }
                 }

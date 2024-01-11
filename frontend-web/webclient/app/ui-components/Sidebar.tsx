@@ -4,7 +4,6 @@ import {useDispatch, useSelector} from "react-redux";
 import {
     copyToClipboard,
     displayErrorMessageOrDefault,
-    errorMessageOrDefault,
     joinToString,
     useFrameHidden
 } from "@/UtilityFunctions";
@@ -25,7 +24,7 @@ import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
 import AppRoutes from "@/Routes";
-import {APICallState, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {findAvatar} from "@/UserSettings/Redux";
 import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import ClickableDropdown from "./ClickableDropdown";
@@ -36,10 +35,8 @@ import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollection
 import {Page, PageV2, compute} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import metadataApi from "@/UCloud/MetadataDocumentApi";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName} from "@/Utilities/FileUtilities";
-import {useNavigate} from "react-router";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
@@ -49,11 +46,12 @@ import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {isJobStateTerminal} from "@/Applications/Jobs";
+import {jobCache} from "@/Applications/Jobs/View";
 import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
 import {SidebarEmpty, SidebarEntry, SidebarLinkColumn, SidebarSectionHeader} from "@/ui-components/SidebarComponents";
 import {AvatarType} from "@/AvataaarLib";
 import {NewsPost} from "@/NewsPost";
+import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -205,7 +203,7 @@ enum SidebarTabId {
     ADMIN = "Admin",
 }
 
-export const sideBarMenuElements: [
+const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
 ] = [
@@ -223,7 +221,8 @@ export const sideBarMenuElements: [
             items: [
                 {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
             ],
-            predicate: () => Client.userIsAdmin}
+            predicate: () => Client.userIsAdmin
+        }
     ];
 
 interface SidebarStateProps {
@@ -430,7 +429,7 @@ export function Sidebar(): JSX.Element | null {
             />
         </Flex>
     );
-};
+}
 
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
@@ -441,12 +440,7 @@ function useSidebarFilesPage(): [
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
     React.useEffect(() => {
-        callAPI(metadataApi.browse({
-            filterActive: true,
-            filterTemplate: "Favorite",
-            itemsPerPage: 10
-        })).then(result => sidebarFavoriteCache.setCache(result))
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch favorites."));
+        sidebarFavoriteCache.fetch();
     }, []);
 
     const projectId = useProjectId();
@@ -461,142 +455,14 @@ function useSidebarFilesPage(): [
     ];
 }
 
-
-export const sidebarFavoriteCache = new class {
-    private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}
-    private subscribers: (() => void)[] = [];
-    private isDirty: boolean = false;
-    public loading = false;
-    public error = "";
-
-    public async fetch() {
-        this.loading = true;
-        try {
-            this.setCache(await callAPI(metadataApi.browse({
-                filterActive: true,
-                filterTemplate: "Favorite",
-                itemsPerPage: 10
-            })));
-        } catch (error) {
-            this.error = errorMessageOrDefault(error, "Failed to fetch favorite files.");
-        }
-        this.loading = false;
-    }
-
-    public renameInCached(oldPath: string, newPath: string): void {
-        const file = this.cache.items.find(it => it.path === oldPath);
-        if (!file) return;
-
-        file.path = newPath;
-        this.isDirty = true;
-        this.emitChange();
-    }
-
-    public subscribe(subscription: () => void) {
-        this.subscribers = [...this.subscribers, subscription];
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== subscription);
-        }
-    }
-
-    public add(file: FileMetadataAttached) {
-        this.isDirty = true;
-        this.cache.items.unshift(file);
-
-        this.emitChange();
-    }
-
-    public remove(filePath: string) {
-        this.isDirty = true;
-        this.cache.items = this.cache.items.filter(it => it.path !== filePath);
-
-        this.emitChange();
-    }
-
-    public setCache(page: PageV2<FileMetadataAttached>) {
-        this.isDirty = true;
-        this.cache = page;
-
-        this.emitChange();
-    }
-
-    public emitChange(): void {
-        for (const sub of this.subscribers) {
-            sub();
-        }
-    }
-
-    public getSnapshot(): Readonly<PageV2<FileMetadataAttached>> {
-        if (this.isDirty) {
-            this.isDirty = false;
-            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
-        }
-        return this.cache;
-    }
-}
-
-export const sidebarJobCache = new class {
-    private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
-    private subscribers: (() => void)[] = [];
-    private isDirty: boolean = false;
-
-    public subscribe(subscription: () => void) {
-        this.subscribers = [...this.subscribers, subscription];
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== subscription);
-        };
-    }
-
-    public updateCache(page: PageV2<Job>, doClear = false) {
-        this.isDirty = true;
-        if (doClear) {
-            this.cache = {items: [], itemsPerPage: 100};
-        }
-
-        const runningJobs = page.items.filter(it => it.status.state === "RUNNING");
-        for (const job of runningJobs) {
-            const duplicate = this.cache.items.find(it => it.id === job.id);
-            if (duplicate) {
-                duplicate.status === job.status;
-            } else {
-                this.cache.items.unshift(job);
-            }
-        }
-
-        const endedJobs = page.items.filter(it => isJobStateTerminal(it.status.state));
-        for (const endedJob of endedJobs) {
-            const job = this.cache.items.find(it => it.id === endedJob.id);
-            if (job) {
-                this.cache.items = this.cache.items.filter(it => it.id !== job.id);
-            }
-        }
-
-        this.emitChange();
-    }
-
-    public emitChange(): void {
-        for (const sub of this.subscribers) {
-            sub();
-        }
-    }
-
-    public getSnapshot(): Readonly<PageV2<Job>> {
-        if (this.isDirty) {
-            this.isDirty = false;
-            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
-        }
-        return this.cache;
-    }
-}();
-
 function useSidebarRunsPage(): Job[] {
     const projectId = useProjectId();
 
-    const cache = React.useSyncExternalStore(s => sidebarJobCache.subscribe(s), () => sidebarJobCache.getSnapshot());
+    const cache = React.useSyncExternalStore(s => jobCache.subscribe(s), () => jobCache.getSnapshot());
 
     React.useEffect(() => {
         callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {
-            sidebarJobCache.updateCache(result, true);
+            jobCache.updateCache(result, true);
         }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch running jobs."));
     }, [projectId]);
 
@@ -627,12 +493,14 @@ function SecondarySidebar({
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
 
-    const navigate = useNavigate();
-    const [, invokeCommand] = useCloudCommand();
+    const onClear = useCallback(() => {
+        clearHover();
+        clearClicked();
+    }, [clearHover, clearClicked]);
 
     const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
         compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
-        { items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
+        {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
     );
 
     const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
@@ -669,6 +537,16 @@ function SecondarySidebar({
         document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
     }, [isOpen, asPopOver]);
 
+    const onMenuClick = useCallback((ev: React.SyntheticEvent) => {
+        function isAnchor(elem: HTMLElement): boolean {
+            if (elem.tagName === "A") return true;
+            if (elem.parentElement === null) return false;
+            return isAnchor(elem.parentElement);
+        }
+        const target = ev.target as HTMLElement;
+        if (isAnchor(target)) clearHover();
+    }, [clearHover]);
+
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {
@@ -676,13 +554,14 @@ function SecondarySidebar({
         }}
         data-open={isOpen}
         data-as-pop-over={!!asPopOver}
+        onClick={onMenuClick}
     >
         <header>
             <h1>{active}</h1>
 
             <Relative top="16px" right="2px" height={0} width={0}>
                 <Absolute>
-                    <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? clearClicked : () => setSelectedPage(hovered)}>
+                    <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
                         <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="blue" />
                     </Flex>
                 </Absolute>
@@ -698,6 +577,7 @@ function SecondarySidebar({
 
                 {canConsume && drives.data.items.slice(0, 8).map(drive =>
                     <SidebarEntry
+                        key={drive.id}
                         text={drive.specification.title}
                         icon={isShare(drive) ? "ftSharesFolder" : <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
                         to={AppRoutes.files.drive(drive.id)}
@@ -708,6 +588,7 @@ function SecondarySidebar({
                     <SidebarSectionHeader>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
+                            key={file.path}
                             to={AppRoutes.files.path(file.path)}
                             icon={"heroStar"}
                             text={fileName(file.path)}
@@ -715,7 +596,7 @@ function SecondarySidebar({
                     )}
                 </>}
 
-                {canConsume && sharesLinksInfo.length > 0 && <>
+                {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace && <>
                     <SidebarSectionHeader>Shared files</SidebarSectionHeader>
                     <SidebarLinkColumn links={sharesLinksInfo} />
                 </>}
@@ -819,7 +700,7 @@ function SecondarySidebar({
                             key={i}
                             to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name}/>}
+                            icon={<AppLogo name={fav.metadata.name} />}
                         />
                     )}
                 </>}
@@ -848,18 +729,18 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.ADMIN ? null : <>
                 <SidebarSectionHeader>Tools</SidebarSectionHeader>
-                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"}/>
+                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"} />
                 <SidebarEntry to={AppRoutes.admin.applicationStudio()} text={"Application studio"}
-                              icon={"heroBuildingStorefront"}/>
-                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}/>
-                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}/>
-                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}/>
+                    icon={"heroBuildingStorefront"} />
+                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"} />
+                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"} />
+                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"} />
             </>}
         </Flex>
     </div>;
 }
 
-function AppLogo({name}): JSX.Element {
+function AppLogo({name}: {name: string}): JSX.Element {
     return <Flex alignItems={"center"}>
         <Flex
             p="2px"
@@ -869,6 +750,8 @@ function AppLogo({name}): JSX.Element {
             backgroundColor="var(--fixedWhite)"
             width="16px"
             height="16px"
+            minHeight="16px"
+            minWidth="16px"
             borderRadius="4px"
         >
             <AppToolLogo size="12px" name={name} type="APPLICATION" />
@@ -895,13 +778,6 @@ function Username({close}: {close(): void}): JSX.Element | null {
     >
         Click to copy {Client.username} to clipboard
     </Tooltip>
-}
-
-function ListMapper<T>({items, mapper, emptyPage}: {
-    items: T[], mapper: (el: T) => JSX.Element, emptyPage: React.ReactNode
-}): React.ReactNode {
-    if (items.length === 0) return emptyPage;
-    return items.map(mapper);
 }
 
 function ProjectID({close}: {close(): void}): JSX.Element | null {

@@ -2,7 +2,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {inSuccessRange} from "@/UtilityFunctions";
-import {appLogoCache, toolLogoCache} from "@/Applications/AppToolLogo";
+import {LogoType, appLogoCache, toolLogoCache} from "@/Applications/AppToolLogo";
 import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -155,8 +155,6 @@ export function deleteGroup(
         payload: request
     }
 }
-
-export type LogoType = "APPLICATION" | "TOOL" | "GROUP";
 
 export interface UploadLogoProps {
     type: LogoType;

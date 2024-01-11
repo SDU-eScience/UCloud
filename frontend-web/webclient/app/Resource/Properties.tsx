@@ -17,7 +17,6 @@ import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
-import {appendToXterm, useXTerm} from "@/Applications/Jobs/XTermLib";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
@@ -25,12 +24,13 @@ import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useNavigate, useParams} from "react-router";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
-import {isAdminOrPI, useProjectId} from "@/Project/Api";
+import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {Truncate} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {LogOutput} from "@/UtilityComponents";
+import {isAdminOrPI} from "@/Project";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -100,7 +100,6 @@ const Container = injectStyle("container", k => `
 
     ${k} .header-text {
         margin-left: 32px;
-        margin-top: calc(var(--logoScale) * 16px);
         width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
         display: grid;
         grid-template-columns: 1fr 400px;

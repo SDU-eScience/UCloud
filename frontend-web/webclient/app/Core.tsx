@@ -289,7 +289,7 @@ function LoginSuccess(): React.JSX.Element {
 
     const path = sessionStorage.getItem(LOGIN_REDIRECT_KEY) ?? "/";
     return <Navigate to={path} />;
-};
+}
 
 function dispatchUserAction(dispatch: Dispatch, type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
     dispatch({type});

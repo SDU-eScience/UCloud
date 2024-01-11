@@ -5,7 +5,7 @@ import {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Grid, Button} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {api as ProjectApi, Project, useProjectId} from "@/Project/Api";
+import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
@@ -20,6 +20,8 @@ import {
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {Project} from "@/Project";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -127,6 +129,20 @@ const Playground: React.FunctionComponent = () => {
                 ))}
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
+
+            <TabbedCard>
+                <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
+                    These are the messages!
+                </TabbedCardTab>
+
+                <TabbedCardTab icon={"heroGlobeEuropeAfrica"} name={"Public links"}>
+                    Public links go here!
+                </TabbedCardTab>
+
+                <TabbedCardTab icon={"heroServerStack"} name={"Connected jobs"}>
+                    Connections!
+                </TabbedCardTab>
+            </TabbedCard>
         </>
     );
     return <MainContainer main={main} />;

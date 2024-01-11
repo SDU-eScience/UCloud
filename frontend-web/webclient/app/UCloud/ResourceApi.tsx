@@ -2,18 +2,29 @@ import * as UCloud from ".";
 import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
-import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
+import {
+    apiBrowse,
+    apiCreate,
+    apiDelete,
+    apiRetrieve,
+    apiSearch,
+    apiUpdate,
+    callAPI,
+    InvokeCommand
+} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, TextFilter} from "@/Resource/Filter";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {Product, ProductType} from "@/Accounting";
+import {Product, ProductType, ProductV2} from "@/Accounting";
 import {NavigateFunction} from "react-router";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import * as Accounting from "@/Accounting";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -94,6 +105,38 @@ export interface Resource<Update extends ResourceUpdate = ResourceUpdate,
 
 export interface FindById {
     id: string;
+}
+
+// NOTE(Dan): Due to time limitations we are sort of hacking this in via the frontend
+export interface SupportByProviderV2<P extends ProductV2 = ProductV2, S extends ProductSupport = ProductSupport> extends SupportByProvider<Product, S> {
+    newProducts: P[];
+}
+
+export function supportV2ProductMatch<P extends ProductV2 = ProductV2>(product: Product, support: SupportByProviderV2<P>): P {
+    // NOTE(Dan): This should never fail. In this case I think it is worth simplifying calling code by assuming that
+    // this either fails badly or not at all.
+    return support.newProducts.find(it =>
+        it.name === product.name &&
+        it.category.name === product.category.name &&
+        it.category.provider === product.category.provider
+    )!;
+}
+
+export async function retrieveSupportV2<P extends ProductV2 = ProductV2, S extends ProductSupport = ProductSupport>(
+    api: ResourceApi<any, any, any, any, any, any, S>
+): Promise<SupportByProviderV2<P, S>> {
+    const allProductsPromise = fetchAll(next =>
+        callAPI(Accounting.browseProductsV2({itemsPerPage: 250, filterProductType: api.productType, next}))
+    )
+    const supportPromise = callAPI(api.retrieveProducts());
+
+    const support = await supportPromise;
+    const allProducts = await allProductsPromise;
+
+    return {
+        ...support,
+        newProducts: allProducts as P[]
+    };
 }
 
 export interface SupportByProvider<P extends Product = Product, S extends ProductSupport = ProductSupport> {
@@ -336,3 +379,8 @@ export const DELETE_TAG = "delete";
 export const PROPERTIES_TAG = "properties";
 export const CREATE_TAG = "create";
 export const UCLOUD_CORE = "ucloud_core";
+
+export function placeholderProduct(): {id: "", category: "", provider: string} {
+    return {"id": "", "category": "", "provider": UCLOUD_CORE};
+}
+

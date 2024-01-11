@@ -11,12 +11,13 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {Section} from "@/ui-components/Section";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {JsonSchemaForm} from "../JsonSchemaForm";
 import {default as templateApi, FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {injectStyle} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {placeholderProduct} from "@/UCloud/ResourceApi";
 
 enum Stage {
     INFO,

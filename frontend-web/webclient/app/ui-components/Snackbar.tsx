@@ -33,6 +33,6 @@ const SnackbarClass = injectStyle("snackbar", k => `
 
 export function /* Admiral */ Snackbar({children}: React.PropsWithChildren) {
     return <div className={SnackbarClass}>{children}</div>;
-};
+}
 
 Snackbar.displayName = "Snackbar";

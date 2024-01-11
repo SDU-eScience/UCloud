@@ -1,4 +1,3 @@
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useTitle} from "@/Navigation/Redux";
 import * as React from "react";
@@ -8,7 +7,7 @@ import {Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} f
 import * as Heading from "@/ui-components/Heading";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux";
-import {APICallState, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import {dateToString} from "@/Utilities/DateUtilities";
@@ -17,9 +16,7 @@ import {PageV2} from "@/UCloud";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Connect} from "@/Providers/Connect";
-import {isAdminOrPI} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
@@ -27,7 +24,6 @@ import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -36,6 +32,10 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
+import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
+import {NoResultsCardBody} from "@/UtilityComponents";
+import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
+import {isAdminOrPI} from "@/Project";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -154,21 +154,6 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
         path: buildQueryString("/news/list", payload)
     };
 }
-
-export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
-    <Flex
-        alignItems="center"
-        justifyContent="center"
-        height="calc(100% - 60px)"
-        minHeight="250px"
-        mt="-30px"
-        width="100%"
-        flexDirection="column"
-    >
-        <Heading.h4>{props.title}</Heading.h4>
-        {props.children}
-    </Flex>
-);
 
 function DashboardRuns(): JSX.Element {
     return <DashboardCard

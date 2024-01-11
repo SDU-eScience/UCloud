@@ -4,7 +4,7 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {Flex} from "@/ui-components";
 import Loading from "@/LoadingIcon/LoadingIcon";
-import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {useNavigate, useParams} from "react-router";
 import RS from "@/Products/CreateProduct";
 import {useTitle} from "@/Navigation/Redux";
@@ -12,6 +12,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {placeholderProduct} from "@/UCloud/ResourceApi";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {

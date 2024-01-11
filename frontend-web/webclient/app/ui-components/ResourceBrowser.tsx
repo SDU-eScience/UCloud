@@ -16,11 +16,10 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {Product, ProductType} from "@/Accounting";
+import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {isAdminOrPI} from "@/Project/Api";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
@@ -31,6 +30,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {isAdminOrPI} from "@/Project";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 
@@ -447,8 +447,8 @@ export class ResourceBrowser<T> {
                     </div>
                     <div style="flex-grow: 1;"></div>
                     <input class="${InputClass} search-field" hidden>
-                    <img class="search-icon">
-                    <img class="refresh-icon">
+                    <img alt="search" class="search-icon">
+                    <img alt="refresh" class="refresh-icon">
                 </div>
                 <div class="operations"></div>
                 <div style="display: flex; overflow-x: auto;">
@@ -552,12 +552,13 @@ export class ResourceBrowser<T> {
             document.body.addEventListener("click", listener);
         }
 
+        const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
         if (this.features.search) {
-            const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
-            icon.setAttribute("data-shown", "");
-            icon.src = placeholderImage;
+            searchIcon.setAttribute("data-shown", "");
+            searchIcon.src = placeholderImage;
+            searchIcon.style.display = "block";
             this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
-                .then(url => icon.src = url);
+                .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
             input.placeholder = "Search...";
@@ -572,7 +573,7 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            icon.onclick = () => {
+            searchIcon.onclick = () => {
                 if (!input) return;
                 input.toggleAttribute("hidden");
                 if (input.hasAttribute("hidden")) {
@@ -581,6 +582,8 @@ export class ResourceBrowser<T> {
                     input.focus()
                 }
             }
+        } else {
+            searchIcon.style.display = "none";
         }
 
         if (this.features.filters) {
@@ -664,7 +667,7 @@ export class ResourceBrowser<T> {
                 }
             });
 
-            this.locationBar.addEventListener("input", ev => {
+            this.locationBar.addEventListener("input", () => {
                 this.onLocationBarKeyDown("input");
             });
 
@@ -745,7 +748,7 @@ export class ResourceBrowser<T> {
             row.addEventListener("dblclick", () => {
                 this.onRowDoubleClicked(myIndex);
             });
-            row.addEventListener("mousemove", e => {
+            row.addEventListener("mousemove", () => {
                 this.onRowMouseMove(myIndex);
             });
             row.addEventListener("contextmenu", e => {
@@ -795,7 +798,7 @@ export class ResourceBrowser<T> {
 
                 this.open(path, true);
             })
-        };
+        }
     }
 
     public canConsumeResources = true;
@@ -920,15 +923,6 @@ export class ResourceBrowser<T> {
             return this.rows[rowNumber];
         }
 
-        // Check if any item has been selected
-        let hasAnySelected = false;
-        const selection = this.isSelected;
-        for (let i = 0; i < selection.length; i++) {
-            if (selection[i] !== 0) {
-                hasAnySelected = true;
-                break;
-            }
-        }
 
         // Reset rows and place them accordingly
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
@@ -1607,7 +1601,7 @@ export class ResourceBrowser<T> {
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
-            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY}${op.shortcut.replace("Key", "")}]` : undefined);
+            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY} + ${op.shortcut.replace("Key", "")}]` : undefined);
 
             {
                 // ...and the handlers
@@ -2060,7 +2054,7 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const releaseHandler = (e: Event) => {
+            const releaseHandler = () => {
                 document.removeEventListener("mousemove", moveHandler);
                 document.removeEventListener("pointerup", releaseHandler);
                 if (!this.root.isConnected) return;
@@ -2358,7 +2352,9 @@ export class ResourceBrowser<T> {
 
                 case "KeyX":
                 case "KeyC": {
-                    if (!this.features.supportsMove || !this.features.supportsCopy) {
+                    if (ev.shiftKey || ev.altKey) {
+                        didHandle = false;
+                    } else if (!this.features.supportsMove || !this.features.supportsCopy) {
                         didHandle = false;
                     } else {
                         if (this.contextMenuHandlers.length) return;
@@ -2596,7 +2592,7 @@ export class ResourceBrowser<T> {
             );
 
             if ("then" in entries) {
-                return entries.then(it => {
+                return entries.then(() => {
                     if (readValue() !== path) return;
                     return doTabComplete(false);
                 });
@@ -2971,13 +2967,22 @@ export class ResourceBrowser<T> {
                 border: 1px solid var(--gray);
             }
             
+            ${browserClass.dot} header[has-location-bar] .location li:hover {
+                user-select: none;
+            }
+            
+            ${browserClass.dot} header[has-location-bar] .location li:hover {
+                cursor: pointer;
+                text-decoration: underline;
+            }
+            
             ${browserClass.dot} header[has-location-bar] .location {
                 flex-grow: 1;
                 border: 1px solid var(--midGray);
                 margin-left: -6px;
                 border-radius: 5px;
                 width: 100%;
-                cursor: pointer;
+                cursor: text;
                 height: 35px;
             }
             
@@ -3010,6 +3015,7 @@ export class ResourceBrowser<T> {
                 display: inline-block;
                 content: '/';
                 margin-right: 8px;
+                text-decoration: none !important;
             }
 
             ${browserClass.dot} header div ul li {
@@ -3173,6 +3179,10 @@ export class ResourceBrowser<T> {
                 align-items: center;
                 gap: 8px;
             }
+            
+            ${browserClass.dot} kbd {
+                font-family: var(--sansSerif);
+            }
 
             ${browserClass.dot} .context-menu li kbd {
                 flex-grow: 1;
@@ -3205,7 +3215,7 @@ export class ResourceBrowser<T> {
                 color: var(--text);
                 z-index: 1;
                 top: 0;
-                left: 60px;
+                left: 12px;
             }
 
             ${browserClass.dot} .page-empty {
@@ -3382,7 +3392,7 @@ export class ResourceBrowser<T> {
         input.onkeydown = e => {
             e.stopPropagation();
         };
-        input.onkeyup = e => {
+        input.onkeyup = () => {
             if (input.value) {
                 this.browseFilters[filter.key] = input.value;
             } else {
@@ -3579,13 +3589,13 @@ export function addContextSwitcherInPortal<T>(
 
 export function resourceCreationWithProductSelector<T>(
     browser: ResourceBrowser<T>,
-    products: Product[],
+    products: ProductV2[],
     dummyEntry: T,
-    onCreate: (product: Product) => void,
+    onCreate: (product: ProductV2) => void,
     type: ProductType,
     // Note(Jonas): Used in the event that the product contains info that the browser component needs.
-    // See PublicLinks usage for an example of it's usage.
-    onSelect?: (product: Product) => void,
+    // See PublicLinks usage for an example of its usage.
+    onSelect?: (product: ProductV2) => void,
 ): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
@@ -3601,7 +3611,7 @@ export function resourceCreationWithProductSelector<T>(
         />;
     };
 
-    let selectedProduct: Product | null = null;
+    let selectedProduct: ProductV2 | null = null;
 
     const portal = createPortal(<Component />, productSelector);
 
@@ -3612,6 +3622,7 @@ export function resourceCreationWithProductSelector<T>(
     browser.on("renderRow", (entry, row, dims) => {
         if (entry !== dummyEntry) return;
         if (selectedProduct !== null) return;
+        dims.x -= 52;
 
         browser.placeTitleComponent(productSelector, dims);
     });
@@ -3641,7 +3652,7 @@ export function resourceCreationWithProductSelector<T>(
         browser.renderRows();
     };
 
-    const onProductSelected = (product: Product) => {
+    const onProductSelected = (product: ProductV2) => {
         onSelect?.(product);
         if (["STORAGE", "INGRESS"].includes(type)) {
             selectedProduct = product;
@@ -3664,7 +3675,7 @@ export function resourceCreationWithProductSelector<T>(
         }
     };
 
-    const onOutsideClick = (ev: MouseEvent) => {
+    const onOutsideClick = () => {
         if (selectedProduct === null && isSelectingProduct()) {
             cancelCreation();
         }

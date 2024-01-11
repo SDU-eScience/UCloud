@@ -1,16 +1,11 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Box, Flex, Icon, Link, Tooltip} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
-import Text, {EllipsedText, TextSpan} from "@/ui-components/Text";
-import {capitalized} from "@/UtilityFunctions";
-import {Tag} from "./Card";
+import {Box, Flex, Icon, Tooltip} from "@/ui-components";
+import Text, {TextSpan} from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";
 import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
-import {compute} from "@/UCloud";
-import Application = compute.Application;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 

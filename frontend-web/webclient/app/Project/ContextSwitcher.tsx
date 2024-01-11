@@ -1,4 +1,4 @@
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
@@ -10,7 +10,7 @@ import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
-import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
+import ProjectAPI, {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
 import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -19,10 +19,12 @@ import AppRoutes from "@/Routes";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {Project} from ".";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
-export const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
+const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
     includeFavorite: true,
     sortBy: "favorite" as const,

@@ -47,7 +47,7 @@ export function MainContainer({
             {additional}
         </Box>
     );
-};
+}
 
 export interface LoadingMainContainerProps extends MainContainerProps {
     loading?: boolean;
@@ -74,7 +74,7 @@ export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Elem
             header={header}
         />
     );
-};
+}
 
 const HeaderContainer = injectStyleSimple("header-container", `
     position: sticky;

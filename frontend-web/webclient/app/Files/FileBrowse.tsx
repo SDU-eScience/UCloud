@@ -25,11 +25,12 @@ import FilesApi, {
     FileSensitivityNamespace,
     FileSensitivityVersion,
     isSensitivitySupported,
+    SensitivityLevelMap,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, inDevEnvironment, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -39,7 +40,7 @@ import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import {accounting, BulkResponse, compute, FindByStringId, PageV2} from "@/UCloud";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
-import {bulkRequestOf, SensitivityLevel, SensitivityLevelMap} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
@@ -54,9 +55,18 @@ import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {sidebarFavoriteCache} from "@/ui-components/Sidebar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
+import {sidebarFavoriteCache} from "./FavoriteCache";
+
+export enum SensitivityLevel {
+    "INHERIT" = "Inherit",
+    "PRIVATE" = "Private",
+    "CONFIDENTIAL" = "Confidential",
+    "SENSITIVE" = "Sensitive"
+}
+
+
 
 // Cached network data
 // =====================================================================================================================
@@ -1335,6 +1345,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
             });
         }
+
+        const b = browserRef.current;
+        if (b) {
+            b.renameField.style.left = "60px";
+        }
+
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
     }, []);
 

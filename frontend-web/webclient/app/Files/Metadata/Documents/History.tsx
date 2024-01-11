@@ -7,7 +7,7 @@ import {
 import {FileMetadataTemplate} from "@/UCloud/MetadataNamespaceApi";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {TextArea, Box, Button, Flex, Grid, Icon, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {dateToString} from "@/Utilities/DateUtilities";

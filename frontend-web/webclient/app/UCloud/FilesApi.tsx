@@ -14,11 +14,11 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
+    bulkRequestOf,
     displayErrorMessageOrDefault, doNothing, inDevEnvironment, onDevSite, prettierString, removeTrailingSlash
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {usePrettyFilePath} from "@/Files/FilePath";
@@ -843,6 +843,13 @@ async function queryTemplateName(name: string, invokeCommand: InvokeCommand, nex
     return id;
 }
 
+export enum SensitivityLevelMap {
+    INHERIT = "INHERIT",
+    PRIVATE = "PRIVATE",
+    CONFIDENTIAL = "CONFIDENTIAL",
+    SENSITIVE = "SENSITIVE"
+}
+
 function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invokeCommand: InvokeCommand; onUpdated(value: SensitivityLevelMap): void;}): JSX.Element {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
     const selection = React.useRef<HTMLSelectElement>(null);
@@ -1022,7 +1029,7 @@ async function getMonaco(): Promise<any> {
                         name: label,
                         type: 'module'
                     });
-                };
+                }
             }
         };
         return monaco;

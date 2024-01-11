@@ -26,9 +26,10 @@ import {ButtonClass} from "@/ui-components/Button";
 import {arrayToPage} from "@/Types";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {fileName} from "@/Utilities/FileUtilities";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
+import {useProjectId} from "@/Project/Api";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -52,6 +53,15 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
 const shareValidationCache: Record<string, ShareValidateState> = {};
 
 export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<OutgoingShareGroup | OutgoingShareGroupPreview>}): JSX.Element {
+
+    //Projects should now show this page
+    const activeProjectId = useProjectId();
+    React.useEffect(() => {
+        if (activeProjectId) {
+            navigate(AppRoutes.dashboard.dashboardA());
+        }
+    },[activeProjectId])
+
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview> | null>(null);
     const navigate = useNavigate();
@@ -119,7 +129,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     );
 
                     shouldRemoveFakeDirectory = true;
-                };
+                }
 
                 function insertFakeEntry(dummyId: string): void {
                     browser.insertEntryIntoCurrentPage({permissions: ["READ"], shareId: dummyId, sharedWith: "", state: "PENDING"} as OutgoingShareGroupPreview);
@@ -627,7 +637,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         share.permissions = isEditing ? ["READ"] : ["READ", "EDIT"];
                         browser.renderRows();
                     }
-                };
+                }
             });
 
             browserRef.current!.renameField.style.marginLeft = "18px";

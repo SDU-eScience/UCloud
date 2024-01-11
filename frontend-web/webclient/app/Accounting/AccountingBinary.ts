@@ -2,7 +2,7 @@
 // GENERATED CODE - DO NOT MODIFY - See AccountingBinary.msg
 // GENERATED CODE - DO NOT MODIFY - See AccountingBinary.msg
 
-import { BinaryAllocator, UBinaryType, BinaryTypeCompanion, UText, UTextCompanion, BufferAndOffset, BinaryTypeList, BinaryTypeDictionary } from "@/UCloud/Messages";
+import { BinaryAllocator, UBinaryType, BinaryTypeCompanion, UText, BufferAndOffset, BinaryTypeList } from "@/UCloud/Messages";
 
 export enum ProductTypeB {
     STORAGE,

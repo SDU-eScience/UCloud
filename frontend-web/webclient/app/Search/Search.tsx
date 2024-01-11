@@ -5,13 +5,7 @@ import {useLocation, useMatch, useNavigate} from "react-router";
 import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse, RouterLocationProps} from "@/Utilities/URIUtilities";
 import * as Applications from "@/Applications";
-import {ReducedApiInterface} from "@/Resource/Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-
-export const ApiLike: ReducedApiInterface = {
-    routingNamespace: "applications",
-    titlePlural: "Applications"
-};
 
 function Search(): JSX.Element {
     const match = useMatch("/:priority/*");
