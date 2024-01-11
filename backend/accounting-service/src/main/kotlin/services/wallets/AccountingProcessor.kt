@@ -1609,9 +1609,12 @@ class AccountingProcessor(
             val stillActiveAllocations = walletAllocations.filter { it.isActive() && !it.isLocked() }
             val difference = delta - amountCharged
             if (stillActiveAllocations.isEmpty()) {
-                // Will choose latest invalidated allocation to charge
-                val latest = walletAllocations.filter { it.endDate <= Time.now() }.maxByOrNull { it.endDate }!!
-                if (!chargeAllocation(latest.id.toInt(), difference)) {
+                // Will choose latest invalidated allocation to charge.
+                // In the case of only active but empty allocs choose the first (an most likely only) allocation
+                // In the case there is no allocations then something went terrible wrong since we just used it above
+                val allocChosen = walletAllocations.filter { it.endDate <= Time.now() }.maxByOrNull { it.endDate }
+                    ?: walletAllocations.lastOrNull() ?: return AccountingResponse.Error("Allocations somehow disappeared")
+                if (!chargeAllocation(allocChosen.id.toInt(), difference)) {
                     return AccountingResponse.Error(
                         "Internal Error in charging all to first allocation", 500
                     )
