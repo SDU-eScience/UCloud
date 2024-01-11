@@ -1,16 +1,19 @@
 package dk.sdu.cloud.notification.services
 
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.notification.api.FindByNotificationId
-import dk.sdu.cloud.notification.api.Notification
-import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.notification.api.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.encodeToJsonElement
 
 class NotificationService(
     private val db: DBContext,
@@ -107,5 +110,59 @@ class NotificationService(
 
         if (success) return failedDeletions.toList()
         else throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Not Found")
+    }
+
+    suspend fun updateSettings(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<NotificationSettingsItem>
+    ) {
+        request.items.forEach { notificationSettings ->
+            val json = defaultMapper.encodeToJsonElement(notificationSettings)
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("json", json.toString())
+                            setParameter("username", actorAndProject.actor.username)
+                        },
+                        """
+                            INSERT INTO notification_settings (username, settings) 
+                            VALUES (:username, :json::jsonb) 
+                            ON CONFLICT (username)
+                            DO UPDATE SET settings = :json::jsonb
+                        """
+                    )
+            }
+        }
+    }
+
+    suspend fun retrieveSettings(
+        actorAndProject: ActorAndProject,
+        request: RetrieveSettingsRequest
+    ): NotificationSettings {
+        return db.withSession { session ->
+            val settings = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.username)
+                },
+                """
+                    SELECT settings
+                    FROM notification_settings
+                    WHERE username = :username
+                """
+            ).rows
+                .singleOrNull()
+                ?.getString(0)
+            if (settings == null) {
+                NotificationSettings()
+            }
+            else {
+                defaultMapper.decodeFromString<NotificationSettings>(settings)
+            }
+        }
+    }
+
+    private suspend fun wantNotification(): Boolean {
+        return false
     }
 }

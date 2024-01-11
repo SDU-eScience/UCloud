@@ -45,6 +45,29 @@ typealias SubscriptionResponse = Notification
 data class InternalNotificationRequest(val user: String, val notification: Notification)
 typealias InternalNotificationResponse = Unit
 
+@Serializable
+data class NotificationSettings(
+    val jobStarted: Boolean = true,
+    val jobStopped: Boolean = true,
+)
+
+@Serializable
+data class NotificationSettingsItem(
+    val username: String,
+    val settings: NotificationSettings
+)
+
+@Serializable
+data class RetrieveSettingsRequest(
+    val username: String? = null
+)
+
+@Serializable
+data class RetrieveSettingsResponse(
+    val settings: NotificationSettings
+)
+
+
 @TSTopLevel
 object NotificationDescriptions : CallDescriptionContainer("notifications") {
     const val baseContext = "/api/notifications"
@@ -256,15 +279,37 @@ automatically delivered to any connected frontend via websockets.
     }
 
     val internalNotification = call("internalNotification", InternalNotificationRequest.serializer(), InternalNotificationResponse.serializer(), CommonErrorMessage.serializer()) {
-            auth {
-                roles = Roles.PRIVILEGED
-                access = AccessRight.READ
-            }
-
-            documentation {
-                summary = "Notifies an instance of this service that it should notify an end-user"
-            }
-
-            websocket(baseContext)
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ
         }
+
+        documentation {
+            summary = "Notifies an instance of this service that it should notify an end-user"
+        }
+
+        websocket(baseContext)
+    }
+
+    val updateSettings = call("updateSettings", BulkRequest.serializer(NotificationSettingsItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(
+            baseContext,
+            "settings"
+        )
+
+        documentation {
+            summary = "Update notification settings/preferences for end-user"
+        }
+    }
+
+    val retrieveSettings = call("retrieveSettings", RetrieveSettingsRequest.serializer(), RetrieveSettingsResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(
+            baseContext,
+            "settings"
+        )
+
+        documentation {
+            summary = "Retrieve notification settings/preferences for end-user"
+        }
+    }
 }
