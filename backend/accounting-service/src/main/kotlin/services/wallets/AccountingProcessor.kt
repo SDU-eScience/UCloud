@@ -622,26 +622,29 @@ class AccountingProcessor(
     }
 
     private suspend fun handleRequest(request: AccountingRequest): AccountingResponse {
-        val result = when (request) {
-            is AccountingRequest.Sync -> {
-                attemptSynchronize(forced = true)
-                AccountingResponse.Sync()
+        val result = try {
+            when (request) {
+                is AccountingRequest.Sync -> {
+                    attemptSynchronize(forced = true)
+                    AccountingResponse.Sync()
+                }
+
+                is AccountingRequest.RootDeposit -> rootDeposit(request)
+                is AccountingRequest.Deposit -> deposit(request)
+                is AccountingRequest.Update -> update(request)
+                is AccountingRequest.Charge -> charge(request)
+                is AccountingRequest.RetrieveAllocationsInternal -> retrieveAllocationsInternal(request)
+                is AccountingRequest.RetrieveWalletsInternal -> retrieveWalletsInternal(request)
+                is AccountingRequest.BrowseSubAllocations -> browseSubAllocations(request)
+                is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(
+                    request
+                )
+
+                is AccountingRequest.FindRelevantProviders -> findRelevantProviders(request)
             }
-
-            is AccountingRequest.RootDeposit -> rootDeposit(request)
-            is AccountingRequest.Deposit -> deposit(request)
-            is AccountingRequest.Update -> update(request)
-            is AccountingRequest.Charge -> charge(request)
-            is AccountingRequest.RetrieveAllocationsInternal -> retrieveAllocationsInternal(request)
-            is AccountingRequest.RetrieveWalletsInternal -> retrieveWalletsInternal(request)
-            is AccountingRequest.BrowseSubAllocations -> browseSubAllocations(request)
-            is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(
-                request
-            )
-
-            is AccountingRequest.FindRelevantProviders -> findRelevantProviders(request)
+        } catch (ex: Throwable) {
+            return AccountingResponse.Error(ex.toReadableStacktrace().message, 500)
         }
-
         if (doDebug) {
             var error = false
             for (allocation in allocations) {
