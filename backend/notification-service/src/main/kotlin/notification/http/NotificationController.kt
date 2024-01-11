@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.notification.api.*
 import dk.sdu.cloud.notification.services.NotificationService
 import dk.sdu.cloud.notification.services.SubscriptionService
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.actorAndProject
@@ -46,11 +47,12 @@ class NotificationController(
         }
 
         implement(NotificationDescriptions.create) {
-            ok(service.createNotification(request.user, request.notification))
+            service.createNotification(request.user, request.notification)?.let { ok(it) }
         }
 
         implement(NotificationDescriptions.createBulk) {
-            ok(BulkResponse(service.createNotifications(request.items)))
+            val notifications = service.createNotifications(request.items).mapNotNull { it }
+            ok(BulkResponse(notifications))
         }
 
         implement(NotificationDescriptions.delete) {
@@ -78,12 +80,12 @@ class NotificationController(
         }
 
         implement(NotificationDescriptions.updateSettings)  {
-            service.updateSettings(actorAndProject, request)
+            service.updateSettings(actorAndProject.actor.safeUsername(), request)
             ok(Unit)
         }
 
         implement(NotificationDescriptions.retrieveSettings) {
-            ok(RetrieveSettingsResponse(service.retrieveSettings(actorAndProject, request)))
+            ok(RetrieveSettingsResponse(service.retrieveSettings(actorAndProject.actor.safeUsername())))
         }
     }
 

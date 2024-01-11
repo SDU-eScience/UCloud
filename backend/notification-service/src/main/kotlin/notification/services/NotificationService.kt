@@ -76,9 +76,11 @@ class NotificationService(
     ): List<FindByNotificationId> {
         val result = db.withSession { session ->
             batch.map { (user, notification) ->
-                FindByNotificationId(
-                    notifications.create(session, user, notification)
-                )
+                if (!wantNotification(user, notification.type)) { null } else {
+                    FindByNotificationId(
+                        notifications.create(session, user, notification)
+                    )
+                }
             }
         }
 
@@ -87,7 +89,7 @@ class NotificationService(
                 val (user, notification) = input
                 subscriptionService.onNotification(
                     user,
-                    notification.copy(id = findById.id),
+                    notification.copy(id = findById?.id),
                     allowRemoteCalls = true
                 )
             }
@@ -114,7 +116,7 @@ class NotificationService(
     }
 
     suspend fun updateSettings(
-        actorAndProject: ActorAndProject,
+        username: String,
         request: NotificationSettings
     ) {
         val json = defaultMapper.encodeToJsonElement(request)
@@ -122,7 +124,7 @@ class NotificationService(
             session.sendPreparedStatement(
                 {
                 setParameter("json", json.toString())
-                setParameter("username", actorAndProject.actor.safeUsername())
+                setParameter("username", username)
                 },
                 """
                     INSERT INTO notification_settings (username, settings) 
@@ -135,13 +137,12 @@ class NotificationService(
     }
 
     suspend fun retrieveSettings(
-        actorAndProject: ActorAndProject,
-        request: RetrieveSettingsRequest
+        username: String
     ): NotificationSettings {
         return db.withSession { session ->
             val settings = session.sendPreparedStatement(
                 {
-                    setParameter("username", actorAndProject.actor.username)
+                    setParameter("username", username)
                 },
                 """
                     SELECT settings
@@ -160,7 +161,16 @@ class NotificationService(
         }
     }
 
-    private suspend fun wantNotification(): Boolean {
-        return false
+    private suspend fun wantNotification(
+        username: String,
+        type: String
+    ): Boolean {
+        val settings = retrieveSettings(username)
+
+        return when (type) {
+            "JOB_STARTED" -> settings.jobStarted
+            "JOB_STOPPED" -> settings.jobStopped
+            else -> true
+        }
     }
 }
