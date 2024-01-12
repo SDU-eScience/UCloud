@@ -425,32 +425,37 @@ class JobResourceService(
 
                             // Handle notifications for user
                             backgroundScope.launch {
-                                addNotification(
-                                    idCards.lookupUid(uid),
-                                    newState,
-                                    jobId,
-                                    job.specification
-                                )
+                                notificationMutex.withLock {
+                                    addNotification(
+                                        idCards.lookupUid(uid),
+                                        newState,
+                                        jobId,
+                                        job.specification
+                                    )
+                                }
 
                                 var timer = 0
-                                var timeUntilSendNotifications = 10_000
-                                var timeUntilSendMails = 60_000 * 10
+                                val timeUntilSendNotifications = 10_000
+                                val timeUntilSendMails = 60_000 * 10
 
-                                notificationMutex.withLock {
-                                    while (timer < timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
-                                        delay(1_000)
-                                        timer += 1_000
+                                while (timer < timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
+                                    delay(1_000)
+                                    timer += 1_000
 
+                                    notificationMutex.withLock {
                                         if (timer >= timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
                                             sendNotifications()
                                             timer = timeUntilSendNotifications
                                         }
                                     }
+                                }
 
-                                    while (timer < timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
-                                        delay(1_000)
-                                        timer += 1_000
 
+                                while (timer < timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
+                                    delay(1_000)
+                                    timer += 1_000
+
+                                    notificationMutex.withLock {
                                         if (timer >= timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
                                             sendMails()
                                             timer = timeUntilSendMails
@@ -566,7 +571,6 @@ class JobResourceService(
     }
 
     private suspend fun sendNotifications() {
-        val sentNotifications = mutableListOf<String>()
         for (user in jobNotifications.keys) {
             val handledTypes = mutableListOf<JobState>()
             val notifications = jobNotifications[user] ?: continue
@@ -576,10 +580,6 @@ class JobResourceService(
 
                 val sameType = notifications.filter { notification.type == it.type }
                 handledTypes.add(notification.type)
-
-                sameType.forEach {
-                    sentNotifications.add("$user-${it.type.name}-${it.jobId}")
-                }
 
                 val jobIds = sameType.map { JsonPrimitive(it.jobId) }
                 val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
@@ -615,15 +615,10 @@ class JobResourceService(
             }
         }
 
-        sentNotifications.forEach { sent ->
-            for (user in jobNotifications.keys) {
-                jobNotifications[user]?.removeIf { "$user-${it.type.name}-${it.jobId}" == sent}
-            }
-        }
+        jobNotifications.clear()
     }
 
     private suspend fun sendMails() {
-        val sentNotifications = mutableListOf<String>()
         for (user in jobMailNotifications.keys) {
             val notifications = jobMailNotifications[user] ?: continue
             if (notifications.isEmpty()) continue
@@ -640,10 +635,6 @@ class JobResourceService(
                     JobState.EXPIRED -> "JOB_EXPIRED"
                     else -> null;
                 }
-            }
-
-            notifications.forEach {
-                sentNotifications.add("$user-${it.type.name}-${it.jobId}")
             }
 
             val subject = if (types.size > 1) {
@@ -685,11 +676,7 @@ class JobResourceService(
             )
         }
 
-        sentNotifications.forEach { sent ->
-            for (user in jobMailNotifications.keys) {
-                jobMailNotifications[user]?.removeIf { "$user-${it.type.name}-${it.jobId}" == sent}
-            }
-        }
+        jobMailNotifications.clear()
     }
 
     // Job specific read operations

@@ -6,8 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 typealias NotificationId = Long
-typealias FindByNotificationId = FindByLongId?
-
+typealias FindByNotificationId = FindByLongId
 @Serializable
 data class Notification(
     val type: String,

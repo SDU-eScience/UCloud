@@ -1,12 +1,14 @@
 package dk.sdu.cloud.notification.services
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.notification.api.*
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
@@ -67,35 +69,35 @@ class NotificationService(
     suspend fun createNotification(
         user: String,
         notification: Notification
-    ): FindByNotificationId {
+    ): CreateNotificationResponse {
         return createNotifications(listOf(CreateNotification(user, notification))).single()
     }
 
     suspend fun createNotifications(
         batch: List<CreateNotification>
-    ): List<FindByNotificationId> {
+    ): List<CreateNotificationResponse> {
         val result = db.withSession { session ->
             batch.map { (user, notification) ->
-                if (!wantNotification(user, notification.type)) { null } else {
-                    FindByNotificationId(
-                        notifications.create(session, user, notification)
-                    )
+                if (!wantNotification(user, notification.type)) {
+                    null
+                } else {
+                    FindByNotificationId(notifications.create(session, user, notification))
                 }
             }
         }
 
         GlobalScope.launch {
-            batch.zip(result).forEach { (input, findById) ->
+            batch.zip(result).filter { it.second != null }.forEach { (input, findById) ->
                 val (user, notification) = input
                 subscriptionService.onNotification(
                     user,
-                    notification.copy(id = findById?.id),
+                    notification.copy(id = findById!!.id),
                     allowRemoteCalls = true
                 )
             }
         }
 
-        return result
+        return result.map { CreateNotificationResponse(it) }
     }
 
     suspend fun deleteNotifications(
@@ -172,5 +174,9 @@ class NotificationService(
             "JOB_STOPPED" -> settings.jobStopped
             else -> true
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

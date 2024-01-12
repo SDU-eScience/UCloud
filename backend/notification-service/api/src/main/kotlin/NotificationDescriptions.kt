@@ -21,6 +21,11 @@ data class ListNotificationRequest(
 data class CreateNotification(val user: String, val notification: Notification)
 
 @Serializable
+data class CreateNotificationResponse(
+    val id: FindByNotificationId? = null
+)
+
+@Serializable
 data class FindByNotificationIdBulk(val ids: String)
 
 val FindByNotificationIdBulk.normalizedIds: List<Long>
@@ -93,7 +98,7 @@ automatically delivered to any connected frontend via websockets.
                         )
                     )
                 ),
-                FindByNotificationId(56123),
+                CreateNotificationResponse(FindByNotificationId(56123)),
                 ucloud
             )
         }
@@ -219,7 +224,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val create = call("create", CreateNotification.serializer(), FindByNotificationId.serializer(), CommonErrorMessage.serializer()) {
+    val create = call("create", CreateNotification.serializer(), CreateNotificationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -238,7 +243,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val createBulk = call("createBulk", BulkRequest.serializer(CreateNotification.serializer()), BulkResponse.serializer(FindByNotificationId.serializer()), CommonErrorMessage.serializer()) {
+    val createBulk = call("createBulk", BulkRequest.serializer(CreateNotification.serializer()), BulkResponse.serializer(CreateNotificationResponse.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "bulk", roles = Roles.PRIVILEGED)
     }
 

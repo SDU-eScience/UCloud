@@ -47,12 +47,11 @@ class NotificationController(
         }
 
         implement(NotificationDescriptions.create) {
-            service.createNotification(request.user, request.notification)?.let { ok(it) }
+            ok(service.createNotification(request.user, request.notification))
         }
 
         implement(NotificationDescriptions.createBulk) {
-            val notifications = service.createNotifications(request.items).mapNotNull { it }
-            ok(BulkResponse(notifications))
+            ok(BulkResponse(service.createNotifications(request.items)))
         }
 
         implement(NotificationDescriptions.delete) {
