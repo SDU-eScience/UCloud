@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Box, theme} from "@/ui-components";
+import {Box} from "@/ui-components";
 import {addStandardDialog} from "@/UtilityComponents";
 import {injectStyle} from "@/Unstyled";
 
@@ -33,7 +33,7 @@ export function VersionManager(): JSX.Element {
 
 const NotifyBox = injectStyle("notify-box", k => `
     ${k} {
-        background-color: ${theme.colors.red};
+        background-color: var(--errorMain);
         width: 32px;
         height: 32px;
         border-radius: 999px;

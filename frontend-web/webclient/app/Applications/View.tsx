@@ -107,8 +107,8 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     padding-left: 12px;
     padding-right: 12px;
     text-align: center;
-    color: var(--fixedWhite);
-    background-color: var(--primary);
+    color: var(--primaryContrast);
+    background-color: var(--primaryMain);
     border-radius: 20px;
     cursor: pointer;
 `);
@@ -120,8 +120,8 @@ const FlavorSelectorClass = injectStyle("flavor-selector", k => `
         padding: 0px 15px;
         font-size: var(--buttonText);
         align-items: center;
-        background-color: var(--primary);
-        color: white;
+        background-color: var(--primaryMain);
+        color: var(--primaryContrast);
         margin: auto 0px;
     }
 

@@ -26,12 +26,12 @@ const CheckboxClass = injectStyle("checkbox", k => `
         position: relative;
         vertical-align: middle;
         cursor: pointer;
-        color: var(--gray);
+        color: var(--borderColor);
         margin-right: .5em;
     }
     
     ${k}[data-disabled="true"], ${k}[data-disabled="true"] > input:checked ~ svg[data-name="checked"] {
-        color: var(--borderGray);
+        color: var(--borderColor);
     }
     
     ${k} svg[data-name="checked"] {
@@ -40,7 +40,7 @@ const CheckboxClass = injectStyle("checkbox", k => `
     
     ${k} > input:checked ~ svg[data-name="checked"] {
         display: inline-block;
-        color: var(--primary);
+        color: var(--primaryMain);
     }
     
     ${k} > input:checked ~ svg[data-name="empty"] {

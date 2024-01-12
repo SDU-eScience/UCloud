@@ -49,7 +49,7 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
                                     inputRef={this.ref}
                                 />
                             </Box>
-                            <Button mr="1em" onClick={this.submitError} color="primary">Submit</Button>
+                            <Button mr="1em" onClick={this.submitError} color="primaryMain">Submit</Button>
                             <Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
 
                             <Box pt="10px">We support Chrome, Edge, Firefox and Safari.

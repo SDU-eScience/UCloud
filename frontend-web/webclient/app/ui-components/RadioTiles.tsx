@@ -40,7 +40,7 @@ const RadioTile = (props: RadioTileProps): JSX.Element => {
             />
 
             <div className={RadioTileIconClass}>
-                <Icon name={icon} size={props.labeled ? "65%" : "85%"} />
+                <Icon name={icon} color2={checked ? "textSecondary" : "primaryContrastAlt"} size={props.labeled ? "65%" : "85%"} />
                 <label htmlFor={label}>
                     {props.labeled ? label : undefined}
                 </label>
@@ -84,12 +84,12 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     }
     
     ${k}[data-disabled="false"]:hover > .${RadioTileIconClass} {
-        color: var(--primary, #f00); 
-        border: 1px solid var(--primary, #f00);
+        color: var(--primaryMain, #f00); 
+        border: 1px solid var(--primaryMain, #f00);
     }
 
     ${k}[data-checked="true"]:hover > .${RadioTileIconClass}, ${k}[data-disabled="true"] > .${RadioTileIconClass} {
-        color: var(--invertedThemeColor);
+        color: var(--textPrimary);
         border: 0;
     }
     
@@ -109,9 +109,9 @@ const RadioTileClass = injectStyle("radio-tile", k => `
     }
     
     ${k} input:checked + .${RadioTileIconClass} {
-        background-color: var(--primary, #f00);
-        border: 0px solid var(--invertedThemeColor);
-        color: var(--fixedWhite);
+        background-color: var(--primaryMain, #f00);
+        border: 0px solid var(--borderColor);
+        color: var(--primaryContrast);
     }   
     
     ${k} label {
@@ -131,8 +131,8 @@ const RadioTileClass = injectStyle("radio-tile", k => `
         width: 100%;
         height: 100%;
         border-radius: 5px;
-        border: 1px solid var(--invertedThemeColor);
-        color: var(--invertedThemeColor, #f00);
+        border: 1px solid var(--borderColor);
+        color: var(--textPrimary, #f00);
         transition: all 300ms ease;
     }
 `);

@@ -602,7 +602,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                     mt={"6px"}
                                     mx={10}
                                     height="36px"
-                                    color="green"
+                                    color="successMain"
                                     type="button"
                                     title="Invite with link"
                                     onClick={async () => {
@@ -839,10 +839,10 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
             </RadioTilesContainer>
 
             {!isAdmin ? null : !inspectingGroup ? null : <>
-                <Button ml="8px" color="green" height="35px" width="35px" onClick={addToGroup}
+                <Button ml="8px" color="successMain" height="35px" width="35px" onClick={addToGroup}
                     disabled={memberOfThisGroup}>
                     <Icon
-                        color="white"
+                        color="primaryContrast"
                         name="arrowDown"
                         rotation={-90}
                         width="1em"
@@ -861,8 +861,8 @@ const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
 
         return <>
             {memberOfAnyGroup ? null : <>
-                <Text color={"red"}>
-                    <Icon name={"warning"} size={20} mr={"6px"} color="red" />
+                <Text color={"errorMain"}>
+                    <Icon name={"warning"} size={20} mr={"6px"} color="errorMain" />
                     Not a member of any group
                 </Text>
             </>}
@@ -900,7 +900,7 @@ const memberOperations: Operation<ProjectMember, Callbacks>[] = [
     {
         text: "Remove",
         icon: "close",
-        color: "red",
+        color: "errorMain",
         confirm: true,
         enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
             members.every(m => m.role !== OldProjectRole.PI && m.username !== Client.username),
@@ -945,7 +945,7 @@ const inviteOperations: Operation<ProjectInvite, Callbacks>[] = [
     {
         text: "Remove",
         icon: "close",
-        color: "red",
+        color: "errorMain",
         confirm: true,
         enabled: (invites, cb) => invites.length > 0 && cb.isAdmin,
         onClick: (invites, cb) => {
@@ -993,7 +993,7 @@ const groupOperations: Operation<ProjectGroup, GroupCallbacks>[] = [
     {
         text: "Delete",
         icon: "trash",
-        color: "red",
+        color: "errorMain",
         confirm: true,
         enabled: (groups, cb) => groups.length >= 1 && cb.isAdmin,
         onClick: (groups, cb) => {
@@ -1025,7 +1025,7 @@ const groupMemberOperations: Operation<string, Callbacks>[] = [
     {
         text: "Remove",
         icon: "close",
-        color: "red",
+        color: "errorMain",
         primary: true,
         enabled: (members, cb) => members.length > 0 && !!cb.inspectingGroup && cb.isAdmin,
         onClick: (members, cb) => {
@@ -1231,7 +1231,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                     </Button>
 
                                     <ConfirmationButton
-                                        color="red"
+                                        color="errorMain"
                                         height={40}
                                         onAction={async () => {
                                             await callAPIWithErrorHandler({
@@ -1256,7 +1256,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
 };
 
 const SelectBox = injectStyleSimple("select-box", `
-    border: 2px solid var(--midGray);
+    border: 2px solid var(--borderColor);
     border-radius: 5px;
     padding: 10px;
 `);
@@ -1341,7 +1341,7 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
 
     @media screen and (min-width: 1200px) {
         ${k} > .left {
-            border-right: 2px solid var(--gray, #f00);
+            border-right: 2px solid var(--borderColor, #f00);
             height: 100%;
             flex: 1;
             margin-right: 16px;
@@ -1381,7 +1381,7 @@ const HelpCircleClass = injectStyle("help-circle", k => `
         border-radius: 500px;
         width: 26px;
         height: 26px;
-        border: 2px solid var(--black);
+        border: 2px solid var(--textPrimary);
         cursor: pointer;
     }
 
@@ -1395,7 +1395,7 @@ const HelpCircleClass = injectStyle("help-circle", k => `
 const USER_ID_HELP = (
     <Tooltip tooltipContentWidth={250} trigger={<div className={HelpCircleClass} />}>
         <Text fontSize={12}>
-            Your username can be found next to {" "}<Icon name="id" />, by clicking the avatar in the bottom of the sidebar.
+            Your username can be found next to {" "}<Icon name="heroIdentification" />, by clicking the avatar in the bottom of the sidebar.
         </Text>
     </Tooltip>
 );

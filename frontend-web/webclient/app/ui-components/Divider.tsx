@@ -6,7 +6,7 @@ export const DividerClass = injectStyleSimple("divider", `
     border: 0;
     border-bottom-style: solid;
     border-bottom-width: 2px;
-    border-color: var(--primary);
+    border-color: var(--borderColor);
     margin-left: 0;
     margin-right: 0;
 `);

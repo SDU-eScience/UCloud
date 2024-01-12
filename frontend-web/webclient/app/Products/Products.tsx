@@ -62,7 +62,7 @@ function Products(): JSX.Element {
 const DetailedView = injectStyle("detailed-view", k => `
     ${k} > th {
         text-align: left;
-        border-top: 1px solid rgba(34, 36, 38, .1);
+        border-top: 1px solid var(--borderColor);
     }
 
     ${k} th, td {
@@ -220,8 +220,8 @@ const MachineTypesWrapper = injectStyle("machine-types-wrapper", k => `
 
     ${k} > tbody > tr:hover {
         cursor: pointer;
-        background-color: var(--lightGray, #f00);
-        color: var(--black, #f00);
+        background-color: var(--primaryLight, #f00);
+        color: var(--textPrimary, #f00);
     }
 `);
 

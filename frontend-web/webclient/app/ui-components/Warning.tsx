@@ -21,7 +21,6 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
 
     return (
         <ErrorWrapper
-            bg="lightYellow"
             borderColor="yellow"
             width={props.width}
         >
@@ -35,7 +34,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
                         <Icon
                             size="1em"
                             name="close"
-                            color="black"
+                            color="textPrimary"
                             onClick={onClearWarning}
                         />
                     </Box>

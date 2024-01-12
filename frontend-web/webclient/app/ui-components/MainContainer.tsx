@@ -36,7 +36,7 @@ export function MainContainer({
                     pt="8px"
                     zIndex={1}
                     height={headerSize}
-                    bg="var(--white)"
+                    bg="var(--backgroundDefault)"
                 >
                     {header}
                 </Box>

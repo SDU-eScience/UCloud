@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {injectStyle} from "@/Unstyled";
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, Icon, Input, Select, TextArea, theme} from "@/ui-components";
+import {Box, Button, Checkbox, Icon, Input, Select, TextArea} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -1169,7 +1169,8 @@ const style = injectStyle("grant-editor", k => `
         top: 0;
         left: var(${CSSVarCurrentSidebarWidth});
         
-        background: var(--white);
+        background: var(--backgroundDefault);
+        color: var(--textPrimary);
         
         display: flex;
         flex-direction: row;
@@ -1182,7 +1183,7 @@ const style = injectStyle("grant-editor", k => `
         padding: 0 16px;
         z-index: 10;
         
-        box-shadow: ${theme.shadows.sm};
+        box-shadow: var(--defaultShadow);
     }
     
     ${k} header button {
@@ -1283,7 +1284,7 @@ const style = injectStyle("grant-editor", k => `
     }
     
     ${k} .description {
-        color: var(--gray);
+        color: var(--textSecondary);
         margin-right: 20px;
     }
     
@@ -1392,7 +1393,7 @@ const style = injectStyle("grant-editor", k => `
     }
     
     ${k} .comment time {
-        color: var(--gray);
+        color: var(--textSecondary);
     }
     
     ${k} .comment p {
@@ -2036,11 +2037,11 @@ export const Editor: React.FunctionComponent = () => {
                                     {!state.locked && <>
                                         {!isGrantGiverInitiated &&
                                             <ConfirmationButton actionText={"Discard changes"} icon={"heroTrash"}
-                                                                color={"red"}
+                                                                color={"errorMain"}
                                                                 onAction={onDiscard}/>
                                         }
 
-                                        <Button onClick={validateThenUpdate} type={"button"} color={"green"}>
+                                        <Button onClick={validateThenUpdate} type={"button"} color={"successMain"}>
                                             <Icon name={"heroCheck"} mr={"20px"}/>
                                             <Box mr={"20px"}>
                                                 {isGrantGiverInitiated ? "Grant resources" : "Save changes"}
@@ -2050,7 +2051,7 @@ export const Editor: React.FunctionComponent = () => {
 
                                     {!isClosed && state.stateDuringEdit.allowWithdrawal && state.locked && <>
                                         <ConfirmationButton actionText={"Withdraw application"} icon={"heroTrash"}
-                                                            color={"red"}
+                                                            color={"errorMain"}
                                                             onAction={onWithdraw}/>
                                     </>}
                                 </>}
@@ -2349,7 +2350,7 @@ export const Editor: React.FunctionComponent = () => {
                                                             </label>
 
                                                             {errorMessage &&
-                                                                <div style={{color: "var(--red)"}}>{errorMessage}</div>}
+                                                                <div style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
 
                                                             {shouldShowSplitSelector && <table>
                                                                 <thead>
@@ -2635,7 +2636,7 @@ const CommentSection: React.FunctionComponent<{
                             <p style={{flexGrow: "1"}}><strong>{username}</strong> {action}:</p>
                             {commentId && username === Client.username ? (
                                 <div style={{cursor: "pointer"}} onClick={onDelete} data-comment-id={commentId}>
-                                    <Icon name={"trash"} color={"red"}/>
+                                    <Icon name={"trash"} color={"errorMain"}/>
                                 </div>
                             ) : null}
                             <TooltipV2 tooltip={dateToString(entry.createdAt)}>
@@ -2785,14 +2786,14 @@ const GrantGiver: React.FunctionComponent<{
             {props.replaceApproval}
             {!props.replaceApproval && <>
                 <TooltipV2 tooltip={"Approve (hold to confirm)"}>
-                    <ConfirmationButton color={"green"} icon={"heroCheck"} onAction={onApprove} height={40} mr={8}/>
+                    <ConfirmationButton color={"successMain"} icon={"heroCheck"} onAction={onApprove} height={40} mr={8}/>
                 </TooltipV2>
             </>}
 
             {props.replaceReject}
             {!props.replaceReject && <>
                 <TooltipV2 tooltip={"Reject (hold to confirm)"}>
-                    <ConfirmationButton color={"red"} icon={"heroXMark"} onAction={onReject} height={40}/>
+                    <ConfirmationButton color={"errorMain"} icon={"heroXMark"} onAction={onReject} height={40}/>
                 </TooltipV2>
             </>}
         </>}

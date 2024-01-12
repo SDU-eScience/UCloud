@@ -201,7 +201,7 @@ export const AppGroup: React.FunctionComponent = () => {
                             <Button
                                 ml="5px"
                                 type="button"
-                                color="red"
+                                color="errorMain"
                                 disabled={commandLoading}
                                 onClick={async () => {
                                     await invokeCommand(clearLogo({type: "GROUP", name: id}));
@@ -245,7 +245,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                             </Box>
                                             <Box>
                                                 <Button
-                                                    color={"red"}
+                                                    color={"errorMain"}
                                                     type={"button"}
 
                                                     disabled={commandLoading}
@@ -337,7 +337,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 <Box>
                                                     <Button
                                                         mt="2px"
-                                                        color="red"
+                                                        color="errorMain"
                                                         type="button"
                                                         onClick={async () => {
                                                             await invokeCommand(setGroup({applicationName: app.metadata.name, groupId: undefined}))

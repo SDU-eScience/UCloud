@@ -40,11 +40,11 @@ const ContainerClass = injectStyle("tabbed-card", k => `
     
     ${k} nav > div:hover {
         cursor: pointer;
-        border-bottom: 2px solid var(--midGray);
+        border-bottom: 2px solid var(--borderColor);
     }
     
     ${k} nav > div[data-active=true] {
-        border-bottom: 2px solid var(--primary);
+        border-bottom: 2px solid var(--primaryMain);
     }
 `);
 

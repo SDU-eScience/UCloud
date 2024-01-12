@@ -123,7 +123,7 @@ class SshKeyApi {
             {
                 icon: "trash",
                 text: "Delete",
-                color: "red",
+                color: "errorMain",
                 enabled: (selected) => selected.length > 0,
                 confirm: true,
                 onClick: async (selected, cb) => {

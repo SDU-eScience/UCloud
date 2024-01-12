@@ -365,7 +365,7 @@ export const Create: React.FunctionComponent = () => {
                                 <Box my={"auto"} mr={"18px"}>
                                     <ExternalLink href={application.metadata.website}>
                                         <Button>
-                                            <Icon name="heroArrowTopRightOnSquare" color="white" />
+                                            <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
                                             Documentation
                                         </Button>
                                     </ExternalLink>
@@ -381,7 +381,7 @@ export const Create: React.FunctionComponent = () => {
                         {isMissingConnection ?
                             <Box mt={32}>
                                 <Link to={"/providers/connect"}>
-                                    <Icon name="warning" color="orange" mx={8} />
+                                    <Icon name="warning" color="warningMain" mx={8} />
                                     Connection required!
                                 </Link>
                             </Box> :
@@ -419,7 +419,7 @@ export const Create: React.FunctionComponent = () => {
 
                                             {anyError ?
                                                 <Tooltip trigger={
-                                                    <Button ml={"10px"} type="button" color={"green"} disabled>
+                                                    <Button ml={"10px"} type="button" color={"successMain"} disabled>
                                                         <Icon name="heroPlay" />
                                                         Submit
                                                     </Button>
@@ -428,7 +428,7 @@ export const Create: React.FunctionComponent = () => {
                                                 </Tooltip>
                                                 :
                                                 <Button
-                                                    color={"green"}
+                                                    color={"successMain"}
                                                     type={"button"}
                                                     ml={"10px"}
                                                     disabled={isLoading || !sshValid || isMissingConnection}

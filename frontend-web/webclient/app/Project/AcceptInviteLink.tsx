@@ -53,7 +53,7 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
                     <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
                     <Flex mt="15px" width="300px" mx="auto">
                         <Button
-                            color="green"
+                            color="successMain"
                             mr="10px"
                             onClick={() => {
                                 if (token) {
@@ -61,7 +61,7 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
                                 }
                             }}
                         >Join project</Button>
-                        <Button color="red" onClick={() => navigate(AppRoutes.dashboard.dashboardA())}>Ignore</Button>
+                        <Button color="errorMain" onClick={() => navigate(AppRoutes.dashboard.dashboardA())}>Ignore</Button>
                     </Flex>
                 </div>
         }

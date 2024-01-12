@@ -37,7 +37,7 @@ const GenericInputField: React.FunctionComponent<GenericInputFieldProps> = props
                 {!props.onRemove ? null : (
                     <>
                         <Box ml="auto" />
-                        <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                        <Text color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
                             data-component={"param-remove"}>
                             Remove
                             <Icon ml="6px" size={16} name="close" />
@@ -47,7 +47,7 @@ const GenericInputField: React.FunctionComponent<GenericInputFieldProps> = props
             </Flex>
         </Label>
         {props.children}
-        {props.error ? <TextP color={"red"}>{props.error}</TextP> : null}
+        {props.error ? <TextP color={"errorMain"}>{props.error}</TextP> : null}
         {props.description ? <Markdown>{props.description}</Markdown> : null}
     </Box>;
 }
@@ -161,7 +161,7 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
                             error={contentError}
                         />
 
-                        <Button type={"submit"} color={"green"} fullWidth>
+                        <Button type={"submit"} color={"successMain"} fullWidth>
                             {loading ?
                                 <Icon name={"refresh"} spin /> :
                                 <>Add SSH key</>

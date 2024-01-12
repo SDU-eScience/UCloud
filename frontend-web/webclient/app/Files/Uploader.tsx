@@ -398,7 +398,7 @@ const Uploader: React.FunctionComponent = () => {
                 <div className="title" style={{height: "55px"}}>
                     <Flex onClick={closeModal}>
                         <Box ml="auto" />
-                        <Icon mr="8px" mt="8px" cursor="pointer" color="var(--white)" size="16px" name="close" />
+                        <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
                     </Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
                     <Text color="white">{uploadingText}</Text>
@@ -421,7 +421,7 @@ const Uploader: React.FunctionComponent = () => {
                                     <UploaderArt />
                                 }
                                 <div className="upload-more-text" color="white">
-                                    <TextSpan mr="0.5em"><Icon hoverColor="white" name="upload" /></TextSpan>
+                                    <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast" name="upload" /></TextSpan>
                                     <TextSpan mr="0.3em">Drop files here or</TextSpan>
                                     <i style={{cursor: "pointer"}}>browse</i>
                                     <input
@@ -455,7 +455,7 @@ const Uploader: React.FunctionComponent = () => {
                                             <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
                                         </div>
                                     </>}
-                                    right={<Icon cursor="pointer" name="close" color="red" mr="12px" onClick={() => {
+                                    right={<Icon cursor="pointer" name="close" color="errorMain" mr="12px" onClick={() => {
                                         setPausedFilesInFolder(files => files.filter(file => file !== it));
                                         removeUploadFromStorage(it);
                                     }} />}
@@ -500,7 +500,7 @@ const UploaderText = injectStyle("uploader-text", k => `
     ${k}::after {
         content: "Upload files";
         margin-left: 28px;
-        color: var(--white);
+        color: var(--fixedWhite);
         font-size: 25px;
     }
 
@@ -524,19 +524,19 @@ const UploadMoreClass = injectStyle("upload-more", k => `
     }
     
     ${k} > div.upload-more-text {
-        color: var(--white);
+        color: var(--fixedWhite);
         margin-top: 18px;
     }
 
     ${k}[data-has-uploads="true"] {
         display: flex;
         background-color: transparent; 
-        color: var(--white);
+        color: var(--fixedWhite);
         height: 70px;
         width: 100%;
         align-items: center;
         border-width: 2px;
-        border-color: var(--white);
+        border-color: var(--fixedWhite);
         border-style: dashed;
         border-radius: 24px;
     }
@@ -545,7 +545,7 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 const UploaderRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 24px;
-        background-color: var(--white); 
+        background-color: var(--fixedWhite); 
         height: 70px;
         width: 100%;
         margin-top: 12px;
@@ -608,12 +608,12 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                     ({sizeToString(uploadCalculateSpeed(upload))}/s)
                 </Text>
                 <Box mr="8px" />
-                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="blue" /> : null}
-                {showCircle ? <Icon color="blue" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
-                <Icon name="close" cursor="pointer" ml="8px" color="red" onClick={() => callbacks.stopUploads([upload])} />
+                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
+                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
             </Flex> :
                 <>
-                    {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="blue" /> : null}
+                    {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
                     <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                         callbacks.clearUploads([upload]);
                         upload.row.fetcher().then(files => {
@@ -628,7 +628,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                             const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
                             removeUploadFromStorage(fullFilePath);
                         });
-                    }} color={stopped ? "red" : "blue"} />
+                    }} color={stopped ? "errorMain" : "primaryMain"} />
                 </>}
         </div>
         <div className="error-box">
@@ -638,7 +638,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
 }
 
 const ErrorSpan = injectStyleSimple("error-span", `
-    color: var(--white);
+    color: var(--fixedWhite);
     border: 1px solid red;
     background-color: red;
     padding-left: 4px;
@@ -673,7 +673,7 @@ const modalStyle = ({
 const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
     ${k}[data-has-uploads="false"] {
         border-width: 2px;
-        border-color: var(--white);
+        border-color: var(--fixedWhite);
         border-style: dashed;
         border-radius: 5px;
     }

@@ -4,6 +4,7 @@ import Icon, {IconName} from "@/ui-components/Icon";
 import {Flex} from "@/ui-components";
 import {classConcat, injectStyle} from "@/Unstyled";
 import Card, {CardClass} from "@/ui-components/Card";
+import {ThemeColor} from "@/ui-components/theme";
 
 export interface NotificationProps {
     icon: IconName;
@@ -13,8 +14,8 @@ export interface NotificationProps {
     uniqueId: string;
     read?: boolean;
     ts?: number;
-    iconColor?: string;
-    iconColor2?: string;
+    iconColor?: ThemeColor;
+    iconColor2?: ThemeColor;
     onAction?: () => void;
 }
 
@@ -47,7 +48,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <Card backgroundColor="var(--white)" border={`solid 2px var(--${props.isPinned ? "orange" : "blue"})`}>
+        <Card backgroundColor="var(--backgroundCard)" border={`solid 2px var(--${props.isPinned ? "warningMain" : "primaryMain"})`}>
             <div className="notification-inner">
                 <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
                     color2={props.iconColor2 ?? "iconColor2"} />
@@ -72,7 +73,7 @@ const Style = injectStyle("notification", k => `
         animation: 0.5s ease-in notification-enter;
         width: 450px;
         z-index: 1;
-        color: var(--black);
+        color: var(--textPrimary);
     }
 
     ${k}.exit {
@@ -83,7 +84,7 @@ const Style = injectStyle("notification", k => `
         display: flex;
         gap: 10px;
         align-items: center;
-        background: var(--white);
+        background: var(--backgroundCard);
     }
 
     ${k} .notification-inner h3 {

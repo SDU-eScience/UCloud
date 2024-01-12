@@ -6,7 +6,7 @@ import {CSSProperties} from "react";
 export const LabelClass = injectStyle("label", k => `
     ${k} {
         width: 100%;
-        color: var(--black);
+        color: var(--textPrimary);
         padding-left: 2px;
     }
 

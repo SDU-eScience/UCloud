@@ -28,8 +28,8 @@ export const InputClass = injectStyle("input", k => `
     ${k} {
         display: block;
         font-family: inherit;
-        color: var(--black);
-        background-color: var(--inputColor);
+        color: var(--textPrimary);
+        background-color: var(--backgroundDefault);
         margin: 0;
         border-width: 0px;
         
@@ -39,37 +39,38 @@ export const InputClass = injectStyle("input", k => `
         height: 35px;
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
 
-        border: 1px solid var(--midGray);
+        border: 1px solid var(--borderColor);
     }
     
     ${k}:disabled:hover {
-        border: 1px solid var(--midGray);
+        border: 1px solid var(--borderColor);
     }
     
     ${k}:hover {
-        border-color: var(--gray);
+        border: 1px solid var(--borderColorHover);
     }
 
     ${k}:focus {
         outline: 0;
-        border-color: var(--primary);
-        box-shadow: 0 0 3px -1px var(--primary);
+        border-color: var(--primaryMain);
+        box-shadow: 0 0 3px -1px var(--primaryMain);
     }
 
     ${k}::placeholder {
-        color: var(--gray);
+        color: var(--textSecondary);
     }
     
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
-        border-color: var(--red, #f00);
+        border-color: var(--errorMain, #f00);
     }
     
     ${k}::placeholder {
-        color: var(--black, #f00);
+        color: var(--textPrimary, #f00);
     }
     
     ${k}:disabled {
-        background: var(--lightGray);
+        background: var(--backgroundDisabled);
+        color: var(--textDisabled);
     }
     
     ${k}[data-hidden="true"] {
@@ -157,8 +158,8 @@ const InputLabelClass = injectStyle("input-label", k => `
         border-radius: 5px;
         padding: 7px 12px;
         font-size: 14px;
-        background-color: var(--inputColor);
-        border: 1px solid var(--midGray);
+        background-color: var(--backgroundDefault);
+        border: 1px solid var(--borderColor);
     }
     
     ${k}[data-left-label="true"] {

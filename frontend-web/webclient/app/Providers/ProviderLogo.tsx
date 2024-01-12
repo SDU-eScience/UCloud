@@ -25,7 +25,7 @@ const LogoWrapper = injectStyle("logo-wrapper", k => `
         font-size: calc(var(--wrapper-size) - 8px);
         
         border-radius: var(--border-radius);
-        background-color: var(--primary);
+        background-color: var(--primaryMain);
         width: var(--wrapper-size);
         height: var(--wrapper-size);
         min-width: var(--wrapper-size);

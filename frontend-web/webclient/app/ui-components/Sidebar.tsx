@@ -255,11 +255,11 @@ const SidebarItemsClass = injectStyle("sidebar-items", k => `
 `);
 
 function UserMenuLink(props: {icon: IconName; text: string; to: string; close(): void;}): JSX.Element {
-    return <Link color="black" onClick={props.close} hoverColor="black" height="28px" to={props.to}>
+    return <Link color="textPrimary" onClick={props.close} hoverColor="textPrimary" height="28px" to={props.to}>
         <Flex className={HoverClass}>
-            <Icon name={props.icon} color="var(--black)" color2="var(--black)" mr="0.5em" my="0.2em"
+            <Icon name={props.icon} mr="0.5em" my="0.2em"
                 size="1.3em" />
-            <TextSpan color="var(--black)">{props.text}</TextSpan>
+            <TextSpan color="var(--textPrimary)">{props.text}</TextSpan>
         </Flex>
     </Link>
 }
@@ -267,9 +267,9 @@ function UserMenuLink(props: {icon: IconName; text: string; to: string; close():
 function UserMenuExternalLink(props: {icon: IconName; href: string; text: string; close(): void;}): JSX.Element | null {
     if (!props.text) return null;
     return <div className={HoverClass}>
-        <ExternalLink hoverColor="text" onClick={props.close} href={props.href}>
-            <Icon name={props.icon} color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
-            <TextSpan color="black">{props.text}</TextSpan>
+        <ExternalLink hoverColor="textPrimary" onClick={props.close} href={props.href}>
+            <Icon name={props.icon} mr="0.5em" my="0.2em" size="1.3em" />
+            <TextSpan color="textPrimary">{props.text}</TextSpan>
         </ExternalLink>
     </div>
 }
@@ -294,24 +294,24 @@ const UserMenu: React.FunctionComponent<{
                     <Box className={HoverClass} >
                         <ExternalLink onClick={close.current} href={CONF.STATUS_PAGE}>
                             <Flex>
-                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="var(--black)" />
-                                <TextSpan color="black">Site status</TextSpan>
+                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="textPrimary" />
+                                <TextSpan color="textPrimary">Site status</TextSpan>
                             </Flex>
                         </ExternalLink>
                     </Box>
                     <Divider />
                 </>
             )}
-            <UserMenuLink close={close.current} icon="properties" text="Settings" to={AppRoutes.users.settings()} />
-            <UserMenuLink close={close.current} icon="user" text="Edit avatar" to={AppRoutes.users.avatar()} />
-            <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="docs" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
-            <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="verified" text={CONF.DATA_PROTECTION_TEXT} />
+            <UserMenuLink close={close.current} icon="heroWrenchScrewdriver" text="Settings" to={AppRoutes.users.settings()} />
+            <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="heroBookOpen" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
+            <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="heroShieldCheck" text={CONF.DATA_PROTECTION_TEXT} />
             <Divider />
             <Username close={close.current} />
             <ProjectID close={close.current} />
             <Divider />
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
-                <Icon name="logout" color2="var(--black)" mr="0.5em" my="0.2em" size="1.3em" />
+                <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" />
                 Logout
             </Flex>
             <Divider />
@@ -330,7 +330,7 @@ const HoverClass = injectStyle("hover-class", k => `
     }
 
     ${k}:hover {
-        background: var(--lightBlue);
+        background: var(--rowHover);
     }
 `);
 
@@ -350,6 +350,10 @@ export function Sidebar(): JSX.Element | null {
         }
     }, []);
 
+    const onLogoClick = useCallback(() => {
+        setHoveredPage(SidebarTabId.NONE);
+    }, [setHoveredPage]);
+
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
 
@@ -359,7 +363,7 @@ export function Sidebar(): JSX.Element | null {
     return (
         <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
-                <Link data-component={"logo"} to="/">
+                <Link data-component={"logo"} to="/" onClick={onLogoClick}>
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
 
@@ -562,7 +566,7 @@ function SecondarySidebar({
             <Relative top="16px" right="2px" height={0} width={0}>
                 <Absolute>
                     <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
-                        <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="blue" />
+                        <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
                     </Flex>
                 </Absolute>
             </Relative>
@@ -735,6 +739,7 @@ function SecondarySidebar({
                 <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"} />
                 <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"} />
                 <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"} />
+                <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"} />
             </>}
         </Flex>
     </div>;
@@ -772,11 +777,12 @@ function Username({close}: {close(): void}): JSX.Element | null {
                 }}
                 width={"100%"}
             >
-                <Icon name="id" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
+                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
             </EllipsedText>
         )}
     >
-        Click to copy {Client.username} to clipboard
+        This is your username. <br/> <br/>
+        Click to copy to clipboard.
     </Tooltip>
 }
 
@@ -806,12 +812,13 @@ function ProjectID({close}: {close(): void}): JSX.Element | null {
                 }}
                 width={"100%"}
             >
-                <Icon key={projectId} name={"projects"} color2="white" color="black" mr="0.5em" my="0.2em"
+                <Icon key={projectId} name={"heroUserGroup"} mr="0.5em" my="0.2em"
                     size="1.3em" />{projectPath}
             </EllipsedText>
         }
     >
-        Click to copy to clipboard
+        This is your project ID. <br/> <br/>
+        Click to copy to clipboard.
     </Tooltip>
 }
 
@@ -832,7 +839,7 @@ function Downtimes(): JSX.Element | null {
 
     if (upcomingDowntime === -1) return null;
     return <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
-        <Tooltip trigger={<Icon size="24" color="yellow" name="warning" />}>
+        <Tooltip trigger={<Icon size="24" color="warningMain" name="warning" />}>
             Upcoming downtime.<br />
             Click to view
         </Tooltip>

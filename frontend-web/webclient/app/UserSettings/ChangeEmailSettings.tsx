@@ -295,7 +295,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                 <Button
                     mt="1em"
                     type="submit"
-                    color="green"
+                    color="successMain"
                     disabled={commandLoading}
                 >
                     Update Email Settings

@@ -11,11 +11,11 @@ interface Tooltip extends SpaceProps {
 }
 
 const TooltipContent = injectStyleSimple("tooltip-content", `
-    padding: 8px;
+    padding: 16px;
     border-radius: 8px;
-    background: var(--black);
-    color: var(--white);
-    font-size: 16px;
+    background: var(--textPrimary);
+    color: var(--backgroundCard);
+    border: 2px solid var(--textSecondary);
     position: fixed;
     z-index: 10000;
 `);
@@ -34,7 +34,7 @@ function getPortal(): HTMLElement {
 const Tooltip: React.FunctionComponent<Tooltip> = props => {
     const portal = getPortal();
 
-    const width = props.tooltipContentWidth ?? 200;
+    const width = props.tooltipContentWidth ?? 300;
 
     const tooltipRef: React.MutableRefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
     const onHover = useCallback((ev: React.MouseEvent) => {

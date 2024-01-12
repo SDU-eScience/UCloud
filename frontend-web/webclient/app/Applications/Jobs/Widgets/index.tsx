@@ -108,7 +108,7 @@ const InactiveWidgetClass = injectStyle("inactive-widget", k => `
     }
 
     ${k} > .${TextClass} {
-        color: var(--gray, #f00);
+        color: var(--textSecondary);
         flex-grow: 1;
     }
 
@@ -128,7 +128,7 @@ const InactiveWidgetClass = injectStyle("inactive-widget", k => `
 const MarkdownWrapper = injectStyle("md-wrapper", k => `
     ${k} {
         margin-top: 8px;
-        color: var(--gray);
+        color: var(--textSecondary);
         font-style: italic;
         user-select: none;
     }
@@ -167,7 +167,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     {!parameter.optional || !props.onRemove ? null : (
                         <>
                             <Box ml="auto" />
-                            <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                            <Text color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
                                 data-component={"param-remove"} zIndex={1000}>
                                 Remove
                                 <Icon ml="6px" size={16} name="heroXMark" />
@@ -177,7 +177,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                 </Flex>
             </Label>
             {body}
-            {error ? <TextP color={"red"}>{error}</TextP> : null}
+            {error ? <TextP color={"errorMain"}>{error}</TextP> : null}
             <div className={MarkdownWrapper}>
                 <Markdown>{parameter.description}</Markdown>
             </div>
@@ -342,4 +342,4 @@ export function widgetId(param: {name: string}): string {
     return `app-param-${param.name}`;
 }
 
-export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="red">*</TextSpan>;
+export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;

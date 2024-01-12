@@ -49,7 +49,7 @@ function Modification(): React.JSX.Element {
                     }}
                     mt="5px"
                     mb="5px"
-                    color="blue"
+                    color="primaryMain"
                 >
                     Update avatar
                 </Button>

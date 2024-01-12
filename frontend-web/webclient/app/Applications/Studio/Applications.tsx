@@ -57,8 +57,8 @@ const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
         justify-content: space-between;
         cursor: pointer;
         font-family: inherit;
-        color: var(--black);
-        background-color: var(--inputColor);
+        color: var(--textPrimary);
+        background-color: var(--primaryMain);
         margin: 0;
         border-width: 0px;
         
@@ -68,11 +68,11 @@ const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
         height: 35px;
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
 
-        border: 1px solid var(--midGray);
+        border: 1px solid var(--borderColor);
     }
     
     ${k}:hover {
-        border-color: var(--gray);
+        border-color: var(--borderColorHover);
     }
 `);
 
@@ -238,7 +238,7 @@ export const App: React.FunctionComponent = () => {
                         <Button
                             mx="10px"
                             type="button"
-                            color="red"
+                            color="errorMain"
                             disabled={commandLoading}
                             onClick={async () => {
                                 await invokeCommand(clearLogo({type: "APPLICATION", name}));
@@ -439,7 +439,7 @@ export const App: React.FunctionComponent = () => {
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
                                                         <Button
-                                                            color={"red"}
+                                                            color={"errorMain"}
                                                             type={"button"}
                                                             onClick={() => addStandardDialog({
                                                                 title: `Are you sure?`,

@@ -11,8 +11,8 @@ const Wrapper = injectStyle("wrapper", k => `
         --tc-pad: 16px;
         width: calc(100vw - 190px);
         height: var(--termsize, 0px);
-        background: var(--white);
-        color: var(--black);
+        background: var(--backgroundDefault);
+        color: var(--textPrimary);
         position: fixed;
         left: 190px;
         padding-left: var(--tc-pad);
@@ -56,13 +56,13 @@ const Wrapper = injectStyle("wrapper", k => `
     }
 
     ${k} .tab:hover {
-        background: var(--invertedThemeColor);
-        color: var(--white);
+        background: var(--textPrimary);
+        color: var(--backgroundDefault);
     }
 
     ${k} .tab.active {
-        background: var(--invertedThemeColor);
-        color: var(--white);
+        background: var(--textPrimary);
+        color: var(--backgroundDefault);
     }
 
     ${k} .contents {

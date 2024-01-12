@@ -6,20 +6,20 @@ import {CSSProperties} from "react";
 const thresholds: { maxValue: number, color: ThemeColor }[] = [
     {
         maxValue: 79,
-        color: "green"
+        color: "successMain"
     },
     {
         maxValue: 89,
-        color: "lightOrange"
+        color: "warningMain"
     },
     {
         maxValue: 100,
-        color: "red"
+        color: "errorMain"
     }
 ];
 
-function getColorFromValue(value: number): string {
-    return thresholds.find(it => it.maxValue >= value)?.color ?? "red";
+function getColorFromValue(value: number): ThemeColor {
+    return thresholds.find(it => it.maxValue >= value)?.color ?? "errorMain";
 }
 
 const BarClass = injectStyle("resources-bar", k => `
@@ -29,7 +29,7 @@ const BarClass = injectStyle("resources-bar", k => `
         height: 100%;
         overflow: hidden;
         
-        --barBackground: var(--green);
+        --barBackground: var(--successMain);
         --animationLength: 1s;
     }
         
@@ -52,11 +52,11 @@ const BarClass = injectStyle("resources-bar", k => `
     
     ${k}.positive > span {
         left: 0;
-        color: var(--white);
+        color: var(--textPrimary);
     }
     
     ${k}.negative {
-        background: var(--appCard);
+        background: var(--backgroundCard);
         right: 0;
         animation: animateNegative var(--animationLength);
         width: calc(100% - var(--percentage, 0%));
@@ -64,7 +64,7 @@ const BarClass = injectStyle("resources-bar", k => `
 
     ${k}.negative > span {
         right: 0;
-        color: var(--black);
+        color: var(--textPrimary);
     }
     
     @keyframes animatePositive {
@@ -85,7 +85,7 @@ const ContainerClass = injectStyle("resource-progress-container", k => `
         vertical-align: middle;
         overflow: hidden;
         font-size: 12px;
-        border: 1px solid var(--midGray);
+        border: 1px solid var(--borderColor);
     }
 `);
 

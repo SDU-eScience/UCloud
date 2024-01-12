@@ -108,14 +108,14 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                             browser.refresh();
                         },
                         text: "Accept"
-                    }, invite, {color: "green", width: "72px"})!);
+                    }, invite, {color: "successMain", width: "72px"})!);
                     group.appendChild(browser.defaultButtonRenderer({
                         onClick: async () => {
                             await callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
                             browser.refresh();
                         },
                         text: "Decline"
-                    }, invite, {color: "red", width: "72px"})!);
+                    }, invite, {color: "errorMain", width: "72px"})!);
                 });
 
                 browser.setEmptyIcon("play");
@@ -142,7 +142,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                     }, {
                         enabled: (selected) => selected.length === 1,
                         text: "Decline",
-                        color: "red",
+                        color: "errorMain",
                         onClick: async ([invite]) => {
                             await callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
                             browser.refresh();

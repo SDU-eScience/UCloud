@@ -33,8 +33,8 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
 
     const body = <>
         {!shouldConnect ? null :
-            <Text color={"gray"} mb={8}>
-                <Icon name={"warning"} color={"orange"} mr={"8px"} />
+            <Text color={"textSecondary"} mb={8}>
+                <Icon name={"warning"} color={"warningMain"} mr={"8px"} />
                 Connect with the services below to use their resources
             </Text>
         }
@@ -57,13 +57,13 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                         left={<Text fontSize={"16px"}><ProviderTitle providerId={it.providerTitle} /></Text>}
                         right={!canConnect ?
                             <>
-                                <Icon name={"check"} color={"green"} />
+                                <Icon name={"check"} color={"successMain"} />
                                 <Operations
                                     location={"IN_ROW"}
                                     operations={[
                                         {
                                             confirm: true,
-                                            color: "red",
+                                            color: "errorMain",
                                             text: "Unlink",
                                             icon: "close",
                                             enabled: () => {

@@ -77,7 +77,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
         Icon({resource, size}) {
             if (resource && resource.specification.product.id === "share") {
-                return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
+                return <Icon name={"ftSharesFolder"} size={size} color={"iconColor"} color2={"iconColor2"} />
             }
             return <Icon name={"ftFileSystem"} size={size} />
         }
@@ -209,7 +209,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                                     }
                                 }}>
                                     <Input id={"collectionName"} mb={"8px"} />
-                                    <Button color={"red"} type={"submit"} fullWidth>
+                                    <Button color={"errorMain"} type={"submit"} fullWidth>
                                         I understand what I am doing, delete my data permanently
                                     </Button>
                                 </form>

@@ -17,7 +17,6 @@ import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {addStandardDialog} from "@/UtilityComponents";
 import Fuse from "fuse.js";
-import {colorFromTitle} from "@/ui-components/theme";
 import {Toggle} from "@/ui-components/Toggle";
 import {NewsPost} from ".";
 
@@ -59,7 +58,7 @@ export const DetailedNews: React.FC = () => {
                         right={isAdmin ?
                             <ButtonGroup width="150px">
                                 <Button onClick={() => setEditing(true)}>Edit</Button>
-                                <Button color="red" onClick={deletePost}>Delete</Button>
+                                <Button color="errorMain" onClick={deletePost}>Delete</Button>
                             </ButtonGroup> : null}
                     />
                     <Heading.h4>{newsPost.data.subtitle}</Heading.h4>
@@ -67,10 +66,7 @@ export const DetailedNews: React.FC = () => {
                         <Text><Flex>By: <Text mx="6px" bold>{newsPost.data.postedBy}</Text></Flex></Text>
                         <Text><Flex>Posted {format(newsPost.data.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
                         <Link to={`/news/list/${newsPost.data.category}`}>
-                            <Tag
-                                label={newsPost.data.category}
-                                bg={colorFromTitle(newsPost.data.category)}
-                            />
+                            <Tag label={newsPost.data.category}/>
                         </Link>
                     </Box>
                     <Markdown unwrapDisallowed>
@@ -141,7 +137,7 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
             <form onSubmit={onSubmit}>
                 <Box m="0 auto" maxWidth="1200px">
                     <Spacer mb="12px" left={null} right={
-                        <Button type="button" onClick={() => props.stopEditing(false)} color="red">Cancel</Button>
+                        <Button type="button" onClick={() => props.stopEditing(false)} color="errorMain">Cancel</Button>
                     } />
                     <Label>
                         Title

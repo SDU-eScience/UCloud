@@ -12,7 +12,6 @@ const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"))
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
-const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
@@ -110,7 +109,6 @@ const Core = (): React.JSX.Element => (
                         <Route path={AppRoutes.users.registration()} element={<Registration />} />
                         <Route path={AppRoutes.users.verifyEmail()} element={<VerifyEmail />} />
                         <Route path={AppRoutes.users.verifyResult()} element={<VerifyResult />} />
-                        <Route path={"/metadata/*"} element={React.createElement(requireAuth(MetadataNamespacesRouter))} />
                         <Route path="/shares/" element={React.createElement(requireAuth(IngoingSharesBrowse))} />
                         <Route path={"/shares/properties/:id/"} element={<SharesApi.Properties api={SharesApi} />} />
                         <Route path="/shares/outgoing" element={React.createElement(requireAuth(OutgoingSharesBrowse))} />

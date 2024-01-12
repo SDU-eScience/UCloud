@@ -2,7 +2,6 @@ import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import Flex from "./Flex";
 import Icon from "./Icon";
-import theme from "./theme";
 import {injectStyle} from "@/Unstyled";
 import {Spacer} from "./Spacer";
 
@@ -20,9 +19,9 @@ const PopInClass = injectStyle("popin-class", k => `
         position: absolute;
         top: 0;
         z-index: 120;
-        box-shadow: ${theme.shadows.sm};
+        box-shadow: var(--defaultShadow);
         right: 0;
-        background-color: var(--white);
+        background-color: var(--backgroundDefault);
         width: 0;
         max-width: var(--popInWidth);
     }
@@ -41,9 +40,9 @@ export function RightPopIn(): JSX.Element {
     /* Alternatively, use React.portal */
     return <PopIn hasContent={content != null} >
         <Spacer
-            left={<Icon color="var(--black)" cursor="pointer" pt="4px" pl="4px" hoverColor="black" name="close" onClick={() => dispatch(setPopInChild(null))} />}
+            left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => dispatch(setPopInChild(null))} />}
 
-            right={<Icon color="var(--black)" cursor="pointer" pt="4px" pr="4px" hoverColor="black" name="fullscreen" onClick={() => {
+            right={<Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="fullscreen" onClick={() => {
                 content?.onFullScreen?.();
                 dispatch(setPopInChild(null));
             }} />}

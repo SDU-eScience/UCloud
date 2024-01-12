@@ -157,11 +157,11 @@ const Styling = injectStyle("styling", k => `
 `);
 
 const InfoBox: React.FunctionComponent<PropsWithChildren<{isError: boolean}>> = ({isError, children}) => {
-    return <div className={"info-box"} style={{background: `var(--${isError ? "red" : "blue"})`, color: "white", marginBottom: "16px"}}>
+    return <div className={"info-box"} style={{background: `var(--${isError ? "errorMain" : "primaryMain"})`, color: "white", marginBottom: "16px"}}>
         {children}
     </div>;
 };
 
-const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="red">*</TextSpan>;
+const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;
 
 export default Registration;

@@ -75,7 +75,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims, row));
 
-                    browser.icons.renderIcon({name: "key", color: "black", color2: "black", height: 32, width: 32}).then(setIcon);
+                    browser.icons.renderIcon({name: "key", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setIcon);
                 });
 
                 // We don't want it to capitalize the resource name

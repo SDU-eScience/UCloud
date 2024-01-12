@@ -580,7 +580,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 // Empty trash of current directory
                 text: "Empty Trash",
                 icon: "trash",
-                color: "red",
+                color: "errorMain",
                 primary: true,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -600,8 +600,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         message: "You cannot recover deleted files!",
                         confirmText: "Empty trash",
                         addToFront: true,
-                        cancelButtonColor: "blue",
-                        confirmButtonColor: "red",
+                        cancelButtonColor: "primaryMain",
+                        confirmButtonColor: "errorMain",
                         onConfirm: async () => {
                             await cb.invokeCommand(
                                 this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
@@ -646,7 +646,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "trash",
                 text: "Move to trash",
                 confirm: true,
-                color: "red",
+                color: "errorMain",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -673,7 +673,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "trash",
                 text: "Empty Trash",
                 confirm: true,
-                color: "red",
+                color: "errorMain",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -934,8 +934,8 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invok
         />
         <Spacer
             mt="12px"
-            left={<Button color="red" width="180px" onClick={() => dialogStore.failure()}>Cancel</Button>}
-            right={<Button color="green" type={"submit"}>Update</Button>}
+            left={<Button color="errorMain" width="180px" onClick={() => dialogStore.failure()}>Cancel</Button>}
+            right={<Button color="successMain" type={"submit"}>Update</Button>}
         />
     </form>);
 }
@@ -953,7 +953,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     if (!isSensitivitySupported(file)) {
         dialogStore.addDialog(
             <>
-                <Heading.h2>Sensitive files not supported <Icon name="warning" color="red" size="32" /></Heading.h2>
+                <Heading.h2>Sensitive files not supported <Icon name="warning" color="errorMain" size="32" /></Heading.h2>
                 <p>
                     This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:

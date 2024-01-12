@@ -1,6 +1,6 @@
 import * as React from "react";
 import {ButtonStyleProps, HeightProps, SizeProps, SpaceProps, WidthProps} from "styled-system";
-import {ThemeColor} from "./theme";
+import {selectContrastColor, selectHoverColor, ThemeColor} from "./theme";
 import {extractDataTags, extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
 
 // TODO(Dan): A lot of these are left in to not break existing code, many of them are not actually supposed
@@ -40,21 +40,26 @@ export const ButtonClass = injectStyle("button", k => `
         font-family: inherit;
         font-weight: normal;
         cursor: pointer;
-        background-color: var(--primary);
-        color: var(--white, #f00);
+        background-color: var(--bgColor, --primaryMain);
+        color: var(--primaryContrast, #f00);
         border-width: 0;
         border-style: solid;
         display: flex;
         align-items: center;
         padding: calc(.5em - 1px) 1.2em;
+        border-radius: 8px;
     }
 
     ${k}:hover {
-        filter: saturate(150%);
+        background: var(--hoverColor);
     }
     
     ${k}:disabled {
         opacity: 0.25;
+    }
+    
+    ${k}:disabled:hover {
+        background: var(--bgColor, --primaryMain);
     }
 
     ${k}:focus {
@@ -113,8 +118,9 @@ const standardButtonSizes: {height: number; name: string;}[] = [
 export const Button: React.FunctionComponent<ButtonProps> = props => {
     const inlineStyles = unbox(props);
     let sizeName: string | undefined = undefined;
-    inlineStyles.backgroundColor = `var(--${props.color ?? "primary"})`;
-    inlineStyles.color = `var(--${props.textColor ?? "white"})`;
+    inlineStyles.color = `var(--${props.textColor ?? selectContrastColor(props.color ?? "primaryMain")})`;
+    inlineStyles["--bgColor"] = `var(--${props.color ?? "primaryMain"})`;
+    inlineStyles["--hoverColor"] = "var(--" + selectHoverColor(props.color ?? "primaryMain") + ")";
     if (props.disableStandardSizes !== true) {
         let bestMatch = 1;
         if (props.standardSize !== undefined || props.height === undefined) {

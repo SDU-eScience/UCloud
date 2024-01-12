@@ -23,11 +23,11 @@ interface RadioWrapProps {
 const RadioClass = injectStyle("radio", k => `
     ${k} {
         display: inline-block;
-        color: var(--borderGray);
+        color: var(--borderColor);
     }
     
     ${k}[data-checked="true"]:hover {
-        color: var(--primary);
+        color: var(--primaryMain);
     }
     
     ${k} input {
@@ -42,11 +42,11 @@ const RadioClass = injectStyle("radio", k => `
     }
     
     ${k} input:checked ~ svg {
-        color: var(--primary);
+        color: var(--primaryMain);
     }
     
     ${k} input:disabled ~ svg {
-        color: var(--borderGray);
+        color: var(--textDisabled);
     }
     
     ${k} svg {

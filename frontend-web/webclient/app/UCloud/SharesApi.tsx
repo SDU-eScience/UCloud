@@ -163,7 +163,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             {
                 text: "Accept",
                 icon: "check",
-                color: "green",
+                color: "successMain",
                 confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
@@ -184,7 +184,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             {
                 text: "Decline",
                 icon: "close",
-                color: "red",
+                color: "errorMain",
                 confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
@@ -204,7 +204,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             {
                 text: "Remove",
                 icon: "close",
-                color: "red",
+                color: "errorMain",
                 confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {

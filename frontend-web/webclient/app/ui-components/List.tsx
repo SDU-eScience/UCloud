@@ -21,7 +21,7 @@ export const ListClass = injectStyle("list", k => `
     }
     
     ${k}[data-bordered="true"] > *, .list-item {
-        border-bottom: 1px solid #96B3FF;
+        border-bottom: 1px solid var(--borderColor);
     }
 `);
 
@@ -108,8 +108,8 @@ export const ListRowStat: React.FunctionComponent<{
     cursor?: Cursor;
     children: React.ReactNode;
 }> = props => {
-    const color: ThemeColor = props.color ?? "gray";
-    const color2: ThemeColor = props.color2 ?? "white";
+    const color: ThemeColor = props.color ?? "iconColor";
+    const color2: ThemeColor = props.color2 ?? "iconColor2";
     const body = <>
         {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon}/>}
         {props.children}
@@ -131,15 +131,15 @@ const ListRowClass = injectStyle("list-item", k => `
     }
 
     ${k}[data-highlighted="true"] {
-        background-color: var(--projectHighlight);
+        background-color: var(--rowHover);
     }
 
     ${k}[data-selected="true"] {
-        background-color: var(--lightBlue);
+        background-color: var(--rowActive);
     }
 
     ${k}:hover {
-        background-color: var(--lightBlue);
+        background-color: var(--rowHover);
     }
 
     ${k} .row-icon {
@@ -197,7 +197,7 @@ const ListRowClass = injectStyle("list-item", k => `
     
     ${k} .row-left-sub > * {
         margin-right: 16px;
-        color: var(--gray);
+        color: var(--textSecondary);
         text-decoration: none;
         font-size: 10px;
     }

@@ -6,7 +6,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Absolute, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
-import theme, {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor} from "@/ui-components/theme";
 import * as UF from "@/UtilityFunctions";
 import {NotificationProps as NormalizedNotification} from "./Card";
 import * as Snooze from "./Snooze";
@@ -39,17 +39,17 @@ function resolveNotification(event: Notification): {
 } {
     switch (event.type) {
         case "REVIEW_PROJECT":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "SHARE_REQUEST":
-            return {icon: "share", color: "black", color2: "black"};
+            return {icon: "share", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_INVITE":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_ROLE_CHANGE":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_USER_LEFT":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_USER_REMOVED":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "NEW_GRANT_APPLICATION":
             const icon = "mail";
             const oldPrefix = "New grant application to ";
@@ -61,7 +61,7 @@ function resolveNotification(event: Notification): {
             return {icon};
         case "APP_COMPLETE":
         default:
-            return {icon: "info", color: "white", color2: "black"};
+            return {icon: "info", color: "iconColor", color2: "iconColor2"};
     }
 }
 
@@ -371,7 +371,7 @@ export const Notifications: React.FunctionComponent = () => {
                         <div
                             style={{
                                 borderRadius: "999999px",
-                                background: "var(--red)",
+                                background: "var(--errorMain)",
                                 color: "white",
                                 letterSpacing: "0.025em",
                                 fontSize: "10pt",
@@ -413,8 +413,8 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
         height: 600px;
         max-height: 100vh;
         z-index: 10000;
-        background: var(--white);
-        color: var(--black);
+        background: var(--backgroundDefault);
+        color: var(--textPrimary);
         padding: 16px;
         border-radius: 6px;
         border: 1px solid rgba(0, 0, 0, 20%);
@@ -422,7 +422,7 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
         display: flex;
         flex-direction: column;
 
-        box-shadow: ${theme.shadows.sm};
+        box-shadow: var(--defaultShadow);
     }
 
     ${k} > .container-wrapper {
@@ -562,7 +562,7 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
         display: flex;
         gap: 10px;
         align-items: center;
-        background: var(--white);
+        background: var(--backgroundCard);
         border-radius: 6px;
         padding: 10px;
         width: 100%;
@@ -570,24 +570,16 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
         cursor: pointer;
     }
 
-    ${k}.pinned {
-        background: rgba(255, 100, 0, 20%);
-    }
-
+    ${k}.pinned,
     ${k}.unread.unpinned {
-        background: rgba(204, 221, 255, 20%);
+        background: var(--rowActive);
     }
 
+
+    ${k}.pinned:hover,
+    ${k}.unread.unpinned:hover,
     ${k}:hover {
-        background: rgba(240, 246, 255, 50%);
-    }
-
-    ${k}.unread.unpinned:hover {
-        background: rgba(204, 221, 255, 50%);
-    }
-
-    ${k}.pinned:hover {
-        background: rgba(255, 100, 0, 30%);
+        background: var(--rowHover);
     }
 
     ${k} > b {

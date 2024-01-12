@@ -128,7 +128,7 @@ const Playground: React.FunctionComponent = () => {
                     </div>
                 ))}
             </Grid>
-            <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
+            <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"errorMain"} />
 
             <TabbedCard>
                 <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
@@ -163,45 +163,49 @@ const ProjectPlayground: React.FunctionComponent = () => {
 }
 
 const colors: ThemeColor[] = [
-    "black",
-    "white",
-    "lightGray",
-    "midGray",
-    "gray",
-    "darkGray",
-    "lightBlue",
-    "lightBlue2",
-    "blue",
-    "darkBlue",
-    "lightGreen",
-    "green",
-    "darkGreen",
-    "lightRed",
-    "red",
-    "darkRed",
-    "orange",
-    "darkOrange",
-    "lightPurple",
-    "purple",
-    "yellow",
-    "text",
-    "textHighlight",
-    "headerText",
-    "headerBg",
-    "headerIconColor",
-    "headerIconColor2",
-    "borderGray",
-    "paginationHoverColor",
-    "paginationDisabled",
+    "primaryMain",
+    "primaryLight",
+    "primaryDark",
+    "primaryContrast",
+
+    "secondaryMain",
+    "secondaryLight",
+    "secondaryDark",
+    "secondaryContrast",
+
+    "errorMain",
+    "errorLight",
+    "errorDark",
+    "errorContrast",
+
+    "warningMain",
+    "warningLight",
+    "warningDark",
+    "warningContrast",
+
+    "infoMain",
+    "infoLight",
+    "infoDark",
+    "infoContrast",
+
+    "successMain",
+    "successLight",
+    "successDark",
+    "successContrast",
+
+    "backgroundDefault",
+    "backgroundCard",
+
+    "textPrimary",
+    "textSecondary",
+    "textDisabled",
+
     "iconColor",
     "iconColor2",
-    "FtIconColor",
-    "FtIconColor2",
-    "FtFolderColor",
-    "FtFolderColor2",
-    "spinnerColor",
-    "tableRowHighlight",
-    "appCard",
+
+    "fixedWhite",
+    "fixedBlack",
+
     "wayfGreen",
 ];
 

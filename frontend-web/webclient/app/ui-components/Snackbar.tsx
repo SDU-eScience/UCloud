@@ -6,8 +6,8 @@ const SnackbarClass = injectStyle("snackbar", k => `
     ${k} {
         min-width: 250px;
         width: auto;
-        background-color: var(--black, #f00);
-        color: var(--white, #f00);
+        background-color: var(--textPrimary, #f00);
+        color: var(--backgroundDefault, #f00);
         text-align: center;
         border-radius: 2px;
         padding: 16px;

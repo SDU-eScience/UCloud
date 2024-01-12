@@ -18,7 +18,8 @@ const admin = {
     applicationStudio: () => "/applications/studio",
     news: () => "/admin/news",
     providers: () => "/admin/providers",
-    scripts: () => "/admin/scripts"
+    scripts: () => "/admin/scripts",
+    playground: () => "/playground",
 };
 
 const shares = {

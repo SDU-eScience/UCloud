@@ -20,24 +20,24 @@ export const BreadCrumbsClass = injectStyle("breadcrumbs", k => `
         white-space: nowrap;
         overflow: hidden;
         
-        color: var(--text, #f00);
+        color: var(--textPrimary, #f00);
         text-decoration: none;
     }
     
     ${k} > span:hover {
         cursor: pointer;
-        color: var(--primary);
+        color: var(--primaryMain);
     }
     
     ${k} > span + span:before {
         padding: 0 8px;
         vertical-align: top;
-        color: var(--text, #f00);
+        color: var(--textPrimary, #f00);
         content: "/";
     }
     
     ${k}.isMain > span:last-child:hover {
-        color: var(--text, #f00);
+        color: var(--textPrimary, #f00);
         cursor: default;
     }
 `);

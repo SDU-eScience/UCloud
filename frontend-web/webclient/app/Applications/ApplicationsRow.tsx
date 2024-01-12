@@ -68,8 +68,8 @@ const SCROLL_SPEED = 156 * 4;
 
 const ScrollButtonClass = injectStyle("scroll-button", k => `
     ${k} {
-        background-color: var(--primary);
-        color: var(--white);
+        background-color: var(--primaryMain);
+        color: var(--primaryContrast);
         width: 32px;
         height: 32px;
         border-radius: 16px;

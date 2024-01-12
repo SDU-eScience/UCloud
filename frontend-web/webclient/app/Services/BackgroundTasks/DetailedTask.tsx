@@ -39,10 +39,10 @@ const DetailedTask: React.FunctionComponent<{task: TaskUpdate}> = ({task}) => {
                 <p><b>Status:</b> {task.newStatus ?? "No recent status update."}</p>
 
                 {!task.progress ?
-                    <IndeterminateProgressBar color="green" label={task.newTitle ?? ""} /> : (
+                    <IndeterminateProgressBar color="successMain" label={task.newTitle ?? ""} /> : (
                         <ProgressBar
                             active={true}
-                            color="green"
+                            color="successMain"
                             label={
                                 `${task.progress.title}: ${task.progress.current} of ${task.progress.maximum} ` +
                                 `(${((task.progress.current / task.progress.maximum) * 100).toFixed(2)}%)`

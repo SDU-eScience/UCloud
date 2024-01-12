@@ -7,7 +7,7 @@ import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/Clickab
 import {doNothing, preventDefault, stopPropagation} from "@/UtilityFunctions";
 import Grid from "@/ui-components/Grid";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import theme, {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor} from "@/ui-components/theme";
 import * as Heading from "@/ui-components/Heading";
 import {injectStyle} from "@/Unstyled";
 
@@ -133,7 +133,7 @@ const OperationComponent: React.FunctionComponent<{
 
     const component = <As
         cursor="pointer"
-        color={reasonDisabled === undefined ? op.color : "gray"}
+        color={reasonDisabled === undefined ? op.color : "textSecondary"}
         alignItems="center"
         onClick={onClick}
         data-tag={`${text.replace(/\./g, "").replace(/ /g, "_")}-action`}
@@ -312,14 +312,14 @@ export const Operations: OperationsType = props => {
                                         m={8}
                                         ml={0}
                                         size="20"
-                                        color={theme.colors.darkGray}
+                                        color={"iconColor2"}
                                     /> :
                                     null
                                 }
                                 {entityNamePlural}
                                 {" "}
                                 {props.selected.length === 0 ? null :
-                                    <TextSpan color={"gray"}
+                                    <TextSpan color={"textSecondary"}
                                         fontSize={"80%"}>{props.selected.length} selected</TextSpan>
                                 }
                             </Heading.h3>

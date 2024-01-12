@@ -28,6 +28,7 @@ import {formatDistanceToNow} from "date-fns";
 import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
+import {ThemeColor} from "@/ui-components/theme";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -182,8 +183,8 @@ export interface SessionDataVnc {
     password?: string;
 }
 
-export function jobStateToIconAndColor(state: JobState): [IconName, string] {
-    let color = "iconColor";
+export function jobStateToIconAndColor(state: JobState): [IconName, ThemeColor] {
+    let color: ThemeColor = "iconColor";
     let icon: IconName;
     switch (state) {
         case "IN_QUEUE":
@@ -194,15 +195,15 @@ export function jobStateToIconAndColor(state: JobState): [IconName, string] {
             break;
         case "SUCCESS":
             icon = "check";
-            color = "green";
+            color = "successMain";
             break;
         case "FAILURE":
             icon = "close";
-            color = "red";
+            color = "errorMain";
             break;
         case "EXPIRED":
             icon = "chrono";
-            color = "orange";
+            color = "warningMain";
             break;
         case "SUSPENDED":
             icon = "pauseSolid";
@@ -247,7 +248,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             }
 
             if (browseType === BrowseType.Card) {
-                return <Text mr="-40px" fontSize="14px" color="gray">{formatDistanceToNow(resource?.createdAt ?? 0)}</Text>
+                return <Text mr="-40px" fontSize="14px" color="textSecondary">{formatDistanceToNow(resource?.createdAt ?? 0)}</Text>
             }
 
             const job = resource as Job;

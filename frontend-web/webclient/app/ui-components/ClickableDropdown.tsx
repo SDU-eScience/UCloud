@@ -135,7 +135,7 @@ function ClickableDropdown<T>({
     const handleKeyPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
         if (props.arrowkeyNavigationKey) {
             const navigationKey = props.arrowkeyNavigationKey ?? "data-active";
-            _onKeyDown(event, divRef, counter, navigationKey, props.onSelect, props.hoverColor ?? "lightBlue")
+            _onKeyDown(event, divRef, counter, navigationKey, props.onSelect, props.hoverColor ?? "primaryLight")
         }
 
         if (event.key === "Escape" && open) {
@@ -231,7 +231,7 @@ function ClickableDropdown<T>({
                     toggle(e);
                 }}
             >
-                {props.trigger}{props.chevron ? <Icon name="chevronDownLight" my="auto" size="1em" ml=".7em" color="darkGray" /> : null}
+                {props.trigger}{props.chevron ? <Icon name="chevronDownLight" my="auto" size="1em" ml=".7em" color="textPrimary" /> : null}
             </Text.TextSpan>
             {emptyChildren || !open ? null : (
                 props.useMousePositioning ?

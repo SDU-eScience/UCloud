@@ -86,7 +86,7 @@ export default function Support(): JSX.Element {
             bottom="-60px"
         >
             <div style={{cursor: "default"}}>
-                <Box width="100%" pb="6px" color="text">
+                <Box width="100%" p="16px" color="text">
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
                         right={<>
@@ -99,27 +99,27 @@ export default function Support(): JSX.Element {
                                 </ExternalLink>
                             )}
                             {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                                <ExternalLink hoverColor={"textHighlight"} href={CONF.SITE_DOCUMENTATION_URL}>
-                                    <Icon name="docs" mr=".5em" />Documentation
+                                <ExternalLink hoverColor={"primaryLight"} href={CONF.SITE_DOCUMENTATION_URL}>
+                                    <Icon name="heroBookOpen" mr=".5em" />Documentation
                                 </ExternalLink>
                             )}
                         </>}
                     />
 
                     {["Operational\n", ""].includes(statusUCloud) ? null : (<Box my="6px">
-                        <Error error={<>One or more systems are experiencing issues. Go to <ExternalLink style={{color: "var(--textHighlight)"}} href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
+                        <Error error={<>One or more systems are experiencing issues. Go to <ExternalLink href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
                     </Box>)}
 
-                    <Flex mt="8px">
-                        <Label cursor="pointer">
+                    <Flex mt="8px" gap={"8px"}>
+                        <Label cursor="pointer" width={"initial"}>
                             <Radio
                                 checked={type === SupportType.SUGGESTION}
                                 onChange={setSuggestion}
                             />
-                            <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
+                            <Icon name="heroChatBubbleLeftEllipsis" size="1.5em" mr=".5em" />
                             Suggestion
                         </Label>
-                        <Label cursor="pointer">
+                        <Label cursor="pointer" width={"initial"}>
                             <Radio
                                 checked={type === SupportType.BUG}
                                 onChange={setBug}
@@ -129,23 +129,29 @@ export default function Support(): JSX.Element {
                         </Label>
                     </Flex>
 
-                    <form onSubmit={onSubmit}>
-                        <TextDiv mt="10px"> Subject </TextDiv>
-                        <Input width="100%" inputRef={titleArea} />
-                        <TextDiv mt="10px">
-                            {type === SupportType.BUG ? "Describe your problem below and we will investigate it." :
+                    <form onSubmit={onSubmit} style={{display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px"}}>
+                        <Label>
+                            Subject
+                            <Input width="100%" inputRef={titleArea} />
+                        </Label>
+
+                        <Label>
+                            {type === SupportType.BUG ?
+                                "Describe your problem below and we will investigate it." :
                                 "Describe your suggestion and we will look into it."
                             }
-                        </TextDiv>
-                        <TextArea width="100%" inputRef={textArea} rows={6} />
+
+                            <TextArea width="100%" inputRef={textArea} rows={6} />
+                        </Label>
+
                         <Button
                             mt="6px"
                             fullWidth
                             type="submit"
                             disabled={loading}
                         >
-                            <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
-                            <TextSpan>Send</TextSpan>
+                            <Icon name="heroPaperAirplane" size="1.5em" mr=".5em" color="primaryContrast" />
+                            Send
                         </Button>
                     </form>
                 </Box>

@@ -6,7 +6,7 @@ import {BoxProps} from "@/ui-components/Box";
 const SelectableTextContainerClass = injectStyle("tab-container", k => `
     ${k} {
         display: flex;
-        border-bottom: 2px solid var(--borderGray);
+        border-bottom: 2px solid var(--borderColor);
         cursor: pointer;
     }
     
@@ -17,7 +17,7 @@ const SelectableTextContainerClass = injectStyle("tab-container", k => `
     }
     
     ${k} > [data-selected="true"] {
-        border-bottom: 3px solid var(--primary);
+        border-bottom: 3px solid var(--primaryMain);
     }
 `);
 

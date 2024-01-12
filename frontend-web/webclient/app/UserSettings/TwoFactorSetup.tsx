@@ -28,7 +28,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
             <>
                 <Heading.h2>Two Factor Authentication</Heading.h2>
                 {this.props.mustActivate2fa ? (
-                    <Heading.h3 color={getCssPropertyValue("red")}>
+                    <Heading.h3 color={getCssPropertyValue("errorMain")}>
                         You must activate 2FA for your account before you can continue
                     </Heading.h3>
                 ) : null}
@@ -97,7 +97,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
                         <p>Once you are ready click the button below to get started:</p>
 
                         <Button
-                            color="green"
+                            color="successMain"
                             disabled={this.props.loading}
                             onClick={() => this.onSetupStart()}
                         >
@@ -159,7 +159,6 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
 
                     <Button
                         mt={8}
-                        color="blue"
                         type="submit"
                         disabled={this.props.loading}
                     >

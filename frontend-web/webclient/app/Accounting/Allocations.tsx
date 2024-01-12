@@ -414,8 +414,8 @@ function stateReducer(state: State, action: UIAction): State {
             // - If the accompanying row has a red calendar, then the note is about something which has happened.
             // - If the accompanying row has a blue calendar, then the note is about something which will happen.
             const icon: IconName = "heroCalendarDays";
-            const colorInThePast: ThemeColor = "red";
-            const colorForTheFuture: ThemeColor = "blue";
+            const colorInThePast: ThemeColor = "errorMain";
+            const colorForTheFuture: ThemeColor = "primaryMain";
 
             const allocPeriod = normalizePeriodForComparison(allocationToPeriod(alloc));
             if (now > allocPeriod.end) {
@@ -886,9 +886,9 @@ const Allocations: React.FunctionComponent = () => {
                     }
                 </div>
                 <Flex mt="20px">
-                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"red"}
+                    <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"}
                             mr="5px">Cancel</Button>
-                    <Button type={"submit"} color={"green"}>Create sub-project</Button>
+                    <Button type={"submit"} color={"successMain"}>Create sub-project</Button>
                 </Flex>
             </form>,
             doNothing
@@ -1634,7 +1634,7 @@ const Allocations: React.FunctionComponent = () => {
                                         })}
                                     >
                                         <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
-                                                         subColor1={"white"} subColor2={"white"}/>
+                                                         subColor1={"primaryContrast"} subColor2={"primaryContrast"}/>
                                     </Link>
                                 }
 
@@ -1757,7 +1757,7 @@ function normalizePeriodForComparison(period: Period): Period {
 const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
     ${k},
     ${k}:hover {
-        color: var(--white) !important;
+        color: var(--primaryContrast) !important;
     }
         
     ${k} {
@@ -1814,7 +1814,7 @@ const SmallIconButton: React.FunctionComponent<{
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
-        <Icon name={props.icon} hoverColor={"white"}/>
+        <Icon name={props.icon} hoverColor={"primaryContrast"}/>
         {props.subIcon &&
             <div className={"sub"}>
                 <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}

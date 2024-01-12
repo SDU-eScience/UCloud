@@ -1,4 +1,3 @@
-import theme from "./theme";
 import monoFont from "@/Assets/JetBrainsMono-Regular.woff2";
 import inter from "@/Assets/Inter.woff";
 
@@ -24,96 +23,169 @@ export function injectFonts(): void {
     document.head.appendChild(styleTag);
 }
 
+function toRgb(color: string): [number, number, number] {
+    const normalized = color.replace("#", "")
+    const r = parseInt(normalized.substring(0, 2), 16);
+    const g = parseInt(normalized.substring(2, 4), 16);
+    const b = parseInt(normalized.substring(4, 6), 16);
+    return [r, g, b];
+}
+
+function mixColors(initialColor: string, endColor: string, percentage: number): string {
+    const colorA = toRgb(initialColor);
+    const colorB = toRgb(endColor);
+
+    const diff = [colorB[0] - colorA[0], colorB[1] - colorA[1], colorB[2] - colorA[2]];
+
+    const newR = Math.round(Math.min(255, colorA[0] + (diff[0] * percentage))).toString(16).padStart(2, '0');
+    const newG = Math.round(Math.min(255, colorA[1] + (diff[1] * percentage))).toString(16).padStart(2, '0');
+    const newB = Math.round(Math.min(255, colorA[2] + (diff[2] * percentage))).toString(16).padStart(2, '0');
+    return "#" + newR + newG + newB;
+}
+
+function shade(color: string, percentage: number): string {
+    return mixColors(color, "#000000", percentage);
+}
+
+function tint(color: string, percentage: number): string {
+    return mixColors(color, "#ffffff", percentage);
+}
+
+function luminance(r: number, g: number, b: number) {
+    const RED = 0.2126;
+    const GREEN = 0.7152;
+    const BLUE = 0.0722;
+    const GAMMA = 2.4;
+
+    const a = [r, g, b].map((v) => {
+        v /= 255;
+        return v <= 0.03928
+            ? v / 12.92
+            : Math.pow((v + 0.055) / 1.055, GAMMA);
+    });
+    return a[0] * RED + a[1] * GREEN + a[2] * BLUE;
+}
+
+function contrast(rgb1: string, rgb2: string) {
+    const lum1 = luminance(...toRgb(rgb1));
+    const lum2 = luminance(...toRgb(rgb2));
+    const brightest = Math.max(lum1, lum2);
+    const darkest = Math.min(lum1, lum2);
+    return (brightest + 0.05) / (darkest + 0.05);
+}
+
+function generateColors(name: string, mainColor: string, darkTheme: boolean): string {
+    const lightFn = darkTheme ? shade : tint;
+    const darkFn = darkTheme ? tint : shade;
+
+    let builder = "";
+    builder += `--${name}Main: ${mainColor};\n`;
+    builder += `--${name}Light: ${lightFn(mainColor, 0.2)};\n`
+    builder += `--${name}Dark: ${darkFn(mainColor, 0.2)};\n`
+
+    // NOTE(Dan): We grant a small advantage to white as a sort of tie-breaker.
+    const contrastToWhite = contrast(mainColor, "#ffffff") + 0.2
+    const contrastToBlack = contrast(mainColor, "#000000");
+    if (contrastToWhite > contrastToBlack) {
+        builder += `--${name}Contrast: #ffffff;\n`;
+        builder += `--${name}ContrastAlt: #a6a8a9;\n`;
+    } else {
+        builder += `--${name}Contrast: #000000;\n`;
+        builder += `--${name}ContrastAlt: #222222;\n`;
+    }
+
+    return builder;
+}
+
+const colors = {
+    primary: "#146EF5",
+    secondary: "#d3cdc8",
+    error: "#d32f2f",
+    warning: "#ed6c02",
+    info: "#0288d1",
+    success: "#198754"
+};
+
+interface ThemedColors {
+    background: string;
+    foreground: string;
+}
+
+const colorsByTheme: { dark: ThemedColors; light: ThemedColors; } = {
+    dark: {
+        background: "#212529",
+        foreground: "#ffffff",
+    },
+    light: {
+        background: "#ffffff",
+        foreground: "#000000"
+    }
+};
+
+function generatePalette(): string {
+    let builder = "";
+
+    function generateThemedColors(c: ThemedColors) {
+        builder += `--backgroundDefault: ${c.background};\n`;
+        builder += `--borderColor: ${mixColors(c.background, c.foreground, 0.20)};\n`;
+        builder += `--borderColorHover: ${mixColors(c.background, c.foreground, 0.60)};\n`;
+
+        builder += `--backgroundCard: ${mixColors(c.background, c.foreground, 0.030)};\n`;
+        builder += `--backgroundCardBorder: ${mixColors(c.background, c.foreground, 0.25)};\n`;
+        builder += `--backgroundCardBorderHover: ${mixColors(c.background, c.foreground, 0.60)};\n`;
+
+        builder += `--textPrimary: ${c.foreground};\n`;
+        builder += `--textSecondary: ${mixColors(c.foreground, c.background, 0.4)};\n`;
+        builder += `--textDisabled: ${mixColors(c.foreground, c.background, 0.6)};\n`;
+
+        builder += `--rowHover: ${mixColors(c.background, colors.primary, 0.15)};\n`;
+        builder += `--rowActive: ${mixColors(c.background, colors.primary, 0.3)};\n`;
+    }
+
+    builder += "html.light {\n"
+    for (const [name, mainColor] of Object.entries(colors)) {
+        builder += generateColors(name, mainColor, false);
+    }
+    generateThemedColors(colorsByTheme.light);
+    builder += "}\n";
+
+    builder += "html.dark {\n"
+    for (const [name, mainColor] of Object.entries(colors)) {
+        builder += generateColors(name, mainColor, true);
+    }
+    generateThemedColors(colorsByTheme.dark);
+    builder += "}\n";
+    return builder;
+}
+
+window["mixColors"] = mixColors;
+window["contrast"] = contrast;
+
 const UIGlobalStyle = `
-
-/*  /files/metadata/templates/create/ START */
-
-div.modal.fade.show { 
-    max-width: 800px;
-    background-color: var(--lightGray, #f00);
-    border-color: 2px solid var(--black, #f00);
-}
-
-div.tooltip.show.bs-tooltip-auto {
-    color: var(--text, #f00);
-    background-color: var(--white);
-    border: 1px solid var(--midGray);
-    border-radius: 5px;
-    padding: 2px 5px 2px 5px;
-}
-
-div#form-builder_add_popover.popover-inner h3.popover-header {
-    margin-top: 0px;
-    border-bottom: none;
-}
-
-div.popover.show.bs-popover-auto {
-    background-color: var(--lightGray);
-    border: 2px solid var(--primary);
-    border-radius: 10px;
-    padding-left: 4px;
-    padding-right: 4px;
-    padding-bottom: 4px;
-    padding-top: 4px;
-}
-
-span.toggle-collapse {
-    display: hidden;
-}
-
-div.popover.show.bs-popover-auto > div.popover-inner > h3.popover-header {
-    border-bottom: none;
-    margin-top: 0px;
-}
-
-div > div > div.modal { 
-    margin-left: calc(50% - 400px);
-    padding: 10px 10px 10px 10px;
-    background-color: var(--white, #f00);
-    border: 1px solid var(--gray, #f00);
-    border-radius: 5px;
-}
-
-
-div.modal-footer > button {
-    margin-right: 5px;
-}
-
-div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondary {
-    /* Non-standard */
-    font-smooth: auto;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: auto;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    text-decoration: none;
-    font-family: inherit;
-    font-weight: ${theme.bold};
-    cursor: pointer;
-    border-radius: ${theme.radius};
-    background-color: var(--primary);
-    color: var(--white, #f00);
-    border-width: 0;
-    border-style: solid;
-    line-height: 1.5;
-    width: 100px;
-    height: 40px;
-}
-
-
-/* /files/metadata/templates/create/ END */
-
 /* Colors */
+${generatePalette()}
+
+html.light {
+    color-scheme: light;
+}
+
+html.dark {
+    color-scheme: dark;
+}
+
 html {
+    --backgroundDisabled: var(--backgroundCard);
+    
+    --defaultShadow: 0px  3px  1px -2px rgba(0,0,0,0.2), 0px  2px  2px 0px rgba(0,0,0,.14),0px 1px  5px 0px rgba(0,0,0,.12);
+
 
     /* REWRITE-VARS */
     --sidebarWidth: 64px;
     --secondarySidebarWidth: 220px;
     --popInWidth: 368px;
-    --sidebarColor: #2c68f6;
-    --sidebarSecondaryColor: #5c89f4;
+    --sidebarColor: hsl(216, 92%, 52%);
+    --sidebarSecondaryColor: hsl(216, 92%, 60%);
+    
     /* LIGHT */
     --gradientStart: #B6D8FB;
     --gradientEnd: #fff;    
@@ -133,104 +205,27 @@ html {
 
     /* REWRITE-VARS end */
 
-
-
-    --black: #000;
-    --white: #fff;
-    --textBlack: #1e252e;
-    --lightGray: #f5f7f9;
-    --midGray: #c9d3df;
-    --gray: #8393A7;
-    --darkGray: #53657d;
-    --lightBlue: #D9E9FF;
-    --lightBlue2: #cdf;
-    --blue: #006aff;
-    --primary: var(--blue);
-    --darkBlue: #049;
-    --lightGreen: #00ff77;
-    --green: #00C05A;
-    --darkGreen: #00823c;
-    --lightRed: #fcc;
-    --red: #c00;
-    --darkRed: #800;
-    --orange: #ff6400;
-    --darkOrange: #ff5722;
-    --lightPurple: #ecf;
-    --purple: #70b;
-    --yellow: #ffed33;
-    --text: var(--textBlack, #f00);
-    --textHighlight: var(--primary, #f00);
-    --headerText: var(--white, #f00);
-    --headerBg: #006aff;
-    --headerIconColor: #fff;
-    --headerIconColor2: #c9d3df;
-    --borderGray: var(--midGray, #f00);
-    --paginationHoverColor: var(--lightBlue, #f00);
-    --paginationDisabled: var(--lightGray, #f00);
-    --iconColor: var(--darkGray, #f00);
-    --iconColor2: var(--gray, #f00);
+    --iconColor: #53657d;
+    --iconColor2: #8393A7;
     --FtIconColor: #f5f7f9;
     --FtIconColor2: #c9d3df;
-    --FtFolderColor: var(--gray, #f00);
-    --FtFolderColor2: var(--midGray, #f00);
-    --spinnerColor: var(--primary, #f00);
-    --tableRowHighlight: #dae4fd;
-    --appCard: #fafbfc;
+    --FtFolderColor: #8393A7;
+    --FtFolderColor2: #c9d3df;
+    
+    --fixedWhite: #ffffff;
+    --fixedBlack: #000000;
+    
     --wayfGreen: #c8dd51;
-    --appStoreFavBg: #e8f1fc
-    --invertedThemeColor: #fff;
-    --fixedBlack: #000;
-    --fixedWhite: #fff;
-    --activeSpreadsheet: #dcebf6;
-    --lightOrange: #ffc107;
-    --headerOperationColor: #F5F5F5;
+    
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
 }
 
-html.light {
-    --white: #fff;
-    --tableRowHighlight: #dae4fd;
-    --black: #000;
-    --text: #1e252e;
-    --lightGray: #fafbfc;
-    --lightBlue: #E6F1FF;
-    --midGray: #c9d3df;
-    --paginationDisabled: var(--lightGray, #f00);
-    --paginationHoverColor: var(--lightBlue, #f00);
-    --appCard: #fafbfc;
-    --borderGray: var(--midGray, #f00);
-    --invertedThemeColor: #000;
-    --projectHighlight: #dfffee;
-    --appStoreFavBg: #e8f1fc;
-    --activeSpreadsheet: #dcebf6;
-    --modalShadow: rgba(255, 255, 255, 0.75);
-    --appStoreBackground: #b7d8fb;
-}
-
 html.dark {
-    --white: #282c35;
-    --tableRowHighlight: #000;
-    --black: #a4a5a9;
-    --text: #e5e5e6;
-    --lightGray: #111;
-    --lightBlue: #000;
-    --midGray: #555;
-    --paginationDisabled: #111;
-    --paginationHoverColor: #444;
-    --appCard: #1d1d1d;
-    --borderGray: #111;
-    --invertedThemeColor: #fff;
-    --projectHighlight: #00c05a;
-    --appStoreFavBg: #00204d;
-    --activeSpreadsheet: #000;
-    --modalShadow: rgba(32, 32, 32, 0.6);
     --gradientStart: #375BB1;
     --gradientEnd: #282C33;
+
     --sidebarColor: #141414;
     --sidebarSecondaryColor: #1D1D1D;
-    --inputColor: #000;
-    --headerOperationColor: #444;
-    --appStoreBackground: #37587b;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
@@ -274,7 +269,7 @@ html.dark {
 html {
   cursor: default; /* 1 */
   font-family:
-    ${theme.fontFamily},
+    'Inter',
     system-ui,
     /* macOS 10.11-10.12 */ -apple-system,
     /* Windows 6+ */ Segoe UI,
@@ -288,9 +283,9 @@ html {
     /* Windows emoji */ "Segoe UI Symbol",
     /* Linux emoji */ "Noto Color Emoji"; /* 2 */
 
-  line-height: ${theme.lineHeights.standard}; /* 3 */
-  font-weight: ${theme.fontWeights.regular};
-  color: var(--text, #f00);
+  line-height: 1.5; /* 3 */
+  font-weight: 400;
+  color: var(--textPrimary, #f00);
   -moz-tab-size: 4; /* 4 */
   tab-size: 4; /* 4 */
   -ms-text-size-adjust: 100%; /* 5 */
@@ -299,7 +294,7 @@ html {
 }
 
 div.ReactModal__Content.ReactModal__Content--after-open {
-  background-color: var(--white, #f00);
+  background-color: var(--backgroundDefault, #f00);
 }
 
 /* Sections
@@ -311,7 +306,7 @@ div.ReactModal__Content.ReactModal__Content--after-open {
 
 body {
   margin: 0;
-  background-color: var(--white, #f00);
+  background-color: var(--backgroundDefault, #f00);
 }
 
 /**
@@ -835,15 +830,15 @@ textarea,
 }
 
 div.tooltip-content {
-    box-shadow: ${theme.shadows.sm};
+    box-shadow: var(--defaultShadow);
     position: absolute;
     margin-left: 50px;
     padding: 5px 5px 5px 5px;
     width: 350px;
     height: auto;
     display: none;
-    color: var(--black);
-    background-color: var(--white);
+    color: var(--textPrimary);
+    background-color: var(--backgroundDefault);
     z-index: 1;
 }
 

@@ -53,7 +53,7 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
             <PaginationButton
                 key={it}
                 unclickable={currentPage === it}
-                color={currentPage === it ? "gray" : "primary"}
+                color={currentPage === it ? "textSecondary" : "primaryMain"}
                 onClick={() => toPage(it)}
             >
                 {it + 1}
@@ -83,15 +83,15 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
 
 const PaginationButtonBaseClass = injectStyle("pagination-button", k => `
     ${k} {
-        color: var(--text, #f00);
+        color: var(--textPrimary, #f00);
         background-color: transparent;
-        border-color: var(--borderGray, #f00);
+        border-color: var(--borderColor, #f00);
         border-width: 1px;
         border-right-width: 0px;
     }
     
     ${k}[data-unclickable="true"] {
-        background-color: var(--paginationDisabled, #f00);
+        background-color: var(--textDisabled, #f00);
     }
     
     ${k}:disabled {
@@ -100,7 +100,6 @@ const PaginationButtonBaseClass = injectStyle("pagination-button", k => `
     
     ${k}:hover {
         filter: brightness(100%);
-        background-color: var(--paginationHoverColor, #f00);
         transform: none;
     }
 

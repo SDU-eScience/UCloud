@@ -65,7 +65,7 @@ const ServiceLicenseAgreement: React.FunctionComponent = () => {
                     <div className={Container}>
                         <Markdown>{sla.data.text}</Markdown>
 
-                        <Button color={"green"} onClick={() => addStandardDialog({
+                        <Button color={"successMain"} onClick={() => addStandardDialog({
                             message: "",
                             confirmText: "I have read and accept the terms of service",
                             cancelText: "Back",

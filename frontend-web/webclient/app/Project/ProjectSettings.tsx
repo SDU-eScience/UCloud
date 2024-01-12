@@ -657,7 +657,7 @@ export function UpdateProjectLogo(): JSX.Element | null {
     return <div>
         <label>
             Project logo (click{" "}
-            <span style={{color: "var(--textHighlight)", cursor: "pointer"}}>here</span>
+            <span style={{color: "var(--primaryLight)", cursor: "pointer"}}>here</span>
             {" "}to upload a new logo)
             <br />
 
@@ -742,7 +742,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                             {it.type === "anyone" ? "None" : null}
                         </TableCell>
                         <TableCell textAlign={"right"}>
-                            <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                            <Icon color={"errorMain"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
                         </TableCell>
                     </TableRow>
                 )}

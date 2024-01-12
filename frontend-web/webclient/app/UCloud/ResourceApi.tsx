@@ -272,7 +272,7 @@ export abstract class ResourceApi<Res extends Resource,
             {
                 text: "Cancel",
                 icon: "close",
-                color: "red",
+                color: "errorMain",
                 primary: true,
                 enabled: (selected, cb) => {
                     return cb.isCreating
@@ -306,7 +306,7 @@ export abstract class ResourceApi<Res extends Resource,
             {
                 text: "Delete",
                 icon: "trash",
-                color: "red",
+                color: "errorMain",
                 confirm: true,
                 enabled: (selected) => selected.length >= 1,
                 onClick: async (selected, cb) => {

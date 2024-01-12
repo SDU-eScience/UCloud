@@ -119,7 +119,7 @@ export const ImportParameters: React.FunctionComponent<{
 
     return <Box>
         <Flex flexDirection="row" minWidth="180px" flexWrap="wrap">
-            <Button color="gray" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
+            <Button color="secondaryMain" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (
@@ -128,8 +128,8 @@ export const ImportParameters: React.FunctionComponent<{
                 <ul>
                     {messages.map((it, i) =>
                         <li key={i}>
-                            {it.type === "error" ? <Icon name={"warning"} color={"red"} /> : null}
-                            {it.type === "warning" ? <Icon name={"warning"} color={"yellow"} /> : null}
+                            {it.type === "error" ? <Icon name={"warning"} color={"errorMain"} /> : null}
+                            {it.type === "warning" ? <Icon name={"warning"} color={"warningMain"} /> : null}
                             {it.type === "info" ? <Icon name={"info"} /> : null}
                             {it.message}
                         </li>

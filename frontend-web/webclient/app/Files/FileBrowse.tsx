@@ -546,11 +546,9 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const result: OperationOrGroup<T, R>[] = [];
                         if (uploadOp && folderOp) {
                             result.push({
-                                color: "fixedWhite",
-                                icon: "close",
+                                color: "primaryMain",
+                                icon: "heroPlus",
                                 text: "Create...",
-                                backgroundColor: "blue",
-                                iconRotation: 45,
                                 operations: [uploadOp, folderOp],
                                 shortcut: ShortcutKey.N
                             });
@@ -570,7 +568,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                         if (overflow.length > 0) {
                             result.push({
-                                color: "iconColor",
+                                color: "secondaryMain",
                                 icon: "ellipsis",
                                 text: "",
                                 iconRotation: 90,
@@ -689,8 +687,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 name = "ftFavFolder";
                                 break;
                             case "DIRECTORY_TRASH":
-                                color = "red";
-                                color2 = "lightRed";
+                                color = "errorMain";
+                                color2 = "errorLight";
                                 name = "trash";
                                 break;
                             default:
@@ -729,7 +727,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 position: "relative",
                                 left: "13px",
                                 top: "-2px",
-                                backgroundColor: "var(--primary)",
+                                backgroundColor: "var(--primaryMain)",
                                 height: "10px",
                                 width: "10px",
                                 padding: "4px",
@@ -745,7 +743,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         syncThingIcon.style.marginTop = "-3px";
                         syncThingIcon.style.display = "block";
                         iconWrapper.appendChild(syncThingIcon);
-                        browser.icons.renderIcon({name: "check", color: "white", color2: "white", width: 24, height: 24}).then(setSyncthingIcon);
+                        browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 24, height: 24}).then(setSyncthingIcon);
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
@@ -753,7 +751,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     // Disabled for now.
                     if (isReadonly(file.permissions.myself) && Math.random() > 2) {
                         row.title.appendChild(div(
-                            `<div style="font-size: 12px; color: var(--gray); padding-top: 2px;"> (Readonly)</div>`
+                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;"> (Readonly)</div>`
                         ));
                     }
 
@@ -787,8 +785,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     findFavoriteStatus(file).then(async isFavorite => {
                         const icon = await browser.icons.renderIcon({
                             name: (isFavorite ? "starFilled" : "starEmpty"),
-                            color: (isFavorite ? "blue" : "midGray"),
-                            color2: "midGray",
+                            color: (isFavorite ? "primaryMain" : "iconColor"),
+                            color2: "iconColor2",
                             height: 64,
                             width: 64
                         });
@@ -939,7 +937,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             driveIcon.style.cursor = "pointer";
                             const url = browser.header.querySelector("div.header-first-row");
                             url?.prepend(driveIcon);
-                            browser.icons.renderIcon({name: "chevronDownLight", color: "black", color2: "black", height: 32, width: 32}).then(setDriveIcon);
+                            browser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
                             driveIcon.onclick = e => {
                                 e.stopImmediatePropagation();
                                 const rect = driveIcon.getBoundingClientRect();

@@ -146,7 +146,7 @@ export const Studio: React.FunctionComponent = () => {
                                 <Link
                                     key={tool.description.info.name}
                                     to={`/applications/studio/t/${tool.description.info.name}`}>
-                                    <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--black)"}}>
+                                    <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--borderColor)"}}>
                                         <div style={{borderRadius: "6px", padding: "2px", backgroundColor: "white"}}><AppToolLogo type={"TOOL"} name={tool.description.info.name} /></div>
                                         <Box ml={8}>
                                             <Truncate width={300} cursor={"pointer"}>

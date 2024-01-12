@@ -59,7 +59,7 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
                 <Heading.h3><strong>{linkInfo.data?.sharedBy}</strong> wants to share folder <strong>{linkInfo.data?.path.split("/").pop()}</strong> with you</Heading.h3>
                 <Box mt="15px">
                     <Button
-                        color="green"
+                        color="successMain"
                         mr="10px"
                         onClick={() => {
                             if (token) {
@@ -67,7 +67,7 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
                             }
                         }}
                     >See files</Button>
-                    <Button color="red" onClick={() => navigate("/")}>Ignore</Button>
+                    <Button color="errorMain" onClick={() => navigate("/")}>Ignore</Button>
                 </Box>
             </AcceptProjectLinkContainer>
         }

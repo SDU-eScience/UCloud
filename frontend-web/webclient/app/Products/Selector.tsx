@@ -359,7 +359,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                     <td colSpan={3 + headers.length}>
                                                         <div>
                                                             <Link to="/providers/connect">
-                                                                <Icon name="warning" color="orange" mr="8px" />
+                                                                <Icon name="warning" color="warningMain" mr="8px" />
                                                                 Connection required! You must connect with the provider before you can consume resources from it.
                                                             </Link>
                                                         </div>
@@ -434,8 +434,9 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
         height: 500px;
         overflow-y: auto;
         border-radius: 5px;
-        border: 1px solid var(--borderGray);
-        background: var(--white);
+        border: 1px solid var(--borderColor);
+        background: var(--backgroundDefault);
+        color: var(--textPrimary);
         padding: 16px;
         padding-top: 0;
         z-index: 1000;
@@ -446,13 +447,13 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
         padding-bottom: 16px;
         position: sticky;
         top: 0;
-        background: var(--white);
+        background: var(--backgroundDefault);
     }
 
     ${k} thead > tr {
         position: sticky;
         top: 74px;
-        background: var(--white);
+        background: var(--backgroundDefault);
     }
 
     ${k} th, ${k} td {
@@ -467,7 +468,7 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
 
     ${k} table > tbody > tr:hover {
         cursor: pointer;
-        background-color: var(--lightBlue);
+        background-color: var(--rowHover);
     }
 
     ${k} td[colspan] div.spacer {
@@ -475,7 +476,7 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
         display: block;
         width: 45px;
         height: 1px;
-        background: var(--black);
+        background: var(--textPrimary);
     }
 
     ${k} td[colspan] > div {
@@ -493,8 +494,8 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
     }
 
     ${k} tr.disabled {
-        background-color: var(--lightGray);
-        color: var(--borderGray);
+        background-color: var(--textDisabled);
+        color: var(--borderColor);
         cursor: not-allowed !important;
     }
 `);
@@ -528,16 +529,16 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
         position: relative;
         cursor: pointer;
         border-radius: 5px;
-        border: 1px solid var(--midGray, #f00);
+        border: 1px solid var(--borderColor, #f00);
         width: 100%;
         user-select: none;
         min-width: 500px;
-        background: var(--inputColor);
+        background: var(--backgroundDefault);
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
     }
 
     ${k}:hover {
-        border-color: var(--gray);
+        border-color: var(--borderColor);
     }
 
     ${k} &[data-omit-border="true"] {

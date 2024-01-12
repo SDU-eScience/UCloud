@@ -298,12 +298,12 @@ export type UserCriteria =
 export function stateToIconAndColor(state: State): { icon: IconName, color: ThemeColor } {
     switch (state) {
         case State.APPROVED:
-            return { icon: "heroCheck", color: "green" };
+            return { icon: "heroCheck", color: "successMain" };
         case State.REJECTED:
-            return { icon: "heroXMark", color: "red" };
+            return { icon: "heroXMark", color: "errorMain" };
         case State.CLOSED:
-            return { icon: "heroXMark", color: "red" };
+            return { icon: "heroXMark", color: "errorMain" };
         case State.IN_PROGRESS:
-            return { icon: "heroMinus", color: "gray" };
+            return { icon: "heroMinus", color: "secondaryMain" };
     }
 }

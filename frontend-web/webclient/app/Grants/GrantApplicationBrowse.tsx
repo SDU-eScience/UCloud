@@ -22,7 +22,7 @@ const defaultRetrieveFlags = {
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     sorting: true,
-    filters: true,
+    filters: false,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
 }
@@ -41,12 +41,8 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const location = useLocation();
     let isIngoing = addTrailingSlash(location.pathname).endsWith("/ingoing/");
 
-    const omitsFilters = !!opts?.omitFilters;
-
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
-        filters: !omitsFilters,
-        sorting: !omitsFilters,
         dragToSelect: !opts?.embedded,
     };
 
@@ -93,33 +89,62 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (key, row, dims) => {
+                browser.on("renderRow", (app, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "fileSignatureSolid",
-                        color: "black",
+                        color: "textPrimary",
                         color2: "iconColor2",
                         height: 32,
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.createdBy, dims, row));
+                    let subtitle: string = "";
+                    let grantTitle = app.createdBy;
+                    {
+                        const recipient = app.currentRevision.document.recipient;
+                        const projectTitle = app.status.projectTitle ?? "Unknown title";
+                        switch (recipient.type) {
+                            case "existingProject": {
+                                subtitle = "Continuation";
+                                grantTitle = projectTitle;
+                                break;
+                            }
+
+                            case "newProject": {
+                                subtitle = "New project";
+                                grantTitle = recipient.title;
+                                break;
+                            }
+
+                            case "personalWorkspace": {
+                                grantTitle = "Personal workspace of " + recipient.username;
+                                break;
+                            }
+                        }
+                    }
+
+                    let combinedTitle = grantTitle;
+                    if (subtitle) combinedTitle = `[${subtitle}] ${combinedTitle}`;
+
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(combinedTitle, dims, row));
+
                     if (opts?.both) {
-                        const currentRevision = key.status.revisions.at(0);
+                        const currentRevision = app.status.revisions.at(0);
                         if (currentRevision) {
                             let isIngoing = currentRevision.document.allocationRequests.find(it => it.grantGiver === Client.projectId);
                             if (isIngoing) {
                                 const text = createHTMLElements({
                                     tagType: "span",
-                                    style: {color: "var(--midGray)"},
+                                    style: {color: "var(--textSecondary)"},
                                 });
                                 text.innerText = " (ingoing)";
                                 row.title.append(text);
                             }
                         }
                     }
-                    const stateIconAndColor = stateToIconAndColor(key.status.overallState);
+                    const stateIconAndColor = stateToIconAndColor(app.status.overallState);
                     const statusIconName = stateIconAndColor.icon;
                     const statusIconColor = stateIconAndColor.color;
 
@@ -131,13 +156,13 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         height: 32,
                         width: 32,
                     }).then(setStatus);
-                    row.stat2.innerText = dateToString(key.currentRevision.createdAt);
+                    row.stat2.innerText = dateToString(app.currentRevision.createdAt);
 
                     const simpleView = !!(opts?.embedded && !opts.isModal);
                     if (!simpleView) {
-                        row.stat2.innerText = dateToString(key.currentRevision.createdAt ?? timestampUnixMs());
+                        row.stat2.innerText = dateToString(app.currentRevision.createdAt ?? timestampUnixMs());
                     } else {
-                        row.stat2.innerText = dateToDateStringOrTime(key.currentRevision.createdAt ?? timestampUnixMs());
+                        row.stat2.innerText = dateToDateStringOrTime(app.currentRevision.createdAt ?? timestampUnixMs());
                     }
 
                     status.style.margin = "0";

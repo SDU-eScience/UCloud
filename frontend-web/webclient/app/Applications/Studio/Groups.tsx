@@ -82,7 +82,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                     <Button onClick={() => {
                                         invokeCommand(deleteGroup({id: group.id}));
                                         refresh();
-                                    }} height="25px" color="red"><Icon name="trash" /></Button>
+                                    }} height="25px" color="errorMain"><Icon name="trash" /></Button>
                                 }
                             />
                         ))}

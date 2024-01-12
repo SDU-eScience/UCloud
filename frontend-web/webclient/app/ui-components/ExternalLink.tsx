@@ -10,7 +10,7 @@ const ExternalLink: React.FunctionComponent<
 
 ExternalLink.defaultProps = {
     color: "text",
-    hoverColor: "textHighlight"
+    hoverColor: "primaryLight"
 };
 
 export default ExternalLink;

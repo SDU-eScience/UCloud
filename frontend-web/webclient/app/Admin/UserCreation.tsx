@@ -144,7 +144,7 @@ function UserCreation(): JSX.Element | null {
                 <Button
                     mt="8px"
                     type="submit"
-                    color="green"
+                    color="successMain"
                     disabled={submitted}
                 >
                     Create user

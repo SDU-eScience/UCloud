@@ -488,7 +488,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                         left="-248px"
                         right="5px"
                         colorOnHover={false}
-                        trigger={<Relative><Icon color="#000" color2="#000" mr={"1em"} name="suggestion" /></Relative>}
+                        trigger={<Relative><Icon color="fixedBlack" color2="fixedBlack" mr={"1em"} name="suggestion" /></Relative>}
                     >
                         <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
                             Need help?
@@ -498,7 +498,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                 )}
                 {!SITE_DOCUMENTATION_URL ? null : (
                     <ExternalLink className={LoginExternalLinkClass} href={SITE_DOCUMENTATION_URL}>
-                        <Icon color="#000" color2="#000" name="docs" /> <TextSpan color="#000">Docs</TextSpan>
+                        <Icon color="fixedBlack" color2="fixedBlack" name="docs" /> <TextSpan color="#000">Docs</TextSpan>
                     </ExternalLink>
                 )}
             </div> : null}

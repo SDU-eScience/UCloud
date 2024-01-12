@@ -81,7 +81,7 @@ export const Tool: React.FunctionComponent = () => {
                         <Button
                             mx="10px"
                             type="button"
-                            color="red"
+                            color="errorMain"
                             disabled={commandLoading}
                             onClick={async () => {
                                 await invokeCommand(clearLogo({type: "TOOL", name}));
@@ -114,7 +114,7 @@ export const Tool: React.FunctionComponent = () => {
                                         key={`${metadata.name}/${metadata.version}`}
                                         to={`/applications/studio/a/${metadata.name}`}
                                     >
-                                        <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--black)"}}>
+                                        <Flex style={{borderRadius: "8px", margin: "8px", padding: "4px", border: "1px solid var(--borderColor)"}}>
                                             <AppToolLogo name={metadata.name} type={"APPLICATION"} />
                                             <Box ml={8}>
                                                 <Truncate width={300} cursor={"pointer"}>

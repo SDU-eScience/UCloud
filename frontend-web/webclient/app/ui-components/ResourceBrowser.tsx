@@ -1,6 +1,12 @@
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {IconName} from "@/ui-components/Icon";
-import {ThemeColor, addThemeListener, removeThemeListener} from "@/ui-components/theme";
+import {
+    ThemeColor,
+    addThemeListener,
+    removeThemeListener,
+    selectContrastColor,
+    selectHoverColor
+} from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -122,22 +128,22 @@ export function dateRangeFilters(text: string): MultiOptionFilter {
         keys: ["filterCreatedAfter", "filterCreatedBefore"],
         options: [{
             text: "Today",
-            color: "black",
+            color: "textPrimary",
             icon: "calendar",
             values: [todayMs.toString(), ""]
         }, {
             text: "Yesterday",
-            color: "black",
+            color: "textPrimary",
             icon: "calendar",
             values: [yesterdayStart.toString(), yesterdayEnd.toString()]
         }, {
             text: "Past week",
-            color: "black",
+            color: "textPrimary",
             icon: "calendar",
             values: [pastWeekStart.toString(), pastMonthEnd.toString()]
         }, {
             text: "Past month",
-            color: "black",
+            color: "textPrimary",
             icon: "calendar",
             values: [pastMonthStart.toString(), pastMonthEnd.toString()]
         }]
@@ -559,7 +565,7 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "blue", color2: "blue", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "primaryMain", color2: "primaryMain", width: 64, height: 64})
                 .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -626,7 +632,7 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
-            this.icons.renderIcon({name: "heroArrowPath", color: "blue", color2: "blue", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroArrowPath", color: "primaryMain", color2: "primaryMain", width: 64, height: 64})
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -889,7 +895,7 @@ export class ResourceBrowser<T> {
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
             if (!filter) return;
-            this.icons.renderIcon({name: filter.icon, color: "black", color2: "iconColor2", height: 32, width: 32}).then(icon =>
+            this.icons.renderIcon({name: filter.icon, color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(icon =>
                 it.src = icon
             );
         })
@@ -1085,7 +1091,12 @@ export class ResourceBrowser<T> {
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
-            if (opts?.color) button.style.backgroundColor = `var(--${opts.color})`;
+
+            const color = opts?.color ?? "secondaryMain";
+            button.style.setProperty("--bgColor", `var(--${color})`);
+            button.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
+            button.style.color = `var(--${selectContrastColor(color)})`;
+
             button.onclick = e => {
                 e.stopImmediatePropagation();
                 selection?.onClick(item);
@@ -1320,7 +1331,7 @@ export class ResourceBrowser<T> {
             if (filter.clearable) {
                 filters.unshift({
                     text: "Clear filter",
-                    color: "red",
+                    color: "errorMain",
                     icon: "close",
                     value: CLEAR_FILTER_VALUE
                 });
@@ -1330,7 +1341,7 @@ export class ResourceBrowser<T> {
             let filters = filter.options.slice();
             filters.unshift({
                 text: "Clear filter",
-                color: "red",
+                color: "errorMain",
                 icon: "close",
                 values: [CLEAR_FILTER_VALUE, ""]
             });
@@ -1399,10 +1410,19 @@ export class ResourceBrowser<T> {
             const isConfirmButton = isOperation(op) && op.confirm;
             // Set the icon
             const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
+            const contrastColor = selectContrastColor(
+                op.color ??
+                (isConfirmButton ?
+                    "errorMain" :
+                    inContextMenu ? "backgroundDefault" :
+                        ("operations" in op ? "primaryMain" : "secondaryMain")
+                )
+            );
+
             this.icons.renderIcon({
                 name: op.icon as IconName,
-                color: isConfirmButton ? "fixedBlack" : op.color ?? "black",
-                color2: "iconColor2",
+                color: contrastColor,
+                color2: contrastColor,
                 width: 64,
                 height: 64,
             }).then(url => icon.src = url);
@@ -1423,7 +1443,7 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: inContextMenu, color: op.color ?? "red", hoverColor: op.color === "red" ? "darkRed" : undefined, disabled: !opEnabled}
+                    {asSquare: inContextMenu, color: op.color ?? "errorMain", hoverColor: op.color === "errorMain" ? "errorDark" : undefined, disabled: !opEnabled}
                 );
 
                 // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
@@ -1466,8 +1486,6 @@ export class ResourceBrowser<T> {
                 }
 
                 element.style.padding = "0";
-                if (op.color) element.style.color = op.color;
-                else element.style.color = "var(--black)";
 
                 element.append(button);
                 element.setAttribute("data-is-confirm", "true");
@@ -1478,16 +1496,17 @@ export class ResourceBrowser<T> {
                 element.append(icon);
 
                 if (!isOperation(op)) {
-                    if (op.backgroundColor) element.style.backgroundColor = `var(--${op.backgroundColor})`;
-                    if (op.color) element.style.color = `var(--${op.color})`;
+                    if (op.backgroundColor) {
+                        element.style.setProperty("--bgColor", `var(--${op.backgroundColor})`);
+                        element.style.setProperty("--hoverColor", `var(--${selectHoverColor(op.backgroundColor)})`);
+                        element.style.color = `var(--${selectContrastColor(op.backgroundColor)})`;
+                    }
                 }
             }
 
             {
                 if (operationText) {
                     element.append(operationText);
-                    if (op.color) element.style.color = `var(--${op.color})`;
-                    else element.style.color = "var(--invertedThemeColor)";
                 }
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("kbd");
@@ -1533,16 +1552,16 @@ export class ResourceBrowser<T> {
                 const text = child.enabled(selected, callbacks, page);
                 const isDisabled = typeof text === "string";
 
-                var item = document.createElement("li");
+                const item = document.createElement("li");
                 const isConfirm = isOperation(child) && child.confirm;
 
                 if (isDisabled) {
+                    item.style.cursor = "not-allowed";
+                    item.style.filter = "opacity(25%)";
                     const d = document.createElement("div");
                     d.innerText = text;
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
-
-                if (child.text === "Create...") item.style.backgroundColor = "blue";
 
                 renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
 
@@ -1587,7 +1606,14 @@ export class ResourceBrowser<T> {
             const element = document.createElement("div");
             element.classList.add("operation");
             const isConfirmButton = isOperation(op) && op.confirm;
-            if (!isConfirmButton) element.classList.add(ButtonClass);
+            if (!isConfirmButton) {
+                element.classList.add(ButtonClass);
+
+                const color = op?.color ?? "secondaryMain";
+                element.style.setProperty("--bgColor", `var(--${color})`);
+                element.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
+                element.style.color = `var(--${selectContrastColor(color)})`;
+            }
             element.classList.add(!useContextMenu ? "in-header" : "in-context-menu");
 
             const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
@@ -2850,8 +2876,9 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .drag-indicator {
                 position: fixed;
                 z-index: 10000;
-                background-color: rgba(0, 0, 255, 30%);
-                border: 2px solid blue;
+                background-color: var(--primaryMain);
+                opacity: 30%;
+                border: 2px solid var(--primaryDark);
                 display: none;
                 top: 0;
                 left: 0;
@@ -2875,7 +2902,9 @@ export class ResourceBrowser<T> {
                 white-space: pre;
             }
 
-            ${browserClass.dot} .filters, ${browserClass.dot} .session-filters, ${browserClass.dot} .right-sort-filters {
+            ${browserClass.dot} header[data-has-filters] .filters, 
+            ${browserClass.dot} header[data-has-filters] .session-filters, 
+            ${browserClass.dot} header[data-has-filters] .right-sort-filters {
                 display: flex;
                 margin-top: 12px;
             }
@@ -2886,7 +2915,8 @@ export class ResourceBrowser<T> {
 
             ${browserClass.dot} .file-drag-indicator {
                 transition: transform 0.06s;
-                background: var(--tableRowHighlight);
+                background: var(--rowActive);
+                color: var(--textPrimary);
                 width: 1px;
                 overflow: hidden;
             }
@@ -2940,7 +2970,7 @@ export class ResourceBrowser<T> {
 
             ${browserClass.dot} header {
                 width: 100%;
-                height: 100px;
+                height: 92px;
                 flex-shrink: 0;
                 overflow: hidden;
             }
@@ -2966,7 +2996,7 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} header[has-location-bar] .location:hover {
-                border: 1px solid var(--gray);
+                border: 1px solid var(--borderColorHover);
             }
             
             ${browserClass.dot} header[has-location-bar] .location li:hover {
@@ -2980,7 +3010,7 @@ export class ResourceBrowser<T> {
             
             ${browserClass.dot} header[has-location-bar] .location {
                 flex-grow: 1;
-                border: 1px solid var(--midGray);
+                border: 1px solid var(--borderColor);
                 margin-left: -6px;
                 border-radius: 5px;
                 width: 100%;
@@ -2995,7 +3025,7 @@ export class ResourceBrowser<T> {
                 margin-top: 1px;
                 margin-left: 5px;
                 background: transparent;
-                color: var(--text);
+                color: var(--textPrimary);
             }
             
             ${browserClass.dot} header[has-location-bar] .location ul {
@@ -3035,7 +3065,7 @@ export class ResourceBrowser<T> {
                 height: ${ResourceBrowser.rowSize}px;
                 width: 100%;
                 align-items: center;
-                border-bottom: 1px solid #96B3F8;
+                border-bottom: 1px solid var(--borderColor);
                 gap: 8px;
                 user-select: none;
                 padding: 0 8px;
@@ -3044,7 +3074,7 @@ export class ResourceBrowser<T> {
             
             ${browserClass.dot} .rows-title {
                 max-height: 0;
-                color: var(--textColor);
+                color: var(--textPrimary);
                 display: none;
             }
             
@@ -3057,7 +3087,10 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} .row[data-selected="true"] {
-                background: var(--tableRowHighlight);
+                /* NOTE(Dan): We only have an active state, as a result we just use the hover variable. As the active 
+                   variable is intended for differentiation between the two. This is consistent with how it is used in
+                   the Tree component */
+                background: var(--rowHover); 
             }
 
             ${browserClass.dot} .row .title {
@@ -3114,20 +3147,20 @@ export class ResourceBrowser<T> {
                 margin-right: 5px;
                 align-items: center;
                 justify-content: center;
-                border: 0.2em solid var(--badgeColor, var(--midGray));
+                border: 0.2em solid var(--borderColor);
                 border-radius: 100%;
             }
 
             ${browserClass.dot} .sensitivity-badge.PRIVATE {
-                --badgeColor: var(--midGray);
+                --badgeColor: var(--borderColor);
             }
 
             ${browserClass.dot} .sensitivity-badge.CONFIDENTIAL {
-                --badgeColor: var(--purple);
+                --badgeColor: var(--warningMain);
             }
 
             ${browserClass.dot} .sensitivity-badge.SENSITIVE {
-                --badgeColor: #ff0004;
+                --badgeColor: var(--errorMain);
             }
 
             ${browserClass.dot} .operation {
@@ -3136,17 +3169,11 @@ export class ResourceBrowser<T> {
                 align-items: center;
                 gap: 8px;
             }
-
-            ${browserClass.dot} .operation.in-header {
-                padding: 11px;
-                background: var(--headerOperationColor);
-                border-radius: 8px;
-            }
-
+            
             ${browserClass.dot} .operations {
                 display: flex;
                 flex-direction: row;
-                gap: 16px;
+                gap: 8px;
             }
 
             ${browserClass.dot} .context-menu {
@@ -3157,7 +3184,7 @@ export class ResourceBrowser<T> {
                 border-radius: 8px;
                 border: 1px solid #E2DDDD;
                 cursor: pointer;
-                background: var(--white);
+                background: var(--backgroundDefault);
                 box-shadow: 0 3px 6px rgba(0, 0, 0, 30%);
                 width: 400px;
                 display: none;
@@ -3192,7 +3219,7 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} .context-menu li[data-selected=true] {
-                background: var(--tableRowHighlight); /* TODO(Jonas): This should NOT work for disabled buttons */
+                background: var(--rowHover);
             }
 
             ${browserClass.dot} .context-menu > ul > *:first-child,
@@ -3211,10 +3238,11 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .rename-field {
                 display: none;
                 position: absolute;
-                background-color: var(--lightGray);
+                background-color: var(--backgroundDefault);
                 border-radius: 5px;
-                border: 1px solid var(--black);
-                color: var(--text);
+                border: 1px solid var(--borderColor);
+                outline: 0;
+                color: var(--textPrimary);
                 z-index: 1;
                 top: 0;
                 left: 12px;
@@ -3234,7 +3262,7 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} .page-empty .graphic {
-                background: var(--primary);
+                background: var(--primaryMain);
                 min-height: 100px;
                 min-width: 100px;
                 border-radius: 100px;
@@ -3441,15 +3469,15 @@ export class ResourceBrowser<T> {
         c.width = 12;
         c.height = 12;
         c.style.marginTop = "7px";
-        this.icons.renderIcon({color: "black", color2: "iconColor2", height: 32, width: 32, name: icon}).then(it => c.src = it);
+        this.icons.renderIcon({color: "textPrimary", color2: "textPrimary", height: 32, width: 32, name: icon}).then(it => c.src = it);
         return c;
     }
 
     public setEmptyIcon(icon: IconName) {
         this.icons.renderIcon({
             name: icon,
-            color: "white",
-            color2: "white",
+            color: "primaryContrast",
+            color2: "primaryContrast",
             height: 256,
             width: 256
         }).then(icon => {
@@ -3543,8 +3571,8 @@ export class ResourceBrowser<T> {
             const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
             this.icons.renderIcon({
                 name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
-                color: "black",
-                color2: "black",
+                color: "textPrimary",
+                color2: "textPrimary",
                 height: 24,
                 width: 24,
             }).then(setArrow);
@@ -3697,7 +3725,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const outer = div("");
     outer.className = "provider-icon"
-    outer.style.background = "var(--primary)";
+    outer.style.background = "var(--primaryMain)";
     outer.style.borderRadius = "8px";
     outer.style.width = outer.style.minWidth = opts?.width ?? "20px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "20px";
@@ -3775,7 +3803,7 @@ const CTRL_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : 
 const ShortcutClass = injectStyle("shortcut", k => `
     ${k} {
         border-radius: 5px;
-        border: 1px solid var(--black);
+        border: 1px solid var(--textPrimary);
         font-size: 12px;
         min-width: 20px;
         height: 20px;
@@ -3821,17 +3849,17 @@ const ControlsClass = injectStyle("controls", k => `
     }
     
     ${k} td:first-child, ${k} th:first-child {
-        border-left: 1px solid var(--borderGray);
+        border-left: 1px solid var(--borderColor);
     }
     
     ${k} td:last-child, ${k} th:last-child {
-        border-right: 1px solid var(--borderGray);
+        border-right: 1px solid var(--borderColor);
     }
     
     ${k} td, ${k} th {
         padding: 8px;
-        border-top: 1px solid var(--borderGray);
-        border-bottom: 1px solid var(--borderGray);
+        border-top: 1px solid var(--borderColor);
+        border-bottom: 1px solid var(--borderColor);
     }
     
     ${k} td:last-child {

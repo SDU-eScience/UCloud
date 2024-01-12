@@ -92,7 +92,7 @@ const Row: React.FunctionComponent<{idx:number, state: string, onChange: (e) => 
         }
         leftSub={
             <>
-                <ListRowStat icon={"id"}>
+                <ListRowStat icon={"heroIdentification"}>
                     {state}
                 </ListRowStat>
                 <ListRowStat icon={"activity"}>

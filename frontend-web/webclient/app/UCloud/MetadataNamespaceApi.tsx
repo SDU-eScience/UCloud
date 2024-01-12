@@ -20,7 +20,6 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {useCallback, useMemo, useState} from "react";
 import {Section} from "@/ui-components/Section";
 import * as Heading from "@/ui-components/Heading";
-import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
 import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
@@ -192,13 +191,6 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
                                 {previewing.inheritable ? "Yes" : "No"}
                             </li>
                         </ul>
-                    </Section>
-                    <Section>
-                        <Heading.h3>Form preview</Heading.h3>
-                        <JsonSchemaForm
-                            schema={previewing.schema}
-                            uiSchema={previewing.uiSchema}
-                        />
                     </Section>
                 </Grid>
             </> : null}

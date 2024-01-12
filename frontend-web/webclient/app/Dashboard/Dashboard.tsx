@@ -365,7 +365,7 @@ const DeicBanner = injectStyle("deic-banner", k => `
         align-items: center;
         gap: 8px;
         
-        border-top: 1px solid var(--midGray);
+        border-top: 1px solid var(--borderColor);
         background: rgba(0, 0, 0, 5%);
     }
    

@@ -42,8 +42,8 @@ export function addStandardDialog({
     cancelText = "Cancel",
     confirmText = "Confirm",
     addToFront = false,
-    cancelButtonColor = "red",
-    confirmButtonColor = "green"
+    cancelButtonColor = "errorMain",
+    confirmButtonColor = "successMain"
 }: StandardDialog): void {
     const validate = (): void => {
         if (validator()) onConfirm();
@@ -108,8 +108,8 @@ export async function addStandardInputDialog({
     resize = "none",
     type = "input",
     width = "100%",
-    confirmButtonColor = "green",
-    cancelButtonColor = "red",
+    confirmButtonColor = "successMain",
+    cancelButtonColor = "errorMain",
     style,
 }: InputDialog): Promise<{result: string}> {
     if (type === "input" && rows != undefined) console.warn("Rows has no function if type = input.");
@@ -169,9 +169,9 @@ export const ConfirmCancelButtons = ({
     disabled
 }: ConfirmCancelButtonsProps): JSX.Element => (
     <ButtonGroup width="175px" height={height}>
-        <Button disabled={disabled} onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button disabled={disabled} onClick={onConfirm} type="button" color="successMain">{confirmText}</Button>
         {showCancelButton === false ? null :
-            <Button disabled={disabled} onClick={onCancel} type="button" color="red">{cancelText}</Button>}
+            <Button disabled={disabled} onClick={onCancel} type="button" color="errorMain">{cancelText}</Button>}
     </ButtonGroup>
 );
 
@@ -212,7 +212,7 @@ export const NamingField: React.FunctionComponent<{
                         onCancel={props.onCancel}
                     />
                 </div>
-                {props.prefix ? <Text pl="10px" mt="4px" color={"gray"}>{props.prefix}</Text> : null}
+                {props.prefix ? <Text pl="10px" mt="4px" color={"textSecondary"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
@@ -230,7 +230,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     inputRef={props.inputRef}
                 />
-                {props.suffix ? <Text mt="4px" color={"gray"} mr={8}>{props.suffix}</Text> : null}
+                {props.suffix ? <Text mt="4px" color={"textSecondary"} mr={8}>{props.suffix}</Text> : null}
             </Flex>
         </form>
     );
@@ -340,8 +340,8 @@ const NOT_ENOUGH_LICENSE_CREDITS = "NOT_ENOUGH_LICENSE_CREDITS";
 export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
     if (!props.errorCode) return null;
     return (
-        <ErrorWrapper bg="lightRed"
-            borderColor="red"
+        <ErrorWrapper
+            borderColor="errorMain"
             width={1}
         >
             <WarningToOptions errorCode={props.errorCode} />
@@ -404,48 +404,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
     }
 }
 
-export function Sensitivity({sensitivity}: {sensitivity: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE"}): JSX.Element {
-    switch (sensitivity) {
-        case "CONFIDENTIAL":
-            return <SensitivityBadge bg={"var(--purple)"}>
-                C
-            </SensitivityBadge>
-        case "SENSITIVE":
-            return <SensitivityBadge bg={"#ff0004"}>
-                S
-            </SensitivityBadge>
-        case "PRIVATE":
-        default:
-            return <SensitivityBadge bg={"var(--midGray)"}>
-                P
-            </SensitivityBadge>;
-    }
-}
-
-function SensitivityBadge({bg, children}: React.PropsWithChildren<{bg: string}>): JSX.Element {
-    const style: React.CSSProperties = {};
-    style["--bgColor"] = bg ?? "teal";
-    return <div className={SensitivityBadgeClass} style={style}>
-        {children}
-    </div>
-}
-
-
-const SensitivityBadgeClass = injectStyle("sensitivity-badge", k => `
-    ${k} {
-        content: '';
-        height: 2em;
-        width: 2em;
-        display: flex;
-        margin-right: 5px;
-        align-items: center;
-        justify-content: center;
-        border: 0.2em solid var(--bgColor);
-        border-radius: 100%;
-    }
-`);
-
-const LogOutputClass = injectStyle("log-outout", k => `
+const LogOutputClass = injectStyle("log-output", k => `
     ${k} {
         margin-top: 0;
         margin-bottom: 0;

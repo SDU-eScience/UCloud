@@ -129,7 +129,7 @@ export const ReservationParameter: React.FunctionComponent<{
                     id={reservationName}
                     placeholder={"Example: Run with parameters XYZ"}
                 />
-                {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
+                {errors["name"] ? <TextP color={"errorMain"}>{errors["name"]}</TextP> : null}
             </Label>
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
                 <Flex gap={"8px"} alignItems={"end"}>
@@ -155,7 +155,7 @@ export const ReservationParameter: React.FunctionComponent<{
         {toolBackend === "VIRTUAL_MACHINE" ?
             <input type={"hidden"} id={reservationHours} value={"1"} />
             : null}
-        {errors["timeAllocation"] ? <TextP color={"red"}>{errors["timeAllocation"]}</TextP> : null}
+        {errors["timeAllocation"] ? <TextP color={"errorMain"}>{errors["timeAllocation"]}</TextP> : null}
 
         {!application.invocation.allowMultiNode ? null : (
             <>
@@ -165,14 +165,14 @@ export const ReservationParameter: React.FunctionComponent<{
                         <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost} defaultValue={"1"} />
                     </Label>
                 </Flex>
-                {errors["replicas"] ? <TextP color={"red"}>{errors["replicas"]}</TextP> : null}
+                {errors["replicas"] ? <TextP color={"errorMain"}>{errors["replicas"]}</TextP> : null}
             </>
         )}
 
         <div style={{paddingTop: "20px"}}>
             <Label>Machine type <MandatoryField /></Label>
             <Machines machines={allMachines} loading={machineSupport.loading} support={support} onMachineChange={setSelectedMachine} />
-            {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
+            {errors["product"] ? <TextP color={"errorMain"}>{errors["product"]}</TextP> : null}
         </div>
     </div>
 };
@@ -181,7 +181,7 @@ export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "
 
 export const JobCreateInput = injectStyle("job-or-hours-input", k => `
     ${k}::placeholder {
-        color: var(--gray);
+        color: var(--textSecondary);
     }
 `);
 

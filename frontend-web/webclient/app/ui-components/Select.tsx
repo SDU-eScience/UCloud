@@ -15,15 +15,15 @@ const SelectClass = injectStyle("select", k => `
         appearance: none;
         display: block;
         font-family: inherit;
-        color: var(--black);
-        background-color: var(--inputColor);
+        color: var(--textPrimary);
+        background-color: var(--backgroundDefault);
         margin: 0;
         border-width: 0px;
         width: 100%;
         border-radius: 5px;
         height: 42px;
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
-        border: 1px solid var(--midGray);
+        border: 1px solid var(--borderColor);
         padding-left: 12px;
         padding-right: 32px;
         padding-top: 7px;
@@ -37,15 +37,15 @@ const SelectClass = injectStyle("select", k => `
     }
     
     ${k}:disabled:hover {
-        border: 1px solid var(--midGray);
+        border: 1px solid var(--borderColor);
     }
     
     ${k}:hover {
-        border-color: var(--gray);
+        border-color: var(--borderColorHover);
     }
     
     ${k}::placeholder {
-        color: var(--gray);
+        color: var(--textSecondary);
     }
     
     ${k} > option {
@@ -53,19 +53,19 @@ const SelectClass = injectStyle("select", k => `
     }
 
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
-        border-color: var(--red, #f00);
+        border-color: var(--errorMain, #f00);
     }
 
     ${k}:focus {
         outline: 0;
-        border-color: var(--primary);
-        box-shadow: 0 0 3px -1px var(--primary);
+        border-color: var(--primaryMain);
+        box-shadow: 0 0 3px -1px var(--primaryMain);
     }
 
     ${k}:disabled {
-        background: var(--lightGray);
+        background: var(--backgroundDisabled);
+        color: var(--textDisabled);
         opacity: 1;
-        color: var(--black);
     }
     
     ${k} + .${IconClass} {

@@ -4,17 +4,17 @@ import {CSSProperties, useCallback, useLayoutEffect, useRef, useState} from "rea
 import {ButtonClass, ButtonProps} from "@/ui-components/Button";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {doNothing} from "@/UtilityFunctions";
-import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
+import {selectContrastColor, selectHoverColor, ThemeColor} from "@/ui-components/theme";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {div} from "@/Utilities/HTMLUtilities";
 
 const ConfirmButtonClass = injectStyle("confirm-button", k => `
     ${k} {
-        --progress-border: var(--background, #f00);
-        --progress-active: var(--white, #f00);
+        --progress-border: var(--backgroundDefault, #f00);
+        --progress-active: var(--textPrimary, #f00);
         --progress-success: var(--color, #f00);
-        --color: white
-        --background: var(--red, #f00);
+        --color: var(--errorContrast);
+        --background: var(--errorMain, #f00);
         --tick-stroke: var(--progress-active);
         
         outline: none;
@@ -29,8 +29,8 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     }
     
     ${k}[data-square="true"]:hover {
-        --progress-border: var(--hoverColor, var(--primary));
-        --background: var(--hoverColor, var(--primary)) !important;
+        --progress-border: var(--hoverColor, var(--primaryMain));
+        --background: var(--hoverColor, var(--primaryMain)) !important;
     }
     
     ${k}[data-square="true"] {
@@ -331,10 +331,13 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         const button = buttonRef.current;
         if (!button) return;
 
+        const colorOrDefault = props.color ?? "errorMain";
+
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
-        button.style.setProperty("--hoverColor", `var(--${props.hoverColor ?? selectHoverColor(props.color ?? "blue")})`)
-        button.style.setProperty("--color", `var(--${props.textColor ?? "white"})`)
-        button.style.setProperty("--background", `var(--${props.color})`)
+        button.style.setProperty("--hoverColor", `var(--${props.hoverColor ?? selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--color", `var(--${props.textColor ?? selectContrastColor(colorOrDefault)})`)
+        button.style.setProperty("--progress-border", `var(--${selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--background", `var(--${colorOrDefault})`)
         button.style.removeProperty("background-color");
         button.setAttribute("data-no-text", (!props.actionText).toString());
     }, [buttonRef.current, props.actionText, props.hoverColor, props.color, props.textColor]);
@@ -416,7 +419,7 @@ export function ConfirmationButtonPlainHTML(
             button.disabled = opts.disabled;
             button.style.setProperty("--hoverColor", `var(--${opts.color})`);
         } else {
-            button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(opts.color ?? "blue")})`)
+            button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(opts.color ?? "primaryMain")})`)
         }
     }
 

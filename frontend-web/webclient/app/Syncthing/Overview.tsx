@@ -450,7 +450,7 @@ export const Overview: React.FunctionComponent = () => {
                         <Button onClick={openWizard}>Add device</Button>
                     </Flex>}
                 >
-                    <Text color="darkGray">
+                    <Text color="textSecondary">
                         UCloud can synchronize files to any of your devices which run Syncthing.
                         Download and install Syncthing to add one of your devices here.
                     </Text>
@@ -477,7 +477,7 @@ export const Overview: React.FunctionComponent = () => {
                         icon="globeEuropeSolid"
                         title={servers.length > 1 ? "Syncthing servers" : "Syncthing server"}
                     >
-                        <Text color="darkGray">
+                        <Text color="textSecondary">
                             We synchronize your files from this server. Monitor the health of your servers here.
                         </Text>
 
@@ -512,7 +512,7 @@ export const Overview: React.FunctionComponent = () => {
                 title="Synchronized folders"
                 subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
-                <Text color="darkGray">
+                <Text color="textSecondary">
                     These are the files which will be synchronized to your devices.
                     Add a new folder to start synchronizing data.
                 </Text>
@@ -583,7 +583,7 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
     {
         text: "Remove",
         icon: "trash",
-        color: "red",
+        color: "errorMain",
         confirm: true,
         enabled: selected => selected.length > 0,
         onClick: (selected, cb) => {
@@ -625,7 +625,7 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
         const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
         return <>
             <Tooltip trigger={
-                <Icon name="warning" color="red" />
+                <Icon name="warning" color="errorMain" />
             }>
                 Some files in {prettyPath} might not be synchronized due to lack of permissions.
             </Tooltip>
@@ -637,7 +637,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
     {
         text: "Remove from sync",
         icon: "trash",
-        color: "red",
+        color: "errorMain",
         confirm: true,
         enabled: selected => selected.length >= 1,
         onClick: (selected, cb) => {
@@ -678,7 +678,7 @@ const ServerRenderer: ItemRenderer<Job> = {
 
             case "RUNNING": {
                 return <Flex alignItems="center">
-                    <Icon name="check" color="green" />
+                    <Icon name="check" color="successMain" />
                     <Box ml="8px">Running</Box>
                 </Flex>
             }
@@ -686,7 +686,7 @@ const ServerRenderer: ItemRenderer<Job> = {
             case "SUCCESS":
             case "FAILURE": {
                 return <Flex alignItems="center">
-                    <Icon name="pauseSolid" color="purple" />
+                    <Icon name="pauseSolid" color="infoMain" />
                     <Box ml="8px">Paused</Box>
                 </Flex>;
             }
@@ -745,7 +745,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         text: "Factory reset",
         icon: "trash",
         confirm: true,
-        color: "red",
+        color: "errorMain",
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             dialogStore.addDialog(
@@ -763,7 +763,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
                         A new device ID will be generated if you decide to set up Synchronization again.
                     </p>
                     <Button mr="5px" onClick={() => dialogStore.success()}>Cancel</Button>
-                    <Button color="red" onClick={() => {
+                    <Button color="errorMain" onClick={() => {
                         cb.dispatch({type: "ResetAll"});
                         dialogStore.success();
                     }}>Confirm</Button>
@@ -932,7 +932,7 @@ const AddDeviceWizard: React.FunctionComponent<{
             tutorialContent = (
                 <>
                     <Heading.h3>Installing Syncthing</Heading.h3>
-                    <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={16}>
+                    <Box borderRadius="6px" backgroundColor="warningMain" color="white" p={16} mt={16}>
                         The synchronization feature is experimental. Please report any errors through the Support Form.
                     </Box>
                     <p>
@@ -1001,10 +1001,10 @@ const AddDeviceWizard: React.FunctionComponent<{
                             Device Name
                             <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
                             {!deviceNameError ?
-                                <Text color="gray">
+                                <Text color="textSecondary">
                                     A name to help you remember which device this is. For example: "Work phone".
                                 </Text> :
-                                <Text color="red">{deviceNameError}</Text>
+                                <Text color="errorMain">{deviceNameError}</Text>
                             }
                         </Label>
 
@@ -1016,7 +1016,7 @@ const AddDeviceWizard: React.FunctionComponent<{
                                 error={deviceIdError !== null}
                             />
                             {!deviceIdError ? null :
-                                <Text color="red">{deviceIdError}</Text>
+                                <Text color="errorMain">{deviceIdError}</Text>
                             }
                         </Label>
 
@@ -1105,7 +1105,7 @@ function Screenshot(props: {src: string}): JSX.Element {
 }
 
 const ScreenshotClass = injectStyleSimple("screenshot", `
-    border: 3px solid var(--gray);
+    border: 3px solid var(--borderGray);
     max-height: 250px;
 `);
 

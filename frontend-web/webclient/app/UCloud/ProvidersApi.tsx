@@ -96,7 +96,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             {
                 text: "Create " + this.title.toLowerCase(),
                 icon: "upload",
-                color: "blue",
+                color: "primaryMain",
                 primary: true,
                 enabled: (selected, cb) => {
                     return !(Client.userIsAdmin && (selected.length !== 0 || cb.startCreation == null || cb.isCreating));

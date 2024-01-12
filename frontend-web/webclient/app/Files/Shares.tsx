@@ -134,7 +134,7 @@ const ShareModal: React.FunctionComponent<{
             }}>
                 <Flex>
                     <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
-                    <Button type={"submit"} color={"green"} attached>Share</Button>
+                    <Button type={"submit"} color={"successMain"} attached>Share</Button>
                 </Flex>
             </form>
         </Box>
@@ -203,7 +203,7 @@ const ShareModal: React.FunctionComponent<{
 
                                 <ConfirmationButton
                                     icon="trash"
-                                    color="red"
+                                    color="errorMain"
                                     height={40}
                                     onAction={async () => {
                                         await callAPIWithErrorHandler(
@@ -380,8 +380,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     // TODO(Jonas): For some reason, the arrow is not rendered.
                     browser.icons.renderIcon({
                         name: "ftSharesFolder",
-                        color: "FtFolderColor",
-                        color2: "FtFolderColor2",
+                        color: "iconColor",
+                        color2: "iconColor2",
                         height: 32,
                         width: 32
                     }).then(setIcon);
@@ -452,14 +452,14 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 browser.refresh();
                             },
                             text: "Accept"
-                        }, share, {color: "green", width: "72px"})!);
+                        }, share, {color: "successMain", width: "72px"})!);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
                                 await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
                                 browser.refresh();
                             },
                             text: "Decline"
-                        }, share, {color: "red", width: "72px"})!);
+                        }, share, {color: "errorMain", width: "72px"})!);
                     } else {
                         const {state} = share.status;
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
@@ -467,7 +467,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         wrapper.appendChild(stateIcon);
                         browser.icons.renderIcon({
                             ...StateIconAndColor[state],
-                            color2: "black",
+                            color2: "iconColor2",
                             height: 32,
                             width: 32,
                         }).then(setStateIcon);
@@ -606,14 +606,14 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
 
 const SelectBoxClass = injectStyleSimple("select-box", `
-    border: 2px solid var(--midGray);
+    border: 2px solid var(--borderColor);
     border-radius: 5px;
     padding: 10px;
 `);
 
 export const StateIconAndColor: Record<ShareState, {name: IconName, color: ThemeColor}> = {
-    "APPROVED": {color: "green", name: "check"},
-    "PENDING": {color: "blue", name: "questionSolid"},
-    "REJECTED": {color: "red", name: "close"},
+    "APPROVED": {color: "successMain", name: "check"},
+    "PENDING": {color: "primaryMain", name: "questionSolid"},
+    "REJECTED": {color: "errorMain", name: "close"},
 }
 

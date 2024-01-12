@@ -1,10 +1,11 @@
 import * as React from "react";
 import {SpaceProps} from "styled-system";
 import * as icons from "./icons";
-import theme, {ThemeColor} from "./theme";
+import {ThemeColor} from "./theme";
 import {Cursor} from "./Types";
 import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
     let Component = icons[name];
@@ -21,7 +22,7 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
             data-component={`icon-${name}`}
             width={size}
             height={squared ? size : undefined}
-            color2={color2 ? theme.colors[color2] : undefined}
+            color2={color2 ? getCssPropertyValue(color2) : undefined}
             {...props}
         />
     );
@@ -29,8 +30,8 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
 
 export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivElement> {
     name: IconName | "bug";
-    color?: string;
-    color2?: string;
+    color?: ThemeColor;
+    color2?: ThemeColor;
     rotation?: number;
     cursor?: Cursor;
     size?: string | number;
@@ -77,7 +78,7 @@ Icon.displayName = "Icon";
 
 Icon.defaultProps = {
     size: 18,
-    squared: true
+    squared: true,
 };
 
 // Use to see every available icon in debugging.

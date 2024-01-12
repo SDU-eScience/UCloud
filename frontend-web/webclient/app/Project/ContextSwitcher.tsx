@@ -54,22 +54,15 @@ export function projectTitleFromCache(projectId?: string) {
 
 const triggerClass = injectStyle("context-switcher-trigger", k => `
     ${k} {
-        border: 1px solid var(--midGray);
+        background: var(--backgroundDefault);
+        border: 1px solid var(--borderColor);
         border-radius: 6px;
         padding: 6px 12px;
         display: flex;
     }
     
     ${k}:hover {
-        border: 1px solid var(--gray);
-    }
-    
-    .${GradientWithPolygons} ${k} {
-        border: 1px solid var(--gray);
-    }
-    
-    .${GradientWithPolygons} ${k}:hover {
-        border: 1px solid var(--darkGray);
+        border: 1px solid var(--borderColorHover);
     }
 `);
 
@@ -170,7 +163,7 @@ export function ContextSwitcher({managed}: {
                 rightAligned
                 paddingControlledByContent
                 arrowkeyNavigationKey="data-active"
-                hoverColor={"tableRowHighlight"}
+                hoverColor={"rowHover"}
                 onSelect={el => {
                     const id = el?.getAttribute("data-project") ?? undefined;
                     setActiveProject(id)
@@ -220,7 +213,7 @@ export function ContextSwitcher({managed}: {
                                 className={BottomBorderedRow}
                                 onClick={() => {setActiveProject();}}
                             >
-                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={"starFilled"} />
+                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="primaryMain" hoverColor="primaryMain" name={"starFilled"} />
                                 <Text fontSize="var(--breadText)">My Workspace</Text>
                             </div>
                         ) : null}
@@ -266,7 +259,7 @@ function Favorite({project}: {project: Project}): JSX.Element {
         }
     }, [commandLoading]);
 
-    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color="blue" hoverColor="blue" name={isFavorite ? "starFilled" : "starEmpty"} />
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color="primaryMain" hoverColor="primaryMain" name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
 function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {
@@ -293,17 +286,17 @@ function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => voi
 
 const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
     ${k}:hover {
-        background-color: var(--tableRowHighlight);
+        background-color: var(--rowHover);
     }
     
     ${k}[data-active="true"] {
-        background-color: var(--lightBlue);
+        background-color: var(--rowActive);
     }
 
     ${k} {
         transition: 0.1s background-color;
         display: flex;
-        border-bottom: 0.5px solid var(--borderGray);
+        border-bottom: 0.5px solid var(--borderColor);
     }
 `);
 
@@ -311,7 +304,7 @@ const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
 const filterInputClass = injectStyle("filter-input", k => `
     ${k}:focus {
         border: 0;
-        border-bottom: 1px solid var(--borderGray);
+        border-bottom: 1px solid var(--borderColor);
         box-shadow: unset;
     }
     
@@ -321,9 +314,9 @@ const filterInputClass = injectStyle("filter-input", k => `
         border-radius: 0;
         width: calc(100%);
         flex-shrink: 0;
-        border-bottom: 1px solid var(--borderGray);
+        border-bottom: 1px solid var(--borderColor);
         background: transparent;
-        color: var(--text);
+        color: var(--textPrimary);
         outline: none;
     }
 `)

@@ -73,7 +73,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                             type="password"
                             placeholder={"Current password"}
                         />
-                        {error === ChangePasswordError.BAD_CURRENT ? <Icon name="warning" color="red" /> : null}
+                        {error === ChangePasswordError.BAD_CURRENT ? <Icon name="warning" color="errorMain" /> : null}
                     </Label>
                 </Box>
 
@@ -86,7 +86,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                             placeholder="New password"
                         />
                         {error === ChangePasswordError.REPEATED_PASSWORD_DOES_NOT_MATCH ?
-                            <Icon name="warning" color="red" /> : null}
+                            <Icon name="warning" color="errorMain" /> : null}
                     </Label>
                 </Box>
 
@@ -99,14 +99,14 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                             placeholder="Repeat password"
                         />
                         {error === ChangePasswordError.REPEATED_PASSWORD_DOES_NOT_MATCH ?
-                            <Icon name="warning" color="red" /> : null}
+                            <Icon name="warning" color="errorMain" /> : null}
                     </Label>
                 </Box>
 
                 <Button
                     mt={"1em"}
                     type={"submit"}
-                    color="green"
+                    color="successMain"
                     disabled={commandLoading}
                 >
                     Change password

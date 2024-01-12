@@ -159,17 +159,17 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
                     clearable: true,
                     icon: "radioEmpty",
                     options: [{
-                        color: "black",
+                        color: "textPrimary",
                         icon: "hashtag",
                         text: "Preparing",
                         value: "PREPARING",
                     }, {
-                        color: "black",
+                        color: "textPrimary",
                         icon: "hashtag",
                         text: "Ready",
                         value: "READY"
                     }, {
-                        color: "black",
+                        color: "textPrimary",
                         icon: "hashtag",
                         text: "Unavailable",
                         value: "UNAVAILABLE"

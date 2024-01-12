@@ -19,9 +19,9 @@ const StampClass = injectStyle("stamp", k => `
         padding: 0 1px;
         margin-right: 4px;
         
-        background-color: var(--lightBlue);
-        border-color: var(--lightBlue);
-        color: var(--darkBlue);
+        background-color: var(--primaryLight);
+        border-color: var(--primaryLight);
+        color: var(--primaryDark);
     }
 `);
 

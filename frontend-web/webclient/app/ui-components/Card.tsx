@@ -11,7 +11,6 @@ import {
 
 import {BoxProps} from "./Box";
 import {classConcat, injectStyle, unbox} from "@/Unstyled";
-import theme from "./theme";
 import {CSSProperties} from "react";
 
 export interface CardProps extends HeightProps,
@@ -23,8 +22,7 @@ export interface CardProps extends HeightProps,
     PaddingProps,
     MinHeightProps {
     borderWidth?: number | string;
-    children?: React.ReactNode;
-    onClick?: (e: React.SyntheticEvent) => void;
+    children?: React.ReactNode; onClick?: (e: React.SyntheticEvent) => void;
     onContextMenu?: (e: React.SyntheticEvent) => void;
     className?: string;
     style?: CSSProperties;
@@ -33,20 +31,11 @@ export interface CardProps extends HeightProps,
 export const CardClass = injectStyle("card", k => `
     ${k} {
         border-radius: 10px;
-        box-shadow: ${theme.shadows.sm};
-        border: 1px solid var(--midGray);
-        background-color: var(--lightGray);
-        color: var(--text);
+        box-shadow: var(--defaultShadow);
+        border: 1px solid var(--backgroundCardBorder);
+        background-color: var(--backgroundCard);
+        color: var(--textPrimary);
         padding: 20px;
-    }
-
-    html.dark ${k} {
-        border: 1px solid var(--lightGray);
-    }
-
-    a ${k}:hover {
-        border-color: var(--primary);
-        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     }
 `);
 

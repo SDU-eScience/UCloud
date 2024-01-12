@@ -21,13 +21,13 @@ interface ApplicationCardProps {
     application?: ApplicationSummaryWithFavorite
 }
 
-export const Tag = ({label, bg = "black"}: {label: string; bg?: ThemeColor}): JSX.Element => (
+export const Tag = ({label, bg = "infoMain"}: {label: string; bg?: ThemeColor}): JSX.Element => (
     <div style={{
         marginRight: "3px",
         background: `var(--${bg})`,
         display: "inline-block",
         lineHeight: 1.5,
-        color: "white",
+        color: "var(--infoContrast)",
         textTransform: "uppercase",
         fontSize: "10px",
         fontWeight: 700,
@@ -120,12 +120,12 @@ export const ApplicationCardClass = injectStyle("application-card", k => `
     }
 
     ${k} > div.${TitleAndDescriptionClass} {
-        font-size: var(--buttonText);
+        font-size: var(--primaryContrast);
     }
 
     ${k} > div > span {
         text-align: left;
-        font-size: var(--secondaryText);
+        font-size: var(--textSecondary);
         overflow-y: auto;
         padding-left: 8px;
         padding-right: 8px;
@@ -140,7 +140,7 @@ export const ApplicationCardClass = injectStyle("application-card", k => `
     }
 
     ${k} > div > .${MultiLineTruncateClass} {
-        color: var(--text);
+        color: var(--textPrimary);
         padding-top: 8px;
     }
 
@@ -151,7 +151,7 @@ export const ApplicationCardClass = injectStyle("application-card", k => `
     }
 
     ${k} > div.image {
-        background-color: var(--lightGray);
+        background-color: transparent;
         border-radius: 12px;
         margin-left: auto;
         margin-right: auto;
@@ -265,8 +265,8 @@ export function AppCard(props: AppCardProps): JSX.Element {
                         <Icon
                             cursor="pointer"
                             name={props.isFavorite ? "starFilled" : "starEmpty"}
-                            color="primary"
-                            hoverColor="primary"
+                            color="primaryMain"
+                            hoverColor="primaryLight"
                             size="20px"
                             onClick={() => props.onFavorite && props.application ?
                                 props.onFavorite(props.application) : {}

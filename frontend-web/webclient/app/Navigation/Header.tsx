@@ -8,11 +8,11 @@ import {injectStyleSimple} from "@/Unstyled";
 // Note(Jonas): We need something similar NOT in the header. Or maybe keep this? Nah.
 export function NonAuthenticatedHeader(): JSX.Element {
     return (
-        <ui.Flex background={"var(--headerBg)"} className={HeaderContainerClass}>
+        <ui.Flex background={"var(--primaryMain)"} className={HeaderContainerClass}>
             <Logo/>
             <ui.Box ml="auto"/>
             <ui.Link to="/login">
-                <ui.Button color="green" textColor="fixedWhite" mr="12px">Log in</ui.Button>
+                <ui.Button color="successMain" textColor="fixedWhite" mr="12px">Log in</ui.Button>
             </ui.Link>
         </ui.Flex>
     );
@@ -25,7 +25,7 @@ const HeaderContainerClass = injectStyleSimple("header-container", `
     top: 0;
     width: 100%;
     z-index: 100;
-    box-shadow: ${ui.theme.shadows.sm};
+    box-shadow: var(--defaultShadow);
 `);
 
 const Logo = (): React.JSX.Element => (
@@ -38,13 +38,13 @@ const Logo = (): React.JSX.Element => (
     >
         <ui.Flex alignItems="center" ml="15px">
             <ui.Icon name="logoEsc" size="38px" />
-            <ui.Text color="var(--headerText)" ml="8px">{CONF.PRODUCT_NAME}</ui.Text>
+            <ui.Text color="var(--textPrimary)" ml="8px">{CONF.PRODUCT_NAME}</ui.Text>
             {!CONF.VERSION_TEXT ? null : (
                 <Text
                     ml="4px"
                     verticalAlign="top"
                     mt={-7}
-                    color="red"
+                    color="errorMain"
                     fontSize={17}
                 >
                     {CONF.VERSION_TEXT}

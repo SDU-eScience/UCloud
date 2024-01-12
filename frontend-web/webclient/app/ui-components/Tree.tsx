@@ -217,7 +217,7 @@ const TreeNodeClass = injectStyle("tree-node", k => `
     
     [data-active] ${k}[data-selected] > [data-component=list-row]:hover,
     [data-active] ${k}[data-selected] > [data-component=list-row] {
-        background: var(--lightBlue);
+        background: var(--rowHover);
     }
     
     ${k} > *[data-component=list-row] {
@@ -226,7 +226,7 @@ const TreeNodeClass = injectStyle("tree-node", k => `
         text-align: left;
         outline: none;
         font-size: 15px;
-        border-bottom: 1px solid var(--midGray);
+        border-bottom: 1px solid var(--borderColor);
         user-select: none;
     }
     
@@ -309,7 +309,7 @@ export const TreeNode: React.FunctionComponent<{
                     null
                     : <Icon
                         data-chevron={"true"}
-                        color="text"
+                        color="textPrimary"
                         size={15}
                         name="heroChevronDown"
                         className={"open-chevron"}

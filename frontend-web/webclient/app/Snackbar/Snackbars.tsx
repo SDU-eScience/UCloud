@@ -12,9 +12,9 @@ interface IconColorAndName {
 }
 
 const iconNameAndColorFromSnack: Record<Exclude<SnackType, SnackType.Custom>, IconColorAndName> = {
-    [SnackType.Success]: {name: "check", color: "white", color2: "white"},
-    [SnackType.Information]: {name: "info", color: "black", color2: "white"},
-    [SnackType.Failure]: {name: "close", color: "white", color2: "white"},
+    [SnackType.Success]: {name: "check", color: "fixedWhite", color2: "fixedWhite"},
+    [SnackType.Information]: {name: "info", color: "fixedBlack", color2: "fixedWhite"},
+    [SnackType.Failure]: {name: "close", color: "fixedWhite", color2: "fixedWhite"},
 };
 
 interface SnackProps<SnackType> {
@@ -25,7 +25,7 @@ interface SnackProps<SnackType> {
 
 export const CustomSnack: React.FC<SnackProps<CustomSnack>> = ({snack, onCancel}) => {
     return <SnackBody snack={snack} onCancel={onCancel}>
-        <Icon mt="4px" mr="8px" size="14px" color="white" color2="white" name={snack.icon} />
+        <Icon mt="4px" mr="8px" size="14px" color="fixedWhite" color2="fixedWhite" name={snack.icon} />
     </SnackBody>;
 }
 
@@ -49,7 +49,7 @@ const SnackBody: React.FC<SnackProps<Exclude<Snack, "icon">> & {children: React.
             <Text cursor="pointer" onClick={() => {
                 copyToClipboard({value: snack.message, message: ""});
                 setDidCopy(true)
-            }} fontSize="8px" color="var(--gray)">{didCopy ? "Copied!" : "Click to copy"}</Text>
+            }} fontSize="8px" color="var(--textSecondary)">{didCopy ? "Copied!" : "Click to copy"}</Text>
         </div>
         <Box ml="auto" />
         <Icon mt="-8px" ml="8px" mr="-8px" size="12px" cursor="pointer" name="close" onClick={onCancel} />

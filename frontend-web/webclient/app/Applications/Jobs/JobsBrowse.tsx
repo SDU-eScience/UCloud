@@ -121,12 +121,12 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 }, dateRanges, {
                     key: "filterState",
                     options: [
-                        {text: "In queue", value: "IN_QUEUE", icon: "hashtag", color: "text"},
-                        {text: "Running", value: "RUNNING", icon: "hashtag", color: "text"},
-                        {text: "Success", value: "SUCCESS", icon: "check", color: "text"},
-                        {text: "Failure", value: "FAILURE", icon: "close", color: "text"},
-                        {text: "Expired", value: "EXPIRED", icon: "chrono", color: "text"},
-                        {text: "Suspended", value: "SUSPENDED", icon: "pauseSolid", color: "text"},
+                        {text: "In queue", value: "IN_QUEUE", icon: "hashtag", color: "textPrimary"},
+                        {text: "Running", value: "RUNNING", icon: "hashtag", color: "textPrimary"},
+                        {text: "Success", value: "SUCCESS", icon: "check", color: "textPrimary"},
+                        {text: "Failure", value: "FAILURE", icon: "close", color: "textPrimary"},
+                        {text: "Expired", value: "EXPIRED", icon: "chrono", color: "textPrimary"},
+                        {text: "Suspended", value: "SUSPENDED", icon: "pauseSolid", color: "textPrimary"},
                     ],
                     clearable: true,
                     text: "Status",
@@ -278,11 +278,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     IN_QUEUE: ["heroCalendar", "iconColor"],
     RUNNING: ["heroClock", "iconColor"],
-    SUCCESS: ["heroCheck", "green"],
-    FAILURE: ["heroXMark", "red"],
-    EXPIRED: ["heroClock", "orange"],
+    SUCCESS: ["heroCheck", "successMain"],
+    FAILURE: ["heroXMark", "errorMain"],
+    EXPIRED: ["heroClock", "warningMain"],
     SUSPENDED: ["heroPause", "iconColor"],
-    CANCELING: ["heroXMark", "red"]
+    CANCELING: ["heroXMark", "errorMain"]
 };
 
 export default JobBrowse;

@@ -3,7 +3,6 @@ import Card from "./Card";
 import * as Heading from "./Heading";
 import Error from "./Error";
 import Icon, {IconName} from "./Icon";
-import theme from "./theme";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {classConcat, injectStyle} from "@/Unstyled";
 
@@ -13,23 +12,23 @@ const style = injectStyle("highlightedCard", k => `
         align-items: center;
         gap: 8px;
         margin-bottom: 20px;
-        color: var(--black);
+        color: var(--textPrimary);
     }
     
     ${k} .title-row a {
-        color: var(--black);
+        color: var(--textPrimary);
     }
     
     ${k} .title-row a:hover {
-        color: var(--primary);
+        color: var(--primaryMain);
     }
     
     ${k} {
-        background-color: var(--white);
+        background-color: var(--backgroundCard);
     }
     
     ${k} .subtitle {
-        color: var(--gray);
+        color: var(--textSecondary);
         flex-grow: 1;
         display: flex;
         justify-content: end;
@@ -86,7 +85,7 @@ export const TitledCard: React.FunctionComponent<React.PropsWithChildren<{
                 <div className="title-row">
                     {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
                     {icon !== undefined ? (
-                        <Icon name={icon} size="20" color={theme.colors.darkGray} />
+                        <Icon name={icon} size="20" color={"textPrimary"} />
                     ) : null}
                     {subtitle ? <div className={"subtitle"}>{subtitle}</div> : null}
                 </div> : null

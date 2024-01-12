@@ -2,7 +2,7 @@ import * as localForage from "localforage";
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import theme from "@/ui-components/theme";
+import {appColors} from "@/ui-components/theme";
 
 interface AppToolLogoProps {
     name: string;
@@ -115,7 +115,6 @@ class LogoCache {
 export const appLogoCache = new LogoCache("apps");
 export const toolLogoCache = new LogoCache("tools");
 export const groupLogoCache = new LogoCache("apps/group");
-const appColors = theme.appColors;
 
 const nColors = appColors.length;
 

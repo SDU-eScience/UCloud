@@ -75,7 +75,7 @@ export const LandingAppSearchBox: React.FunctionComponent<{value?: string; hidde
             autoFocus
         />
         <button>
-            <Icon name="search" size={20} color="darkGray" my="auto" onClick={() => onSearch()} />
+            <Icon name="search" size={20} color="textSecondary" my="auto" onClick={() => onSearch()} />
         </button>
     </Flex>;
 }

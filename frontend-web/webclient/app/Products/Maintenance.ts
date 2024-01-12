@@ -1,18 +1,19 @@
 import { Client } from "@/Authentication/HttpClientInstance";
 import {Maintenance, MaintenanceAvailability } from "@/UCloud/ResourceApi";
 import {dateToString} from "@/Utilities/DateUtilities";
+import {ThemeColor} from "@/ui-components/theme";
 
-export function maintenanceIconColor(maintenance: Maintenance | undefined | null): string | undefined {
-    let iconColor: string | undefined;
+export function maintenanceIconColor(maintenance: Maintenance | undefined | null): ThemeColor | undefined {
+    let iconColor: ThemeColor | undefined;
     switch (maintenance?.availability) {
         case MaintenanceAvailability.MAJOR_DISRUPTION:
-            iconColor = "orange";
+            iconColor = "warningMain";
             break;
         case MaintenanceAvailability.MINOR_DISRUPTION:
             iconColor = undefined;
             break;
         case MaintenanceAvailability.NO_SERVICE:
-            iconColor = "red";
+            iconColor = "errorMain";
             break;
     }
     return iconColor;

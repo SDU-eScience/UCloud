@@ -95,8 +95,8 @@ function Scripts(): React.ReactNode {
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "play",
-                        color: "black",
-                        color2: "black",
+                        color: "textPrimary",
+                        color2: "textPrimary",
                         height: 32,
                         width: 32,
                     }).then(setIcon);

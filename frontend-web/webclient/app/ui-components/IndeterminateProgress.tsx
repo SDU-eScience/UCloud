@@ -15,11 +15,11 @@ interface ProgressBaseProps {
 const ProgressBaseClass = injectStyle("progress-base", k => `
     ${k} {
         border-radius: 5px;
-        background-color: var(--lightGray, #f00);
+        background-color: var(--borderColor, #f00);
         position: relative;
         overflow: hidden;
         width: 100%;
-        --progressColor: var(--green);
+        --progressColor: var(--successMain);
     }
     
     ${k}:after {
@@ -55,7 +55,7 @@ const ProgressBase: React.FunctionComponent<ProgressBaseProps> = props => {
 };
 
 ProgressBase.defaultProps = {
-    color: "green",
+    color: "successMain",
     height: "30px",
     active: false,
 };

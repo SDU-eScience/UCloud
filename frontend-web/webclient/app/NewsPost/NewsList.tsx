@@ -13,7 +13,6 @@ import {capitalized} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useTitle} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
-import {colorFromTitle} from "@/ui-components/theme";
 import {NewsPost} from ".";
 import {emptyPage} from "@/Utilities/PageUtilities";
 
@@ -61,7 +60,7 @@ export const NewsList: React.FC = () => {
                     <Heading.h2>News</Heading.h2>
                     {!filter ? null :
                         <Text>
-                            {capitalized(filter)} <Icon cursor="pointer" color="black" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
+                            {capitalized(filter)} <Icon cursor="pointer" color="textPrimary" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
                         </Text>
                     }
                 </Box>
@@ -96,7 +95,7 @@ export const NewsList: React.FC = () => {
                         <Flex>
                             <Text>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
                             <Box mt="-3px" ml="4px">
-                                <Tag bg={colorFromTitle(item.category)} label={item.category} />
+                                <Tag label={item.category} />
                             </Box>
                         </Flex>
                         <IsExpired now={now} expiration={item.hideFrom} />
@@ -109,12 +108,12 @@ export const NewsList: React.FC = () => {
 
 const IsExpired = (props: {now: number, expiration: number | null}): JSX.Element | null => {
     if (props.expiration != null && props.now > props.expiration)
-        return <Text color="red">Expired at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
+        return <Text color="errorMain">Expired at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
     return null;
 };
 
 const IsHidden = (props: {hidden: boolean}): JSX.Element | null => {
-    if (props.hidden) return <Text ml="8px" mt="8px" color="gray">Hidden</Text>;
+    if (props.hidden) return <Text ml="8px" mt="8px" color="textSecondary">Hidden</Text>;
     return null;
 };
 

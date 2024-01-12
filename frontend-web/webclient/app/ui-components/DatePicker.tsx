@@ -1,6 +1,5 @@
 import ReactDatePicker, {ReactDatePickerProps} from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import theme from "@/ui-components/theme";
 import {classConcat, injectStyle} from "@/Unstyled";
 import * as React from "react";
 import Box, {BoxProps} from "@/ui-components/Box";
@@ -11,12 +10,11 @@ export const DatePickerClass = injectStyle("date-picker", k => `
         display: block;
         font-family: inherit;
         color: inherit;
-        font-size: ${theme.fontSizes[1]}px;
         background-color: transparent;
-        border-radius: ${theme.radius};
+        border-radius: 8px;
         border-width: 0;
         border-style: solid;
-        border-color: var(--borderGray, #f00);
+        border-color: var(--borderColor, #f00);
         padding: 8px 12px;
         margin: 0;
         width: 100%;
@@ -24,7 +22,7 @@ export const DatePickerClass = injectStyle("date-picker", k => `
     }
     
     ${k}::placeholder {
-        color: var(--gray, #f00);
+        color: var(--borderColor, #f00);
     }
     
     ${k}::-ms-clear {
@@ -32,7 +30,8 @@ export const DatePickerClass = injectStyle("date-picker", k => `
     }
     
     ${k}:disabled {
-        background-color: var(--lightGray, #f00);
+        background: var(--backgroundDisabled);
+        color: var(--textDisabled);
     }
 `);
 

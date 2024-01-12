@@ -20,17 +20,15 @@ function Error(props: ErrorProps): JSX.Element | null {
 
     return (
         <ErrorWrapper
-            bg="lightRed"
-            borderColor="red"
+            borderColor="errorMain"
         >
             <Flex alignItems="center">
-                <div style={{whiteSpace: "pre", color: "var(--red)"}}>{props.error}</div>
+                <div style={{whiteSpace: "pre", color: "var(--errorMain)"}}>{props.error}</div>
                 {!props.clearError ? null : (
                     <Box ml="auto">
                         <Icon
                             size="1em"
                             name="close"
-                            color="black"
                             onClick={onClearError}
                         />
                     </Box>
@@ -42,7 +40,6 @@ function Error(props: ErrorProps): JSX.Element | null {
 
 interface ErrorWrapperProps {
     width?: string | number;
-    bg: string;
     borderColor: string;
 }
 
@@ -52,8 +49,7 @@ export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<Error
         height="auto"
         p="1em 1em 1em 1em"
         my={"1em"}
-        color="black"
-        bg={props.bg}
+        color="textPrimary"
         borderColor={props.borderColor}
         width={props.width}
     >

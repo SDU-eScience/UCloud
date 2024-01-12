@@ -220,12 +220,12 @@ const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
 
             <Box flexGrow={1}>
                 {!props.progress ?
-                    <IndeterminateProgressBar color="green" label={label} /> :
+                    <IndeterminateProgressBar color="successMain" label={label} /> :
 
                     (
                         <ProgressBar
                             active={true}
-                            color="green"
+                            color="successMain"
                             label={label}
                             percent={(props.progress.current / props.progress.maximum) * 100}
                         />

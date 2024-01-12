@@ -125,7 +125,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                 <Button
                     mt="1em"
                     type="submit"
-                    color="green"
+                    color="successMain"
                     disabled={commandLoading || !!message}
                 >
                     {message ?? "Update Information"}
@@ -198,7 +198,7 @@ export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
                 {field("Position", "Professor", positionRef)}
                 {field("Research field(s)", "Experimental examples", researchFieldRef)}
 
-                <Button mt="1em" type="submit" color="green">Update Information</Button>
+                <Button mt="1em" type="submit" color="successMain">Update Information</Button>
             </form>
         </Box>
     );

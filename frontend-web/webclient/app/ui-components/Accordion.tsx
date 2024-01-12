@@ -24,7 +24,7 @@ export function Accordion(props: React.PropsWithChildren<{
     className?: string;
     style?: Partial<CSSProperties>;
 }>): JSX.Element {
-    const color = props.iconColor ?? "text";
+    const color = props.iconColor ?? "textPrimary";
     const [open, setOpen] = React.useState(false);
     const isOpen = props.forceOpen || open;
     const style: CSSProperties = {...(props.style ?? {})};
@@ -38,7 +38,7 @@ export function Accordion(props: React.PropsWithChildren<{
                     leftSub={props.titleSub}
                     icon={
                         props.icon ? <Icon color2={props.iconColor2} color={color} name={props.icon} /> :
-                           props.omitChevron ? null : <Icon data-chevron={"true"} color="text" size={15} name="heroChevronDown" rotation={open || props.forceOpen ? 0 : -90} />
+                           props.omitChevron ? null : <Icon data-chevron={"true"} color="textPrimary" size={15} name="heroChevronDown" rotation={open || props.forceOpen ? 0 : -90} />
                     }
 
                     right={<>{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</>}
@@ -57,15 +57,15 @@ export function Accordion(props: React.PropsWithChildren<{
 
 const AccordionStyleClass = injectStyle("accordion", k => `
     ${k} {
-        --separatorColor: var(--lightGray);
-        background-color: var(--white);
+        --separatorColor: var(--borderColor);
+        background-color: var(--backgroundDefault);
         width: 100%;
         border: none;
         text-align: left;
         outline: none;
         font-size: 15px;
         cursor: pointer;
-        border-bottom: 1px solid var(--midGray);
+        border-bottom: 1px solid var(--borderColor);
         user-select: none;
     }
     
@@ -83,7 +83,7 @@ const AccordionStyleClass = injectStyle("accordion", k => `
 const PanelClass = injectStyle("accordion-panel", k => `
     ${k} {
         display: block;
-        border-bottom: 1px solid var(--lightGray);
+        border-bottom: 1px solid var(--borderColor);
         overflow: hidden;
         transition: all 0.2s ease-out;
     }

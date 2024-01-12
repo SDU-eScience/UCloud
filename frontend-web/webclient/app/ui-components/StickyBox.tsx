@@ -5,7 +5,7 @@ import * as React from "react";
 const StickyBoxClass = injectStyle("sticky-box", k => `
     ${k} {
         position: sticky;
-        background: var(--white, #f00);
+        background: var(--backgroundDefault, #f00);
 
         margin-left: calc(-1px * var(--normalMarginX, 0px));
         padding-left: var(--normalMarginX, 0px);

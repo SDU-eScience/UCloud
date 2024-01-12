@@ -730,7 +730,7 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
                 <Heading.h2>
                     {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now running
                     {" "}
-                    <Box style={{display: "inline"}} color={"gray"}>(ID: {job.id})</Box>
+                    <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
                 </Heading.h2>
                 <Box flexGrow={1}/>
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
@@ -1350,7 +1350,7 @@ const CancelButton: React.FunctionComponent<{
     }, [loading]);
 
     return <ConfirmationButton
-        color={"red"} icon={"trash"} onAction={onCancel} fullWidth={false}
+        color={"errorMain"} icon={"trash"} onAction={onCancel} fullWidth={false}
         actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     />;
 };

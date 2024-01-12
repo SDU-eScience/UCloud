@@ -89,11 +89,11 @@ export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boo
                     autoFocus
                 />
                 <button>
-                    <Icon name="search" size={20} color="darkGray" my="auto" onClick={onSearch} />
+                    <Icon name="search" size={20} color="textSecondary" my="auto" onClick={onSearch} />
                 </button>
             </Flex>
         )}
-        <Icon name="heroMagnifyingGlass" cursor="pointer" size="24" color="primary" className="search-icon" onClick={() =>
+        <Icon name="heroMagnifyingGlass" cursor="pointer" size="24" color="primaryMain" className="search-icon" onClick={() =>
             setHidden(!isHidden)
         } />
     </Flex>;

@@ -1,10 +1,10 @@
 import {BottomProps, BoxShadowProps, LeftProps, RightProps, TopProps, HeightProps} from "styled-system";
-import {CSSVarThemeColor} from "./theme";
 import {Cursor} from "./Types";
 import {extractSize, injectStyle} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import * as React from "react";
 import {CSSProperties} from "react";
+import {ThemeColor} from "@/ui-components/theme";
 
 export const DropdownClass = injectStyle("dropdown", k => `
     ${k} {
@@ -48,14 +48,14 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         border-radius: 5px;
         box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
         position: absolute;
-        background: var(--white);
-        color: var(--black);
+        background: var(--backgroundDefault);
+        color: var(--textPrimary);
         min-width: 138px;
         z-index: 1000;
         text-align: left;
         visibility: visible;
         pointer-events: auto;
-        border: 1px solid var(--borderGray);
+        border: 1px solid var(--borderColor);
     }
     
     ${k}[data-padding-controlled="false"] {
@@ -101,7 +101,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
     
     ${k}[data-hover-color="true"] > *:hover:not(.${ButtonClass}) {
-        background: var(--lightBlue);
+        background: var(--rowHover);
     }
 `);
 
@@ -136,8 +136,7 @@ DropdownContent.defaultProps = {
     squareTop: false,
     hover: true,
     width: "auto",
-    backgroundColor: "--white",
-    color: "black",
+    color: "textPrimary",
     colorOnHover: true,
     disabled: false,
     cursor: "pointer",
@@ -156,7 +155,6 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     minWidth?: string;
     maxHeight?: number | string;
     cursor?: Cursor;
-    backgroundColor?: CSSVarThemeColor;
     colorOnHover?: boolean;
     squareTop?: boolean;
     visible?: boolean;

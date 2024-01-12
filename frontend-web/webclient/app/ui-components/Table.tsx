@@ -15,7 +15,7 @@ export const TableClass = injectStyle("table", k => `
         border: 0;
         border-spacing: 0;
         
-        border-bottom: 1px solid rgba(34, 36, 38, .1);
+        border-bottom: 1px solid var(--borderColor);
         padding: 8px 0;
     }
     
@@ -24,7 +24,7 @@ export const TableClass = injectStyle("table", k => `
     }
     
     ${k} tr[data-highlight="true"]:hover, ${k}[data-highlighted="true"] {
-        background-color: var(--tableRowHighlight);
+        background-color: var(--primaryLight);
     }
     
     ${k} th {

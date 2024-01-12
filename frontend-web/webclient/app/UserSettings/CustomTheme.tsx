@@ -11,7 +11,7 @@ export function findCustomThemeColorOnLaunch() {
     const root = document.querySelector(":root")!;
     const color = localStorage.getItem(CUSTOM_THEME_COLOR_KEY);
     if (!color) return;
-    root["style"].setProperty("--primary", color);
+    root["style"].setProperty("--primaryMain", color);
 }
 
 type HexColor = `#${string}`;
@@ -22,7 +22,7 @@ export function CustomTheming(): React.ReactNode {
 
     const setColor = React.useCallback((color: HexColor) => {
         localStorage.setItem(CUSTOM_THEME_COLOR_KEY, color);
-        root["style"].setProperty("--primary", color);
+        root["style"].setProperty("--primaryMain", color);
     }, []);
 
     const activeColor = localStorage.getItem(CUSTOM_THEME_COLOR_KEY) ?? COLORS[0];
@@ -40,7 +40,7 @@ export function CustomTheming(): React.ReactNode {
 function ColorOption({color, setColor, isActive}: {isActive: boolean, color: HexColor, setColor(color: HexColor): void}) {
     return <Box
         onClick={() => setColor(color)}
-        style={{border: "2px solid " + isActive ? "var(--black)" : "var(--white)"}}
+        style={{border: "2px solid " + isActive ? "var(--textPrimary)" : "var(--backgroundDefault)"}}
         borderRadius="12px"
         backgroundColor={color}
         cursor="pointer"

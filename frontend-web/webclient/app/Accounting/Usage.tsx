@@ -2,7 +2,6 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle} from "@/Unstyled";
-import theme from "@/ui-components/theme";
 import {Flex, Icon, Input, Radio} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
@@ -1426,7 +1425,7 @@ function usageChartToChart(
                 stops: [0, 90, 100]
             }
         },
-        colors: ['var(--primary)'],
+        colors: ['var(--primaryMain)'],
         yaxis: {
             labels: {
                 formatter: function (val) {
@@ -1514,7 +1513,7 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
         top: var(--offset);
         width: 112px;
         height: 1px;
-        background: var(--midGray);
+        background: var(--borderColor);
     }
 
     ${k} .border-left {
@@ -1522,7 +1521,7 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
         top: -63px;
         height: calc(63px + var(--offset));
         width: 1px;
-        background: var(--midGray);
+        background: var(--borderColor);
     }
 `);
 
@@ -1661,22 +1660,22 @@ function usageToString(category: Accounting.ProductCategoryV2, usage: number, qu
 
 const PeriodStyle = injectStyle("period-selector", k => `
     ${k} {
-        border: 1px solid var(--midGray);
+        border: 1px solid var(--borderColor);
         border-radius: 6px;
         padding: 6px 12px;
         display: flex;
     }
     
     ${k}:hover {
-        border: 1px solid var(--gray);
+        border: 1px solid var(--borderColorHover);
     }
     
     .${GradientWithPolygons} ${k} {
-        border: 1px solid var(--gray);
+        border: 1px solid var(--borderColor);
     }
     
     .${GradientWithPolygons} ${k}:hover {
-        border: 1px solid var(--darkGray);
+        border: 1px solid var(--borderColorHover);
     }
 `);
 
@@ -1697,7 +1696,7 @@ const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
     }
     
     ${k} > div:first-child {
-        border-right: 1px solid var(--midGray);
+        border-right: 1px solid var(--borderColor);
     }
     
     ${k} b {
@@ -1713,7 +1712,7 @@ const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
     }
     
     ${k} .relative:hover {
-        background: var(--lightBlue);
+        background: var(--rowHover);
     }
 `);
 
@@ -1868,7 +1867,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
         top: 0;
         left: var(${CSSVarCurrentSidebarWidth});
         
-        background: var(--white);
+        background: var(--backgroundDefault);
         
         display: flex;
         flex-direction: row;
@@ -1881,7 +1880,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
         padding: 0 16px;
         z-index: 10;
         
-        box-shadow: ${theme.shadows.sm};
+        box-shadow: var(--defaultShadow);
     }
 
     ${k} header.at-top {
@@ -1912,26 +1911,26 @@ const VisualizationStyle = injectStyle("visualization", k => `
     
     ${k} tr > td:first-child,
     ${k} tr > th:first-child {
-        border-left: 2px solid var(--midGray);
+        border-left: 2px solid var(--borderColor);
     }
 
     ${k} td, 
     ${k} th {
         padding: 0 8px;
-        border-right: 2px solid var(--midGray);
+        border-right: 2px solid var(--borderColor);
     }
 
     ${k} tbody > tr:last-child > td {
-        border-bottom: 2px solid var(--midGray);
+        border-bottom: 2px solid var(--borderColor);
     }
 
     ${k} th {
         text-align: left;
-        border-top: 2px solid var(--midGray);
-        border-bottom: 2px solid var(--midGray);
+        border-top: 2px solid var(--borderColor);
+        border-bottom: 2px solid var(--borderColor);
         position: sticky;
         top: 0;
-        background: var(--lightGray); /* matches card background */
+        background: var(--backgroundCard); /* matches card background */
     }
     
     ${k} .change > span:nth-child(1) {
@@ -1943,25 +1942,25 @@ const VisualizationStyle = injectStyle("visualization", k => `
     }
     
     ${k} .change.positive {
-        color: var(--green);
+        color: var(--successMain);
     }
     
     ${k} .change.negative {
-        color: var(--red);
+        color: var(--errorMain);
     }
     
     ${k} .change.unchanged {
-        color: var(--midGray);
+        color: var(--borderGray);
     }
     
     ${k} .apexcharts-tooltip {
-        color: var(--black);
+        color: var(--textPrimary);
     }
     
     ${k} .apexcharts-yaxis-title text,
     ${k} .apexcharts-yaxis-texts-g text,
     ${k} .apexcharts-xaxis-texts-g text {
-        fill: var(--black);
+        fill: var(--textPrimary);
     }
     
     /* Panel layouts */

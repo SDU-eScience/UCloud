@@ -292,8 +292,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         // TODO(Jonas): For some reason, the arrow is not rendered.
                         browser.icons.renderIcon({
                             name: "ftSharesFolder",
-                            color: "FtFolderColor",
-                            color2: "FtFolderColor2",
+                            color: "iconColor",
+                            color2: "iconColor2",
                             height: 32,
                             width: 32
                         }).then(setIcon);
@@ -382,8 +382,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         const button = document.createElement("button");
                         button.innerText = "Remove share";
                         button.className = ButtonClass;
-                        button.style.color = "var(--white)";
-                        button.style.backgroundColor = "var(--red)";
+                        button.style.color = "var(--errorContrast)";
+                        button.style.backgroundColor = "var(--errorMain)";
                         button.style.height = "32px";
                         button.style.width = "128px";
                         button.onclick = e => {
@@ -435,7 +435,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         row.stat2.append(text);
                         browser.icons.renderIcon({
                             ...StateIconAndColor[state],
-                            color2: "black",
+                            color2: "iconColor2",
                             height: 32,
                             width: 32,
                         }).then(setStateIcon);

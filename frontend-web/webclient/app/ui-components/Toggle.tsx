@@ -27,7 +27,7 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
         border-radius: 12px;
         height: 26px;
         width: 45px;
-        background-color: var(--gray);
+        background-color: var(--textSecondary);
         transition: 0.2s;
         padding-top: 2px;
         padding-left: 2px;
@@ -35,7 +35,7 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
     }
 
     ${k}[data-active="true"] {
-        background-color: var(--green);
+        background-color: var(--successMain);
         padding-left: 21px;
     }
 

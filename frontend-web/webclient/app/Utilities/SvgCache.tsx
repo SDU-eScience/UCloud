@@ -5,6 +5,7 @@ import * as React from "react";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
+import {getUserThemePreference, isLightThemeStored} from "@/UtilityFunctions";
 
 // NOTE(Dan): Now why are we doing all of this when we could just be using SVGs? Because they are slow. Not when we
 // show off one or two SVGs, but when we start displaying 5 SVGs per item and the user is loading in hundreds of items.
@@ -72,9 +73,10 @@ export class SvgCache {
     }): Promise<string> {
         const c1 = getCssPropertyValue(color);
         const c2 = color2 ? getCssPropertyValue(color) : undefined;
+        const currentTheme = isLightThemeStored() ? "light" : "dark";
         return await this.renderSvg(
-            `${name}-${c1}-${c2}-${width}-${height}`,
-            () => <Icon name={name} color={c1} color2={c2} width={width} height={height} />,
+            `${name}-${color}-${color2}-${width}-${height}-${currentTheme}`,
+            () => <Icon name={name} color={c1 as ThemeColor} color2={color2} width={width} height={height} />,
             width,
             height,
             c1,
@@ -101,7 +103,7 @@ export class SvgCache {
         const svgStyle = document.createElementNS(svgNamespace, 'style');
         svgStyle.innerHTML = `
             text {
-                font-family: Helvetica, sans-serif
+                font-family: system-ui, sans-serif;
             }
         `;
         data.prepend(svgStyle);

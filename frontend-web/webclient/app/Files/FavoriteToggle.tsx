@@ -100,6 +100,6 @@ export const FileFavoriteToggle: React.FunctionComponent<{
     }, [file, isFavorite, mostRecentStatusId]);
 
     return <Icon
-        name={isFavorite ? "starFilled" : "starEmpty"} mr={"10px"} color={isFavorite ? "blue" : "midGray"}
+        name={isFavorite ? "starFilled" : "starEmpty"} mr={"10px"} color={isFavorite ? "primaryMain" : "iconColor"}
         cursor={"pointer"} onClick={onToggle} />;
 };
