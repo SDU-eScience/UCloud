@@ -574,9 +574,6 @@ export class ResourceBrowser<T> {
             input.onkeyup = e => {
                 if (e.key === "Enter") {
                     this.searchQuery = input.value;
-                    if (!this.searchQuery) {
-                        return;
-                    }
                     this.dispatchMessage("search", fn => fn(this.searchQuery));
                 }
             };
