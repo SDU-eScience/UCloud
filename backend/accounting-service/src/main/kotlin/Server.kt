@@ -77,10 +77,9 @@ class Server(
         val projectGroups = ProjectGroupService(projectCache, projectsV2)
         val projectQueryService = ProjectQueryService(projectService)
         val favoriteProjects = FavoriteProjectService(projectsV2)
-
-        val giftService = GiftService(db, accountingService)
         val grants = GrantsV2Service(db, idCardService, accountingService, simpleProviders, projectNotifications,
             client, config.defaultTemplate)
+        val giftService = GiftService(db, accountingService, projectService, grants)
 
 
         val scriptManager = micro.feature(ScriptManager)

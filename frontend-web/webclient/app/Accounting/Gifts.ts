@@ -10,6 +10,7 @@ export interface Gift {
     description: string;
     resources: Grants.AllocationRequest[];
     resourcesOwnedBy: string;
+    renewEvery: number
 }
 
 export interface GiftWithCriteria extends Gift {

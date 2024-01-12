@@ -38,6 +38,13 @@ interface Gift {
         """
     )
     val resourcesOwnedBy: String
+
+    @UCloudApiDoc(
+        """
+            Renewal policy for the gift
+        """
+    )
+    val renewEvery: Int
 }
 
 @UCloudApiInternal(InternalLevel.STABLE)
@@ -49,6 +56,7 @@ data class GiftWithCriteria(
     override val title: String,
     override val description: String,
     override val resources: List<GrantApplication.AllocationRequest>,
+    override val renewEvery: Int,
     val criteria: List<UserCriteria>
 ) : Gift {
     init {

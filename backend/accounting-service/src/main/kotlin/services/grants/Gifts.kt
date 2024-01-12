@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -9,21 +10,25 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import java.util.*
+import org.joda.time.DateTime
 
 class GiftService(
     private val db: DBContext,
     private val accountingService: AccountingService,
+    private val projectService: ProjectService,
+    private val grantsV2Service: GrantsV2Service
 ) {
     suspend fun claimGift(
         actorAndProject: ActorAndProject,
         giftId: Long,
     ) {
+        val giftIds = findAvailableGifts(actorAndProject, giftId).gifts.map { it.id }
+
         db.withSession(remapExceptions = true) { session ->
             val rows = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("gift_id", giftId)
+                    setParameter("gift_ids", giftIds)
                 },
                 """
                     with
@@ -34,7 +39,8 @@ class GiftService(
                                 coalesce(res.credits, res.quota) as balance,
                                 pc.category,
                                 pc.provider,
-                                g.resources_owned_by
+                                g.resources_owned_by,
+                                g.renewal_policy renewal
                             from
                                 -- NOTE(Dan): Fetch data about the gift
                                 "grant".gifts g join
@@ -48,32 +54,19 @@ class GiftService(
                                 auth.principals user_info on
                                     user_info.id = :username
                             where
-                                g.id = :gift_id and
+                                g.id in (select unnest(:gift_ids::int[]))
+                            group by g.id, category, recipient, provider, resources_owned_by, renewal_policy, res.credits, res.quota
 
-                                -- User must not have claimed this gift already
-                                not exists(
-                                    select gc.user_id
-                                    from "grant".gifts_claimed gc
-                                    where gc.user_id = :username and gc.gift_id = g.id
-                                ) and
-
-                                -- User must match at least one criteria
-                                (
-                                    (uc.type = 'anyone') or
-                                    (uc.type = 'wayf' and uc.applicant_id is not distinct from user_info.org_id) or
-                                    (
-                                        uc.type = 'email' and
-                                        user_info.email like '%@' || uc.applicant_id
-                                    )
-                                )
                         ),
                         gifts_claimed as (
                             insert into "grant".gifts_claimed (gift_id, user_id)
-                            select distinct gift_id, recipient
-                            from resources_to_be_gifted
+                                select distinct gift_id, recipient
+                                from resources_to_be_gifted rg
+                            on conflict (gift_id, user_id)
+                                do update set claimed_at = now() where "grant".gifts_claimed.gift_id = excluded.gift_id and "grant".gifts_claimed.user_id = excluded.user_id
                             returning gift_id
                         )
-                    select res.balance, res.category, res.provider, res.resources_owned_by
+                    select res.balance, res.category, res.provider, res.resources_owned_by, res.renewal
                     from
                         resources_to_be_gifted res join
                         gifts_claimed on
@@ -85,35 +78,60 @@ class GiftService(
                 throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
             }
 
+            val resourceRequests = mutableListOf<GrantApplication.AllocationRequest>()
+            var sourceProject = ""
             rows.forEach { row ->
                 val balance = row.getLong(0)!!
                 val category = ProductCategoryIdV2(row.getString(1)!!, row.getString(2)!!)
-                val sourceProject = row.getString(3)!!
+                sourceProject = row.getString(3)!!
+                val renewalPolicy = row.getInt(4)!!
+                val start = DateTime.now().millis
+                val end = DateTime.now().plusMonths((if (renewalPolicy == 0 ) 12 else renewalPolicy)).millis
 
-                val allocations = accountingService.retrieveAllocationsInternal(
+                val allocations = accountingService.retrieveTimeFittingAllocations(
                     ActorAndProject(Actor.System, null),
                     WalletOwner.Project(sourceProject),
-                    category
+                    category,
+                    start,
+                    end
                 )
-                val sourceAllocation = allocations.find { (it.quota - (it.treeUsage ?: it.localUsage)) >= balance }
-                    ?: allocations.firstOrNull()
-                    ?: throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 
-                accountingService.subAllocate(
-                    ActorAndProject(Actor.System, null),
-                    bulkRequestOf(
-                        SubAllocationRequestItem(
-                            owner = WalletOwner.User(actorAndProject.actor.safeUsername()),
-                            parentAllocation = sourceAllocation.id,
-                            quota = balance,
-                            grantedIn = null,
-                            start = Time.now(),
-                            //gifts ends after 1 year
-                            end = Time.now() + (1000L * 3600 * 24 * 365),
+                if (allocations.isEmpty()) throw  RPCException("Unable to grant gift", HttpStatusCode.NotFound)
+                //If multiple allocations within timeline of gift. Spread it out amongst all.
+                //TODO(HENRIK) Should rarely be more than 2 or 3 allocations. Should perhaps investigate
+                //TODO(HENRIK) alternative way of splitting requested balance (Weight by timeslot?)
+                val fraction = balance / allocations.size
+
+                allocations.forEach {
+                        resourceRequests.add(
+                            GrantApplication.AllocationRequest(
+                            category.name,
+                            category.provider,
+                            sourceProject,
+                            fraction,
+                            it.id.toLong(),
+                            GrantApplication.Period(
+                                start,
+                                end
+                            )
                         )
                     )
-                )
+                }
             }
+            val projectPi = projectService.getPIAndAdminsOfProject(db, sourceProject).first
+            grantsV2Service.submitRevision(
+                ActorAndProject(Actor.SystemOnBehalfOfUser(projectPi), null),
+                GrantsV2.SubmitRevision.Request(
+                    revision = GrantApplication.Document(
+                        GrantApplication.Recipient.PersonalWorkspace(actorAndProject.actor.safeUsername()),
+                        resourceRequests,
+                        GrantApplication.Form.GrantGiverInitiated("Gifted automatically", false),
+                        parentProjectId = sourceProject,
+                        revisionComment = "Gifted automatically"
+                    ),
+                    comment = "Gift"
+                )
+            )
         }
     }
 
@@ -130,6 +148,18 @@ class GiftService(
                 },
 
                 """
+                    with not_allowed_reclaims as (
+                        select gc.gift_id, gc.user_id, (extract(year from age(now(), gc.claimed_at)) * 12
+                                    + extract(month from age(now(), gc.claimed_at))) timespend, g.renewal_policy
+                        from "grant".gifts_claimed gc join "grant".gifts g on g.id = gc.gift_id
+                        where
+                            gc.user_id = :userId and
+                            (
+                                g.renewal_policy = 0 or
+                                (extract(year from age(now(), gc.claimed_at)) * 12
+                                    + extract(month from age(now(), gc.claimed_at))) < g.renewal_policy
+                            )
+                    )
                     select distinct g.id
                     from
                         "grant".gifts g join
@@ -139,10 +169,10 @@ class GiftService(
                         -- If giftId is specified it must match the gift we are looking for
                         (g.id = :giftId::bigint or :giftId::bigint is null) and
 
-                        -- User must not have claimed this gift already
+                        -- User must not have claimed this gift already 
                         not exists(
                             select gc.user_id
-                            from "grant".gifts_claimed gc
+                            from "grant".gifts_claimed gc join not_allowed_reclaims nar on nar.gift_id = gc.gift_id
                             where gc.user_id = :userId and gc.gift_id = g.id
                         ) and
 
@@ -164,6 +194,31 @@ class GiftService(
         actorAndProject: ActorAndProject,
         gift: GiftWithCriteria
     ): Long {
+        val project = actorAndProject.project
+            ?: throw RPCException("Only projects are allowed to create gifts", HttpStatusCode.BadRequest)
+
+        if (gift.resourcesOwnedBy != project) {
+            throw RPCException("Cannot create gift on behalf of other project", HttpStatusCode.BadRequest)
+        }
+
+        val projectRole = projectService.findRoleOfMember(db, project, actorAndProject.actor.safeUsername())
+            ?: throw RPCException("Unknown Project", HttpStatusCode.BadRequest)
+
+        if (!projectRole.isAdmin()) {
+            throw RPCException("Only admins and PIs are allowed to create gifts", HttpStatusCode.Forbidden)
+        }
+
+        val providersAvailable = accountingService.retrieveWalletsInternal(
+            actorAndProject,
+            WalletOwner.Project(project)
+        ).map { it.paysFor.provider }.toSet()
+
+        gift.resources.forEach { resource ->
+            if (!providersAvailable.contains(resource.provider)) {
+                throw RPCException("Requesting resources from unknown provider", HttpStatusCode.BadRequest)
+            }
+        }
+
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
                 {
@@ -171,6 +226,7 @@ class GiftService(
                     setParameter("title", gift.title)
                     setParameter("description", gift.description)
                     setParameter("resources_owned_by", gift.resourcesOwnedBy)
+                    setParameter("renewal", gift.renewEvery)
 
                     gift.criteria.split {
                         into("criteria_type") { it.type }
@@ -187,7 +243,7 @@ class GiftService(
                 },
                 """
                     select "grant".create_gift(
-                        :username, :resources_owned_by, :title, :description,
+                        :username, :resources_owned_by, :title, :description, :renewal,
                         :criteria_type, :criteria_id,
                         :resource_cat_name, :resource_provider, :credits, :quota
                     )
@@ -285,7 +341,8 @@ class GiftService(
                         'description', g.description,
                         'resourcesOwnedBy', g.resources_owned_by,
                         'resources', coalesce(r.resources_arr, '[]'::jsonb),
-                        'criteria', coalesce(c.criteria_arr, '[]'::jsonb)
+                        'criteria', coalesce(c.criteria_arr, '[]'::jsonb),
+                        'renewEvery', g.renewal_policy
                     )
                     from
                         gifts rg

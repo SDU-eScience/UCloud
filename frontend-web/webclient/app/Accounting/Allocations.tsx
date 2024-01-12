@@ -1142,6 +1142,7 @@ const Allocations: React.FunctionComponent = () => {
             resources: [],
             resourcesOwnedBy: Client.projectId ?? "",
             title: state.gifts.title,
+            renewEvery: state.gifts.renewEvery
         };
 
         if (state.gifts.domainAllow) {
@@ -1203,6 +1204,7 @@ const Allocations: React.FunctionComponent = () => {
             const {id} = await callAPI(Gifts.create(gift));
             gift.id = id;
             dispatchEvent({type: "GiftCreated", gift});
+            snackbarStore.addSuccess("Gift Created", false);
         } catch (e) {
             snackbarStore.addFailure("Failed to create a gift: " + extractErrorMessage(e), false);
         } finally {
@@ -1367,6 +1369,12 @@ const Allocations: React.FunctionComponent = () => {
                                                         return <li>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
                                                     })}
                                                 </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Granted</th>
+                                            <td>
+                                                {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
                                             </td>
                                         </tr>
                                         <tr>

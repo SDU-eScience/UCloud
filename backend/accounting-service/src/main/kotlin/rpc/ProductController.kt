@@ -54,6 +54,7 @@ class ProductController(
         }
 
         implementOrDispatch(ProductsV2.create) {
+
             ok(products.createV2(actorAndProject, request))
         }
 
