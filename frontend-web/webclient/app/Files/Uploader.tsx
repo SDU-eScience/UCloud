@@ -11,7 +11,7 @@ import {
     preventDefault
 } from "@/UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
-import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
+import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress, useUploads} from "@/Files/Upload";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
@@ -159,7 +159,7 @@ function findResumableUploadsFromUploadPath(uploadPath: string): string[] {
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
-    const [uploads, setUploads] = useGlobal("uploads", []);
+    const [uploads, setUploads] = useUploads();
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
 
     const refresh = useRefresh();

@@ -3,10 +3,10 @@ import {PageV2} from "@/UCloud";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import metadataApi from "@/UCloud/MetadataDocumentApi";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 
-export const sidebarFavoriteCache = new class {
+export const sidebarFavoriteCache = new class extends ExternalStoreBase {
     private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100}
-    private subscribers: (() => void)[] = [];
     private isDirty: boolean = false;
     public loading = false;
     public error = "";
@@ -34,13 +34,6 @@ export const sidebarFavoriteCache = new class {
         this.emitChange();
     }
 
-    public subscribe(subscription: () => void) {
-        this.subscribers = [...this.subscribers, subscription];
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== subscription);
-        }
-    }
-
     public add(file: FileMetadataAttached) {
         this.isDirty = true;
         this.cache.items.unshift(file);
@@ -60,12 +53,6 @@ export const sidebarFavoriteCache = new class {
         this.cache = page;
 
         this.emitChange();
-    }
-
-    public emitChange(): void {
-        for (const sub of this.subscribers) {
-            sub();
-        }
     }
 
     public getSnapshot(): Readonly<PageV2<FileMetadataAttached>> {

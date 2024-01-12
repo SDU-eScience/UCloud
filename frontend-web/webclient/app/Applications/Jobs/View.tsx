@@ -45,18 +45,11 @@ import {LogOutput} from "@/UtilityComponents";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 
-export const jobCache = new class {
+export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
-    private subscribers: (() => void)[] = [];
     private isDirty: boolean = false;
-
-    public subscribe(subscription: () => void) {
-        this.subscribers = [...this.subscribers, subscription];
-        return () => {
-            this.subscribers = this.subscribers.filter(s => s !== subscription);
-        };
-    }
 
     public updateCache(page: PageV2<Job>, doClear = false) {
         this.isDirty = true;
@@ -83,12 +76,6 @@ export const jobCache = new class {
         }
 
         this.emitChange();
-    }
-
-    public emitChange(): void {
-        for (const sub of this.subscribers) {
-            sub();
-        }
     }
 
     public getSnapshot(): Readonly<PageV2<Job>> {

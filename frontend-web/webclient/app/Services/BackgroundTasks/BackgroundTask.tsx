@@ -16,7 +16,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {associateBy, takeLast} from "@/Utilities/CollectionUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {UploadState} from "@/Files/Upload";
+import {UploadState, useUploads} from "@/Files/Upload";
 import {CardClass} from "@/ui-components/Card";
 import {injectStyle} from "@/Unstyled";
 import {emptyPage} from "@/Utilities/PageUtilities";
@@ -35,7 +35,7 @@ const BackgroundTasks: React.FunctionComponent = () => {
     const [initialTasks, fetchInitialTasks] = useCloudAPI<Page<Task>>({noop: true}, emptyPage);
     const [taskInFocus, setTaskInFocus] = useState<string | null>(null);
     const [tasks, setTasks] = useState<Record<string, TaskUpdate>>({});
-    const [uploads] = useGlobal("uploads", []);
+    const [uploads] = useUploads();
     const [, setUploaderVisible] = useGlobal("uploaderVisible", false);
 
     const openUploader = useCallback(() => {

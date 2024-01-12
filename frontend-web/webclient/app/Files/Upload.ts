@@ -2,6 +2,8 @@ import {FileUploadEvent} from "@/Files/HTML5FileSelector";
 import * as UCloud from "@/UCloud";
 import {GetElementType, PropType, timestampUnixMs} from "@/UtilityFunctions";
 import FileApi = UCloud.file.orchestrator;
+import {useSyncExternalStore} from "react";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 
 export type WriteConflictPolicy = NonNullable<PropType<FileApi.FilesCreateUploadRequestItem, "conflictPolicy">>;
 export type UploadProtocol = NonNullable<GetElementType<PropType<FileApi.FilesCreateUploadRequestItem, "supportedProtocols">>>;
@@ -45,6 +47,24 @@ export function uploadCalculateSpeed(upload: Upload): number {
 
     if (timespan === 0) return 0;
     return (bytesTransferred / timespan) * 1000;
+}
+
+const uploadStore = new class extends ExternalStoreBase {
+    private uploads: Upload[] = [];
+
+    public setUploads(uploads: Upload[]) {
+        this.uploads = uploads;
+        this.emitChange();
+    }
+
+    public getSnapshot() {
+        return this.uploads;
+    }
+}
+
+export function useUploads(): [Upload[], (u: Upload[]) => void] {
+    const uploads = useSyncExternalStore(s => uploadStore.subscribe(s), () => uploadStore.getSnapshot());
+    return [uploads, u => uploadStore.setUploads(u)];
 }
 
 export const supportedProtocols: UploadProtocol[] = ["CHUNKED"];

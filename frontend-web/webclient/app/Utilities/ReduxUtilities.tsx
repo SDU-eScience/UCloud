@@ -95,3 +95,20 @@ export function useSetRefreshFunction(refreshFn: () => void): void {
 export function useRefresh(): () => void {
     return refreshFunctionCache.getSnapshot();
 }
+
+export class ExternalStoreBase {
+    private subscribers: (() => void)[] = [];
+    
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+}
