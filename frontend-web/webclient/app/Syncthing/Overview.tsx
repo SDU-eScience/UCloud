@@ -251,13 +251,15 @@ export const Overview: React.FunctionComponent = () => {
 
     const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved | null>(null);
 
-    if (!provider) {
-        navigate("/drives");
-        return null;
-    }
+    React.useEffect(() => {
+        if (!provider) {
+            navigate("/drives");
+        }
+    }, [])
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
+        if (!provider) return;
         Sync.fetchConfig(provider).then(config => {
             if (didUnmount.current) return;
             pureDispatch({type: "ReloadConfig", config});
@@ -323,7 +325,7 @@ export const Overview: React.FunctionComponent = () => {
         pureDispatch,
         requestReload: reload,
         requestJobReloader,
-        provider,
+        provider: provider ?? "",
         productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, pureDispatch, reload]);
 
@@ -337,7 +339,7 @@ export const Overview: React.FunctionComponent = () => {
         dispatch,
         requestReload: reload,
         permissionProblems,
-        provider,
+        provider: provider ?? "",
         productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, dispatch, reload, permissionProblems]);
 
@@ -409,9 +411,10 @@ export const Overview: React.FunctionComponent = () => {
         //  in production. We will need to investigate this later. For now, don't attempt to update if we don't have
         //  all the details yet.
         if (folders.length === 0 && devices.length === 0) return;
+        if (!provider) return;
 
         callAPI(Sync.api.updateConfiguration({
-            provider: provider,
+            provider,
             productId: selectedProduct?.product.name ?? "syncthing",
             config: {devices, folders}
         })).catch(() => reload());
@@ -739,7 +742,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
             cb.dispatch({type: "ExpectServerUpdate"});
             callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, productId: cb.productId}));
         },
-        shortcut: ShortcutKey.Q 
+        shortcut: ShortcutKey.Q
     },
     {
         text: "Factory reset",
