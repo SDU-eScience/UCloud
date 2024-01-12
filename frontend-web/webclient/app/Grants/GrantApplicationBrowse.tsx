@@ -209,6 +209,11 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("pathToEntry", grantApplication => grantApplication.id);
             });
         }
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
+        }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 

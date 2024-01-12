@@ -253,6 +253,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 });
             });
         }
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
+        }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 

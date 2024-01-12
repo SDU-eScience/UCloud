@@ -165,6 +165,11 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
+        }
     }, []);
 
 

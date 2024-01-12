@@ -32,7 +32,6 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
-import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
@@ -42,6 +41,8 @@ interface NewsRequestProps extends PaginationRequest {
     withHidden: boolean;
 }
 
+function initialCall(): void {};
+
 function Dashboard(): JSX.Element {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
@@ -50,12 +51,14 @@ function Dashboard(): JSX.Element {
     }), emptyPage);
 
     const dispatch = useDispatch();
+    const invitesReload = React.useRef<() => void>(initialCall); // Oui
+    const projectInvitesReload = React.useRef<() => void>(initialCall); // Oui
+    const runsReload = React.useRef<() => void>(initialCall); // Oui
+    const grantsReload = React.useRef<() => void>(initialCall); // TODO
 
     const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
-
-    const [reloadIteration, setIteration] = React.useState(0);
 
     useTitle("Dashboard");
 
@@ -69,8 +72,10 @@ function Dashboard(): JSX.Element {
         fetchWallets(Accounting.browseWalletsV2({
             itemsPerPage: 250,
         }));
-        setIteration(it => it + 1);
-        sidebarFavoriteCache.fetch();
+        invitesReload.current();
+        projectInvitesReload.current();
+        runsReload.current();
+        grantsReload.current();
     }
 
     useSetRefreshFunction(reload);
@@ -79,15 +84,15 @@ function Dashboard(): JSX.Element {
         <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
         <Box>
             <DashboardNews news={news} />
-            <Invites key={reloadIteration} />
+            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
 
             <div className={GridClass}>
                 <DashboardResources wallets={wallets} />
-                <DashboardRuns key={reloadIteration} />
+                <DashboardRuns reloadRef={runsReload} />
             </div>
             <div className={GridClass}>
                 <Connect embedded />
-                <DashboardGrantApplications key={reloadIteration} />
+                <DashboardGrantApplications reloadRef={grantsReload} />
             </div>
         </Box>
     </Box>);
@@ -123,7 +128,7 @@ const GridClass = injectStyle("grid", k => `
 }
 `);
 
-function Invites(): React.ReactNode {
+function Invites({projectReloadRef, inviteReloadRef}: {projectReloadRef: React.MutableRefObject<() => void>, inviteReloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
     const [showProjectInvites, setShowProjectInvites] = React.useState(false);
     const [showShareInvites, setShowShareInvites] = React.useState(false);
 
@@ -132,11 +137,11 @@ function Invites(): React.ReactNode {
             icon="heroUserGroup"
             title="Invites"
         >
-            <div style={display(showProjectInvites)}><ProjectInviteBrowse opts={{embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
-            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
+            <div style={display(showProjectInvites)}><ProjectInviteBrowse opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
+            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{reloadRef: inviteReloadRef, embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
         </DashboardCard>
     </Flex>
-    
+
     function display(val: boolean): {display: "none" | undefined} {
         return {display: val ? undefined : "none"}
     }
@@ -155,7 +160,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardRuns(): JSX.Element {
+function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): JSX.Element {
     return <DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
@@ -163,7 +168,7 @@ function DashboardRuns(): JSX.Element {
     >
         <JobsBrowse opts={{
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
-            additionalFilters: {"itemsPerPage": "10"}
+            additionalFilters: {"itemsPerPage": "10"}, reloadRef
         }} />
     </DashboardCard>;
 }
@@ -243,19 +248,18 @@ function DashboardResources({wallets}: {
     );
 }
 
-const DashboardGrantApplications: React.FunctionComponent = () => {
+function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     if (!canApply) return null;
-
 
     return <DashboardCard
         linkTo={AppRoutes.grants.outgoing()}
         title="Grant applications"
         icon="heroDocumentCheck"
     >
-        <GrantApplicationBrowse opts={{embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
+        <GrantApplicationBrowse opts={{reloadRef, embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
     </DashboardCard>;
 };
 
@@ -296,16 +300,16 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
             </div>
 
             <Relative>
-            <div className={DeicBanner}>
-                <Box flexGrow={1}/>
+                <div className={DeicBanner}>
+                    <Box flexGrow={1} />
                     <ExternalLink href={"https://deic.dk"}>
                         <div>UCloud is delivered by the Danish e-Infrastrucure Consortium</div>
                     </ExternalLink>
                     <ExternalLink href={"https://deic.dk"}>
                         <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
                     </ExternalLink>
-                <Box flexGrow={1}/>
-            </div>
+                    <Box flexGrow={1} />
+                </div>
             </Relative>
         </DashboardCard>
     );

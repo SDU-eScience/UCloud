@@ -39,6 +39,8 @@ export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
     disabledKeyhandlers?: boolean;
+    reloadRef?: React.MutableRefObject<() => void>;
+    
     // Note(Jonas): Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
     // are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
     embedded?: boolean;

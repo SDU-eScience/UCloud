@@ -284,7 +284,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
         if (activeProjectId) {
             navigate(AppRoutes.dashboard.dashboardA());
         }
-    },[activeProjectId])
+    }, [activeProjectId])
 
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Share> | null>(null);
@@ -315,7 +315,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
                 browser.setColumnTitles([{name: "Filename"}, {name: "Share state"}, {name: "Last updated"}, {name: "Shared by"}]);
 
-                browser.on("beforeOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy &&share?.status.state === "PENDING");
+                browser.on("beforeOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(buildQueryString("/files", {path: resource.status.shareAvailableAt}));
@@ -587,6 +587,11 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     browser.renderBreadcrumbs();
                 });
             });
+        }
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
         }
     }, []);
 
