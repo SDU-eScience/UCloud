@@ -595,7 +595,7 @@ class ShareService(
                         requests req join
                         updated_shares share on req.id = share.resource
                     where
-                        share.available_at is not null
+                        share.available_at is not null and req.should_update_permissions
                     on conflict do nothing
                 """
             )
