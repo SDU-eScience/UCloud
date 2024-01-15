@@ -456,16 +456,20 @@ class FileController(
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
                 ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
 
+            val finalChunk = sctx.ktor.call.request.header("Chunked-Upload-Final-Chunk")?.toBoolean()
+                ?: throw RPCException("Missing final chunk indicator", HttpStatusCode.BadRequest)
+
             with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
-                    ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)
+                    ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
 
                 with(plugin) {
                     handleUpload(
                         token,
                         handler.pluginData,
                         offset,
+                        finalChunk,
                         sctx.ktor.call.request.receiveChannel()
                     )
                 }

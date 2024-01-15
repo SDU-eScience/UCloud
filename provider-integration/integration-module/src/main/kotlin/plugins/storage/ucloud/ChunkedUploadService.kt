@@ -13,19 +13,31 @@ class ChunkedUploadService(
     suspend fun receiveChunk(
         path: UCloudFile,
         offset: Long,
+        finalChunk: Boolean,
         payload: ByteReadChannel,
+        conflictPolicy: WriteConflictPolicy
     ) {
-        val internalFile = pathConverter.ucloudToInternal(path)
+        val tmpInternalFile = if (conflictPolicy == WriteConflictPolicy.REPLACE) {
+            pathConverter.ucloudToInternal(UCloudFile.create(path.path + ".part"))
+        } else {
+            pathConverter.ucloudToInternal(UCloudFile.create(path.path))
+        }
+
+        val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(path.path))
 
         val (_, outs) = nativeFS.openForWriting(
-            internalFile,
-            WriteConflictPolicy.REPLACE,
+            tmpInternalFile,
+            conflictPolicy,
             truncate = false,
             offset = offset
         )
 
         outs.use {
             payload.copyTo(outs)
+        }
+
+        if (conflictPolicy == WriteConflictPolicy.REPLACE && finalChunk) {
+            nativeFS.move(tmpInternalFile, internalFile, WriteConflictPolicy.REPLACE)
         }
     }
 
