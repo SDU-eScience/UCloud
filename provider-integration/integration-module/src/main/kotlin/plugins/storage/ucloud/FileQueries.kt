@@ -131,6 +131,21 @@ class FileQueries(
         }
     }
 
+    suspend fun findAvailableNameOnRename(id: String): String {
+        for (i in 1..1000) {
+            val prepath = id.substringBeforeLast("/")
+            val filename = id.substringAfterLast("/").substringBeforeLast(".")
+            val extension = filename.substringAfterLast(".")
+            val hasExtension = extension != filename
+            val newFilename = "$filename($i)"
+            val newId = if (hasExtension) "$prepath/$newFilename.$extension" else "$prepath/$newFilename"
+            if (!fileExists(UCloudFile.create(newId))) {
+                return newId
+            }
+        }
+        throw RPCException("Not able to rename file: $id", HttpStatusCode.BadRequest)
+    }
+
     private suspend fun convertNativeStatToUFile(
         file: InternalFile,
         nativeStat: NativeStat,
