@@ -32,6 +32,7 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
     showColumnTitles: true,
     dragToSelect: true,
+    contextSwitcher: true,
 };
 
 const DUMMY_ENTRY_ID = "dummy";

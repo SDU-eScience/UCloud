@@ -140,6 +140,10 @@ function generatePalette(): string {
 
         builder += `--rowHover: ${mixColors(c.background, colors.primary, 0.15)};\n`;
         builder += `--rowActive: ${mixColors(c.background, colors.primary, 0.3)};\n`;
+
+        const gradientStart = mixColors(c.background, colors.primary, 0.5);
+        builder += `--gradientStart: ${gradientStart};\n`;
+        builder += `--gradientEnd: ${mixColors(gradientStart, c.background, 0.75)};\n`;
     }
 
     builder += "html.light {\n"
@@ -158,11 +162,7 @@ function generatePalette(): string {
     return builder;
 }
 
-window["mixColors"] = mixColors;
-window["contrast"] = contrast;
-
 const UIGlobalStyle = `
-/* Colors */
 ${generatePalette()}
 
 html.light {
@@ -175,36 +175,22 @@ html.dark {
 
 html {
     --backgroundDisabled: var(--backgroundCard);
-    
     --defaultShadow: 0px  3px  1px -2px rgba(0,0,0,0.2), 0px  2px  2px 0px rgba(0,0,0,.14),0px 1px  5px 0px rgba(0,0,0,.12);
-
-
-    /* REWRITE-VARS */
     --sidebarWidth: 64px;
     --secondarySidebarWidth: 220px;
     --popInWidth: 368px;
     --sidebarColor: hsl(216, 92%, 52%);
     --sidebarSecondaryColor: hsl(216, 92%, 60%);
-    
-    /* LIGHT */
-    --gradientStart: #B6D8FB;
-    --gradientEnd: #fff;    
-    --inputColor: #fff;
 
-    /* FONT-SIZES */
     --secondaryText: 10px;
     --buttonText: 14px;
     --breadText: 14px;
     --interactiveElementsSize: 20px;
     font-size: 14px;
-    /* FONT-SIZES end */
 
     --monospace: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
     --sansSerif: 'Inter', sans-serif;
     
-
-    /* REWRITE-VARS end */
-
     --iconColor: #53657d;
     --iconColor2: #8393A7;
     --FtIconColor: #f5f7f9;
@@ -221,9 +207,6 @@ html {
 }
 
 html.dark {
-    --gradientStart: #375BB1;
-    --gradientEnd: #282C33;
-
     --sidebarColor: #141414;
     --sidebarSecondaryColor: #1D1D1D;
 }

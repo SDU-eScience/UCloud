@@ -21,14 +21,14 @@ function SearchIcon({enabled}): JSX.Element | null {
     return <Icon id={"search-icon"} size={20} color="primaryMain" name="heroMagnifyingGlass" />
 }
 
+// NOTE(Dan): This should be kept up with the similar implementation which exists in ResourceBrowser
 const refreshIconClass = injectStyle("refresh-icon", k => `
-    ${k}:hover {
-        transform: rotate(45deg);
+    ${k} {
         transition: transform 0.5s;
     }
     
-    ${k}.did-click {
-        transform: rotate(405deg);
+    ${k}:hover {
+        transform: rotate(45deg);
     }
 `);
 
@@ -40,18 +40,21 @@ function RefreshIcon(): JSX.Element | null {
         if (!refresh) return;
         const icon = document.querySelector<HTMLElement>("#refresh-icon");
         if (icon) icon.style.transform = "rotate(405deg)";
+        refresh();
 
-        setTimeout(() => {
-            refresh();
-            if (icon) {
+        if (icon) {
+            const evListener = () => {
                 icon.style.transition = "transform 0s";
                 icon.style.transform = "rotate(45deg)";
-                window.requestAnimationFrame(() => {
+                icon.removeEventListener("transitionend", evListener);
+                setTimeout(() => {
                     icon.style.removeProperty("transition");
                     icon.style.removeProperty("transform");
-                });
-            }
-        }, 500);
+                }, 30);
+            };
+            icon.addEventListener("transitionend", evListener);
+            icon.style.transform = "rotate(405deg)";
+        }
     }, [refresh]);
     if (!refresh) return null;
     return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={spin || loading} hoverColor="primaryMain"

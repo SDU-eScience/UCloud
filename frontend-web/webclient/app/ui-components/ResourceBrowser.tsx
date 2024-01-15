@@ -633,6 +633,18 @@ export class ResourceBrowser<T> {
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
+
+                const evListener = () => {
+                    icon.style.transition = "transform 0s";
+                    icon.style.transform = "rotate(45deg)";
+                    icon.removeEventListener("transitionend", evListener);
+                    setTimeout(() => {
+                        icon.style.removeProperty("transition");
+                        icon.style.removeProperty("transform");
+                    }, 30);
+                };
+                icon.addEventListener("transitionend", evListener);
+                icon.style.transform = "rotate(405deg)";
             });
         }
 
@@ -3274,6 +3286,14 @@ export class ResourceBrowser<T> {
 
             ${browserClass.dot} div > div.right-sort-filters {
                 margin-left: auto;
+            }
+            
+            ${browserClass.dot} .refresh-icon {
+                transition: transform 0.5s;
+            }
+            
+            ${browserClass.dot} .refresh-icon:hover {
+                transform: rotate(45deg);
             }
         `);
     }

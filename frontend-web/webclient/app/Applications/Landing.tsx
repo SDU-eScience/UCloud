@@ -117,7 +117,6 @@ const AppStoreVisualClass = injectStyle("app-store-visual", k => `
     }
 
     ${k} h1 {
-        color: #5c89f4;
         font-weight: 400;
     }
 

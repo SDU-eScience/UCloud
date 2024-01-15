@@ -8,13 +8,11 @@ export const GradientWithPolygons = injectStyle("polygon-background", k => `
         background-repeat: repeat;
         padding-bottom: 75px;
         min-height: calc(100vh + 12px);
+        color: var(--textPrimary);
     }
-    
     
     html.dark ${k} #search-icon,
     html.dark ${k} #refresh-icon {
         color: var(--textPrimary) !important;
     }
-    
-    
 `);
