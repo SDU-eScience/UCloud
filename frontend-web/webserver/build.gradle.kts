@@ -1,47 +1,30 @@
-plugins {
-    java
-    kotlin("jvm") version "1.4.10"
-    application
-}
+val ktor_version: String by project
+val kotlin_version: String by project
+val logback_version: String by project
 
-application {
-    mainClassName = "dk.sdu.cloud.web.MainKt"
+plugins {
+    kotlin("jvm") version "1.9.22"
+    id("io.ktor.plugin") version "2.3.7"
 }
 
 group = "dk.sdu.cloud"
-version = "1.0-SNAPSHOT"
+version = "1-0-SNAPSHOT"
 
-buildscript {
-    repositories {
-        jcenter()
-        mavenCentral()
-        maven { setUrl("https://plugins.gradle.org/m2/") }
-    }
+application {
+    mainClass.set("dk.sdu.cloud.web.MainKt")
 }
 
 repositories {
     mavenCentral()
-    jcenter()
 }
 
 dependencies {
-    val ktorVersion = "1.4.0"
-    implementation(kotlin("stdlib"))
-    testCompile("junit", "junit", "4.12")
-    implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty:$ktorVersion")
-    implementation("io.ktor:ktor-server-host-common:$ktorVersion")
-    implementation("io.ktor:ktor-websockets:$ktorVersion")
-}
-
-configure<JavaPluginConvention> {
-    sourceCompatibility = JavaVersion.VERSION_11
-}
-tasks {
-    compileKotlin {
-        kotlinOptions.jvmTarget = "11"
-    }
-    compileTestKotlin {
-        kotlinOptions.jvmTarget = "11"
-    }
+    implementation("io.ktor:ktor-server-core-jvm")
+    implementation("io.ktor:ktor-server-netty-jvm")
+    implementation("io.ktor:ktor-server-conditional-headers:$ktor_version")
+    implementation("io.ktor:ktor-server-compression:$ktor_version")
+    implementation("io.ktor:ktor-server-caching-headers:$ktor_version")
+    implementation("ch.qos.logback:logback-classic:$logback_version")
+    testImplementation("io.ktor:ktor-server-tests-jvm")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }

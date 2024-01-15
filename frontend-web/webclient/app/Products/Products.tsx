@@ -65,7 +65,7 @@ const DetailedView = injectStyle("detailed-view", k => `
         border-top: 1px solid var(--borderColor);
     }
 
-    ${k} th, td {
+    ${k} th, ${k} td {
         padding: 16px 0;
     }
 `);
