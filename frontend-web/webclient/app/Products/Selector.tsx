@@ -538,7 +538,7 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
     }
 
     ${k}:hover {
-        border-color: var(--borderColor);
+        border-color: var(--borderColorHover);
     }
 
     ${k} &[data-omit-border="true"] {

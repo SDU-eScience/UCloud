@@ -1,12 +1,8 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
+import {useCallback, useEffect} from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {
-    copyToClipboard,
-    displayErrorMessageOrDefault,
-    joinToString,
-    useFrameHidden
-} from "@/UtilityFunctions";
+import {copyToClipboard, displayErrorMessageOrDefault, joinToString, useFrameHidden} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -15,7 +11,6 @@ import Icon, {IconName} from "./Icon";
 import Link from "./Link";
 import {EllipsedText, TextSpan} from "./Text";
 import Tooltip from "./Tooltip";
-import {useCallback, useEffect} from "react";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
@@ -32,7 +27,7 @@ import Divider from "./Divider";
 import {ThemeToggler} from "./ThemeToggle";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {Page, PageV2, compute} from "@/UCloud";
+import {compute, Page, PageV2} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
@@ -48,7 +43,13 @@ import {api as FilesApi} from "@/UCloud/FilesApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {jobCache} from "@/Applications/Jobs/View";
 import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
-import {SidebarEmpty, SidebarEntry, SidebarLinkColumn, SidebarSectionHeader} from "@/ui-components/SidebarComponents";
+import {
+    SidebarEmpty,
+    SidebarEntry,
+    SidebarLinkColumn,
+    SidebarSectionHeader,
+    SidebarTabId
+} from "@/ui-components/SidebarComponents";
 import {AvatarType} from "@/AvataaarLib";
 import {NewsPost} from "@/NewsPost";
 import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
@@ -178,7 +179,7 @@ interface SidebarElement {
 }
 
 function SidebarTab({icon}: SidebarElement): JSX.Element {
-    return <Icon name={icon} hoverColor="fixedWhite" color="fixedWhite" color2="fixedWhite" size={"24"} />
+    return <Icon name={icon} hoverColor="fixedWhite" color="fixedWhite" color2="fixedWhite" size={"24"}/>
 }
 
 interface MenuElement {
@@ -193,37 +194,27 @@ interface SidebarMenuElements {
     predicate: () => boolean;
 }
 
-enum SidebarTabId {
-    NONE = "",
-    FILES = "Files",
-    WORKSPACE = "Workspace",
-    RESOURCES = "Resources",
-    APPLICATIONS = "Applications",
-    RUNS = "Runs",
-    ADMIN = "Admin",
-}
-
 const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
 ] = [
-        {
-            items: [
-                {icon: "heroFolder", label: SidebarTabId.FILES, to: "/drives/"},
-                {icon: "heroUserGroup", label: SidebarTabId.WORKSPACE, to: AppRoutes.project.usage()},
-                {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicIps()},
-                {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-                {icon: "heroServer", label: SidebarTabId.RUNS, to: "/jobs/"}
-            ],
-            predicate: () => Client.isLoggedIn
-        },
-        {
-            items: [
-                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
-            ],
-            predicate: () => Client.userIsAdmin
-        }
-    ];
+    {
+        items: [
+            {icon: "heroFolder", label: SidebarTabId.FILES, to: "/drives/"},
+            {icon: "heroUserGroup", label: SidebarTabId.WORKSPACE, to: AppRoutes.project.usage()},
+            {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicIps()},
+            {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
+            {icon: "heroServer", label: SidebarTabId.RUNS, to: "/jobs/"}
+        ],
+        predicate: () => Client.isLoggedIn
+    },
+    {
+        items: [
+            {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
+        ],
+        predicate: () => Client.userIsAdmin
+    }
+];
 
 interface SidebarStateProps {
     loggedIn: boolean;
@@ -254,21 +245,26 @@ const SidebarItemsClass = injectStyle("sidebar-items", k => `
     }
 `);
 
-function UserMenuLink(props: {icon: IconName; text: string; to: string; close(): void;}): JSX.Element {
+function UserMenuLink(props: { icon: IconName; text: string; to: string; close(): void; }): JSX.Element {
     return <Link color="textPrimary" onClick={props.close} hoverColor="textPrimary" height="28px" to={props.to}>
         <Flex className={HoverClass}>
             <Icon name={props.icon} mr="0.5em" my="0.2em"
-                size="1.3em" />
+                  size="1.3em"/>
             <TextSpan color="var(--textPrimary)">{props.text}</TextSpan>
         </Flex>
     </Link>
 }
 
-function UserMenuExternalLink(props: {icon: IconName; href: string; text: string; close(): void;}): JSX.Element | null {
+function UserMenuExternalLink(props: {
+    icon: IconName;
+    href: string;
+    text: string;
+    close(): void;
+}): JSX.Element | null {
     if (!props.text) return null;
     return <div className={HoverClass}>
         <ExternalLink hoverColor="textPrimary" onClick={props.close} href={props.href}>
-            <Icon name={props.icon} mr="0.5em" my="0.2em" size="1.3em" />
+            <Icon name={props.icon} mr="0.5em" my="0.2em" size="1.3em"/>
             <TextSpan color="textPrimary">{props.text}</TextSpan>
         </ExternalLink>
     </div>
@@ -286,38 +282,41 @@ const UserMenu: React.FunctionComponent<{
         closeFnRef={close}
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
-            <UserAvatar height="42px" width="42px" avatar={avatar} /> : null}
+            <UserAvatar height="42px" width="42px" avatar={avatar}/> : null}
     >
         <Box py="12px">
             {!CONF.STATUS_PAGE ? null : (
                 <>
-                    <Box className={HoverClass} >
+                    <Box className={HoverClass}>
                         <ExternalLink onClick={close.current} href={CONF.STATUS_PAGE}>
                             <Flex>
-                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="textPrimary" />
+                                <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" color="textPrimary"/>
                                 <TextSpan color="textPrimary">Site status</TextSpan>
                             </Flex>
                         </ExternalLink>
                     </Box>
-                    <Divider />
+                    <Divider/>
                 </>
             )}
-            <UserMenuLink close={close.current} icon="heroWrenchScrewdriver" text="Settings" to={AppRoutes.users.settings()} />
-            <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()} />
-            <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="heroBookOpen" text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""} />
-            <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="heroShieldCheck" text={CONF.DATA_PROTECTION_TEXT} />
-            <Divider />
-            <Username close={close.current} />
-            <ProjectID close={close.current} />
-            <Divider />
+            <UserMenuLink close={close.current} icon="heroWrenchScrewdriver" text="Settings"
+                          to={AppRoutes.users.settings()}/>
+            <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()}/>
+            <UserMenuExternalLink close={close.current} href={CONF.SITE_DOCUMENTATION_URL} icon="heroBookOpen"
+                                  text={CONF.PRODUCT_NAME ? CONF.PRODUCT_NAME + " docs" : ""}/>
+            <UserMenuExternalLink close={close.current} href={CONF.DATA_PROTECTION_LINK} icon="heroShieldCheck"
+                                  text={CONF.DATA_PROTECTION_TEXT}/>
+            <Divider/>
+            <Username close={close.current}/>
+            <ProjectID close={close.current}/>
+            <Divider/>
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
-                <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" />
+                <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em"/>
                 Logout
             </Flex>
-            <Divider />
+            <Divider/>
             <span>
                 <Flex cursor="auto">
-                    <ThemeToggler />
+                    <ThemeToggler/>
                 </Flex>
             </span>
         </Box>
@@ -364,7 +363,7 @@ export function Sidebar(): JSX.Element | null {
         <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
                 <Link data-component={"logo"} to="/" onClick={onLogoClick}>
-                    <Icon name="logoEsc" mt="10px" size="34px" />
+                    <Icon name="logoEsc" mt="10px" size="34px"/>
                 </Link>
 
                 <div
@@ -388,37 +387,37 @@ export function Sidebar(): JSX.Element | null {
                                     }}
                                     className={SidebarMenuItem}
                                 >
-                                    <SidebarTab icon={icon} />
+                                    <SidebarTab icon={icon}/>
                                 </div>
                             </Link>) : <div
-                                key={label}
-                                data-active={label === selectedPage}
-                                onClick={() => {
-                                    if (selectedPage) {
-                                        setSelectedPage(label);
-                                    }
-                                }}
-                                onMouseEnter={() => setHoveredPage(label)}
-                                className={SidebarMenuItem}
-                            >
-                            <SidebarTab icon={icon} />
+                            key={label}
+                            data-active={label === selectedPage}
+                            onClick={() => {
+                                if (selectedPage) {
+                                    setSelectedPage(label);
+                                }
+                            }}
+                            onMouseEnter={() => setHoveredPage(label)}
+                            className={SidebarMenuItem}
+                        >
+                            <SidebarTab icon={icon}/>
                         </div>
                     )}
                 </div>
 
                 <>
                     {/* (Typically) invisible elements here to run various background tasks */}
-                    <AutomaticGiftClaim />
-                    <ResourceInit />
-                    <VersionManager />
-                    <BackgroundTasks />
+                    <AutomaticGiftClaim/>
+                    <ResourceInit/>
+                    <VersionManager/>
+                    <BackgroundTasks/>
                 </>
 
                 <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
-                    <Downtimes />
-                    <Notification />
-                    <Support />
-                    <UserMenu avatar={avatar} />
+                    <Downtimes/>
+                    <Notification/>
+                    <Support/>
+                    <UserMenu avatar={avatar}/>
                 </Flex>
             </div>
 
@@ -476,8 +475,11 @@ function useSidebarRunsPage(): Job[] {
 interface SecondarySidebarProps {
     hovered: SidebarTabId;
     clicked: SidebarTabId;
+
     clearHover(): void;
+
     clearClicked(): void;
+
     setSelectedPage: React.Dispatch<React.SetStateAction<string>>;
 }
 
@@ -486,12 +488,12 @@ function isShare(d: FileCollection) {
 }
 
 function SecondarySidebar({
-    hovered,
-    clicked,
-    clearHover,
-    setSelectedPage,
-    clearClicked
-}: SecondarySidebarProps): React.JSX.Element {
+                              hovered,
+                              clicked,
+                              clearHover,
+                              setSelectedPage,
+                              clearClicked
+                          }: SecondarySidebarProps): React.JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
     const activeProjectId = useProjectId();
@@ -542,13 +544,23 @@ function SecondarySidebar({
     }, [isOpen, asPopOver]);
 
     const onMenuClick = useCallback((ev: React.SyntheticEvent) => {
-        function isAnchor(elem: HTMLElement): boolean {
-            if (elem.tagName === "A") return true;
-            if (elem.parentElement === null) return false;
-            return isAnchor(elem.parentElement);
+        function findAnchor(elem: HTMLElement): HTMLElement | null {
+            if (elem.tagName === "A") return elem;
+            if (elem.parentElement === null) return null;
+            return findAnchor(elem.parentElement);
         }
+
         const target = ev.target as HTMLElement;
-        if (isAnchor(target)) clearHover();
+        const anchor = findAnchor(target);
+        if (anchor) {
+            const tab = anchor.getAttribute("data-tab") ?? "";
+            console.log("new tab", tab);
+            setSelectedPage(current => {
+                if (current) return tab;
+                else return current;
+            });
+            clearHover();
+        }
     }, [clearHover]);
 
     return <div
@@ -563,10 +575,12 @@ function SecondarySidebar({
         <header>
             <h1>{active}</h1>
 
-            <Relative top="16px" right="2px" height={0} width={0}>
+            <Relative top="-19px" right="14px" height={0} width={0}>
                 <Absolute>
-                    <Flex alignItems="center" backgroundColor="white" height="38px" borderRadius="12px 0 0 12px" onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
-                        <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
+                    <Flex alignItems="center" backgroundColor="white" height="38px" width={"30px"}
+                          justifyContent={"center"} borderRadius="12px 0 0 12px"
+                          onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
+                        <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="primaryMain"/>
                     </Flex>
                 </Absolute>
             </Relative>
@@ -574,7 +588,7 @@ function SecondarySidebar({
 
         <Flex flexDirection={"column"} gap={"5px"}>
             {active !== SidebarTabId.FILES ? null : <>
-                <SidebarSectionHeader to={AppRoutes.files.drives()}>Drives</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.files.drives()} tab={SidebarTabId.FILES}>Drives</SidebarSectionHeader>
                 {(!canConsume || drives.data.items.length === 0) && <>
                     <SidebarEmpty>No drives available</SidebarEmpty>
                 </>}
@@ -583,107 +597,121 @@ function SecondarySidebar({
                     <SidebarEntry
                         key={drive.id}
                         text={drive.specification.title}
-                        icon={isShare(drive) ? "ftSharesFolder" : <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
+                        icon={isShare(drive) ? "ftSharesFolder" :
+                            <ProviderLogo providerId={drive.specification.product.provider} size={20}/>}
                         to={AppRoutes.files.drive(drive.id)}
+                        tab={SidebarTabId.FILES}
                     />
                 )}
 
                 {canConsume && favoriteFiles.length > 0 && <>
-                    <SidebarSectionHeader>Starred files</SidebarSectionHeader>
+                    <SidebarSectionHeader tab={SidebarTabId.FILES}>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
                             key={file.path}
                             to={AppRoutes.files.path(file.path)}
                             icon={"heroStar"}
                             text={fileName(file.path)}
+                            tab={SidebarTabId.FILES}
                         />
                     )}
                 </>}
 
                 {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace && <>
-                    <SidebarSectionHeader>Shared files</SidebarSectionHeader>
-                    <SidebarLinkColumn links={sharesLinksInfo} />
+                    <SidebarSectionHeader tab={SidebarTabId.FILES}>Shared files</SidebarSectionHeader>
+                    <SidebarLinkColumn links={sharesLinksInfo}/>
                 </>}
             </>}
 
             {active !== SidebarTabId.WORKSPACE ? null : <>
                 {!isPersonalWorkspace && <>
-                    <SidebarSectionHeader to={AppRoutes.project.members()}>Management</SidebarSectionHeader>
+                    <SidebarSectionHeader to={AppRoutes.project.members()} tab={SidebarTabId.WORKSPACE}>Management</SidebarSectionHeader>
                     <SidebarEntry
                         to={AppRoutes.project.members()}
                         text={"Members"}
                         icon={"heroUsers"}
+                        tab={SidebarTabId.WORKSPACE}
                     />
 
                     <SidebarEntry
                         to={AppRoutes.project.subprojects()}
                         icon={"heroUserGroup"}
                         text={"Sub-projects"}
+                        tab={SidebarTabId.WORKSPACE}
                     />
 
                     <SidebarEntry
                         to={AppRoutes.project.settings("")}
                         text={"Settings"}
                         icon={"heroWrenchScrewdriver"}
+                        tab={SidebarTabId.WORKSPACE}
                     />
                 </>}
 
-                <SidebarSectionHeader to={AppRoutes.accounting.allocations()}>Resources</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.accounting.allocations()} tab={SidebarTabId.WORKSPACE}>Resources</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.accounting.allocations()}
                     text={"Allocations"}
                     icon={"heroBanknotes"}
+                    tab={SidebarTabId.WORKSPACE}
                 />
 
                 <SidebarEntry
                     to={AppRoutes.accounting.usage()}
                     text={"Usage"}
                     icon={"heroPresentationChartLine"}
+                    tab={SidebarTabId.WORKSPACE}
                 />
 
                 <SidebarEntry
                     to={AppRoutes.grants.outgoing()}
                     text={"Grant applications"}
                     icon={"heroDocumentText"}
+                    tab={SidebarTabId.WORKSPACE}
                 />
 
                 <SidebarEntry
                     to={AppRoutes.grants.editor()}
                     text={"Apply for resources"}
                     icon={"heroPencilSquare"}
+                    tab={SidebarTabId.WORKSPACE}
                 />
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>
-                <SidebarSectionHeader to={AppRoutes.resources.publicLinks()}>Networking</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.resources.publicLinks()} tab={SidebarTabId.RESOURCES}>Networking</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.publicLinks()}
                     text={"Links"}
                     icon={"heroLink"}
+                    tab={SidebarTabId.RESOURCES}
                 />
                 <SidebarEntry
                     to={AppRoutes.resources.publicIps()}
                     text={"IP addresses"}
                     icon={"heroGlobeEuropeAfrica"}
+                    tab={SidebarTabId.RESOURCES}
                 />
 
-                <SidebarSectionHeader to={AppRoutes.resources.sshKeys()}>Security & keys</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.resources.sshKeys()} tab={SidebarTabId.RESOURCES}>Security & keys</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.sshKeys()}
                     text={"SSH keys"}
                     icon={"heroKey"}
+                    tab={SidebarTabId.RESOURCES}
                 />
 
-                <SidebarSectionHeader to={AppRoutes.resources.licenses()}>Software</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.resources.licenses()} tab={SidebarTabId.RESOURCES}>Software</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.licenses()}
                     text={"Licenses"}
                     icon={"heroDocumentCheck"}
+                    tab={SidebarTabId.RESOURCES}
                 />
             </>}
 
             {active !== SidebarTabId.APPLICATIONS ? null : <>
-                <SidebarSectionHeader to={AppRoutes.apps.landing()}>Categories</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.apps.landing()} tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
                 {appStoreSections.data.sections.length === 0 && <>
                     <SidebarEmpty>No applications found</SidebarEmpty>
                 </>}
@@ -694,24 +722,26 @@ function SecondarySidebar({
                         to={AppRoutes.apps.section(section.id)}
                         text={section.name}
                         icon={"heroCpuChip"}
+                        tab={SidebarTabId.APPLICATIONS}
                     />
                 )}
 
                 {appFavorites.length > 0 && <>
-                    <SidebarSectionHeader>Starred applications</SidebarSectionHeader>
+                    <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>
                     {appFavorites.map((fav, i) =>
                         <SidebarEntry
                             key={i}
                             to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name} />}
+                            icon={<AppLogo name={fav.metadata.name}/>}
+                            tab={SidebarTabId.APPLICATIONS}
                         />
                     )}
                 </>}
             </>}
 
             {active !== SidebarTabId.RUNS ? null : <>
-                <SidebarSectionHeader>Running jobs</SidebarSectionHeader>
+                <SidebarSectionHeader tab={SidebarTabId.RUNS}>Running jobs</SidebarSectionHeader>
                 {recentRuns.length === 0 && <>
                     <SidebarEmpty>No running jobs</SidebarEmpty>
                 </>}
@@ -726,26 +756,32 @@ function SecondarySidebar({
                         key={run.id}
                         to={AppRoutes.jobs.view(run.id)}
                         text={name}
-                        icon={<AppLogo name={run.specification.application.name} />}
+                        icon={<AppLogo name={run.specification.application.name}/>}
+                        tab={SidebarTabId.RUNS}
                     />
                 })}
             </>}
 
             {active !== SidebarTabId.ADMIN ? null : <>
-                <SidebarSectionHeader>Tools</SidebarSectionHeader>
-                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"} />
+                <SidebarSectionHeader tab={SidebarTabId.ADMIN}>Tools</SidebarSectionHeader>
+                <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"}
+                              tab={SidebarTabId.ADMIN}/>
                 <SidebarEntry to={AppRoutes.admin.applicationStudio()} text={"Application studio"}
-                    icon={"heroBuildingStorefront"} />
-                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"} />
-                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"} />
-                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"} />
-                <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"} />
+                              icon={"heroBuildingStorefront"} tab={SidebarTabId.ADMIN}/>
+                <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}
+                              tab={SidebarTabId.ADMIN}/>
+                <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}
+                              tab={SidebarTabId.ADMIN}/>
+                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}
+                              tab={SidebarTabId.ADMIN}/>
+                <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"}
+                              tab={SidebarTabId.ADMIN}/>
             </>}
         </Flex>
     </div>;
 }
 
-function AppLogo({name}: {name: string}): JSX.Element {
+function AppLogo({name}: { name: string }): JSX.Element {
     return <Flex alignItems={"center"}>
         <Flex
             p="2px"
@@ -759,12 +795,12 @@ function AppLogo({name}: {name: string}): JSX.Element {
             minWidth="16px"
             borderRadius="4px"
         >
-            <AppToolLogo size="12px" name={name} type="APPLICATION" />
+            <AppToolLogo size="12px" name={name} type="APPLICATION"/>
         </Flex>
     </Flex>;
 }
 
-function Username({close}: {close(): void}): JSX.Element | null {
+function Username({close}: { close(): void }): JSX.Element | null {
     if (!Client.isLoggedIn) return null;
     return <Tooltip
         trigger={(
@@ -777,7 +813,7 @@ function Username({close}: {close(): void}): JSX.Element | null {
                 }}
                 width={"100%"}
             >
-                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
+                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em"/> {Client.username}
             </EllipsedText>
         )}
     >
@@ -786,7 +822,7 @@ function Username({close}: {close(): void}): JSX.Element | null {
     </Tooltip>
 }
 
-function ProjectID({close}: {close(): void}): JSX.Element | null {
+function ProjectID({close}: { close(): void }): JSX.Element | null {
     const projectId = useProjectId();
 
     const project = useProject();
@@ -813,7 +849,7 @@ function ProjectID({close}: {close(): void}): JSX.Element | null {
                 width={"100%"}
             >
                 <Icon key={projectId} name={"heroUserGroup"} mr="0.5em" my="0.2em"
-                    size="1.3em" />{projectPath}
+                      size="1.3em"/>{projectPath}
             </EllipsedText>
         }
     >
@@ -823,7 +859,12 @@ function ProjectID({close}: {close(): void}): JSX.Element | null {
 }
 
 function Downtimes(): JSX.Element | null {
-    const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0});
+    const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, {
+        items: [],
+        itemsPerPage: 0,
+        itemsInTotal: 0,
+        pageNumber: 0
+    });
     const [intervalId, setIntervalId] = React.useState(-1);
 
     React.useEffect(() => {
@@ -839,8 +880,8 @@ function Downtimes(): JSX.Element | null {
 
     if (upcomingDowntime === -1) return null;
     return <Link to={AppRoutes.news.detailed(upcomingDowntime)}>
-        <Tooltip trigger={<Icon size="24" color="warningMain" name="warning" />}>
-            Upcoming downtime.<br />
+        <Tooltip trigger={<Icon size="24" color="warningMain" name="warning"/>}>
+            Upcoming downtime.<br/>
             Click to view
         </Tooltip>
     </Link>

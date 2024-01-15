@@ -3,12 +3,23 @@ import Icon, {IconName} from "./Icon";
 import Link from "./Link";
 import {Flex, Truncate} from "@/ui-components";
 
+export enum SidebarTabId {
+    NONE = "",
+    FILES = "Files",
+    WORKSPACE = "Workspace",
+    RESOURCES = "Resources",
+    APPLICATIONS = "Applications",
+    RUNS = "Runs",
+    ADMIN = "Admin",
+}
+
 export interface LinkInfo {
     to: string;
     text: string;
     icon: IconName | React.ReactNode;
     disabled?: boolean;
     removed?: boolean;
+    tab: SidebarTabId;
 }
 
 export function SidebarLinkColumn({links}: { links: LinkInfo[] }): React.ReactNode {
@@ -22,7 +33,7 @@ export const SidebarEntry: React.FunctionComponent<LinkInfo> = (info) => {
         <Icon mt="2px" name={info.icon as IconName} color={"fixedWhite"} color2={"fixedWhite"} /> :
         info.icon;
 
-    return <Link key={info.text} to={info.to}>
+    return <Link key={info.text} to={info.to} data-tab={info.tab}>
         <Flex flexDirection={"row"} gap={"4px"}>
             {icon}
             <Truncate fontSize="14px" title={info.text} maxWidth={"150px"} color="var(--fixedWhite)">
@@ -35,9 +46,10 @@ export const SidebarEntry: React.FunctionComponent<LinkInfo> = (info) => {
 export const SidebarSectionHeader: React.FunctionComponent<{
     to?: string;
     children: React.ReactNode
-}> = ({to, children}) => {
+    tab: SidebarTabId;
+}> = ({to, children, tab}) => {
     if (to) {
-        return <Link to={to} className={"heading"}><h3>{children}</h3></Link>;
+        return <Link to={to} className={"heading"} data-tab={tab}><h3>{children}</h3></Link>;
     } else {
         return <h3 className={"no-link"}>{children}</h3>
     }
