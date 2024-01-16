@@ -456,8 +456,8 @@ class FileController(
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
                 ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
 
-            val finalChunk = sctx.ktor.call.request.header("Chunked-Upload-Final-Chunk")?.toBoolean()
-                ?: throw RPCException("Missing final chunk indicator", HttpStatusCode.BadRequest)
+            val totalSize = sctx.ktor.call.request.header("Chunked-Upload-Total-Size")?.toLongOrNull()
+                ?: throw RPCException("Missing total size", HttpStatusCode.BadRequest)
 
             with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
@@ -469,7 +469,7 @@ class FileController(
                         token,
                         handler.pluginData,
                         offset,
-                        finalChunk,
+                        totalSize,
                         sctx.ktor.call.request.receiveChannel()
                     )
                 }

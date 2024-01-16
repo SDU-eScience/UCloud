@@ -195,11 +195,11 @@ class UCloudFilePlugin : FilePlugin {
         session: String,
         pluginData: String,
         offset: Long,
-        finalChunk: Boolean,
+        totalSize: Long,
         chunk: ByteReadChannel
     ) {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
-        uploads.receiveChunk(UCloudFile.create(sessionData.id), offset, finalChunk, chunk, sessionData.conflictPolicy)
+        uploads.receiveChunk(UCloudFile.create(sessionData.id), offset, totalSize, chunk, sessionData.conflictPolicy)
     }
 
     override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> {

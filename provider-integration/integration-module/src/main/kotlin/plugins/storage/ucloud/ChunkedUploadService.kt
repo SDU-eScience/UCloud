@@ -13,7 +13,7 @@ class ChunkedUploadService(
     suspend fun receiveChunk(
         path: UCloudFile,
         offset: Long,
-        finalChunk: Boolean,
+        totalSize: Long,
         payload: ByteReadChannel,
         conflictPolicy: WriteConflictPolicy
     ) {
@@ -36,7 +36,7 @@ class ChunkedUploadService(
             payload.copyTo(outs)
         }
 
-        if (conflictPolicy == WriteConflictPolicy.REPLACE && finalChunk) {
+        if (conflictPolicy == WriteConflictPolicy.REPLACE && offset + payload.totalBytesRead >= totalSize) {
             nativeFS.move(tmpInternalFile, internalFile, WriteConflictPolicy.REPLACE)
         }
     }
