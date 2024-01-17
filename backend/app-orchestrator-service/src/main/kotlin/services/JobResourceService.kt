@@ -19,11 +19,19 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.mail.api.Mail
+import dk.sdu.cloud.mail.api.MailDescriptions
+import dk.sdu.cloud.mail.api.SendRequestItem
 import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -31,9 +39,14 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
@@ -67,7 +80,20 @@ data class InternalJobState(
     var jobParameters: ExportedParameters? = null,
 )
 
-class JobResourceService {
+data class JobNotificationInfo(
+    val type: JobState,
+    val jobId: String,
+    val appTitle: String,
+    val jobName: String? = null,
+)
+
+class JobResourceService(
+    private val serviceClient: AuthenticatedClient
+) {
+    private val jobNotifications = mutableMapOf<String, MutableList<JobNotificationInfo>>()
+    private val jobMailNotifications = mutableMapOf<String, MutableList<JobNotificationInfo>>()
+    private val notificationMutex = Mutex()
+
     // Listeners and lifetime events
     // =================================================================================================================
     // Components can hook into lifetime events of a job. This is primarily used to implement features such as
@@ -397,6 +423,47 @@ class JobResourceService {
 
                             if (newState == JobState.RUNNING) job.startedAt = Time.now()
 
+                            // Handle notifications for user
+                            backgroundScope.launch {
+                                notificationMutex.withLock {
+                                    addNotification(
+                                        idCards.lookupUid(uid),
+                                        newState,
+                                        jobId,
+                                        job.specification
+                                    )
+                                }
+
+                                var timer = 0
+                                val timeUntilSendNotifications = 10_000
+                                val timeUntilSendMails = 60_000 * 10
+
+                                while (timer < timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
+                                    delay(1_000)
+                                    timer += 1_000
+
+                                    notificationMutex.withLock {
+                                        if (timer >= timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
+                                            sendNotifications()
+                                            timer = timeUntilSendNotifications
+                                        }
+                                    }
+                                }
+
+
+                                while (timer < timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
+                                    delay(1_000)
+                                    timer += 1_000
+
+                                    notificationMutex.withLock {
+                                        if (timer >= timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
+                                            sendMails()
+                                            timer = timeUntilSendMails
+                                        }
+                                    }
+                                }
+                            }
+
                             if (!newState.isFinal()) {
                                 allActiveJobs[jobId.toLongOrNull()] = Unit
                             } else {
@@ -472,6 +539,144 @@ class JobResourceService {
                 }
             }
         }
+    }
+
+    private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
+        if (user == null) return;
+
+        val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
+
+        if (!jobNotifications.containsKey(user)) {
+            jobNotifications[user] = mutableListOf()
+            jobMailNotifications[user] = mutableListOf()
+        }
+
+        jobNotifications[user]!!.add(
+            JobNotificationInfo(
+                newState,
+                jobId,
+                appTitle,
+                jobSpecification.name,
+            )
+        )
+
+        jobMailNotifications[user]!!.add(
+            JobNotificationInfo(
+                newState,
+                jobId,
+                appTitle,
+                jobSpecification.name,
+            )
+        )
+    }
+
+    private suspend fun sendNotifications() {
+        for (user in jobNotifications.keys) {
+            val handledTypes = mutableListOf<JobState>()
+            val notifications = jobNotifications[user] ?: continue
+
+            val summarizedNotifications: List<Notification> = notifications.mapNotNull { notification ->
+                if (handledTypes.contains(notification.type)) return@mapNotNull null
+
+                val sameType = notifications.filter { notification.type == it.type }
+                handledTypes.add(notification.type)
+
+                val jobIds = sameType.map { JsonPrimitive(it.jobId) }
+                val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
+
+                val type = when (notification.type) {
+                    JobState.SUCCESS -> "JOB_COMPLETED"
+                    JobState.RUNNING -> "JOB_STARTED"
+                    JobState.FAILURE -> "JOB_FAILED"
+                    JobState.EXPIRED -> "JOB_EXPIRED"
+                    else -> return;
+                }
+
+                Notification(
+                    type,
+                    "",
+                    meta = JsonObject(
+                        mapOf(
+                            "jobIds" to JsonArray(jobIds),
+                            "appTitles" to JsonArray(appTitles),
+                        )
+                    )
+                )
+            }
+
+            summarizedNotifications.forEach { notification ->
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        user,
+                        notification
+                    ),
+                    serviceClient
+                )
+            }
+        }
+
+        jobNotifications.clear()
+    }
+
+    private suspend fun sendMails() {
+        for (user in jobMailNotifications.keys) {
+            val notifications = jobMailNotifications[user] ?: continue
+            if (notifications.isEmpty()) continue
+
+            val jobIds = notifications.map {it.jobId }
+            val jobNames = notifications.map { it.jobName }
+            val appTitles = notifications.map { it.appTitle }
+
+            val types = notifications.mapNotNull { notification ->
+                when (notification.type) {
+                    JobState.SUCCESS -> "JOB_COMPLETED"
+                    JobState.RUNNING -> "JOB_STARTED"
+                    JobState.FAILURE -> "JOB_FAILED"
+                    JobState.EXPIRED -> "JOB_EXPIRED"
+                    else -> null;
+                }
+            }
+
+            val subject = if (types.size > 1) {
+                if (notifications.all { it.type == JobState.RUNNING }) {
+                    "${notifications.size} of your jobs on UCloud have started"
+                } else if (notifications.all { it.type == JobState.SUCCESS }) {
+                    "${notifications.size} of your jobs on UCloud have completed"
+                } else if (notifications.all { it.type == JobState.FAILURE }) {
+                    "${notifications.size} of your jobs on UCloud have failed"
+                } else if (notifications.all { it.type == JobState.EXPIRED }) {
+                    "${notifications.size} of your jobs on UCloud have expired"
+                } else {
+                    "The state of ${notifications.size} of your jobs on UCloud has changed"
+                }
+            } else {
+                when (notifications.first().type) {
+                    JobState.RUNNING -> "One of your jobs on UCloud has started"
+                    JobState.SUCCESS -> "One of your jobs on UCloud has completed"
+                    JobState.FAILURE -> "One of your jobs on UCloud has failed"
+                    JobState.EXPIRED -> "One of your jobs on UCloud has expired"
+                    else -> "The state of one of your jobs on UCloud has changed"
+                }
+            }
+
+            MailDescriptions.sendToUser.call(
+                bulkRequestOf(
+                    SendRequestItem(
+                        user,
+                        Mail.JobEvents(
+                            jobIds,
+                            jobNames,
+                            appTitles,
+                            types,
+                            subject = subject
+                        )
+                    )
+                ),
+                serviceClient
+            )
+        }
+
+        jobMailNotifications.clear()
     }
 
     // Job specific read operations
