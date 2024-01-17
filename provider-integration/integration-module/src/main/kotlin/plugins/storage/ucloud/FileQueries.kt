@@ -132,7 +132,7 @@ class FileQueries(
     }
 
     suspend fun findAvailableNameOnRename(id: String): String {
-        for (i in 1..1000) {
+        for (i in 1..10000) {
             val prepath = id.substringBeforeLast("/")
             val filename = id.substringAfterLast("/").substringBeforeLast(".")
             val extension = filename.substringAfterLast(".")
