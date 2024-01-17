@@ -9,9 +9,9 @@ import {useCallback, useState} from "react";
 import {injectStyle} from "@/Unstyled";
 
 export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
-    return (<Flex zIndex={"1"} alignItems={"center"}>
-        {props.searchEnabled && <Box width="32px"><SearchIcon enabled={props.searchEnabled} /></Box>}
-        <Box width="32px" mr={10}><RefreshIcon /></Box>
+    return (<Flex zIndex={"1"} alignItems={"center"} gap={"16px"}>
+        {props.searchEnabled && <SearchIcon enabled={props.searchEnabled} />}
+        <RefreshIcon />
         <ContextSwitcher />
     </Flex>);
 }

@@ -50,8 +50,8 @@ export const IconClass = injectStyle("icon", k => `
         transition: transform .2s ease-in-out; 
     }
     
-    ${k}:hover {
-        color: var(--hoverColor);
+    ${k}.with-hover:hover {
+        color: var(--hoverColor, var(--color)) !important;
     }
     
     ${k}[data-spin="true"] {
@@ -66,12 +66,12 @@ export const IconClass = injectStyle("icon", k => `
 
 const Icon: React.FunctionComponent<IconBaseProps> = props => {
     const style: CSSProperties = unbox(props);
+    if (props.color) style["--color"] = `var(--${props.color})`;
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
-    else style["--hoverColor"] = "inherit";
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
 
-    return <IconBase {...props} className={classConcat(IconClass, props.className)} data-spin={props.spin === true} style={style} />
+    return <IconBase {...props} className={classConcat(IconClass, props.className, props.hoverColor ? "with-hover" : undefined)} data-spin={props.spin === true} style={style} />
 };
 
 Icon.displayName = "Icon";

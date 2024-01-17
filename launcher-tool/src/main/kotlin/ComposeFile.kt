@@ -134,7 +134,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.3.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "backend",
@@ -359,7 +359,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2023.4.0-dev39",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
                         "command": ["sleep", "inf"],
                         "hostname": "k8",
                         "volumes": [
@@ -731,7 +731,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2023.4.0-dev39",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
                         "command": ["sleep", "inf"],
                         "hostname": "slurm",
                         "volumes": [
@@ -1311,7 +1311,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
                         "command": ["sleep", "inf"],
                         "hostname": "go-slurm",
                         "init": true,

@@ -6,7 +6,7 @@ import {BrowserRouter} from "react-router-dom";
 
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
-const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
+const ApplicationsLanding = React.lazy(() => import("./Applications/Landing2"));
 const ApplicationsGroup = React.lazy(() => import("./Applications/Group"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));

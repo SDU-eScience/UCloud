@@ -23,7 +23,7 @@ import {injectStyle} from "@/Unstyled";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
-import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -41,7 +41,8 @@ interface NewsRequestProps extends PaginationRequest {
     withHidden: boolean;
 }
 
-function initialCall(): void {};
+function initialCall(): void {
+};
 
 function Dashboard(): JSX.Element {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -81,25 +82,27 @@ function Dashboard(): JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
+        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto"/><UtilityBar searchEnabled={false}/></Flex>
         <Box>
-            <DashboardNews news={news} />
-            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
+            <DashboardNews news={news}/>
+            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload}/>
 
             <div className={GridClass}>
-                <DashboardResources wallets={wallets} />
-                <DashboardRuns reloadRef={runsReload} />
+                <DashboardResources wallets={wallets}/>
+                <DashboardRuns reloadRef={runsReload}/>
             </div>
             <div className={GridClass}>
-                <Connect embedded />
-                <DashboardGrantApplications reloadRef={grantsReload} />
+                <Connect embedded/>
+                <DashboardGrantApplications reloadRef={grantsReload}/>
             </div>
         </Box>
     </Box>);
 
     return (
-        <div className={GradientWithPolygons}>
-            <MainContainer main={main} />
+        <div className={Gradient}>
+            <div className={GradientWithPolygons}>
+                <MainContainer main={main}/>
+            </div>
         </div>
     );
 }
@@ -128,7 +131,10 @@ const GridClass = injectStyle("grid", k => `
 }
 `);
 
-function Invites({projectReloadRef, inviteReloadRef}: {projectReloadRef: React.MutableRefObject<() => void>, inviteReloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
+function Invites({projectReloadRef, inviteReloadRef}: {
+    projectReloadRef: React.MutableRefObject<() => void>,
+    inviteReloadRef: React.MutableRefObject<() => void>
+}): React.ReactNode {
     const [showProjectInvites, setShowProjectInvites] = React.useState(false);
     const [showShareInvites, setShowShareInvites] = React.useState(false);
 
@@ -137,12 +143,18 @@ function Invites({projectReloadRef, inviteReloadRef}: {projectReloadRef: React.M
             icon="heroUserGroup"
             title="Invites"
         >
-            <div style={display(showProjectInvites)}><ProjectInviteBrowse opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
-            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{reloadRef: inviteReloadRef, embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
+            <div style={display(showProjectInvites)}><ProjectInviteBrowse
+                opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}}/></div>
+            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
+                reloadRef: inviteReloadRef,
+                embedded: true,
+                setShowBrowser: setShowShareInvites,
+                filterState: "PENDING"
+            }}/></div>
         </DashboardCard>
     </Flex>
 
-    function display(val: boolean): {display: "none" | undefined} {
+    function display(val: boolean): { display: "none" | undefined } {
         return {display: val ? undefined : "none"}
     }
 }
@@ -160,7 +172,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): JSX.Element {
+function DashboardRuns({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): JSX.Element {
     return <DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
@@ -169,7 +181,7 @@ function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => voi
         <JobsBrowse opts={{
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
             additionalFilters: {"itemsPerPage": "10"}, reloadRef
-        }} />
+        }}/>
     </DashboardCard>;
 }
 
@@ -212,35 +224,41 @@ function DashboardResources({wallets}: {
             title="Resource allocations"
             icon={"heroBanknotes"}>
             {mapped.length === 0 ? (
-                <NoResultsCardBody title={"No available resources"}>
-                    {!canApply ? null : <Text>
-                        Apply for resources to use storage and compute on UCloud.
-                    </Text>}
-                    {APPLY_LINK_BUTTON}
-                </NoResultsCardBody>
-            ) :
+                    <NoResultsCardBody title={"No available resources"}>
+                        {!canApply ? null : <Text>
+                            Apply for resources to use storage and compute on UCloud.
+                        </Text>}
+                        {APPLY_LINK_BUTTON}
+                    </NoResultsCardBody>
+                ) :
                 /* height is 100% - height of Heading 55px */
                 <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                     <Table>
                         <tbody>
-                            {mapped.slice(0, 7).map((n, i) => (
-                                <TableRow key={i}>
-                                    <TableCell fontSize={FONT_SIZE}>
-                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                            <ProviderLogo providerId={n.category.provider} size={20} />
-                                            <code>{n.category.name}</code>
-                                        </Flex>
-                                    </TableCell>
-                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                        {Accounting.balanceToString(n.category, n.used, {precision: 0, removeUnitIfPossible: true})}
-                                        {" "}/{" "}
-                                        {Accounting.balanceToString(n.category, n.quota, {precision: 0, removeUnitIfPossible: false})}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                        {mapped.slice(0, 7).map((n, i) => (
+                            <TableRow key={i}>
+                                <TableCell fontSize={FONT_SIZE}>
+                                    <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                        <ProviderLogo providerId={n.category.provider} size={20}/>
+                                        <code>{n.category.name}</code>
+                                    </Flex>
+                                </TableCell>
+                                <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                    {Accounting.balanceToString(n.category, n.used, {
+                                        precision: 0,
+                                        removeUnitIfPossible: true
+                                    })}
+                                    {" "}/{" "}
+                                    {Accounting.balanceToString(n.category, n.quota, {
+                                        precision: 0,
+                                        removeUnitIfPossible: false
+                                    })}
+                                </TableCell>
+                            </TableRow>
+                        ))}
                         </tbody>
                     </Table>
-                    <Box flexGrow={1} />
+                    <Box flexGrow={1}/>
                     <Flex mx="auto">{APPLY_LINK_BUTTON}</Flex>
                 </Flex>
             }
@@ -248,7 +266,7 @@ function DashboardResources({wallets}: {
     );
 }
 
-function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
+function DashboardGrantApplications({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -259,11 +277,18 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObj
         title="Grant applications"
         icon="heroDocumentCheck"
     >
-        <GrantApplicationBrowse opts={{reloadRef, embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
+        <GrantApplicationBrowse opts={{
+            reloadRef,
+            embedded: true,
+            omitFilters: true,
+            disabledKeyhandlers: true,
+            both: true,
+            additionalFilters: {itemsPerPage: "10"}
+        }}/>
     </DashboardCard>;
 };
 
-function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Element | null {
+function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): JSX.Element | null {
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
         <DashboardCard
@@ -296,19 +321,19 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                         </Box>
                     }
                 </div>
-                <img alt={"UCloud logo"} src={ucloudImage} />
+                <img alt={"UCloud logo"} src={ucloudImage}/>
             </div>
 
             <Relative>
                 <div className={DeicBanner}>
-                    <Box flexGrow={1} />
+                    <Box flexGrow={1}/>
                     <ExternalLink href={"https://deic.dk"}>
                         <div>UCloud is delivered by the Danish e-Infrastrucure Consortium</div>
                     </ExternalLink>
                     <ExternalLink href={"https://deic.dk"}>
-                        <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
+                        <Icon mx="auto" my="-32px" name="deiCLogo" size="64px"/>
                     </ExternalLink>
-                    <Box flexGrow={1} />
+                    <Box flexGrow={1}/>
                 </div>
             </Relative>
         </DashboardCard>
@@ -393,7 +418,8 @@ const DashboardCard: React.FunctionComponent<{
     overflow?: string;
 }> = props => {
     return <TitledCard
-        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title}</Heading.h3></Link> : <Heading.h3>{props.title}</Heading.h3>}
+        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title}</Heading.h3></Link> :
+            <Heading.h3>{props.title}</Heading.h3>}
         icon={props.icon}
         overflow={props.overflow}
     >

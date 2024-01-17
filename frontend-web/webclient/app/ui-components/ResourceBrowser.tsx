@@ -3037,11 +3037,6 @@ export class ResourceBrowser<T> {
                 color: var(--textPrimary);
             }
             
-            ${browserClass.dot} header[has-location-bar] .location ul {
-                margin-top: -2px;
-                margin-bottom: -2px;
-            }
-            
             ${browserClass.dot} header > div > div > ul {
                 margin-left: 6px;
             }
