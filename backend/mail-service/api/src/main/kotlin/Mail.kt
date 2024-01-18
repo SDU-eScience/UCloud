@@ -21,6 +21,9 @@ data class EmailSettings(
     val userRoleChange: Boolean = true,
     val userLeft: Boolean = true,
     val lowFunds: Boolean = true,
+    //Jobs
+    val jobStarted: Boolean = false,
+    val jobStopped: Boolean = false,
 )
 
 
@@ -195,5 +198,15 @@ sealed class Mail {
         val token: String,
         override val subject: String = "[UCloud] Please verify your email address",
         val username: String? = null,
+    ) : Mail()
+
+    @Serializable
+    @SerialName("jobEvents")
+    data class JobEvents(
+        val jobIds: List<String>,
+        val jobNames: List<String?>,
+        val appTitles: List<String>,
+        val events: List<String>,
+        override val subject: String = "UCloud job updates"
     ) : Mail()
 }

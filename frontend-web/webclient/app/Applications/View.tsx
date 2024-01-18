@@ -53,7 +53,7 @@ export const AppHeader: React.FunctionComponent<{
                                             p={"8px"}
                                             onClick={() => {
                                                 close.current();
-                                                navigate(Pages.runApplication(f.metadata));
+                                                navigate(Pages.runApplicationWithName(f.metadata.name));
                                             }}
                                         >
                                             {f.metadata.flavorName ?? f.metadata.title}
