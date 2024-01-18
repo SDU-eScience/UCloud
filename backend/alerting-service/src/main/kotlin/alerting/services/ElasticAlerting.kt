@@ -12,12 +12,8 @@ import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import kotlinx.coroutines.delay
 import org.apache.http.util.EntityUtils
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
-import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsRequest
 import org.elasticsearch.client.Request
-import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
-import org.elasticsearch.client.RestHighLevelClient
 import java.net.ConnectException
 
 enum class Status(val isError: Boolean, val failuresForATrigger: Int) {

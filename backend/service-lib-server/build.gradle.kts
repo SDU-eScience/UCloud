@@ -72,4 +72,7 @@ dependencies {
     api("co.elastic.clients:elasticsearch-java:8.11.0")
 
     api("com.google.guava:guava:31.1-jre")
+
+    api("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
+
 }

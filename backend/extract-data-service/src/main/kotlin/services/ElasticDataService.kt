@@ -18,16 +18,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.AuditEvent
 import dk.sdu.cloud.calls.server.ElasticAudit
-import dk.sdu.cloud.calls.server.HttpCallLogEntry
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.extract.data.api.UCloudUser
 import dk.sdu.cloud.service.db.async.DBContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval
 import java.io.File
 import java.time.Duration
 import java.time.LocalDateTime

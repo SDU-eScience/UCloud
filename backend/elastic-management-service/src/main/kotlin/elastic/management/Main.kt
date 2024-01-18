@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management
 
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
+import dk.sdu.cloud.elastic.management.api.ElasticManagementServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 
