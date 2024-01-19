@@ -70,7 +70,7 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var pathConverter: PathConverter
     lateinit var usageScan: UsageScan
     lateinit var driveLocator: DriveLocator
-    lateinit var openFileDescriptors: OpenFileDescriptors
+    lateinit var uploadDescriptors: UploadDescriptors
     var computePlugin: UCloudComputePlugin? = null
 
     override fun supportsRealUserMode(): Boolean = false
@@ -101,11 +101,11 @@ class UCloudFilePlugin : FilePlugin {
         limitChecker = LimitChecker(dbConnection, rpcClient, pathConverter)
         memberFiles = MemberFiles(fs, pathConverter)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
-        openFileDescriptors = OpenFileDescriptors(pathConverter, fs)
-        uploads = ChunkedUploadService(openFileDescriptors)
+        uploadDescriptors = UploadDescriptors(pathConverter, fs)
+        uploads = ChunkedUploadService(uploadDescriptors)
         usageScan = UsageScan(pluginName, pathConverter, directoryStats, rpcClient, dbConnection)
 
-        openFileDescriptors.startMonitoringLoop()
+        uploadDescriptors.startMonitoringLoop()
 
         with(tasks) {
             install(CopyTask())
@@ -177,7 +177,7 @@ class UCloudFilePlugin : FilePlugin {
         return request.items.map {
             val ucloudFile = UCloudFile.create(it.id)
 
-            val created = openFileDescriptors.get(ucloudFile.path, it.conflictPolicy)
+            val created = uploadDescriptors.get(ucloudFile.path)
             val newUCloudPath = ucloudFile.parent().path + created.path.fileName().removeSuffix(".part")
 
             val pluginData = defaultMapper.encodeToJsonElement(

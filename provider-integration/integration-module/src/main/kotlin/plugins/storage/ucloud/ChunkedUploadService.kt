@@ -8,7 +8,7 @@ import dk.sdu.cloud.utils.copyTo
 import io.ktor.utils.io.*
 
 class ChunkedUploadService(
-    private val openFileDescriptors: OpenFileDescriptors,
+    private val openFileDescriptors: UploadDescriptors,
 ) {
     suspend fun receiveChunk(
         path: UCloudFile,
