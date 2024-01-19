@@ -303,7 +303,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                 <div className={DeicBanner}>
                     <Box flexGrow={1} />
                     <ExternalLink href={"https://deic.dk"}>
-                        <div>UCloud is delivered by the Danish e-Infrastrucure Consortium</div>
+                        <div>UCloud is delivered by the Danish e-Infrastructure Consortium</div>
                     </ExternalLink>
                     <ExternalLink href={"https://deic.dk"}>
                         <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
