@@ -81,7 +81,7 @@ function Dashboard(): JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
+        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} searchEnabled={false} /></Flex>
         <Box>
             <DashboardNews news={news} />
             <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
@@ -296,7 +296,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                         </Box>
                     }
                 </div>
-                <img alt={"UCloud logo"} src={ucloudImage} />
+                <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
             </div>
 
             <Relative>
