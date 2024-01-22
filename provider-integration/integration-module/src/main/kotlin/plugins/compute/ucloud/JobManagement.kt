@@ -20,6 +20,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.userHasResourcesAvailable
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -133,6 +134,13 @@ class JobManagement(
     }
 
     suspend fun create(verifiedJob: Job, queueExpiration: Long? = null) {
+        verifiedJob.specification.resources
+        if (!userHasResourcesAvailable(job = verifiedJob) ) {
+            throw RPCException(
+                "Not enough resources available",
+                HttpStatusCode.PaymentRequired, "NOT_ENOUGH_COMPUTE_CREDITS"
+            )
+        }
         try {
             if (maintenance.isPaused()) {
                 throw RPCException(

@@ -2,9 +2,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.reportDeltaUseCompute
-import java.util.HashMap
 
 object FeatureAccounting : JobFeature, Loggable {
     override val log = logger()

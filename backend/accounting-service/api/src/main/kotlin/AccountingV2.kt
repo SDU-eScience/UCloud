@@ -507,7 +507,6 @@ data class WalletAllocationV2(
         checkDeicReferenceFormat(deicAllocationId)
     }
 
-    fun isLocked(): Boolean = (localUsage >= quota) || ((treeUsage ?: 0) >= quota)
     fun isActive(): Boolean = Time.now() in startDate..endDate
 
     @Suppress("DEPRECATION")
