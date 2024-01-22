@@ -474,7 +474,11 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     }
 
                     // Row stat2
-                    row.stat2.innerText = dateToString(share.createdAt ?? timestampUnixMs());
+                    row.stat2.appendChild(createHTMLElements({
+                        tagType: "div",
+                        style: {marginTop: "auto", marginBottom: "auto"},
+                        innerText: dateToString(share.createdAt ?? timestampUnixMs())
+                    }));
 
                     // Row stat3
                     const avatar = avatars.avatar(share.owner.createdBy);

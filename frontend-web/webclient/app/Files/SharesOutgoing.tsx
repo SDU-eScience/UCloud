@@ -9,7 +9,7 @@ import {
     RadioTilesContainer,
     Tooltip
 } from "@/ui-components";
-import {capitalized, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {capitalized, createHTMLElements, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useLocation, useNavigate} from "react-router";
@@ -408,12 +408,12 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         row.stat2.appendChild(stateIcon);
-                        const text = document.createTextNode("");
+                        const text = createHTMLElements({tagType: "div", style: {marginTop: "auto", marginBottom: "auto"}});
                         let state: ShareState;
 
                         if (isViewingShareGroupPreview(share)) {
                             state = share.state;
-                            text.textContent = capitalized(share.state.toString());
+                            text.innerText = capitalized(share.state.toString());
                         } else {
                             const pending = share.sharePreview.filter(it => it.state === "PENDING");
                             const rejected = share.sharePreview.filter(it => it.state === "REJECTED");
@@ -421,13 +421,13 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             const anyRejected = pending.length > 0;
 
                             if (anyPending) {
-                                text.textContent = `${pending.length} pending`;
+                                text.innerText = `${pending.length} pending`;
                                 state = "PENDING";
                             } else if (anyRejected) {
-                                text.textContent = `${rejected.length} pending`;
+                                text.innerText = `${rejected.length} pending`;
                                 state = "REJECTED";
                             } else { // All must be approved in none are rejected or pending.
-                                text.textContent = `All accepted`;
+                                text.innerText = `All accepted`;
                                 state = "APPROVED";
                             }
                         }
