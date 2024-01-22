@@ -27,7 +27,7 @@ const initialState: UserDetailsState = {
 
 type UpdatePlaceholdersNotificationSettings = PayloadAction<"UpdatePlaceholdersNotificationSettings", UserDetailsState>;
 
-const reducer = (state: UserDetailsState, action: UpdatePlaceholdersNotificationSettings): UserDetailsState => {
+function reducer(state: UserDetailsState, action: UpdatePlaceholdersNotificationSettings): UserDetailsState {
     switch (action.type) {
         case "UpdatePlaceholdersNotificationSettings":
             return {...state, ...action.payload};
@@ -116,7 +116,7 @@ export const ChangeNotificationSettings: React.FunctionComponent<{setLoading: (l
                 <Button
                     mt="1em"
                     type="submit"
-                    color="green"
+                    color="successMain"
                     disabled={commandLoading}
                 >
                     Update Notification Settings

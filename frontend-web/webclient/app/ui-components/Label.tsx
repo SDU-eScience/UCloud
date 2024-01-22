@@ -15,7 +15,7 @@ export const LabelClass = injectStyle("label", k => `
     }
 `);
 
-const Label: React.FunctionComponent<BoxProps & {className?: string; children?: React.ReactNode; style?: CSSProperties; htmlFor?: string;}> = props => {
+function Label(props: BoxProps & {className?: string; children?: React.ReactNode; style?: CSSProperties; htmlFor?: string;}) {
     return <label
         className={classConcat(LabelClass, props.className)}
         htmlFor={props.htmlFor}
