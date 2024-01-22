@@ -269,6 +269,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                 });
 
                 avatarState.subscribe(() => browser.rerender());
+                
 
                 browser.on("renderRow", (share, row, dims) => {
                     const avatarWrapper = document.createElement("div");
@@ -640,7 +641,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                 }
             });
 
-            browserRef.current!.renameField.style.marginLeft = "18px";
+            browserRef.current!.renameField.style.marginLeft = "38px";
         }
     }, []);
 

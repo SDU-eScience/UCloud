@@ -748,19 +748,21 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
                     row.title.append(title);
-                    // Disabled for now.
-                    if (isReadonly(file.permissions.myself) && Math.random() > 2) {
+
+                    if (isReadonly(file.permissions.myself)) {
                         row.title.appendChild(div(
                             `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;"> (Readonly)</div>`
                         ));
                     }
 
                     const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
-                    if (opts?.selection) {
-                        row.stat2.innerText = dateToDateStringOrTime(modifiedAt);
-                    } else {
-                        row.stat2.innerText = dateToString(modifiedAt);
-                    }
+                    row.stat2.replaceChildren(createHTMLElements({
+                        tagType: "div",
+                        style: {marginTop: "auto", marginBottom: "auto"},
+                        innerText: opts?.selection ?
+                            dateToDateStringOrTime(modifiedAt) :
+                            row.stat2.innerText = dateToString(modifiedAt)
+                    }));
 
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, file);
@@ -768,7 +770,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             row.stat3.replaceChildren(button);
                         }
                     } else {
-                        row.stat3.innerText = sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null);
+                        row.stat3.replaceChildren(createHTMLElements({
+                            tagType: "div",
+                            style: {marginTop: "auto", marginBottom: "auto"},
+                            innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
+                        }));
                     }
 
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
