@@ -16,10 +16,16 @@ import {HiddenInputField} from "@/ui-components/Input";
 import Truncate from "@/ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
 import * as UCloud from "@/UCloud";
-import {Link} from "@/ui-components";
+import {Label, Link} from "@/ui-components";
 import {useNavigate} from "react-router";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {emptyPage} from "@/Utilities/PageUtilities";
+
+const labelStyle: React.CSSProperties & Record<`--${string}`, string> = {
+    marginRight: "5px",
+    "--bgColor": "var(--primaryMain)",
+    "--hoverColor": "var(--primaryLight)"
+}
 
 export const Studio: React.FunctionComponent = () => {
     useTitle("Application Studio");
@@ -46,7 +52,7 @@ export const Studio: React.FunctionComponent = () => {
             header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Studio</Heading.h2>}
             main={(<>
                 <Flex justifyContent="right">
-                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                    <Label className={ButtonClass} style={labelStyle}>
                         Upload application
                         <HiddenInputField
                             type="file"
@@ -64,9 +70,9 @@ export const Studio: React.FunctionComponent = () => {
                                     dialogStore.success();
                                 }
                             }} />
-                    </label>
+                    </Label>
 
-                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                    <Label className={ButtonClass} style={labelStyle}>
                         Upload tool
                         <HiddenInputField
                             type="file"
@@ -85,9 +91,9 @@ export const Studio: React.FunctionComponent = () => {
                                 }
                             }}
                         />
-                    </label>
+                    </Label>
 
-                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                    <Label className={ButtonClass} style={labelStyle}>
                         Update landing page
                         <HiddenInputField
                             type="file"
@@ -106,9 +112,9 @@ export const Studio: React.FunctionComponent = () => {
                                 }
                             }}
                         />
-                    </label>
+                    </Label>
 
-                    <label className={ButtonClass} style={{marginRight: "5px"}}>
+                    <Label className={ButtonClass} style={labelStyle}>
                         Update overview page
                         <HiddenInputField
                             type="file"
@@ -127,7 +133,7 @@ export const Studio: React.FunctionComponent = () => {
                                 }
                             }}
                         />
-                    </label>
+                    </Label>
 
 
 
