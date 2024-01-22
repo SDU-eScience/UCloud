@@ -6,7 +6,6 @@ import co.elastic.clients.elasticsearch.indices.UpdateAliasesRequest
 import co.elastic.clients.elasticsearch.indices.update_aliases.AddAction
 import co.elastic.clients.elasticsearch.indices.update_aliases.RemoveAction
 import dk.sdu.cloud.service.Loggable
-import org.elasticsearch.client.RequestOptions
 import org.slf4j.Logger
 import java.time.LocalDate
 
