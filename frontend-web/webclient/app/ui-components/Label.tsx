@@ -1,6 +1,6 @@
 import * as React from "react";
-import { BoxProps } from "./Box";
-import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {BoxProps} from "./Box";
+import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 
 export const LabelClass = injectStyle("label", k => `
@@ -15,9 +15,9 @@ export const LabelClass = injectStyle("label", k => `
     }
 `);
 
-const Label: React.FunctionComponent<BoxProps & { children?: React.ReactNode; style?: CSSProperties; htmlFor?: string; }> = props => {
+const Label: React.FunctionComponent<BoxProps & {className?: string; children?: React.ReactNode; style?: CSSProperties; htmlFor?: string;}> = props => {
     return <label
-        className={LabelClass}
+        className={classConcat(LabelClass, props.className)}
         htmlFor={props.htmlFor}
         style={{...unbox(props), ...(props.style ?? {})}}
         children={props.children}

@@ -62,80 +62,72 @@ function resolveNotification(event: Notification): {
         case "JOB_COMPLETED":
             const jobsCompletedTitle = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs completed`
-            :
+                :
                 `${event.meta.appTitles[0]} completed`
-            ;
+                ;
 
             const jobsCompletedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs completed successfully.`
-            :
+                :
                 `Your ${event.meta.appTitles[0]} job completed successfully.`
-            ;
+                ;
 
             return {
                 icon: "heroServer",
-                color: "black",
-                color2: "midGray",
+                color: "iconColor",
+                color2: "iconColor2",
                 modifiedTitle: jobsCompletedTitle,
                 modifiedMessage: jobsCompletedMessage
             };
         case "JOB_STARTED":
             const jobsStartedTitle = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs started`
-            :
+                :
                 `${event.meta.appTitles[0]} started`
-            ;
+                ;
 
             const jobsStartedMessage = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs are now running.`
-            :
-                `Your ${event.meta.appTitles[0]} job is now running`
-            ;
+                `${event.meta.jobIds.length} jobs are now running.` :
+                `Your ${event.meta.appTitles[0]} job is now running`;
 
             return {
                 icon: "heroServer",
-                color: "black",
-                color2: "midGray",
+                color: "iconColor",
+                color2: "iconColor2",
                 modifiedTitle: jobsStartedTitle,
                 modifiedMessage: jobsStartedMessage
             };
         case "JOB_EXPIRED":
             const jobsExpiredTitle = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs expired`
-            :
-                `${event.meta.appTitles[0]} expired`
-            ;
+                `${event.meta.jobIds.length} jobs expired` :
+                `${event.meta.appTitles[0]} expired`;
 
             const jobsExpiredMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs has reached their time limit and is no longer running.`
-            :
+                :
                 `Your ${event.meta.appTitles[0]} job has reached its time limit and is no longer running.`
-            ;
+                ;
 
             return {
                 icon: "heroServer",
-                color: "black",
-                color2: "midGray",
+                color: "iconColor",
+                color2: "iconColor2",
                 modifiedTitle: jobsExpiredTitle,
                 modifiedMessage: jobsExpiredMessage
             };
         case "JOB_FAILED":
             const jobsFailedTitle = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs failed`
-            :
-                `${event.meta.appTitles[0]} failed`
-            ;
+                `${event.meta.jobIds.length} jobs failed` :
+                `${event.meta.appTitles[0]} failed`;
 
             const jobsFailedMessage = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs terminated with a failure.`
-            :
-                `Your ${event.meta.appTitles[0]} job terminated with a failure.`
-            ;
+                `${event.meta.jobIds.length} jobs terminated with a failure.` :
+                `Your ${event.meta.appTitles[0]} job terminated with a failure.`;
 
             return {
                 icon: "heroServer",
-                color: "black",
-                color2: "midGray",
+                color: "iconColor",
+                color2: "iconColor2",
                 modifiedTitle: jobsFailedTitle,
                 modifiedMessage: jobsFailedMessage
             };
@@ -257,7 +249,7 @@ export function sendNotification(notification: NormalizedNotification) {
 // When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
 // relevant components.
 let wsConnection: WebSocketConnection | undefined = undefined;
-let snackbarSubscription: (snack?: Snack) => void = () => { };
+let snackbarSubscription: (snack?: Snack) => void = () => {};
 let snoozeLoop: any;
 function initializeStore() {
     // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.

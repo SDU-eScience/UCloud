@@ -41,9 +41,9 @@ interface NewsRequestProps extends PaginationRequest {
     withHidden: boolean;
 }
 
-function initialCall(): void {};
+function initialCall(): void {}
 
-function Dashboard(): JSX.Element {
+function Dashboard(): React.JSX.Element {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
