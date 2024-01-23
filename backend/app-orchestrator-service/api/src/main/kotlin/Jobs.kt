@@ -744,24 +744,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 )
                 val tags = listOf("very-scientific")
                 val favorite = false
-                success(
-                    AppStore.listAll,
-                    PaginationRequest(50, 0),
-                    Page(
-                        1,
-                        50,
-                        0,
-                        listOf(
-                            ApplicationSummaryWithFavorite(
-                                metadata,
-                                favorite,
-                                tags
-                            ),
-                        )
-                    ),
-                    user,
-                    "applications"
-                )
 
                 comment("The user selects the first application ('batch' in version '1.0.0')")
                 comment("The user requests additional information about the application")

@@ -63,16 +63,20 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
 
     Core("core", { svc ->
         when (svc) {
-            AuditIngestionService,
             AuthService,
+            PasswordResetService,
+
             AvatarService,
+
             ElasticManagementService,
+            AlertingService,
+            AuditIngestionService,
+
             MailService,
             NewsService,
             NotificationService,
-            AlertingService,
-            PasswordResetService,
             SupportService,
+
             TaskService -> true
 
             else -> false

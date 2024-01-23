@@ -1,50 +1,31 @@
-package app.store.services
+package dk.sdu.cloud.app.store.services
 
-import com.fasterxml.jackson.databind.JsonMappingException
-import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.rpc.AppStoreController
-import dk.sdu.cloud.app.store.services.AppStoreService
-import dk.sdu.cloud.app.store.services.ApplicationTagsService
-import dk.sdu.cloud.app.store.services.LogoService
-import dk.sdu.cloud.app.store.services.LogoType
-import dk.sdu.cloud.app.store.services.ToolAsyncDao
+import dk.sdu.cloud.app.store.services.*
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.Time
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.util.*
-import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonObject
-import org.yaml.snakeyaml.reader.ReaderException
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.security.MessageDigest
-import kotlin.streams.toList
 
 class Importer(
-    private val db: DBContext,
-    private val logoService: LogoService,
-    private val tagService: ApplicationTagsService,
-    private val toolStore: ToolAsyncDao,
-    private val appStore: AppStoreService,
+    private val service: AppService,
 ) {
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun importApplications(endpoint: String, checksum: String) {
@@ -85,8 +66,8 @@ class Importer(
                     val content = Files.newInputStream(toolPath).use { ins ->
                         ins.readBytes().decodeToString()
                     }
-                    val description = yamlMapper.readValue<ToolDescription>(content).normalize()
-                    toolStore.create(db, ActorAndProject(Actor.System, null), description, content)
+                    val description = yamlMapper.readValue<ToolYaml>(content).normalize()
+                    service.createTool(ActorAndProject.System, Tool("_ucloud", Time.now(), Time.now(), description))
                 } catch (ex: Throwable) {
                     when {
                         ex is RPCException && ex.httpStatusCode == HttpStatusCode.Conflict -> {
@@ -109,8 +90,14 @@ class Importer(
                     val content = Files.newInputStream(toolPath).use { ins ->
                         ins.readBytes().decodeToString()
                     }
-                    val description = yamlMapper.readValue<ApplicationDescription>(content).normalize()
-                    appStore.create(ActorAndProject(Actor.System, null), description, content)
+                    val description = yamlMapper.readValue<ApplicationYaml>(content).normalize()
+                    service.createApplication(
+                        ActorAndProject.System,
+                        Application(
+                            description.metadata,
+                            description.invocation,
+                        )
+                    )
                 } catch (ex: Throwable) {
                     when {
                         ex is RPCException && ex.httpStatusCode == HttpStatusCode.Conflict -> {
@@ -124,6 +111,7 @@ class Importer(
                 }
             }
 
+        /*
         val logos = defaultMapper.decodeFromString(
             MapSerializer(String.serializer(), String.serializer()),
             Files.newInputStream(fs.getPath("/logos.json")).readBytes().decodeToString()
@@ -144,6 +132,7 @@ class Importer(
                 log.info(ex.toReadableStacktrace().toString())
             }
         }
+         */
 
         @Serializable
         data class AppGroupData(
@@ -159,25 +148,25 @@ class Importer(
             Files.newInputStream(fs.getPath("/application-groups.json")).readBytes().decodeToString()
         )
 
-        val systemActor = ActorAndProject(Actor.System, null)
         appGroups.forEach { group ->
-            val created = appStore.createGroup(systemActor, group.title)
+            val created = service.createGroup(ActorAndProject.System, group.title)
 
-            appStore.updateGroup(
-                systemActor,
-                created.id,
+            service.updateGroup(
+                ActorAndProject.System,
+                created,
                 group.title,
-                description = group.description,
-                defaultApplication = group.default
+                newDescription = group.description,
+                newDefaultFlavor = group.default
             )
 
-            tagService.createTags(group.tags, created.id)
+            service.addTagToGroup(ActorAndProject.System, group.tags, created)
 
             group.applications.forEach { app ->
-                appStore.setGroup(systemActor, app, created.id)
+                service.assignApplicationToGroup(ActorAndProject.System, app, created)
             }
         }
 
+        /*
         try {
             val landingInput = Files.newInputStream(fs.getPath("/app-store-landing.yml")).readBytes().decodeToString()
             val landingYaml = yamlMapper.readValue<List<PageSection>>(landingInput)
@@ -209,7 +198,7 @@ class Importer(
                 }
             }
         }
-
+         */
 
         fs.close()
         outputFile.delete()

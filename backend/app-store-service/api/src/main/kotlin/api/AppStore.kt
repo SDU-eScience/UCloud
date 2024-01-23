@@ -658,33 +658,6 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val searchTags = call("searchTags", TagSearchRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"searchTags"
-            }
-
-            params {
-                +boundTo(TagSearchRequest::query)
-                +boundTo(TagSearchRequest::excludeTools)
-                +boundTo(TagSearchRequest::itemsPerPage)
-                +boundTo(TagSearchRequest::page)
-            }
-        }
-
-        documentation {
-            summary = "Browses the Application catalog by tag"
-        }
-    }
-
     val searchApps = call("searchApps", AppSearchRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
@@ -784,30 +757,6 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val advancedSearch = call("advancedSearch", AdvancedSearchRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()),CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"advancedSearch"
-            }
-
-            body {
-                bindEntireRequestFromBody()
-            }
-        }
-
-        documentation {
-            summary = "Searches in the Application catalog using more advanced parameters"
-        }
-    }
-
     val findByNameAndVersion = call("findByNameAndVersion", FindApplicationAndOptionalDependencies.serializer(), ApplicationWithFavoriteAndTags.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
@@ -828,32 +777,6 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Retrieves an Application by name and version, or newest Application if version is not specified"
-        }
-    }
-
-    val hasPermission = call("hasPermission", HasPermissionRequest.serializer(), Boolean.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"permission"
-            }
-
-            params {
-                +boundTo(HasPermissionRequest::appName)
-                +boundTo(HasPermissionRequest::appVersion)
-                +boundTo(HasPermissionRequest::permission)
-            }
-        }
-
-        documentation {
-            summary = "Check if an entity has permission to use a specific Application"
         }
     }
 
@@ -923,53 +846,6 @@ ${ApiConventions.nonConformingApiWarning}
                 summary = "Finds a page of Application which can open a specific UFile"
             }
         }
-
-    val findLatestByTool = call("findLatestByTool", FindLatestByToolRequest.serializer(), Page.serializer(Application.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-                +"byTool"
-            }
-
-            params {
-                +boundTo(FindLatestByToolRequest::tool)
-                +boundTo(FindLatestByToolRequest::itemsPerPage)
-                +boundTo(FindLatestByToolRequest::page)
-            }
-        }
-
-        documentation {
-            summary = "Retrieves the latest version of an Application using a specific tool"
-        }
-    }
-
-    val listAll = call("listAll", PaginationRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-            }
-
-            params {
-                +boundTo(PaginationRequest::itemsPerPage)
-                +boundTo(PaginationRequest::page)
-            }
-        }
-
-        documentation {
-            summary = "Lists all Applications"
-            description = "Results are not ordered in any specific fashion"
-        }
-    }
 
     val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreSectionsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
@@ -1177,28 +1053,6 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-
-    val delete = call("delete", DeleteAppRequest.serializer(), DeleteAppResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.ADMIN
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Delete
-
-            path {
-                using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Removes an Application from the catalog"
-        }
-    }
-
     val createTag = call("createTag", CreateTagsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
@@ -1334,83 +1188,6 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Retrieves a logo associated with a group"
-        }
-    }
-
-    val uploadLogo = call("uploadLogo", UploadApplicationLogoRequest.serializer(), UploadApplicationLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-            auth {
-                roles = Roles.PRIVILEGED
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"uploadLogo"
-                }
-
-                headers {
-                    +boundTo("Upload-Name", UploadApplicationLogoRequest::name)
-                }
-
-                /*
-                body {
-                    bindToSubProperty(UploadApplicationLogoRequest::data)
-                }
-                 */
-            }
-
-            documentation {
-                summary = "Uploads a logo and associates it with an Application"
-            }
-        }
-
-    val clearLogo = call("clearLogo", ClearLogoRequest.serializer(), ClearLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-            auth {
-                roles = Roles.PRIVILEGED
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Delete
-
-                path {
-                    using(baseContext)
-                    +"clearLogo"
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
-
-            documentation {
-                summary = "Removes a logo associated with an Application"
-            }
-        }
-
-
-    val fetchLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            access = AccessRight.READ
-            roles = Roles.PUBLIC
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"logo"
-            }
-
-            params {
-                +boundTo(FetchLogoRequest::name)
-            }
-        }
-
-        documentation {
-            summary = "Retrieves a logo associated with an Application"
         }
     }
 

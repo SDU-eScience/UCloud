@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.TYPE_REF
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExampleValue
 import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -42,7 +43,9 @@ data class ApplicationMetadata(
     val flavorName: String? = null,
 
     @UCloudApiDoc("The ApplicationGroup of the Application")
-    val group: ApplicationGroup? = null
+    val group: ApplicationGroup? = null,
+
+    val createdAt: Long = Time.now(),
 ) : WithNameAndVersion {
     @Deprecated("Replaced with public") @Transient val isPublic = public
 }

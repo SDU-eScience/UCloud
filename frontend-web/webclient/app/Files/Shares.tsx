@@ -1,18 +1,25 @@
 import * as React from "react";
-import SharesApi, {Share, ShareLink, ShareState, shareLinksApi} from "@/UCloud/SharesApi";
+import {useEffect, useRef, useState} from "react";
+import SharesApi, {Share, ShareLink, shareLinksApi, ShareState} from "@/UCloud/SharesApi";
 import {NavigateFunction, useNavigate} from "react-router";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {useEffect, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {LinkInfo} from "@/ui-components/SidebarComponents";
+import {LinkInfo, SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
-import {BulkResponse, PageV2, accounting} from "@/UCloud";
-import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
+import {accounting, BulkResponse, PageV2} from "@/UCloud";
+import {callAPI, callAPIWithErrorHandler, InvokeCommand, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {copyToClipboard, createHTMLElements, displayErrorMessageOrDefault, doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
-import {bulkRequestOf} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    copyToClipboard,
+    createHTMLElements,
+    displayErrorMessageOrDefault,
+    doNothing,
+    stopPropagation,
+    timestampUnixMs
+} from "@/UtilityFunctions";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -21,7 +28,14 @@ import {injectStyleSimple} from "@/Unstyled";
 import MainContainer from "@/ui-components/MainContainer";
 import {useDispatch} from "react-redux";
 import {useTitle} from "@/Navigation/Redux";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, clearFilterStorageValue, dateRangeFilters} from "@/ui-components/ResourceBrowser";
+import {
+    clearFilterStorageValue,
+    dateRangeFilters,
+    EmptyReasonTag,
+    ResourceBrowseFeatures,
+    ResourceBrowser,
+    ResourceBrowserOpts
+} from "@/ui-components/ResourceBrowser";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -37,8 +51,8 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {useProjectId} from "@/Project/Api";
 
 export const sharesLinksInfo: LinkInfo[] = [
-    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
-    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu"},
+    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES},
+    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu", tab: SidebarTabId.FILES},
 ]
 
 function daysLeftToTimestamp(timestamp: number): number {
@@ -375,7 +389,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
                     row.title.append(icon);
                     // TODO(Jonas): For some reason, the arrow is not rendered.
                     browser.icons.renderIcon({
@@ -462,7 +476,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         }, share, {color: "errorMain", width: "72px"})!);
                     } else {
                         const {state} = share.status;
-                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
+                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         wrapper.appendChild(stateIcon);
                         browser.icons.renderIcon({

@@ -1,4 +1,4 @@
-package app.store.api
+package dk.sdu.cloud.app.store.services
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo

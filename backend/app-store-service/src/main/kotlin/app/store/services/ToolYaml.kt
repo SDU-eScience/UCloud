@@ -1,7 +1,8 @@
-package dk.sdu.cloud.app.store.api
+package dk.sdu.cloud.app.store.services
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.service.Loggable
 
 private const val FIELD_MAX_LENGTH = 255
@@ -12,9 +13,9 @@ private const val FIELD_MAX_LENGTH = 255
     property = "tool"
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(value = ToolDescription.V1::class, name = "v1")
+    JsonSubTypes.Type(value = ToolYaml.V1::class, name = "v1")
 )
-sealed class ToolDescription(val tool: String) {
+sealed class ToolYaml(val tool: String) {
     abstract fun normalize(): NormalizedToolDescription
 
     class V1(
@@ -31,7 +32,7 @@ sealed class ToolDescription(val tool: String) {
         val license: String = "",
         val image: String? = null,
         val supportedProviders: List<String>? = null,
-    ) : ToolDescription("v1") {
+    ) : ToolYaml("v1") {
         init {
             if (name.length > FIELD_MAX_LENGTH) {
                 throw ToolVerificationException.BadValue(::name.name, "Name is too long")
@@ -80,7 +81,10 @@ sealed class ToolDescription(val tool: String) {
                     }
 
                     else -> {
-                        throw ToolVerificationException.BadValue("image", "image/container is not supported for this tool")
+                        throw ToolVerificationException.BadValue(
+                            "image",
+                            "image/container is not supported for this tool"
+                        )
                     }
                 }
             }

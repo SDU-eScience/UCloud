@@ -70,7 +70,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                 });
 
                 browser.on("renderRow", (key, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(false);
                     row.title.append(icon)
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims, row));

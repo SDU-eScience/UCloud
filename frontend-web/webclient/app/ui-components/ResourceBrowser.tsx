@@ -1074,13 +1074,13 @@ export class ResourceBrowser<T> {
 
     static lastClickCache: Record<string, number> = {};
 
-    static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
+    static defaultIconRenderer(embedded: boolean): [HTMLDivElement, (url: string) => void] {
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
         // image itself, which breaks the drag-and-drop functionality.
         const icon = createHTMLElements<HTMLDivElement>({
             tagType: "div", style: {
-                width: "20px",
-                height: "20px",
+                width: embedded ? "20px" : "24px",
+                height: embedded ? "20px" : "24px",
                 backgroundSize: "contain",
                 marginRight: "8px",
                 display: "inline-block",
@@ -3148,7 +3148,6 @@ export class ResourceBrowser<T> {
                 height: 2em;
                 width: 2em;
                 display: flex;
-                margin-right: 5px;
                 align-items: center;
                 justify-content: center;
                 border: 0.2em solid var(--borderColor);
@@ -3580,7 +3579,7 @@ export class ResourceBrowser<T> {
         }
         if (this.browseFilters["sortBy"] === filter) {
             wrapper.style.fontWeight = "bold";
-            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
+            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer(true);
             this.icons.renderIcon({
                 name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
                 color: "textPrimary",
@@ -3739,8 +3738,8 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     outer.className = "provider-icon"
     outer.style.background = "var(--primaryMain)";
     outer.style.borderRadius = "8px";
-    outer.style.width = outer.style.minWidth = opts?.width ?? "20px";
-    outer.style.height = outer.style.minHeight = opts?.height ?? "20px";
+    outer.style.width = outer.style.minWidth = opts?.width ?? "30px";
+    outer.style.height = outer.style.minHeight = opts?.height ?? "30px";
 
     const inner = div("");
     inner.style.backgroundSize = "contain";
