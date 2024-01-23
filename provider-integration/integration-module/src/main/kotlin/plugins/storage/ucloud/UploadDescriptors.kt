@@ -14,7 +14,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 data class UploadDescriptor(
-    val path: String,
+    val partialPath: String,
+    val targetPath: String,
     val handle: LinuxFileHandle,
     var lastUsed: Long,
     var inUse: Boolean
@@ -46,30 +47,31 @@ class UploadDescriptors(
                     openDescriptors.removeAll(closed)
                 }
 
-                delay(1000)
+                delay(2000)
             }
         }
     }
 
-    suspend fun get(path: String): UploadDescriptor {
+    suspend fun get(path: String, truncate: Boolean = false): UploadDescriptor {
         descriptorsMutex.withLock {
-            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create("$path.part"))
+            val internalTargetFile = pathConverter.ucloudToInternal(UCloudFile.create(path))
+            val internalPartialFile = pathConverter.ucloudToInternal(UCloudFile.create("$path.ucloud_part"))
 
-            val found = openDescriptors.find { it.path == internalFile.path }
+            val found = openDescriptors.find { it.partialPath == internalPartialFile.path }
             if (found != null) {
                 found.inUse = true
                 return found
             }
 
-            val (newPath, handle) = nativeFS.openForWritingWithHandle(
-                internalFile,
+            val (newName, handle) = nativeFS.openForWritingWithHandle(
+                internalPartialFile,
                 WriteConflictPolicy.REPLACE,
-                truncate = false
+                truncate = truncate
             )
 
-            val resolvedPath = internalFile.parent().path + newPath
+            val resolvedPartialPath = internalPartialFile.parent().path + newName
 
-            val newDescriptor = UploadDescriptor(resolvedPath, handle, Time.now(), true)
+            val newDescriptor = UploadDescriptor(resolvedPartialPath, internalTargetFile.path, handle, Time.now(), true)
             openDescriptors.add(
                 newDescriptor
             )
@@ -81,10 +83,10 @@ class UploadDescriptors(
     suspend fun close(descriptor: UploadDescriptor, conflictPolicy: WriteConflictPolicy) {
         if (descriptor.inUse) return
 
-        val tmpInternalFile = InternalFile(descriptor.path)
-        val finalInternalFile = InternalFile(descriptor.path.removeSuffix(".part"))
+        val partialInternalFile = InternalFile(descriptor.partialPath)
+        val targetInternalFile = InternalFile(descriptor.targetPath)
 
-        nativeFS.move(tmpInternalFile, finalInternalFile, conflictPolicy)
+        nativeFS.move(partialInternalFile, targetInternalFile, conflictPolicy)
 
         descriptor.handle.close()
         openDescriptors.remove(descriptor)

@@ -177,11 +177,11 @@ class UCloudFilePlugin : FilePlugin {
         return request.items.map {
             val ucloudFile = UCloudFile.create(it.id)
 
-            val created = uploadDescriptors.get(ucloudFile.path)
-            val newUCloudPath = ucloudFile.parent().path + created.path.fileName().removeSuffix(".part")
+            val descriptor = uploadDescriptors.get(ucloudFile.path, true)
+            val targetUCloudPath = pathConverter.internalToUCloud(InternalFile(descriptor.targetPath))
 
             val pluginData = defaultMapper.encodeToJsonElement(
-                FileUploadSessionPluginData(newUCloudPath, it.conflictPolicy)
+                FileUploadSessionPluginData(targetUCloudPath.path, it.conflictPolicy)
             ).toString()
 
             FileUploadSession(secureToken(32), pluginData)
@@ -196,7 +196,7 @@ class UCloudFilePlugin : FilePlugin {
         chunk: ByteReadChannel
     ) {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
-        uploads.receiveChunk(UCloudFile.create(sessionData.path), offset, totalSize, chunk, sessionData.conflictPolicy)
+        uploads.receiveChunk(UCloudFile.create(sessionData.target), offset, totalSize, chunk, sessionData.conflictPolicy)
 
         if (offset + chunk.totalBytesRead >= totalSize) {
             ipcClient.sendRequest(
@@ -666,7 +666,7 @@ class UCloudFilePlugin : FilePlugin {
 
     @Serializable
     private data class FileUploadSessionPluginData(
-        val path: String,
+        val target: String,
         val conflictPolicy: WriteConflictPolicy
     )
 

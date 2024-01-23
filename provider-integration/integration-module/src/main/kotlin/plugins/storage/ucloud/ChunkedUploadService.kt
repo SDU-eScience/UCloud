@@ -11,13 +11,13 @@ class ChunkedUploadService(
     private val openFileDescriptors: UploadDescriptors,
 ) {
     suspend fun receiveChunk(
-        path: UCloudFile,
+        target: UCloudFile,
         offset: Long,
         totalSize: Long,
         payload: ByteReadChannel,
         conflictPolicy: WriteConflictPolicy
     ) {
-        val descriptor = openFileDescriptors.get(path.path)
+        val descriptor = openFileDescriptors.get(target.path)
         val stream = LinuxOutputStream(descriptor.handle)
 
         payload.copyTo(stream)
