@@ -497,9 +497,6 @@ class NativeFS(
         val sourceParent = openFile(source.parent())
         val destinationParent = openFile(destination.parent())
 
-        log.debug("Opened ${source.path}")
-        log.debug("Opened ${destination.path}")
-
         try {
             val sourceFd = LinuxFileHandle.createOrThrow(
                 clib.openat(sourceParent.fd, source.fileName(), 0, DEFAULT_FILE_MODE)
