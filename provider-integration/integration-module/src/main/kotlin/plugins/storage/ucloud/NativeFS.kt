@@ -278,14 +278,14 @@ class NativeFS(
         if (permissions != null) clib.fchmod(handle.fd, permissions)
     }
 
-    suspend fun openForWriting(
+    suspend fun openForWritingWithHandle(
         file: InternalFile,
         conflictPolicy: WriteConflictPolicy,
         owner: Int? = LINUX_FS_USER_UID,
         permissions: Int? = DEFAULT_FILE_MODE,
         truncate: Boolean = true,
         offset: Long? = null,
-    ): Pair<String, LinuxOutputStream> {
+    ): Pair<String, LinuxFileHandle> {
         val parentFd = openFile(file.parent())
         try {
             val (targetName, targetFd) = createAccordingToPolicy(
@@ -310,10 +310,22 @@ class NativeFS(
             }
 
             setMetadataForNewFile(targetFd, owner, permissions)
-            return Pair(targetName, LinuxOutputStream(targetFd))
+            return Pair(targetName, targetFd)
         } finally {
             parentFd.close()
         }
+    }
+
+    suspend fun openForWriting(
+        file: InternalFile,
+        conflictPolicy: WriteConflictPolicy,
+        owner: Int? = LINUX_FS_USER_UID,
+        permissions: Int? = DEFAULT_FILE_MODE,
+        truncate: Boolean = true,
+        offset: Long? = null,
+    ): Pair<String, LinuxOutputStream> {
+        val withHandle = openForWritingWithHandle(file, conflictPolicy, owner, permissions, truncate, offset)
+        return Pair(withHandle.first, LinuxOutputStream(withHandle.second))
     }
 
     fun openForReading(file: InternalFile): LinuxInputStream {

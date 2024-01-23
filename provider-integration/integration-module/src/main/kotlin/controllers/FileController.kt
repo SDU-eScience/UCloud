@@ -46,6 +46,7 @@ object FilesDownloadIpc : IpcContainer("files.download") {
 object FilesUploadIpc : IpcContainer("files.upload") {
     val register = updateHandler("register", FileSessionWithPlugin.serializer(), Unit.serializer())
     val retrieve = retrieveHandler(FindByStringId.serializer(), FileSessionWithPlugin.serializer())
+    val delete = deleteHandler(FindByStringId.serializer(), Unit.serializer())
 }
 
 @Serializable
@@ -221,6 +222,22 @@ class FileController(
 
 
             result ?: throw RPCException("Invalid token supplied", HttpStatusCode.NotFound)
+        })
+
+        server.addHandler(FilesUploadIpc.delete.handler { _, request ->
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                    delete from file_upload_sessions
+                    where
+                        session = :token
+                """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("token", request.id)
+                    }
+                )
+            }
         })
     }
 
