@@ -27,7 +27,7 @@ const labelStyle: React.CSSProperties & Record<`--${string}`, string> = {
     "--hoverColor": "var(--primaryLight)"
 }
 
-export const Studio: React.FunctionComponent = () => {
+export function Studio(): React.ReactNode {
     useTitle("Application Studio");
 
     const navigate = useNavigate();

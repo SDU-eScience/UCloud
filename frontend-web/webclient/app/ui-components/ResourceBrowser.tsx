@@ -2880,6 +2880,7 @@ export class ResourceBrowser<T> {
             
             body[data-no-select=true] * {
                 user-select: none;
+                -webkit-user-select: none;
             }
 
             ${browserClass.dot} .drag-indicator {
@@ -2902,6 +2903,7 @@ export class ResourceBrowser<T> {
                 left: 0;
                 height: ${this.rowSize}px;
                 user-select: none;
+                -webkit-user-select: none;
             }
             
             ${browserClass.dot} .file-drag-indicator-content {
@@ -3010,6 +3012,7 @@ export class ResourceBrowser<T> {
             
             ${browserClass.dot} header[has-location-bar] .location li:hover {
                 user-select: none;
+                -webkit-user-select: none;
             }
             
             ${browserClass.dot} header[has-location-bar] .location li:hover {
@@ -3077,6 +3080,7 @@ export class ResourceBrowser<T> {
                 border-bottom: 1px solid var(--borderColor);
                 gap: 8px;
                 user-select: none;
+                -webkit-user-select: none;
                 padding: 0 8px;
                 transition: filter 0.3s;
             }

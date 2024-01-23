@@ -191,6 +191,7 @@ const FilterWidgetWrapper = injectStyleSimple("filter-widget-wrapper", `
     display: flex;
     align-items: center;
     user-select: none;
+    -webkit-user-select: none;
 `);
 
 export const FilterWidget: React.FunctionComponent<{

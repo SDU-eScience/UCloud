@@ -645,6 +645,7 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
         padding: 10px;
         width: 100%;
         user-select: none;
+        -webkit-user-select: none;
         cursor: pointer;
     }
 
