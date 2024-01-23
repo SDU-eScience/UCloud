@@ -684,6 +684,13 @@ const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
             margin-top: 8px !important;
         }
     }
+
+    ${deviceBreakpoint({maxWidth: "799px"})} {
+        /* On small width-screens, show descriptions vertically instead of horizontal */
+        ${k} {
+            display: block;
+        }
+    }
 `);
 
 const CategoryDescriptorPanel: React.FunctionComponent<{
