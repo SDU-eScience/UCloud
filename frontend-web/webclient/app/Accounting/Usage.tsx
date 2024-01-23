@@ -10,7 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {translateBinaryProductCategory} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AccountingB from "./AccountingBinary";
@@ -1982,7 +1982,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
                 "category breakdown over-time chart2"
                 "category breakdown chart3 chart4"
                 "category breakdown chart3 chart4";
-            height: calc(100vh - 210px);
+            height: calc(100vh - 165px - 50px - 26px);
             grid-template-columns: 300px 450px 1fr 1fr;
         }
     }
