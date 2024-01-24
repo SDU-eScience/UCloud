@@ -34,11 +34,6 @@ import kotlin.collections.HashMap
 import kotlin.collections.HashSet
 import kotlin.math.max
 
-data class ApplicationCategory(
-    val id: Int,
-    val title: String,
-)
-
 class AppService(
     private val db: DBContext,
     private val projectCache: IProjectCache,
@@ -368,7 +363,7 @@ class AppService(
                     {},
                     """
                         select t.id, t.tag
-                        from app_store.tags t
+                        from app_store.categories t
                     """
                 ).rows
                 for (row in rawTagInfo) {
@@ -384,7 +379,7 @@ class AppService(
                             gt.group_id,
                             gt.tag_id
                         from
-                            app_store.group_tags gt
+                            app_store.category_items gt
                     """
                 ).rows
 
@@ -835,7 +830,7 @@ class AppService(
             session.sendPreparedStatement(
                 { setParameter("group_id", groupId) },
                 """
-                    delete from app_store.group_tags
+                    delete from app_store.category_items
                     where group_id = :group_id
                 """
             )
@@ -845,14 +840,6 @@ class AppService(
                 """
                     update app_store.applications
                     set group_id = null
-                    where group_id = :group_id
-                """
-            )
-
-            session.sendPreparedStatement(
-                { setParameter("group_id", groupId) },
-                """
-                    delete from app_store.section_featured_items 
                     where group_id = :group_id
                 """
             )
@@ -1055,7 +1042,7 @@ class AppService(
                         val insertedTagId = session.sendPreparedStatement(
                             { setParameter("tag", tagTitle) },
                             """
-                                insert into app_store.tags (tag)
+                                insert into app_store.categories (tag)
                                 values (:tag)
                                 on conflict do nothing
                                 returning id
@@ -1066,7 +1053,7 @@ class AppService(
                             session.sendPreparedStatement(
                                 { setParameter("tag", tagTitle) },
                                 """
-                                    select id from app_store.tags where tag = :tag
+                                    select id from app_store.categories where tag = :tag
                                 """
                             ).rows.singleOrNull()?.getInt(0)
                         } else {
@@ -1087,7 +1074,7 @@ class AppService(
                             setParameter("group_id", groupId)
                         },
                         """
-                            insert into app_store.group_tags (group_id, tag_id) 
+                            insert into app_store.category_items (group_id, tag_id) 
                             values (:group_id, :tag_id)
                         """
                     )
@@ -1120,7 +1107,7 @@ class AppService(
                         setParameter("group_id", groupId)
                     },
                     """
-                        delete from app_store.group_tags
+                        delete from app_store.category_items
                         where
                             group_id = :group_id
                             and tag_id = :tag_id

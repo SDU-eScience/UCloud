@@ -129,7 +129,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val findByName = call("findByName", FindByNameAndPagination.serializer(), Page.serializer(Tool.serializer()), CommonErrorMessage.serializer()) {
+    val findByName = call("findByName", FindByNameRequest.serializer(), Page.serializer(Tool.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -142,9 +142,9 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             params {
-                +boundTo(FindByNameAndPagination::appName)
-                +boundTo(FindByNameAndPagination::itemsPerPage)
-                +boundTo(FindByNameAndPagination::page)
+                +boundTo(FindByNameRequest::appName)
+                +boundTo(FindByNameRequest::itemsPerPage)
+                +boundTo(FindByNameRequest::page)
             }
         }
 

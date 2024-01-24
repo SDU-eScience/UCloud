@@ -2,362 +2,9 @@ package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.encodeToJsonElement
-
-@Serializable
-data class DevImportRequest(
-    val endpoint: String,
-    val checksum: String
-)
-
-@Serializable
-data class Project(
-    val id: String,
-    val title: String
-)
-typealias ProjectGroup = Project
-
-@Serializable
-data class AccessEntity(
-    val user: String? = null,
-    val project: String? = null,
-    val group: String? = null,
-) {
-    init {
-        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
-    }
-}
-
-@Serializable
-data class DetailedAccessEntity(
-    val user: String? = null,
-    val project: Project? = null,
-    val group: ProjectGroup? = null,
-) {
-    init {
-        require(!user.isNullOrBlank() || (project != null && group != null)) { "No access entity defined" }
-    }
-}
-
-@Serializable
-data class EntityWithPermission(
-    val entity: AccessEntity,
-    val permission: ApplicationAccessRight
-)
-
-@Serializable
-data class DetailedEntityWithPermission(
-    val entity: DetailedAccessEntity,
-    val permission: ApplicationAccessRight
-)
-
-@Serializable
-data class FindApplicationAndOptionalDependencies(
-    val appName: String,
-    val appVersion: String? = null
-)
-
-@Serializable
-data class HasPermissionRequest(
-    val appName: String,
-    val appVersion: String,
-    val permission: Set<ApplicationAccessRight>
-)
-
-@Serializable
-data class UpdateAclRequest(
-    val applicationName: String,
-    val changes: List<ACLEntryRequest>
-) {
-    init {
-        if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
-        if (changes.size > 1000) throw IllegalArgumentException("Too many new entries")
-    }
-}
-
-@Serializable
-data class IsPublicRequest(
-    val applications: List<NameAndVersion>
-)
-
-@Serializable
-data class IsPublicResponse(
-    val public: Map<NameAndVersion, Boolean>
-)
-
-
-@Serializable
-data class ListAclRequest(
-    val appName: String
-)
-
-@Serializable
-data class FavoriteRequest(
-    val appName: String,
-)
-
-@Serializable
-data class ACLEntryRequest(
-    val entity: AccessEntity,
-    val rights: ApplicationAccessRight,
-    val revoke: Boolean = false
-)
-
-@Serializable
-data class UpdateFlavorRequest(
-    val applicationName: String,
-    val flavorName: String
-)
-
-@Serializable
-data class SetPublicRequest(
-    val appName: String,
-    val appVersion: String,
-    val public: Boolean
-)
-
-@Serializable
-data class TagSearchRequest(
-    val query: String,
-    val excludeTools: String? = null,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-) : WithPaginationRequest
-
-val TagSearchRequest.tags: List<String> get() = query.split(",")
-
-@Serializable
-data class AppSearchRequest(
-    val query: String,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-) : WithPaginationRequest
-
-@Serializable
-data class CreateTagsRequest(
-    val tags: List<String>,
-    val groupId: Int
-)
-
-typealias DeleteTagsRequest = CreateTagsRequest
-
-@Serializable
-@UCloudApiOwnedBy(ToolStore::class)
-data class UploadApplicationLogoRequest(
-    val name: String,
-)
-
-@Serializable
-data class AdvancedSearchRequest(
-    val query: String? = null,
-    val tags: List<String>? = null,
-    val showAllVersions: Boolean,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-) : WithPaginationRequest
-
-
-@Serializable
-@UCloudApiOwnedBy(ToolStore::class)
-data class ClearLogoRequest(val name: String)
-typealias ClearLogoResponse = Unit
-
-@Serializable
-@UCloudApiOwnedBy(ToolStore::class)
-data class FetchLogoRequest(val name: String)
-typealias FetchLogoResponse = Unit
-
-typealias UploadApplicationLogoResponse = Unit
-
-@Serializable
-data class FindLatestByToolRequest(
-    val tool: String,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-) : WithPaginationRequest
-typealias FindLatestByToolResponse = Page<Application>
-
-@Serializable
-data class DeleteAppRequest(val appName: String, val appVersion: String)
-typealias DeleteAppResponse = Unit
-
-@Serializable
-data class RetrieveGroupResponse(
-    val group: ApplicationGroup,
-    val applications: List<ApplicationSummary>
-)
-
-@Serializable
-data class UpdatePageRequest(
-    val page: AppStorePageType
-)
-
-@Serializable
-enum class AppStorePageType {
-    LANDING,
-    FULL
-}
-
-@Serializable
-data class SetGroupRequest(
-    val groupId: Int? = null,
-    val applicationName: String
-)
-
-typealias SetGroupResponse = Unit
-
-@Serializable
-data class CreateGroupRequest(
-    val title: String
-)
-
-@Serializable
-data class CreateGroupResponse(
-    val id: Int
-)
-
-@Serializable
-data class DeleteGroupRequest(
-    val id: Int
-)
-
-typealias DeleteGroupResponse = Unit
-
-@Serializable
-data class UpdateGroupRequest(
-    val id: Int,
-    val title: String,
-    val logo: ByteArray? = null,
-    val description: String? = null,
-    val defaultApplication: String? = null
-)
-
-typealias UpdateGroupResponse = Unit
-typealias ListGroupsRequest = Unit
-
-@Serializable
-data class RetrieveGroupRequest(
-    val id: Int? = null,
-    val name: String? = null
-)
-
-@Serializable
-data class AppStoreSectionsRequest(
-    val page: AppStorePageType
-)
-
-@Serializable
-data class AppStoreSectionsResponse(
-    val sections: List<AppStoreSection>
-)
-
-@Serializable
-data class ApplicationGroup (
-    val id: Int,
-    val title: String,
-    val description: String? = null,
-    val defaultApplication: String? = null,
-    val tags: List<String> = emptyList()
-)
-
-@Serializable
-data class AppStoreSection (
-    val id: Int,
-    val name: String,
-    val featured: List<ApplicationGroup>,
-    val items: List<ApplicationGroup>
-)
-
-@Serializable
-data class PageSection(
-    val title: String? = null,
-    val featured: List<String>,
-    val tags: List<String> = emptyList()
-)
-
-@UCloudApiExampleValue
-fun exampleApplication(
-    name: String,
-    version: String,
-    image: String,
-    invocation: List<InvocationParameter>,
-    parameters: List<ApplicationParameter>,
-    toolBackend: ToolBackend = ToolBackend.DOCKER,
-    type: ApplicationType = ApplicationType.BATCH,
-    title: String = name.replace("-", " ").replaceFirstChar { it.uppercase() },
-    invocationBlock: (ApplicationInvocationDescription) -> ApplicationInvocationDescription = { it }
-): Application {
-    return Application(
-        ApplicationMetadata(
-            name,
-            version,
-            listOf("UCloud"),
-            title,
-            "An example application",
-            public = true,
-            group = ApplicationGroup(
-                0,
-                "Test Group"
-            )
-        ),
-        ApplicationInvocationDescription(
-            ToolReference(
-                name, version, Tool(
-                    "_ucloud",
-                    1633329776235,
-                    1633329776235,
-                    NormalizedToolDescription(
-                        NameAndVersion(name, version),
-                        defaultNumberOfNodes = 1,
-                        defaultTimeAllocation = SimpleDuration(1, 0, 0),
-                        requiredModules = emptyList(),
-                        authors = listOf("UCloud"),
-                        title = title,
-                        description = "An example tool",
-                        backend = toolBackend,
-                        license = "None",
-                        image = image
-                    )
-                )
-            ),
-            invocation,
-            parameters,
-            listOf("*"),
-            type
-        ).let(invocationBlock)
-    )
-}
-
-@UCloudApiExampleValue
-val exampleBatchApplication = exampleApplication(
-    "acme-batch",
-    "1.0.0",
-    "acme/batch:1.0.0",
-    listOf(
-        WordInvocationParameter("acme-batch"),
-        VariableInvocationParameter(
-            listOf("debug"),
-            prefixGlobal = "--debug "
-        ),
-        VariableInvocationParameter(
-            listOf("value")
-        )
-    ),
-    listOf(
-        ApplicationParameter.Bool(
-            "debug",
-            description = "Should debug be enabled?"
-        ),
-        ApplicationParameter.Text(
-            "value",
-            description = "The value for the batch application"
-        )
-    )
-)
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object AppStore : CallDescriptionContainer("hpc.apps") {
@@ -417,7 +64,7 @@ ${ApiConventions.nonConformingApiWarning}
 
                 success(
                     findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies(
+                    FindByNameAndVersionRequest(
                         exampleBatchApplication.metadata.name,
                         exampleBatchApplication.metadata.version
                     ),
@@ -454,7 +101,7 @@ ${ApiConventions.nonConformingApiWarning}
 
                 success(
                     findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies(application.metadata.name, application.metadata.version),
+                    FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
                     ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
                     user
                 )
@@ -487,7 +134,7 @@ ${ApiConventions.nonConformingApiWarning}
 
                 success(
                     findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies(application.metadata.name, application.metadata.version),
+                    FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
                     ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
                     user
                 )
@@ -520,7 +167,7 @@ ${ApiConventions.nonConformingApiWarning}
 
                 success(
                     findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies(application.metadata.name, application.metadata.version),
+                    FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
                     ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
                     user
                 )
@@ -562,7 +209,7 @@ ${ApiConventions.nonConformingApiWarning}
 
                 success(
                     findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies(application.metadata.name, application.metadata.version),
+                    FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
                     ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
                     user
                 )
@@ -605,7 +252,7 @@ ${ApiConventions.nonConformingApiWarning}
 
                 success(
                     findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies(application.metadata.name, application.metadata.version),
+                    FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
                     ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
                     user
                 )
@@ -613,78 +260,58 @@ ${ApiConventions.nonConformingApiWarning}
         )
     }
 
-    val toggleFavorite = call("toggleFavorite", FavoriteRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
+    // Core CRUD
+    // =================================================================================================================
+    val findByName = LegacyApi.findByName
+    val findByNameAndVersion = LegacyApi.findByNameAndVersion
+    val create = LegacyApi.create
+    val search = Search.call
+    val browseOpenWithRecommendations = BrowseOpenWithRecommendations.call
 
-        http {
-            method = HttpMethod.Post
+    // Application management
+    // =================================================================================================================
+    val updateApplicationFlavor = UpdateApplicationFlavor.call
+    val retrieveAcl = RetrieveAcl.call
+    val updateAcl = UpdateAcl.call
+    val updatePublicFlag = UpdatePublicFlag.call
 
-            path {
-                using(baseContext)
-                +"favorites"
-            }
+    // Starred applications
+    // =================================================================================================================
+    val toggleStar = ToggleStar.call
+    val retrieveStars = RetrieveStars.call
 
-            body { bindEntireRequestFromBody() }
-        }
+    // Group management
+    // =================================================================================================================
+    val createGroup = CreateGroup.call
+    val retrieveGroup = RetrieveGroup.call
+    val browseGroups = BrowseGroups.call
+    val updateGroup = UpdateGroup.call
+    val deleteGroup = DeleteGroup.call
+    val addLogoToGroup = AddLogoToGroup.call
+    val removeLogoFromGroup = RemoveLogoFromGroup.call
+    val retrieveGroupLogo = RetrieveGroupLogo.call
+    val assignApplicationToGroup = AssignApplicationToGroup.call
 
-        documentation {
-            summary = "Toggles the favorite status of an Application for the current user"
-        }
-    }
+    // Category management
+    // =================================================================================================================
+    val createCategory = CreateCategory.call
+    val browseCategories = BrowseCategories.call
+    val addGroupToCategory = AddGroupToCategory.call
+    val removeGroupFromCategory = RemoveGroupFromCategory.call
 
-    val retrieveFavorites = call("retrieveFavorites", PaginationRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
-            auth {
-                access = AccessRight.READ
-            }
+    // Import API
+    // =================================================================================================================
+    val devImport = DevImport.call
 
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"favorites"
-                }
-
-                params {
-                    +boundTo(PaginationRequest::itemsPerPage)
-                    +boundTo(PaginationRequest::page)
-                }
-            }
-
-            documentation {
-                summary = "Retrieves the list of favorite Applications for the curent user"
-            }
-        }
-
-    val searchApps = call("searchApps", AppSearchRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"search"
-            }
-
-            params {
-                +boundTo(AppSearchRequest::query)
-                +boundTo(AppSearchRequest::itemsPerPage)
-                +boundTo(AppSearchRequest::page)
-            }
-        }
-
-        documentation {
-            summary = "Searches in the Application catalog using a free-text query"
-        }
-    }
-
-    val findByName = call("findByName", FindByNameAndPagination.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
+    // NOTE(Dan): Legacy API - do not touch
+    object LegacyApi {
+        // NOTE(Dan): Legacy API - do not touch
+        val findByName = call(
+            "findByName",
+            FindByNameRequest.serializer(),
+            Page.serializer(ApplicationSummaryWithFavorite.serializer()),
+            CommonErrorMessage.serializer()
+        ) {
             auth {
                 roles = Roles.AUTHENTICATED
                 access = AccessRight.READ
@@ -697,9 +324,9 @@ ${ApiConventions.nonConformingApiWarning}
                 }
 
                 params {
-                    +boundTo(FindByNameAndPagination::appName)
-                    +boundTo(FindByNameAndPagination::itemsPerPage)
-                    +boundTo(FindByNameAndPagination::page)
+                    +boundTo(FindByNameRequest::appName)
+                    +boundTo(FindByNameRequest::itemsPerPage)
+                    +boundTo(FindByNameRequest::page)
                 }
             }
 
@@ -708,495 +335,657 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val isPublic = call("isPublic", IsPublicRequest.serializer(), IsPublicResponse.serializer(), CommonErrorMessage.serializer()) {
+        // NOTE(Dan): Legacy API - do not touch
+        val findByNameAndVersion = call(
+            "findByNameAndVersion",
+            FindByNameAndVersionRequest.serializer(),
+            ApplicationWithFavoriteAndTags.serializer(),
+            CommonErrorMessage.serializer()
+        ) {
             auth {
-                roles = Roles.PRIVILEGED
+                roles = Roles.AUTHENTICATED
                 access = AccessRight.READ
             }
 
             http {
-                method = HttpMethod.Post
-
                 path {
                     using(baseContext)
-                    +"isPublic"
+                    +"byNameAndVersion"
                 }
 
-                body {
-                    bindEntireRequestFromBody()
-
+                params {
+                    +boundTo(FindByNameAndVersionRequest::appName)
+                    +boundTo(FindByNameAndVersionRequest::appVersion)
                 }
             }
 
             documentation {
-                summary = "Checks if an Application is publicly accessible"
+                summary =
+                    "Retrieves an Application by name and version, or newest Application if version is not specified"
             }
         }
 
-    val setPublic = call("setPublic", SetPublicRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"setPublic"
-            }
-
-            body {
-                bindEntireRequestFromBody()
-            }
-        }
-
-        documentation {
-            summary = "Changes the 'publicly accessible' status of an Application"
-        }
-    }
-
-    val findByNameAndVersion = call("findByNameAndVersion", FindApplicationAndOptionalDependencies.serializer(), ApplicationWithFavoriteAndTags.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-                +"byNameAndVersion"
-            }
-
-            params {
-                +boundTo(FindApplicationAndOptionalDependencies::appName)
-                +boundTo(FindApplicationAndOptionalDependencies::appVersion)
-            }
-        }
-
-        documentation {
-            summary = "Retrieves an Application by name and version, or newest Application if version is not specified"
-        }
-    }
-
-    val listAcl = call("listAcl", ListAclRequest.serializer(), ListSerializer(DetailedEntityWithPermission.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-                +"list-acl"
-            }
-
-            params {
-                +boundTo(ListAclRequest::appName)
-            }
-        }
-
-        documentation {
-            summary = "Retrieves the permission information associated with an Application"
-        }
-    }
-
-    val updateAcl = call("updateAcl", UpdateAclRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"updateAcl"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Updates the permissions associated with an Application"
-        }
-    }
-
-    val findBySupportedFileExtension = call("findBySupportedFileExtension", FindBySupportedFileExtension.serializer(), PageV2.serializer(ApplicationWithExtension.serializer()), CommonErrorMessage.serializer()) {
+        // NOTE(Dan): Legacy API - do not touch
+        val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
             auth {
+                roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
                 access = AccessRight.READ
             }
 
             http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    + "bySupportedFileExtension"
-                }
-
-                body {
-                    bindEntireRequestFromBody()
-                }
+                method = HttpMethod.Put
+                path { using(baseContext) }
+                body { bindEntireRequestFromBody() }
             }
 
             documentation {
-                summary = "Finds a page of Application which can open a specific UFile"
-            }
-        }
-
-    val store = call("store", AppStoreSectionsRequest.serializer(), AppStoreSectionsResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"store"
-            }
-
-            params {
-                +boundTo(AppStoreSectionsRequest::page)
-            }
-
-            documentation {
-                summary = "Returns the application catalog sections"
+                summary = "Creates a new Application and inserts it into the catalog"
             }
         }
     }
 
-    val setGroup = call("setGroup", SetGroupRequest.serializer(), SetGroupResponse.serializer(), CommonErrorMessage.serializer())  {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object ToggleStar {
+        val call = call(
+            "toggleStar",
+            NameAndVersion.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "toggleStar")
 
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"group/"
-                +"set"
+                documentation {
+                    summary = "Toggles the favorite status of an Application for the current user"
+                }
             }
-            body { bindEntireRequestFromBody() }
-        }
+        )
     }
 
-    val createGroup = call("createGroup", CreateGroupRequest.serializer(), CreateGroupResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object RetrieveStars {
+        @Serializable
+        data class Response(
+            val items: List<ApplicationSummaryWithFavorite>,
+        )
 
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"group"
+        val call = call(
+            "retrieveStars",
+            Unit.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "stars")
+
+                documentation {
+                    summary = "Retrieves the list of favorite Applications for the current user"
+                }
             }
-
-            body { bindEntireRequestFromBody() }
-        }
+        )
     }
 
-    val deleteGroup = call("deleteGroup", DeleteGroupRequest.serializer(), DeleteGroupResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object Search {
+        @Serializable
+        data class Request(
+            val query: String,
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ) : WithPaginationRequestV2
 
-        http {
-            method = HttpMethod.Delete
-            path {
-                using(baseContext)
-                +"group"
+        val call = call(
+            "search",
+            Request.serializer(),
+            PageV2.serializer(ApplicationSummaryWithFavorite.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpSearch(baseContext)
+
+                documentation {
+                    summary = "Searches in the Application catalog using a free-text query"
+                }
             }
-
-            body { bindEntireRequestFromBody() }
-        }
+        )
     }
 
-    val updateGroup = call("updateGroup", UpdateGroupRequest.serializer(), UpdateGroupResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object UpdatePublicFlag {
+        @Serializable
+        data class Request(
+            val name: String,
+            val version: String,
+            val public: Boolean,
+        )
 
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"group/"
-                +"update"
+        val call = call(
+            "updatePublicFlag",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "updatePublicFlag", roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Changes the 'publicly accessible' status of an Application"
+                }
             }
-
-            body { bindEntireRequestFromBody() }
-        }
+        )
     }
 
-    val listGroups = call("listGroups", ListGroupsRequest.serializer(), ListSerializer(ApplicationGroup.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
+    object RetrieveAcl {
+        @Serializable
+        data class Request(
+            val name: String,
+        )
 
-        http {
-            method = HttpMethod.Get
-            path {
-                using(baseContext)
-                +"groups"
+        @Serializable
+        data class Response(
+            val entries: List<DetailedEntityWithPermission>,
+        )
+
+        val call = call(
+            "retrieveAcl",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "acl", roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Retrieves the permission information associated with an Application"
+                }
             }
-        }
+        )
     }
 
-    val retrieveGroup = call("retrieveGroup", RetrieveGroupRequest.serializer(), RetrieveGroupResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.END_USER
-            access = AccessRight.READ
-        }
+    object UpdateAcl {
+        @Serializable
+        data class Request(
+            val name: String,
+            val changes: List<ACLEntryRequest>,
+        )
 
-        http {
-            method = HttpMethod.Get
-            path {
-                using(baseContext)
-                +"group"
+        val call = call(
+            "updateAcl",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "updateAcl", roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Updates the permissions associated with an Application"
+                }
             }
-            params {
-                +boundTo(RetrieveGroupRequest::id)
-                +boundTo(RetrieveGroupRequest::name)
-            }
-        }
+        )
     }
 
-    val updateFlavor = call("updateFlavor", UpdateFlavorRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object BrowseOpenWithRecommendations {
+        @Serializable
+        data class Request(
+            val files: List<String>,
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ) : WithPaginationRequestV2
 
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"updateFlavor"
+        val call = call(
+            "browseOpenWithRecommendations",
+            Request.serializer(),
+            PageV2.serializer(ApplicationWithExtension.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpBrowse(baseContext, "openWith")
+
+                documentation {
+                    summary = "Finds a page of Application which can open a specific UFile"
+                }
             }
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Updates the flavor name for a set of applications"
-        }
+        )
     }
 
-    val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
-            access = AccessRight.READ
-        }
+    object AssignApplicationToGroup {
+        @Serializable
+        data class Request(
+            val name: String,
+            val group: Int?,
+        )
 
-        http {
-            method = HttpMethod.Put
-            path { using(baseContext) }
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Creates a new Application and inserts it into the catalog"
-        }
+        val call = call(
+            "assignApplicationToGroup",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "assignApplicationToGroup", roles = Roles.PRIVILEGED)
+            }
+        )
     }
 
-    val updateLanding = call("updateLanding", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = setOf(Role.ADMIN, Role.SERVICE)
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Put
-            path {
-                using(baseContext)
-                +"updateLanding"
+    object CreateGroup {
+        val call = call(
+            "createGroup",
+            ApplicationGroup.Specification.serializer(),
+            FindByIntId.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "createGroup", roles = Roles.PRIVILEGED)
             }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Updates the landing page of the application store"
-        }
+        )
     }
 
-    val updateOverview = call("updateOverview", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = setOf(Role.ADMIN, Role.SERVICE)
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Put
-            path {
-                using(baseContext)
-                +"updateOverview"
+    object DeleteGroup {
+        val call = call(
+            "deleteGroup",
+            FindByIntId.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "deleteGroup", roles = Roles.PRIVILEGED)
             }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Updates the overview page of the application store"
-        }
+        )
     }
 
-    val createTag = call("createTag", CreateTagsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object UpdateGroup {
+        @Serializable
+        data class Request(
+            val id: Int,
+            val newTitle: String? = null,
+            val newDefaultFlavor: String? = null,
+            val newDescription: String? = null,
+        )
 
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"createTag"
+        val call = call(
+            "updateGroup",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "updateGroup", roles = Roles.PRIVILEGED)
             }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Attaches a set of tags to an Application"
-        }
+        )
     }
 
-    val removeTag = call("removeTag", DeleteTagsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object BrowseGroups {
+        @Serializable
+        data class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ) : WithPaginationRequestV2
 
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"deleteTag"
+        val call = call(
+            "browseGroups",
+            Request.serializer(),
+            PageV2.serializer(ApplicationGroup.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpBrowse(baseContext, "groups", roles = Roles.PRIVILEGED)
             }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Removes a set of tags from an Application"
-        }
+        )
     }
 
-    val listTags = call("listTags", Unit.serializer(), ListSerializer(String.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"listTags"
+    object RetrieveGroup {
+        val call = call(
+            "retrieveGroup",
+            FindByIntId.serializer(),
+            ApplicationGroup.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "groups")
             }
-        }
-
-        documentation {
-            summary = "List all application tags"
-        }
+        )
     }
 
-    val uploadGroupLogo = call("uploadGroupLogo", UploadApplicationLogoRequest.serializer(), UploadApplicationLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
+    object UpdateApplicationFlavor {
+        @Serializable
+        data class Request(
+            val applicationName: String,
+            val flavorName: String,
+        )
 
-        http {
-            method = HttpMethod.Post
+        val call = call(
+            "updateApplicationFlavor",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "updateApplicationFlavor", roles = Roles.PRIVILEGED)
 
-            path {
-                using(baseContext)
-                +"group/"
-                +"uploadLogo"
+                documentation {
+                    summary = "Updates the flavor name for a set of applications"
+                }
             }
-
-            headers {
-                +boundTo("Upload-Name", UploadApplicationLogoRequest::name)
-            }
-        }
-
-        documentation {
-            summary = "Uploads a logo and associates it with a group"
-        }
+        )
     }
 
-    val clearGroupLogo = call("clearGroupLogo", ClearLogoRequest.serializer(), ClearLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Delete
-
-            path {
-                using(baseContext)
-                +"group/"
-                +"clearLogo"
+    object CreateCategory {
+        val call = call(
+            "createCategory",
+            ApplicationCategory.Specification.serializer(),
+            FindByIntId.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "createCategory", roles = Roles.PRIVILEGED)
             }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Removes a logo associated with a group"
-        }
+        )
     }
 
+    object AddGroupToCategory {
+        @Serializable
+        data class Request(
+            val groupId: Int,
+            val categoryId: Int,
+        )
 
-    val fetchGroupLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            access = AccessRight.READ
-            roles = Roles.PUBLIC
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"group/"
-                +"logo"
+        val call = call(
+            "addGroupToCategory",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "addGroupToCategory", roles = Roles.PRIVILEGED)
             }
-
-            params {
-                +boundTo(FetchLogoRequest::name)
-            }
-        }
-
-        documentation {
-            summary = "Retrieves a logo associated with a group"
-        }
+        )
     }
 
-    @UCloudApiInternal(InternalLevel.BETA)
-    val devImport = call("devImport", DevImportRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "devImport", roles = Roles.PRIVILEGED)
+    object RemoveGroupFromCategory {
+        @Serializable
+        data class Request(
+            val groupId: Int,
+            val categoryId: Int,
+        )
 
-        documentation {
-            summary = "An endpoint for importing applications - Only usable in dev environments"
-        }
+        val call = call(
+            "removeGroupFromCategory",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "removeGroupFromCategory", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object BrowseCategories {
+        @Serializable
+        class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ) : WithPaginationRequestV2
+
+        val call = call(
+            "browseCategories",
+            Request.serializer(),
+            PageV2.serializer(ApplicationCategory.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpBrowse(baseContext, "categories", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object AddLogoToGroup {
+        @Serializable
+        data class Request(
+            val groupId: Int,
+        )
+
+        val call = call(
+            "addLogoToGroup",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                auth {
+                    roles = Roles.PRIVILEGED
+                    access = AccessRight.READ_WRITE
+                }
+
+                http {
+                    method = HttpMethod.Post
+
+                    path {
+                        using(baseContext)
+                        +"uploadLogo"
+                    }
+
+                    headers {
+                        +boundTo("Upload-Name", Request::groupId)
+                    }
+                }
+
+                documentation {
+                    summary = "Uploads a logo and associates it with a group"
+                }
+            }
+        )
+    }
+
+    object RemoveLogoFromGroup {
+        val call = call(
+            "removeLogoFromGroup",
+            FindByIntId.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "removeLogoFromGroup", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object RetrieveGroupLogo {
+        val call = call(
+            "retrieveGroupLogo",
+            FindByIntId.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "groupLogo")
+            }
+        )
+    }
+
+    object DevImport {
+        @Serializable
+        data class Request(
+            val endpoint: String,
+            val checksum: String
+        )
+
+        @UCloudApiInternal(InternalLevel.BETA)
+        val call = call(
+            "devImport",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "devImport", roles = Roles.PRIVILEGED)
+            }
+        )
     }
 }
+
+@Serializable
+data class ApplicationGroup(
+    val metadata: Metadata,
+    val specification: Specification,
+) {
+    @Serializable
+    data class Metadata(
+        val id: Int,
+    )
+
+    @Serializable
+    data class Specification(
+        val title: String,
+        val description: String,
+        val defaultFlavor: String?,
+        val categories: Set<Int>,
+    )
+}
+
+@Serializable
+data class ApplicationCategory(
+    val metadata: Metadata,
+    val specification: Specification
+) {
+    @Serializable
+    data class Metadata(
+        val id: Int,
+    )
+
+    @Serializable
+    data class Specification(
+        val title: String,
+        val description: String? = null,
+    )
+}
+
+@Serializable
+@UCloudApiOwnedBy(ToolStore::class)
+@UCloudApiDoc("Request type to find a Page of resources defined by a name")
+data class FindByNameRequest(
+    val appName: String,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
+) : WithPaginationRequest
+
+@Serializable
+@UCloudApiDoc("A request type to find a resource by name and version")
+data class FindByNameAndVersion(val name: String, val version: String)
+
+@Serializable
+data class Project(
+    val id: String,
+    val title: String
+)
+typealias ProjectGroup = Project
+
+@Serializable
+data class AccessEntity(
+    val user: String? = null,
+    val project: String? = null,
+    val group: String? = null,
+) {
+    init {
+        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
+    }
+}
+
+@Serializable
+data class DetailedAccessEntity(
+    val user: String? = null,
+    val project: Project? = null,
+    val group: ProjectGroup? = null,
+) {
+    init {
+        require(!user.isNullOrBlank() || (project != null && group != null)) { "No access entity defined" }
+    }
+}
+
+@Serializable
+data class EntityWithPermission(
+    val entity: AccessEntity,
+    val permission: ApplicationAccessRight
+)
+
+@Serializable
+data class DetailedEntityWithPermission(
+    val entity: DetailedAccessEntity,
+    val permission: ApplicationAccessRight
+)
+
+@Serializable
+data class FindByNameAndVersionRequest(
+    val appName: String,
+    val appVersion: String? = null
+)
+
+@Serializable
+data class ACLEntryRequest(
+    val entity: AccessEntity,
+    val rights: ApplicationAccessRight,
+    val revoke: Boolean = false
+)
+
+@UCloudApiExampleValue
+fun exampleApplication(
+    name: String,
+    version: String,
+    image: String,
+    invocation: List<InvocationParameter>,
+    parameters: List<ApplicationParameter>,
+    toolBackend: ToolBackend = ToolBackend.DOCKER,
+    type: ApplicationType = ApplicationType.BATCH,
+    title: String = name.replace("-", " ").replaceFirstChar { it.uppercase() },
+    invocationBlock: (ApplicationInvocationDescription) -> ApplicationInvocationDescription = { it }
+): Application {
+    return Application(
+        ApplicationMetadata(
+            name,
+            version,
+            listOf("UCloud"),
+            title,
+            "An example application",
+            public = true,
+            group = ApplicationGroup(
+                ApplicationGroup.Metadata(0),
+                ApplicationGroup.Specification("Test Group", "", null, emptySet())
+            )
+        ),
+        ApplicationInvocationDescription(
+            ToolReference(
+                name, version, Tool(
+                    "_ucloud",
+                    1633329776235,
+                    1633329776235,
+                    NormalizedToolDescription(
+                        NameAndVersion(name, version),
+                        defaultNumberOfNodes = 1,
+                        defaultTimeAllocation = SimpleDuration(1, 0, 0),
+                        requiredModules = emptyList(),
+                        authors = listOf("UCloud"),
+                        title = title,
+                        description = "An example tool",
+                        backend = toolBackend,
+                        license = "None",
+                        image = image
+                    )
+                )
+            ),
+            invocation,
+            parameters,
+            listOf("*"),
+            type
+        ).let(invocationBlock)
+    )
+}
+
+@UCloudApiExampleValue
+val exampleBatchApplication = exampleApplication(
+    "acme-batch",
+    "1.0.0",
+    "acme/batch:1.0.0",
+    listOf(
+        WordInvocationParameter("acme-batch"),
+        VariableInvocationParameter(
+            listOf("debug"),
+            prefixGlobal = "--debug "
+        ),
+        VariableInvocationParameter(
+            listOf("value")
+        )
+    ),
+    listOf(
+        ApplicationParameter.Bool(
+            "debug",
+            description = "Should debug be enabled?"
+        ),
+        ApplicationParameter.Text(
+            "value",
+            description = "The value for the batch application"
+        )
+    )
+)

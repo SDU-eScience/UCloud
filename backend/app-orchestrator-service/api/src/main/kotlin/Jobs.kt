@@ -750,7 +750,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 
                 success(
                     AppStore.findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies("a-batch-application", "1.0.0"),
+                    FindByNameAndVersionRequest("a-batch-application", "1.0.0"),
                     ApplicationWithFavoriteAndTags(
                         metadata,
                         ApplicationInvocationDescription(
