@@ -1139,6 +1139,12 @@ class AccountingProcessor(
     }
 
     private fun InternalWalletAllocation.toApiAllocation(): ApiWalletAllocation {
+        val internalWallAlloc = allocations[id]
+            ?: throw RPCException.fromStatusCode(
+                HttpStatusCode.InternalServerError,
+                "Cannot find allocations that is being translated"
+            )
+        val maxAllowedUsage = calculateMaxUsableQuotaFromParents(internalWallAlloc)
         return ApiWalletAllocation(
             id.toString(),
             run {
@@ -1160,7 +1166,8 @@ class AccountingProcessor(
             endDate = notAfter ?: Long.MAX_VALUE,
             grantedIn,
             canAllocate = canAllocate,
-            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate
+            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate,
+            maxUsable = maxAllowedUsage
         )
     }
 
@@ -1285,6 +1292,22 @@ class AccountingProcessor(
                 parent.treeUsage = min((parent.treeUsage ?: 0) + currentAlloc.treeUsage!!, parent.quota)
                 parent.commit()
             }
+        }
+    }
+
+    private fun calculateMaxUsableQuotaFromParents(allocation: InternalWalletAllocation): Long {
+        if (allocation.parentAllocation != null) {
+            val parent = allocations.getOrNull(allocation.parentAllocation)
+                ?: throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError,
+                    "Allocation has parent error"
+                )
+            return min(
+                allocation.quota - ( allocation.treeUsage ?: allocation.localUsage ),
+                calculateMaxUsableQuotaFromParents(parent)
+                )
+        } else {
+            return allocation.quota - ( allocation.treeUsage ?: allocation.localUsage )
         }
     }
 
@@ -1542,6 +1565,7 @@ class AccountingProcessor(
         allocation: InternalWalletAllocation,
         delta: Long,
     ): Boolean {
+        var toCharge = delta
         if (allocation.parentAllocation == null) {
             return true
         } else {
@@ -1550,21 +1574,27 @@ class AccountingProcessor(
             //If resources are being released we should be careful not to just subtract from the parent.
             //The allocation might still be using its parens full capacity so parents should not be charged
             //before the allocation is using less than what has been given.
-            if (delta < 0) {
+            if (toCharge < 0) {
                 if ((allocation.treeUsage ?: allocation.localUsage) > parent.quota) {
                     //Dont update since the usage is still be over consumed so parent should just have quota as treeusage
                 } else {
-                    val differenceFromQuota = parent.quota - (allocation.treeUsage ?: allocation.localUsage)
-                    parent.treeUsage = max(0, (parent.treeUsage ?: parent.localUsage) + differenceFromQuota)
+                    val differenceFromQuotaOfParent = parent.quota - ((allocation.treeUsage ?: allocation.localUsage) + parent.localUsage)
+                    //If the charge from the allocation does not exceed the parent quota
+                    if (differenceFromQuotaOfParent >= abs(delta)) {
+                        parent.treeUsage = (parent.treeUsage ?: parent.localUsage) + toCharge
+                    } else {
+                        toCharge = -differenceFromQuotaOfParent
+                        parent.treeUsage = (parent.treeUsage ?: parent.localUsage) + toCharge
+                    }
                 }
             } else {
-                parent.treeUsage = min((parent.treeUsage ?: parent.localUsage) + delta, parent.quota)
+                parent.treeUsage = min((parent.treeUsage ?: parent.localUsage) + toCharge, parent.quota)
             }
             parent.commit()
             return if (parent.parentAllocation == null) {
                 true
             } else {
-                return updateParentTreeUsage(parent, delta)
+                return updateParentTreeUsage(parent, toCharge)
             }
         }
     }

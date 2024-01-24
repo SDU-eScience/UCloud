@@ -524,6 +524,9 @@ export interface WalletAllocationV2 {
 
     canAllocate: boolean;
     allowSubAllocationsToAllocate: boolean;
+
+    maxUsable: number;
+
 }
 
 export interface SubAllocationV2 {
