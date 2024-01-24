@@ -602,6 +602,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         directory: folder,
                         dispatch: dispatch,
                         embedded: opts?.embedded ?? false,
+                        isModal: opts?.isModal ?? false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
