@@ -164,7 +164,7 @@ class MailService(
                 Transport.send(message)
             }
         } catch (e: Throwable) {
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
+            throw RuntimeException("Unable to send email", e)
         }
     }
 

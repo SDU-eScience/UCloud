@@ -13,7 +13,7 @@ import kotlin.system.exitProcess
 
 object PlaceholderServiceDescription : ServiceDescription {
     override val name = "UCloud"
-    override val version = "unspecified-this-should-not-show-up-in-production"
+    override val version = "unspecified"
 }
 
 class ServiceRegistry(

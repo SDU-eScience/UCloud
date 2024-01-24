@@ -203,7 +203,7 @@ class JobManagement(
         cancel(verifiedJob.id)
     }
 
-    private suspend fun cancel(jobId: String) {
+    suspend fun cancel(jobId: String) {
         markJobAsComplete(jobId)
         cleanup(jobId)
         k8.changeState(

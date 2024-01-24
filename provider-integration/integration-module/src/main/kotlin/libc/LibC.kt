@@ -61,6 +61,8 @@ class LibC {
     external fun resizePty(masterFd: Int, cols: Int, rows: Int): Int
     external fun umask(mask: Int): Int
 
+    external fun touchFile(fileDescriptor: Int): Int
+
     companion object {
         init {
             var didLoad = false

@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+import sys
+import json
+from helper import *
+
+with open(sys.argv[1]) as fp:
+    request = json.load(fp)
+
+owner_type = request['type']
+
+if owner_type == 'user':
+    uid = request['uid']
+    name = get_username_by_uid(uid)
+    response = {
+        'title' : 'Home',
+        'path' : f'/home/{name}'
+    }
+    print(json.dumps([response]))
+
+elif owner_type == 'project':
+    gid = request['gid']
+    name = get_group_by_gid(gid)
+    response = {
+        'title' : 'Work',
+        'path' : f'/work/{name}'
+    }
+    print(json.dumps([response]))
+
+else:
+    sys.exit(f'Unknown owner type: {owner_type}')

@@ -3,17 +3,21 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.providers.*
+import dk.sdu.cloud.accounting.util.IdCard
+import dk.sdu.cloud.accounting.util.ResourceDocument
+import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.appCache
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.backgroundScope
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.exporter
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.fileCollections
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.idCards
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.payment
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
@@ -23,12 +27,18 @@ import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
-import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.builtins.ListSerializer
@@ -36,7 +46,6 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
-import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.collections.ArrayList
 import kotlin.math.min
@@ -277,11 +286,12 @@ class JobResourceService {
                 val provider = job.product.provider
                 documents.createViaProvider(card, job.product, initialState, addOwnerToAcl = true) { doc ->
                     val mapped = docMapper.map(null, doc)
-                    providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
-                        .singleIdOrNull()
-                        ?.also { _ -> listeners.forEach { it.onCreate(mapped) } }
-                        ?.also { allActiveJobs[it.toLong()] = Unit }
+                    val result = providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
+                    listeners.forEach { it.onCreate(mapped) }
+                    allActiveJobs[doc.id] = Unit
+                    result.singleIdOrNull()
                 }
+
             } catch (ex: Throwable) {
                 if (firstException == null) firstException = ex
                 log.info("Caught exception while creating job: ${ex.toReadableStacktrace()}")
@@ -762,8 +772,10 @@ class JobResourceService {
                     )
                 } catch (ex: Throwable) {
                     if (firstException == null) firstException = ex
-                    log.info("Caught exception while opening interactive session (${jobs.map { it.id }}): " +
-                            "${ex.toReadableStacktrace()}")
+                    log.info(
+                        "Caught exception while opening interactive session (${jobs.map { it.id }}): " +
+                            "${ex.toReadableStacktrace()}"
+                    )
                     responses.addAll(jobs.map { null })
                 }
             }
@@ -897,7 +909,7 @@ class JobResourceService {
     }
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {
-        providers.forEachRelevantProvider(actorAndProject) { provider ->
+        providers.forEachRelevantProvider(actorAndProject, filterProductType = ProductType.COMPUTE) { provider ->
             try {
                 providers.call(
                     provider,
@@ -1150,7 +1162,8 @@ class JobResourceService {
                     from app_orchestrator.jobs j
                     where
                         j.current_state != 'SUCCESS' and
-                        j.current_state != 'FAILURE'
+                        j.current_state != 'FAILURE' and
+                        j.current_state != 'EXPIRED'
                 """
             ).rows
 

@@ -44,6 +44,8 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.MoveTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
 import dk.sdu.cloud.utils.sendTerminalFrame
 import dk.sdu.cloud.utils.sendTerminalMessage
@@ -569,7 +571,7 @@ class UCloudFilePlugin : FilePlugin {
             driveLocator.updateSystem(driveAndSystem.drive.ucloudId, system)
         })
 
-        ipcServer.addHandler(CliIpc.locateInMaintenance.handler { user, request ->
+        ipcServer.addHandler(CliIpc.locateInMaintenance.handler { user, _ ->
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             DriveInfoItems(
                 driveLocator.enumerateDrives().items
@@ -709,6 +711,54 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
                 BulkRequest.serializer(FindByPath.serializer()),
                 bulkRequestOf(FindByPath("/${resource.id}"))
             ) as JsonObject
+        )
+        val drives = ArrayList<UCloudDrive>()
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                        select collection_id, local_reference, project, type
+                        from ucloud_storage_drives
+                        where collection_id = :id 
+                    """
+            ).useAndInvoke(
+                prepare = {
+                          bindLong("id", resource.id.toLong())
+                },
+                readRow = { row ->
+                    val driveId = row.getLong(0)!!
+                    val localReference = row.getString(1)
+                    val project = row.getString(2)
+                    val type = UCloudDrive.Type.valueOf(row.getString(3)!!)
+
+                    drives.add(
+                        when (type) {
+                            UCloudDrive.Type.PERSONAL_WORKSPACE -> {
+                                UCloudDrive.PersonalWorkspace(driveId, localReference!!)
+                            }
+
+                            UCloudDrive.Type.PROJECT_REPOSITORY -> {
+                                UCloudDrive.ProjectRepository(driveId, project!!, localReference!!)
+                            }
+
+                            UCloudDrive.Type.PROJECT_MEMBER_FILES -> {
+                                UCloudDrive.ProjectMemberFiles(driveId, project!!, localReference!!)
+                            }
+
+                            UCloudDrive.Type.COLLECTION -> {
+                                UCloudDrive.Collection(driveId)
+                            }
+
+                            UCloudDrive.Type.SHARE -> {
+                                UCloudDrive.Share(driveId, localReference!!)
+                            }
+                        }
+                    )
+                }
+            )
+        }
+        val drive = drives.singleOrNull() ?: throw RPCException("Cannot locate drive", HttpStatusCode.NotFound)
+        filePlugin.driveLocator.remove(
+            drive
         )
     }
 }
