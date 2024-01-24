@@ -116,6 +116,7 @@ const WideApplicationCard = injectStyle("wide-application-card", k => `
 
 export const ApplicationCardClass = injectStyle("application-card", k => `
     ${k} {
+        -webkit-user-select: none;
         user-select: none;
     }
 

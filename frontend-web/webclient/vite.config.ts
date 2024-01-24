@@ -39,6 +39,9 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
 
     return defineConfig({
         clearScreen: false,
+        build: {
+            assetsInlineLimit: 0 
+        },
         define: {
             /*
                 Note(Jonas): Added because of React-Markdown using the `assert` function,

@@ -3,10 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
 import dk.sdu.cloud.app.orchestrator.api.JobSpecification
-import dk.sdu.cloud.app.store.api.AppParameterValue
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationParameter
-import dk.sdu.cloud.app.store.api.SshDescription
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
@@ -42,6 +39,9 @@ class JobVerificationService(
         if (specification.timeAllocation != null) {
             if (specification.timeAllocation!!.toMillis() <= 0) {
                 throw JobException.VerificationError("Time allocated for job is too short.")
+            }
+            if (application.invocation.tool.tool?.description?.backend == ToolBackend.VIRTUAL_MACHINE) {
+                specification.timeAllocation = null
             }
         }
 

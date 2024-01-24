@@ -6,7 +6,7 @@ import {useEffect, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {LinkInfo} from "@/ui-components/SidebarComponents";
+import {LinkInfo, SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
 import {BulkResponse, PageV2, accounting} from "@/UCloud";
 import {InvokeCommand, callAPI, callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
@@ -37,8 +37,8 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {useProjectId} from "@/Project/Api";
 
 export const sharesLinksInfo: LinkInfo[] = [
-    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share"},
-    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu"},
+    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES},
+    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu", tab: SidebarTabId.FILES},
 ]
 
 function daysLeftToTimestamp(timestamp: number): number {
@@ -474,7 +474,11 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     }
 
                     // Row stat2
-                    row.stat2.innerText = dateToString(share.createdAt ?? timestampUnixMs());
+                    row.stat2.appendChild(createHTMLElements({
+                        tagType: "div",
+                        style: {marginTop: "auto", marginBottom: "auto"},
+                        innerText: dateToString(share.createdAt ?? timestampUnixMs())
+                    }));
 
                     // Row stat3
                     const avatar = avatars.avatar(share.owner.createdBy);

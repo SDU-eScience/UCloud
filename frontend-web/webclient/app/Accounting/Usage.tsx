@@ -10,7 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {translateBinaryProductCategory} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import { doNothing, timestampUnixMs } from "@/UtilityFunctions";
+import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AccountingB from "./AccountingBinary";
@@ -23,6 +23,7 @@ import {deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import Warning from "@/ui-components/Warning";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {useTitle} from "@/Navigation/Redux";
 
 // State
 // =====================================================================================================================
@@ -66,18 +67,18 @@ interface State {
 }
 
 type Period =
-    { type: "relative", distance: number, unit: "day" | "month" }
-    | { type: "absolute", start: number, end: number }
+    {type: "relative", distance: number, unit: "day" | "month"}
+    | {type: "absolute", start: number, end: number}
     ;
 
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    { type: "LoadCharts", charts: AccountingB.Charts, }
-    | { type: "LoadJobStats", statistics: Jobs.JobStatistics, }
-    | { type: "SelectTab", tabIndex: number }
-    | { type: "UpdateSelectedPeriod", period: Period }
-    | { type: "UpdateRequestsInFlight", delta: number }
+    {type: "LoadCharts", charts: AccountingB.Charts, }
+    | {type: "LoadJobStats", statistics: Jobs.JobStatistics, }
+    | {type: "SelectTab", tabIndex: number}
+    | {type: "UpdateSelectedPeriod", period: Period}
+    | {type: "UpdateRequestsInFlight", delta: number}
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -283,7 +284,7 @@ function stateReducer(state: State, action: UIAction): State {
                     const usage = stats.usageByUser.get(i);
                     if (usage.categoryIndex !== catIdx) continue;
 
-                    const result: JobUsageByUsers = { unit: unit.name, dataPoints: [] };
+                    const result: JobUsageByUsers = {unit: unit.name, dataPoints: []};
 
                     const pointCount = usage.dataPoints.count;
                     for (let j = 0; j < pointCount; j++) {
@@ -302,7 +303,7 @@ function stateReducer(state: State, action: UIAction): State {
                     const appStats = stats.mostUsedApplications.get(i);
                     if (appStats.categoryIndex !== catIdx) continue;
 
-                    const result: MostUsedApplications = { dataPoints: [] };
+                    const result: MostUsedApplications = {dataPoints: []};
                     const pointCount = appStats.dataPoints.count;
                     for (let j = 0; j < pointCount; j++) {
                         const dataPoint = appStats.dataPoints.get(j);
@@ -320,7 +321,7 @@ function stateReducer(state: State, action: UIAction): State {
                     const submissionStats = stats.jobSubmissionStatistics.get(i);
                     if (submissionStats.categoryIndex !== catIdx) continue;
 
-                    const result: SubmissionStatistics = { dataPoints: [] };
+                    const result: SubmissionStatistics = {dataPoints: []};
                     const pointCount = submissionStats.dataPoints.count;
                     for (let j = 0; j < pointCount; j++) {
                         const dataPoint = submissionStats.dataPoints.get(j);
@@ -368,7 +369,7 @@ function stateReducer(state: State, action: UIAction): State {
 // =====================================================================================================================
 type UIEvent =
     UIAction
-    | { type: "Init" }
+    | {type: "Init"}
     ;
 
 function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
@@ -382,9 +383,9 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
         async function invokeAPI<T>(
             parameters: (APICallParameters<unknown, T> | APICallParametersBinary<T>)
         ): Promise<T> {
-            dispatch({ type: "UpdateRequestsInFlight", delta: 1 });
+            dispatch({type: "UpdateRequestsInFlight", delta: 1});
             return callAPI(parameters).finally(() => {
-                dispatch({ type: "UpdateRequestsInFlight", delta: -1 });
+                dispatch({type: "UpdateRequestsInFlight", delta: -1});
             });
         }
 
@@ -427,6 +428,8 @@ const Visualization: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
+
+    useTitle("Usage");
 
     useEffect(() => {
         dispatchEvent({type: "Init"});
@@ -507,10 +510,10 @@ const Visualization: React.FunctionComponent = () => {
         <header className="at-top">
             <h3>Resource usage</h3>
             <div className="duration-select">
-                <PeriodSelector value={state.selectedPeriod} onChange={setPeriod}/>
+                <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
             </div>
-            <div style={{flexGrow: "1"}}/>
-            <ContextSwitcher/>
+            <div style={{flexGrow: "1"}} />
+            <ContextSwitcher />
         </header>
 
         <div style={{padding: "13px 16px 16px 16px"}}>
@@ -555,12 +558,12 @@ const Visualization: React.FunctionComponent = () => {
                                     nextAllocationAt={state.activeDashboard.nextAllocation?.startsAt}
                                     nextAllocation={state.activeDashboard.nextAllocation?.quota}
                                 />
-                                <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject}/>
-                                <UsageOverTimePanel chart={state.activeDashboard.usageOverTime}/>
+                                <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
+                                <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
                                 {activeCategory?.productType === "COMPUTE" && <>
-                                    <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers}/>
-                                    <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications}/>
-                                    <JobSubmissionPanel data={state.activeDashboard.submissionStatistics}/>
+                                    <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
+                                    <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
+                                    <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
                                 </>}
                             </div>
                         </div>
@@ -681,6 +684,13 @@ const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
             margin-top: 8px !important;
         }
     }
+
+    ${deviceBreakpoint({maxWidth: "799px"})} {
+        /* On small width-screens, show descriptions vertically instead of horizontal */
+        ${k} {
+            display: block;
+        }
+    }
 `);
 
 const CategoryDescriptorPanel: React.FunctionComponent<{
@@ -696,9 +706,9 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle)}>
         <div className={"figure-and-title"}>
             <figure>
-                <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128}/>
+                <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128} />
                 <div style={{position: "relative"}}>
-                    <ProviderLogo providerId={props.category.provider} size={64}/>
+                    <ProviderLogo providerId={props.category.provider} size={64} />
                 </div>
             </figure>
             <h1><code>{props.category.name}</code></h1>
@@ -755,7 +765,7 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-const BreakdownPanel: React.FunctionComponent<{ period: Period, chart: BreakdownChart }> = props => {
+const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownChart}> = props => {
     const unit = props.chart.unit;
 
     const dataPoints = useMemo(
@@ -791,25 +801,25 @@ const BreakdownPanel: React.FunctionComponent<{ period: Period, chart: Breakdown
         </>}
 
         <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
         </div>
 
         <table>
             <thead>
-            <tr>
-                <th>Project</th>
-                <th>Usage</th>
-            </tr>
+                <tr>
+                    <th>Project</th>
+                    <th>Usage</th>
+                </tr>
             </thead>
             <tbody>
-            {dataPoints.map((point, idx) => {
-                const usage = point.value;
+                {dataPoints.map((point, idx) => {
+                    const usage = point.value;
 
-                return <tr key={idx}>
-                    <td>{point.key}</td>
-                    <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
-                </tr>
-            })}
+                    return <tr key={idx}>
+                        <td>{point.key}</td>
+                        <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+                    </tr>
+                })}
             </tbody>
         </table>
     </div>;
@@ -823,7 +833,7 @@ const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
     }
 `);
 
-const MostUsedApplicationsPanel: React.FunctionComponent<{ data?: MostUsedApplications }> = ({data}) => {
+const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
     if (data === undefined) return null;
 
     return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
@@ -834,20 +844,20 @@ const MostUsedApplicationsPanel: React.FunctionComponent<{ data?: MostUsedApplic
         <div className="table-wrapper">
             <table>
                 <thead>
-                <tr>
-                    <th>Application</th>
-                    <th>Number of jobs</th>
-                </tr>
+                    <tr>
+                        <th>Application</th>
+                        <th>Number of jobs</th>
+                    </tr>
                 </thead>
                 <tbody>
-                {data.dataPoints.map(it =>
-                    <React.Fragment key={it.applicationTitle}>
-                        <tr>
-                            <td>{it.applicationTitle}</td>
-                            <td>{it.count}</td>
-                        </tr>
-                    </React.Fragment>
-                )}
+                    {data.dataPoints.map(it =>
+                        <React.Fragment key={it.applicationTitle}>
+                            <tr>
+                                <td>{it.applicationTitle}</td>
+                                <td>{it.count}</td>
+                            </tr>
+                        </React.Fragment>
+                    )}
                 </tbody>
             </table>
         </div>
@@ -884,7 +894,7 @@ const JobSubmissionStyle = injectStyle("job-submission", k => `
 
 const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-const DurationOfSeconds: React.FunctionComponent<{ duration: number}> = ({duration}) => {
+const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duration}) => {
     if (duration > 3600) {
         const hours = Math.floor(duration / 3600);
         const minutes = Math.floor((duration % 3600) / 60);
@@ -896,7 +906,7 @@ const DurationOfSeconds: React.FunctionComponent<{ duration: number}> = ({durati
     }
 }
 
-const JobSubmissionPanel: React.FunctionComponent<{ data?: SubmissionStatistics }> = ({data}) => {
+const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}> = ({data}) => {
     if (data === undefined) return null;
     const dataPoints = data.dataPoints;
     return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
@@ -907,28 +917,28 @@ const JobSubmissionPanel: React.FunctionComponent<{ data?: SubmissionStatistics 
         <div className="table-wrapper">
             <table>
                 <thead>
-                <tr>
-                    <th>Day</th>
-                    <th>Time of day</th>
-                    <th>Count</th>
-                    <th>Avg duration</th>
-                    <th>Avg queue</th>
-                </tr>
+                    <tr>
+                        <th>Day</th>
+                        <th>Time of day</th>
+                        <th>Count</th>
+                        <th>Avg duration</th>
+                        <th>Avg queue</th>
+                    </tr>
                 </thead>
                 <tbody>
-                {dataPoints.map((dp, i) => {
-                    const day = dayNames[dp.day];
-                    return <tr key={i}>
-                        <td>{day}</td>
-                        <td>
-                            {dp.hourOfDayStart.toString().padStart(2, '0')}:00-
-                            {dp.hourOfDayEnd.toString().padStart(2, '0')}:00
-                        </td>
-                        <td>{dp.numberOfJobs}</td>
-                        <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
-                        <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
-                    </tr>;
-                })}
+                    {dataPoints.map((dp, i) => {
+                        const day = dayNames[dp.day];
+                        return <tr key={i}>
+                            <td>{day}</td>
+                            <td>
+                                {dp.hourOfDayStart.toString().padStart(2, '0')}:00-
+                                {dp.hourOfDayEnd.toString().padStart(2, '0')}:00
+                            </td>
+                            <td>{dp.numberOfJobs}</td>
+                            <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
+                            <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
+                        </tr>;
+                    })}
                 </tbody>
             </table>
         </div>
@@ -983,7 +993,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
     // with the correct size.
 
     // NOTE(Dan): The wrapper is required to ensure the useEffect runs every time.
-    const [dimensions, setDimensions] = useState<{ height?: string, width?: string }>({});
+    const [dimensions, setDimensions] = useState<{height?: string, width?: string}>({});
     const mountPoint = useRef<HTMLDivElement>(null);
     const styleForLayoutTest: CSSProperties = {flexGrow: 2, flexShrink: 1, flexBasis: "400px"};
 
@@ -1026,7 +1036,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
                 }
             }
 
-            setDimensions({ width: `${width}px`, height: `${height}px` });
+            setDimensions({width: `${width}px`, height: `${height}px`});
         }, 50);
     }, [dimensions]);
 
@@ -1044,7 +1054,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
     </div>;
 }
 
-const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({chart}) => {
+const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart}) => {
     let sum = 0;
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const chartProps = useMemo(() => {
@@ -1086,24 +1096,24 @@ const UsageOverTimePanel: React.FunctionComponent<{ chart: UsageChart }> = ({cha
         <div className="table-wrapper">
             <table>
                 <thead>
-                <tr>
-                    <th>Timestamp</th>
-                    <th>Usage</th>
-                    <th>Change</th>
-                </tr>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Usage</th>
+                        <th>Change</th>
+                    </tr>
                 </thead>
                 <tbody>
-                {chart.dataPoints.map((point, idx) => {
-                    if (idx == 0) return null;
-                    const change = point.usage - chart.dataPoints[idx - 1].usage;
-                    sum += change;
-                    if (change === 0) return null;
-                    return <tr key={idx}>
-                        <td>{dateToString(point.timestamp)}</td>
-                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))}</td>
-                        <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))}</td>
-                    </tr>;
-                })}
+                    {chart.dataPoints.map((point, idx) => {
+                        if (idx == 0) return null;
+                        const change = point.usage - chart.dataPoints[idx - 1].usage;
+                        sum += change;
+                        if (change === 0) return null;
+                        return <tr key={idx}>
+                            <td>{dateToString(point.timestamp)}</td>
+                            <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))}</td>
+                            <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))}</td>
+                        </tr>;
+                    })}
                 </tbody>
             </table>
         </div>
@@ -1127,9 +1137,9 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
     }
 `);
 
-const UsageByUsers: React.FunctionComponent<{ loading: boolean, data?: JobUsageByUsers }> = ({loading, data}) => {
+const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageByUsers}> = ({loading, data}) => {
     const dataPoints = useMemo(() => {
-        return data?.dataPoints?.map(it => ({ key: it.username, value: it.usage }));
+        return data?.dataPoints?.map(it => ({key: it.username, value: it.usage}));
     }, [data?.dataPoints]);
     const formatter = useCallback((val: number) => {
         if (!data) return "";
@@ -1143,28 +1153,28 @@ const UsageByUsers: React.FunctionComponent<{ loading: boolean, data?: JobUsageB
         </div>
 
         {data !== undefined && dataPoints !== undefined ? <>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter}/>
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
 
             <div className="table-wrapper">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>
-                            Estimated usage
-                            {" "}
-                            <TooltipV2
-                                tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
-                                <Icon name={"heroQuestionMarkCircle"}/>
-                            </TooltipV2>
-                        </th>
-                    </tr>
+                        <tr>
+                            <th>Username</th>
+                            <th>
+                                Estimated usage
+                                {" "}
+                                <TooltipV2
+                                    tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
+                                    <Icon name={"heroQuestionMarkCircle"} />
+                                </TooltipV2>
+                            </th>
+                        </tr>
                     </thead>
                     <tbody>
-                    {data.dataPoints.map(it => <tr key={it.username}>
-                        <td>{it.username}</td>
-                        <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
-                    </tr>)}
+                        {data.dataPoints.map(it => <tr key={it.username}>
+                            <td>{it.username}</td>
+                            <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
+                        </tr>)}
                     </tbody>
                 </table>
             </div>
@@ -1260,7 +1270,7 @@ const fieldOfResearch = {
 };
 
 const PieChart: React.FunctionComponent<{
-    dataPoints: { key: string, value: number }[],
+    dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
 }> = props => {
     const filteredList = useMemo(() => {
@@ -1312,7 +1322,7 @@ const PieChart: React.FunctionComponent<{
                 },
                 tooltip: {
                     shared: false,
-                        y: {
+                    y: {
                         formatter: function (val) {
                             return props.valueFormatter(val);
                         }
@@ -1337,17 +1347,17 @@ interface SubmissionStatistics {
 }
 
 interface MostUsedApplications {
-    dataPoints: { applicationTitle: string; count: number; }[],
+    dataPoints: {applicationTitle: string; count: number;}[],
 }
 
 interface JobUsageByUsers {
     unit: string,
-    dataPoints: { username: string; usage: number; }[],
+    dataPoints: {username: string; usage: number;}[],
 }
 
 interface BreakdownChart {
     unit: string,
-    dataPoints: { projectId?: string | null, title: string, usage: number }[];
+    dataPoints: {projectId?: string | null, title: string, usage: number}[];
 }
 
 const emptyBreakdownChart: BreakdownChart = {
@@ -1357,7 +1367,7 @@ const emptyBreakdownChart: BreakdownChart = {
 
 interface UsageChart {
     unit: string,
-    dataPoints: { timestamp: number, usage: number, quota: number }[];
+    dataPoints: {timestamp: number, usage: number, quota: number}[];
 }
 
 const emptyChart: UsageChart = {
@@ -1450,6 +1460,7 @@ function usageChartToChart(
             type: 'datetime',
         },
         tooltip: {
+            theme: "dark",
             shared: false,
             y: {
                 formatter: function (val) {
@@ -1548,7 +1559,7 @@ const SmallUsageCard: React.FunctionComponent<{
         <div className={classConcat(CardClass, SmallUsageCardStyle)}>
             <div className={"title-row"}>
                 <strong><code>{props.categoryName}</code></strong>
-                <Radio checked={props.active} onChange={doNothing}/>
+                <Radio checked={props.active} onChange={doNothing} />
             </div>
 
             <div className="body">
@@ -1559,15 +1570,15 @@ const SmallUsageCard: React.FunctionComponent<{
                     height={63}
                 />
                 <div>
-                    {props.usageText1} <br/>
+                    {props.usageText1} <br />
                     {props.usageText2}
                 </div>
             </div>
             <div style={{position: "relative"}}>
-                <div className="border-bottom"/>
+                <div className="border-bottom" />
             </div>
             <div style={{position: "relative"}}>
-                <div className="border-left"/>
+                <div className="border-left" />
             </div>
         </div>
     </a>;
@@ -1790,7 +1801,7 @@ const PeriodSelector: React.FunctionComponent<{
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "180px"}}>{periodToString(props.value)}</div>
-                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px"/>
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
     >
@@ -1800,11 +1811,11 @@ const PeriodSelector: React.FunctionComponent<{
 
                 <label>
                     From
-                    <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)}/>
+                    <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
                 </label>
                 <label>
                     To
-                    <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)}/>
+                    <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
                 </label>
             </div>
 
@@ -1812,19 +1823,19 @@ const PeriodSelector: React.FunctionComponent<{
                 <b>Relative time range</b>
 
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-relative={"7"}>Last 7 days
+                    data-relative={"7"}>Last 7 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-relative={"30"}>Last 30 days
+                    data-relative={"30"}>Last 30 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                     data-relative={"90"}>Last 90 days
+                    data-relative={"90"}>Last 90 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                     data-relative={"6"}>Last 6 months
+                    data-relative={"6"}>Last 6 months
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                     data-relative={"12"}>Last 12 months
+                    data-relative={"12"}>Last 12 months
                 </div>
             </div>
         </div>
@@ -1978,7 +1989,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
                 "category breakdown over-time chart2"
                 "category breakdown chart3 chart4"
                 "category breakdown chart3 chart4";
-            height: calc(100vh - 210px);
+            height: calc(100vh - 165px - 50px - 26px);
             grid-template-columns: 300px 450px 1fr 1fr;
         }
     }
@@ -2049,7 +2060,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
 // Initial state
 // =====================================================================================================================
 const initialState: State = {
-    remoteData: { requestsInFlight: 0 },
+    remoteData: {requestsInFlight: 0},
     summaries: [],
     selectedPeriod: {
         type: "relative",

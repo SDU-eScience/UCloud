@@ -46,6 +46,7 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.utils.secureToken
 import dk.sdu.cloud.utils.sendTerminalFrame
 import dk.sdu.cloud.utils.sendTerminalMessage
@@ -162,15 +163,20 @@ class UCloudFilePlugin : FilePlugin {
             limitChecker.checkLimit(reqItem.resolvedCollection)
         }
 
-        for (reqItem in req.items) {
-            if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT &&
-                queries.fileExists(UCloudFile.create(reqItem.id))
-            ) {
+        val checkedItems = req.items.map { reqItem ->
+            val fileExists = queries.fileExists(UCloudFile.create(reqItem.id))
+            if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT && fileExists) {
                 throw RPCException("Folder already exists", HttpStatusCode.Conflict)
+            }
+            if (reqItem.conflictPolicy == WriteConflictPolicy.RENAME && fileExists) {
+                val foundNewName = queries.findAvailableNameOnRename(reqItem.id)
+                reqItem.copy(id = foundNewName)
+            } else {
+                reqItem
             }
         }
 
-        return req.items.map { reqItem ->
+        return checkedItems.map { reqItem ->
             tasks.submitTask(
                 Files.createFolder.fullName,
                 defaultMapper.encodeToJsonElement(
@@ -718,7 +724,7 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
                 """
                         select collection_id, local_reference, project, type
                         from ucloud_storage_drives
-                        where collection_id = :id 
+                        where collection_id = :id
                     """
             ).useAndInvoke(
                 prepare = {

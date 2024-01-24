@@ -19,6 +19,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         
         outline: none;
         user-select: none;
+        -webkit-user-select: none;
         cursor: pointer;
         backface-visibility: hidden;
         min-width: 250px;

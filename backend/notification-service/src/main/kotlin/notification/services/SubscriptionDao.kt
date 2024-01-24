@@ -60,7 +60,7 @@ class SubscriptionDao {
     }
 
     suspend fun findConnections(ctx: DBContext, username: String): List<Subscription> {
-        val earliestAllowedPing = Time.now() - SubscriptionService.MAX_MS_SINCE_LAST_PING
+        val earliestAllowedPing = Time.now() / 1000 - SubscriptionService.MAX_MS_SINCE_LAST_PING
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -91,7 +91,7 @@ class SubscriptionDao {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("newPing", Time.now())
+                        setParameter("newPing", Time.now() / 1000)
                         setParameter("hostname", hostname)
                         setParameter("port", port)
                     },
