@@ -2008,12 +2008,13 @@ const VisualizationStyle = injectStyle("visualization", k => `
     }
     
     ${deviceBreakpoint({maxWidth: "1500px"})} {
+        /* Note(Jonas): this is the issue? */
         ${k} .panel-grid {
             display: grid;
             grid-template-areas: 
                 "category category"
-                "over-time over-time"
-                "breakdown chart2"
+                "breakdown breakdown"
+                "over-time chart2"
                 "chart3 chart4";
             grid-template-rows: 160px 1000px 900px 500px;
         }
