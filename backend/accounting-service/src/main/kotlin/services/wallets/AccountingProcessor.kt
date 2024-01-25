@@ -1578,16 +1578,14 @@ class AccountingProcessor(
                 if ((allocation.treeUsage ?: allocation.localUsage) > parent.quota) {
                     //Dont update since the usage is still be over consumed so parent should just have quota as treeusage
                 } else {
-                    val differenceFromQuotaOfParent = parent.quota - ((allocation.treeUsage ?: allocation.localUsage) + parent.localUsage)
-                    //If the charge from the allocation does not exceed the parent quota
-                    if (differenceFromQuotaOfParent >= abs(delta)) {
-                        parent.treeUsage = (parent.treeUsage ?: parent.localUsage) + toCharge
-                    } else {
-                        toCharge = -differenceFromQuotaOfParent
-                        parent.treeUsage = (parent.treeUsage ?: parent.localUsage) + toCharge
+                    val previousOvercharge = ((allocation.treeUsage ?: allocation.localUsage) - toCharge) -  allocation.quota
+                    if (previousOvercharge > 0) {
+                        toCharge += previousOvercharge
                     }
+                    parent.treeUsage = (parent.treeUsage ?: parent.localUsage) + toCharge
                 }
             } else {
+                println("positive: to char $toCharge")
                 parent.treeUsage = min((parent.treeUsage ?: parent.localUsage) + toCharge, parent.quota)
             }
             parent.commit()
@@ -1763,7 +1761,7 @@ class AccountingProcessor(
                     diff += quota
                 }*/
                 alloc.localUsage = toCharge
-                treeChange = min(diff, alloc.quota)
+                treeChange = diff
                 alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + treeChange
                 totalCharged += toCharge
 
