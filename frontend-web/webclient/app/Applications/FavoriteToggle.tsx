@@ -1,13 +1,14 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {useCallback, useEffect, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {Icon} from "@/ui-components";
 import {useDispatch} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
+import {ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
+import * as AppStore from "@/Applications/AppStoreApi";
 
 export const FavoriteToggle: React.FunctionComponent<{
-    application: UCloud.compute.ApplicationWithFavoriteAndTags
+    application: ApplicationWithFavoriteAndTags
 }> = ({application}) => {
     const [loading, invokeCommand] = useCloudCommand();
     const [favorite, setFavorite] = useState(application.favorite);
@@ -20,8 +21,8 @@ export const FavoriteToggle: React.FunctionComponent<{
         if (!loading) {
             setFavorite(!favorite);
             dispatch(toggleAppFavorite(application, !favorite));
-            invokeCommand(UCloud.compute.apps.toggleFavorite({
-                appName: application.metadata.name
+            invokeCommand(AppStore.toggleStar({
+                name: application.metadata.name
             }));
         }
     }, [loading, favorite]);

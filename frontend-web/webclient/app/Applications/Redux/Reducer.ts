@@ -1,9 +1,9 @@
-import {compute} from "@/UCloud";
 import {SET_APP_FAVORITES, TOGGLE_APP_FAVORITE, SidebarActionType, TOGGLE_THEME_REDUX} from "./Actions";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 
 export interface SidebarStateProps {
-    favorites: compute.ApplicationSummaryWithFavorite[];
+    favorites: ApplicationSummaryWithFavorite[];
     theme: "light" | "dark";
 }
 

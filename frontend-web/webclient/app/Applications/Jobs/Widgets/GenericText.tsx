@@ -1,15 +1,15 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {TextArea, Input} from "@/ui-components";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
 
 type GenericTextType =
-    UCloud.compute.ApplicationParameterNS.Text |
-    UCloud.compute.ApplicationParameterNS.TextArea |
-    UCloud.compute.ApplicationParameterNS.Integer |
-    UCloud.compute.ApplicationParameterNS.FloatingPoint;
+    ApplicationParameterNS.Text |
+    ApplicationParameterNS.TextArea |
+    ApplicationParameterNS.Integer |
+    ApplicationParameterNS.FloatingPoint;
 
 interface GenericTextProps extends WidgetProps {
     parameter: GenericTextType;

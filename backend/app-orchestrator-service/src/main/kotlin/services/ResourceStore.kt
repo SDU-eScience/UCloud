@@ -4,8 +4,7 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.*
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
-import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.accounting.util.CyclicArray
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper

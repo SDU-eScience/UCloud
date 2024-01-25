@@ -15,13 +15,14 @@ import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {classConcat, injectStyle} from "@/Unstyled";
 import * as Accounting from "@/Accounting";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {Application} from "@/Applications/AppStoreApi";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
 const reservationReplicas = "reservation-replicas";
 
 export const ReservationParameter: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+    application: Application;
     errors: ReservationErrors;
     onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, product: ProductV2 | null) => void;
 }> = ({application, errors, onEstimatedCostChange}) => {

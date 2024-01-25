@@ -17,6 +17,18 @@ declare global {
         pageNumber: number;
         items: T[];
     }
+
+    export interface PaginationRequestV2 {
+        itemsPerPage: number;
+        next?: string;
+        itemsToSkip?: number;
+    }
+
+    export interface PageV2<T = unknown> {
+        itemsPerPage: number;
+        items: T[];
+        next?: string;
+    }
 }
 
 export function singletonToPage<T>(item?: T | null, itemsPerPage = 50): Page<T> {

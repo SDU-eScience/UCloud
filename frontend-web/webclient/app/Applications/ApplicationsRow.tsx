@@ -1,11 +1,9 @@
 import {injectStyle} from "@/Unstyled";
-import {ApplicationGroup} from "./api";
 import {AppCard, AppCardType, AppCardStyle} from "./Card";
 import React, {useEffect, useState} from "react";
 import {Absolute, Icon, Relative} from "@/ui-components";
 import * as Pages from "./Pages";
-import {compute} from "@/UCloud";
-import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {ApplicationGroup, ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 
 export const ApplicationRowContainerClass = injectStyle("application-row-container", k => `
     ${k} {
@@ -27,20 +25,20 @@ export interface ApplicationRowItem {
     type: AppCardType,
     title: string,
     description?: string,
-    defaultApplication?: string,
-    tags?: string[],
+    defaultApplication?: string | null,
+    tags?: number[],
     isFavorite?: boolean,
     application?: ApplicationSummaryWithFavorite
 }
 
 export function ApplicationGroupToRowItem(group: ApplicationGroup): ApplicationRowItem {
     return {
-        id: group.id.toString(),
+        id: group.metadata.id.toString(),
         type: AppCardType.GROUP,
-        title: group.title,
-        description: group.description,
-        defaultApplication: group.defaultApplication,
-        tags: group.tags
+        title: group.specification.title,
+        description: group.specification.description,
+        defaultApplication: group.specification.defaultFlavor,
+        tags: group.specification.categories
     }
 }
 

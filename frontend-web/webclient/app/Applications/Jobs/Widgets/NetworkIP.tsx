@@ -3,7 +3,6 @@ import {default as ReactModal} from "react-modal";
 import {Flex, Input} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {default as NetworkIPApi} from "@/UCloud/NetworkIPApi";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
@@ -13,9 +12,10 @@ import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {checkProviderMismatch} from "../Create";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
 import {CardClass} from "@/ui-components/Card";
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 
 interface NetworkIPProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
+    parameter: ApplicationParameterNS.NetworkIP;
 }
 
 export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props => {

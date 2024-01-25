@@ -563,10 +563,10 @@ class AppServiceTest {
         )
 
         fun checkGroup(group: ApplicationGroup?) {
-            assertEquals(groupId, group?.id)
-            assertEquals(groupTitle, group?.title)
-            assertEquals(description, group?.description)
-            assertEquals(flavorName, group?.defaultApplication)
+            assertEquals(groupId, group?.metadata?.id)
+            assertEquals(groupTitle, group?.specification?.title)
+            assertEquals(description, group?.specification?.description)
+            assertEquals(flavorName, group?.specification?.defaultFlavor)
         }
 
         val groupThroughListing = service.listGroups(ActorAndProject.System).singleOrNull()
@@ -630,11 +630,11 @@ class AppServiceTest {
 
         val categoryThroughList = service.listCategories().singleOrNull()
         assertNotNull(categoryThroughList)
-        assertEquals(categoryName, categoryThroughList.title)
+        assertEquals(categoryName, categoryThroughList.specification.title)
 
         val (retrievedCategoryTitle, retrievedApps) = service.listApplicationsInCategory(
             ActorAndProject.System,
-            categoryThroughList.id
+            categoryThroughList.metadata.id
         )
 
         assertEquals(appGroups.size, retrievedApps.size)
@@ -647,7 +647,7 @@ class AppServiceTest {
 
         val (_, retrievedApps2) = service.listApplicationsInCategory(
             ActorAndProject.System,
-            categoryThroughList.id
+            categoryThroughList.metadata.id
         )
         assertEquals(appGroups.size - 1, retrievedApps2.size)
         for ((_, app) in appGroups) {

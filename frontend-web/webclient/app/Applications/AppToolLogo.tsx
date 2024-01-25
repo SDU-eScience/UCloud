@@ -3,6 +3,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {appColors} from "@/ui-components/theme";
+import * as AppStore from "@/Applications/AppStoreApi";
 
 interface AppToolLogoProps {
     name: string;
@@ -20,17 +21,26 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         let didCancel = false;
         /* NOTE(jonas): `props.name` is sometimes an empty string, why? */
         if (!props.name) return;
-        (async () => {
-            const fetchedLogo = props.type === "APPLICATION" ?
-                await appLogoCache.fetchLogo(props.name) :
-                props.type === "GROUP" ? 
-                    await groupLogoCache.fetchLogo(props.name) :
-                    await toolLogoCache.fetchLogo(props.name);
+        if (props.type === "TOOL") {
+            setDataUrl(null);
+        } else {
+            (async () => {
+                const url = props.type === "GROUP" ?
+                    AppStore.retrieveGroupLogo({ id: parseInt(props.name) })
+                    : AppStore.retrieveAppLogo({ name: props.name });
 
-            if (!didCancel) {
-                setDataUrl(fetchedLogo);
-            }
-        })();
+                try {
+                    const blob = await (await fetch(url)).blob();
+                    if (!didCancel) {
+                        if (blob.type.indexOf("image/") === 0) {
+                            setDataUrl(URL.createObjectURL(blob));
+                        } else {
+                            setDataUrl(null);
+                        }
+                    }
+                } catch (e) {}
+            })();
+        }
 
         return () => {
             didCancel = true;

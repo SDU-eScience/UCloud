@@ -6,8 +6,7 @@ import Markdown from "@/ui-components/Markdown";
 import {ThemeColor} from "@/ui-components/theme";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import { CardClass } from "@/ui-components/Card";
-import {compute} from "@/UCloud";
-import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 
 interface ApplicationCardProps {
     onFavorite?: (app: ApplicationSummaryWithFavorite) => void;

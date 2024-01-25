@@ -291,6 +291,7 @@ ${ApiConventions.nonConformingApiWarning}
     val removeLogoFromGroup = RemoveLogoFromGroup.call
     val retrieveGroupLogo = RetrieveGroupLogo.call
     val assignApplicationToGroup = AssignApplicationToGroup.call
+    val retrieveAppLogo = RetrieveAppLogo.call
 
     // Category management
     // =================================================================================================================
@@ -298,6 +299,11 @@ ${ApiConventions.nonConformingApiWarning}
     val browseCategories = BrowseCategories.call
     val addGroupToCategory = AddGroupToCategory.call
     val removeGroupFromCategory = RemoveGroupFromCategory.call
+
+    // Landing page management
+    // =================================================================================================================
+    val retrieveLandingPage = RetrieveLandingPage.call
+    val retrieveCarrouselImage = RetrieveCarrouselImage.call
 
     // Import API
     // =================================================================================================================
@@ -385,9 +391,14 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     object ToggleStar {
+        @Serializable
+        data class Request(
+            val name: String,
+        )
+
         val call = call(
             "toggleStar",
-            NameAndVersion.serializer(),
+            Request.serializer(),
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
@@ -782,7 +793,24 @@ ${ApiConventions.nonConformingApiWarning}
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpRetrieve(baseContext, "groupLogo")
+                httpRetrieve(baseContext, "groupLogo", roles = Roles.PUBLIC)
+            }
+        )
+    }
+
+    object RetrieveAppLogo {
+        @Serializable
+        data class Request(
+            val name: String,
+        )
+
+        val call = call(
+            "retrieveAppLogo",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "appLogo", roles = Roles.PUBLIC)
             }
         )
     }
@@ -805,12 +833,116 @@ ${ApiConventions.nonConformingApiWarning}
             }
         )
     }
+
+    object RetrieveLandingPage {
+        @Serializable
+        data class Response(
+            val carrousel: List<CarrouselItem>,
+            val topPicks: List<TopPick>,
+            val categories: List<ApplicationCategory>,
+            val spotlight: Spotlight?,
+            val newApplications: List<ApplicationSummaryWithFavorite>,
+            val recentlyUpdated: List<ApplicationSummaryWithFavorite>,
+        )
+
+        val call = call(
+            "retrieveLandingPage",
+            Unit.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "landingPage")
+            }
+        )
+    }
+
+    object RetrieveCarrouselImage {
+        @Serializable
+        data class Request(
+            val index: Int,
+            val slideTitle: String,
+        )
+
+        val call = call(
+            "retrieveCarrouselImage",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "carrouselImage", roles = Roles.PUBLIC)
+            }
+        )
+    }
 }
+
+@Serializable
+data class TopPick(
+    val title: String,
+    val applicationName: String?,
+    val groupId: Int?,
+    val description: String,
+) {
+    init {
+        if (applicationName != null && groupId != null) {
+            throw RPCException(
+                "applicationName and groupId cannot be supplied at the same time!",
+                HttpStatusCode.BadRequest
+            )
+        }
+
+        if (applicationName == null && groupId == null) {
+            throw RPCException(
+                "Either applicationName or groupId must be supplied!",
+                HttpStatusCode.BadRequest
+            )
+        }
+    }
+}
+
+@Serializable
+data class CarrouselItem(
+    val title: String,
+    val body: String,
+    val imageCredit: String,
+    val linkedApplication: String? = null,
+    val linkedWebPage: String? = null,
+    val linkedGroup: Int? = null,
+) {
+    init {
+        checkSingleLine(::title, title)
+        checkSingleLine(::imageCredit, imageCredit)
+        checkTextLength(::body, body, maximumSize = 400)
+
+        var linkedItems = 0
+        if (linkedApplication != null) linkedItems++
+        if (linkedGroup != null) linkedItems++
+        if (linkedWebPage != null) linkedItems++
+
+        if (linkedItems != 1) {
+            throw RPCException(
+                "Exactly one of linkedApplication, linkedWebPage or linkedGroup must be supplied!",
+                HttpStatusCode.BadRequest
+            )
+        }
+
+        if (linkedApplication != null) checkSingleLine(::linkedApplication, linkedApplication)
+        if (linkedWebPage != null) checkSingleLine(::linkedWebPage, linkedWebPage)
+    }
+}
+
+@Serializable
+data class Spotlight(
+    val title: String,
+    val body: String,
+    val applications: List<TopPick>,
+    val active: Boolean,
+)
 
 @Serializable
 data class ApplicationGroup(
     val metadata: Metadata,
     val specification: Specification,
+    val status: Status? = null,
 ) {
     @Serializable
     data class Metadata(
@@ -823,6 +955,11 @@ data class ApplicationGroup(
         val description: String,
         val defaultFlavor: String?,
         val categories: Set<Int>,
+    )
+
+    @Serializable
+    data class Status(
+        val applications: List<ApplicationWithFavoriteAndTags>,
     )
 }
 

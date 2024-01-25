@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.store.rpc
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByIntId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
@@ -108,7 +109,13 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveGroup) {
-            ok(service.retrieveGroup(request.id) ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound))
+            val group = service.retrieveGroup(request.id) ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound)
+            val apps = service.listApplicationsInGroup(actorAndProject, request.id)
+            ok(group.copy(
+                status = group.status?.copy(
+                    applications = apps
+                )
+            ))
         }
 
         implement(AppStore.create) {
@@ -206,6 +213,27 @@ class AppStoreController(
             okContentAlreadyDelivered()
         }
 
+        implement(AppStore.retrieveAppLogo) {
+            // NOTE(Dan): The endpoint does not have any authentication token, as a result, we resolve the
+            // application with system privileges simply to find the appropriate groupId.
+            val app = service.retrieveApplication(ActorAndProject.System, request.name, null)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val groupId = app.metadata.group?.metadata?.id
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val bytes = service.retrieveGroupLogo(groupId)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            (ctx as HttpCall).call.respond(
+                object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength = bytes.size.toLong()
+                    override val contentType = ContentType.Image.Any
+                    override fun readFrom(): ByteReadChannel = ByteArrayInputStream(bytes).toByteReadChannel()
+                }
+            )
+
+            okContentAlreadyDelivered()
+        }
+
         implement(AppStore.updatePublicFlag) {
             service.updatePublicFlag(
                 actorAndProject,
@@ -218,12 +246,6 @@ class AppStoreController(
         implement(AppStore.search) {
             val items = service.search(actorAndProject, request.query).map { it.withoutInvocation() }
             ok(PageV2.of(items))
-        }
-
-
-        implement(AppStore.assignApplicationToGroup) {
-            service.assignApplicationToGroup(actorAndProject, request.name, request.group)
-            ok(Unit)
         }
 
         implement(AppStore.browseCategories) {
@@ -281,6 +303,25 @@ class AppStoreController(
             )
 
             ok(Unit)
+        }
+
+        implement(AppStore.retrieveLandingPage) {
+            ok(service.retrieveLandingPage(actorAndProject))
+        }
+
+        implement(AppStore.retrieveCarrouselImage) {
+            // NOTE(Dan): request.slideTitle is used mostly to circumvent the cache in case the carrousel is updated.
+
+            val bytes = service.retrieveCarrouselImage(request.index)
+            (ctx as HttpCall).call.respond(
+                object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength = bytes.size.toLong()
+                    override val contentType = ContentType.Image.Any
+                    override fun readFrom(): ByteReadChannel = ByteArrayInputStream(bytes).toByteReadChannel()
+                }
+            )
+
+            okContentAlreadyDelivered()
         }
     }
 

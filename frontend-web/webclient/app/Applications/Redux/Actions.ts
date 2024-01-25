@@ -1,11 +1,11 @@
-import {compute} from "@/UCloud";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 
 export type SidebarActionType = SetAppFavorites | ToggleFavorite | ToggleTheme;
 
 export const SET_APP_FAVORITES = "SET_APP_FAVORITES";
-type SetAppFavorites = PayloadAction<typeof SET_APP_FAVORITES, {favorites: compute.ApplicationSummaryWithFavorite[]}>;
+type SetAppFavorites = PayloadAction<typeof SET_APP_FAVORITES, {favorites: ApplicationSummaryWithFavorite[]}>;
 
-export function setAppFavorites(favorites: compute.ApplicationSummaryWithFavorite[]): SetAppFavorites {
+export function setAppFavorites(favorites: ApplicationSummaryWithFavorite[]): SetAppFavorites {
     return {
         type: SET_APP_FAVORITES,
         payload: {favorites}
@@ -13,9 +13,9 @@ export function setAppFavorites(favorites: compute.ApplicationSummaryWithFavorit
 }
 
 export const TOGGLE_APP_FAVORITE = "TOGGLE_APP_FAVORITE";
-type ToggleFavorite = PayloadAction<typeof TOGGLE_APP_FAVORITE, {app: compute.ApplicationSummaryWithFavorite, favorite: boolean}>;
+type ToggleFavorite = PayloadAction<typeof TOGGLE_APP_FAVORITE, {app: ApplicationSummaryWithFavorite, favorite: boolean}>;
 
-export function toggleAppFavorite(app: compute.ApplicationSummaryWithFavorite, favorite: boolean): ToggleFavorite {
+export function toggleAppFavorite(app: ApplicationSummaryWithFavorite, favorite: boolean): ToggleFavorite {
     return {
         type: TOGGLE_APP_FAVORITE,
         payload: {

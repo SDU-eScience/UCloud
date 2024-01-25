@@ -1,26 +1,25 @@
 import * as Heading from "@/ui-components/Heading";
 import React, {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
-import {RetrieveGroupResponse, retrieveGroup} from "./api";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {AppToolLogo} from "./AppToolLogo";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardStyle, AppCardType} from "./Card";
-import {compute} from "@/UCloud";
 import * as UCloud from "@/UCloud";
-import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import * as AppStore from "@/Applications/AppStoreApi";
 import * as Pages from "./Pages";
 import {AppSearchBox} from "./Search";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useDispatch, useSelector} from "react-redux";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {ApplicationGroup, ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
-    const {id} = useParams<{id: string}>();
+    const {id} = useParams<{ id: string }>();
 
-    const [appGroup, fetchAppGroup] = useCloudAPI<RetrieveGroupResponse | null>(
+    const [appGroup, fetchAppGroup] = useCloudAPI<ApplicationGroup | null>(
         {noop: true},
         null
     );
@@ -28,7 +27,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        fetchAppGroup(retrieveGroup({id: id}));
+        fetchAppGroup(AppStore.retrieveGroup({id: parseInt(id ?? "")}));
     }, [id]);
 
     const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
@@ -40,8 +39,8 @@ const ApplicationsGroup: React.FunctionComponent = () => {
         dispatch(toggleAppFavorite(app, !isFavorite));
 
         try {
-            await callAPI(UCloud.compute.apps.toggleFavorite({
-                appName: app.metadata.name
+            await callAPI(AppStore.toggleStar({
+                name: app.metadata.name
             }));
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to toggle favorite");
@@ -55,26 +54,26 @@ const ApplicationsGroup: React.FunctionComponent = () => {
     return <Box mx="auto" maxWidth="1340px">
         <Flex justifyContent="space-between" mt="30px">
             <Heading.h2>
-                <AppToolLogo name={appGroup.data.group.id.toString()} type="GROUP" size="45px" />
+                <AppToolLogo name={appGroup.data?.metadata.id.toString()} type="GROUP" size="45px"/>
                 {" "}
-                {appGroup.data.group.title}
+                {appGroup.data?.specification?.title}
             </Heading.h2>
             <Flex justifyContent="right">
-                <AppSearchBox />
-                <ContextSwitcher />
+                <AppSearchBox/>
+                <ContextSwitcher/>
             </Flex>
         </Flex>
-        <Box mt="30px" />
+        <Box mt="30px"/>
         <Grid
             width="100%"
             gridTemplateColumns={`repeat(auto-fill, 312px)`}
             gridGap="30px"
         >
-            {appGroup.data.applications.map(app => (
+            {appGroup.data?.status?.applications?.map(app => (
                 <AppCard
                     key={app.metadata.name}
                     cardStyle={AppCardStyle.WIDE}
-                    title={app.metadata.title} 
+                    title={app.metadata.title}
                     description={app.metadata.description}
                     logo={app.metadata.name}
                     type={AppCardType.APPLICATION}

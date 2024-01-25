@@ -14,12 +14,11 @@ import * as Pages from "./Pages";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
-import {compute} from "@/UCloud";
-import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {emptyPage} from "@/Utilities/PageUtilities";
-
+import * as AppStore from "@/Applications/AppStoreApi";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
@@ -130,7 +129,7 @@ export const SearchResults: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const dispatch = useDispatch();
-    const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
+    const [results, fetchResults] = useCloudAPI<Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage
     );
@@ -140,10 +139,9 @@ export const SearchResults: React.FunctionComponent = () => {
 
     useEffect(() => {
         fetchResults(
-            UCloud.compute.apps.searchApps({
+            AppStore.search({
                 query: new URLSearchParams(queryParams).get("q") ?? "",
-                itemsPerPage: 100,
-                page: parsedQuery.page,
+                itemsPerPage: 250,
             })
         );
     }, [queryParams]);
@@ -157,8 +155,8 @@ export const SearchResults: React.FunctionComponent = () => {
         dispatch(toggleAppFavorite(app, !isFavorite));
 
         try {
-            await callAPI(UCloud.compute.apps.toggleFavorite({
-                appName: app.metadata.name
+            await callAPI(AppStore.toggleStar({
+                name: app.metadata.name
             }));
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to toggle favorite");

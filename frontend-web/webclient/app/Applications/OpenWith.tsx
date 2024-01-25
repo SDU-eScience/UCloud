@@ -1,5 +1,4 @@
 import * as React from "react";
-import {apiUpdate} from "@/Authentication/DataHook";
 import {BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import {useState} from "react";
 import {AppLogo, appLogoCache, hashF} from "@/Applications/AppToolLogo";
@@ -29,16 +28,13 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UFile} from "@/UCloud/UFile";
 import {logoDataUrls} from "./Jobs/LogoDataCache";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import * as AppStore from "@/Applications/AppStoreApi";
+import {Application} from "@/Grants";
+import {ApplicationWithExtension} from "@/Applications/AppStoreApi";
 
-function findApplicationsByExtension(
-    request: {files: string[]} & PaginationRequestV2
-): APICallParameters<{files: string[]} & PaginationRequestV2> {
-    return apiUpdate(request, "/api/hpc/apps", "bySupportedFileExtension");
-}
-
-export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<UCloud.compute.Application>}): React.ReactNode {
+export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<ApplicationWithExtension>}): React.ReactNode {
     const [selectedProduct, setSelectedProduct] = useState<ProductV2 | null>(null);
-    const browserRef = React.useRef<ResourceBrowser<UCloud.compute.Application> | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<ApplicationWithExtension> | null>(null);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const navigate = useNavigate();
@@ -58,7 +54,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
 
     const normalizedFileId = file.status.type === "DIRECTORY" ? `${file.id}/` : file.id;
 
-    const [selectedApp, setSelectedApp] = React.useState<UCloud.compute.Application | undefined>(undefined);
+    const [selectedApp, setSelectedApp] = React.useState<ApplicationWithExtension | undefined>(undefined);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -72,7 +68,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) return;
 
-                    callAPI(findApplicationsByExtension({
+                    callAPI(AppStore.browseOpenWithRecommendations({
                         files: [normalizedFileId],
                         itemsPerPage: 50
                     })).then(apps => {
@@ -116,7 +112,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                         onClick: async () => {
                             try {
                                 const resolvedApplication = await callAPI(
-                                    UCloud.compute.apps.findByNameAndVersion({
+                                    AppStore.findByNameAndVersion({
                                         appName: entry.metadata.name,
                                         appVersion: entry.metadata.version
                                     })
@@ -165,7 +161,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 browser.on("fetchOperations", () => []);
 
                 browser.on("wantToFetchNextPage", async path => {
-                    const result = await callAPI(findApplicationsByExtension({
+                    const result = await callAPI(AppStore.browseOpenWithRecommendations({
                         files: [normalizedFileId],
                         itemsPerPage: 50
                     }));

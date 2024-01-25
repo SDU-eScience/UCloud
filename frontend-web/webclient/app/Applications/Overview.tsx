@@ -6,14 +6,12 @@ import * as Heading from "@/ui-components/Heading";
 import {AppCardStyle} from "./Card";
 import {useTitle} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import * as UCloud from "@/UCloud";
-import {compute} from "@/UCloud";
-import AppStoreSections = compute.AppStoreSections;
 import {useLocation} from "react-router";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import ApplicationRow, {ApplicationGroupToRowItem} from "./ApplicationsRow";
 import {AppSearchBox} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import * as AppStore from "@/Applications/AppStoreApi";
 
 const ApplicationsOverview: React.FunctionComponent = () => {
     const [sections, fetchSections] = useCloudAPI<AppStoreSections>(

@@ -22,9 +22,10 @@ import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
+import {Application} from "@/Applications/AppStoreApi";
 
 export const ImportParameters: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+    application: Application;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -227,7 +228,7 @@ interface ImportResult {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function importVersion1(application: UCloud.compute.Application, json: any): Promise<ImportResult> {
+async function importVersion1(application: Application, json: any): Promise<ImportResult> {
     if (typeof json !== "object") return {messages: [{type: "error", message: "Invalid job parameters file"}]};
 
     const output: Partial<JobSpecification> = {};
@@ -332,14 +333,14 @@ async function importVersion1(application: UCloud.compute.Application, json: any
     return {output, messages};
 }
 
-async function importVersion2(application: UCloud.compute.Application, json: any): Promise<ImportResult> {
+async function importVersion2(application: Application, json: any): Promise<ImportResult> {
     const output = "request" in json ? json["request"] : {};
     return {output, messages: []};
 }
 
 // noinspection SuspiciousTypeOfGuard
 async function cleanupImportResult(
-    application: UCloud.compute.Application,
+    application: Application,
     result: ImportResult
 ): Promise<ImportResult> {
     const output = result.output;

@@ -19,6 +19,8 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import List, {ListRow} from "@/ui-components/List";
 import {CardClass} from "@/ui-components/Card";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import * as AppStore from "@/Applications/AppStoreApi";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = useParams<{id: string}>().id!;
@@ -27,7 +29,7 @@ export const AppGroup: React.FunctionComponent = () => {
         undefined
     );
 
-    const [appList, setAppList] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>|undefined>(
+    const [appList, setAppList] = useCloudAPI<Page<ApplicationSummaryWithFavorite>|undefined>(
         {noop: true},
         undefined
     );

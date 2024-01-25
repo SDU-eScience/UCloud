@@ -8,6 +8,7 @@ import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
+import dk.sdu.cloud.accounting.util.CyclicArray
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission

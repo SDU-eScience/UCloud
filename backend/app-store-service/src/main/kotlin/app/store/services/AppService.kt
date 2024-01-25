@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.util.CyclicArray
 import dk.sdu.cloud.accounting.util.IProjectCache
 import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
 import dk.sdu.cloud.app.store.api.*
@@ -18,6 +19,8 @@ import dk.sdu.cloud.service.db.async.DiscardingDBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.toTimestamp
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import org.cliffc.high_scale_lib.NonBlockingHashMap
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
@@ -54,7 +57,7 @@ class AppService(
 
     private class InternalGroup(
         title: String,
-        description: String?,
+        description: String,
         defaultFlavor: String?,
         logo: ByteArray?,
         applications: Set<NameAndVersion>,
@@ -62,7 +65,7 @@ class AppService(
     ) {
         data class GroupDescription(
             val title: String,
-            val description: String?,
+            val description: String,
             val defaultFlavor: String?,
             @Suppress("ArrayInDataClass") val logo: ByteArray?,
             val applications: Set<NameAndVersion>,
@@ -196,6 +199,58 @@ class AppService(
         fun groups() = groups.get()
     }
 
+    private class InternalSpotlight(spotlight: Spotlight) {
+        private val ref = AtomicReference(spotlight)
+
+        fun get() = ref.get()
+
+        fun update(transform: (Spotlight) -> Spotlight) {
+            while (true) {
+                val old = ref.get()
+                val new = transform(old)
+                if (ref.compareAndSet(old, new)) break
+            }
+        }
+    }
+
+    private class InternalTopPicks(topPicks: List<TopPick>) {
+        private val ref = AtomicReference(topPicks)
+
+        fun get() = ref.get()
+
+        fun update(transform: (List<TopPick>) -> List<TopPick>) {
+            while (true) {
+                val old = ref.get()
+                val new = transform(old)
+                if (ref.compareAndSet(old, new)) break
+            }
+        }
+    }
+
+    private class InternalCarrousel(items: List<CarrouselItem>) {
+        private val ref = AtomicReference(items)
+        private val images = AtomicReference<List<ByteArray>>(emptyList())
+
+        fun get() = ref.get()
+        fun getImages() = images.get()
+
+        fun update(transform: (List<CarrouselItem>) -> List<CarrouselItem>) {
+            while (true) {
+                val old = ref.get()
+                val new = transform(old)
+                if (ref.compareAndSet(old, new)) break
+            }
+        }
+
+        fun updateImages(transform: (List<ByteArray>) -> List<ByteArray>) {
+            while (true) {
+                val old = images.get()
+                val new = transform(old)
+                if (images.compareAndSet(old, new)) break
+            }
+        }
+    }
+
     private val accessControlLists = NonBlockingHashMap<String, InternalAcl>()
 
     private val applicationVersions = NonBlockingHashMap<String, InternalVersions>()
@@ -207,6 +262,14 @@ class AppService(
     private val groups = NonBlockingHashMapLong<InternalGroup>()
 
     private val categories = NonBlockingHashMapLong<InternalTag>()
+
+    private val spotlights = NonBlockingHashMapLong<InternalSpotlight>()
+    private val topPicks = InternalTopPicks(emptyList())
+    private val carrousel = InternalCarrousel(emptyList())
+
+    private val appCreateMutex = Mutex()
+    private val newApplications = CyclicArray<String>(5)
+    private val newUpdates = CyclicArray<NameAndVersion>(5)
 
     class InternalStars(stars: Set<String>) {
         private val stars = AtomicReference(stars)
@@ -303,7 +366,7 @@ class AppService(
                             or :version::text is null
                         )
                     order by
-                        created_at desc 
+                        created_at
                 """
             ).rows
 
@@ -312,9 +375,8 @@ class AppService(
                 registerApplication(app, flush = false)
                 val groupLogo = row.getAs<ByteArray?>("group_logo")
                 val g = app.metadata.group
-                println("${app.metadata.name} ${app.metadata.version} $g ${groupLogo?.size}")
                 if (g != null && groupLogo != null) {
-                    groups[g.id.toLong()]?.updateMetadata(logo = groupLogo)
+                    groups[g.metadata.id.toLong()]?.updateMetadata(logo = groupLogo)
                 }
             }
 
@@ -407,6 +469,79 @@ class AppService(
                         flush = false
                     )
                 }
+
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        select id, title, description, active
+                        from app_store.spotlights
+                    """
+                ).rows.forEach { row ->
+                    val id = row.getInt(0)!!
+                    val title = row.getString(1)!!
+                    val description = row.getString(2)!!
+                    val active = row.getBoolean(3)!!
+                    spotlights[id.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active))
+                }
+
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        select spotlight_id, application_name, group_id, description
+                        from app_store.spotlight_items
+                        order by spotlight_id, priority
+                    """
+                ).rows.forEach { row ->
+                    val id = row.getInt(0)!!
+                    val appName = row.getString(1)
+                    val groupId = row.getInt(2)
+                    val description = row.getString(3)!!
+
+                    spotlights[id.toLong()]?.update {
+                        it.copy(applications = it.applications + TopPick("", appName, groupId, description))
+                    }
+                }
+
+                val loadedPicks = ArrayList<TopPick>()
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        select application_name, group_id, description
+                        from app_store.top_picks
+                        order by priority
+                    """
+                ).rows.forEach { row ->
+                    val appName = row.getString(0)
+                    val groupId = row.getInt(1)
+                    val description = row.getString(2)!!
+                    loadedPicks.add(TopPick("", appName, groupId, description))
+                }
+                topPicks.update { loadedPicks }
+
+                val loadedCarrousel = ArrayList<CarrouselItem>()
+                val images = ArrayList<ByteArray>()
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        select title, body, image_credit, linked_application, linked_web_page, linked_group, image
+                        from app_store.carrousel_items
+                        order by priority
+                    """
+                ).rows.forEach { row ->
+                    val title = row.getString(0)!!
+                    val body = row.getString(1)!!
+                    val imageCredit = row.getString(2)!!
+                    val linkedApplication = row.getString(3)
+                    val linkedWebPage = row.getString(4)
+                    val linkedGroup = row.getInt(5)
+                    val image = row.getAs(6) ?: ByteArray(0)
+
+                    loadedCarrousel.add(CarrouselItem(title, body, imageCredit, linkedApplication,
+                        linkedWebPage, linkedGroup))
+                    images.add(image)
+                }
+                carrousel.update { loadedCarrousel }
+                carrousel.updateImages { images }
             }
         }
     }
@@ -414,10 +549,15 @@ class AppService(
     private fun RowData.toApplicationMetadata(): ApplicationMetadata {
         val group = if (this.getInt("group_id") != null && this.getString("group_title") != null) {
             ApplicationGroup(
-                this.getInt("group_id")!!,
-                this.getString("group_title")!!,
-                this.getString("group_description"),
-                this.getString("default_name")
+                ApplicationGroup.Metadata(
+                    this.getInt("group_id")!!,
+                ),
+                ApplicationGroup.Specification(
+                    this.getString("group_title")!!,
+                    this.getString("group_description") ?: "",
+                    this.getString("default_name"),
+                    emptySet(),
+                )
             )
         } else {
             null
@@ -491,7 +631,7 @@ class AppService(
                         setParameter("id_version", app.metadata.version)
                         setParameter("application", defaultMapper.encodeToString(app.invocation))
                         setParameter("original_document", "{}")
-                        setParameter("group", group?.id)
+                        setParameter("group", group?.metadata?.id)
                         setParameter("flavor", app.metadata.flavorName ?: previousApp?.metadata?.flavorName)
                     },
                     """
@@ -502,6 +642,11 @@ class AppService(
                     """
                 )
             }
+        }
+
+        appCreateMutex.withLock {
+            if (appVersions.get().size == 1) newApplications.add(app.metadata.name)
+            newUpdates.add(NameAndVersion(app.metadata.name, app.metadata.version))
         }
     }
 
@@ -540,11 +685,11 @@ class AppService(
     }
 
     private fun registerGroup(group: ApplicationGroup): InternalGroup {
-        return groups.computeIfAbsent(group.id.toLong()) {
+        return groups.computeIfAbsent(group.metadata.id.toLong()) {
             InternalGroup(
-                group.title,
-                group.description,
-                group.defaultApplication,
+                group.specification.title,
+                group.specification.description,
+                group.specification.defaultFlavor,
                 null,
                 emptySet(),
                 emptySet(),
@@ -783,7 +928,7 @@ class AppService(
 
             val currentGroup = app.metadata.group
             if (currentGroup != null) {
-                groups[currentGroup.id.toLong()]?.removeApplications(setOf(key))
+                groups[currentGroup.metadata.id.toLong()]?.removeApplications(setOf(key))
             }
 
             newGroup?.addApplications(setOf(key))
@@ -816,7 +961,7 @@ class AppService(
             }
         }
 
-        groups[id.toLong()] = InternalGroup(title, null, null, null, emptySet(), emptySet())
+        groups[id.toLong()] = InternalGroup(title, "", null, null, emptySet(), emptySet())
         return id
     }
 
@@ -1123,19 +1268,31 @@ class AppService(
     // Read access (applications)
     // =================================================================================================================
     suspend fun listCategories(): List<ApplicationCategory> {
-        return categories.map { ApplicationCategory(it.key.toInt(), it.value.title()) }
+        return categories.map {
+            ApplicationCategory(
+                ApplicationCategory.Metadata(
+                    it.key.toInt(),
+                ),
+                ApplicationCategory.Specification(
+                    it.value.title(),
+                    "",
+                )
+            )
+        }
     }
 
     suspend fun retrieveGroup(groupId: Int): ApplicationGroup? {
         val info = groups[groupId.toLong()]?.get() ?: return null
         return ApplicationGroup(
-            groupId,
-            info.title,
-            info.description,
-            info.defaultFlavor,
-            info.tags.mapNotNull { tag ->
-                categories[tag.toLong()]?.title()
-            }
+            ApplicationGroup.Metadata(
+                groupId,
+            ),
+            ApplicationGroup.Specification(
+                info.title,
+                info.description ?: "",
+                info.defaultFlavor,
+                info.tags
+            )
         )
     }
 
@@ -1219,7 +1376,7 @@ class AppService(
 
             val toolKey = app.invocation.tool.let { NameAndVersion(it.name, it.version) }
             val tool = tools[toolKey] ?: continue
-            val group = app.metadata.group?.id?.let { id -> retrieveGroup(id) }
+            val group = app.metadata.group?.metadata?.id?.let { id -> retrieveGroup(id) }
             result.add(
                 app.copy(
                     metadata = app.metadata.copy(
@@ -1460,6 +1617,96 @@ class AppService(
             result.add(tools[key] ?: continue)
         }
         return result.sortedByDescending { it.createdAt }
+    }
+
+    // Landing page
+    // =================================================================================================================
+    private suspend fun TopPick.prepare(): TopPick {
+        val gid = groupId
+        if (gid != null) {
+            val g = groups[gid.toLong()] ?: return this
+            return copy(title = g.get().title)
+        } else {
+            val a = retrieveApplication(ActorAndProject.System, applicationName ?: "", null) ?: return this
+            return copy(title = a.metadata.title)
+        }
+    }
+
+    private suspend fun Spotlight.prepare(): Spotlight {
+        return copy(applications = applications.map { it.prepare() })
+    }
+
+    suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
+        val picks = topPicks.get().map { it.prepare() }
+        val categories = listCategories()
+        val carrousel = carrousel.get()
+        val spotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
+
+        val newlyCreated = ArrayList<String>()
+        val updated = ArrayList<NameAndVersion>()
+        for (i in (newUpdates.size - 1).downTo(0)) {
+            updated.add(newUpdates[i])
+        }
+
+        IntRange
+        for (i in (newApplications.size - 1).downTo(0)) {
+            newlyCreated.add(newApplications[i])
+        }
+
+        return AppStore.RetrieveLandingPage.Response(
+            carrousel,
+            picks,
+            categories,
+            spotlight,
+            newlyCreated.mapNotNull { retrieveApplication(actorAndProject, it, null)?.withoutInvocation() },
+            updated.mapNotNull { retrieveApplication(actorAndProject, it.name, it.version)?.withoutInvocation() }
+        )
+    }
+
+    suspend fun retrieveCarrouselImage(index: Int): ByteArray {
+        return carrousel.getImages().getOrNull(index) ?: ByteArray(0)
+    }
+
+    suspend fun updateTopPicks(
+        actorAndProject: ActorAndProject,
+        newPicks: List<TopPick>,
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        TODO()
+    }
+
+    suspend fun createOrUpdateSpotlight(
+        actorAndProject: ActorAndProject,
+        id: Int?,
+        title: String,
+        description: String,
+        applications: List<TopPick>,
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        TODO()
+    }
+
+    suspend fun activateSpotlight(
+        actorAndProject: ActorAndProject,
+        id: Int,
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        TODO()
+    }
+
+    suspend fun deleteSpotlight(
+        actorAndProject: ActorAndProject,
+        id: Int,
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        TODO()
+    }
+
+    suspend fun listSpotlights(
+        actorAndProject: ActorAndProject,
+    ): List<Spotlight> {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        TODO()
     }
 
     companion object {

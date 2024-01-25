@@ -2,7 +2,7 @@ import * as React from "react";
 import {useTitle} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Absolute, Box, Button, Card, Flex, Grid, Icon, Relative} from "@/ui-components";
+import {Box, Button, Card, Flex, Grid, Icon, Markdown} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import heroExample from "@/Assets/Images/hero-example.jpeg";
@@ -13,6 +13,11 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ThemeColor} from "@/ui-components/theme";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import * as AppStore from "@/Applications/AppStoreApi";
+import {useRefresh, useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {doNothing} from "@/UtilityFunctions";
+import {EllipsedText} from "@/ui-components/Text";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -38,91 +43,86 @@ const landingStyle = injectStyle("landing-page", k => `
 
 const LandingPage: React.FunctionComponent = () => {
     useTitle("Applications");
+    const [landingPageState, fetchLandingPage] = useCloudAPI(
+        AppStore.retrieveLandingPage({}),
+        null
+    );
+
+    const [starred, fetchStarred] = useCloudAPI(
+        AppStore.retrieveStars({}),
+        { items: [] }
+    );
+
+    const landingPage = landingPageState.data;
+
+    const refresh = useCallback(() => {
+        fetchLandingPage(AppStore.retrieveLandingPage({})).then(doNothing);
+        fetchStarred(AppStore.retrieveStars({})).then(doNothing);
+    }, []);
+    useSetRefreshFunction(refresh);
+
+    if (!landingPage) return null;
 
     return <div>
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
                 <article className={landingStyle}>
                     <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar searchEnabled={true}/></Flex>
-                    <Hero/>
+                    <Hero slides={landingPage.carrousel}/>
 
                     <TitledCard title={"Top picks"} icon={"heroChartBar"}>
                         <AppCardGrid>
-                            <AppCard1 name={"13"} title={"VS Code"} description={"Text and code editor."}/>
-                            <AppCard1 name={"4"} title={"JupyterLab"}
-                                      description={"JupyterLab ecosystem for Data Science."}/>
-                            <AppCard1 name={"15"} title={"RStudio"}
-                                      description={"IDE for R and statistical computing."}/>
-                            <AppCard1 name={"11"} title={"Terminal"}
-                                      description={"Terminal in the browser and via SSH."}/>
-                            <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}/>
-                            <AppCard1 name={"1"} title={"MinIO"}
-                                      description={"High performance object storage server."}/>
+                            {landingPage.topPicks.map(pick => {
+                                if (pick.groupId) {
+                                    return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
+                                                     title={pick.title} description={pick.description} />;
+                                } else {
+                                    return null;
+                                }
+                            })}
                         </AppCardGrid>
                     </TitledCard>
 
                     <TitledCard title={"Starred applications"} icon={"heroStar"}>
                         <AppCardGrid>
-                            <AppCard1 name={"4"} title={"JupyterLab"}
-                                      description={"JupyterLab ecosystem for Data Science."}/>
-                            <AppCard1 name={"11"} title={"Terminal"}
-                                      description={"Terminal in the browser and via SSH."}/>
-                            <AppCard1 name={"13"} title={"VS Code"} description={"Text and code editor."}/>
+                            {starred.data.items.map(a => {
+                                return <AppCard1 name={a.metadata.name} title={a.metadata.title}
+                                          description={a.metadata.description} key={a.metadata.name} isApplication/>;
+                            })}
                         </AppCardGrid>
                     </TitledCard>
 
                     <TitledCard title={"Browse by category"} icon={"heroMagnifyingGlass"}>
                         <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(200px, 1fr)"}>
-                            <CategoryCard categoryTitle={"Social sciences"}/>
-                            <CategoryCard categoryTitle={"Applied sciences"}/>
-                            <CategoryCard categoryTitle={"Natural sciences"}/>
-                            <CategoryCard categoryTitle={"Health sciences"}/>
-                            <CategoryCard categoryTitle={"Software development"}/>
-                            <CategoryCard categoryTitle={"Bioinformatics"}/>
-                            <CategoryCard categoryTitle={"Engineering"}/>
-                            <CategoryCard categoryTitle={"Data analytics"}/>
-                            <CategoryCard categoryTitle={"Artificial intelligence"}/>
-                            <CategoryCard categoryTitle={"Quantum computing"}/>
-                            <CategoryCard categoryTitle={"Virtual machines"}/>
-                            <CategoryCard categoryTitle={"Remote desktop environments"}/>
-                            <CategoryCard categoryTitle={"Type 3 - Large memory"}/>
+                            {landingPage.categories.map(c =>
+                                <CategoryCard key={c.metadata.id} categoryTitle={c.specification.title}/>
+                            )}
                         </Grid>
                     </TitledCard>
 
-                    <TitledCard title={"Spotlight: Artificial intelligence"} icon={"heroBeaker"}>
+                    {landingPage.spotlight &&
+                    <TitledCard title={`Spotlight: ${landingPage.spotlight.title}`} icon={"heroBeaker"}>
                         <Flex flexDirection={"row"} gap={"32px"}>
                             <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
+                                {landingPage.spotlight.applications.map(pick => {
+                                    if (pick.groupId) {
+                                        return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
+                                                         title={pick.title} description={pick.description} fullWidth />;
+                                    } else {
+                                        return null;
+                                    }
+                                })}
                             </Flex>
                             <Box width={"400px"} flexShrink={1} flexGrow={0}>
-                                <p style={{marginTop: "0", fontStyle: "italic"}}>
-                                    Artificial intelligence (AI) tools are becoming more and more important for
-                                    businesses
-                                    and
-                                    individuals. AI can help optimize business processes, solve problems, and make our
-                                    lives
-                                    easier.
-                                </p>
-                                <p style={{fontStyle: "italic"}}>
-                                    According to Gartner, around 37% of companies use AI to run their businesses.
-                                    There are many different types of AI tools available, ranging from productivity and
-                                    cybersecurity to coding and data analysis. Some of the top AI tools include Dropbox,
-                                    Symantec Endpoint Protection, Outmatch, and Tableau.
-                                </p>
-
-                                <p style={{marginBottom: "0", fontStyle: "italic"}}>
-                                    Thanks for telling me that Dropbox is an AI tool.
-                                </p>
+                                <div className={SpotlightDescription} style={{fontStyle: "italic"}}>
+                                    <Markdown allowedElements={["p"]}>
+                                        {landingPage.spotlight.body}
+                                    </Markdown>
+                                </div>
                             </Box>
                         </Flex>
                     </TitledCard>
+                    }
 
                     <TabbedCard>
                         <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
@@ -195,6 +195,7 @@ const HeroStyle = injectStyle("hero", k => `
     
     ${k} > .carousel h1 {
         margin-top: 0;
+        margin-bottom: 1rem;
     }
     
     ${k} .indicators {
@@ -234,52 +235,13 @@ interface CarouselSlide {
     imageCredit: string;
 }
 
-const slides: CarouselSlide[] = [
-    {
-        title: "VS Code",
-        description: `Visual Studio Code is a free source-code editor made by Microsoft. VS Code has many extensions available to add new features and 
-        functionality. It has a built-in debugger, Git integration, and support for IntelliSense, which provides 
-        intelligent code completion and suggestions. With its user-friendly interface and extensive documentation.`,
-        imageCredit: "Generated with AI",
-        imageSource: heroExample,
-    },
-    {
-        title: "JupyterLab",
-        description: `JupyterLab is a powerful tool for data scientists and programmers alike. It is an 
-        open-source web-based integrated development environment that allows you to work with notebooks, 
-        terminals, and text editors in a single window. JupyterLab is built on top of the 
-        Jupyter Notebook and provides a modern and flexible environment for data analysis and 
-        visualization.`,
-        imageCredit: "Generated with AI",
-        imageSource: heroExample2,
-    },
-    {
-        title: "MinIO",
-        description: `MinIO is a software-defined object store that runs on any cloud or on-premises infrastructure. 
-        It is built for large scale data workloads and supports Kubernetes, encryption, replication, immutability, 
-        and data lifecycle management. MinIO offers bucket-level 
-        granularity and supports both synchronous and near-synchronous replication.`,
-        imageCredit: "Generated with AI",
-        imageSource: heroExample3,
-    },
-    {
-        title: "RStudio",
-        description: `RStudio is a software that helps people write computer programs. It is used by many people who 
-        want to write code in the R language. RStudio is a very useful tool for people who want to write code in R 
-        because it makes it easier to write and test code. Some of these features include a 
-        console, a code editor, and a debugger.`,
-        imageCredit: "Generated with AI",
-        imageSource: heroExample4,
-    }
-];
-
 const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
     onClick: () => void;
 }> = (props) => {
     return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick}/>;
 };
-const Hero: React.FunctionComponent = () => {
+const Hero: React.FunctionComponent<{ slides: AppStore.CarrouselItem[] }> = ({slides}) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const autoPage = useRef(true);
     useEffect(() => {
@@ -300,13 +262,14 @@ const Hero: React.FunctionComponent = () => {
     const goBack = useCallback(() => moveDelta(-1), [moveDelta]);
     const goForwards = useCallback(() => moveDelta(1), [moveDelta]);
 
-    const slide = slides[activeIndex % slides.length];
+    const index = activeIndex % slides.length;
+    const slide = slides[index];
 
     return <Card style={{overflow: "hidden"}}>
         <div className={HeroStyle}>
             <div className={"carousel"}>
                 <div>
-                    <img alt={"cover image"} src={slide.imageSource}/>
+                    <img alt={"cover image"} src={AppStore.retrieveCarrouselImage({ index, slideTitle: slide.title })}/>
                     <div className="indicators">
                         <Icon color={"#d3d3d4" as ThemeColor} hoverColor={"#a6a8a9" as ThemeColor} cursor={"pointer"}
                               name={"heroChevronLeft"} onClick={goBack}/>
@@ -325,12 +288,14 @@ const Hero: React.FunctionComponent = () => {
                 </div>
                 <div>
                     <h1>{slide.title}</h1>
-                    <p>{slide.description}</p>
+                    <div className={SpotlightDescription}>
+                        <Markdown allowedElements={["p"]}>
+                            {slide.body}
+                        </Markdown>
+                    </div>
                     <Box flexGrow={1}/>
                     <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>
                     <Button><Icon name={"heroPlay"}/> Open application</Button>
-
-
                 </div>
             </div>
 
@@ -361,7 +326,7 @@ const AppCard1Style = injectStyle("app-card-1", k => `
         margin-top: -0.3rem;
     }
     
-    ${k} p {
+    ${k} .description {
         font-size: 1rem;
         color: var(--textSecondary);
         margin: 0;
@@ -373,12 +338,13 @@ const AppCard1: React.FunctionComponent<{
     title: string;
     description: string;
     fullWidth?: boolean;
+    isApplication?: boolean;
 }> = props => {
     return <div className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}>
-        <SafeLogo name={props.name} type={"GROUP"} size={"36px"}/>
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
         <div>
             <h2>{props.title}</h2>
-            <p>{props.description}</p>
+            <EllipsedText className={"description"} width={"270px"}>{props.description}</EllipsedText>
         </div>
     </div>;
 };
@@ -434,5 +400,15 @@ const CategoryCard: React.FunctionComponent<{
         {props.categoryTitle}
     </Button>
 }
+
+const SpotlightDescription = injectStyle("spotlight-description", k => `
+    ${k} p:first-child {
+        margin-top: 0;
+    }
+    
+    ${k} p:last-child {
+        margin-bottom: 0;
+    }
+`)
 
 export default LandingPage;

@@ -2,7 +2,6 @@ import * as React from "react";
 import {Flex, Input} from "@/ui-components";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
@@ -13,9 +12,10 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
 import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
 import {CardClass} from "@/ui-components/Card";
+import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
 
 interface IngressProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.Ingress;
+    parameter: ApplicationParameterNS.Ingress;
 }
 
 export const IngressParameter: React.FunctionComponent<IngressProps> = props => {

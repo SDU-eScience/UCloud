@@ -8,17 +8,16 @@ import {
 } from "@/ui-components";
 import Warning from "@/ui-components/Warning";
 import {Widget} from "@/Applications/Jobs/Widgets";
-import {compute} from "@/UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
+import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 
-export function ingressResourceAllowed(app: UCloud.compute.Application): boolean {
+export function ingressResourceAllowed(app: Application): boolean {
     return !(app.invocation.allowPublicLink === false || app.invocation.applicationType !== "WEB")
 }
 
 export const IngressResource: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+    application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
     onAdd: () => void;

@@ -1,6 +1,5 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {compute} from "@/UCloud";
-import NameAndVersion = compute.NameAndVersion;
+import {NameAndVersion} from "@/Applications/AppStoreApi";
 
 export const view = (name: string, version: string): string =>
     `/applications/details/${encodeURIComponent(name)}/${encodeURIComponent(version)}/`;
@@ -18,7 +17,3 @@ export const results = (): string => `/applications/results`;
 
 export const browse = (itemsPerPage = 25, page = 0): string =>
     buildQueryString(`/applications`, {itemsPerPage, page});
-
-export const browseByTag = (tag: string, itemsPerPage = 25, page = 0): string =>
-    buildQueryString(`/applications`, {tag, itemsPerPage, page});
-    

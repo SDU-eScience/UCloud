@@ -8,17 +8,16 @@ import {
 } from "@/ui-components";
 import Warning from "@/ui-components/Warning";
 import {Widget} from "@/Applications/Jobs/Widgets";
-import {compute} from "@/UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
+import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 
-export function networkIPResourceAllowed(app: UCloud.compute.Application): boolean {
+export function networkIPResourceAllowed(app: Application): boolean {
     return app.invocation.allowPublicIp;
 }
 
 export const NetworkIPResource: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+    application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
     setErrors: (errors: Record<string, string>) => void;

@@ -4,10 +4,9 @@ import {Box, Button, Card, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
-import {compute} from "@/UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
+import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 
-export function peerResourceAllowed(app: UCloud.compute.Application) {
+export function peerResourceAllowed(app: Application) {
     const invocation = app.invocation;
     const tool = invocation.tool.tool!.description;
     return (invocation.allowAdditionalPeers !== false && tool.backend === "DOCKER") ||
@@ -15,7 +14,7 @@ export function peerResourceAllowed(app: UCloud.compute.Application) {
 }
 
 export const PeerResource: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+    application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
     setErrors: (errors: Record<string, string>) => void;
