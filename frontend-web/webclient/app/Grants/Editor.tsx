@@ -968,9 +968,9 @@ type EditorEvent =
     ;
 
 function useStateReducerMiddleware(
-    doDispatch: (EditorAction) => void,
+    doDispatch: (e: EditorAction) => void,
     scrollToTopRef: React.MutableRefObject<boolean>,
-): { dispatchEvent: (EditorEvent) => unknown } {
+): { dispatchEvent: (e: EditorEvent) => unknown } {
     const didCancel = useDidUnmount();
     const dispatchEvent = useCallback(async (event: EditorEvent) => {
         function dispatch(ev: EditorAction) {
@@ -1464,7 +1464,7 @@ export const Editor: React.FunctionComponent = () => {
                 dispatchEvent({
                     type: "InitGrantGiverInitiated",
                     title,
-                    projectId,
+                    projectId: projectId != null ? projectId : undefined,
                     start,
                     end,
                     piUsernameHint
