@@ -49,19 +49,505 @@
     </doc-table>
 
     <section>
-        <h2>Introduction</h2>
+        <p>
+            Providers expose services into UCloud. But, different Providers expose different services. UCloud uses 
+            Products to define the services of a Provider. As an example, a Provider might have the following services:
+        </p>
 
-        <doc-todo></doc-todo>
+        <ul>
+            <li><b>Storage:</b> Two tiers of storage. Fast storage, for short-lived data. Slower storage, for 
+                long-term data storage.</li>
+            <li><b>Compute:</b> Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for 
+                memory-hungry applications. GPU powered nodes for artificial intelligence.</li>
+        </ul>
 
-        <ol>
-            <li>Products define your services.</li>
-            <li>Some examples include different machine reservations, file-systems and software licenses</li>
-            <li>Any service you expose must have a backing product</li>
-            <li>Products have categories.</li>
-            <li>All products in a category must have the same payment model.</li>
-            <li>Allocations are for a category of products.</li>
-            <li>The structure of the file contains this information.</li>
-        </ol>
+        <p>
+            For many Providers, the story doesn't stop here. You can often allocate your Jobs on a machine "slice". 
+            This can increase overall utilization, as users aren't forced to request full nodes. A Provider might 
+            advertise the following slices:
+        </p>
+
+        <doc-table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>vCPU</th>
+                    <th>RAM (GB)</th>
+                    <th>GPUs</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>example-slim-1</code></td>
+                    <td>1</td>
+                    <td>4</td>
+                    <td>0</td>
+                    <td>0,100 DKK/hr</td>
+                </tr>
+                <tr>
+                    <td><code>example-slim-2</code></td>
+                    <td>2</td>
+                    <td>8</td>
+                    <td>0</td>
+                    <td>0,200 DKK/hr</td>
+                </tr>
+                <tr>
+                    <td><code>example-slim-4</code></td>
+                    <td>4</td>
+                    <td>16</td>
+                    <td>0</td>
+                    <td>0,400 DKK/hr</td>
+                </tr>
+                <tr>
+                    <td><code>example-slim-8</code></td>
+                    <td>8</td>
+                    <td>32</td>
+                    <td>0</td>
+                    <td>0,800 DKK/hr</td>
+                </tr>
+            </tbody>
+        </table>
+        </doc-table>
+
+        <p>
+            UCloud represent these concepts using the following abstractions:
+        </p>
+
+        <ul>
+            <li><code>ProductType</code>: A classifier for a product. It defines how the product behaves and how 
+                it is used.</li>
+            <li>
+                <code>ProductCategory</code>: A group of similar products. In most cases, all products in a category 
+                run on identical or very similar hardware. When a user receives a grant
+                allocation, they receive it for a specific category, not for a specific product. As a result, users can
+                freely choose between any of the products specified in a category.
+            </li>
+            <li><code>Product</code>: Defines a concrete service exposed by a provider.</li>
+        </ul>
+
+        <h2>Top-level configuration</h2>
+        <p>
+            At the top-level of <code>products.yaml</code> we split our products up by their <code>ProductType</code>.
+        </p>
+
+        <doc-prop-container>
+            <doc-prop name="compute" type="map[string, Category]" default="[]">
+                <p>
+                    All products related to computation goes here. These products are used for plugins in the 
+                    <code>jobs</code> section.
+                </p>
+            </doc-prop>
+            <doc-prop name="storage" type="map[string, Category]" default="[]">
+                <p>
+                    All products related to storage is in this section. The products defined in this section are
+                    used both by the <code>files</code> and <code>fileCollections</code> sections.
+                </p>
+            </doc-prop>
+            <doc-prop name="publicLinks" type="map[string, Category]" default="[]">
+                <p>
+                    All products related to public-links are found in this section. The plugins using these products
+                    are found in the <code>ingresses</code> section.
+                </p>
+            </doc-prop>
+            <doc-prop name="publicIps" type="map[string, Category]" default="[]">
+                <p>
+                    All products related to public-IPs are found in this section. The plugins using these products
+                    are found in the <code>publicIps</code> section.
+                </p>
+            </doc-prop>
+            <doc-prop name="licenses" type="map[string, Category]" default="[]">
+                <p>
+                    All products related to licenses are found in this section. The plugins using these products
+                    are found in the <code>licenses</code> section.
+                </p>
+            </doc-prop>
+        </doc-prop-container>
+
+        <h2>Compute categories</h2>
+        <doc-prop-container>
+            <doc-prop name="cost" type="Cost" required>
+                <p>
+                    Cost model for this category. See <a href="#cost">Cost reference</a>
+                </p>
+
+                <p>
+                    When using a cost type of <code>Money</code>, then a price must be supplied using one of the
+                    following properties:
+                </p>
+
+                <ul>
+                    <li><code>pricePerMinute</code></li>
+                    <li><code>pricePerHour</code></li>
+                    <li><code>pricePerDay</code></li>
+                </ul>
+
+                <p>
+                    This property can be templated in the same way as the 
+                    <code>cpu</code>, <code>memory</code> and <code>gpu</code> properties can.
+                </p>
+
+                <p>
+                    This price will specify the price of using the entire product for the interval specified in the
+                    price property. It is not valid to supply a <code>unit</code> for compute products using the
+                    <code>Money</code> cost model.
+                </p>
+
+                <p>
+                    When using a cost type of <code>Resource</code>, then a unit must be supplied using one of the
+                    following values:
+                </p>
+
+                <ul>
+                    <li><code>Cpu</code></li>
+                    <li><code>Memory</code></li>
+                    <li><code>Gpu</code></li>
+                </ul>
+            </doc-prop>
+
+            <doc-prop name="template/$PRODUCT_NAME" type="section">
+                <p>
+                    Defines either a product or set of products if the key used is <code>template</code>.
+                    When <code>template</code> is used, the properties for <code>cpu</code>, <code>memory</code> and 
+                    <code>gpu</code> turn into arrays. This is a useful short-hand when defining multiple slices of the
+                    same product.
+                </p>
+
+                <section>
+                    <doc-prop name="cpu" type="int" required>
+                        <p>
+                            The number of vCPU cores for this product.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="memory" type="int" required>
+                        <p>
+                            The amount of memory measured in gigabytes.
+                        </p>
+                    </doc-prop>
+                    <doc-prop name="gpu" type="int" required>
+                        <p>
+                            The number of GPUs in this product.
+                        </p>
+                    </doc-prop>
+
+                    <doc-prop name="cpuModel" type="string" default="null">
+                        <p>Name of the hardware used for the CPUs. For example: <code>Intel(R) Xeon(R) Gold 6130</code></p>
+                    </doc-prop>
+                    <doc-prop name="gpuModel" type="string" default="null">
+                        <p>Name of the hardware used for the GPUs. For example: <code>NVIDIA Tesla V100</code></p>
+                    </doc-prop>
+                    <doc-prop name="memoryModel" type="string" default="null">
+                        <p>Name of the hardware used for the memory. For example: <code>DDR4-2400 LRDIMM</code></p>
+                    </doc-prop>
+
+                    <doc-prop name="namePrefix" type="string" default="$CATEGORY_NAME">
+                        <p>Controls the templated prefix of the product name. Defaults to the category name itself.</p>
+                    </doc-prop>
+
+                    <doc-prop name="nameSuffix" type="Cpu | Memory | Gpu" default="Cpu">
+                        <p>Controls the templated suffix of the product name. Defaults to using the vCPU count as the suffix.</p>
+                    </doc-prop>
+
+                    <doc-prop name="pricePerMinute, pricePerHour, pricePerDay" type="float">
+                        <p>Supplied if using the <code>Money</code> cost model.</p>
+                    </doc-prop>
+
+                    <doc-prop name="description" type="string">
+                        <p>A short, single-line description of the product.</p>
+                    </doc-prop>
+                </section>
+            </doc-prop>
+        </doc-prop-container>
+
+        <h2>Storage categories</h2>
+        <doc-prop-container>
+            <doc-prop name="cost" type="Cost" required>
+                <p>
+                    Cost model for this category. See <a href="#cost">Cost reference</a>
+                </p>
+
+                <p>
+                    When using a cost type of <code>Money</code>, then a price must be supplied using one of the
+                    following properties:
+                </p>
+
+                <ul>
+                    <li><code>price</code></li>
+                    <li><code>pricePerMinute</code></li>
+                    <li><code>pricePerHour</code></li>
+                    <li><code>pricePerDay</code></li>
+                </ul>
+
+                <p>
+                    When using a cost type of either <code>Money</code> or <code>Resource</code>, then a unit must be 
+                    supplied using one of the following values:
+                </p>
+
+                <ul>
+                    <li><code>MB</code> (10<sup>6</sup> bytes)</li>
+                    <li><code>GB</code> (10<sup>9</sup> bytes)</li>
+                    <li><code>TB</code> (10<sup>12</sup> bytes)</li>
+
+                    <li><code>MiB</code> (2<sup>20</sup> bytes)</li>
+                    <li><code>GiB</code> (2<sup>30</sup> bytes)</li>
+                    <li><code>TiB</code> (2<sup>40</sup> bytes)</li>
+                </ul>
+            </doc-prop>
+
+            <doc-prop name="$PRODUCT_NAME" type="section">
+                <section>
+                    <doc-prop name="price, pricePerMinute, pricePerHour, pricePerDay" type="float">
+                        <p>Supplied if using the <code>Money</code> cost model.</p>
+                    </doc-prop>
+
+                    <doc-prop name="description" type="string">
+                        <p>A short, single-line description of the product.</p>
+                    </doc-prop>
+                </section>
+            </doc-prop>
+        </doc-prop-container>
+
+        <h2>Public link categories</h2>
+        <doc-prop-container>
+            <doc-prop name="cost" type="Cost" required>
+                <p>
+                    Cost model for this category. See <a href="#cost">Cost reference</a>
+                </p>
+
+                <p>
+                    When using a cost type of <code>Money</code>, then a price must be supplied using one of the
+                    following properties:
+                </p>
+
+                <ul>
+                    <li><code>price</code></li>
+                    <li><code>pricePerMinute</code></li>
+                    <li><code>pricePerHour</code></li>
+                    <li><code>pricePerDay</code></li>
+                </ul>
+            </doc-prop>
+
+            <doc-prop name="$PRODUCT_NAME" type="section">
+                <section>
+                    <doc-prop name="price, pricePerMinute, pricePerHour, pricePerDay" type="float">
+                        <p>Supplied if using the <code>Money</code> cost model.</p>
+                    </doc-prop>
+
+                    <doc-prop name="description" type="string">
+                        <p>A short, single-line description of the product.</p>
+                    </doc-prop>
+                </section>
+            </doc-prop>
+        </doc-prop-container>
+
+        <h2>Public IP categories</h2>
+        <doc-prop-container>
+            <doc-prop name="cost" type="Cost" required>
+                <p>
+                    Cost model for this category. See <a href="#cost">Cost reference</a>
+                </p>
+
+                <p>
+                    When using a cost type of <code>Money</code>, then a price must be supplied using one of the
+                    following properties:
+                </p>
+
+                <ul>
+                    <li><code>price</code></li>
+                    <li><code>pricePerMinute</code></li>
+                    <li><code>pricePerHour</code></li>
+                    <li><code>pricePerDay</code></li>
+                </ul>
+            </doc-prop>
+
+            <doc-prop name="$PRODUCT_NAME" type="section">
+                <section>
+                    <doc-prop name="price, pricePerMinute, pricePerHour, pricePerDay" type="float">
+                        <p>Supplied if using the <code>Money</code> cost model.</p>
+                    </doc-prop>
+
+                    <doc-prop name="description" type="string">
+                        <p>A short, single-line description of the product.</p>
+                    </doc-prop>
+                </section>
+            </doc-prop>
+        </doc-prop-container>
+
+        <h2>License categories</h2>
+        <doc-prop-container>
+            <doc-prop name="cost" type="Cost" required>
+                <p>
+                    Cost model for this category. See <a href="#cost">Cost reference</a>
+                </p>
+
+                <p>
+                    When using a cost type of <code>Money</code>, then a price must be supplied using one of the
+                    following properties:
+                </p>
+
+                <ul>
+                    <li><code>price</code></li>
+                    <li><code>pricePerMinute</code></li>
+                    <li><code>pricePerHour</code></li>
+                    <li><code>pricePerDay</code></li>
+                </ul>
+            </doc-prop>
+
+            <doc-prop name="$PRODUCT_NAME" type="section">
+                <section>
+                    <doc-prop name="tags" type="string[]" required>
+                        <p>A list of tags used by UCloud/Core to filter for the correct license.</p>
+                    </doc-prop>
+
+                    <doc-prop name="price, pricePerMinute, pricePerHour, pricePerDay" type="float">
+                        <p>Supplied if using the <code>Money</code> cost model.</p>
+                    </doc-prop>
+
+                    <doc-prop name="description" type="string">
+                        <p>A short, single-line description of the product.</p>
+                    </doc-prop>
+                </section>
+            </doc-prop>
+        </doc-prop-container>
+
+        <h2 id="cost">Cost reference</h2>
+        <doc-sealed-container>
+            <doc-prop-container collapsed>
+                <doc-prop name="type" type='"Free"'>
+                    <p>
+                        All products in this category are free and can be used even without any resource allocation
+                        being granted to the end-user.
+                    </p>
+                </doc-prop>
+            </doc-prop-container>
+
+            <doc-prop-container collapsed>
+                <doc-prop name="type" type='"Money"'>
+                    <p>
+                        This cost model uses money. If no unit is specified, then the cost is "price per interval of use".
+                        If the unit is specified, then the cost is "price per unit per interval of use". A price is always defined
+                        per product. If interval is null, then the product is considered a one-time payment as opposed to a
+                        recurring one.
+                    </p>
+
+                    <p>
+                        Using the <code>Money</code> type requires one of the following to be defined for each product:
+                    </p>
+                    <ul>
+                        <li><code>price</code></li>
+                        <li><code>pricePerMinute</code></li>
+                        <li><code>pricePerHour</code></li>
+                        <li><code>pricePerDay</code></li>
+                    </ul>
+
+                    <p>
+                        The interval is defined by which price property is chosen. You must use the same property 
+                        for all products in a category.
+                    </p>
+                
+                    <p>
+                        Examples of this model include:
+                        <ul>
+                            <li>DKK (currency = DKK, unit = null, interval = null)</li>
+                            <li>DKK/hour (currency = DKK, unit = null, interval = Hourly)</li>
+                            <li>EUR per GiB/day (currency = EUR, unit = GiB, interval = Daily)</li>
+                        </ul>
+                    </p>
+                </doc-prop>
+                <doc-prop name="currency" type="string" default="DKK"></doc-prop>
+                <doc-prop name="unit" type="string" default="null">
+                    <p>
+                        The list of valid units are specific to each product type. 
+                        See the documentation for the individual product types to learn which units are valid.
+                    </p>
+                </doc-prop>
+            </doc-prop-container>
+
+            <doc-prop-container collapsed>
+                <doc-prop name="type" type='"Resource"'>
+                    <p>This cost model uses the resource itself as the cost model. Examples of this model include:</p>
+                    <ul>
+                        <li>IP addresses (unit = IP addresses, interval = null)</li>
+                        <li>Core-hours (unit = Core, interval = Hourly)</li>
+                        <li>GPU-hours (unit = GPU, interval = Hourly)</li>
+                        <li>GB-days (unit = GB, interval = Daily)</li>
+                    </ul>
+                </doc-prop>
+
+                <doc-prop name="unit" type="string" required>
+                    <p>
+                        The list of valid units are specific to each product type.
+                        See the documentation for the individual product types to learn which units are valid.
+                    </p>
+                </doc-prop>
+            </doc-prop-container>
+        </doc-sealed-container>
+
+        <h2>Examples</h2>
+        <doc-snippet>
+            compute:
+              syncthing:
+                cost:
+                  type: Free
+                syncthing:
+                  description: Used for syncthing
+                  cpu: 1
+                  memory: 1
+                  gpu: 0
+          
+              standard-cpu-dkk:
+                cost:
+                  type: Money
+                template:
+                  cpu: [1, 2, 4, 8]
+                  memory: 4 # equivalent to [4, 8, 16, 32]
+                  description: Standard machine
+                  namePrefix: standard-cpu
+                  nameSuffix: Cpu
+                  pricePerHour: 0.39 # equivalent to [0.39, 0.78, 1.56, 3.12]
+          
+              standard-cpu:
+                cost:
+                  type: Resource
+                  unit: Cpu
+                template:
+                  cpu: [1, 2, 4, 8, 16, 32]
+                  memory: 4
+                  description: Standard machine
+          
+            storage:
+              standard-storage:
+                cost:
+                  type: Resource
+                  unit: GB
+          
+                standard-storage:
+                  description: Standard storage system
+          
+                project-home:
+                  description: Product for Members files
+          
+                share:
+                  description: Product for shares
+          
+            publicLinks:
+              standard-link:
+                cost: { type: Free }
+                standard-link:
+                  description: A standard public link
+          
+            licenses:
+              Generic:
+                cost: { type: Resource }
+                Generic:
+                  description: Software license
+                  tags: ["Generic"]
+        </doc-snippet>
+    </section>
+
+    <section>
+        <h2>2023.X.Y reference</h2>
 
         <doc-snippet>
             compute:
@@ -99,136 +585,6 @@
             publicIps: []
             licenses: []
         </doc-snippet>
-    </section>
-
-    <section>
-        <h2>Payment model</h2>
-
-        <p>
-            The payment model of UCloud is fairly flexible, unfortunately with this, it also becomes a bit complex to 
-            understand. In this section, we will attempt to guide you through choosing the right payment model for your
-            product.
-        </p>
-
-        <h3>1) Is the product allocated on a quota basis? (<code>quota</code>)</h3>
-
-        If the product is allocated on a quota basis of maximum concurrent usage, then the configuration is fairly
-        simple and is always as shown below:
-
-        <figure>
-            <doc-snippet>
-                cost:
-                    quota: true
-            </doc-snippet>
-
-            <figcaption>
-                A product which is using allocated based on maximum concurrent usage. We recommend that you only use 
-                this for products such as <code>storage</code>, <code>ingress</code>, <code>licenses</code> and
-                <code>publicIps</code>. We <i>do not</i> recommend that you use this for compute based products. For a
-                compute based product this would translate into "a maximum number of concurrently active cores".
-            </figcaption>
-        </figure>
-
-        <h3>2) Which unit do you use for allocations? (<code>currency</code>)</h3>
-
-        <p>
-            This section is only used if <code>quota: false</code>. For all other 
-            cases you must not supply this property.
-        </p>
-
-        <p>
-            In UCloud, there are three types of allocations you can give your users:
-        </p>
-
-        <doc-table>
-        <table>
-            <thead>
-                <tr>
-                    <th>Value</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><code>DKK</code></td>
-                    <td>
-                        Using regular money (e.g. DKK or EUR). <br>
-                        <b>Note (24/10/2022):</b> The only currency available is DKK at the moment. A future update 
-                        will expand this.
-                    </td>
-                </tr>
-                <tr>
-                    <td><code>UNITS</code></td>
-                    <td>A product specific unit (e.g. "<b>GB</b> days", "<b>Core</b> hours" or "<b>IP</b> minutes")</td>
-                </tr>
-                <tr>
-                    <td><code>FREE</code></td>
-                    <td>The product is always free to use and does not require further approval</td>
-                </tr>
-            </tbody>
-        </table>
-        </doc-table>
-
-        <h3>3) How frequent are charges made and what is the lowest amount of use a user can be charged for? (<code>frequency</code>)</h3>
-
-        <p>
-            This section is only used if <code>quota: false</code>. For all other 
-            cases you must not supply this property.
-        </p>
-
-        <doc-table>
-        <table>
-            <thead>
-                <tr>
-                    <th>Value</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><code>ONE_TIME</code></td>
-                    <td>The resource is paid for only once and can be used for its entire duration/indefinitely.</td>
-                </tr>
-                <tr>
-                    <td><code>MINUTE</code></td>
-                    <td>The user pays for the amount of time the resource is used. The lowest charge is for a single minute.</td>
-                </tr>
-                <tr>
-                    <td><code>HOUR</code></td>
-                    <td>The user pays for the amount of time the resource is used. The lowest charge is for a single hour.</td>
-                </tr>
-                <tr>
-                    <td><code>DAY</code></td>
-                    <td>The user pays for the amount of time the resource is used. The lowest charge is for a single day.</td>
-                </tr>
-            </tbody>
-        </table>
-        </doc-table>
-
-        <h3>4) What is the price? (<code>price</code>)</h3>
-
-        <p>
-            This section is only used if <code>quota: false</code> and <code>currency: DKK</code>. For all other 
-            cases you must not supply this property. This property must contain a decimal value which is the price for
-            a single period (see <code>frequency</code>) of use. Note that UCloud/Core has limited precision and will 
-            reject your request if it is unable to precisely represent your price. For extremely cheap products, you may
-            need to adjust the <code>frequency</code> in order to precisely represent your price.
-        </p>
-    </section>
-
-    <section>
-        <h2>Examples</h2>
-
-        <doc-todo></doc-todo>
-
-        <h3>CPU and GPU using core hours</h3>
-        <h3>CPU and GPU using DKK/hour</h3>
-        <h3>Storage using TB hours</h3>
-        <h3>Storage using quota</h3>
-        <h3>IP addresses using DKK</h3>
-        <h3>IP using quota</h3>
-        <h3>Licenses using quota</h3>
-        <h3>Licenses using one-time payment of DKK</h3>
     </section>
 
     <script src="/app.js"></script>

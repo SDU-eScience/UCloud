@@ -98,6 +98,7 @@ const InactiveWidgetClass = injectStyle("inactive-widget", k => `
     }
 
     ${k} > strong, ${k} > .${TextClass} {
+        -webkit-user-select: none;
         user-select: none;
     }
 
@@ -130,6 +131,7 @@ const MarkdownWrapper = injectStyle("md-wrapper", k => `
         margin-top: 8px;
         color: var(--textSecondary);
         font-style: italic;
+        -webkit-user-select: none;
         user-select: none;
     }
     

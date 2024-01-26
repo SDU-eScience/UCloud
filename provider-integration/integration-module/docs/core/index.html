@@ -146,14 +146,17 @@
                     </table>
                     </doc-table>
                 </doc-prop>
+                <doc-prop name="preferStdout" type="boolean" default="false">
+                    Boolean flag indicating if stdout should be used for logs instead of file output.
+                    This should only be enabled if <code>launchRealUserInstances</code> is <code>false</code>.
+                </doc-prop>
             </section>
         </doc-prop>
 
         <doc-prop name="cors" type="section">
             <p>
-                A section containing additional hosts needed for CORS. This section is rarely required. Unless
-                operations which require communication between end-users and UCloud/IM are broken, then you do not
-                need this section. Examples of this include: interactive shells, file uploads and downloads.
+                A section containing additional hosts needed for CORS. This section is rarely required. You
+                only require this section if you are using a non-standard deployment configuration.
             </p>
             <section>
                 <doc-prop name="allowHosts" type="string[]">
@@ -180,6 +183,14 @@
                     </p>
                 </doc-prop>
             </section>
+        </doc-prop>
+
+        <doc-prop name="internalBindAddress" type="string" default="127.0.0.1">
+            <p>
+                Allows you to change the bind address used by the integration module itself. Note that this address
+                is only required to be accessible by the embedded L7 proxy speaking to the integration module. As a 
+                result, this property rarely needs to be changed from the default.
+            </p>
         </doc-prop>
     </doc-prop-container>
 

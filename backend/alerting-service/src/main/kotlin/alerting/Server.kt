@@ -124,51 +124,6 @@ class Server(
                     exitProcess(1)
                 }
             }
-
-            GlobalScope.launch {
-                try {
-                    log.info("Alert on many 4xx and 5xx through ambassador - starting up")
-                    NetworkTrafficAlerts(elasticHighLevelClient, authenticatedClient)
-                        .ambassadorResponseAlert(elasticHighLevelClient, config)
-                } catch (ex: Exception) {
-                    log.warn("WARNING: Alert on many 4xx and 5xx through ambassador caught exception: ${ex}.")
-                    SlackDescriptions.sendAlert.call(
-                        SendAlertRequest("WARNING: Alert on many 4xx and 5xx through ambassador caught exception: ${ex.stackTraceToString()}."),
-                        authenticatedClient
-                    ).orThrow()
-                    exitProcess(1)
-                }
-            }
-        }
-
-        if (config.enableKubernetesMonitoring && !micro.developmentModeEnabled) {
-            GlobalScope.launch {
-                try {
-                    log.info("Alert on nodes - starting up")
-                    KubernetesAlerting(authenticatedClient).nodeStatus()
-                } catch (ex: Exception) {
-                    log.warn(ex.stackTraceToString())
-                    SlackDescriptions.sendAlert.call(
-                        SendAlertRequest("WARNING: Alert on nodes caught exception: ${ex.stackTraceToString()}."),
-                        authenticatedClient
-                    ).orThrow()
-                    exitProcess(1)
-                }
-            }
-
-            GlobalScope.launch {
-                try {
-                    log.info("Alert on crashLoop started")
-                    KubernetesAlerting(authenticatedClient).crashLoopAndFailedDetection()
-                } catch (ex: Exception) {
-                    log.warn("WARNING: Alert on crashLoop caught exception: ${ex}.")
-                    SlackDescriptions.sendAlert.call(
-                        SendAlertRequest("WARNING: Alert on crash loop caught exception: ${ex.stackTraceToString()}."),
-                        authenticatedClient
-                    ).orThrow()
-                    exitProcess(1)
-                }
-            }
         }
     }
 }

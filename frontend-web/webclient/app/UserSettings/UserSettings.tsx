@@ -12,6 +12,7 @@ import {ChangeOptionalUserDetails, ChangeUserDetails} from "@/UserSettings/Chang
 import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
+import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 
 function UserSettings(): React.ReactNode {
 
@@ -52,6 +53,9 @@ function UserSettings(): React.ReactNode {
                                     />
                                     <ChangeOptionalUserDetails />
                                     <ChangeEmailSettings
+                                        setLoading={setHeaderLoading}
+                                    />
+                                    <ChangeNotificationSettings
                                         setLoading={setHeaderLoading}
                                     />
                                     <Sessions

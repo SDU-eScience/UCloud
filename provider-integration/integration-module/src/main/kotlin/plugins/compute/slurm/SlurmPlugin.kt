@@ -15,7 +15,6 @@ import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
@@ -26,7 +25,6 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.compute.udocker.UDocker
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionIpc
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
-import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPool
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Logger
@@ -35,7 +33,6 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
-import io.ktor.utils.io.pool.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -54,7 +51,6 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
-import kotlin.math.max
 import dk.sdu.cloud.config.ConfigSchema.Plugins.Jobs.Slurm as SlurmConfig
 
 class SlurmPlugin : ComputePlugin {
@@ -717,13 +713,13 @@ class SlurmPlugin : ComputePlugin {
                     val workspace = accountMapper.lookupBySlurm(resp.account, resp.partition).firstOrNull()
                     if (workspace != null) {
                         val owner = walletOwnerFromOwnerString(workspace.owner.toSimpleString())
-                        reportBalance(owner, ProductCategoryIdV2(workspace.productCategory, providerId), resp.usage)
+                        reportUsage(owner, ProductCategoryIdV2(workspace.productCategory, providerId), resp.usage)
                     }
                 }
 
                 is ReportComputeUsageResponse.UCloud -> {
                     val owner = walletOwnerFromOwnerString(resp.workspace)
-                    reportBalance(owner, ProductCategoryIdV2(resp.category, providerId), resp.usage)
+                    reportUsage(owner, ProductCategoryIdV2(resp.category, providerId), resp.usage)
                 }
             }
         }

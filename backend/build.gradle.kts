@@ -160,25 +160,29 @@ subprojects {
                     }
 
                     override fun afterSuite(suite: TestDescriptor, result: TestResult) {
-                        val size = 80
-                        if (suite.parent != null) return
-                        print(
-                            buildString {
-                                appendLine()
-                                repeat(size) { append('-') }
-                                appendLine()
-                                appendLine(result.resultType.toString())
-                                repeat(size) { append('-') }
-                                appendLine()
+                        try {
+                            val size = 80
+                            if (suite.parent != null) return
+                            print(
+                                buildString {
+                                    appendLine()
+                                    repeat(size) { append('-') }
+                                    appendLine()
+                                    appendLine(result.resultType.toString())
+                                    repeat(size) { append('-') }
+                                    appendLine()
 
-                                append(" TESTS:".padEnd(size - result.testCount.toString().length))
-                                appendLine(result.testCount)
-                                append("PASSED:".padEnd(size - result.successfulTestCount.toString().length))
-                                appendLine(result.successfulTestCount)
-                                append("FAILED:".padEnd(size - result.failedTestCount.toString().length))
-                                appendLine(result.failedTestCount)
-                            }
-                        )
+                                    append(" TESTS:".padEnd(size - result.testCount.toString().length))
+                                    appendLine(result.testCount)
+                                    append("PASSED:".padEnd(size - result.successfulTestCount.toString().length))
+                                    appendLine(result.successfulTestCount)
+                                    append("FAILED:".padEnd(size - result.failedTestCount.toString().length))
+                                    appendLine(result.failedTestCount)
+                                }
+                            )
+                        } catch (ex: Throwable) {
+                            ex.printStackTrace()
+                        }
                     }
 
                     override fun beforeTest(testDescriptor: TestDescriptor?) {

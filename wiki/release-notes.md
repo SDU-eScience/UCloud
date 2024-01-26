@@ -4,8 +4,45 @@ This page tracks a high-level overview of changes to the version of UCloud
 hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
-Note that each service may have more than one deployment associated with it.
-For details look in the `k8.kts` folders of each microservice.
+## 19-12-23
+
+```
+UCloud/Core @ 2023.4.2
+```
+
+## 18-12-23
+
+```
+UCloud/Core @ 2023.4.2
+Type 1/SDU @ 2023.4.4
+```
+
+## 08-12-23
+
+```
+UCloud/Frontend @ 2023.4.2
+```
+
+
+## 05-12-23
+
+```
+UCloud/Core @ 2023.4.2
+UCloud/Frontend @ 2023.4.1
+Type 1/SDU Provider @ 2023.4.1
+```
+
+## 04-12-23
+
+```
+UCloud/Core @ 2023.4.0
+```
+
+## 23-10-23
+
+```
+Type 1/SDU Provider @ 2023.3.9
+```
 
 ## 05-09-23
 

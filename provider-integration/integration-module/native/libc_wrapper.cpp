@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -383,6 +384,10 @@ JNIEXPORT jint JNICALL Java_libc_LibC_resizePty(JNIEnv *env, jobject thisRef, ji
 
 JNIEXPORT jint JNICALL Java_libc_LibC_umask(JNIEnv *env, jobject thisRef, jint mask) {
     return umask(mask);
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_touchFile(JNIEnv *env, jobject thisRef, jint fileDescriptor) {
+    return futimes(fileDescriptor, NULL);
 }
 
 #ifdef __cplusplus

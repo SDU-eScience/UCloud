@@ -12,10 +12,10 @@ kotlin.sourceSets {
             implementation(project(":accounting-service:api"))
             implementation(project(":accounting-service:util"))
             implementation(project(":mail-service:api"))
+            implementation(project(":notification-service:api"))
             implementation(project(":file-orchestrator-service:api"))
             implementation(project(":file-orchestrator-service:util"))
             implementation(project(":cliff-utils"))
-            implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
         }
     }
     val test by getting {

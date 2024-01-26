@@ -72,6 +72,7 @@ export interface JobFlags extends ResourceIncludeFlags {
     filterApplication?: string;
     filterState?: JobState;
     includeApplication?: boolean;
+    includeParameters?: boolean;
 }
 
 export interface JobStatus extends ResourceStatus {

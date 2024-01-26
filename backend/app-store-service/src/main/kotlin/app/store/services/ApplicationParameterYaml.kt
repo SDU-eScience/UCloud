@@ -127,9 +127,9 @@ sealed class ApplicationParameterYaml {
         override var name: String = "",
         override val title: String = "",
         override val description: String = "",
+        override val optional: Boolean = false,
     ) : ApplicationParameterYaml() {
         override val defaultValue: Any? = null
-        override val optional = false
     }
 
     data class LicenseServer(
@@ -146,8 +146,8 @@ sealed class ApplicationParameterYaml {
         override var name: String = "",
         override val title: String = "",
         override val description: String = "",
+        override val optional: Boolean = false,
     ) : ApplicationParameterYaml() {
         override val defaultValue: Any? = null
-        override val optional = false
     }
 }

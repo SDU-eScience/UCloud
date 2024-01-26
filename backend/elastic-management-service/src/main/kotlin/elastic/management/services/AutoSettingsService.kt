@@ -5,17 +5,10 @@ import co.elastic.clients.elasticsearch._types.Time
 import co.elastic.clients.elasticsearch.cluster.PutClusterSettingsRequest
 import co.elastic.clients.elasticsearch.indices.IndexSettingBlocks
 import co.elastic.clients.elasticsearch.indices.IndexSettings
-import co.elastic.clients.elasticsearch.indices.IndexTemplate
 import co.elastic.clients.elasticsearch.indices.PutIndexTemplateRequest
 import co.elastic.clients.elasticsearch.indices.PutIndicesSettingsRequest
-import co.elastic.clients.elasticsearch.indices.PutTemplateRequest
 import co.elastic.clients.elasticsearch.indices.put_index_template.IndexTemplateMapping
 import co.elastic.clients.json.JsonData
-import dk.sdu.cloud.defaultMapper
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.cluster.metadata.ComposableIndexTemplate
-import org.elasticsearch.cluster.metadata.Template
-import org.elasticsearch.xcontent.XContentType
 
 class AutoSettingsService(
     private val elastic: ElasticsearchClient

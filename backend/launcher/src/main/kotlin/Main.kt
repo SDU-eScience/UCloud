@@ -59,24 +59,19 @@ val services = setOf<Service>(
 enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Boolean) {
     Full("full", { true }),
 
-    FullNoProviders("no-providers", { true }),
-
-    Core("core", { svc ->
+    Foundation("foundation", { svc ->
         when (svc) {
-            AuthService,
-            PasswordResetService,
-
-            AvatarService,
-
-            ElasticManagementService,
-            AlertingService,
             AuditIngestionService,
-
+            AuthService,
+            AvatarService,
+            ElasticManagementService,
             MailService,
             NewsService,
             NotificationService,
+            AlertingService,
+            PasswordResetService,
             SupportService,
-
+            SlackService,
             TaskService -> true
 
             else -> false
@@ -92,6 +87,7 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
 
     Orchestrators("orchestrators", { svc ->
         when (svc) {
+            AppStoreService,
             AppOrchestratorService,
             FileOrchestratorService -> true
 
@@ -191,7 +187,7 @@ suspend fun main(args: Array<String>) {
 
     val presetArg = args.getOrNull(0)?.takeIf { !it.startsWith("--") }
     val preset = if (presetArg == null) {
-        LauncherPreset.FullNoProviders
+        LauncherPreset.Full
     } else {
         LauncherPreset.values().find { it.flag == presetArg }
             ?: error(

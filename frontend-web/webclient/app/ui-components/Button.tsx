@@ -1,7 +1,7 @@
 import * as React from "react";
 import {ButtonStyleProps, HeightProps, SizeProps, SpaceProps, WidthProps} from "styled-system";
 import {selectContrastColor, selectHoverColor, ThemeColor} from "./theme";
-import {extractDataTags, extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
+import {classConcat, extractDataTags, extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
 
 // TODO(Dan): A lot of these are left in to not break existing code, many of them are not actually supposed
 //  to do anything anymore.
@@ -152,7 +152,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
     }
 
     return <button
-        className={ButtonClass + " " + (props.className ?? "")}
+        className={classConcat(ButtonClass, props.className)}
         data-attached={props.attached === true}
         data-square={props.asSquare === true}
         data-fullwidth={props.fullWidth === true}

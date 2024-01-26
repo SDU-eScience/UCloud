@@ -464,6 +464,7 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
 
     ${k} table {
         user-select: none;
+        -webkit-user-select: none;
     }
 
     ${k} table > tbody > tr:hover {
@@ -532,6 +533,7 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
         border: 1px solid var(--borderColor, #f00);
         width: 100%;
         user-select: none;
+        -webkit-user-select: none;
         min-width: 500px;
         background: var(--backgroundDefault);
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);

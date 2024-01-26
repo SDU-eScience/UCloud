@@ -67,6 +67,7 @@ const AccordionStyleClass = injectStyle("accordion", k => `
         cursor: pointer;
         border-bottom: 1px solid var(--borderColor);
         user-select: none;
+        -webkit-user-select: none;
     }
     
     ${k}[data-no-border="true"] {

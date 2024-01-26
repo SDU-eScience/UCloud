@@ -985,37 +985,41 @@ class ResourceStore<T>(
         output: Array<ResourceDocument<T>>,
         permission: Permission = Permission.READ,
     ): Int {
-        if (ids.isEmpty()) return 0
-        val storesVisited = HashSet<Pair<Int, Int>>()
-        val filter = object : FilterFunction<T> {
-            override fun filter(doc: ResourceDocument<T>): Boolean {
-                return doc.id in ids
+        try {
+            if (ids.isEmpty()) return 0
+            val storesVisited = HashSet<Pair<Int, Int>>()
+            val filter = object : FilterFunction<T> {
+                override fun filter(doc: ResourceDocument<T>): Boolean {
+                    return doc.id in ids
+                }
             }
-        }
 
-        val minimumIdExclusive = ids.min() - 1
+            val minimumIdExclusive = ids.min() - 1
 
-        var offset = 0
-        for (id in ids) {
-            val initialStore = findStoreByResourceId(id) ?: continue
+            var offset = 0
+            for (id in ids) {
+                val initialStore = findStoreByResourceId(id) ?: continue
 
-            val storeKey = Pair(initialStore.uid, initialStore.pid)
-            if (storeKey in storesVisited) continue
-            storesVisited.add(storeKey)
+                val storeKey = Pair(initialStore.uid, initialStore.pid)
+                if (storeKey in storesVisited) continue
+                storesVisited.add(storeKey)
 
-            useBuckets(initialStore) { currentStore ->
-                offset += currentStore.search(
-                    idCard,
-                    output,
-                    offset,
-                    minimumIdExclusive,
-                    predicate = filter,
-                    permission = permission,
-                )
-                ShouldContinue.ifThisIsTrue(offset < output.size)
+                useBuckets(initialStore) { currentStore ->
+                    offset += currentStore.search(
+                        idCard,
+                        output,
+                        offset,
+                        minimumIdExclusive,
+                        predicate = filter,
+                        permission = permission,
+                    )
+                    ShouldContinue.ifThisIsTrue(offset < output.size)
+                }
             }
+            return offset
+        } catch (ex: Throwable) {
+            throw RuntimeException("Failure while retrieving ${ids.toList()}", ex)
         }
-        return offset
     }
 
     suspend fun updateProviderId(idCard: IdCard, id: Long, providerId: String?) {
@@ -2502,7 +2506,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                         select id as user_id
                         from auth.principals p
                         where p.uid = :uid;
-                    """
+                    """,
                 ).rows.singleOrNull()?.getString(0)
             } else {
                 session.sendPreparedStatement(
@@ -2511,9 +2515,9 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                         select id as project_id
                         from project.projects p
                         where p.pid = :pid;
-                    """
+                    """,
                 ).rows.singleOrNull()?.getString(0)
-            } ?: error("could not find $uid $pid in the database")
+            } ?: error("could not find $uid $pid in the database (minimumId = $minimumId)")
 
             session.sendPreparedStatement(
                 {
@@ -2599,7 +2603,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                         join provider.resource r on u.id = r.id
                         join auth.principals p on r.created_by = p.id
                     order by u.id
-                """
+                """,
             )
 
             val batchCount = 128

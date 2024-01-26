@@ -228,6 +228,7 @@ const TreeNodeClass = injectStyle("tree-node", k => `
         font-size: 15px;
         border-bottom: 1px solid var(--borderColor);
         user-select: none;
+        -webkit-user-select: none;
     }
     
     ${k} > *[data-component=list-row] .open-chevron {

@@ -74,14 +74,16 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         username: String,
         project: String?,
-        useProject: Boolean
+        useProject: Boolean,
+        filterProductType: ProductType? = null,
     ): List<String> {
         return processor.findRelevantProviders(
             AccountingRequest.FindRelevantProviders(
                 actorAndProject.actor,
                 username,
                 project,
-                useProject
+                useProject,
+                filterProductType,
             )
         ).providers
     }

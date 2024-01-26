@@ -44,7 +44,6 @@ import kotlin.collections.ArrayList
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
-const val PERSONAL_REPOSITORY = "Members' Files"
 const val MAX_FILE_COUNT_FOR_SORTING = 25_000
 
 
@@ -129,6 +128,21 @@ class FileQueries(
         } catch (ex: RPCException) {
             false
         }
+    }
+
+    suspend fun findAvailableNameOnRename(id: String): String {
+        for (i in 1..10000) {
+            val prepath = id.substringBeforeLast("/")
+            val filename = id.substringAfterLast("/").substringBeforeLast(".")
+            val extension = filename.substringAfterLast(".")
+            val hasExtension = extension != filename
+            val newFilename = "$filename($i)"
+            val newId = if (hasExtension) "$prepath/$newFilename.$extension" else "$prepath/$newFilename"
+            if (!fileExists(UCloudFile.create(newId))) {
+                return newId
+            }
+        }
+        throw RPCException("Not able to rename file: $id", HttpStatusCode.BadRequest)
     }
 
     private suspend fun convertNativeStatToUFile(

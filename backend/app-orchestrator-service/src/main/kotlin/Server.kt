@@ -112,7 +112,7 @@ class Server(override val micro: Micro) : CommonServer {
             providers = ProviderCommunications(micro.backgroundScope, serviceClient, productCache)
             fileCollections = FileCollectionService(projectCache, db, storageProviders, storageSupport, serviceClient)
 
-            jobs = JobResourceService()
+            jobs = JobResourceService(serviceClient)
 
             ingressSupport = ProviderSupport(
                 altProviders,

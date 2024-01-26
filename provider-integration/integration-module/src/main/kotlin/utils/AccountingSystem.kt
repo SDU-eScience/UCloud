@@ -45,7 +45,7 @@ API function structure for reporting of usage.
                     - a workspace currently has 10 active licenses
                     - a workspace currently has 0 IP addresses
 
-   - Balance:       Sets the balance directly and ignores period granularity from the charge.
+   - Usage:         Sets the usage directly and ignores period granularity from the charge.
                     Use if managed by an external system. Examples of this function include:
 
                     - a workspace has used 100 DKK of their quota
@@ -310,7 +310,7 @@ suspend fun reportConcurrentUse(
         is ProductCost.Resource -> cost.accountingInterval
     }
 
-    if (interval == null) return reportBalance(workspace, category, amountUsed)
+    if (interval == null) return reportUsage(workspace, category, amountUsed)
 
     @Suppress("KotlinConstantConditions")
     val balance = when (cost) {
@@ -343,7 +343,7 @@ suspend fun reportConcurrentUse(
     ).orThrow().responses.single()
 }
 
-suspend fun reportBalance(
+suspend fun reportUsage(
     workspace: WalletOwner,
     category: ProductCategoryIdV2,
     newUsage: Long,

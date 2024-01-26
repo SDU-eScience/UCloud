@@ -17,6 +17,7 @@ const SnackbarClass = injectStyle("snackbar", k => `
         transform: translate(-50%);
         bottom: 30px;
         user-select: none;
+        -webkit-user-select: none;
         visibility: visible;
         animation: snackbar-fade 0.5s;
     }

@@ -5,14 +5,13 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
-import dk.sdu.cloud.notification.api.DeleteResponse
-import dk.sdu.cloud.notification.api.MarkResponse
-import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.notification.api.normalizedIds
+import dk.sdu.cloud.notification.api.*
 import dk.sdu.cloud.notification.services.NotificationService
 import dk.sdu.cloud.notification.services.SubscriptionService
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.actorAndProject
 import kotlinx.coroutines.delay
 
 class NotificationController(
@@ -77,6 +76,15 @@ class NotificationController(
         implement(NotificationDescriptions.internalNotification) {
             subscriptionService.onNotification(request.user, request.notification, allowRemoteCalls = false)
             ok(Unit)
+        }
+
+        implement(NotificationDescriptions.updateSettings)  {
+            service.updateSettings(actorAndProject.actor.safeUsername(), request)
+            ok(Unit)
+        }
+
+        implement(NotificationDescriptions.retrieveSettings) {
+            ok(RetrieveSettingsResponse(service.retrieveSettings(actorAndProject.actor.safeUsername())))
         }
     }
 
