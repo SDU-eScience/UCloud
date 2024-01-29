@@ -5,11 +5,11 @@ import Flex from "@/ui-components/Flex";
 import Icon from "@/ui-components/Icon";
 import * as React from "react";
 import {useSelector} from "react-redux";
-import {useCallback, useState} from "react";
+import {useCallback} from "react";
 import {injectStyle} from "@/Unstyled";
 
-export function UtilityBar(props: {searchEnabled: boolean;}): JSX.Element {
-    return (<Flex zIndex={"1"} alignItems={"center"}>
+export function UtilityBar(props: {searchEnabled: boolean; zIndex?: number}): JSX.Element {
+    return (<Flex zIndex={props.zIndex ?? 1} alignItems={"center"}>
         {props.searchEnabled && <Box width="32px"><SearchIcon enabled={props.searchEnabled} /></Box>}
         <Box width="32px" mr={10}><RefreshIcon /></Box>
         <ContextSwitcher />

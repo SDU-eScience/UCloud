@@ -41,9 +41,9 @@ interface NewsRequestProps extends PaginationRequest {
     withHidden: boolean;
 }
 
-function initialCall(): void {};
+function initialCall(): void {}
 
-function Dashboard(): JSX.Element {
+function Dashboard(): React.JSX.Element {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
@@ -81,7 +81,7 @@ function Dashboard(): JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar searchEnabled={false} /></Flex>
+        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} searchEnabled={false} /></Flex>
         <Box>
             <DashboardNews news={news} />
             <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
@@ -296,14 +296,14 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
                         </Box>
                     }
                 </div>
-                <img alt={"UCloud logo"} src={ucloudImage} />
+                <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
             </div>
 
             <Relative>
                 <div className={DeicBanner}>
                     <Box flexGrow={1} />
                     <ExternalLink href={"https://deic.dk"}>
-                        <div>UCloud is delivered by the Danish e-Infrastrucure Consortium</div>
+                        <div>UCloud is delivered by the Danish e-Infrastructure Consortium</div>
                     </ExternalLink>
                     <ExternalLink href={"https://deic.dk"}>
                         <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />

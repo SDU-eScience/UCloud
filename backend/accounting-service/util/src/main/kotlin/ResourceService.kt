@@ -1091,7 +1091,8 @@ abstract class ResourceService<
                 FindRelevantProvidersRequestItem(
                     actorAndProject.actor.safeUsername(),
                     actorAndProject.project,
-                    useProject
+                    useProject,
+                    productArea,
                 )
             ),
             serviceClient

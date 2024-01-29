@@ -56,6 +56,53 @@ class FileCollectionService(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
+        // Change to not allow drives to have same name within same provider
+        val error = session.sendPreparedStatement(
+            {
+                setParameter("is_project", !actorAndProject.project.isNullOrBlank())
+                setParameter("project", actorAndProject.project)
+                setParameter("username", actorAndProject.actor.safeUsername())
+            },
+            """
+                select lower(title), r.provider, pc.category
+                    from provider.resource r join
+                    file_orchestrator.file_collections fc on r.id = fc.resource join
+                    accounting.products p on r.product = p.id join
+                    accounting.product_categories pc on p.category = pc.id
+                where 
+                    (:is_project and project = :project::text) or 
+                    (not :is_project and created_by = :username::text and project is null)
+            """
+        ).rows.any { data ->
+            val title = data.getString(0)!!
+            val provider = data.getString(1)!!
+            val category = data.getString(2)!!
+            idWithSpec.any { (_, spec) ->
+                spec.title.equals(title, ignoreCase = true) &&
+                    spec.product.provider == provider &&
+                    spec.product.category == category
+            }
+        }
+        if (error) {
+            // Clean up resource
+            session.sendPreparedStatement(
+                {
+                    val ids by parameterList<Long>()
+                    for ((id, _ ) in idWithSpec) {
+                        ids.add(id)
+                    }
+                },
+                """ 
+                    with acl as (
+                        delete from provider.resource_acl_entry
+                        where resource_id in (select unnest(:ids::bigint[]))
+                    )
+                    delete from provider.resource
+                    where id in (select unnest(:ids::bigint[]))
+                """
+            )
+            throw RPCException("Cannot create drive with existing drive name", HttpStatusCode.BadRequest)
+        }
         session.sendPreparedStatement(
             {
                 val titles by parameterList<String>()

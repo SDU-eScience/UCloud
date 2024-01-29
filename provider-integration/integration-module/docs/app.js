@@ -541,12 +541,13 @@ class DocTableOfContents extends HTMLElement {
         { 
             title: "Configuration", 
             children: [
-                { title: "Core", href: "/core" },
-                { title: "Server", href: "/server" },
-                { title: "Products", href: "/products" },
+                { title: "core.yaml", href: "/core", style: "code" },
+                { title: "server.yaml", href: "/server", style: "code"},
+                { title: "products.yaml", href: "/products", style: "code" },
                 { 
-                    title: "Plugins", 
+                    title: "plugins.yaml",
                     href: "/plugins",
+                    style: "code",
                     children: [
                         { title: "Connections", href: "/plugins/connections.html" },
                         { title: "Projects", href: "/plugins/projects.html" },
@@ -669,7 +670,14 @@ class DocTableOfContents extends HTMLElement {
         const linkNode = document.createElement("doc-link");
         if (sectionNode.href) linkNode.setAttribute("href", sectionNode.href);
         else linkNode.setAttribute("href", "#");
-        linkNode.textContent = sectionNode.title;
+
+        if (sectionNode["style"] === ("code")) {
+            const code = document.createElement("code");
+            code.append(sectionNode.title);
+            linkNode.append(code);
+        } else {
+            linkNode.textContent = sectionNode.title;
+        }
 
         itemNode.append(linkNode);
         domNode.append(itemNode);

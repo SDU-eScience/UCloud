@@ -6,7 +6,7 @@ import {
 import * as React from "react";
 
 import {Cursor} from "./Types";
-import {extractEventHandlers, injectStyleSimple, unbox, unboxDataTags, WithEventHandlers} from "@/Unstyled";
+import {classConcat, extractEventHandlers, injectStyleSimple, unbox, unboxDataTags, WithEventHandlers} from "@/Unstyled";
 
 
 export type BoxProps =
@@ -29,7 +29,7 @@ export type BoxProps =
     BorderRadiusProps &
     VerticalAlignProps &
     FontSizeProps &
-    { cursor?: Cursor } &
+    {cursor?: Cursor} &
     WithEventHandlers;
 
 interface FlexGrowProps {
@@ -49,7 +49,7 @@ const Box: React.FunctionComponent<BoxProps & {
     className?: string;
 }> = props => {
     return <div
-        className={BoxClass + " " + (props.className ?? "")}
+        className={classConcat(BoxClass, props.className)}
         style={{...unbox(props), ...(props.style ?? {})}}
         {...unboxDataTags(props as Record<string, string>)}
         title={props.title}

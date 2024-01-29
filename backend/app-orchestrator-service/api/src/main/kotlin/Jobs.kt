@@ -427,7 +427,7 @@ data class JobSpecification(
     init {
         if (name != null && !name.matches(nameRegex)) {
             throw RPCException(
-                "Provided job name is invalid. It cannot contain any special characters",
+                "Provided job name is invalid. It cannot contain any special characters ($name).",
                 HttpStatusCode.BadRequest
             )
         }

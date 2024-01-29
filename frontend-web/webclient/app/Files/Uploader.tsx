@@ -547,6 +547,7 @@ const UploaderRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 24px;
         background-color: var(--fixedWhite); 
+        color: var(--fixedBlack);
         height: 70px;
         width: 100%;
         margin-top: 12px;

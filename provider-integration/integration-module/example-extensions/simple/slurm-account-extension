@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+import json
+import sys
+from helper import *
+
+with open(sys.argv[1]) as fp:
+    request = json.load(fp)
+
+owner = request['owner']
+owner_type = owner['type']
+
+if owner_type == 'user':
+    response = { 'account' : get_username_by_uid(owner['uid']) }
+    print(json.dumps(response))
+
+elif owner_type == 'project':
+    response = { 'account' : get_group_by_gid(owner['gid']) }
+    print(json.dumps(response))
+
+else:
+    sys.exit(f'Unknown owner type: {owner_type}')

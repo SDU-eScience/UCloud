@@ -1115,6 +1115,7 @@ const ScreenshotClass = injectStyleSimple("screenshot", `
 const DeviceBox = injectStyleSimple("device-box", `
     cursor: pointer;
     user-select: none;
+    -webkit-user-select: none;
 `);
 
 export default Overview;

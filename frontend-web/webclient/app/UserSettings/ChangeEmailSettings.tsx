@@ -30,7 +30,10 @@ export const defaultEmailSettings: EmailSettings = {
     verificationReminder: true,
     userRoleChange: true,
     userLeft: true,
-    lowFunds: true
+    lowFunds: true,
+    // Jobs
+    jobStarted: false,
+    jobStopped: false,
 }
 
 export enum MailType {
@@ -43,13 +46,16 @@ export enum MailType {
     NEW_COMMENT_ON_APPLICATION,
     APPLICATION_TRANSFER,
     APPLICATION_STATUS_CHANGE,
-    //Project
+    // Project
     PROJECT_USER_INVITE,
     PROJECT_USER_REMOVED,
     VERIFICATION_REMINDER,
     USER_ROLE_CHANGE,
     USER_LEFT,
-    LOW_FUNDS
+    LOW_FUNDS,
+    // Jobs
+    JOB_STARTED,
+    JOB_STOPPED,
 }
 
 const initialState: UserDetailsState = {
@@ -147,6 +153,11 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
             case MailType.APPLICATION_TRANSFER:
                 state.settings.applicationTransfer = !state.settings.applicationTransfer
                 break;
+            case MailType.JOB_STARTED:
+                state.settings.jobStarted = !state.settings.jobStarted
+                break;
+            case MailType.JOB_STOPPED:
+                state.settings.jobStopped = !state.settings.jobStopped
         }
         dispatch({
             type: "UpdatePlaceholdersEmailSettings",
@@ -289,6 +300,27 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.verificationReminder}
                     />
                     <span>Verification reminders</span>
+                </Label>
+
+
+                <Heading.h5>Jobs</Heading.h5>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.JOB_STARTED)}
+                        onChange={() => undefined}
+                        checked={state.settings.jobStarted}
+                    />
+                    <span>Job started</span>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.JOB_STOPPED)}
+                        onChange={() => undefined}
+                        checked={state.settings.jobStopped}
+                    />
+                    <span>Job stopped</span>
                 </Label>
 
                 <Heading.h5> </Heading.h5>

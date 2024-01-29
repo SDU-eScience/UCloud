@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.Time
 import co.elastic.clients.elasticsearch.core.ReindexRequest
 import co.elastic.clients.elasticsearch.core.reindex.Destination
@@ -13,7 +14,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import kotlinx.coroutines.runBlocking
-import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.RestClient
 import org.slf4j.Logger
 import java.io.IOException
@@ -22,6 +22,8 @@ import java.time.LocalDate
 class ReindexService(
     private val elastic: ElasticsearchClient
 ) {
+
+    val reindexErrors = mutableListOf<String>()
 
     fun reindexSpecificIndices(fromIndices: List<String>, toIndices: List<String>, lowLevelClient: RestClient) {
         if (fromIndices.isEmpty() || fromIndices.size != toIndices.size) {
@@ -65,7 +67,7 @@ class ReindexService(
                             toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
                         }
                     }
-                    is ElasticsearchStatusException -> {
+                    is ElasticsearchException -> {
                         //This is most likely due to API changes resulting in not same mapping for entire week
                         if (ex.message == "Unable to parse response body") {
                             log.info("status exception")
@@ -139,7 +141,7 @@ class ReindexService(
                     reindexErrors.add(fromIndices.joinToString())
                     log.info("Does not delete due to mapping issue - investigate")
                 }
-                is ElasticsearchStatusException -> {
+                is ElasticsearchException -> {
                     //This is most likely due to API changes resulting in not same mapping
                     if (ex.message == "Unable to parse response body") {
                         log.info("status exception")
@@ -164,8 +166,6 @@ class ReindexService(
         }
     }
 
-    val reindexErrors = mutableListOf<String>()
-
     fun reindexToMonthly (prefix: String, lowLevelClient: RestClient, serviceClient: AuthenticatedClient) {
         val minusDays = 8L
         val date = LocalDate.now().minusDays(minusDays).toString().replace("-",".")
@@ -174,7 +174,7 @@ class ReindexService(
                 log.info("deleting $it since no docs")
                 deleteIndex(it, elastic)
             }
-        } catch (ex: ElasticsearchStatusException) {
+        } catch (ex: ElasticsearchException) {
             if (ex.toString().contains("index_not_found")) {
                 // no indices we can finish
                 return

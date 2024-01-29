@@ -415,7 +415,8 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         data class RequestItem(
             val username: String,
             val project: String? = null,
-            val useProject: Boolean
+            val useProject: Boolean,
+            val filterProductType: ProductType? = null,
         )
 
         @Serializable

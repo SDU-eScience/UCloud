@@ -74,6 +74,7 @@ const ScrollButtonClass = injectStyle("scroll-button", k => `
         height: 32px;
         border-radius: 16px;
         cursor: pointer;
+        -webkit-user-select: none;
         user-select: none;
         font-weight: 800;
         font-size: 18px;

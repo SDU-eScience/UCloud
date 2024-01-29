@@ -19,7 +19,6 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
@@ -27,7 +26,6 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.time.OffsetDateTime
@@ -1080,7 +1078,7 @@ class ProjectService(
                             CreateNotification(
                                 user,
                                 Notification(
-                                    NotificationType.PROJECT_INVITE.name,
+                                    "PROJECT_INVITE",
                                     "${actor.safeUsername()} has invited you to collaborate"
                                 )
                             )
@@ -1766,7 +1764,7 @@ class ProjectService(
                             CreateNotification(
                                 admin,
                                 Notification(
-                                    NotificationType.PROJECT_ROLE_CHANGE.name,
+                                    "PROJECT_ROLE_CHANGE",
                                     notificationMessage,
                                     meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
                                 )

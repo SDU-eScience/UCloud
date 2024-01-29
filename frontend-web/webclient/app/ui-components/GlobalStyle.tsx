@@ -128,7 +128,7 @@ function generatePalette(): string {
     function generateThemedColors(c: ThemedColors) {
         builder += `--backgroundDefault: ${c.background};\n`;
         builder += `--borderColor: ${mixColors(c.background, c.foreground, 0.20)};\n`;
-        builder += `--borderColorHover: ${mixColors(c.background, c.foreground, 0.60)};\n`;
+        builder += `--borderColorHover: ${mixColors(c.background, c.foreground, 0.40)};\n`;
 
         builder += `--backgroundCard: ${mixColors(c.background, c.foreground, 0.030)};\n`;
         builder += `--backgroundCardBorder: ${mixColors(c.background, c.foreground, 0.25)};\n`;

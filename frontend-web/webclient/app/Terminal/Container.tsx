@@ -18,6 +18,7 @@ const Wrapper = injectStyle("wrapper", k => `
         padding-left: var(--tc-pad);
         padding-right: var(--tc-pad);
         user-select: none;
+        -webkit-user-select: none;
         z-index: 9999999999;
         font-family: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
     }

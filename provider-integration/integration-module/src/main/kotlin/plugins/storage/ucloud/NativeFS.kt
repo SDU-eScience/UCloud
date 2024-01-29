@@ -16,6 +16,7 @@ import dk.sdu.cloud.utils.LinuxOutputStream
 import dk.sdu.cloud.utils.copyTo
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
+import libc.LibC
 import libc.NativeStat
 import libc.S_ISREG
 import libc.clib
@@ -487,7 +488,12 @@ class NativeFS(
 
     data class MoveShouldContinue(val needsToRecurse: Boolean)
 
-    suspend fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
+    suspend fun move(
+        source: InternalFile,
+        destination: InternalFile,
+        conflictPolicy: WriteConflictPolicy,
+        updateTimestamps: Boolean = false,
+    ): MoveShouldContinue {
         val sourceParent = openFile(source.parent())
         val destinationParent = openFile(destination.parent())
 
@@ -495,7 +501,9 @@ class NativeFS(
             val sourceFd = LinuxFileHandle.createOrThrow(
                 clib.openat(sourceParent.fd, source.fileName(), 0, DEFAULT_FILE_MODE)
             ) { throw FSException.NotFound() }
-            val sourceStat = nativeStat(sourceFd, autoClose = true)
+            val sourceStat = nativeStat(sourceFd, autoClose = false)
+            if (updateTimestamps) clib.touchFile(sourceFd.fd)
+            sourceFd.close()
             var shouldContinue = false
 
             val desiredFileName = destination.fileName()

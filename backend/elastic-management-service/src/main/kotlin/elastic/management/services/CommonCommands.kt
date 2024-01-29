@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery
 import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
@@ -13,7 +14,6 @@ import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import org.apache.http.util.EntityUtils
-import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.Request
 import org.elasticsearch.client.RestClient
 
@@ -70,25 +70,16 @@ internal fun mergeIndex(elastic: ElasticsearchClient, index: String, maxNumberOf
 
 //If null given to indexRegex - all standard indices are returned: Http_logs, kubernetes and infrastructure
 internal fun getListOfIndices(elastic: ElasticsearchClient, indexRegex: String?): List<String> {
+    val toFind = if (indexRegex != null) listOf(indexRegex) else listOf("http_logs*", "kubernetes*", "infrastructure*")
     return try {
-        if (indexRegex == null) {
-            elastic.indices().get(
-                GetIndexRequest.Builder()
-                    .index(
-                        listOf("http_logs*", "kubernetes*", "infrastructure*")
-                    )
-                    .build()
-            ).result().keys.toList()
-        } else {
-            elastic.indices().get(
-                GetIndexRequest.Builder()
-                    .index(
-                        indexRegex
-                    )
-                    .build()
-            ).result().keys.toList()
-        }
-    } catch (ex: ElasticsearchStatusException) {
+        elastic.indices().get(
+            GetIndexRequest.Builder()
+                .index(
+                    toFind
+                )
+                .build()
+        ).result().keys.toList()
+    } catch (ex: ElasticsearchException) {
         emptyList()
     }
 }

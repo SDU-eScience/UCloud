@@ -11,8 +11,8 @@ import dk.sdu.cloud.service.Time
 import org.elasticsearch.client.RestClient
 import org.slf4j.Logger
 import java.time.LocalDate
-import java.util.*
 
+const val DAYS_TO_KEEP_DATA = 180L
 class ExpiredEntriesDeleteService(
     private val elastic: ElasticsearchClient
 ) {
@@ -68,12 +68,12 @@ class ExpiredEntriesDeleteService(
 
     fun deleteOldRancherLogs() {
         val currentDate = LocalDate.now()
-        val daysToSave = 180
+        val removedate = currentDate.minusDays(DAYS_TO_KEEP_DATA).toString().replace("-","." )
 
         val indicesToDelete = if (indexExists("development_default-*", elastic))
-            listOf("development_default-${currentDate.minusDays(daysToSave.toLong())}", "development_default-${currentDate.minusDays(daysToSave.toLong())}_small")
+            listOf("development_default-${removedate}", "development_default-${removedate}_small")
         else
-            listOf("kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}", "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}_small")
+            listOf("kubernetes-production-${removedate}", "kubernetes-production-${removedate}_small")
 
         val existingIndices = indicesToDelete.mapNotNull {
             if (!indexExists(it, elastic)) {
@@ -86,7 +86,7 @@ class ExpiredEntriesDeleteService(
     }
 
     fun deleteOldFileBeatLogs() {
-        val datePeriodFormat = LocalDate.now().minusDays(180).toString().replace("-","." )
+        val datePeriodFormat = LocalDate.now().minusDays(DAYS_TO_KEEP_DATA).toString().replace("-","." )
 
         val indicesToDelete = listOf("filebeat-${datePeriodFormat}","filebeat-${datePeriodFormat}_small")
 
@@ -101,7 +101,7 @@ class ExpiredEntriesDeleteService(
     }
 
     fun deleteOldInfrastructureLogs() {
-        val datePeriodFormat = LocalDate.now().minusDays(180).toString().replace("-","." )
+        val datePeriodFormat = LocalDate.now().minusDays(DAYS_TO_KEEP_DATA).toString().replace("-","." )
 
         val indicesToDelete = listOf("infrastructure-${datePeriodFormat}","infrastructure-${datePeriodFormat}_small")
 

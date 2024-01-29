@@ -2,14 +2,11 @@ package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.plugins.InternalFile
@@ -17,11 +14,13 @@ import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.readString
 import dk.sdu.cloud.utils.writeString
-import io.ktor.util.*
-import io.ktor.utils.io.pool.*
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.*
 
 class SyncthingService(
@@ -186,9 +185,9 @@ class SyncthingService(
         if (config.devices.isEmpty() || config.folders.isEmpty()) {
             // NOTE(Dan): Cancel the job (if it exists) if we no devices or no folders. That is, the job is no longer
             // needed.
-            val job = findJobIfExists(username)
-            if (job != null) {
-                jobs.cancel(job)
+            val jobId = findJobIfExists(username)
+            if (jobId != null) {
+                jobs.cancel(jobId)
             }
         } else {
             // NOTE(Dan): Otherwise, we make sure that the job is running and potentially notify the provider about
@@ -196,14 +195,34 @@ class SyncthingService(
             // about bad configuration.
             val (job, jobWasCreated) = startJobIfNeeded(username, config, configFolder)
             if (!jobWasCreated) {
-                jobs.k8.updateMounts(job.id, config.folders.map { it.ucloudPath })
+                jobs.k8.updateMounts(job, config.folders.map { it.ucloudPath })
             } else {
                 // We don't need to do anything else. The mounts have already been added to the job.
             }
         }
     }
 
-    private data class SyncthingJobStatus(val job: Job, val wasCreated: Boolean)
+    private data class SyncthingJobStatus(val jobId: String, val wasCreated: Boolean)
+    private val recentlyLaunchedJobs = HashMap<String, Long>()
+    private val recentlyLaunchedJobsMutex = Mutex()
+    private suspend fun isAllowedToLaunch(username: String): Boolean {
+        recentlyLaunchedJobsMutex.withLock {
+            val now = Time.now()
+
+            val it = recentlyLaunchedJobs.iterator()
+            while (it.hasNext()) {
+                val next = it.next()
+                if (now - next.value > 60_000) it.remove()
+            }
+
+            val existing = recentlyLaunchedJobs[username]
+            if (existing == null) {
+                recentlyLaunchedJobs[username] = now
+                return true
+            }
+        }
+        return false
+    }
 
     private suspend fun startJobIfNeeded(
         username: String,
@@ -217,6 +236,10 @@ class SyncthingService(
 
         val existingJob = findJobIfExists(username)
         if (existingJob != null) return SyncthingJobStatus(existingJob, wasCreated = false)
+        if (!isAllowedToLaunch(username)) {
+            delay(1000)
+            return startJobIfNeeded(username, initialConfig, configFolder)
+        }
 
         // TODO Race condition if two calls arrive for the same user
 
@@ -264,32 +287,14 @@ class SyncthingService(
             username
         )
 
-        return SyncthingJobStatus(newJob, wasCreated = true)
+        return SyncthingJobStatus(newJob.id, wasCreated = true)
     }
 
-    private suspend fun findJobIfExists(username: String): Job? {
-        val jobPage = JobsControl.browse.call(
-            ResourceBrowseRequest(
-                JobIncludeFlags(
-                    filterApplication = syncthingApplication.name,
-                    filterCreatedBy = username,
-                    filterProductId = productId,
-                    filterProductCategory = productCategory,
-
-                    includeApplication = true,
-                    includeParameters = true,
-                    includeProduct = true,
-                ),
-                sortBy = "createdAt",
-                sortDirection = SortDirection.descending
-            ),
-            serviceClient
-        ).orThrow()
-
-        return jobPage
-            .items
-            .filter { job -> !job.status.state.isFinal() && job.owner.project == null }
-            .firstOrNull()
+    private suspend fun findJobIfExists(username: String): String? {
+        val container = jobs.runtime.list().find {
+            it.annotations[UCLOUD_SYNCTHING_ANNOTATION]?.removeSurrounding("\"") == username
+        }
+        return container?.jobId
     }
 
     // File utilities
@@ -385,6 +390,7 @@ class SyncthingService(
         builder.vCpuMillis = 400
         builder.memoryMegabytes = 2000
         builder.mountSharedMemory(2000)
+        builder.upsertAnnotation(UCLOUD_SYNCTHING_ANNOTATION, job.owner.createdBy)
     }
 
     companion object : Loggable {
@@ -392,6 +398,7 @@ class SyncthingService(
         val syncthingApplication = NameAndVersion("syncthing", "1")
         const val productId = "syncthing"
         const val productCategory = "syncthing"
+        const val UCLOUD_SYNCTHING_ANNOTATION = "ucloud.dk/syncthing-instance"
     }
 }
 

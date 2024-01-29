@@ -1,10 +1,9 @@
 package dk.sdu.cloud.elastic.management.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch.snapshot.*
 import dk.sdu.cloud.service.Loggable
-import org.elasticsearch.ElasticsearchStatusException
-import org.elasticsearch.repositories.fs.FsRepository
 import org.slf4j.Logger
 import java.time.LocalDate
 
@@ -20,7 +19,7 @@ class BackupService(private val elastic: ElasticsearchClient, private val mountL
                     .name(REPO_NAME)
                     .build()
             ).nodes().isNotEmpty()
-        } catch (ex: ElasticsearchStatusException) {
+        } catch (ex: ElasticsearchException) {
             log.warn(ex.stackTraceToString())
             false
         }
@@ -43,7 +42,7 @@ class BackupService(private val elastic: ElasticsearchClient, private val mountL
     private fun setupRepo() {
         val request = CreateRepositoryRequest.Builder()
             .name(REPO_NAME)
-            .type(FsRepository.TYPE)
+            .type("fs")
             .settings(
                 RepositorySettings.Builder()
                     .location(mountLocation)
