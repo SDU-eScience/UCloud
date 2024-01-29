@@ -3,6 +3,7 @@ package dk.sdu.cloud.utils
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -189,6 +190,24 @@ private suspend fun trackResourceTimeUsageAndConvertForReporting(
 
         return whole
     }
+}
+
+suspend fun userHasResourcesAvailable(job: Job): Boolean {
+    return Accounting.check.call(
+        BulkRequest(
+            listOf(
+                ChargeWalletRequestItem(
+                    payer = job.owner.toWalletOwner(),
+                    units = 1,
+                    periods = 1,
+                    product = job.specification.product,
+                    performedBy = job.owner.createdBy,
+                    description = "Checking if resources exists"
+                )
+            )
+        ),
+        serviceContext.rpcClient
+    ).orThrow().responses.firstOrNull() ?: false
 }
 
 /**

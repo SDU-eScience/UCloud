@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Flex, Icon, Input, Radio} from "@/ui-components";
+import {Flex, Icon, Input, Link, Radio} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -24,6 +24,7 @@ import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import Warning from "@/ui-components/Warning";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux";
+import AppRoutes from "@/Routes";
 
 // State
 // =====================================================================================================================
@@ -743,7 +744,7 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
                             {formatDistance(props.nextAllocationAt, now)}
                         </TooltipV2>
                     </> : <>
-                        None (<a href="#">apply</a>)
+                        None (<Link to={AppRoutes.grants.editor()} href="#">apply</Link>)
                     </>}
                 </div>
             </div>
@@ -772,6 +773,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
         () => {
             const unsorted = props.chart.dataPoints.map(it => ({key: it.title, value: it.usage}));
             return unsorted.sort((a, b) => {
+                // Note(Jonas): Wouldn't `return a.value - b.value` work the same? 
                 if (a.value < b.value) return 1;
                 if (a.value > b.value) return -1;
                 return 0;
@@ -1015,7 +1017,6 @@ const DynamicallySizedChart: React.FunctionComponent<{
         // NOTE(Dan): If we do not add a bit of a delay, then we risk that this API sometimes gives us back a result
         // which is significantly larger than it should be.
         window.setTimeout(() => {
-            console.log("Calculating size!");
             const [minRatio, maxRatio] = aspectRatio;
 
             const boundingRect = wrapper.getBoundingClientRect();
@@ -1604,6 +1605,7 @@ const PanelClass = injectStyle("panel", k => `
         align-items: center;
         gap: 8px;
         margin: 10px 0;
+        z-index: 1; /* HACK(Jonas): Why is this needed for smaller widths? */
     }
 
     ${k} .panel-title > *:nth-child(1) {
@@ -2006,12 +2008,13 @@ const VisualizationStyle = injectStyle("visualization", k => `
     }
     
     ${deviceBreakpoint({maxWidth: "1500px"})} {
+        /* Note(Jonas): this is the issue? */
         ${k} .panel-grid {
             display: grid;
             grid-template-areas: 
                 "category category"
-                "over-time over-time"
-                "breakdown chart2"
+                "breakdown breakdown"
+                "over-time chart2"
                 "chart3 chart4";
             grid-template-rows: 160px 1000px 900px 500px;
         }

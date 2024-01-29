@@ -1770,7 +1770,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         BulkResponse.serializer(Boolean.serializer()),
         CommonErrorMessage.serializer()
     ) {
-        httpUpdate(baseContext, "check", roles = Roles.SERVICE)
+        httpUpdate(baseContext, "check", roles = Roles.PROVIDER)
 
         documentation {
             summary = "Checks if one or more wallets are able to carry a charge"
