@@ -66,20 +66,20 @@ class WekaDirectoryStats(private val nativeFs: NativeFS) : Loggable, FastDirecto
 
 class DefaultDirectoryStats(private val fs: NativeFS) : FastDirectoryStatsInterface {
     override suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean): Long? {
-        if (!allowSlowPath) return null
-
-        var size = 0L
-        val stack = ArrayDeque<InternalFile>().also { it.add(file) }
-        while (stack.isNotEmpty()) {
-            val current = stack.removeFirst()
-            val stat = runCatching { fs.stat(current) }.getOrNull() ?: continue
-            size += stat.size
-            if (stat.fileType == FileType.DIRECTORY) {
-                val files = runCatching { fs.listFiles(current) }.getOrNull() ?: continue
-                stack.addAll(files.map { current.child(it) })
-            }
+        if (!allowSlowPath) {
+            return null
         }
-
-        return size
+        return try {
+            val (_, stdout, _) = executeCommandToText("/usr/bin/du") {
+                addArg("-sb")
+                addArg(file.path)
+            }
+            val regex = "^\\d+".toRegex()
+            val match = regex.find(stdout) ?: return null
+            val sizeInBytes = stdout.substring(match.range).toLong()
+            sizeInBytes
+        } catch (ex: Throwable) {
+            null
+        }
     }
 }
