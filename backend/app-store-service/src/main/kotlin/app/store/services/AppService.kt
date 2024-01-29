@@ -170,9 +170,11 @@ class AppService(
     class InternalTag(
         title: String,
         groups: Set<Int>,
+        priority: Int,
     ) {
         private val title = AtomicReference(title)
         private val groups = AtomicReference(groups)
+        private val priority = AtomicInteger(priority)
 
         fun updateTitle(newTitle: String) {
             title.set(newTitle)
@@ -194,8 +196,13 @@ class AppService(
             }
         }
 
+        fun updatePriority(value: Int) {
+            priority.set(value)
+        }
+
         fun title() = title.get()
         fun groups() = groups.get()
+        fun priority() = priority.get()
     }
 
     private class InternalSpotlight(spotlight: Spotlight) {
@@ -423,14 +430,15 @@ class AppService(
                 val rawTagInfo = session.sendPreparedStatement(
                     {},
                     """
-                        select t.id, t.tag
+                        select t.id, t.tag, t.priority
                         from app_store.categories t
                     """
                 ).rows
                 for (row in rawTagInfo) {
                     val tagId = row.getInt(0)!!
                     val tag = row.getString(1)!!
-                    categories.computeIfAbsent(tagId.toLong()) { InternalTag(tag, emptySet()) }
+                    val priority = row.getInt(2)!!
+                    categories.computeIfAbsent(tagId.toLong()) { InternalTag(tag, emptySet(), priority) }
                 }
 
                 val tagRows = session.sendPreparedStatement(
@@ -1176,7 +1184,7 @@ class AppService(
                 val initialTag = categories.entries.find { it.value.title().equals(tagTitle, ignoreCase = true) }
                 val (tagId, internalTag) = if (initialTag == null) {
                     val actualId = groupIdAllocatorForTestsOnly.getAndIncrement()
-                    val t = InternalTag(tagTitle, emptySet())
+                    val t = InternalTag(tagTitle, emptySet(), 10000)
                     categories[actualId.toLong()] = t
                     actualId.toLong() to t
                 } else {
@@ -1207,7 +1215,7 @@ class AppService(
                                 """
                             ).rows.singleOrNull()?.getInt(0)
                         } else {
-                            categories[insertedTagId.toLong()] = InternalTag(tagTitle, emptySet())
+                            categories[insertedTagId.toLong()] = InternalTag(tagTitle, emptySet(), 10000)
                             insertedTagId
                         }
 
@@ -1273,13 +1281,13 @@ class AppService(
     // Read access (applications)
     // =================================================================================================================
     suspend fun listCategories(): List<ApplicationCategory> {
-        return categories.map {
+        return categories.toList().sortedBy { it.second.priority() }.map { (k, v) ->
             ApplicationCategory(
                 ApplicationCategory.Metadata(
-                    it.key.toInt(),
+                    k.toInt(),
                 ),
                 ApplicationCategory.Specification(
-                    it.value.title(),
+                    v.title(),
                     "",
                 )
             )
