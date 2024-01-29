@@ -554,7 +554,6 @@ function SecondarySidebar({
         const anchor = findAnchor(target);
         if (anchor) {
             const tab = anchor.getAttribute("data-tab") ?? "";
-            console.log("new tab", tab);
             setSelectedPage(current => {
                 if (current) return tab;
                 else return current;
@@ -813,7 +812,7 @@ function Username({close}: {close(): void}): JSX.Element | null {
                 }}
                 width={"100%"}
             >
-                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
+                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" />{Client.username}
             </EllipsedText>
         )}
     >
