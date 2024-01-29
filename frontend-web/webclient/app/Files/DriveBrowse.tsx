@@ -303,9 +303,23 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 // =========================================================================================================
                 browser.on("renderRow", (drive, row, dims) => {
                     if (drive.specification.product.provider) {
-                        const pIcon = providerIcon(drive.specification.product.provider);
-                        pIcon.style.marginRight = "8px";
-                        row.title.append(pIcon);
+                        if (isShare(drive)) {
+                            const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                            row.title.append(icon);
+                            browser.icons.renderIcon({
+                                name: "ftSharesFolder",
+                                color: "FtFolderColor",
+                                color2: "FtFolderColor2",
+                                height: 64,
+                                width: 64,
+                            }).then(setIcon);
+                            icon.style.marginLeft = "4px";
+                            icon.style.marginRight = "10px";
+                        } else {
+                            const pIcon = providerIcon(drive.specification.product.provider);
+                            pIcon.style.marginRight = "8px";
+                            row.title.append(pIcon);
+                        }
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims, row)
@@ -438,5 +452,10 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         }
     />;
 };
+
+function isShare(d: FileCollection) {
+    return d.specification.product.id === "share";
+}
+
 
 export default DriveBrowse;

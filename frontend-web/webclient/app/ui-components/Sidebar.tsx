@@ -490,15 +490,13 @@ function isShare(d: FileCollection) {
     return d.specification.product.id === "share";
 }
 
-function SecondarySidebar(
-    {
-        hovered,
-        clicked,
-        clearHover,
-        setSelectedPage,
-        clearClicked
-    }: SecondarySidebarProps
-): React.JSX.Element {
+function SecondarySidebar({
+    hovered,
+    clicked,
+    clearHover,
+    setSelectedPage,
+    clearClicked
+}: SecondarySidebarProps): React.JSX.Element {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
     const activeProjectId = useProjectId();
@@ -511,11 +509,11 @@ function SecondarySidebar(
 
     const [favoriteApps] = useCloudAPI(
         AppStore.retrieveStars({}),
-        { items: [] }
+        {items: []}
     );
 
     const [appStoreSections] = useCloudAPI(
-        AppStore.browseCategories({ itemsPerPage: 250 }),
+        AppStore.browseCategories({itemsPerPage: 250}),
         emptyPageV2
     );
 
@@ -593,7 +591,7 @@ function SecondarySidebar(
         <Flex flexDirection={"column"} gap={"5px"}>
             {active !== SidebarTabId.FILES ? null : <>
                 <SidebarSectionHeader to={AppRoutes.files.drives()}
-                                      tab={SidebarTabId.FILES}>Drives</SidebarSectionHeader>
+                    tab={SidebarTabId.FILES}>Drives</SidebarSectionHeader>
                 {(!canConsume || drives.data.items.length === 0) && <>
                     <SidebarEmpty>No drives available</SidebarEmpty>
                 </>}
@@ -631,7 +629,7 @@ function SecondarySidebar(
             {active !== SidebarTabId.WORKSPACE ? null : <>
                 {!isPersonalWorkspace && <>
                     <SidebarSectionHeader to={AppRoutes.project.members()}
-                                          tab={SidebarTabId.WORKSPACE}>Management</SidebarSectionHeader>
+                        tab={SidebarTabId.WORKSPACE}>Management</SidebarSectionHeader>
                     <SidebarEntry
                         to={AppRoutes.project.members()}
                         text={"Members"}
@@ -655,7 +653,7 @@ function SecondarySidebar(
                 </>}
 
                 <SidebarSectionHeader to={AppRoutes.accounting.allocations()}
-                                      tab={SidebarTabId.WORKSPACE}>Resources</SidebarSectionHeader>
+                    tab={SidebarTabId.WORKSPACE}>Resources</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.accounting.allocations()}
                     text={"Allocations"}
@@ -687,7 +685,7 @@ function SecondarySidebar(
 
             {active !== SidebarTabId.RESOURCES ? null : <>
                 <SidebarSectionHeader to={AppRoutes.resources.publicLinks()}
-                                      tab={SidebarTabId.RESOURCES}>Networking</SidebarSectionHeader>
+                    tab={SidebarTabId.RESOURCES}>Networking</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.publicLinks()}
                     text={"Links"}
@@ -711,7 +709,7 @@ function SecondarySidebar(
                 />
 
                 <SidebarSectionHeader to={AppRoutes.resources.licenses()}
-                                      tab={SidebarTabId.RESOURCES}>Software</SidebarSectionHeader>
+                    tab={SidebarTabId.RESOURCES}>Software</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.licenses()}
                     text={"Licenses"}
@@ -722,7 +720,7 @@ function SecondarySidebar(
 
             {active !== SidebarTabId.APPLICATIONS ? null : <>
                 <SidebarSectionHeader to={AppRoutes.apps.landing()}
-                                      tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
+                    tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
                 {appStoreSections.data.items.length === 0 && <>
                     <SidebarEmpty>No applications found</SidebarEmpty>
                 </>}
