@@ -27,7 +27,6 @@ import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import org.imgscalr.Scalr
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -401,10 +400,10 @@ class AppService(
                 .rows
                 .map {
                     val app = it.getString(0)!!
-                    val username = it.getString(1)
-                    val projectId = it.getString(2)
-                    val group = it.getString(3)
-                    val permission = ApplicationAccessRight.valueOf(it.getString(0)!!)
+                    val username = it.getString(1).takeIf { !it.isNullOrEmpty() }
+                    val projectId = it.getString(2).takeIf { !it.isNullOrEmpty() }
+                    val group = it.getString(3).takeIf { !it.isNullOrEmpty() }
+                    val permission = ApplicationAccessRight.valueOf(it.getString(4)!!)
 
                     val entity = EntityWithPermission(
                         AccessEntity(username, projectId, group),
@@ -618,8 +617,8 @@ class AppService(
                 session.sendPreparedStatement(
                     {
                         setParameter("owner", "_ucloud")
-                        setParameter("created_at", LocalDateTime.now())
-                        setParameter("modified_at", LocalDateTime.now())
+                        setParameter("created_at", app.metadata.createdAt)
+                        setParameter("modified_at", app.metadata.createdAt)
                         setParameter("authors", defaultMapper.encodeToString(app.metadata.authors))
                         setParameter("title", app.metadata.title)
                         setParameter("description", app.metadata.description)
@@ -638,7 +637,7 @@ class AppService(
                         insert into app_store.applications
                             (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website, group_id, flavor_name, is_public) 
                         values 
-                            (:id_name, :id_version, :application, :created_at, :modified_at, :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website, :group, :flavor, :is_public)
+                            (:id_name, :id_version, :application, to_timestamp(:created_at / 1000.0), to_timestamp(:modified_at / 1000.0), :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website, :group, :flavor, :is_public)
                     """
                 )
             }
@@ -677,7 +676,7 @@ class AppService(
                         insert into app_store.tools
                             (name, version, created_at, modified_at, original_document, owner, tool) 
                         values 
-                            (:name, :version, :created_at, :modified_at, :original_document, :owner, :tool)
+                            (:name, :version, to_timestamp(:created_at / 1000.0), to_timestamp(:modified_at / 1000.0), :original_document, :owner, :tool)
                     """
                 )
             }
@@ -806,6 +805,10 @@ class AppService(
         registerTool(tool, flush = true)
     }
 
+    fun listAllApplications(): List<NameAndVersion> {
+        return applicationVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
+    }
+
     suspend fun updateGroup(
         actorAndProject: ActorAndProject,
         id: Int,
@@ -854,8 +857,8 @@ class AppService(
             session.sendPreparedStatement(
                 {
                     setParameter("id", id)
-                    setParameter("title", newTitle)
-                    setParameter("description", newDescription)
+                    setParameter("newTitle", newTitle)
+                    setParameter("newDescription", newDescription)
                     setParameter("flavor", newDefaultFlavor)
                     setParameter("logo", resizedLogo)
                 },
@@ -1079,14 +1082,15 @@ class AppService(
                     """
                         with data as (
                             select
-                                unnest(:username::text[]) as username,
+                                unnest(:usernames::text[]) as username,
                                 unnest(:projects::text[]) as project,
                                 unnest(:groups::text[]) as project_group,
                                 unnest(:permissions::text[]) as permission
                         )
                         insert into app_store.permissions (application_name, username, permission, project, project_group) 
-                        select :name, username, permission, project, project_group
+                        select :name, coalesce(username, ''), permission, coalesce(project, ''), coalesce(project_group, '')
                         from data
+                        on conflict do nothing 
                     """
                 )
             }
@@ -1094,12 +1098,12 @@ class AppService(
             if (revoked.isNotEmpty()) {
                 session.sendPreparedStatement(
                     {
+                        setParameter("name", name)
                         revoked.split {
                             into("usernames") { it.user }
                             into("projects") { it.project }
                             into("groups") { it.group }
                         }
-
                     },
                     """
                         with data as (
@@ -1119,7 +1123,8 @@ class AppService(
                                     and p.project_group = d.project_group
                                 )
                             )
-                    """
+                    """,
+                    debug = true,
                 )
             }
         }
@@ -1281,6 +1286,28 @@ class AppService(
         }
     }
 
+    suspend fun retrieveCategory(
+        actorAndProject: ActorAndProject,
+        categoryId: Int,
+        loadGroups: Boolean = false
+    ): ApplicationCategory? {
+        val internal = categories[categoryId.toLong()] ?: return null
+        val title = internal.title()
+        var status = ApplicationCategory.Status()
+
+        if (loadGroups) {
+            val groups = internal.groups().mapNotNull { retrieveGroup(it) }
+                .sortedBy { it.specification.title.lowercase() }
+            status = status.copy(groups = groups)
+        }
+
+        return ApplicationCategory(
+            ApplicationCategory.Metadata(categoryId),
+            ApplicationCategory.Specification(title),
+            status
+        )
+    }
+
     suspend fun retrieveGroup(groupId: Int): ApplicationGroup? {
         val info = groups[groupId.toLong()]?.get() ?: return null
         return ApplicationGroup(
@@ -1440,7 +1467,7 @@ class AppService(
         groupId: Int
     ): List<ApplicationWithFavoriteAndTags> {
         val group = groups[groupId.toLong()]?.get() ?: return emptyList()
-        return loadApplications(actorAndProject, group.applications).sortedBy { it.metadata.flavorName ?: it.metadata.name }
+        return loadApplications(actorAndProject, group.applications).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()}
     }
 
     suspend fun listApplicationsInCategory(
@@ -1460,7 +1487,7 @@ class AppService(
             candidates.addAll(group.applications)
         }
 
-        return title to loadApplications(actorAndProject, candidates, withAllVersions = false)
+        return title to loadApplications(actorAndProject, candidates, withAllVersions = false).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.title.lowercase() }
     }
 
     suspend fun listByExtension(
@@ -1624,11 +1651,11 @@ class AppService(
     private suspend fun TopPick.prepare(): TopPick {
         val gid = groupId
         if (gid != null) {
-            val g = groups[gid.toLong()] ?: return this
-            return copy(title = g.get().title)
+            val g = groups[gid.toLong()]?.get() ?: return this
+            return copy(title = g.title, defaultApplicationToRun = g.defaultFlavor)
         } else {
             val a = retrieveApplication(ActorAndProject.System, applicationName ?: "", null) ?: return this
-            return copy(title = a.metadata.title)
+            return copy(title = a.metadata.title, defaultApplicationToRun = a.metadata.name)
         }
     }
 
@@ -1636,10 +1663,15 @@ class AppService(
         return copy(applications = applications.map { it.prepare() })
     }
 
+    private suspend fun CarrouselItem.prepare(): CarrouselItem {
+        val defaultGroupApp = linkedGroup?.let { groups[it.toLong()]?.get()?.defaultFlavor }
+        return copy(resolvedLinkedApp = defaultGroupApp ?: linkedApplication)
+    }
+
     suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
         val picks = topPicks.get().map { it.prepare() }
         val categories = listCategories()
-        val carrousel = carrousel.get()
+        val carrousel = carrousel.get().map { it.prepare() }
         val spotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
 
         val newlyCreated = ArrayList<String>()
@@ -1648,7 +1680,6 @@ class AppService(
             updated.add(newUpdates[i])
         }
 
-        IntRange
         for (i in (newApplications.size - 1).downTo(0)) {
             newlyCreated.add(newApplications[i])
         }

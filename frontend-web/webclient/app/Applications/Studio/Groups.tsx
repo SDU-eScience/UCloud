@@ -1,14 +1,19 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, List} from "@/ui-components";
-import React, {useCallback} from "react";
-import {ApplicationGroup, createGroup, deleteGroup, listGroups} from "../api";
+import {Box, Button, Flex, Icon, Input, Label, List} from "@/ui-components";
+import React, {useCallback, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
 import {AppToolLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-
+import * as AppStore from "@/Applications/AppStoreApi";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {doNothing} from "@/UtilityFunctions";
+import {ButtonClass} from "@/ui-components/Button";
+import {HiddenInputField} from "@/ui-components/Input";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
     const [filter, setTitleFilter] = React.useState("");
@@ -17,27 +22,86 @@ export const ApplicationGroups: React.FunctionComponent = () => {
 
     const filterRef = React.useRef<HTMLInputElement>(null);
 
-    const [allGroups, setGroups] = useCloudAPI<ApplicationGroup[]>(
-        listGroups({}),
-        []
+    const [allGroups, setGroups] = useCloudAPI(
+        AppStore.browseGroups({itemsPerPage: 250}),
+        emptyPageV2,
     );
 
     const refresh = useCallback(() => {
-        setGroups(listGroups({}));
+        setGroups(AppStore.browseGroups({itemsPerPage: 250})).then(doNothing);
     }, []);
 
-    const results = React.useMemo(() =>
-        allGroups.data.filter(it => it.title.toLocaleLowerCase().includes(filter.toLocaleLowerCase()))
-        , [allGroups.data, filter]);
-
+    const results = React.useMemo(() => {
+        return allGroups.data.items.filter(it => it.specification.title.toLowerCase().includes(filter.toLowerCase()))
+    }, [allGroups.data, filter]);
 
     useSetRefreshFunction(refresh);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     return (
         <MainContainer
             header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Groups</Heading.h2>}
             main={
                 <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
+                    <Flex gap={"16px"} mb={"32px"}>
+                        <Label className={ButtonClass}>
+                            Upload application
+                            <HiddenInputField
+                                type="file"
+                                onChange={async e => {
+                                    const target = e.target;
+                                    if (target.files) {
+                                        const file = target.files[0];
+                                        target.value = "";
+                                        if (file.size > 1024 * 1024 * 5) {
+                                            snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
+                                        } else {
+                                            const error = (await AppStore.create(file)).error;
+                                            if (error != null) {
+                                                setErrorMessage(error);
+                                            } else {
+                                                snackbarStore.addSuccess("Application uploaded successfully", false);
+                                                setErrorMessage(null);
+                                            }
+                                        }
+                                        dialogStore.success();
+                                    }
+                                }}
+                            />
+                        </Label>
+
+                        <Label className={ButtonClass}>
+                            Upload tool
+                            <HiddenInputField
+                                type="file"
+                                onChange={async e => {
+                                    const target = e.target;
+                                    if (target.files) {
+                                        const file = target.files[0];
+                                        target.value = "";
+                                        if (file.size > 1024 * 512) {
+                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                        } else {
+                                            const error = (await AppStore.createTool(file)).error;
+                                            if (error != null) {
+                                                setErrorMessage(error);
+                                            } else {
+                                                snackbarStore.addSuccess("Tool uploaded successfully", false);
+                                                setErrorMessage(null);
+                                            }
+                                        }
+                                        dialogStore.success();
+                                    }
+                                }}
+                            />
+                        </Label>
+                    </Flex>
+
+                    {errorMessage && <Box mb={"32px"}>
+                        <Box color={"errorMain"}>ERROR:</Box>
+                        <code>{errorMessage}</code>
+                    </Box>}
+
                     <form onSubmit={async e => {
                         e.preventDefault();
 
@@ -47,7 +111,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                         const filterValue = filterField.value;
                         if (filterValue === "") return;
 
-                        await invokeCommand(createGroup({title: filterValue}))
+                        await invokeCommand(AppStore.createGroup({title: filterValue, description: "", categories: []}))
                         filterField.value = "";
                         setTitleFilter("");
                         refresh();
@@ -70,20 +134,21 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                     <List width="100%">
                         {results.map(group => (
                             <ListRow
-                                navigate={() => navigate(`/applications/studio/g/${group.id}`)}
+                                key={group.metadata.id}
+                                navigate={() => navigate(`/applications/studio/g/${group.metadata.id}`)}
                                 left={
                                     <Flex justifyContent="left">
-                                        <AppToolLogo name={group.id.toString()} type="GROUP" size="25px" />
+                                        <AppToolLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
                                         <Box ml="10px">
-                                            {group.title}
+                                            {group.specification.title}
                                         </Box>
                                     </Flex>
                                 } right={
-                                    <Button onClick={() => {
-                                        invokeCommand(deleteGroup({id: group.id}));
-                                        refresh();
-                                    }} height="25px" color="errorMain"><Icon name="trash" /></Button>
-                                }
+                                <Button onClick={() => {
+                                    invokeCommand(AppStore.deleteGroup({id: group.id})).then(doNothing);
+                                    refresh();
+                                }} height="25px" color="errorMain"><Icon name="trash"/></Button>
+                            }
                             />
                         ))}
                     </List>

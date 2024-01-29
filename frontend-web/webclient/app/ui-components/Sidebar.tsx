@@ -55,6 +55,7 @@ import {NewsPost} from "@/NewsPost";
 import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -513,10 +514,10 @@ function SecondarySidebar(
         { items: [] }
     );
 
-    // const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
-    //     compute.apps.appStoreSections({page: "FULL"}),
-    //     {sections: []}
-    // );
+    const [appStoreSections] = useCloudAPI(
+        AppStore.browseCategories({ itemsPerPage: 250 }),
+        emptyPageV2
+    );
 
     const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
 
@@ -723,19 +724,19 @@ function SecondarySidebar(
             {active !== SidebarTabId.APPLICATIONS ? null : <>
                 <SidebarSectionHeader to={AppRoutes.apps.landing()}
                                       tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
-                {/*{appStoreSections.data.sections.length === 0 && <>*/}
-                {/*    <SidebarEmpty>No applications found</SidebarEmpty>*/}
-                {/*</>}*/}
+                {appStoreSections.data.items.length === 0 && <>
+                    <SidebarEmpty>No applications found</SidebarEmpty>
+                </>}
 
-                {/*{appStoreSections.data.sections.map(section =>*/}
-                {/*    <SidebarEntry*/}
-                {/*        key={section.id}*/}
-                {/*        to={AppRoutes.apps.section(section.id)}*/}
-                {/*        text={section.name}*/}
-                {/*        icon={"heroCpuChip"}*/}
-                {/*        tab={SidebarTabId.APPLICATIONS}*/}
-                {/*    />*/}
-                {/*)}*/}
+                {appStoreSections.data.items.map(section =>
+                    <SidebarEntry
+                        key={section.id}
+                        to={AppRoutes.apps.category(section.metadata.id)}
+                        text={section.specification.title}
+                        icon={"heroCpuChip"}
+                        tab={SidebarTabId.APPLICATIONS}
+                    />
+                )}
 
                 {appFavorites.length > 0 && <>
                     <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>

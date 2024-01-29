@@ -112,7 +112,7 @@ class AppStoreController(
             val group = service.retrieveGroup(request.id) ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound)
             val apps = service.listApplicationsInGroup(actorAndProject, request.id)
             ok(group.copy(
-                status = group.status?.copy(
+                status = group.status.copy(
                     applications = apps
                 )
             ))
@@ -154,6 +154,10 @@ class AppStoreController(
             ok(Unit)
         }
 
+        implement(AppStore.listAllApplications) {
+            ok(AppStore.ListAllApplications.Response(service.listAllApplications()))
+        }
+
         implement(AppStore.updateApplicationFlavor) {
             service.updateAppFlavorName(actorAndProject, request.applicationName, request.flavorName)
             ok(Unit)
@@ -177,9 +181,6 @@ class AppStoreController(
         implement(AppStore.addLogoToGroup) {
             val http = ctx as HttpCall
             val packet = http.call.request.receiveChannel().readRemaining(1024 * 1024 * 2)
-            if (!packet.endOfInput) {
-                throw RPCException("File size is too big (> 2MiB)", HttpStatusCode.PayloadTooLarge)
-            }
             service.updateGroup(
                 actorAndProject,
                 request.groupId,
@@ -250,6 +251,13 @@ class AppStoreController(
 
         implement(AppStore.browseCategories) {
             ok(PageV2.of(service.listCategories()))
+        }
+
+        implement(AppStore.retrieveCategory) {
+            ok(
+                service.retrieveCategory(actorAndProject, request.id, loadGroups = true)
+                    ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
+            )
         }
 
         implement(ToolStore.findByName) {

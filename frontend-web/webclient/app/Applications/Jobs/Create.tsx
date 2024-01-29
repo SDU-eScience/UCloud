@@ -368,7 +368,7 @@ export const Create: React.FunctionComponent = () => {
                                     </ExternalLink>
                                 </Box>
                             )}
-                            <UtilityBar searchEnabled={false} />
+                            <UtilityBar />
                         </>}
                     />
                 </Box>

@@ -7,7 +7,8 @@ import {BrowserRouter} from "react-router-dom";
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
 const ApplicationsLanding = React.lazy(() => import("./Applications/Landing2"));
-const ApplicationsGroup = React.lazy(() => import("./Applications/Group"));
+const ApplicationsGroup = React.lazy(() => import("@/Applications/Group"));
+const ApplicationSearch = React.lazy(() => import("@/Applications/Search"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
@@ -27,7 +28,6 @@ const Products = React.lazy(() => import("@/Products/Products"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteLink"));
-const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const StudioGroup = React.lazy(() => import("@/Applications/Studio/Group"));
 const StudioGroups = React.lazy(() => import("@/Applications/Studio/Groups"));
@@ -46,7 +46,6 @@ const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
-const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
 const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
@@ -115,19 +114,13 @@ const Core = (): React.JSX.Element => (
                         <Route path={AppRoutes.syncthing.syncthing()}
                             element={React.createElement(requireAuth(SyncthingOverview))} />
 
-                        <Route path={AppRoutes.apps.overview()}
-                            element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.landing()}
                             element={React.createElement(requireAuth(ApplicationsLanding))} />
                         <Route path={AppRoutes.apps.group(":id")}
                             element={React.createElement(requireAuth(ApplicationsGroup))} />
-
-                        {/* Is this actually in use */}
-                        <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
-
-                        {!inDevEnvironment() ? null :
-                            <Route path="/MANUAL-TESTING-OVERVIEW" element={<ManualTestingOverview />} />
-                        }
+                        <Route path={AppRoutes.apps.category()}
+                               element={React.createElement(requireAuth(ApplicationsOverview))} />
+                        <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
 

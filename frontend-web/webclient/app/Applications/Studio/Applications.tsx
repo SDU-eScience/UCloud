@@ -1,5 +1,5 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useCallback, useEffect} from "react";
@@ -13,7 +13,7 @@ import * as Heading from "@/ui-components/Heading";
 import Input, {InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {PropType, stopPropagation} from "@/UtilityFunctions";
+import {PropType, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useLoading, useTitle} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
@@ -58,7 +58,6 @@ const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
         cursor: pointer;
         font-family: inherit;
         color: var(--textPrimary);
-        background-color: var(--primaryMain);
         margin: 0;
         border-width: 0px;
         
@@ -153,9 +152,9 @@ export const App: React.FunctionComponent = () => {
     const allGroups = allGroupsPage.data.items;
     const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | undefined>(undefined);
 
-    const [permissionEntries, fetchPermissionEntries] = useCloudAPI<DetailedEntityWithPermission[]>(
-        {noop: true},
-        []
+    const [permissionEntries, fetchPermissionEntries] = useCloudAPI(
+        AppStore.retrieveAcl({name: name}),
+        { entries: [] }
     );
 
     const [apps, setAppParameters] = useCloudAPI<Page<ApplicationSummaryWithFavorite>>(
@@ -170,7 +169,7 @@ export const App: React.FunctionComponent = () => {
     ];
 
     // Loading of permission entries
-    useEffect(() => {
+    useEffectSkipMount(() => {
         fetchPermissionEntries(AppStore.retrieveAcl({name: name}));
         setGroups(AppStore.browseGroups({itemsPerPage: 250}));
     }, [name]);
@@ -190,6 +189,9 @@ export const App: React.FunctionComponent = () => {
             appVersions.push({version: item.metadata.version, isPublic: item.metadata.public});
         });
         setVersions(appVersions);
+        if (apps.data.items.length && flavorField.current) {
+            flavorField.current.value = apps.data.items[0].metadata.flavorName ?? "";
+        }
     }, [apps.data.items]);
 
     useTitle("Application Studio | Applications");
@@ -393,7 +395,7 @@ export const App: React.FunctionComponent = () => {
                         </Box>
                         <Flex key={5} mb={16} mt={26}>
                             <Box width={800}>
-                                {(permissionEntries.data.length > 0) ? (
+                                {(permissionEntries.data.entries.length > 0) ? (
                                     <Table>
                                         <LeftAlignedTableHeader>
                                             <TableRow>
@@ -403,7 +405,7 @@ export const App: React.FunctionComponent = () => {
                                             </TableRow>
                                         </LeftAlignedTableHeader>
                                         <tbody>
-                                        {permissionEntries.data.map((permissionEntry, index) => (
+                                        {permissionEntries.data.entries.map((permissionEntry, index) => (
                                             <TableRow key={index}>
                                                 <TableCell>
                                                     {(permissionEntry.entity.user) ? (
@@ -488,11 +490,11 @@ export const App: React.FunctionComponent = () => {
                                                             checked={version.isPublic}
                                                             onChange={stopPropagation}
                                                             onClick={() => {
-                                                                Client.post(`/hpc/apps/setPublic`, {
-                                                                    appName: name,
-                                                                    appVersion: version.version,
+                                                                callAPI(AppStore.updatePublicFlag({
+                                                                    name,
+                                                                    version: version.version,
                                                                     public: !version.isPublic
-                                                                });
+                                                                }));
 
                                                                 setVersions(versions.map(v =>
                                                                     (v.version === version.version) ?

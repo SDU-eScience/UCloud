@@ -274,6 +274,7 @@ ${ApiConventions.nonConformingApiWarning}
     val retrieveAcl = RetrieveAcl.call
     val updateAcl = UpdateAcl.call
     val updatePublicFlag = UpdatePublicFlag.call
+    val listAllApplications = ListAllApplications.call
 
     // Starred applications
     // =================================================================================================================
@@ -297,6 +298,7 @@ ${ApiConventions.nonConformingApiWarning}
     // =================================================================================================================
     val createCategory = CreateCategory.call
     val browseCategories = BrowseCategories.call
+    val retrieveCategory = RetrieveCategory.call
     val addGroupToCategory = AddGroupToCategory.call
     val removeGroupFromCategory = RemoveGroupFromCategory.call
 
@@ -557,7 +559,7 @@ ${ApiConventions.nonConformingApiWarning}
         @Serializable
         data class Request(
             val name: String,
-            val group: Int?,
+            val group: Int? = null,
         )
 
         val call = call(
@@ -737,6 +739,18 @@ ${ApiConventions.nonConformingApiWarning}
         )
     }
 
+    object RetrieveCategory {
+        val call = call(
+            "retrieveCategory",
+            FindByIntId.serializer(),
+            ApplicationCategory.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "category")
+            }
+        )
+    }
+
     object AddLogoToGroup {
         @Serializable
         data class Request(
@@ -873,6 +887,23 @@ ${ApiConventions.nonConformingApiWarning}
             }
         )
     }
+
+    object ListAllApplications {
+        @Serializable
+        data class Response(
+            val items: List<NameAndVersion>,
+        )
+
+        val call = call(
+            "listAllApplications",
+            Unit.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "allApplications", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
 }
 
 @Serializable
@@ -881,6 +912,7 @@ data class TopPick(
     val applicationName: String?,
     val groupId: Int?,
     val description: String,
+    val defaultApplicationToRun: String? = null,
 ) {
     init {
         if (applicationName != null && groupId != null) {
@@ -907,6 +939,10 @@ data class CarrouselItem(
     val linkedApplication: String? = null,
     val linkedWebPage: String? = null,
     val linkedGroup: Int? = null,
+
+    // if linkedGroup != null this will point to the default app. if linkedApplication != null then it will be equal
+    // to linkedApplication
+    val resolvedLinkedApp: String? = null,
 ) {
     init {
         checkSingleLine(::title, title)
@@ -942,7 +978,7 @@ data class Spotlight(
 data class ApplicationGroup(
     val metadata: Metadata,
     val specification: Specification,
-    val status: Status? = null,
+    val status: Status = Status(),
 ) {
     @Serializable
     data class Metadata(
@@ -959,14 +995,15 @@ data class ApplicationGroup(
 
     @Serializable
     data class Status(
-        val applications: List<ApplicationWithFavoriteAndTags>,
+        val applications: List<ApplicationWithFavoriteAndTags>? = null,
     )
 }
 
 @Serializable
 data class ApplicationCategory(
     val metadata: Metadata,
-    val specification: Specification
+    val specification: Specification,
+    val status: Status = Status(),
 ) {
     @Serializable
     data class Metadata(
@@ -977,6 +1014,11 @@ data class ApplicationCategory(
     data class Specification(
         val title: String,
         val description: String? = null,
+    )
+
+    @Serializable
+    data class Status(
+        val groups: List<ApplicationGroup>? = null,
     )
 }
 

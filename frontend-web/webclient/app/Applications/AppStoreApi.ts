@@ -2,6 +2,8 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {inSuccessRange} from "@/UtilityFunctions";
+import {FindByLongId} from "@/UCloud";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
 const baseContext = "/api/hpc/apps";
 
@@ -324,7 +326,7 @@ export interface ApplicationSummaryWithFavorite {
 export interface ApplicationGroup {
     metadata: ApplicationGroupMetadata;
     specification: ApplicationGroupSpecification;
-    status?: ApplicationGroupStatus;
+    status: ApplicationGroupStatus;
 }
 
 export interface ApplicationGroupMetadata {
@@ -339,12 +341,13 @@ export interface ApplicationGroupSpecification {
 }
 
 export interface ApplicationGroupStatus {
-    applications: ApplicationWithFavoriteAndTags[];
+    applications?: ApplicationWithFavoriteAndTags[] | null;
 }
 
 export interface ApplicationCategory {
     metadata: ApplicationCategoryMetadata;
     specification: ApplicationCategorySpecification;
+    status: ApplicationCategoryStatus;
 }
 
 export interface ApplicationCategoryMetadata {
@@ -354,6 +357,10 @@ export interface ApplicationCategoryMetadata {
 export interface ApplicationCategorySpecification {
     title: string;
     description?: string | null;
+}
+
+export interface ApplicationCategoryStatus {
+    groups?: ApplicationGroup[] | null;
 }
 
 // Tool API
@@ -423,37 +430,29 @@ export function create(file: File): Promise<{ error?: string }> {
 async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{ error?: string }> {
     const token = await Client.receiveAccessTokenOrRefreshIt();
 
-    return new Promise(resolve => {
-        const request = new XMLHttpRequest();
-        request.open(method, Client.computeURL("/", path));
-        request.setRequestHeader("Authorization", `Bearer ${token}`);
-        if (headers) {
-            for (const [name, value] of Object.entries(headers)) {
-                request.setRequestHeader(name, value);
-            }
+    const actualHeaders: Record<string, string> = {...(headers ?? {})};
+    actualHeaders["Authorization"] = `Bearer ${token}`;
+
+    const response = await fetch(Client.computeURL("/", path), {
+        method: method,
+        headers: actualHeaders,
+        body: file,
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        let message: string;
+        try {
+            message = JSON.parse(text).why;
+        } catch (e) {
+            message = "Upload failed: " + text;
+            console.log(e, text);
         }
 
-        request.responseType = "text";
-        request.onreadystatechange = () => {
-            if (request.status !== 0) {
-                if (!inSuccessRange(request.status)) {
-                    let message = "Upload failed";
-                    try {
-                        message = JSON.parse(request.responseText).why;
-                    } catch (e) {
-                        console.log(e);
-                        console.log(request.responseText);
-                        // Do nothing
-                    }
-                    resolve({ error: message });
-                } else {
-                    resolve({});
-                }
-            }
-        };
-
-        request.send(file);
-    });
+        return { error: message };
+    } else {
+        return {};
+    }
 }
 
 export function search(request: {
@@ -498,6 +497,10 @@ export function updatePublicFlag(request: {
     return apiUpdate(request, baseContext, "updatePublicFlag");
 }
 
+export function listAllApplications(request: {}): APICallParameters<unknown, { items: NameAndVersion[] }> {
+    return apiRetrieve(request, baseContext, "allApplications");
+}
+
 // Starred applications
 // =================================================================================================================
 export function toggleStar(request: { name: string }): APICallParameters<unknown, unknown> {
@@ -536,7 +539,7 @@ export function deleteGroup(request: { id: number }): APICallParameters<unknown,
 }
 
 export function addLogoToGroup(groupId: number, logo: File): Promise<{ error?: string }> {
-    return uploadFile("POST", `${baseContext}/uploadLogo`, logo, { "Upload-Name": groupId.toString() });
+    return uploadFile("POST", `${baseContext}/uploadLogo`, logo, { "Upload-Name": b64EncodeUnicode(groupId.toString()) });
 }
 
 export function removeLogoFromGroup(request: { id: number }): APICallParameters<unknown, unknown> {
@@ -566,6 +569,10 @@ export function createCategory(request: ApplicationCategorySpecification): APICa
 
 export function browseCategories(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
     return apiBrowse(request, baseContext, "categories");
+}
+
+export function retrieveCategory(request: FindByLongId): APICallParameters<unknown, ApplicationCategory> {
+    return apiRetrieve(request, baseContext, "category");
 }
 
 export function addGroupToCategory(request: {
@@ -599,6 +606,8 @@ export interface CarrouselItem {
     imageCredit: string;
     linkedApplication?: string | null;
     linkedWebPage?: string | null;
+    linkedGroup?: number | null;
+    resolvedLinkedApp?: string | null;
 }
 
 export interface TopPick {
@@ -606,6 +615,7 @@ export interface TopPick {
     applicationName?: string | null
     groupId?: number | null;
     description: string;
+    defaultApplicationToRun?: string | null;
 }
 
 export interface Spotlight {

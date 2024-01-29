@@ -59,6 +59,7 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
         border-radius: 6px;
         padding: 6px 12px;
         display: flex;
+        user-select: none;
     }
     
     ${k}:hover {

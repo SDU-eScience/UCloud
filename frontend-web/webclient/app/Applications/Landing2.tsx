@@ -5,19 +5,17 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import {Box, Button, Card, Flex, Grid, Icon, Markdown} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import heroExample from "@/Assets/Images/hero-example.jpeg";
-import heroExample2 from "@/Assets/Images/hero-example-2.jpeg";
-import heroExample3 from "@/Assets/Images/hero-example-3.jpeg";
-import heroExample4 from "@/Assets/Images/hero-example-4.jpeg";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ThemeColor} from "@/ui-components/theme";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {useRefresh, useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {doNothing} from "@/UtilityFunctions";
-import {EllipsedText} from "@/ui-components/Text";
+import AppRoutes from "@/Routes";
+import {Link as ReactRouterLink} from "react-router-dom";
+import {useAppSearch} from "@/Applications/Search";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -50,7 +48,7 @@ const LandingPage: React.FunctionComponent = () => {
 
     const [starred, fetchStarred] = useCloudAPI(
         AppStore.retrieveStars({}),
-        { items: [] }
+        {items: []}
     );
 
     const landingPage = landingPageState.data;
@@ -60,14 +58,20 @@ const LandingPage: React.FunctionComponent = () => {
         fetchStarred(AppStore.retrieveStars({})).then(doNothing);
     }, []);
     useSetRefreshFunction(refresh);
+    const appSearch = useAppSearch();
 
-    if (!landingPage) return null;
+    if (!landingPage) return <div>
+        <div className={Gradient}>
+            <div className={GradientWithPolygons}>
+            </div>
+        </div>
+    </div>;
 
     return <div>
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
                 <article className={landingStyle}>
-                    <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar searchEnabled={true}/></Flex>
+                    <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
                     <Hero slides={landingPage.carrousel}/>
 
                     <TitledCard title={"Top picks"} icon={"heroChartBar"}>
@@ -75,7 +79,8 @@ const LandingPage: React.FunctionComponent = () => {
                             {landingPage.topPicks.map(pick => {
                                 if (pick.groupId) {
                                     return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                                                     title={pick.title} description={pick.description} />;
+                                                     title={pick.title} description={pick.description}
+                                                     applicationName={pick.defaultApplicationToRun}/>;
                                 } else {
                                     return null;
                                 }
@@ -87,7 +92,8 @@ const LandingPage: React.FunctionComponent = () => {
                         <AppCardGrid>
                             {starred.data.items.map(a => {
                                 return <AppCard1 name={a.metadata.name} title={a.metadata.title}
-                                          description={a.metadata.description} key={a.metadata.name} isApplication/>;
+                                                 description={a.metadata.description} key={a.metadata.name}
+                                                 isApplication/>;
                             })}
                         </AppCardGrid>
                     </TitledCard>
@@ -95,64 +101,56 @@ const LandingPage: React.FunctionComponent = () => {
                     <TitledCard title={"Browse by category"} icon={"heroMagnifyingGlass"}>
                         <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(200px, 1fr)"}>
                             {landingPage.categories.map(c =>
-                                <CategoryCard key={c.metadata.id} categoryTitle={c.specification.title}/>
+                                <CategoryCard key={c.metadata.id} id={c.metadata.id}
+                                              categoryTitle={c.specification.title}/>
                             )}
                         </Grid>
                     </TitledCard>
 
                     {landingPage.spotlight &&
-                    <TitledCard title={`Spotlight: ${landingPage.spotlight.title}`} icon={"heroBeaker"}>
-                        <Flex flexDirection={"row"} gap={"32px"}>
-                            <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
-                                {landingPage.spotlight.applications.map(pick => {
-                                    if (pick.groupId) {
-                                        return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                                                         title={pick.title} description={pick.description} fullWidth />;
-                                    } else {
-                                        return null;
-                                    }
-                                })}
+                        <TitledCard title={`Spotlight: ${landingPage.spotlight.title}`} icon={"heroBeaker"}>
+                            <Flex flexDirection={"row"} gap={"32px"}>
+                                <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
+                                    {landingPage.spotlight.applications.map((pick, idx) => {
+                                        if (pick.groupId) {
+                                            return <AppCard1 key={idx} name={pick.groupId.toString()}
+                                                             title={pick.title} description={pick.description}
+                                                             applicationName={pick.defaultApplicationToRun}
+                                                             fullWidth/>;
+                                        } else {
+                                            return null;
+                                        }
+                                    })}
+                                </Flex>
+                                <Box width={"400px"} flexShrink={1} flexGrow={0}>
+                                    <div className={SpotlightDescription} style={{fontStyle: "italic"}}>
+                                        <Markdown allowedElements={["p"]}>
+                                            {landingPage.spotlight.body}
+                                        </Markdown>
+                                    </div>
+                                </Box>
                             </Flex>
-                            <Box width={"400px"} flexShrink={1} flexGrow={0}>
-                                <div className={SpotlightDescription} style={{fontStyle: "italic"}}>
-                                    <Markdown allowedElements={["p"]}>
-                                        {landingPage.spotlight.body}
-                                    </Markdown>
-                                </div>
-                            </Box>
-                        </Flex>
-                    </TitledCard>
+                        </TitledCard>
                     }
 
                     <TabbedCard>
                         <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
                             <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                <AppCard1 name={"13"} title={"VS Code"} description={"Text and code editor."}
-                                          fullWidth/>
-                                <AppCard1 name={"13"} title={"VS Code"} description={"Text and code editor."}
-                                          fullWidth/>
-                                <AppCard1 name={"13"} title={"VS Code"} description={"Text and code editor."}
-                                          fullWidth/>
-                                <AppCard1 name={"13"} title={"VS Code"} description={"Text and code editor."}
-                                          fullWidth/>
-                                <AppCard1 name={"13"} title={"VS Code"} description={"Text and code editor."}
-                                          fullWidth/>
-
+                                {landingPage.newApplications.map(app => (
+                                    <AppCard1 name={app.metadata.name} title={app.metadata.title}
+                                              description={app.metadata.description} fullWidth key={app.metadata.name}
+                                              isApplication/>
+                                ))}
                             </Flex>
                         </TabbedCardTab>
 
                         <TabbedCardTab icon={"heroCheckCircle"} name={"Recently updated"}>
                             <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
-                                <AppCard1 name={"12"} title={"Ubuntu"} description={"Remote desktop with Ubuntu."}
-                                          fullWidth/>
+                                {landingPage.recentlyUpdated.map(app => (
+                                    <AppCard1 name={app.metadata.name} title={app.metadata.title}
+                                              description={app.metadata.description} fullWidth key={app.metadata.name}
+                                              isApplication/>
+                                ))}
                             </Flex>
                         </TabbedCardTab>
                     </TabbedCard>
@@ -228,13 +226,6 @@ const HeroStyle = injectStyle("hero", k => `
     }
 `);
 
-interface CarouselSlide {
-    imageSource: string;
-    title: string;
-    description: string;
-    imageCredit: string;
-}
-
 const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
     onClick: () => void;
@@ -265,11 +256,22 @@ const Hero: React.FunctionComponent<{ slides: AppStore.CarrouselItem[] }> = ({sl
     const index = activeIndex % slides.length;
     const slide = slides[index];
 
+    let slideLink = slide.linkedWebPage;
+    let slideLinkIsExternal = true;
+    if (!slideLink) {
+        slideLinkIsExternal = false;
+        if (slide.resolvedLinkedApp) {
+            slideLink = AppRoutes.jobs.create(slide.resolvedLinkedApp);
+        } else {
+            slideLink = AppRoutes.apps.group((slide.linkedGroup ?? 1).toString());
+        }
+    }
+
     return <Card style={{overflow: "hidden"}}>
         <div className={HeroStyle}>
             <div className={"carousel"}>
                 <div>
-                    <img alt={"cover image"} src={AppStore.retrieveCarrouselImage({ index, slideTitle: slide.title })}/>
+                    <img alt={"cover image"} src={AppStore.retrieveCarrouselImage({index, slideTitle: slide.title})}/>
                     <div className="indicators">
                         <Icon color={"#d3d3d4" as ThemeColor} hoverColor={"#a6a8a9" as ThemeColor} cursor={"pointer"}
                               name={"heroChevronLeft"} onClick={goBack}/>
@@ -295,7 +297,14 @@ const Hero: React.FunctionComponent<{ slides: AppStore.CarrouselItem[] }> = ({sl
                     </div>
                     <Box flexGrow={1}/>
                     <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>
-                    <Button><Icon name={"heroPlay"}/> Open application</Button>
+                    <ReactRouterLink
+                        to={slideLink}
+                        style={{width: "100%"}}
+                        target={slideLinkIsExternal ? "_blank" : undefined}
+                        rel="noopener"
+                    >
+                        <Button fullWidth><Icon name={"heroPlay"}/> Open application</Button>
+                    </ReactRouterLink>
                 </div>
             </div>
 
@@ -313,6 +322,7 @@ const AppCard1Style = injectStyle("app-card-1", k => `
         border-bottom: 1px solid var(--appCardBorderColor, var(--borderColor));
         width: 331px;
         cursor: pointer;
+        align-items: center;
     }
     
     ${k}.full-width {
@@ -326,10 +336,25 @@ const AppCard1Style = injectStyle("app-card-1", k => `
         margin-top: -0.3rem;
     }
     
-    ${k} .description {
+    ${k} .content {
+        max-width: calc(100% - 50px);
+    }
+    
+    ${k} .description, ${k} .description p {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
         font-size: 1rem;
         color: var(--textSecondary);
         margin: 0;
+    }
+    
+    ${k} .description p:first-child {
+        margin-top: 0;
+    }
+    
+    ${k} .description p:last-child {
+        margin-bottom: 0;
     }
 `);
 
@@ -339,14 +364,23 @@ const AppCard1: React.FunctionComponent<{
     description: string;
     fullWidth?: boolean;
     isApplication?: boolean;
+    applicationName?: string | null;
 }> = props => {
-    return <div className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}>
+    let link = props.isApplication ? AppRoutes.jobs.create(props.name) : AppRoutes.apps.group(props.name);
+    if (props.applicationName) {
+        link = AppRoutes.jobs.create(props.applicationName);
+    }
+
+    return <ReactRouterLink to={link}
+                            className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}>
         <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
-        <div>
+        <div className={"content"}>
             <h2>{props.title}</h2>
-            <EllipsedText className={"description"} width={"270px"}>{props.description}</EllipsedText>
+            <div className={"description"}>
+                <Markdown allowedElements={["p", "i", "b"]}>{props.description}</Markdown>
+            </div>
         </div>
-    </div>;
+    </ReactRouterLink>;
 };
 
 const AppCardGridStyle = injectStyle("app-card-grid", k => `
@@ -357,7 +391,6 @@ const AppCardGridStyle = injectStyle("app-card-grid", k => `
         row-gap: 10px;
         flex-wrap: wrap;
     }
-    
     
     ${k} *:nth-child(3n+1):nth-last-child(-n+3),
     ${k} *:nth-child(3n+1):nth-last-child(-n+3) ~ * {
@@ -387,18 +420,13 @@ const SafeLogo: React.FunctionComponent<{
     </div>;
 }
 
-const CategoryCardStyle = injectStyle("category-card", k => `
-    ${k} {
-        
-    }
-`);
-
 const CategoryCard: React.FunctionComponent<{
+    id: number;
     categoryTitle: string;
 }> = props => {
-    return <Button className={CategoryCardStyle}>
-        {props.categoryTitle}
-    </Button>
+    return <ReactRouterLink to={AppRoutes.apps.category(props.id)}>
+        <Button fullWidth>{props.categoryTitle}</Button>
+    </ReactRouterLink>;
 }
 
 const SpotlightDescription = injectStyle("spotlight-description", k => `

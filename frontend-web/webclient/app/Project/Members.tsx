@@ -575,7 +575,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     return <MainContainer
         header={<Spacer
             left={<ProjectPageTitle>Members</ProjectPageTitle>}
-            right={<Flex mr="36px" height={"26px"}><UtilityBar searchEnabled={false} /></Flex>}
+            right={<Flex mr="36px" height={"26px"}><UtilityBar /></Flex>}
         />}
         headerSize={72}
         main={

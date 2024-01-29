@@ -50,8 +50,7 @@ const syncthing = {
 
 const apps = {
     landing: () => "/applications",
-    section: (sectionId: number) => `/applications/full#section${sectionId}`,
-    overview: () => "/applications/full",
+    category: (categoryId?: number) => buildQueryString(`/applications/category`, { categoryId }),
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     studioGroups: () => "/applications/studio/groups",
@@ -64,7 +63,7 @@ const apps = {
 
 const jobs = {
     list: () => `/jobs/`,
-    create: (name: string, version: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
+    create: (name: string, version?: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
     view: (jobId: string) => `/jobs/properties/${jobId}`,
     results: () => `/applications/results`,
 };
