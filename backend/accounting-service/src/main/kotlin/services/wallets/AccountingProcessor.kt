@@ -1831,9 +1831,9 @@ class AccountingProcessor(
                     }
                 }
             }
-            if (activeQuota < totalUsage) {
-                return AccountingResponse.Charge(false)
-            }
+        }
+        if (activeQuota < totalUsage) {
+            return AccountingResponse.Charge(false)
         }
         return AccountingResponse.Charge(true)
     }
