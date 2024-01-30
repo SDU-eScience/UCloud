@@ -1,6 +1,7 @@
 import * as React from "react";
-import Box, {BoxProps} from "./Box";
+import Box from "./Box";
 import Flex from "./Flex";
+import {BoxProps} from "./Types";
 
 interface SpacerProps extends BoxProps {
     left: React.ReactNode;

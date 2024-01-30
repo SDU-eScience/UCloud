@@ -1,4 +1,4 @@
-import {BoxProps} from "@/ui-components/Box";
+import {BoxProps} from "./Types";
 import * as React from "react";
 import {classConcat, extractDataTags, extractEventHandlers, injectStyleSimple, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";

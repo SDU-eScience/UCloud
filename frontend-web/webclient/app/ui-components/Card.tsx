@@ -9,9 +9,9 @@ import {
     PaddingProps
 } from "styled-system";
 
-import {BoxProps} from "./Box";
 import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
+import {BoxProps} from "./Types";
 
 export interface CardProps extends HeightProps,
     BoxProps,

@@ -1,7 +1,8 @@
 import {ButtonClass} from "./Button";
 import {injectStyle} from "@/Unstyled";
 import * as React from "react";
-import Box, {BoxProps} from "@/ui-components/Box";
+import Box from "@/ui-components/Box";
+import {BoxProps} from "./Types";
 
 export const ButtonGroupClass = injectStyle("button-group", k => `
     ${k} {

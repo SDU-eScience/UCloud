@@ -1,7 +1,8 @@
-import Box, {BoxProps} from "./Box";
+import Box from "./Box";
 import * as React from "react";
 import {CSSProperties} from "react";
 import {extractSize} from "@/Unstyled";
+import {BoxProps} from "./Types";
 
 const Absolute: React.FunctionComponent<BoxProps & {
     top?: number | string;

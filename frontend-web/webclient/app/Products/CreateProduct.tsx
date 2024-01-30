@@ -5,7 +5,7 @@ import {Button, Checkbox, Input, Label, Select, TextArea} from "@/ui-components"
 import {InputLabel} from "@/ui-components/Input";
 import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useLayoutEffect, useState} from "react";
-import {BoxProps} from "@/ui-components/Box";
+import {BoxProps} from "@/ui-components/Types";
 
 export interface DataType {
     required: string[];
