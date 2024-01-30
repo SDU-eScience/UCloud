@@ -35,6 +35,7 @@ import {NewsPost} from "@/NewsPost";
 import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
+import {toNewApplicationArgs} from "@/Accounting/Usage";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -83,16 +84,16 @@ function Dashboard(): React.JSX.Element {
     const main = (<Box mx="auto" maxWidth={"1200px"}>
         <Flex pt="12px" pb="24px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
-            <DashboardNews news={news}/>
-            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload}/>
+            <DashboardNews news={news} />
+            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
 
             <div className={GridClass}>
-                <DashboardResources wallets={wallets}/>
-                <DashboardRuns reloadRef={runsReload}/>
+                <DashboardResources wallets={wallets} />
+                <DashboardRuns reloadRef={runsReload} />
             </div>
             <div className={GridClass}>
-                <Connect embedded/>
-                <DashboardGrantApplications reloadRef={grantsReload}/>
+                <Connect embedded />
+                <DashboardGrantApplications reloadRef={grantsReload} />
             </div>
         </Box>
     </Box>);
@@ -100,7 +101,7 @@ function Dashboard(): React.JSX.Element {
     return (
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
-                <MainContainer main={main}/>
+                <MainContainer main={main} />
             </div>
         </div>
     );
@@ -143,17 +144,17 @@ function Invites({projectReloadRef, inviteReloadRef}: {
             title="Invites"
         >
             <div style={display(showProjectInvites)}><ProjectInviteBrowse
-                opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}}/></div>
+                opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
                 reloadRef: inviteReloadRef,
                 embedded: true,
                 setShowBrowser: setShowShareInvites,
                 filterState: "PENDING"
-            }}/></div>
+            }} /></div>
         </DashboardCard>
     </Flex>
 
-    function display(val: boolean): { display: "none" | undefined } {
+    function display(val: boolean): {display: "none" | undefined} {
         return {display: val ? undefined : "none"}
     }
 }
@@ -171,7 +172,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardRuns({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): JSX.Element {
+function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): JSX.Element {
     return <DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
@@ -180,13 +181,19 @@ function DashboardRuns({reloadRef}: { reloadRef: React.MutableRefObject<() => vo
         <JobsBrowse opts={{
             embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
             additionalFilters: {"itemsPerPage": "10"}, reloadRef
-        }}/>
+        }} />
     </DashboardCard>;
 }
 
-const APPLY_LINK_BUTTON = <Link to={AppRoutes.grants.editor()} mt={8}>
-    <Button mt={8}>Apply for resources</Button>
-</Link>;
+function ApplyLinkButton(): React.JSX.Element {
+    const project = useProject();
+    const canApply = isAdminOrPI(project.fetch().status.myRole);
+    if (!canApply) return <div />
+
+    return <Link to={AppRoutes.grants.newApplication(toNewApplicationArgs())} mt={8}>
+        <Button mt={8}>Apply for resources</Button>
+    </Link>;
+}
 
 function DashboardResources({wallets}: {
     wallets: APICallState<PageV2<Accounting.WalletV2>>;
@@ -223,49 +230,49 @@ function DashboardResources({wallets}: {
             title="Resource allocations"
             icon={"heroBanknotes"}>
             {mapped.length === 0 ? (
-                    <NoResultsCardBody title={"No available resources"}>
-                        {!canApply ? null : <Text>
-                            Apply for resources to use storage and compute on UCloud.
-                        </Text>}
-                        {APPLY_LINK_BUTTON}
-                    </NoResultsCardBody>
-                ) :
+                <NoResultsCardBody title={"No available resources"}>
+                    {!canApply ? null : <Text>
+                        Apply for resources to use storage and compute on UCloud.
+                    </Text>}
+                    <ApplyLinkButton key={Client.projectId} />
+                </NoResultsCardBody>
+            ) :
                 /* height is 100% - height of Heading 55px */
                 <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                     <Table>
                         <tbody>
-                        {mapped.slice(0, 7).map((n, i) => (
-                            <TableRow key={i}>
-                                <TableCell fontSize={FONT_SIZE}>
-                                    <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                        <ProviderLogo providerId={n.category.provider} size={20}/>
-                                        <code>{n.category.name}</code>
-                                    </Flex>
-                                </TableCell>
-                                <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                    {Accounting.balanceToString(n.category, n.used, {
-                                        precision: 0,
-                                        removeUnitIfPossible: true
-                                    })}
-                                    {" "}/{" "}
-                                    {Accounting.balanceToString(n.category, n.quota, {
-                                        precision: 0,
-                                        removeUnitIfPossible: false
-                                    })}
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                            {mapped.slice(0, 7).map((n, i) => (
+                                <TableRow key={i}>
+                                    <TableCell fontSize={FONT_SIZE}>
+                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                            <ProviderLogo providerId={n.category.provider} size={20} />
+                                            <code>{n.category.name}</code>
+                                        </Flex>
+                                    </TableCell>
+                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                        {Accounting.balanceToString(n.category, n.used, {
+                                            precision: 0,
+                                            removeUnitIfPossible: true
+                                        })}
+                                        {" "}/{" "}
+                                        {Accounting.balanceToString(n.category, n.quota, {
+                                            precision: 0,
+                                            removeUnitIfPossible: false
+                                        })}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
                         </tbody>
                     </Table>
-                    <Box flexGrow={1}/>
-                    <Flex mx="auto">{APPLY_LINK_BUTTON}</Flex>
+                    <Box flexGrow={1} />
+                    <Flex mx="auto"><ApplyLinkButton key={Client.projectId} /></Flex>
                 </Flex>
             }
         </DashboardCard>
     );
 }
 
-function DashboardGrantApplications({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): React.ReactNode {
+function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -283,11 +290,11 @@ function DashboardGrantApplications({reloadRef}: { reloadRef: React.MutableRefOb
             disabledKeyhandlers: true,
             both: true,
             additionalFilters: {itemsPerPage: "10"}
-        }}/>
+        }} />
     </DashboardCard>;
 };
 
-function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): JSX.Element | null {
+function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Element | null {
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
         <DashboardCard
@@ -325,14 +332,14 @@ function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): JSX.Elem
 
             <Relative>
                 <div className={DeicBanner}>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <ExternalLink href={"https://deic.dk"}>
                         <div>UCloud is delivered by the Danish e-Infrastructure Consortium</div>
                     </ExternalLink>
                     <ExternalLink href={"https://deic.dk"}>
-                        <Icon mx="auto" my="-32px" name="deiCLogo" size="64px"/>
+                        <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
                     </ExternalLink>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                 </div>
             </Relative>
         </DashboardCard>

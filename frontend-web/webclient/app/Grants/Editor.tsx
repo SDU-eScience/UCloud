@@ -32,8 +32,8 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
-import { periodsOverlap } from "@/Accounting";
 import {Project, isAdminOrPI} from "@/Project";
+import {BaseLinkClass} from "@/ui-components/BaseLink";
 
 // State model
 // =====================================================================================================================
@@ -44,9 +44,9 @@ interface EditorState {
     fullScreenLoading: boolean;
     fullScreenError?: string;
 
-    allocationPeriod: { start: { month: number, year: number }, durationInMonths: number };
+    allocationPeriod: {start: {month: number, year: number}, durationInMonths: number};
     principalInvestigator: string;
-    loadedProjects: { id: string | null; title: string; }[];
+    loadedProjects: {id: string | null; title: string;}[];
 
     stateDuringCreate?: {
         creatingWorkspace: boolean;
@@ -140,53 +140,53 @@ const defaultState: EditorState = {
 // State reducer
 // =====================================================================================================================
 type EditorAction =
-    { type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[] }
+    {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
-          type: "GrantGiverInitiatedLoaded",
-          wallets: Accounting.WalletV2[],
-          start: number,
-          end: number,
-          title: string,
-          projectId?: string,
-          piUsernameHint: string
-      }
-    | { type: "AllocatorsLoaded", allocators: Grants.GrantGiver[] }
-    | { type: "DurationUpdated", month?: number, year?: number, duration?: number }
-    | { type: "AllocatorChecked", isChecked: boolean, allocatorId: string }
+        type: "GrantGiverInitiatedLoaded",
+        wallets: Accounting.WalletV2[],
+        start: number,
+        end: number,
+        title: string,
+        projectId?: string,
+        piUsernameHint: string
+    }
+    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[]}
+    | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
+    | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
-          type: "BalanceUpdated",
-          provider: string,
-          category: string,
-          allocator: string,
-          balance: number | null,
-          splitIndex?: number
-      }
-    | { type: "SetIsCreating" }
-    | { type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string }
-    | { type: "ProjectsReloaded", projects: { id: string | null, title: string }[] }
-    | { type: "ApplicationUpdated", section: string, contents: string }
-    | { type: "LoadingStateChange", isLoading: boolean }
+        type: "BalanceUpdated",
+        provider: string,
+        category: string,
+        allocator: string,
+        balance: number | null,
+        splitIndex?: number
+    }
+    | {type: "SetIsCreating"}
+    | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
+    | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
+    | {type: "ApplicationUpdated", section: string, contents: string}
+    | {type: "LoadingStateChange", isLoading: boolean}
     | {
-          type: "SourceAllocationUpdated",
-          provider: string,
-          category: string,
-          allocator: string,
-          allocationId?: string,
-          splitIndex: number
-      }
-    | { type: "ReferenceIdUpdated", newReferenceId: string, idx: number }
-    | { type: "CleanupReferenceIds" }
-    | { type: "CommentPosted", comment: string, grantId: string }
-    | { type: "CommentsReloaded", comments: Grants.Comment[] }
-    | { type: "CommentDeleted", grantId: string, commentId: string }
-    | { type: "Unlock" }
-    | { type: "OpenRevision", revision: number }
-    | { type: "GrantGiverStateChange", grantGiver: string, approved: boolean, grantId: string }
-    | { type: "UpdateFullScreenLoading", isLoading: boolean }
-    | { type: "UpdateFullScreenError", error: string }
-    | { type: "CleanupSplits" }
-    | { type: "SetResourceError", provider: string, category: string, allocator: string, message: string }
-    | { type: "AutoAssignAllocations" }
+        type: "SourceAllocationUpdated",
+        provider: string,
+        category: string,
+        allocator: string,
+        allocationId?: string,
+        splitIndex: number
+    }
+    | {type: "ReferenceIdUpdated", newReferenceId: string, idx: number}
+    | {type: "CleanupReferenceIds"}
+    | {type: "CommentPosted", comment: string, grantId: string}
+    | {type: "CommentsReloaded", comments: Grants.Comment[]}
+    | {type: "CommentDeleted", grantId: string, commentId: string}
+    | {type: "Unlock"}
+    | {type: "OpenRevision", revision: number}
+    | {type: "GrantGiverStateChange", grantGiver: string, approved: boolean, grantId: string}
+    | {type: "UpdateFullScreenLoading", isLoading: boolean}
+    | {type: "UpdateFullScreenError", error: string}
+    | {type: "CleanupSplits"}
+    | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
+    | {type: "AutoAssignAllocations"}
     ;
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -377,7 +377,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     durationInMonths: Math.max(
                         3,
                         ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
-                            (end.getUTCMonth() - start.getUTCMonth()),
+                        (end.getUTCMonth() - start.getUTCMonth()),
                     )
                 },
                 stateDuringEdit: {
@@ -395,7 +395,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     stateByGrantGiver: {},
                     allowWithdrawal: false,
                     newestRevision: 0,
-                    revisions: [{ revisionNumber: 0, updatedBy: Client.username ?? "?", createdAt: timestampUnixMs() }],
+                    revisions: [{revisionNumber: 0, updatedBy: Client.username ?? "?", createdAt: timestampUnixMs()}],
                     document: {
                         recipient,
                         allocationRequests: [],
@@ -962,15 +962,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 // =====================================================================================================================
 type EditorEvent =
     EditorAction
-    | { type: "Init", grantId?: string, scrollToTop?: boolean, affiliationRequest?: Grants.RetrieveGrantGiversRequest }
-    | { type: "InitGrantGiverInitiated", title: string, projectId?: string, start: number, end: number, piUsernameHint: string }
-    | { type: "Withdraw", id: string }
+    | {type: "Init", grantId?: string, scrollToTop?: boolean, affiliationRequest?: Grants.RetrieveGrantGiversRequest}
+    | {type: "InitGrantGiverInitiated", title: string, projectId?: string, start: number, end: number, piUsernameHint: string}
+    | {type: "Withdraw", id: string}
     ;
 
 function useStateReducerMiddleware(
     doDispatch: (e: EditorAction) => void,
     scrollToTopRef: React.MutableRefObject<boolean>,
-): { dispatchEvent: (e: EditorEvent) => unknown } {
+): {dispatchEvent: (e: EditorEvent) => unknown} {
     const didCancel = useDidUnmount();
     const dispatchEvent = useCallback(async (event: EditorEvent) => {
         function dispatch(ev: EditorAction) {
@@ -1049,7 +1049,7 @@ function useStateReducerMiddleware(
             }
 
             case "InitGrantGiverInitiated": {
-                const pProject = callAPI<Project>(Projects.api.retrieve({ id: Client.projectId ?? "" }));
+                const pProject = callAPI<Project>(Projects.api.retrieve({id: Client.projectId ?? ""}));
                 const pWallets = fetchAll(next => callAPI(Accounting.browseWalletsV2({itemsPerPage: 250, next})));
                 const project = await pProject;
                 const wallets = (await pWallets).filter(it => !it.paysFor.freeToUse);
@@ -1430,7 +1430,7 @@ const style = injectStyle("grant-editor", k => `
 
 // Main user-interface
 // =====================================================================================================================
-export const Editor: React.FunctionComponent = () => {
+export function Editor(): React.JSX.Element {
     const scrollToTopRef = useRef(false);
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
@@ -1441,44 +1441,57 @@ export const Editor: React.FunctionComponent = () => {
 
     useEffect(() => {
         (async () => {
-            if (getQueryParam(location.search, "type") === "grantGiverInitiated") {
-                const startP = getQueryParam(location.search, "start");
-                const endP = getQueryParam(location.search, "end");
-                const title = getQueryParam(location.search, "title");
-                const piUsernameHint = getQueryParam(location.search, "piUsernameHint");
-                const projectId = getQueryParam(location.search, "projectId");
+            switch (getQueryParam(location.search, "type")) {
+                case "grantGiverInitiated": {
+                    const startP = getQueryParam(location.search, "start");
+                    const endP = getQueryParam(location.search, "end");
+                    const title = getQueryParam(location.search, "title");
+                    const piUsernameHint = getQueryParam(location.search, "piUsernameHint");
+                    const projectId = getQueryParam(location.search, "projectId");
 
-                if (!startP || !endP || !title || !piUsernameHint || !Client.projectId) {
-                    navigate("/");
-                    return;
+                    if (!startP || !endP || !title || !piUsernameHint || !Client.projectId) {
+                        navigate("/");
+                        return;
+                    }
+
+                    const start = parseInt(startP);
+                    const end = parseInt(endP);
+
+                    if (isNaN(start) || isNaN(end)) {
+                        navigate("/");
+                        return;
+                    }
+
+                    dispatchEvent({
+                        type: "InitGrantGiverInitiated",
+                        title,
+                        projectId: projectId != null ? projectId : undefined,
+                        start,
+                        end,
+                        piUsernameHint
+                    });
+                    break;
                 }
+                case "applicantInitiated": {
+                    const projectId = getQueryParam(location.search, "projectId");
 
-                const start = parseInt(startP);
-                const end = parseInt(endP);
-
-                if (isNaN(start) || isNaN(end)) {
-                    navigate("/");
-                    return;
-                }
-
-                dispatchEvent({
-                    type: "InitGrantGiverInitiated",
-                    title,
-                    projectId: projectId != null ? projectId : undefined,
-                    start,
-                    end,
-                    piUsernameHint
-                });
-            } else {
-                const grantId = getQueryParam(location.search, "id") ?? undefined;
-                if (!grantId) {
+                    await dispatchEvent({type: "Init"});
+                    dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false, reference: projectId ?? undefined})
                     dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
+                    break;
                 }
+                default: {
+                    const grantId = getQueryParam(location.search, "id") ?? undefined;
+                    if (!grantId) {
+                        dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
+                    }
 
-                try {
-                    await dispatchEvent({type: "Init", grantId});
-                } finally {
-                    if (grantId) dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
+                    try {
+                        await dispatchEvent({type: "Init", grantId});
+                    } finally {
+                        if (grantId) dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
+                    }
+                    break;
                 }
             }
         })();
@@ -2010,15 +2023,15 @@ export const Editor: React.FunctionComponent = () => {
         headerSize={0}
         main={
             state.fullScreenLoading ? <>
-                <HexSpin size={64}/>
+                <HexSpin size={64} />
             </> : state.fullScreenError ? <>
-                    {state.fullScreenError}
-                </> :
+                {state.fullScreenError}
+            </> :
                 <div className={classes.join(" ")}>
                     <header className={"at-top"}>
                         <h3>Information about your project</h3>
 
-                        <div style={{flexGrow: 1}}/>
+                        <div style={{flexGrow: 1}} />
 
                         {isViewingHistoricEntry && historicEntry ?
                             <>
@@ -2028,7 +2041,7 @@ export const Editor: React.FunctionComponent = () => {
                                 {state.stateDuringCreate &&
                                     <Button onClick={triggerFormSubmit} disabled={state.loading}>
                                         {!state.loading && "Submit application"}
-                                        {state.loading && <HexSpin size={26}/>}
+                                        {state.loading && <HexSpin size={26} />}
                                     </Button>
                                 }
 
@@ -2037,12 +2050,12 @@ export const Editor: React.FunctionComponent = () => {
                                     {!state.locked && <>
                                         {!isGrantGiverInitiated &&
                                             <ConfirmationButton actionText={"Discard changes"} icon={"heroTrash"}
-                                                                color={"errorMain"}
-                                                                onAction={onDiscard}/>
+                                                color={"errorMain"}
+                                                onAction={onDiscard} />
                                         }
 
                                         <Button onClick={validateThenUpdate} type={"button"} color={"successMain"}>
-                                            <Icon name={"heroCheck"} mr={"20px"}/>
+                                            <Icon name={"heroCheck"} mr={"20px"} />
                                             <Box mr={"20px"}>
                                                 {isGrantGiverInitiated ? "Grant resources" : "Save changes"}
                                             </Box>
@@ -2051,8 +2064,8 @@ export const Editor: React.FunctionComponent = () => {
 
                                     {!isClosed && state.stateDuringEdit.allowWithdrawal && state.locked && <>
                                         <ConfirmationButton actionText={"Withdraw application"} icon={"heroTrash"}
-                                                            color={"errorMain"}
-                                                            onAction={onWithdraw}/>
+                                            color={"errorMain"}
+                                            onAction={onWithdraw} />
                                     </>}
                                 </>}
 
@@ -2100,9 +2113,9 @@ export const Editor: React.FunctionComponent = () => {
                                 {state.stateDuringCreate && <>
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
-                                            New project <a href="#" onClick={switchToExistingWorkspace}>
-                                                (click here to select an existing workspace instead)
-                                            </a>
+                                            New project (<a className={BaseLinkClass} href="#" onClick={switchToExistingWorkspace}>
+                                                click here to select an existing workspace instead
+                                            </a>)
                                             <Input id={FormIds.title}
                                                 placeholder={"Please enter the title of your project"}
                                                 height="42px"
@@ -2110,9 +2123,9 @@ export const Editor: React.FunctionComponent = () => {
                                                 onInput={onNewProjectInput} required />
                                         </>}
                                         {!state.stateDuringCreate.creatingWorkspace && <>
-                                            Existing workspace <a href="#" onClick={switchToNewWorkspace}>
-                                                (click here to create a new project instead)
-                                            </a>
+                                            Existing workspace (<a href="#" className={BaseLinkClass} onClick={switchToNewWorkspace}>
+                                                click here to create a new project instead
+                                            </a>)
                                             <Select value={state.stateDuringCreate.reference || "null"}
                                                 onChange={onProjectSelected}>
                                                 {state.loadedProjects.map(workspace =>
@@ -2134,7 +2147,7 @@ export const Editor: React.FunctionComponent = () => {
                                 {state.stateDuringEdit && <>
                                     <label>
                                         Project title
-                                        <Input value={state.stateDuringEdit.title} disabled/>
+                                        <Input value={state.stateDuringEdit.title} disabled />
                                     </label>
                                 </>}
                             </FormField>
@@ -2182,9 +2195,9 @@ export const Editor: React.FunctionComponent = () => {
                                     {referenceIdsToShow.map((id, idx) => <label key={idx}>
                                         Reference ID #{idx + 1}
                                         <Input id={FormIds.deicId + "-" + idx}
-                                               disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
-                                               placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
-                                               value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur}/>
+                                            disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
+                                            placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
+                                            value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
                                     </label>)}
                                 </FormField>
                             </>}
@@ -2269,8 +2282,8 @@ export const Editor: React.FunctionComponent = () => {
                                 if (relevantCategories.length === 0) return null;
 
                                 return <React.Fragment key={providerId}>
-                                    <h4><ProviderLogo providerId={providerId} size={30}/> <ProviderTitle
-                                        providerId={providerId}/></h4>
+                                    <h4><ProviderLogo providerId={providerId} size={30} /> <ProviderTitle
+                                        providerId={providerId} /></h4>
 
                                     <div className={"select-resources"}>
                                         {relevantCategories.map(category => {
@@ -2314,14 +2327,7 @@ export const Editor: React.FunctionComponent = () => {
                                                             allocationsToSelectFrom === undefined &&
                                                             category.category.accountingFrequency === "ONCE"
                                                         )
-                                                    ;
-
-                                                    console.log(
-                                                        category,
-                                                        shouldShowSplitSelector,
-                                                        allocationsToSelectFrom,
-                                                        splits,
-                                                    );
+                                                        ;
 
                                                     const freq = category.category.accountingFrequency;
 
@@ -2347,7 +2353,7 @@ export const Editor: React.FunctionComponent = () => {
                                                                     onInput={onResourceInput}
                                                                     min={0}
                                                                     value={category.totalBalanceRequested[allocatorId] ?? ""}
-                                                                    disabled={state.locked || isClosed}/>
+                                                                    disabled={state.locked || isClosed} />
                                                             </label>
 
                                                             {errorMessage &&
@@ -2355,76 +2361,76 @@ export const Editor: React.FunctionComponent = () => {
 
                                                             {shouldShowSplitSelector && <table>
                                                                 <thead>
-                                                                <tr>
-                                                                    <th/>
-                                                                    <th>{unit.name}</th>
-                                                                    <th>{allocationsToSelectFrom === undefined ? "Period" : "Allocation"}</th>
-                                                                </tr>
+                                                                    <tr>
+                                                                        <th />
+                                                                        <th>{unit.name}</th>
+                                                                        <th>{allocationsToSelectFrom === undefined ? "Period" : "Allocation"}</th>
+                                                                    </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                {splits.map((split, idx) => (<React.Fragment key={idx}>
-                                                                    <tr>
-                                                                        <td><Icon name={"heroArrowRight"} size={24}/>
-                                                                        </td>
+                                                                    {splits.map((split, idx) => (<React.Fragment key={idx}>
+                                                                        <tr>
+                                                                            <td><Icon name={"heroArrowRight"} size={24} />
+                                                                            </td>
 
-                                                                        <td>
-                                                                            <Input
-                                                                                id={`${providerId}/${category.category.name}/${allocatorId}/${idx}`}
-                                                                                type={"number"} placeholder={"0"}
-                                                                                onInput={onResourceInput}
-                                                                                min={0}
-                                                                                value={freq === "ONCE" ? (category.totalBalanceRequested[allocatorId] ?? "") : (split.balanceRequested ?? "")}
-                                                                                disabled={state.locked || isClosed || allocationsToSelectFrom === undefined || freq === "ONCE"}/>
-                                                                        </td>
-
-                                                                        <td>
-                                                                            {allocationsToSelectFrom !== undefined &&
-                                                                                <Select
-                                                                                    id={`alloc/${providerId}/${category.category.name}/${allocatorId}/${idx}`}
-                                                                                    onChange={onSourceAllocationUpdated}
-                                                                                    value={split.sourceAllocation ?? "null"}
-                                                                                    disabled={state.locked || isClosed}
-                                                                                >
-                                                                                    {!allocationsToSelectFrom &&
-                                                                                        <option disabled>No suitable
-                                                                                            allocations found</option>}
-
-                                                                                    {allocationsToSelectFrom &&
-                                                                                        <option value={"null"}>No
-                                                                                            allocation
-                                                                                            selected</option>}
-
-                                                                                    {allocationsToSelectFrom.map(it =>
-                                                                                        <option
-                                                                                            key={it.id}
-                                                                                            value={it.id}
-                                                                                            disabled={!allocOverlapsWithPeriod(it, state)}
-                                                                                        >
-                                                                                            {Accounting.utcDate(it.startDate)}
-                                                                                            {" - "}
-                                                                                            {it.endDate == null ? "never" : Accounting.utcDate(it.endDate)}
-
-                                                                                            {" | "}{Accounting.balanceToString(category.category, it.quota)}
-                                                                                            {" | "}{Math.floor(((it.treeUsage ?? it.localUsage) / it.quota) * 100)}%
-                                                                                            used
-                                                                                            {" | "}ID {it.id}
-                                                                                        </option>
-                                                                                    )}
-                                                                                </Select>}
-
-                                                                            {allocationsToSelectFrom === undefined &&
+                                                                            <td>
                                                                                 <Input
-                                                                                    disabled
-                                                                                    value={
-                                                                                        split.sourceAllocation && split.originalRequest?.period?.end ?
-                                                                                            `${Accounting.utcDate(split.originalRequest.period.start ?? 0)} - ${Accounting.utcDate(split.originalRequest.period.end)}` :
-                                                                                            "No period assigned"
-                                                                                    }
-                                                                                />
-                                                                            }
-                                                                        </td>
-                                                                    </tr>
-                                                                </React.Fragment>))}
+                                                                                    id={`${providerId}/${category.category.name}/${allocatorId}/${idx}`}
+                                                                                    type={"number"} placeholder={"0"}
+                                                                                    onInput={onResourceInput}
+                                                                                    min={0}
+                                                                                    value={freq === "ONCE" ? (category.totalBalanceRequested[allocatorId] ?? "") : (split.balanceRequested ?? "")}
+                                                                                    disabled={state.locked || isClosed || allocationsToSelectFrom === undefined || freq === "ONCE"} />
+                                                                            </td>
+
+                                                                            <td>
+                                                                                {allocationsToSelectFrom !== undefined &&
+                                                                                    <Select
+                                                                                        id={`alloc/${providerId}/${category.category.name}/${allocatorId}/${idx}`}
+                                                                                        onChange={onSourceAllocationUpdated}
+                                                                                        value={split.sourceAllocation ?? "null"}
+                                                                                        disabled={state.locked || isClosed}
+                                                                                    >
+                                                                                        {!allocationsToSelectFrom &&
+                                                                                            <option disabled>No suitable
+                                                                                                allocations found</option>}
+
+                                                                                        {allocationsToSelectFrom &&
+                                                                                            <option value={"null"}>No
+                                                                                                allocation
+                                                                                                selected</option>}
+
+                                                                                        {allocationsToSelectFrom.map(it =>
+                                                                                            <option
+                                                                                                key={it.id}
+                                                                                                value={it.id}
+                                                                                                disabled={!allocOverlapsWithPeriod(it, state)}
+                                                                                            >
+                                                                                                {Accounting.utcDate(it.startDate)}
+                                                                                                {" - "}
+                                                                                                {it.endDate == null ? "never" : Accounting.utcDate(it.endDate)}
+
+                                                                                                {" | "}{Accounting.balanceToString(category.category, it.quota)}
+                                                                                                {" | "}{Math.floor(((it.treeUsage ?? it.localUsage) / it.quota) * 100)}%
+                                                                                                used
+                                                                                                {" | "}ID {it.id}
+                                                                                            </option>
+                                                                                        )}
+                                                                                    </Select>}
+
+                                                                                {allocationsToSelectFrom === undefined &&
+                                                                                    <Input
+                                                                                        disabled
+                                                                                        value={
+                                                                                            split.sourceAllocation && split.originalRequest?.period?.end ?
+                                                                                                `${Accounting.utcDate(split.originalRequest.period.start ?? 0)} - ${Accounting.utcDate(split.originalRequest.period.end)}` :
+                                                                                                "No period assigned"
+                                                                                        }
+                                                                                    />
+                                                                                }
+                                                                            </td>
+                                                                        </tr>
+                                                                    </React.Fragment>))}
                                                                 </tbody>
                                                             </table>}
                                                         </div>
@@ -2443,11 +2449,11 @@ export const Editor: React.FunctionComponent = () => {
                                         // NOTE(Dan): Empty placeholder is a quick work-around for fields having error
                                         // immediately on load.
                                         return <FormField title={val.title} key={idx} id={`${val.title}`}
-                                                          description={val.description} mandatory={val.mandatory}>
+                                            description={val.description} mandatory={val.mandatory}>
                                             <TextArea id={`${val.title}`} rows={val.rows} maxLength={val.limit}
-                                                      required={val.mandatory} disabled={state.locked || isClosed}
-                                                      value={state.applicationDocument[val.title] ?? ""}
-                                                      onChange={onApplicationChange} placeholder={" "}/>
+                                                required={val.mandatory} disabled={state.locked || isClosed}
+                                                value={state.applicationDocument[val.title] ?? ""}
+                                                onChange={onApplicationChange} placeholder={" "} />
                                         </FormField>
                                     })}
                                 </div>
@@ -2500,7 +2506,7 @@ const TransferPrompt: React.FunctionComponent<{
     </form>;
 }
 
-function transferProject(allocators: EditorState["allocators"]): Promise<{ targetId: string, comment: string } | null> {
+function transferProject(allocators: EditorState["allocators"]): Promise<{targetId: string, comment: string} | null> {
     return new Promise((resolve) => {
         const callback = (targetId: string, comment: string) => {
             resolve({targetId, comment});
@@ -2512,7 +2518,7 @@ function transferProject(allocators: EditorState["allocators"]): Promise<{ targe
         };
 
         dialogStore.addDialog(
-            <TransferPrompt allocators={allocators} onTransfer={callback}/>,
+            <TransferPrompt allocators={allocators} onTransfer={callback} />,
             onCancel,
             true
         );
@@ -2629,7 +2635,7 @@ const CommentSection: React.FunctionComponent<{
 
                 return <div className={"comment"} key={commentId || entry.createdAt}>
                     <div className="avatar">
-                        <UserAvatar avatar={avatars.avatar(username)} width={"48px"}/>
+                        <UserAvatar avatar={avatars.avatar(username)} width={"48px"} />
                     </div>
 
                     <div className="body">
@@ -2637,7 +2643,7 @@ const CommentSection: React.FunctionComponent<{
                             <p style={{flexGrow: "1"}}><strong>{username}</strong> {action}:</p>
                             {commentId && username === Client.username ? (
                                 <div style={{cursor: "pointer"}} onClick={onDelete} data-comment-id={commentId}>
-                                    <Icon name={"trash"} color={"errorMain"}/>
+                                    <Icon name={"trash"} color={"errorMain"} />
                                 </div>
                             ) : null}
                             <TooltipV2 tooltip={dateToString(entry.createdAt)}>
@@ -2652,14 +2658,14 @@ const CommentSection: React.FunctionComponent<{
 
         <div className={"create-comment"}>
             <div className="wrapper">
-                <UserAvatar avatar={avatars.avatar(Client.username!)} width={"48px"}/>
+                <UserAvatar avatar={avatars.avatar(Client.username!)} width={"48px"} />
                 <TextArea inputRef={textAreaRef} rows={3} disabled={props.disabled}
-                          placeholder={"Your comment"} onKeyDown={onKeyDown}/>
+                    placeholder={"Your comment"} onKeyDown={onKeyDown} />
             </div>
 
             <div className="buttons">
                 <Button type={"submit"} onClick={onFormSubmit} disabled={props.disabled}>
-                    <Icon name={"heroPaperAirplane"} size={20}/>
+                    <Icon name={"heroPaperAirplane"} size={20} />
                 </Button>
             </div>
         </div>
@@ -2680,10 +2686,10 @@ const FormField: React.FunctionComponent<{
     return <>
         <div>
             <label htmlFor={props.id}
-                   className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
-                {props.icon && <Icon name={props.icon} mr={"8px"} size={30}/>}
+                className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
+                {props.icon && <Icon name={props.icon} mr={"8px"} size={30} />}
                 {props.title}
-                {props.mandatory && <span className={"mandatory"}/>}
+                {props.mandatory && <span className={"mandatory"} />}
             </label>
 
             {props.description &&
@@ -2709,7 +2715,7 @@ const GrantGiver: React.FunctionComponent<{
     checked: boolean;
     onChange: (projectId: string, checked: boolean) => void;
     isEditing: boolean;
-    adminOfProjects: { id: string | null, title: string }[];
+    adminOfProjects: {id: string | null, title: string}[];
     state?: Grants.State;
     onStateChange: (projectId: string, approved: boolean) => void;
     replaceApproval?: React.ReactNode;
@@ -2751,7 +2757,7 @@ const GrantGiver: React.FunctionComponent<{
     return <div className={"grant-giver"}>
         <div className={"grow"}>
             <label htmlFor={checkboxId}>
-                <ProjectLogo projectId={props.projectId} size={`${size}px`}/>
+                <ProjectLogo projectId={props.projectId} size={`${size}px`} />
                 {props.title}
             </label>
             {!props.isEditing &&
@@ -2780,26 +2786,26 @@ const GrantGiver: React.FunctionComponent<{
             {!props.replaceApproval && !props.replaceReject && props.onTransfer && <>
                 <TooltipV2 tooltip={"Transfer to new grant giver"}>
                     <Button onClick={startTransfer} mr={8} width={"50px"} height={"40px"}>
-                        <Icon name={"heroArrowUpTray"}/>
+                        <Icon name={"heroArrowUpTray"} />
                     </Button>
                 </TooltipV2>
             </>}
             {props.replaceApproval}
             {!props.replaceApproval && <>
                 <TooltipV2 tooltip={"Approve (hold to confirm)"}>
-                    <ConfirmationButton color={"successMain"} icon={"heroCheck"} onAction={onApprove} height={40} mr={8}/>
+                    <ConfirmationButton color={"successMain"} icon={"heroCheck"} onAction={onApprove} height={40} mr={8} />
                 </TooltipV2>
             </>}
 
             {props.replaceReject}
             {!props.replaceReject && <>
                 <TooltipV2 tooltip={"Reject (hold to confirm)"}>
-                    <ConfirmationButton color={"errorMain"} icon={"heroXMark"} onAction={onReject} height={40}/>
+                    <ConfirmationButton color={"errorMain"} icon={"heroXMark"} onAction={onReject} height={40} />
                 </TooltipV2>
             </>}
         </>}
         {props.isEditing && (!isAdmin || props.state !== Grants.State.IN_PROGRESS) && props.state && <>
-            <Icon name={stateIconAndColor.icon} color={stateIconAndColor.color}/>
+            <Icon name={stateIconAndColor.icon} color={stateIconAndColor.color} />
         </>}
     </div>
 }
@@ -3078,8 +3084,8 @@ function stateToAllocationPeriod(state: EditorState): [number, number] {
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
     "November", "December"];
 
-function stateToMonthOptions(state: EditorState): { key: string, text: string }[] {
-    const result: { key: string, text: string, time: number }[] = [];
+function stateToMonthOptions(state: EditorState): {key: string, text: string}[] {
+    const result: {key: string, text: string, time: number}[] = [];
     function insertIfUnique(date: Date) {
         const today = new Date();
         const month = monthNames[date.getMonth()];
@@ -3123,10 +3129,10 @@ function stateToMonthOptions(state: EditorState): { key: string, text: string }[
 
 function allocOverlapsWithPeriod(alloc: Accounting.WalletAllocationV2, state: EditorState) {
     const [start, end] = stateToAllocationPeriod(state);
-    return Accounting.periodsOverlap({ start, end }, { start: alloc.startDate, end: alloc.endDate });
+    return Accounting.periodsOverlap({start, end}, {start: alloc.startDate, end: alloc.endDate});
 }
 
-type PeriodEntry = { start: number, end: number };
+type PeriodEntry = {start: number, end: number};
 
 class TimeTracker {
     private periods: PeriodEntry[] = [];

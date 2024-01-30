@@ -16,7 +16,6 @@ import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {PageV2} from "@/UCloud";
 import AppRoutes from "@/Routes";
-import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
@@ -27,6 +26,8 @@ const PROJECT_ITEMS_PER_PAGE = 250;
 const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
     includeFavorite: true,
+
+    includeMembers: true,
     sortBy: "favorite" as const,
     sortDirection: "descending" as const
 }
@@ -44,6 +45,10 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     }
 
     return result;
+}
+
+export function projectFromCache(projectId?: string): Project | undefined {
+    return projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
 }
 
 export function projectTitleFromCache(projectId?: string) {

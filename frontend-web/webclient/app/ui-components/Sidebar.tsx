@@ -56,6 +56,7 @@ import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {isAdminOrPI} from "@/Project";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -501,6 +502,8 @@ function SecondarySidebar({
     const recentRuns = useSidebarRunsPage();
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
+    const project = useProject();
+    const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
         clearHover();
@@ -679,6 +682,7 @@ function SecondarySidebar({
                     to={AppRoutes.grants.editor()}
                     text={"Apply for resources"}
                     icon={"heroPencilSquare"}
+                    disabled={!canApply}
                     tab={SidebarTabId.WORKSPACE}
                 />
             </>}

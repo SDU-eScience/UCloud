@@ -29,6 +29,8 @@ export function SidebarLinkColumn({links}: { links: LinkInfo[] }): React.ReactNo
 }
 
 export const SidebarEntry: React.FunctionComponent<LinkInfo> = (info) => {
+    if (info.disabled) return null;
+
     const icon = typeof info.icon === "string" ?
         <Icon mt="2px" name={info.icon as IconName} color={"fixedWhite"} color2={"fixedWhite"} /> :
         info.icon;
