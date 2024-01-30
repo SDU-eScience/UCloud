@@ -3,8 +3,7 @@ package dk.sdu.cloud.app.store.rpc
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.FindByIntId
+import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.AppService
@@ -16,8 +15,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Page
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.request.*
@@ -109,13 +108,10 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveGroup) {
-            val group = service.retrieveGroup(request.id) ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound)
-            val apps = service.listApplicationsInGroup(actorAndProject, request.id)
-            ok(group.copy(
-                status = group.status.copy(
-                    applications = apps
-                )
-            ))
+            val group = service.retrieveGroup(actorAndProject, request.id, loadApplications = true)
+                ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound)
+
+            ok(group)
         }
 
         implement(AppStore.create) {

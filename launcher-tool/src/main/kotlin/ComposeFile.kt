@@ -5,6 +5,8 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-21"
+
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int
 
@@ -134,7 +136,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "backend",
@@ -359,7 +361,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "k8",
                         "volumes": [
@@ -731,7 +733,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "slurm",
                         "volumes": [
@@ -1103,7 +1105,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2024.1.0-arm64",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "go-slurm",
                         "init": true,
@@ -1158,8 +1160,8 @@ sealed class ComposeService {
                 """
                     refreshToken: ${credentials.refreshToken}
                     envoy:
-                      executable: /usr/bin/envoy
-                      funceWrapper: false
+                      executable: /usr/local/bin/getenvoy
+                      funceWrapper: true
                       directory: /var/run/ucloud/envoy
                     database:
                       type: Embedded

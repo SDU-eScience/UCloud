@@ -946,7 +946,7 @@ class AppService(
 
             applications[key] = app.copy(
                 metadata = app.metadata.copy(
-                    group = groupId?.let { retrieveGroup(it) }
+                    group = groupId?.let { retrieveGroup(actorAndProject, it) }
                 )
             )
         }
@@ -1304,7 +1304,7 @@ class AppService(
         var status = ApplicationCategory.Status()
 
         if (loadGroups) {
-            val groups = internal.groups().mapNotNull { retrieveGroup(it) }
+            val groups = internal.groups().mapNotNull { retrieveGroup(actorAndProject, it) }
                 .sortedBy { it.specification.title.lowercase() }
             status = status.copy(groups = groups)
         }
@@ -1316,7 +1316,7 @@ class AppService(
         )
     }
 
-    suspend fun retrieveGroup(groupId: Int): ApplicationGroup? {
+    suspend fun retrieveGroup(actorAndProject: ActorAndProject, groupId: Int, loadApplications: Boolean = false): ApplicationGroup? {
         val info = groups[groupId.toLong()]?.get() ?: return null
         return ApplicationGroup(
             ApplicationGroup.Metadata(
@@ -1327,6 +1327,10 @@ class AppService(
                 info.description ?: "",
                 info.defaultFlavor,
                 info.tags
+            ),
+            ApplicationGroup.Status(
+                if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
+                else null,
             )
         )
     }
@@ -1339,7 +1343,7 @@ class AppService(
     suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         return groups.mapNotNull { (groupId, ig) ->
-            retrieveGroup(groupId.toInt())
+            retrieveGroup(actorAndProject, groupId.toInt())
         }
     }
 
@@ -1395,6 +1399,7 @@ class AppService(
         actorAndProject: ActorAndProject,
         versions: Collection<NameAndVersion>,
         withAllVersions: Boolean = false,
+        loadGroupApplications: Boolean = false,
     ): List<ApplicationWithFavoriteAndTags> {
         val result = ArrayList<Application>()
         val (actor) = actorAndProject
@@ -1411,7 +1416,9 @@ class AppService(
 
             val toolKey = app.invocation.tool.let { NameAndVersion(it.name, it.version) }
             val tool = tools[toolKey] ?: continue
-            val group = app.metadata.group?.metadata?.id?.let { id -> retrieveGroup(id) }
+            val group = app.metadata.group?.metadata?.id?.let { id ->
+                retrieveGroup(actorAndProject, id, loadGroupApplications)
+            }
             result.add(
                 app.copy(
                     metadata = app.metadata.copy(
@@ -1447,17 +1454,19 @@ class AppService(
         actorAndProject: ActorAndProject,
         name: String,
         version: String?,
+        loadGroupApplications: Boolean = true,
     ): ApplicationWithFavoriteAndTags? {
         return if (version == null) {
-            listVersions(actorAndProject, name).firstOrNull()
+            listVersions(actorAndProject, name, loadGroupApplications = loadGroupApplications).firstOrNull()
         } else {
-            loadApplications(actorAndProject, listOf(NameAndVersion(name, version))).singleOrNull()
+            loadApplications(actorAndProject, listOf(NameAndVersion(name, version)), loadGroupApplications = loadGroupApplications).singleOrNull()
         }
     }
 
     suspend fun listVersions(
         actorAndProject: ActorAndProject,
-        name: String
+        name: String,
+        loadGroupApplications: Boolean = false,
     ): List<ApplicationWithFavoriteAndTags> {
         val appVersions =
             applicationVersions[name] ?: throw RPCException("Unknown application: $name", HttpStatusCode.NotFound)
@@ -1465,7 +1474,8 @@ class AppService(
         val apps = loadApplications(
             actorAndProject,
             appVersions.get().map { NameAndVersion(name, it) },
-            withAllVersions = true
+            withAllVersions = true,
+            loadGroupApplications = loadGroupApplications
         )
         return apps.sortedByDescending { it.metadata.createdAt }
     }
@@ -1697,8 +1707,12 @@ class AppService(
             picks,
             categories,
             spotlight,
-            newlyCreated.mapNotNull { retrieveApplication(actorAndProject, it, null)?.withoutInvocation() },
-            updated.mapNotNull { retrieveApplication(actorAndProject, it.name, it.version)?.withoutInvocation() }
+            newlyCreated.mapNotNull {
+                retrieveApplication(actorAndProject, it, null, loadGroupApplications = false)?.withoutInvocation()
+            },
+            updated.mapNotNull {
+                retrieveApplication(actorAndProject, it.name, it.version, loadGroupApplications = false)?.withoutInvocation()
+            }
         )
     }
 

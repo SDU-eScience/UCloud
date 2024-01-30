@@ -591,7 +591,7 @@ class AppServiceTest {
             checkGroup(appThroughList.metadata.group)
         }
 
-        val retrievedGroup = service.retrieveGroup(groupId)
+        val retrievedGroup = service.retrieveGroup(ActorAndProject.System, groupId)
         checkGroup(retrievedGroup)
 
         val secondGroup = service.createGroup(ActorAndProject.System, "New group")
@@ -607,7 +607,7 @@ class AppServiceTest {
         assertEquals(0, appsThroughCategory2.size)
 
         service.deleteGroup(ActorAndProject.System, secondGroup)
-        assertNull(service.retrieveGroup(secondGroup))
+        assertNull(service.retrieveGroup(ActorAndProject.System, secondGroup))
         assertNull(service.retrieveApplication(ActorAndProject.System, app.metadata.name, app.metadata.version)!!.metadata.group)
 
         assertFails { service.assignApplicationToGroup(ActorAndProject.System, "invalid-application-name", groupId) }

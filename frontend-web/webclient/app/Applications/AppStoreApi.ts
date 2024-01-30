@@ -341,7 +341,7 @@ export interface ApplicationGroupSpecification {
 }
 
 export interface ApplicationGroupStatus {
-    applications?: ApplicationWithFavoriteAndTags[] | null;
+    applications?: ApplicationSummaryWithFavorite[] | null;
 }
 
 export interface ApplicationCategory {

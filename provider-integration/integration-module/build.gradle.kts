@@ -36,7 +36,7 @@ dependencies {
     }
 
     run {
-        val ktorVersion = "2.2.3"
+        val ktorVersion = "2.3.7"
         fun ktor(module: String) = implementation("io.ktor:ktor-$module:$ktorVersion")
 
         ktor("client-websockets")
