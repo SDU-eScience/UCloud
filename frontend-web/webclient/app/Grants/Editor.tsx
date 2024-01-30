@@ -1744,7 +1744,7 @@ export function Editor(): React.JSX.Element {
                         // Check that splits match the total requested amount
                         const actualRequested = splits.reduce((sum, split) => sum + (split.balanceRequested ?? 0), 0);
                         if (requestedBalance !== actualRequested) {
-                            let message = "Only ";
+                            let message = "Wrong amount assigned: ";
                             message += Accounting.balanceToString(category.category, actualRequested * unit.invPriceFactor);
                             message += " out of "
                             message += Accounting.balanceToString(category.category, requestedBalance * unit.invPriceFactor);
