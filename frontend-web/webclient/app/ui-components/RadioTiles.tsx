@@ -1,9 +1,9 @@
 import * as React from "react";
 import Icon, {IconName} from "./Icon";
-import {Box} from "@/ui-components";
 import {FontSizeProps} from "styled-system";
 import {extractSize, injectStyle} from "@/Unstyled";
-import {BoxProps} from "@/ui-components/Box";
+import Box from "./Box";
+import {BoxProps} from "./Types";
 
 export const RadioTilesContainerClass = injectStyle("radio-tiles-container", k => `
     ${k} {

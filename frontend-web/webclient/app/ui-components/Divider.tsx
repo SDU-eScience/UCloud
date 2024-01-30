@@ -1,6 +1,6 @@
 import {injectStyleSimple, unbox} from "@/Unstyled";
-import {BoxProps} from "@/ui-components/Box";
 import * as React from "react";
+import {BoxProps} from "./Types";
 
 export const DividerClass = injectStyleSimple("divider", `
     border: 0;

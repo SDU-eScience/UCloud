@@ -1,8 +1,8 @@
 import * as React from "react";
 import {classConcat, classConcatMult, extractEventHandlers, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
-import {BoxProps} from "@/ui-components/Box";
 import {FontWeightProps} from "styled-system";
+import {BoxProps} from "./Types";
 
 export interface TextProps extends BoxProps, FontWeightProps {
     align?: "left" | "right";

@@ -1,7 +1,6 @@
+import {BoxProps} from "@/ui-components/Types";
 import * as React from "react";
 import {ResponsiveValue, SpaceProps} from "styled-system";
-
-import {BoxProps} from "@/ui-components/Box";
 
 export function extractSize(size: ResponsiveValue<any>): string {
     if (typeof size === "string") return size;
@@ -194,4 +193,9 @@ export function extractEventHandlers(props: WithEventHandlers): WithEventHandler
         }
     }
     return result;
+}
+
+export function devModeStyling(cssRule: string): string {
+    if (DEVELOPMENT_ENV) return cssRule;
+    return "";
 }

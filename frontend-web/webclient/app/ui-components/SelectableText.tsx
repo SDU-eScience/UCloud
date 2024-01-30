@@ -1,7 +1,7 @@
 import Flex, {FlexCProps} from "./Flex";
 import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import * as React from "react";
-import {BoxProps} from "@/ui-components/Box";
+import {BoxProps} from "./Types";
 
 const SelectableTextContainerClass = injectStyle("tab-container", k => `
     ${k} {
