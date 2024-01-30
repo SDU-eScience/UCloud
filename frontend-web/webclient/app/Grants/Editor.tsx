@@ -2094,26 +2094,27 @@ export const Editor: React.FunctionComponent = () => {
                             >
                                 <label>
                                     Principal investigator (PI)
-                                    <Input id={FormIds.pi} disabled value={state.principalInvestigator}/>
+                                    <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
                                 </label>
 
                                 {state.stateDuringCreate && <>
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
                                             New project <a href="#" onClick={switchToExistingWorkspace}>
-                                            (click here to select an existing workspace instead)
-                                        </a>
+                                                (click here to select an existing workspace instead)
+                                            </a>
                                             <Input id={FormIds.title}
-                                                   placeholder={"Please enter the title of your project"}
-                                                   value={state.stateDuringCreate.reference ?? ""}
-                                                   onInput={onNewProjectInput} required/>
+                                                placeholder={"Please enter the title of your project"}
+                                                height="42px"
+                                                value={state.stateDuringCreate.reference ?? ""}
+                                                onInput={onNewProjectInput} required />
                                         </>}
                                         {!state.stateDuringCreate.creatingWorkspace && <>
                                             Existing workspace <a href="#" onClick={switchToNewWorkspace}>
-                                            (click here to create a new project instead)
-                                        </a>
+                                                (click here to create a new project instead)
+                                            </a>
                                             <Select value={state.stateDuringCreate.reference || "null"}
-                                                    onChange={onProjectSelected}>
+                                                onChange={onProjectSelected}>
                                                 {state.loadedProjects.map(workspace =>
                                                     <React.Fragment key={workspace.id ?? "null"}>
                                                         <option value={workspace.id ?? "null"}>

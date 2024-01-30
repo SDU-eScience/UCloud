@@ -107,7 +107,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         const projectTitle = app.status.projectTitle ?? "Unknown title";
                         switch (recipient.type) {
                             case "existingProject": {
-                                subtitle = "Continuation";
+                                subtitle = "Extension";
                                 grantTitle = projectTitle;
                                 break;
                             }

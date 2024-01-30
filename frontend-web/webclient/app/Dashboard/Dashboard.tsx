@@ -81,7 +81,7 @@ function Dashboard(): React.JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
+        <Flex pt="12px" pb="24px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
             <DashboardNews news={news}/>
             <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload}/>
@@ -354,7 +354,7 @@ const NewsClass = injectStyle("with-graphic", k => `
          margin-right: auto;
          height: 400px;
          position: relative;
-         top: -120px;
+         top: -112px;
     }
     
     ${k} h5 {
