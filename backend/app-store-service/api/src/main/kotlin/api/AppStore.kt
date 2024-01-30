@@ -995,7 +995,7 @@ data class ApplicationGroup(
 
     @Serializable
     data class Status(
-        val applications: List<ApplicationWithFavoriteAndTags>? = null,
+        val applications: List<ApplicationSummaryWithFavorite>? = null,
     )
 }
 

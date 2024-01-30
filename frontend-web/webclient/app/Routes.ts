@@ -15,7 +15,7 @@ const news = {
 
 const admin = {
     userCreation: () => "/admin/userCreation",
-    applicationStudio: () => "/applications/studio",
+    applicationStudio: () => "/applications/studio/groups",
     news: () => "/admin/news",
     providers: () => "/admin/providers",
     scripts: () => "/admin/scripts",
