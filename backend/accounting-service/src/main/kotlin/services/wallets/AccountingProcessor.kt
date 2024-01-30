@@ -2051,7 +2051,7 @@ class AccountingProcessor(
                     workspaceTitle = projectInfo.first.title,
                     workspaceIsProject = wall.owner.matches(PROJECT_REGEX),
                     projectPI = projectInfo.second,
-                    usage = allocation.localUsage,
+                    usage = allocation.treeUsage ?: allocation.localUsage,
                     quota = allocation.quota,
                     grantedIn = allocation.grantedIn
                 )
