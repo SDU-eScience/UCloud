@@ -96,8 +96,8 @@ const grants = {
         subAllocator: boolean,
     }) => buildQueryString("/grants", { ...opts, type: "grantGiverInitiated" }),
     newApplication: (values: {
-        projectId: string,
-    } | Record<string, never>) => buildQueryString("/grants", {...values, type: "applicantInitiated"})
+        projectId?: string,
+    }) => buildQueryString("/grants", {...values, type: "applicantInitiated"})
 }
 
 const accounting = {

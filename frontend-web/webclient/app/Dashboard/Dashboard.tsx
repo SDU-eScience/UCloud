@@ -35,7 +35,6 @@ import {NewsPost} from "@/NewsPost";
 import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
-import {toNewApplicationArgs} from "@/Accounting/Usage";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -187,10 +186,10 @@ function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => voi
 
 function ApplyLinkButton(): React.JSX.Element {
     const project = useProject();
-    const canApply = isAdminOrPI(project.fetch().status.myRole);
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
     if (!canApply) return <div />
 
-    return <Link to={AppRoutes.grants.newApplication(toNewApplicationArgs())} mt={8}>
+    return <Link to={AppRoutes.grants.newApplication({projectId: Client.projectId})} mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 }
@@ -234,7 +233,7 @@ function DashboardResources({wallets}: {
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                     </Text>}
-                    <ApplyLinkButton key={Client.projectId} />
+                    <ApplyLinkButton />
                 </NoResultsCardBody>
             ) :
                 /* height is 100% - height of Heading 55px */
@@ -265,7 +264,7 @@ function DashboardResources({wallets}: {
                         </tbody>
                     </Table>
                     <Box flexGrow={1} />
-                    <Flex mx="auto"><ApplyLinkButton key={Client.projectId} /></Flex>
+                    <Flex mx="auto"><ApplyLinkButton /></Flex>
                 </Flex>
             }
         </DashboardCard>
