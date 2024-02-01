@@ -320,10 +320,6 @@ hr {
  * Add the correct display in IE.
  */
 
-main {
-  display: block;
-}
-
 /**
  * Remove the list style on navigation lists in all browsers (opinionated).
  */

@@ -174,8 +174,12 @@ export function injectStyleSimple(title: string, css: string): string {
 
 export function makeClassName(name: string) {
     return {
-        dot: `.${name}`,
-        class: name
+        get dot() {
+            return `.${name}`
+        },
+        get class(): string {
+            return name;
+        }
     };
 }
 
