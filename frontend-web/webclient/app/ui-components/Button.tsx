@@ -103,6 +103,10 @@ export const ButtonClass = injectStyle("button", k => `
     ${k} svg {
         margin-right: 5px;
     }
+    
+    ${k} svg:last-child {
+        margin-right: 0;
+    }
 `);
 
 const standardButtonSizes: {height: number; name: string;}[] = [

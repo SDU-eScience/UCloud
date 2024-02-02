@@ -11,7 +11,7 @@ export const largeModalStyle: ReactModal.Styles = {
         maxWidth: "calc(100vw - 10px)",
         position: "fixed",
         top: "10vh",
-        left: `calc(50vw - 450px + var(${CSSVarCurrentSidebarWidth}))`,
+        left: `calc(50vw - 450px)`,
         outline: "none",
     },
     overlay: {
@@ -28,8 +28,9 @@ export const defaultModalStyle: ReactModal.Styles = {
         maxWidth: "calc(100vw - 10px)",
         position: "fixed",
         top: "10vh",
-        left: `calc(50vw - 450px + var(${CSSVarCurrentSidebarWidth}))`,
+        left: `calc(50vw - 450px)`,
         outline: "none",
+        overflow: "auto",
     },
     overlay: {
         backgroundColor: "var(--modalShadow)"

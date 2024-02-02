@@ -1,5 +1,5 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, Label, List} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Link, List} from "@/ui-components";
 import React, {useCallback, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
@@ -14,6 +14,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
+import AppRoutes from "@/Routes";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
     const [filter, setTitleFilter] = React.useState("");
@@ -43,8 +44,8 @@ export const ApplicationGroups: React.FunctionComponent = () => {
             header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Groups</Heading.h2>}
             main={
                 <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
-                    <Flex gap={"16px"} mb={"32px"}>
-                        <Label className={ButtonClass}>
+                    <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
+                        <label className={ButtonClass} style={{flexGrow: 1}}>
                             Upload application
                             <HiddenInputField
                                 type="file"
@@ -68,9 +69,9 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                     }
                                 }}
                             />
-                        </Label>
+                        </label>
 
-                        <Label className={ButtonClass}>
+                        <label className={ButtonClass} style={{flexGrow: 1}}>
                             Upload tool
                             <HiddenInputField
                                 type="file"
@@ -94,7 +95,11 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                     }
                                 }}
                             />
-                        </Label>
+                        </label>
+
+                        <Link to={AppRoutes.apps.studioHero()} flexGrow={1}><Button fullWidth>Carrousel</Button></Link>
+                        <Link to={AppRoutes.apps.studioTopPicks()} flexGrow={1}><Button fullWidth>Top picks</Button></Link>
+                        <Link to={AppRoutes.apps.studioSpotlights()} flexGrow={1}><Button fullWidth>Spotlights</Button></Link>
                     </Flex>
 
                     {errorMessage && <Box mb={"32px"}>
