@@ -1,8 +1,8 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiRetrieve, apiSearch, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {inSuccessRange} from "@/UtilityFunctions";
-import {FindByLongId} from "@/UCloud";
+import {FindByLongId, PaginationRequestV2} from "@/UCloud";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
 const baseContext = "/api/hpc/apps";
@@ -427,7 +427,9 @@ export function create(file: File): Promise<{ error?: string }> {
     return uploadFile("PUT", baseContext, file);
 }
 
-async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{ error?: string }> {
+async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{
+    error?: string
+}> {
     const token = await Client.receiveAccessTokenOrRefreshIt();
 
     const actualHeaders: Record<string, string> = {...(headers ?? {})};
@@ -449,7 +451,7 @@ async function uploadFile(method: string, path: string, file: File, headers?: Re
             console.log(e, text);
         }
 
-        return { error: message };
+        return {error: message};
     } else {
         return {};
     }
@@ -539,7 +541,7 @@ export function deleteGroup(request: { id: number }): APICallParameters<unknown,
 }
 
 export function addLogoToGroup(groupId: number, logo: File): Promise<{ error?: string }> {
-    return uploadFile("POST", `${baseContext}/uploadLogo`, logo, { "Upload-Name": b64EncodeUnicode(groupId.toString()) });
+    return uploadFile("POST", `${baseContext}/uploadLogo`, logo, {"Upload-Name": b64EncodeUnicode(groupId.toString())});
 }
 
 export function removeLogoFromGroup(request: { id: number }): APICallParameters<unknown, unknown> {
@@ -589,6 +591,59 @@ export function removeGroupFromCategory(request: {
     return apiUpdate(request, baseContext, "removeGroupFromCategory");
 }
 
+export function assignPriorityToCategory(request: {
+    id: number,
+    priority: number
+}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "assignPriorityToCategory");
+}
+
+export function deleteCategory(request: { id: number }): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "deleteCategory");
+}
+
+// Spotlight management
+// =================================================================================================================
+export function createSpotlight(request: Spotlight): APICallParameters<unknown, FindByLongId> {
+    return apiUpdate(request, baseContext, "createSpotlight");
+}
+
+export function updateSpotlight(request: Spotlight): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateSpotlight");
+}
+
+export function deleteSpotlight(request: { id: number }): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "deleteSpotlight");
+}
+
+export function retrieveSpotlight(request: { id: number }): APICallParameters<unknown, Spotlight> {
+    return apiRetrieve(request, baseContext, "spotlight");
+}
+
+export function browseSpotlights(request: PaginationRequestV2): APICallParameters<unknown, PageV2<Spotlight>> {
+    return apiBrowse(request, baseContext, "spotlight");
+}
+
+export function activateSpotlight(request: { id: number }): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "activateSpotlight");
+}
+
+// Carrousel management
+// =================================================================================================================
+export function updateCarrousel(request: { newSlides: CarrouselItem[] }): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCarrousel");
+}
+
+export function updateCarrouselImage(slideIndex: number, image: File) {
+    return uploadFile("POST", `${baseContext}/updateCarrouselImage`, image, {"Slide-Index": b64EncodeUnicode(slideIndex.toString())});
+}
+
+// Top picks management
+// =================================================================================================================
+export function updateTopPicks(request: { newTopPicks: TopPick[] }): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateTopPicks");
+}
+
 // Landing page
 // =================================================================================================================
 export interface LandingPage {
@@ -623,6 +678,7 @@ export interface Spotlight {
     body: string;
     applications: TopPick[];
     active: boolean;
+    id?: number | null;
 }
 
 export function retrieveLandingPage(request: {}): APICallParameters<unknown, LandingPage> {

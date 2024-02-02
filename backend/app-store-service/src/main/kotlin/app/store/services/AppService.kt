@@ -60,7 +60,7 @@ class AppService(
         defaultFlavor: String?,
         logo: ByteArray?,
         applications: Set<NameAndVersion>,
-        tags: Set<Int>,
+        categories: Set<Int>,
     ) {
         data class GroupDescription(
             val title: String,
@@ -68,7 +68,7 @@ class AppService(
             val defaultFlavor: String?,
             @Suppress("ArrayInDataClass") val logo: ByteArray?,
             val applications: Set<NameAndVersion>,
-            val tags: Set<Int>,
+            val categories: Set<Int>,
         )
 
         private val ref = AtomicReference(
@@ -78,7 +78,7 @@ class AppService(
                 defaultFlavor,
                 logo,
                 applications,
-                tags
+                categories
             )
         )
 
@@ -122,21 +122,21 @@ class AppService(
             }
         }
 
-        fun addTags(tags: Set<Int>) {
+        fun addCategories(categoryIds: Set<Int>) {
             while (true) {
                 val oldRef = ref.get()
                 val newRef = oldRef.copy(
-                    tags = oldRef.tags + tags
+                    categories = oldRef.categories + categoryIds
                 )
                 if (ref.compareAndSet(oldRef, newRef)) break
             }
         }
 
-        fun removeTags(tags: Set<Int>) {
+        fun removeCategories(categoryIds: Set<Int>) {
             while (true) {
                 val oldRef = ref.get()
                 val newRef = oldRef.copy(
-                    tags = oldRef.tags - tags
+                    categories = oldRef.categories - categoryIds
                 )
                 if (ref.compareAndSet(oldRef, newRef)) break
             }
@@ -488,7 +488,7 @@ class AppService(
                     val title = row.getString(1)!!
                     val description = row.getString(2)!!
                     val active = row.getBoolean(3)!!
-                    spotlights[id.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active))
+                    spotlights[id.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active, id))
                 }
 
                 session.sendPreparedStatement(
@@ -543,12 +543,18 @@ class AppService(
                     val linkedGroup = row.getInt(5)
                     val image = row.getAs(6) ?: ByteArray(0)
 
-                    loadedCarrousel.add(CarrouselItem(title, body, imageCredit, linkedApplication,
-                        linkedWebPage, linkedGroup))
+                    loadedCarrousel.add(
+                        CarrouselItem(
+                            title, body, imageCredit, linkedApplication,
+                            linkedWebPage, linkedGroup
+                        )
+                    )
                     images.add(image)
                 }
                 carrousel.update { loadedCarrousel }
                 carrousel.updateImages { images }
+
+                reorderCategories()
             }
         }
     }
@@ -593,7 +599,8 @@ class AppService(
         )
     }
 
-    private suspend fun registerApplication(app: Application, flush: Boolean) {
+    private suspend fun registerApplication(inputApp: Application, flush: Boolean) {
+        var app = inputApp
         val key = NameAndVersion(app.metadata.name, app.metadata.version)
         if (applications[key] != null) {
             // NOTE(Dan): We purposefully don't deal with the race conflict we have here. I don't believe it is worth
@@ -601,12 +608,11 @@ class AppService(
             // depend on this not potentially having a race condition.
             throw RPCException("This application already exists!", HttpStatusCode.Conflict)
         }
-        applications[key] = app
 
         val appVersions = applicationVersions.computeIfAbsent(key.name) { InternalVersions() }
         appVersions.add(key.version)
         val allVersions = appVersions.get()
-        val previousVersion = if (allVersions.size > 2) allVersions[allVersions.size - 2] else null
+        val previousVersion = if (allVersions.size >= 2) allVersions[allVersions.size - 2] else null
         val previousApp = previousVersion?.let { v -> applications[NameAndVersion(app.metadata.name, v)] }
 
         val tool = app.invocation.tool.let { t -> tools[NameAndVersion(t.name, t.version)] }
@@ -614,11 +620,20 @@ class AppService(
             throw RPCException("This tool does not exist: ${app.invocation.tool}", HttpStatusCode.BadRequest)
         }
 
-        val group = app.metadata.group
+        val group = app.metadata.group ?: previousApp?.metadata?.group
         if (group != null) {
             val groupCache = registerGroup(group)
             groupCache.addApplications(setOf(key))
         }
+
+        app = app.copy(
+            metadata = app.metadata.copy(
+                flavorName = app.metadata.flavorName ?: previousApp?.metadata?.flavorName,
+                group = group,
+            )
+        )
+        println("This is the new app: ${inputApp.metadata} ${app.metadata} ${previousApp?.metadata}")
+        applications[key] = app
 
         if (flush) {
             db.withSession { session ->
@@ -705,7 +720,7 @@ class AppService(
     }
 
     private fun registerGroupTag(group: Int, tag: Int) {
-        groups[group.toLong()]?.addTags(setOf(tag))
+        groups[group.toLong()]?.addCategories(setOf(tag))
         categories[tag.toLong()]?.addGroup(setOf(group))
     }
 
@@ -1172,92 +1187,54 @@ class AppService(
         }
     }
 
-    suspend fun addTagToGroup(
+    suspend fun addGroupToCategory(
         actorAndProject: ActorAndProject,
-        tagTitles: List<String>,
+        categoryIds: List<Int>,
         groupId: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val group = groups[groupId.toLong()] ?: throw RPCException("Unknown group: $groupId", HttpStatusCode.NotFound)
-        for (tagTitle in tagTitles) {
+        for (categoryId in categoryIds) {
             if (db == DiscardingDBContext) {
-                val initialTag = categories.entries.find { it.value.title().equals(tagTitle, ignoreCase = true) }
-                val (tagId, internalTag) = if (initialTag == null) {
-                    val actualId = groupIdAllocatorForTestsOnly.getAndIncrement()
-                    val t = InternalTag(tagTitle, emptySet(), 10000)
-                    categories[actualId.toLong()] = t
-                    actualId.toLong() to t
-                } else {
-                    initialTag.key to initialTag.value
-                }
+                val category = categories[categoryId.toLong()]
+                    ?: throw RPCException("Unknown category: $categoryId", HttpStatusCode.NotFound)
 
-                internalTag.addGroup(setOf(groupId))
-                group.addTags(setOf(tagId.toInt()))
+                category.addGroup(setOf(groupId))
+                group.addCategories(setOf(categoryId))
             } else {
                 db.withSession { session ->
-                    val initialTag = categories.entries.find { it.value.title().equals(tagTitle, ignoreCase = true) }
-                    val (tagId, internalTag) = if (initialTag == null) {
-                        val insertedTagId = session.sendPreparedStatement(
-                            { setParameter("tag", tagTitle) },
-                            """
-                                insert into app_store.categories (tag)
-                                values (:tag)
-                                on conflict do nothing
-                                returning id
-                            """
-                        ).rows.singleOrNull()?.getInt(0)
-
-                        val actualId = if (insertedTagId == null) {
-                            session.sendPreparedStatement(
-                                { setParameter("tag", tagTitle) },
-                                """
-                                    select id from app_store.categories where tag = :tag
-                                """
-                            ).rows.singleOrNull()?.getInt(0)
-                        } else {
-                            categories[insertedTagId.toLong()] = InternalTag(tagTitle, emptySet(), 10000)
-                            insertedTagId
-                        }
-
-                        if (actualId == null) throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-
-                        actualId.toLong() to categories[actualId.toLong()]
-                    } else {
-                        initialTag.key to initialTag.value
-                    }
+                    val category = categories[categoryId.toLong()]
+                        ?: throw RPCException("Unknown category: $categoryId", HttpStatusCode.NotFound)
 
                     session.sendPreparedStatement(
                         {
-                            setParameter("tag_id", tagId.toInt())
+                            setParameter("category_id", categoryId)
                             setParameter("group_id", groupId)
                         },
                         """
                             insert into app_store.category_items (group_id, tag_id) 
-                            values (:group_id, :tag_id)
+                            values (:group_id, :category_id)
                         """
                     )
 
-                    internalTag.addGroup(setOf(groupId))
-                    group.addTags(setOf(tagId.toInt()))
+                    category.addGroup(setOf(groupId))
+                    group.addCategories(setOf(categoryId))
                 }
             }
         }
     }
 
-    suspend fun removeTagFromGroup(
+    suspend fun removeGroupFromCategories(
         actorAndProject: ActorAndProject,
-        tagTitles: List<String>,
+        tagIds: List<Int>,
         groupId: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val group = groups[groupId.toLong()] ?: throw RPCException("Unknown group: $groupId", HttpStatusCode.NotFound)
-        for (tagTitle in tagTitles) {
+        for (tagId in tagIds) {
             db.withSession { session ->
-                val entry = categories.entries.find { it.value.title().equals(tagTitle, ignoreCase = true) }
-                    ?: throw RPCException("Unknown tag: $tagTitle", HttpStatusCode.NotFound)
-
-                val tagId = entry.key.toInt()
-                val internalTag = entry.value
+                val entry = categories[tagId.toLong()]
+                    ?: throw RPCException("Unknown tag: $tagId", HttpStatusCode.NotFound)
 
                 session.sendPreparedStatement(
                     {
@@ -1272,8 +1249,8 @@ class AppService(
                     """
                 )
 
-                internalTag.removeGroup(setOf(groupId))
-                group.removeTags(setOf(tagId))
+                entry.removeGroup(setOf(groupId))
+                group.removeCategories(setOf(tagId))
             }
         }
     }
@@ -1316,7 +1293,11 @@ class AppService(
         )
     }
 
-    suspend fun retrieveGroup(actorAndProject: ActorAndProject, groupId: Int, loadApplications: Boolean = false): ApplicationGroup? {
+    suspend fun retrieveGroup(
+        actorAndProject: ActorAndProject,
+        groupId: Int,
+        loadApplications: Boolean = false
+    ): ApplicationGroup? {
         val info = groups[groupId.toLong()]?.get() ?: return null
         return ApplicationGroup(
             ApplicationGroup.Metadata(
@@ -1326,7 +1307,7 @@ class AppService(
                 info.title,
                 info.description ?: "",
                 info.defaultFlavor,
-                info.tags
+                info.categories
             ),
             ApplicationGroup.Status(
                 if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
@@ -1459,7 +1440,11 @@ class AppService(
         return if (version == null) {
             listVersions(actorAndProject, name, loadGroupApplications = loadGroupApplications).firstOrNull()
         } else {
-            loadApplications(actorAndProject, listOf(NameAndVersion(name, version)), loadGroupApplications = loadGroupApplications).singleOrNull()
+            loadApplications(
+                actorAndProject,
+                listOf(NameAndVersion(name, version)),
+                loadGroupApplications = loadGroupApplications
+            ).singleOrNull()
         }
     }
 
@@ -1485,7 +1470,9 @@ class AppService(
         groupId: Int
     ): List<ApplicationWithFavoriteAndTags> {
         val group = groups[groupId.toLong()]?.get() ?: return emptyList()
-        return loadApplications(actorAndProject, group.applications).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()}
+        return loadApplications(actorAndProject, group.applications).sortedBy {
+            it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()
+        }
     }
 
     suspend fun listApplicationsInCategory(
@@ -1505,7 +1492,11 @@ class AppService(
             candidates.addAll(group.applications)
         }
 
-        return title to loadApplications(actorAndProject, candidates, withAllVersions = false).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.title.lowercase() }
+        return title to loadApplications(
+            actorAndProject,
+            candidates,
+            withAllVersions = false
+        ).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.title.lowercase() }
     }
 
     suspend fun listByExtension(
@@ -1711,7 +1702,12 @@ class AppService(
                 retrieveApplication(actorAndProject, it, null, loadGroupApplications = false)?.withoutInvocation()
             },
             updated.mapNotNull {
-                retrieveApplication(actorAndProject, it.name, it.version, loadGroupApplications = false)?.withoutInvocation()
+                retrieveApplication(
+                    actorAndProject,
+                    it.name,
+                    it.version,
+                    loadGroupApplications = false
+                )?.withoutInvocation()
             }
         )
     }
@@ -1725,7 +1721,52 @@ class AppService(
         newPicks: List<TopPick>,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+
+        for (slide in newPicks) {
+            val app = slide.applicationName
+            val group = slide.groupId
+            if (app != null) {
+                applicationVersions[app] ?: throw RPCException("Unknown linked application!", HttpStatusCode.NotFound)
+            }
+
+            if (group != null) {
+                groups[group.toLong()] ?: throw RPCException("Unknown linked group!", HttpStatusCode.NotFound)
+            }
+        }
+
+        topPicks.update { newPicks }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    delete from app_store.top_picks where true
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    newPicks.split {
+                        into("app_names") { it.applicationName }
+                        into("groups") { it.groupId }
+                        into("descriptions") { it.description }
+                    }
+                    setParameter("priorities", List(newPicks.size) { it })
+                },
+                """
+                    with data as (
+                        select
+                            unnest(:app_names::text[]) app_name,
+                            unnest(:groups::int[]) group_id,
+                            unnest(:descriptions::text[]) description,
+                            unnest(:priorities::int[]) priority
+                    )
+                    insert into app_store.top_picks (application_name, group_id, description, priority) 
+                    select app_name, group_id, description, priority
+                    from data
+                """
+            )
+        }
     }
 
     suspend fun createOrUpdateSpotlight(
@@ -1733,10 +1774,82 @@ class AppService(
         id: Int?,
         title: String,
         description: String,
+        active: Boolean,
         applications: List<TopPick>,
-    ) {
+    ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+        val id = db.withSession { session ->
+            val allocatedId = if (db == DiscardingDBContext) {
+                id ?: groupIdAllocatorForTestsOnly.getAndIncrement()
+            } else {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("title", title)
+                        setParameter("id", id)
+                        setParameter("description", description)
+                        setParameter("active", active)
+                    },
+                    """
+                        insert into app_store.spotlights (id, title, description, active)
+                        values (coalesce(:id::int, nextval('app_store.spotlights_id_seq')), :title, :description, :active)
+                        on conflict (id) do update set
+                            title = excluded.title,
+                            description = excluded.description,
+                            active = excluded.active
+                        returning id
+                    """
+                ).rows.single().getInt(0)!!
+            }
+
+            session.sendPreparedStatement(
+                { setParameter("id", allocatedId) },
+                """
+                    delete from app_store.spotlight_items
+                    where spotlight_id = :id
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", allocatedId)
+                    setParameter("priorities", IntArray(applications.size) { it }.toList())
+                    applications.split {
+                        into("titles") { it.title }
+                        into("application_names") { it.applicationName }
+                        into("group_ids") { it.groupId }
+                        into("descriptions") { it.description }
+                    }
+                },
+                """
+                    with data as (
+                        select
+                            unnest(:priorities::int[]) priority,
+                            unnest(:titles::text[]) title,
+                            unnest(:group_ids::int[]) group_id,
+                            unnest(:application_names::text[]) application_name,
+                            unnest(:descriptions::text[]) description
+                    )
+                    insert into app_store.spotlight_items (spotlight_id, application_name, group_id, description, priority) 
+                    select :id, application_name, group_id, description, priority
+                    from data
+                """
+            )
+
+            val newSpotlight = Spotlight(title, description, applications, false, allocatedId)
+            val spotlight = spotlights.computeIfAbsent(allocatedId.toLong()) {
+                InternalSpotlight(newSpotlight)
+            }
+
+            spotlight.update { newSpotlight }
+
+            allocatedId
+        }
+
+        if (active) {
+            activateSpotlight(actorAndProject, id)
+        }
+
+        return id
     }
 
     suspend fun activateSpotlight(
@@ -1744,7 +1857,21 @@ class AppService(
         id: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+
+        spotlights.values.forEach { spot -> spot.update { it.copy(active = false) } }
+        val spotlight = spotlights[id.toLong()] ?: throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
+        spotlight.update { it.copy(active = true) }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("id", id) },
+                """
+                    update app_store.spotlights
+                    set active = (id = :id)
+                    where true
+                """
+            )
+        }
     }
 
     suspend fun deleteSpotlight(
@@ -1752,14 +1879,281 @@ class AppService(
         id: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+
+        val didRemove = spotlights.remove(id.toLong()) != null
+        if (!didRemove) throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("id", id) },
+                """
+                    delete from app_store.spotlight_items
+                    where spotlight_id = :id
+                """
+            )
+
+            session.sendPreparedStatement(
+                { setParameter("id", id) },
+                """
+                    delete from app_store.spotlights
+                    where id = :id
+                """
+            )
+        }
+    }
+
+    suspend fun retrieveSpotlights(
+        actorAndProject: ActorAndProject,
+        id: Int,
+    ): Spotlight? {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        return spotlights[id.toLong()]?.get()
     }
 
     suspend fun listSpotlights(
         actorAndProject: ActorAndProject,
     ): List<Spotlight> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+        return spotlights.values.map { it.get() }
+    }
+
+    suspend fun assignPriorityToCategory(
+        actorAndProject: ActorAndProject,
+        categoryId: Int,
+        priority: Int,
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val category =
+            categories[categoryId.toLong()] ?: throw RPCException("Unknown category", HttpStatusCode.NotFound)
+        val currentPriority = category.priority()
+        if (currentPriority == priority) return
+
+        for (cat in categories.values) {
+            if (cat.priority() == priority) {
+                cat.updatePriority(currentPriority)
+            }
+        }
+
+        category.updatePriority(priority)
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("current_priority", currentPriority)
+                    setParameter("priority", priority)
+                    setParameter("id", categoryId)
+                },
+                """
+                    update app_store.categories
+                    set priority = :current_priority
+                    where priority = :priority
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("priority", priority)
+                    setParameter("id", categoryId)
+                },
+                """
+                    update app_store.categories
+                    set priority = :priority
+                    where id = :id
+                """
+            )
+        }
+    }
+
+    suspend fun createCategory(
+        actorAndProject: ActorAndProject,
+        specification: ApplicationCategory.Specification,
+    ): Int {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        val priority = categories.size
+
+        val id = if (db == DiscardingDBContext) {
+            groupIdAllocatorForTestsOnly.getAndIncrement()
+        } else {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("title", specification.title)
+                        setParameter("description", specification.description)
+                        setParameter("priority", priority)
+                    },
+                    """
+                        insert into app_store.categories (tag, description, priority) 
+                        values (:title, :description, :priority)
+                        returning id
+                    """
+                ).rows.single().getInt(0)!!
+            }
+        }
+
+        val category = InternalTag(specification.title, emptySet(), priority)
+        categories[id.toLong()] = category
+        return id
+    }
+
+    suspend fun deleteCategory(
+        actorAndProject: ActorAndProject,
+        categoryId: Int,
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val category =
+            categories[categoryId.toLong()] ?: throw RPCException("Unknown category", HttpStatusCode.NotFound)
+
+        for (groupId in category.groups()) {
+            runCatching { removeGroupFromCategories(actorAndProject, listOf(categoryId), groupId) }
+        }
+
+        categories.remove(categoryId.toLong())
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("category_id", categoryId)
+                },
+                """
+                    delete from app_store.category_items
+                    where tag_id = :category_id
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("category_id", categoryId)
+                },
+                """
+                    delete from app_store.categories
+                    where id = :category_id
+                """
+            )
+        }
+
+        reorderCategories()
+    }
+
+    private suspend fun reorderCategories() {
+        val allCategories = categories.toList().sortedBy { it.second.priority() }
+        for ((index, idAndCategory) in allCategories.withIndex()) {
+            val category = idAndCategory.second
+            category.updatePriority(index)
+        }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    allCategories.split {
+                        into("priorities") { it.second.priority() }
+                        into("ids") { it.first.toInt() }
+                    }
+                },
+                """
+                    with data as (
+                        select unnest(:priorities::int[]) as priority, unnest(:ids::int[]) as id
+                    )
+                    update app_store.categories c
+                    set priority = d.priority
+                    from data d
+                    where c.id = d.id
+                """
+            )
+        }
+    }
+
+    suspend fun updateCarrousel(
+        actorAndProject: ActorAndProject,
+        newSlides: List<CarrouselItem>
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        for (slide in newSlides) {
+            val app = slide.linkedApplication
+            val group = slide.linkedGroup
+            if (app != null) {
+                applicationVersions[app] ?: throw RPCException("Unknown linked application!", HttpStatusCode.NotFound)
+            }
+
+            if (group != null) {
+                groups[group.toLong()] ?: throw RPCException("Unknown linked group!", HttpStatusCode.NotFound)
+            }
+        }
+
+        carrousel.update { newSlides }
+        carrousel.updateImages { oldImages ->
+            List(newSlides.size) { i -> oldImages.getOrNull(i) ?: ByteArray(0) }
+        }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    newSlides.split {
+                        into("titles") { it.title }
+                        into("bodies") { it.body }
+                        into("image_credits") { it.imageCredit }
+                        into("linked_web_pages") { it.linkedWebPage }
+                        into("linked_groups") { it.linkedGroup }
+                        into("linked_applications") { it.linkedApplication }
+                    }
+                    setParameter("priorities", IntArray(newSlides.size) { it }.toList())
+                },
+                """
+                    with data as (
+                        select 
+                            unnest(:titles::text[]) title,
+                            unnest(:bodies::text[]) body, 
+                            unnest(:image_credits::text[]) image_credit,
+                            unnest(:linked_applications::text[]) linked_app,
+                            unnest(:linked_web_pages::text[]) linked_web,
+                            unnest(:priorities::int[]) priority,
+                            unnest(:linked_groups::int[]) linked_group
+                    )
+                    insert into app_store.carrousel_items
+                        (title, body, image_credit, linked_application, linked_web_page, priority, linked_group, image) 
+                    select title, body, image_credit, linked_app, linked_web, priority, linked_group, ''::bytea
+                    from data
+                    on conflict (priority) do update set
+                        title = excluded.title,
+                        body = excluded.body,
+                        image_credit = excluded.image_credit,
+                        linked_application = excluded.linked_application,
+                        linked_web_page = excluded.linked_web_page,
+                        linked_group = excluded.linked_group
+                """
+            )
+        }
+    }
+
+    suspend fun updateCarrouselImage(
+        actorAndProject: ActorAndProject,
+        slideIndex: Int,
+        image: ByteArray
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        carrousel.updateImages {
+            val copy = ArrayList(it)
+            if (slideIndex in it.indices) {
+                copy[slideIndex] = image
+            }
+
+            copy
+        }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("index", slideIndex)
+                    setParameter("image", image)
+                },
+                """
+                    update app_store.carrousel_items
+                    set image = :image
+                    where priority = :index
+                """
+            )
+        }
     }
 
     companion object {

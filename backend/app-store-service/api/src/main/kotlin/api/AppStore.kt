@@ -46,7 +46,8 @@ ${ApiConventions.nonConformingApiWarning}
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     Applications contain quite a lot of information. The most important pieces of information are
                     summarized below:
                     
@@ -60,7 +61,8 @@ ${ApiConventions.nonConformingApiWarning}
                     - The command-line invocation will look like this: `acme-batch --debug "Hello, World!"`. 
                       - The invocation is created from `invocation.invocation`
                       - With parameters defined in `invocation.parameters`
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 success(
                     findByNameAndVersion,
@@ -85,10 +87,12 @@ ${ApiConventions.nonConformingApiWarning}
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     This example shows an Application encoding a virtual machine. It will use the
                     "acme-operating-system" as its base image, as defined in the Tool. 
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 val application = exampleApplication(
                     "acme-os",
@@ -114,10 +118,12 @@ ${ApiConventions.nonConformingApiWarning}
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     This example shows an Application with a graphical web interface. The web server, hosting the 
                     interface, runs on port 8080 as defined in the `invocation.web` section.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 val application = exampleApplication(
                     "acme-web",
@@ -147,10 +153,12 @@ ${ApiConventions.nonConformingApiWarning}
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     This example shows an Application with a graphical web interface. The VNC server, hosting the 
                     interface, runs on port 5900 as defined in the `invocation.vnc` section.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 val application = exampleApplication(
                     "acme-remote-desktop",
@@ -180,16 +188,20 @@ ${ApiConventions.nonConformingApiWarning}
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     This example shows an Application with a graphical web interface. The web server, hosting the 
                     interface, runs on port 8080 as defined in the `invocation.web` section.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
-                comment("""
+                comment(
+                    """
                     The Application also registers a file handler of all files with the `*.c` extension. This is used as
                     a hint for the frontend that files with this extension can be opened with this Application. When
                     opened like this, the file's parent folder will be mounted as a resource.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 val application = exampleApplication(
                     "acme-web",
@@ -222,11 +234,13 @@ ${ApiConventions.nonConformingApiWarning}
             flow = {
                 val user = basicUser()
 
-                comment("""
+                comment(
+                    """
                     This example shows an Application which has a single input parameter. The parameter contains a 
                     textual value. If the user does not provide a specific value, it will default to 'hello'. UCloud 
                     passes this value as the first argument on the command-line.
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 val application = exampleApplication(
                     "acme-web",
@@ -301,11 +315,31 @@ ${ApiConventions.nonConformingApiWarning}
     val retrieveCategory = RetrieveCategory.call
     val addGroupToCategory = AddGroupToCategory.call
     val removeGroupFromCategory = RemoveGroupFromCategory.call
+    val assignPriorityToCategory = AssignPriorityToCategory.call
+    val deleteCategory = DeleteCategory.call
 
     // Landing page management
     // =================================================================================================================
     val retrieveLandingPage = RetrieveLandingPage.call
     val retrieveCarrouselImage = RetrieveCarrouselImage.call
+
+    // Spotlight management
+    // =================================================================================================================
+    val createSpotlight = CreateSpotlight.call
+    val updateSpotlight = UpdateSpotlight.call
+    val deleteSpotlight = DeleteSpotlight.call
+    val retrieveSpotlight = RetrieveSpotlight.call
+    val browseSpotlights = BrowseSpotlight.call
+    val activateSpotlight = ActivateSpotlight.call
+
+    // Carrousel management
+    // =================================================================================================================
+    val updateCarrousel = UpdateCarrousel.call
+    val updateCarrouselImage = UpdateCarrouselImage.call
+
+    // Top picks management
+    // =================================================================================================================
+    val updateTopPicks = UpdateTopPicks.call
 
     // Import API
     // =================================================================================================================
@@ -719,6 +753,24 @@ ${ApiConventions.nonConformingApiWarning}
         )
     }
 
+    object AssignPriorityToCategory {
+        @Serializable
+        data class Request(
+            val id: Int,
+            val priority: Int
+        )
+
+        val call = call(
+            "assignPriorityToCategory",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "assignPriorityToCategory", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
     object BrowseCategories {
         @Serializable
         class Request(
@@ -747,6 +799,18 @@ ${ApiConventions.nonConformingApiWarning}
             CommonErrorMessage.serializer(),
             handler = {
                 httpRetrieve(baseContext, "category")
+            }
+        )
+    }
+
+    object DeleteCategory {
+        val call = call(
+            "deleteCategory",
+            FindByIntId.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "deleteCategory", roles = Roles.PRIVILEGED)
             }
         )
     }
@@ -904,13 +968,161 @@ ${ApiConventions.nonConformingApiWarning}
             }
         )
     }
+
+
+    object CreateSpotlight {
+        val call = call(
+            "createSpotlight",
+            Spotlight.serializer(),
+            FindByIntId.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "createSpotlight", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object UpdateSpotlight {
+        val call = call(
+            "updateSpotlight",
+            Spotlight.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "updateSpotlight", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object DeleteSpotlight {
+        val call = call(
+            "deleteSpotlight",
+            FindByIntId.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "deleteSpotlight", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object RetrieveSpotlight {
+        val call = call(
+            "retrieveSpotlight",
+            FindByIntId.serializer(),
+            Spotlight.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "spotlight", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object BrowseSpotlight {
+        @Serializable
+        data class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ): WithPaginationRequestV2
+
+        val call = call(
+            "browseSpotlight",
+            Request.serializer(),
+            PageV2.serializer(Spotlight.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpBrowse(baseContext, "spotlight", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object ActivateSpotlight {
+        val call = call(
+            "activateSpotlight",
+            FindByIntId.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "activateSpotlight", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object UpdateCarrousel {
+        @Serializable
+        data class Request(
+            val newSlides: List<CarrouselItem>,
+        )
+
+        val call = call(
+            "updateCarrousel",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "updateCarrousel", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object UpdateCarrouselImage {
+        @Serializable
+        data class Request(
+            val slideIndex: Int,
+        )
+
+        val call = call(
+            "updateCarrouselImage",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                auth {
+                    roles = Roles.PRIVILEGED
+                    access = AccessRight.READ_WRITE
+                }
+
+                http {
+                    method = HttpMethod.Post
+
+                    path {
+                        using(baseContext)
+                        +"updateCarrouselImage"
+                    }
+
+                    headers {
+                        +boundTo("Slide-Index", Request::slideIndex)
+                    }
+                }
+            }
+        )
+    }
+
+    object UpdateTopPicks {
+        @Serializable
+        data class Request(
+            val newTopPicks: List<TopPick>,
+        )
+
+        val call = call(
+            "updateTopPicks",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "updateTopPicks", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
 }
 
 @Serializable
 data class TopPick(
     val title: String,
-    val applicationName: String?,
-    val groupId: Int?,
+    val applicationName: String? = null,
+    val groupId: Int? = null,
     val description: String,
     val defaultApplicationToRun: String? = null,
 ) {
@@ -972,6 +1184,7 @@ data class Spotlight(
     val body: String,
     val applications: List<TopPick>,
     val active: Boolean,
+    val id: Int? = null,
 )
 
 @Serializable
@@ -989,8 +1202,8 @@ data class ApplicationGroup(
     data class Specification(
         val title: String,
         val description: String,
-        val defaultFlavor: String?,
-        val categories: Set<Int>,
+        val defaultFlavor: String? = null,
+        val categories: Set<Int> = emptySet(),
     )
 
     @Serializable

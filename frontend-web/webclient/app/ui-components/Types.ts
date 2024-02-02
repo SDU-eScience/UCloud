@@ -14,6 +14,8 @@ export type Cursor = "auto" | "default" | "none" | "context-menu" | "help" | "po
 
 interface FlexGrowProps {
     flexGrow?: number;
+    flexShrink?: number;
+    flexBasis?: number;
 }
 
 interface FlexShrinkProps {
@@ -41,4 +43,5 @@ export type BoxProps =
     VerticalAlignProps &
     FontSizeProps &
     {cursor?: Cursor} &
+    {objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down"} &
     WithEventHandlers;

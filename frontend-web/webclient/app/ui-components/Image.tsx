@@ -1,6 +1,7 @@
 import {SpaceProps} from "styled-system";
 import {injectStyle, unbox} from "@/Unstyled";
 import * as React from "react";
+import {BoxProps} from "@/ui-components/Types";
 
 export const ImageClass = injectStyle("image", k => `
     ${k} {
@@ -9,7 +10,7 @@ export const ImageClass = injectStyle("image", k => `
     }
 `);
 
-const Image: React.FunctionComponent<SpaceProps & React.ImgHTMLAttributes<HTMLImageElement>> = props => {
+const Image: React.FunctionComponent<SpaceProps & BoxProps & React.ImgHTMLAttributes<HTMLImageElement>> = props => {
     const className = ImageClass + " " + (props.className ?? "")
     const style = {...unbox(props), ...(props.style ?? {})};
     // noinspection HtmlRequiredAltAttribute

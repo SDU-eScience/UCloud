@@ -7,7 +7,7 @@ import TitledCard from "@/ui-components/HighlightedCard";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
 import {ThemeColor} from "@/ui-components/theme";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
@@ -16,6 +16,7 @@ import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
+import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -73,21 +74,7 @@ const LandingPage: React.FunctionComponent = () => {
                 <article className={landingStyle}>
                     <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
                     <Hero slides={landingPage.carrousel}/>
-
-                    <TitledCard title={"Top picks"} icon={"heroChartBar"}>
-                        <AppCardGrid>
-                            {landingPage.topPicks.map(pick => {
-                                if (pick.groupId) {
-                                    return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                                                     title={pick.title} description={pick.description}
-                                                     applicationName={pick.defaultApplicationToRun}/>;
-                                } else {
-                                    return null;
-                                }
-                            })}
-                        </AppCardGrid>
-                    </TitledCard>
-
+                    <TopPicksCard topPicks={landingPage.topPicks} />
                     <TitledCard title={"Starred applications"} icon={"heroStar"}>
                         <AppCardGrid>
                             {starred.data.items.map(a => {
@@ -107,31 +94,7 @@ const LandingPage: React.FunctionComponent = () => {
                         </Grid>
                     </TitledCard>
 
-                    {landingPage.spotlight &&
-                        <TitledCard title={`Spotlight: ${landingPage.spotlight.title}`} icon={"heroBeaker"}>
-                            <Flex flexDirection={"row"} gap={"32px"}>
-                                <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
-                                    {landingPage.spotlight.applications.map((pick, idx) => {
-                                        if (pick.groupId) {
-                                            return <AppCard1 key={idx} name={pick.groupId.toString()}
-                                                             title={pick.title} description={pick.description}
-                                                             applicationName={pick.defaultApplicationToRun}
-                                                             fullWidth/>;
-                                        } else {
-                                            return null;
-                                        }
-                                    })}
-                                </Flex>
-                                <Box width={"400px"} flexShrink={1} flexGrow={0}>
-                                    <div className={SpotlightDescription} style={{fontStyle: "italic"}}>
-                                        <Markdown allowedElements={["p"]}>
-                                            {landingPage.spotlight.body}
-                                        </Markdown>
-                                    </div>
-                                </Box>
-                            </Flex>
-                        </TitledCard>
-                    }
+                    {landingPage.spotlight && <SpotlightCard spotlight={landingPage.spotlight} />}
 
                     <TabbedCard>
                         <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
@@ -157,11 +120,37 @@ const LandingPage: React.FunctionComponent = () => {
                 </article>
             </div>
         </div>
-
-
     </div>;
 };
 
+export const SpotlightCard: React.FunctionComponent<{
+    spotlight: Spotlight;
+    target?: HTMLAttributeAnchorTarget;
+}> = ({spotlight, target}) => {
+    return <TitledCard title={`Spotlight: ${spotlight.title}`} icon={"heroBeaker"}>
+        <Flex flexDirection={"row"} gap={"32px"}>
+            <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
+                {spotlight.applications.map((pick, idx) => {
+                    if (pick.groupId) {
+                        return <AppCard1 key={idx} name={pick.groupId.toString()}
+                                         title={pick.title} description={pick.description}
+                                         applicationName={pick.defaultApplicationToRun}
+                                         fullWidth target={target}/>;
+                    } else {
+                        return null;
+                    }
+                })}
+            </Flex>
+            <Box width={"400px"} flexShrink={1} flexGrow={0}>
+                <div className={SpotlightDescription} style={{fontStyle: "italic"}}>
+                    <Markdown allowedElements={["p"]}>
+                        {spotlight.body}
+                    </Markdown>
+                </div>
+            </Box>
+        </Flex>
+    </TitledCard>
+};
 
 const HeroStyle = injectStyle("hero", k => `
     ${k} > .carousel {
@@ -187,7 +176,7 @@ const HeroStyle = injectStyle("hero", k => `
     ${k} > .carousel > div:nth-child(2) {
         display: flex;
         flex-direction: column;
-        max-width: 400px;
+        width: 400px;
         padding-left: 20px;
     }
     
@@ -232,19 +221,24 @@ const HeroIndicator: React.FunctionComponent<{
 }> = (props) => {
     return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick}/>;
 };
-const Hero: React.FunctionComponent<{ slides: AppStore.CarrouselItem[] }> = ({slides}) => {
+export const Hero: React.FunctionComponent<{
+    slides: AppStore.CarrouselItem[];
+    imageLinks?: string[];
+    isPreview?: boolean;
+}> = ({slides, imageLinks, isPreview}) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const autoPage = useRef(true);
     useEffect(() => {
         const t = setInterval(() => {
             if (!autoPage.current) return;
+            if (isPreview) return;
             setActiveIndex(prev => prev + 1);
         }, 5000);
 
         return () => {
             clearInterval(t);
         };
-    }, []);
+    }, [isPreview]);
 
     const moveDelta = useCallback((delta: number) => {
         setActiveIndex(prev => prev + delta);
@@ -252,6 +246,8 @@ const Hero: React.FunctionComponent<{ slides: AppStore.CarrouselItem[] }> = ({sl
     }, []);
     const goBack = useCallback(() => moveDelta(-1), [moveDelta]);
     const goForwards = useCallback(() => moveDelta(1), [moveDelta]);
+
+    if (slides.length == 0) return null;
 
     const index = activeIndex % slides.length;
     const slide = slides[index];
@@ -267,11 +263,13 @@ const Hero: React.FunctionComponent<{ slides: AppStore.CarrouselItem[] }> = ({sl
         }
     }
 
+    const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
+
     return <Card style={{overflow: "hidden"}}>
         <div className={HeroStyle}>
             <div className={"carousel"}>
                 <div>
-                    <img alt={"cover image"} src={AppStore.retrieveCarrouselImage({index, slideTitle: slide.title})}/>
+                    <img alt={"cover image"} src={imageLink}/>
                     <div className="indicators">
                         <Icon color={"#d3d3d4" as ThemeColor} hoverColor={"#a6a8a9" as ThemeColor} cursor={"pointer"}
                               name={"heroChevronLeft"} onClick={goBack}/>
@@ -300,15 +298,18 @@ const Hero: React.FunctionComponent<{ slides: AppStore.CarrouselItem[] }> = ({sl
                     <ReactRouterLink
                         to={slideLink}
                         style={{width: "100%"}}
-                        target={slideLinkIsExternal ? "_blank" : undefined}
+                        target={slideLinkIsExternal || isPreview ? "_blank" : undefined}
                         rel="noopener"
                     >
-                        <Button fullWidth><Icon name={"heroPlay"}/> Open application</Button>
+                        <Button fullWidth>
+                            <Icon name={"heroPlay"}/>
+                            <div>
+                                {slide.linkedWebPage ? "Open web-page" : "Open application"}
+                            </div>
+                        </Button>
                     </ReactRouterLink>
                 </div>
             </div>
-
-
         </div>
     </Card>;
 };
@@ -365,13 +366,14 @@ const AppCard1: React.FunctionComponent<{
     fullWidth?: boolean;
     isApplication?: boolean;
     applicationName?: string | null;
+    target?: HTMLAttributeAnchorTarget;
 }> = props => {
     let link = props.isApplication ? AppRoutes.jobs.create(props.name) : AppRoutes.apps.group(props.name);
     if (props.applicationName) {
         link = AppRoutes.jobs.create(props.applicationName);
     }
 
-    return <ReactRouterLink to={link}
+    return <ReactRouterLink to={link} target={props.target}
                             className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}>
         <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
         <div className={"content"}>
@@ -438,5 +440,21 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
         margin-bottom: 0;
     }
 `)
+
+export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
+    return <TitledCard title={"Top picks"} icon={"heroChartBar"}>
+        <AppCardGrid>
+            {topPicks.map(pick => {
+                if (pick.groupId) {
+                    return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
+                                     title={pick.title} description={pick.description}
+                                     applicationName={pick.defaultApplicationToRun}/>;
+                } else {
+                    return null;
+                }
+            })}
+        </AppCardGrid>
+    </TitledCard>
+};
 
 export default LandingPage;

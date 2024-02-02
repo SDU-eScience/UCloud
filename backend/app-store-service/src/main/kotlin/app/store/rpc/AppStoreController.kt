@@ -327,6 +327,85 @@ class AppStoreController(
 
             okContentAlreadyDelivered()
         }
+
+        implement(AppStore.createCategory) {
+            ok(FindByIntId(service.createCategory(actorAndProject, request)))
+        }
+
+        implement(AppStore.deleteCategory) {
+            service.deleteCategory(actorAndProject, request.id)
+            ok(Unit)
+        }
+
+        implement(AppStore.addGroupToCategory) {
+            service.addGroupToCategory(actorAndProject, listOf(request.categoryId), request.groupId)
+            ok(Unit)
+        }
+
+        implement(AppStore.removeGroupFromCategory) {
+            service.removeGroupFromCategories(actorAndProject, listOf(request.categoryId), request.groupId)
+            ok(Unit)
+        }
+
+        implement(AppStore.assignPriorityToCategory) {
+            service.assignPriorityToCategory(actorAndProject, request.id, request.priority)
+            ok(Unit)
+        }
+
+        implement(AppStore.createSpotlight) {
+            val id = service.createOrUpdateSpotlight(actorAndProject, null, request.title, request.body, request.active, request.applications)
+            ok(FindByIntId(id))
+        }
+
+        implement(AppStore.updateSpotlight) {
+            service.createOrUpdateSpotlight(
+                actorAndProject,
+                request.id ?: throw RPCException("Missing ID", HttpStatusCode.BadRequest),
+                request.title,
+                request.body,
+                request.active,
+                request.applications
+            )
+
+            ok(Unit)
+        }
+
+        implement(AppStore.deleteSpotlight) {
+            service.deleteSpotlight(actorAndProject, request.id)
+            ok(Unit)
+        }
+
+        implement(AppStore.browseSpotlights) {
+            ok(PageV2.of(service.listSpotlights(actorAndProject)))
+        }
+
+        implement(AppStore.retrieveSpotlight) {
+            ok(service.retrieveSpotlights(actorAndProject, request.id)
+                ?: throw RPCException("Unknown spotlight", HttpStatusCode.NotFound))
+        }
+
+        implement(AppStore.activateSpotlight) {
+            service.activateSpotlight(actorAndProject, request.id)
+            ok(Unit)
+        }
+
+        implement(AppStore.updateCarrousel) {
+            service.updateCarrousel(actorAndProject, request.newSlides)
+            ok(Unit)
+        }
+
+        implement(AppStore.updateCarrouselImage) {
+            val http = ctx as HttpCall
+            val packet = http.call.request.receiveChannel().readRemaining(1024 * 1024 * 2)
+            val bytes = packet.readBytes()
+            service.updateCarrouselImage(actorAndProject, request.slideIndex, bytes)
+            ok(Unit)
+        }
+
+        implement(AppStore.updateTopPicks) {
+            service.updateTopPicks(actorAndProject, request.newTopPicks)
+            ok(Unit)
+        }
     }
 
     companion object : Loggable {

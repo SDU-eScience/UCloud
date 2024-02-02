@@ -625,7 +625,7 @@ class AppServiceTest {
 
         val categoryName = "Category"
         for ((groupId) in appGroups) {
-            service.addTagToGroup(ActorAndProject.System, listOf(categoryName), groupId)
+            service.addGroupToCategory(ActorAndProject.System, listOf(categoryName), groupId)
         }
 
         val categoryThroughList = service.listCategories().singleOrNull()

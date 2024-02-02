@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.store.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.services.*
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -159,7 +158,7 @@ class Importer(
                 newDefaultFlavor = group.default
             )
 
-            service.addTagToGroup(ActorAndProject.System, group.tags, created)
+//            service.addGroupToCategory(ActorAndProject.System, group.tags, created)
 
             group.applications.forEach { app ->
                 service.assignApplicationToGroup(ActorAndProject.System, app, created)
