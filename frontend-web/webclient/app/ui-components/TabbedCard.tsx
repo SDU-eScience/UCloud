@@ -1,6 +1,6 @@
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, makeClassName} from "@/Unstyled";
 import {CSSProperties, useCallback, useLayoutEffect, useRef, useState} from "react";
 import Card from "@/ui-components/Card";
 import {Absolute} from "@/ui-components/index";
@@ -49,12 +49,9 @@ const ContainerClass = injectStyle("tabbed-card", k => `
     }
 `);
 
-const TabClass = injectStyle("tabbed-card-tab", k => `
-    ${k} {
-    }
-`);
+const TabClass = makeClassName("tabbed-card-tab");
 
-const TabbedCard: React.FunctionComponent<{ style?: CSSProperties; children: React.ReactNode }> = ({style, children}) => {
+const TabbedCard: React.FunctionComponent<{style?: CSSProperties; children: React.ReactNode}> = ({style, children}) => {
     const [tabs, setTabs] = useState<Tab[]>([]);
     const [visible, setVisible] = useState(0);
     const rootDiv = useRef<HTMLDivElement>(null);
@@ -62,7 +59,7 @@ const TabbedCard: React.FunctionComponent<{ style?: CSSProperties; children: Rea
     useLayoutEffect(() => {
         const div = rootDiv.current;
         if (!div) return;
-        const tabs = div.querySelectorAll<HTMLElement>(`.${TabClass}`);
+        const tabs = div.querySelectorAll<HTMLElement>(TabClass.dot);
 
         const newTabs: Tab[] = [];
         tabs.forEach((tab, idx) => {
@@ -76,7 +73,7 @@ const TabbedCard: React.FunctionComponent<{ style?: CSSProperties; children: Rea
                 tab.style.display = "block";
             }
 
-            newTabs.push({ icon: tabIcon as IconName, name: tabName });
+            newTabs.push({icon: tabIcon as IconName, name: tabName});
         });
 
         setTabs(newTabs);
@@ -111,7 +108,7 @@ const TabbedCard: React.FunctionComponent<{ style?: CSSProperties; children: Rea
                         data-active={idx === visible}
                         key={it.name}
                     >
-                        <Icon name={it.icon}/> {it.name}
+                        <Icon name={it.icon} /> {it.name}
                     </div>
                 )}
             </nav>
@@ -121,8 +118,8 @@ const TabbedCard: React.FunctionComponent<{ style?: CSSProperties; children: Rea
     </Card>;
 }
 
-export const TabbedCardTab: React.FunctionComponent<Tab & { children: React.ReactNode }> = ({name, icon, children}) => {
-    return <div className={TabClass} data-tab-name={name} data-tab-icon={icon}>{children}</div>;
+export const TabbedCardTab: React.FunctionComponent<Tab & {children: React.ReactNode}> = ({name, icon, children}) => {
+    return <div className={TabClass.class} data-tab-name={name} data-tab-icon={icon}>{children}</div>;
 };
 
 export default TabbedCard;
