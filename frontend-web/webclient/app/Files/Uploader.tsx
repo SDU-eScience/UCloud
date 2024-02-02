@@ -391,9 +391,7 @@ const Uploader: React.FunctionComponent = () => {
             className={CardClass}
         >
             <div style={{
-                maxHeight: "calc(80vh - 20px)",
-                height: "calc(80vh - 20px)",
-                minHeight: defaultModalStyle.content?.minHeight,
+                height: "100%",
                 overflowY: "hidden"
             }} className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <div className="title" style={{height: "55px"}}>
