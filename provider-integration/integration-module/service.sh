@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-PS1=fakeinteractiveshell
-source /root/.bashrc
+PATH=$PATH:/usr/local/sdkman/candidates/gradle/current/bin
 running_k8=$(grep "providerId: k8" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
 running_slurm=$(grep "providerId: slurm" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
+running_munged=$(ps aux | grep "/usr/sbin/munged" | grep -v grep &> /dev/null ; echo $?)
 
 if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     nohup /opt/ucloud/user-sync.py push /mnt/passwd &> /tmp/sync.log &
@@ -12,16 +12,14 @@ if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
 fi
 
-uid=998
-if [[ $running_k8 == 0 ]]; then
-    uid=11042
-fi
-
+uid=11042
 
 if [[ $running_slurm == 0 ]]; then
-    uid=998
     chown -R munge:munge /etc/munge || true
-    service munge start;
+
+    if [[ $running_munged == 1 ]]; then
+        gosu munge /usr/sbin/munged;
+    fi
 fi
 
 chmod 755 /work || true
