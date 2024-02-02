@@ -4,12 +4,10 @@ import {Box, Flex, Icon, Tooltip} from "@/ui-components";
 import Text, {TextSpan} from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";
-import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
-import * as AppStore from "@/Applications/AppStoreApi";
 
 export const AppHeader: React.FunctionComponent<{
     application: ApplicationWithFavoriteAndTags;

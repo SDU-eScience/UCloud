@@ -44,6 +44,17 @@ export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOpt
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
+    
+    // Note(Jonas)/Hack(Jonas): This is a hack for the work-around when browser components are embedded, but the only key-input accepting component.
+    // Ideally, embedded should not disable keyinputs, but maybe embedded should instead be an object like: 
+    // type ResourceBrowser.embedded = {
+    //      disableKeyhandlers?: boolean;
+    //      omitFilters?: boolean;
+    //      disableShortcuts?: boolean;
+    // }
+    // And if `embedded == null`, then we know these things are not relevant.
+    // But will keyhandlers only be disabled when it is embedded?
+    overrideDisabledKeyhandlers?: boolean;
     disabledKeyhandlers?: boolean;
     reloadRef?: React.MutableRefObject<() => void>;
     
@@ -396,7 +407,9 @@ export class ResourceBrowser<T> {
 
     public static isAnyModalOpen = false;
     private isModal: boolean;
+    private overrideDisabledKeyhandlers = false;
     private allowEventListenerAction(): boolean {
+        if (this.overrideDisabledKeyhandlers) return true;
         if (ResourceBrowser.isAnyModalOpen) return false;
         if (this.isModal) return false;
         if (this.opts.embedded) return false;
@@ -418,6 +431,7 @@ export class ResourceBrowser<T> {
         this.root = root;
         this.resourceName = resourceName;
         this.isModal = !!opts?.isModal;
+        this.overrideDisabledKeyhandlers = !!opts?.overrideDisabledKeyhandlers;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
             embedded: !!opts?.embedded,

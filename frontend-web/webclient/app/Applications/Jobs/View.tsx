@@ -1222,7 +1222,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
     }
     return <Card className={FadeInDiv} p={"0px"} height={"calc(100vh - 530px)"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
-            opts={{initialPath: pathRef.current, embedded: true}}
+            opts={{initialPath: pathRef.current, embedded: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
         />
     </Card>;
 }
