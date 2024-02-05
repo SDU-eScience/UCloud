@@ -655,6 +655,26 @@ export interface LandingPage {
     recentlyUpdated: ApplicationSummaryWithFavorite[];
 }
 
+// Import/export features
+// =================================================================================================================
+export async function doExport(): Promise<string> {
+    const token = await Client.receiveAccessTokenOrRefreshIt();
+
+    const actualHeaders: Record<string, string> = {};
+    actualHeaders["Authorization"] = `Bearer ${token}`;
+
+    const response = await fetch(Client.computeURL("/", `${baseContext}/export`), {
+        method: "POST",
+        headers: actualHeaders,
+    });
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+}
+
+export async function doImport(file: File) {
+    return uploadFile("POST", `${baseContext}/importFromFile`, file);
+}
+
 export interface CarrouselItem {
     title: string;
     body: string;

@@ -6,10 +6,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.services.AppService
-import dk.sdu.cloud.app.store.services.ApplicationYaml
-import dk.sdu.cloud.app.store.services.Importer
-import dk.sdu.cloud.app.store.services.ToolYaml
+import dk.sdu.cloud.app.store.services.*
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
@@ -17,20 +14,33 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.Page
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.util.*
 import io.ktor.util.cio.*
+import io.ktor.util.cio.toByteReadChannel
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
+import io.ktor.utils.io.jvm.javaio.*
 import org.yaml.snakeyaml.reader.ReaderException
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.security.MessageDigest
 import kotlin.text.String
 
 class AppStoreController(
-    private val importer: Importer? = null,
+    private val importExportService: ImportExport,
     private val service: AppService,
+    private val devMode: Boolean,
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppStore.findByNameAndVersion) {
@@ -159,10 +169,57 @@ class AppStoreController(
             ok(Unit)
         }
 
-        importer?.let { im ->
+
+        if (devMode) {
             implement(AppStore.devImport) {
-                ok(im.importApplications(request.endpoint, request.checksum))
+                val client = HttpClient(CIO)
+                val bytes = ByteArrayOutputStream().use { bos ->
+                    client.get(request.endpoint).bodyAsChannel().copyTo(bos)
+                    bos.toByteArray()
+                }
+
+                val digest = MessageDigest.getInstance("SHA-256")
+                ByteArrayInputStream(bytes).use { ins ->
+                    val buf = ByteArray(1024)
+                    while (true) {
+                        val bytesRead = ins.read(buf)
+                        if (bytesRead == -1) break
+                        digest.update(buf, 0, bytesRead)
+                    }
+                }
+
+                // NOTE(Dan): This checksum assumes that the client can be trusted. This is only intended to protect against a
+                // sudden compromise of the domain we use to host the assets or some other mitm attack. This should all be
+                // fine given that this code is only ever supposed to run locally.
+                val computedChecksum = hex(digest.digest())
+                if (computedChecksum != request.checksum) {
+                    Importer.log.info("Invalid checksum. Computed: $computedChecksum. Expected: ${request.checksum}")
+                    throw RPCException("invalid checksum", HttpStatusCode.BadRequest)
+                }
+
+                importExportService.importFromZip(bytes)
+                ok(Unit)
             }
+
+            implement(AppStore.importFromFile) {
+                val http = ctx as HttpCall
+                val bytes = http.call.request.receiveChannel().readRemaining(1024 * 1024 * 64).readBytes()
+                importExportService.importFromZip(bytes)
+                ok(Unit)
+            }
+        }
+
+        implement(AppStore.export) {
+            val bytes = importExportService.exportToZip()
+            (ctx as HttpCall).call.respond(
+                object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength = bytes.size.toLong()
+                    override val contentType = ContentType.Application.Zip
+                    override fun readFrom(): ByteReadChannel = ByteArrayInputStream(bytes).toByteReadChannel()
+                }
+            )
+
+            okContentAlreadyDelivered()
         }
 
         implement(AppStore.toggleStar) {
@@ -353,7 +410,14 @@ class AppStoreController(
         }
 
         implement(AppStore.createSpotlight) {
-            val id = service.createOrUpdateSpotlight(actorAndProject, null, request.title, request.body, request.active, request.applications)
+            val id = service.createOrUpdateSpotlight(
+                actorAndProject,
+                null,
+                request.title,
+                request.body,
+                request.active,
+                request.applications
+            )
             ok(FindByIntId(id))
         }
 
@@ -380,8 +444,10 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveSpotlight) {
-            ok(service.retrieveSpotlights(actorAndProject, request.id)
-                ?: throw RPCException("Unknown spotlight", HttpStatusCode.NotFound))
+            ok(
+                service.retrieveSpotlights(actorAndProject, request.id)
+                    ?: throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
+            )
         }
 
         implement(AppStore.activateSpotlight) {

@@ -344,6 +344,8 @@ ${ApiConventions.nonConformingApiWarning}
     // Import API
     // =================================================================================================================
     val devImport = DevImport.call
+    val importFromFile = ImportFromFile.call
+    val export = Export.call
 
     // NOTE(Dan): Legacy API - do not touch
     object LegacyApi {
@@ -908,6 +910,32 @@ ${ApiConventions.nonConformingApiWarning}
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "devImport", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object ImportFromFile {
+        @UCloudApiInternal(InternalLevel.BETA)
+        val call = call(
+            "importFromFile",
+            Unit.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "importFromFile", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object Export {
+        @UCloudApiInternal(InternalLevel.BETA)
+        val call = call(
+            "export",
+            Unit.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "export", roles = Roles.PRIVILEGED)
             }
         )
     }
