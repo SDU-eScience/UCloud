@@ -27,7 +27,7 @@ class Server(override val micro: Micro) : CommonServer {
         val distributedState = DistributedStateFactory(micro)
 
         val service = AppService(db, ProjectCache(distributedState, db), serviceClient)
-        val importer = if (micro.developmentModeEnabled) Importer(service) else null
+        val importer = ImportExport(service)
 
         configureJackson(ApplicationParameter::class, yamlMapper)
 
@@ -36,7 +36,7 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         configureControllers(
-            AppStoreController(importer, service),
+            AppStoreController(importer, service, micro.developmentModeEnabled),
         )
     }
 }

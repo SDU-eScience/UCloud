@@ -100,6 +100,19 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                         <Link to={AppRoutes.apps.studioHero()} flexGrow={1}><Button fullWidth>Carrousel</Button></Link>
                         <Link to={AppRoutes.apps.studioTopPicks()} flexGrow={1}><Button fullWidth>Top picks</Button></Link>
                         <Link to={AppRoutes.apps.studioSpotlights()} flexGrow={1}><Button fullWidth>Spotlights</Button></Link>
+                        <Box flexGrow={1}>
+                            <Button fullWidth onClick={() => {
+                                AppStore.doExport().then(s => {
+                                    const element = document.createElement("a");
+                                    element.setAttribute("href", s);
+                                    document.body.appendChild(element);
+                                    element.click();
+                                    document.body.removeChild(element);
+                                });
+                            }}>
+                                Export to ZIP
+                            </Button>
+                        </Box>
                     </Flex>
 
                     {errorMessage && <Box mb={"32px"}>

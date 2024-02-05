@@ -954,6 +954,10 @@ class AppService(
         return applicationVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
     }
 
+    fun listAllTools(): List<NameAndVersion> {
+        return toolVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
+    }
+
     suspend fun retrieveSpotlights(
         actorAndProject: ActorAndProject,
         id: Int,
