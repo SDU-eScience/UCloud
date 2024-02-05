@@ -810,7 +810,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
     const dataPoints = useMemo(
         () => {
             const unsorted = props.chart.dataPoints.map(it => ({key: it.title, value: it.usage}));
-            return [...unsorted].sort((a, b) => {
+            return unsorted.sort((a, b) => {
                 // Note(Jonas): Wouldn't `return a.value - b.value` work the same? 
                 if (a.value < b.value) return 1;
                 if (a.value > b.value) return -1;
@@ -1979,6 +1979,14 @@ const VisualizationStyle = injectStyle("visualization", k => `
         width: 100%;
         border-collapse: separate;
         border-spacing: 0;
+    }
+    
+    ${k} tr:nth-child(even) {
+        background-color: var(--rowActive);
+    }
+
+    ${k} tr:hover {
+        background-color: var(--rowHover);
     }
     
     ${k} tr > td:first-child,
