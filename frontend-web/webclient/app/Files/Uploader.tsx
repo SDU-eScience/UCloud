@@ -26,7 +26,7 @@ import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
-import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
