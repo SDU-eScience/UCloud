@@ -13,15 +13,16 @@ export const sidebar = (state: SidebarStateProps = {favorites: [], theme: "light
             return {theme: state.theme, ...action.payload, };
         }
         case TOGGLE_APP_FAVORITE: {
+            const copy = deepCopy(state);
             const {app: metadata} = action.payload;
             if (action.payload.favorite) {
-                state.favorites.push(metadata);
-                state.favorites.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
+                copy.favorites.push(metadata);
+                copy.favorites.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
             } else {
-                state.favorites = state.favorites.filter(it => it.metadata.name !== metadata.metadata.name || it.metadata.version !== metadata.metadata.version);
+                copy.favorites = state.favorites.filter(it => it.metadata.name !== metadata.metadata.name || it.metadata.version !== metadata.metadata.version);
             }
 
-            return deepCopy(state);
+            return copy;
         }
 
         case TOGGLE_THEME_REDUX: {
