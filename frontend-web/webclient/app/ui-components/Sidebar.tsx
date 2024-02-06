@@ -503,6 +503,7 @@ function SecondarySidebar({
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
     const project = useProject();
+    const projectId = useProjectId();
     const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
@@ -520,7 +521,7 @@ function SecondarySidebar({
         emptyPageV2
     );
 
-    const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+    const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
 
     const dispatch = useDispatch();
     React.useEffect(() => {
@@ -679,7 +680,7 @@ function SecondarySidebar({
                 />
 
                 <SidebarEntry
-                    to={AppRoutes.grants.editor()}
+                    to={!canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId})}
                     text={"Apply for resources"}
                     icon={"heroPencilSquare"}
                     disabled={!canApply}
