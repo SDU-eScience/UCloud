@@ -11,7 +11,7 @@ import {
 import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index";
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import {EnumFilter} from "@/Resource/Filter";
 import {stateToTitle} from "@/Applications/Jobs";
 import {Box, Flex, Icon, Text} from "@/ui-components";
@@ -230,7 +230,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 const [icon, color] = jobStateToIconAndColor(job.status.state);
                 return <Icon name={icon} color={color} mr={"8px"} />;
             }
-            return <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
+            return <SafeLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
         },
         Stats({resource, browseType}) {
             if (resource == null || browseType !== BrowseType.Card) return null;

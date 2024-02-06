@@ -7,7 +7,7 @@ import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import {Absolute, Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -452,7 +452,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
             <div className={`${logoWrapper.class} ${active.class}`}>
                 <div className={logoScale.class}>
                     <div className="logo">
-                        <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
+                        <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
                             size={"var(--logoSize)"} />
                     </div>

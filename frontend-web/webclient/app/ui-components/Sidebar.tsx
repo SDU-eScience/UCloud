@@ -36,7 +36,7 @@ import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import Absolute from "./Absolute";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
@@ -795,22 +795,7 @@ function SecondarySidebar({
 }
 
 function AppLogo({name}: {name: string}): JSX.Element {
-    return <Flex alignItems={"center"}>
-        <Flex
-            p="2px"
-            mr="4px"
-            justifyContent="center"
-            alignItems="center"
-            backgroundColor="var(--fixedWhite)"
-            width="16px"
-            height="16px"
-            minHeight="16px"
-            minWidth="16px"
-            borderRadius="4px"
-        >
-            <AppToolLogo size="12px" name={name} type="APPLICATION" />
-        </Flex>
-    </Flex>;
+    return <SafeLogo size="12px" name={name} type="APPLICATION" />;
 }
 
 function Username({close}: {close(): void}): JSX.Element | null {

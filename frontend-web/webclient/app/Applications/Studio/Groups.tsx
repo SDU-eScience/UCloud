@@ -4,7 +4,7 @@ import React, {useCallback, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
-import {AppToolLogo} from "../AppToolLogo";
+import {AppToolLogo, SafeLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
@@ -185,7 +185,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 navigate={() => navigate(`/applications/studio/g/${group.metadata.id}`)}
                                 left={
                                     <Flex justifyContent="left">
-                                        <AppToolLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
+                                        <SafeLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
                                         <Box ml="10px">
                                             {group.specification.title}
                                         </Box>

@@ -2,7 +2,7 @@ import * as Heading from "@/ui-components/Heading";
 import React, {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {AppToolLogo} from "./AppToolLogo";
+import {AppToolLogo, SafeLogo} from "./AppToolLogo";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardType} from "./Card";
 import * as AppStore from "@/Applications/AppStoreApi";
@@ -58,7 +58,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
     return <Box mx="auto" maxWidth="1340px">
         <Flex justifyContent="space-between" mt="30px">
             <Heading.h2>
-                <AppToolLogo name={appGroup.data?.metadata.id.toString()} type="GROUP" size="45px"/>
+                <SafeLogo name={appGroup.data?.metadata.id.toString()} type="GROUP" size="45px"/>
                 {" "}
                 {appGroup.data?.specification?.title}
             </Heading.h2>

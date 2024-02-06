@@ -4,7 +4,7 @@ import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground
 import {classConcat, injectStyle} from "@/Unstyled";
 import {Box, Button, Card, Flex, Grid, Icon, Markdown} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
@@ -74,16 +74,19 @@ const LandingPage: React.FunctionComponent = () => {
                 <article className={landingStyle}>
                     <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
                     <Hero slides={landingPage.carrousel}/>
+                    {starred.data.items.length > 0 &&
+                        <TitledCard title={"Starred applications"} icon={"heroStar"}>
+                            <AppCardGrid>
+                                {starred.data.items.map(a => {
+                                    return <AppCard1 name={a.metadata.name} title={a.metadata.title}
+                                                     description={a.metadata.description} key={a.metadata.name}
+                                                     isApplication/>;
+                                })}
+                            </AppCardGrid>
+                        </TitledCard>
+                    }
+
                     <TopPicksCard topPicks={landingPage.topPicks} />
-                    <TitledCard title={"Starred applications"} icon={"heroStar"}>
-                        <AppCardGrid>
-                            {starred.data.items.map(a => {
-                                return <AppCard1 name={a.metadata.name} title={a.metadata.title}
-                                                 description={a.metadata.description} key={a.metadata.name}
-                                                 isApplication/>;
-                            })}
-                        </AppCardGrid>
-                    </TitledCard>
 
                     <TitledCard title={"Browse by category"} icon={"heroMagnifyingGlass"}>
                         <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(200px, 1fr)"}>
@@ -402,24 +405,6 @@ const AppCardGridStyle = injectStyle("app-card-grid", k => `
 
 const AppCardGrid: React.FunctionComponent<{ children: React.ReactNode }> = ({children}) => {
     return <div className={AppCardGridStyle}>{children}</div>;
-}
-
-const SafeLogoStyle = injectStyle("safe-app-logo", k => `
-    ${k} {
-        background: var(--appLogoBackground);
-        padding: 4px;
-        border-radius: 5px;
-        border: var(--backgroundCardBorder);
-    }
-`);
-const SafeLogo: React.FunctionComponent<{
-    name: string,
-    type: "APPLICATION" | "TOOL" | "GROUP",
-    size: string
-}> = props => {
-    return <div className={SafeLogoStyle}>
-        <AppToolLogo size={props.size} name={props.name} type={props.type}/>
-    </div>;
 }
 
 const CategoryCard: React.FunctionComponent<{
