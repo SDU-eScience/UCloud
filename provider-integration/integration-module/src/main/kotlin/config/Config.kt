@@ -423,7 +423,7 @@ data class ConfigSchema(
 
                 @Serializable
                 data class Extensions(
-                    val reportComputeUsage: String? = null,
+                    val fetchComputeUsage: String? = null,
                 )
             }
 

@@ -77,6 +77,8 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.initialize() {
+        log.debug("INITIALIZING SLURM PLUGIN")
+
         ctx = this
 
         val poorlyConfiguredProduct = productAllocationResolved.find { it.category.allowSubAllocations }
@@ -110,6 +112,7 @@ class SlurmPlugin : ComputePlugin {
     // IPC
     // =================================================================================================================
     private fun PluginContext.initializeIpcServer() {
+        log.debug("INITIALIZING IPC SERVER")
         initializeJobsIpc()
         initializeSessionIpc()
         initializeAccountIpc()
@@ -231,6 +234,8 @@ class SlurmPlugin : ComputePlugin {
                 pluginConfig.partition
             )
         ).account
+
+        log.debug("FOUND ACCOUNT: $account")
 
         val sbatch = createSbatchFile(this, resource, this@SlurmPlugin, account, jobFolder)
 
@@ -583,7 +588,8 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
+            log.debug("Next scan: $nextAccountingScan last charge: $lastAccountingCharge -- Set new: ${lastAccountingCharge >= nextAccountingScan}")
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 // TODO(Brian) Revert this
         }
     }
 
@@ -624,6 +630,7 @@ class SlurmPlugin : ComputePlugin {
 
         var registeredJobs = 0
 
+        // TODO(Brian): Documentation might be outdated.
         // Retrieve and process Slurm accounting
         // ------------------------------------------------------------------------------------------------------------
         // In this section we will be performing the following steps:
@@ -705,24 +712,52 @@ class SlurmPlugin : ComputePlugin {
         // ------------------------------------------------------------------------------------------------------------
         if (!emitAccountingInfo) return
 
-        val ext = pluginConfig.extensions.reportComputeUsage ?: return
-        val responses = reportComputeUsageExtension.invoke(this, ext, Unit)
-        for (resp in responses) {
-            when (resp) {
-                is ReportComputeUsageResponse.Slurm -> {
-                    val workspace = accountMapper.lookupBySlurm(resp.account, resp.partition).firstOrNull()
-                    if (workspace != null) {
-                        val owner = walletOwnerFromOwnerString(workspace.owner.toSimpleString())
-                        reportUsage(owner, ProductCategoryIdV2(workspace.productCategory, providerId), resp.usage)
-                    }
+        val fetchUsageExtensionPath = pluginConfig.extensions.fetchComputeUsage ?: return
+        val projectPlugin = config.plugins.projects ?: return
+        val projectMappings = with(projectPlugin) {
+            browseProjects()
+        }
+
+        val userMappings = UserMapping.browseMappings(PaginationRequestV2(3000))
+
+        log.debug("Found ${projectMappings.items.size} project mappings: $projectMappings")
+        log.debug("Found ${userMappings.items.size} user mappings: $userMappings")
+
+        val categories = config.products.compute
+
+        for (category in categories) {
+            val usageRequest = FetchComputeUsageRequest(
+                category.name,
+                userMappings.items.map {
+                    UidOrGid(it.uid)
+                } + projectMappings.items.map {
+                    UidOrGid(null, it.localId)
+                }
+            )
+
+            val usage = fetchComputeUsageExtension.invoke(this, fetchUsageExtensionPath, usageRequest)
+
+            log.debug("Plugin responded with: $usage")
+
+            usage.forEach {
+                val resp = it as FetchComputeUsageResponse.Slurm
+                val ucloudId = if (resp.id.gid != null) {
+                    projectMappings.items.find { it.localId == resp.id.gid }?.project?.id
+                } else {
+                    userMappings.items.find { it.uid == resp.id.uid }?.username
                 }
 
-                is ReportComputeUsageResponse.UCloud -> {
-                    val owner = walletOwnerFromOwnerString(resp.workspace)
-                    reportUsage(owner, ProductCategoryIdV2(resp.category, providerId), resp.usage)
+                if (ucloudId != null) {
+                    reportUsage(
+                        walletOwnerFromOwnerString(ucloudId),
+                        ProductCategoryIdV2(category.name, providerId),
+                        resp.usage
+                    )
                 }
             }
         }
+
+        lastAccountingCharge = Time.now()
     }
 
     private val uidToUsernameCache = SimpleCache<Int, String>(
@@ -857,19 +892,30 @@ class SlurmPlugin : ComputePlugin {
         const val ALLOCATED_PORT_FILE = "allocated-port.txt"
         private const val sshId = "id_ucloud_im"
 
-        val reportComputeUsageExtension = extension(Unit.serializer(), ListSerializer(ReportComputeUsageResponse.serializer()))
+        val fetchComputeUsageExtension = extension(FetchComputeUsageRequest.serializer(), ListSerializer(FetchComputeUsageResponse.serializer()))
     }
 }
 
 @Serializable
-sealed class ReportComputeUsageResponse {
+data class UidOrGid(
+    val uid: Int? = null,
+    val gid: Int? = null
+)
+
+@Serializable
+data class FetchComputeUsageRequest(
+    val productCategory: String,
+    val workspaces: List<UidOrGid>
+)
+
+@Serializable
+sealed class FetchComputeUsageResponse {
     @Serializable
     @SerialName("Slurm")
     data class Slurm(
-        val account: String,
-        val partition: String,
+        val id: UidOrGid,
         val usage: Long,
-    ) : ReportComputeUsageResponse()
+    ) : FetchComputeUsageResponse()
 
     @Serializable
     @SerialName("UCloud")
@@ -877,5 +923,5 @@ sealed class ReportComputeUsageResponse {
         val workspace: String,
         val category: String,
         val usage: Long,
-    ) : ReportComputeUsageResponse()
+    ) : FetchComputeUsageResponse()
 }

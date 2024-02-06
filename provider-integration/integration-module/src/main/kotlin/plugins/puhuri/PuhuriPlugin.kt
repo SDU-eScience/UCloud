@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.puhuri
 
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -8,15 +9,11 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
-import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.normal
-import dk.sdu.cloud.debugSystem
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
-import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
 import dk.sdu.cloud.plugins.connection.OpenIdConnectSubject
@@ -87,6 +84,10 @@ class PuhuriPlugin : ProjectPlugin {
 
     // NOTE(Dan): Since this requires "service user mode" mode, these just go away.
     override suspend fun PluginContext.lookupLocalId(ucloudId: String): Int? = null
+    override suspend fun PluginContext.browseProjects(): PageV2<ProjectWithLocalId> {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun PluginContext.onUserMappingInserted(ucloudId: String, localId: Int) {
         // Do nothing
     }

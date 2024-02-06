@@ -1,14 +1,11 @@
 package dk.sdu.cloud.plugins.projects
 
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.config.*
-import dk.sdu.cloud.plugins.PluginContext
-import dk.sdu.cloud.plugins.ProjectPlugin
-import dk.sdu.cloud.plugins.ipcServer
-import dk.sdu.cloud.plugins.optionalExtension
-import dk.sdu.cloud.plugins.optionalInvoke
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*
@@ -223,6 +220,32 @@ class SimpleProjectPlugin : ProjectPlugin {
         }
         if (result == null) return null
         return result!! + pluginConfig.unixGroupNamespace
+    }
+
+    override suspend fun PluginContext.browseProjects(): PageV2<ProjectWithLocalId> {
+        val projects = dbConnection.withSession { session ->
+            val result = mutableSetOf<ProjectWithLocalId>()
+            session.prepareStatement(
+                """
+                    select g.local_id, p.project_as_json
+                    from simple_project_project_database p
+                    left join simple_project_group_mapper g on p.ucloud_id = g.ucloud_id
+                """
+            ).useAndInvoke(
+                readRow = { row ->
+                    val project: Project? = defaultMapper.decodeFromString(
+                        Project.serializer().nullable,
+                        row.getString(1)!!
+                    )
+                    if (project != null) {
+                        result.add(ProjectWithLocalId(row.getInt(0)!!, project))
+                    }
+                }
+            )
+            result
+        }
+
+        return PageV2.of(projects)
     }
 
     // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup
@@ -797,12 +820,6 @@ private sealed class ProjectDiff {
 private data class GroupWithLocalId(
     val localId: Int,
     val group: Group
-)
-
-@Serializable
-private data class ProjectWithLocalId(
-    val localId: Int,
-    val project: Project
 )
 
 @Serializable
