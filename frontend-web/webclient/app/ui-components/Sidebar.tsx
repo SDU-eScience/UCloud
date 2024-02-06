@@ -27,7 +27,7 @@ import Divider from "./Divider";
 import {ThemeToggler} from "./ThemeToggle";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {compute, Page, PageV2} from "@/UCloud";
+import {Page, PageV2} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
@@ -36,7 +36,7 @@ import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import Absolute from "./Absolute";
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
@@ -599,7 +599,7 @@ function SecondarySidebar({
                     <SidebarEmpty>No drives available</SidebarEmpty>
                 </>}
 
-                {canConsume && drives.data.items.slice(0, 8).map(drive =>
+                {canConsume ? drives.data.items.slice(0, 8).map(drive =>
                     <SidebarEntry
                         key={drive.id}
                         text={drive.specification.title}
@@ -608,9 +608,9 @@ function SecondarySidebar({
                         to={AppRoutes.files.drive(drive.id)}
                         tab={SidebarTabId.FILES}
                     />
-                )}
+                ) : null}
 
-                {canConsume && favoriteFiles.length > 0 && <>
+                {canConsume && favoriteFiles.length > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
@@ -621,12 +621,12 @@ function SecondarySidebar({
                             tab={SidebarTabId.FILES}
                         />
                     )}
-                </>}
+                </> : null}
 
-                {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace && <>
+                {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace ? <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Shared files</SidebarSectionHeader>
                     <SidebarLinkColumn links={sharesLinksInfo} />
-                </>}
+                </> : null}
             </>}
 
             {active !== SidebarTabId.WORKSPACE ? null : <>
@@ -731,7 +731,7 @@ function SecondarySidebar({
 
                 {appStoreSections.data.items.map(section =>
                     <SidebarEntry
-                        key={section.id}
+                        key={section.metadata.id}
                         to={AppRoutes.apps.category(section.metadata.id)}
                         text={section.specification.title}
                         icon={"heroCpuChip"}
@@ -739,7 +739,7 @@ function SecondarySidebar({
                     />
                 )}
 
-                {appFavorites.length > 0 && <>
+                {appFavorites.length > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>
                     {appFavorites.map((fav, i) =>
                         <SidebarEntry
@@ -750,7 +750,7 @@ function SecondarySidebar({
                             tab={SidebarTabId.APPLICATIONS}
                         />
                     )}
-                </>}
+                </> : null}
             </>}
 
             {active !== SidebarTabId.RUNS ? null : <>
