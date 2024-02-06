@@ -25,10 +25,7 @@ export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, 
 }
 
 export enum StandardButtonSize {
-    LARGE = 0,
     STANDARD = 1,
-    SMALL = 2, // UNUSED
-    EXTRA_SMALL = 3, // UNUSED
 }
 
 export const ButtonClass = injectStyle("button", k => `
@@ -40,7 +37,7 @@ export const ButtonClass = injectStyle("button", k => `
         font-family: inherit;
         font-weight: normal;
         cursor: pointer;
-        background-color: var(--bgColor, --primaryMain);
+        background-color: var(--bgColor, var(--primaryMain));
         color: var(--primaryContrast, #f00);
         border-width: 0;
         border-style: solid;
@@ -51,7 +48,7 @@ export const ButtonClass = injectStyle("button", k => `
     }
 
     ${k}:hover {
-        background: var(--hoverColor);
+        background: var(--hoverColor, var(--primaryLight));
     }
     
     ${k}:disabled {
@@ -59,7 +56,7 @@ export const ButtonClass = injectStyle("button", k => `
     }
     
     ${k}:disabled:hover {
-        background: var(--bgColor, --primaryMain);
+        background: var(--bgColor, var(--primaryMain));
     }
 
     ${k}:focus {
@@ -105,6 +102,10 @@ export const ButtonClass = injectStyle("button", k => `
 
     ${k} svg {
         margin-right: 5px;
+    }
+    
+    ${k} svg:last-child {
+        margin-right: 0;
     }
 `);
 

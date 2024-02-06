@@ -502,13 +502,14 @@ data class WalletAllocationV2(
     val deicAllocationId: String? = null,
 
     val canAllocate: Boolean = false,
-    val allowSubAllocationsToAllocate: Boolean = true
+    val allowSubAllocationsToAllocate: Boolean = true,
+
+    val maxUsable: Long
 ) {
     init {
         checkDeicReferenceFormat(deicAllocationId)
     }
 
-    fun isLocked(): Boolean = (localUsage >= quota) || ((treeUsage ?: 0) >= quota)
     fun isActive(): Boolean = Time.now() in startDate..endDate
 
     @Suppress("DEPRECATION")
@@ -521,7 +522,7 @@ data class WalletAllocationV2(
         startDate,
         endDate,
         grantedIn,
-        quota - (treeUsage ?: localUsage),
+        maxUsable,
         canAllocate,
         allowSubAllocationsToAllocate
     )

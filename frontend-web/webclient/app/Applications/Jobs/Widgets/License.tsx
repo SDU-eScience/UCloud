@@ -1,5 +1,4 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {compute} from "@/UCloud";
 import Flex from "@/ui-components/Flex";
@@ -12,9 +11,10 @@ import {checkProviderMismatch} from "../Create";
 import {Input} from "@/ui-components";
 import {LicenseBrowse} from "@/Applications/LicenseBrowse";
 import {CardClass} from "@/ui-components/Card";
+import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
 
 interface LicenseProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
+    parameter: ApplicationParameterNS.LicenseServer;
 }
 
 export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => {

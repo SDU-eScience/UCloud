@@ -1,9 +1,9 @@
 import {useCallback, useRef, useState} from "react";
-import {compute} from "@/UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
-import AppParameterValue = compute.AppParameterValue;
 import {setWidgetValues} from "@/Applications/Jobs/Widgets";
 import {flushSync} from "react-dom";
+import { ApplicationParameter } from "@/Applications/AppStoreApi";
+import {compute} from "@/UCloud";
+import AppParameterValue = compute.AppParameterValue;
 
 export interface ResourceHook {
     onAdd: () => void;

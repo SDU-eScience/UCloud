@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.accounting.util.CyclicArray
+
 private val globalCounters = ArrayList<EnabledPerfCounter>()
 
 //typealias PerfCounter = EnabledPerfCounter

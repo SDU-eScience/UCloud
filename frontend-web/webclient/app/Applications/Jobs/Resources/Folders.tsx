@@ -5,12 +5,11 @@ import * as Heading from "@/ui-components/Heading";
 import Link from "@/ui-components/Link";
 import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
-import {compute} from "@/UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
 import Warning from "@/ui-components/Warning";
 import {anyFolderDuplicates} from "../Widgets/GenericFiles";
+import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 
-export function folderResourceAllowed(app: UCloud.compute.Application): boolean {
+export function folderResourceAllowed(app: Application): boolean {
     if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
 
     // noinspection RedundantIfStatementJS
@@ -22,7 +21,7 @@ export function folderResourceAllowed(app: UCloud.compute.Application): boolean 
 }
 
 export const FolderResource: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+    application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
     setErrors: (errors: Record<string, string>) => void;

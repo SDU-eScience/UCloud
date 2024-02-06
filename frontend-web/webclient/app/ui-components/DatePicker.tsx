@@ -2,7 +2,8 @@ import ReactDatePicker, {ReactDatePickerProps} from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {classConcat, injectStyle} from "@/Unstyled";
 import * as React from "react";
-import Box, {BoxProps} from "@/ui-components/Box";
+import Box from "@/ui-components/Box";
+import {BoxProps} from "./Types";
 
 export const DatePickerClass = injectStyle("date-picker", k => `
     ${k} {

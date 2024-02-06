@@ -2,9 +2,6 @@ import * as React from "react";
 import {BoolParameter, BoolSetter, BoolValidator} from "@/Applications/Jobs/Widgets/Bool";
 import * as UCloud from "@/UCloud";
 import * as Heading from "@/ui-components/Heading";
-import {compute} from "@/UCloud";
-import AppParameterValue = compute.AppParameterValue;
-import ApplicationParameter = compute.ApplicationParameter;
 import {Box, Button, Flex, Icon, Input, Label, Markdown, Relative, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
 import {EllipsedText, TextClass, TextP, TextSpan} from "@/ui-components/Text";
@@ -20,6 +17,9 @@ import {ButtonClass} from "@/ui-components/Button";
 import {JobCreateInput} from "./Reservation";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {FlexCProps} from "@/ui-components/Flex";
+import {ApplicationParameter} from "@/Applications/AppStoreApi";
+import {compute} from "@/UCloud";
+import AppParameterValue = compute.AppParameterValue;
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -239,8 +239,8 @@ export function WidgetSetProvider(param: {name: string}, provider: string): void
 }
 
 export const OptionalWidgetSearch: React.FunctionComponent<{
-    pool: UCloud.compute.ApplicationParameter[];
-    mapper: (p: UCloud.compute.ApplicationParameter) => React.ReactNode;
+    pool: ApplicationParameter[];
+    mapper: (p: ApplicationParameter) => React.ReactNode;
 }> = ({pool, mapper}) => {
     const currentTimeout = useRef<number>(-1);
     const [results, setResults] = useState(pool);

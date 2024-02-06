@@ -83,10 +83,10 @@ export const TitledCard: React.FunctionComponent<React.PropsWithChildren<{
         >
             {title || icon || subtitle ?
                 <div className="title-row">
-                    {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
                     {icon !== undefined ? (
                         <Icon name={icon} size="20" color={"textPrimary"} />
                     ) : null}
+                    {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
                     {subtitle ? <div className={"subtitle"}>{subtitle}</div> : null}
                 </div> : null
             }

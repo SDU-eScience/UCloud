@@ -1,20 +1,25 @@
 import * as React from "react";
 import {injectStyle} from "@/Unstyled";
-import {useCallback} from "react";
+import {useCallback, useEffect, useRef} from "react";
 
 interface ToggleProps {
     checked: boolean;
-    onChange: () => void;
+    onChange: (prevValue: boolean) => void;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
     checked,
     onChange
 }) => {
+    const checkedRef = useRef(checked);
+    useEffect(() => {
+        checkedRef.current = checked;
+    }, [checked]);
+
     const handler = useCallback((e: React.SyntheticEvent) => {
         e.stopPropagation();
         e.preventDefault();
-        onChange()
+        onChange(checkedRef.current);
     }, [onChange]);
 
     return <div onClick={handler} data-active={checked} className={ToggleWrapperClass}>

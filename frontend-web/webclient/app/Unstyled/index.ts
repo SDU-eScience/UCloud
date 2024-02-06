@@ -1,7 +1,6 @@
+import {BoxProps} from "@/ui-components/Types";
 import * as React from "react";
 import {ResponsiveValue, SpaceProps} from "styled-system";
-
-import {BoxProps} from "@/ui-components/Box";
 
 export function extractSize(size: ResponsiveValue<any>): string {
     if (typeof size === "string") return size;
@@ -136,11 +135,13 @@ export function unbox(props: BoxProps | SpaceProps): React.CSSProperties {
     if ("alignItems" in props && props.alignItems) result.alignItems = props.alignItems.toString() as any;
     if ("justifyContent" in props && props.justifyContent) result.justifyContent = props.justifyContent.toString() as any;
     if ("flexGrow" in props && props.flexGrow) result.flexGrow = props.flexGrow.toString();
+    if ("flexBasis" in props && props.flexBasis) result.flexBasis = props.flexBasis.toString();
     if ("flexShrink" in props && props.flexShrink) result.flexShrink = props.flexShrink.toString();
     if ("textAlign" in props && props.textAlign) result.textAlign = props.textAlign.toString() as any;
     if ("verticalAlign" in props && props.verticalAlign) result.verticalAlign = props.verticalAlign.toString() as any;
     if ("fontSize" in props && props.fontSize) result.fontSize = extractSize(props.fontSize);
     if ("backgroundColor" in props && props.backgroundColor) result.backgroundColor = props.backgroundColor.toString();
+    if ("objectFit" in props && props.objectFit) result.objectFit = props.objectFit;
 
     return result;
 }
@@ -175,8 +176,12 @@ export function injectStyleSimple(title: string, css: string): string {
 
 export function makeClassName(name: string) {
     return {
-        dot: `.${name}`,
-        class: name
+        get dot() {
+            return `.${name}`
+        },
+        get class(): string {
+            return name;
+        }
     };
 }
 
@@ -194,4 +199,9 @@ export function extractEventHandlers(props: WithEventHandlers): WithEventHandler
         }
     }
     return result;
+}
+
+export function devModeStyling(cssRule: string): string {
+    if (DEVELOPMENT_ENV) return cssRule;
+    return "";
 }

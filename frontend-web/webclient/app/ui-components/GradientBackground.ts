@@ -3,16 +3,25 @@ import bgImage from "@/Assets/Images/background_polygons.png";
 
 export const GradientWithPolygons = injectStyle("polygon-background", k => `
     ${k} {
-        background-image: url(${bgImage}), linear-gradient(var(--gradientStart), var(--gradientEnd));
-        background-position: 0% 35%;
+        background-image: url(${bgImage});
         background-repeat: repeat;
-        padding-bottom: 75px;
-        min-height: calc(100vh + 12px);
+        background-size: 816px 1028px;
         color: var(--textPrimary);
+        min-height: 100vh;
     }
     
     html.dark ${k} #search-icon,
     html.dark ${k} #refresh-icon {
         color: var(--textPrimary) !important;
+    }
+`);
+
+export const Gradient = injectStyle("just-the-gradient", k => `
+    ${k} {
+        background-image: linear-gradient(var(--gradientStart), var(--gradientEnd));
+        background-position: 0% 35%;
+        background-repeat: repeat;
+        color: var(--textPrimary);
+        min-height: 100vh;
     }
 `);

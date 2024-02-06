@@ -15,7 +15,7 @@ const news = {
 
 const admin = {
     userCreation: () => "/admin/userCreation",
-    applicationStudio: () => "/applications/studio",
+    applicationStudio: () => "/applications/studio/groups",
     news: () => "/admin/news",
     providers: () => "/admin/providers",
     scripts: () => "/admin/scripts",
@@ -50,13 +50,15 @@ const syncthing = {
 
 const apps = {
     landing: () => "/applications",
-    section: (sectionId: number) => `/applications/full#section${sectionId}`,
-    overview: () => "/applications/full",
+    category: (categoryId?: number) => buildQueryString(`/applications/category`, { categoryId }),
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
-    studio: () => "/applications/studio",
     studioGroups: () => "/applications/studio/groups",
-    studioTool: (tool: string) => `/applications/studio/t/${tool}`,
+    studioTopPicks: () => "/applications/studio/topPicks",
+    studioHero: () => "/applications/studio/hero",
+    studioSpotlights: () => "/applications/studio/spotlights",
+    studioSpotlightsEditor: (id?: number) => buildQueryString("/applications/studio/spotlights/editor", {id}),
+    studioCategories: () => "/applications/studio/categories",
     studioApp: (app: string) => `/applications/studio/a/${app}`,
     studioGroup: (group: string) => `/applications/studio/g/${group}`,
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
@@ -66,7 +68,7 @@ const apps = {
 
 const jobs = {
     list: () => `/jobs/`,
-    create: (name: string, version: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
+    create: (name: string, version?: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
     view: (jobId: string) => `/jobs/properties/${jobId}`,
     results: () => `/applications/results`,
 };
@@ -97,7 +99,10 @@ const grants = {
         start: number,
         end: number,
         subAllocator: boolean,
-    }) => buildQueryString("/grants", { ...opts, type: "grantGiverInitiated" })
+    }) => buildQueryString("/grants", { ...opts, type: "grantGiverInitiated" }),
+    newApplication: (values: {
+        projectId?: string,
+    }) => buildQueryString("/grants", {...values, type: "applicantInitiated"})
 }
 
 const accounting = {

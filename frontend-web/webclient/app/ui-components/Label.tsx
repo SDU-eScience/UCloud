@@ -1,7 +1,7 @@
 import * as React from "react";
-import {BoxProps} from "./Box";
 import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
+import {BoxProps} from "./Types";
 
 export const LabelClass = injectStyle("label", k => `
     ${k} {

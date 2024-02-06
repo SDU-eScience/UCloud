@@ -1,6 +1,5 @@
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import * as UCloud from "@/UCloud";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -50,11 +49,16 @@ import {useUState} from "@/Utilities/UState";
 import {flushSync} from "react-dom";
 import {Spacer} from "@/ui-components/Spacer";
 import {injectStyle} from "@/Unstyled";
-import {RetrieveGroupResponse, retrieveGroup} from "../api";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import * as AppStore from "@/Applications/AppStoreApi";
+import {
+    ApplicationGroup, ApplicationParameter,
+    ApplicationSummaryWithFavorite,
+    ApplicationWithFavoriteAndTags
+} from "@/Applications/AppStoreApi";
 
 interface InsufficientFunds {
     why?: string;
@@ -97,12 +101,7 @@ export const Create: React.FunctionComponent = () => {
 
     const isInitialMount = !useDidMount();
     const [isLoading, invokeCommand] = useCloudCommand();
-    const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
-        {noop: true},
-        null
-    );
-
-    const [appGroup, fetchAppGroup] = useCloudAPI<RetrieveGroupResponse | null>(
+    const [applicationResp, fetchApplication] = useCloudAPI<ApplicationWithFavoriteAndTags | null>(
         {noop: true},
         null
     );
@@ -113,7 +112,7 @@ export const Create: React.FunctionComponent = () => {
         useTitle(`${appName} ${appVersion ?? ""}`);
     }
 
-    const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
+    const [previousResp, fetchPrevious] = useCloudAPI<Page<ApplicationSummaryWithFavorite> | null>(
         {noop: true},
         null
     );
@@ -151,13 +150,9 @@ export const Create: React.FunctionComponent = () => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
-        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion: appVersion ?? undefined}));
-        fetchPrevious(UCloud.compute.apps.findByName({appName}));
+        fetchApplication(AppStore.findByNameAndVersion({appName, appVersion: appVersion ?? undefined}));
+        fetchPrevious(AppStore.findByName({appName}));
     }, [appName, appVersion]);
-
-    useEffect(() => {
-        fetchAppGroup(retrieveGroup({name: appName}));
-    }, [appName]);
 
     const application = applicationResp.data;
 
@@ -348,6 +343,8 @@ export const Create: React.FunctionComponent = () => {
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
 
+    const appGroup = application.metadata.group;
+
     return <MainContainer
         main={
             <>
@@ -355,9 +352,9 @@ export const Create: React.FunctionComponent = () => {
                     <Spacer
                         left={
                             <AppHeader
-                                title={appGroup?.data?.group.title ?? application.metadata.title}
+                                title={appGroup?.specification?.title ?? application.metadata.title}
                                 application={application}
-                                flavors={appGroup?.data?.applications ?? []}
+                                flavors={appGroup?.status?.applications ?? []}
                                 allVersions={previousResp.data?.items ?? []}
                             />}
                         right={<>
@@ -371,7 +368,7 @@ export const Create: React.FunctionComponent = () => {
                                     </ExternalLink>
                                 </Box>
                             )}
-                            <UtilityBar searchEnabled={false} />
+                            <UtilityBar />
                         </>}
                     />
                 </Box>
@@ -547,7 +544,7 @@ export const Create: React.FunctionComponent = () => {
     />;
 }
 
-function getParameterName(param: Pick<UCloud.compute.ApplicationParameter, "type" | "name">): string {
+function getParameterName(param: Pick<ApplicationParameter, "type" | "name">): string {
     switch (param.type) {
         case "peer": {
             return param.name + "job";

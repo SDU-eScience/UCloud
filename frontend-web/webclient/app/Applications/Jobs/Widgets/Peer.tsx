@@ -1,22 +1,21 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidationAnswer} from "./index";
-import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
 import {useCallback, useMemo, useState} from "react";
 import Box from "@/ui-components/Box";
 import Input from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
-import AppParameterValueNS = compute.AppParameterValueNS;
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {checkProviderMismatch} from "../Create";
 import JobBrowse from "../JobsBrowse";
 import {CardClass} from "@/ui-components/Card";
+import {ApplicationParameter, ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {compute} from "@/UCloud";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 interface PeerProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.Peer;
+    parameter: ApplicationParameterNS.Peer;
 }
 
 export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
@@ -49,7 +48,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
     </Flex>;
 };
 
-export function PeerValidator(param: compute.ApplicationParameter): WidgetValidationAnswer {
+export function PeerValidator(param: ApplicationParameter): WidgetValidationAnswer {
     if (param.type === "peer") {
         const nameElem = findElementName(param);
         const jobElem = findElementJob(param);

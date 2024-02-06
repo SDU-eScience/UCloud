@@ -1,10 +1,9 @@
-import {BoxProps} from "./Box";
 import * as React from "react";
-import {IconName, default as Icon} from "@/ui-components/Icon";
+import {IconName, default as Icon} from "./Icon";
 import {ThemeColor} from "./theme";
-import {Cursor} from "@/ui-components/Types";
+import {BoxProps, Cursor} from "./Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
-import {deviceBreakpoint} from "@/ui-components/Hide";
+import {deviceBreakpoint} from "./Hide";
 import {classConcat, extractSize, injectStyle, unbox} from "@/Unstyled";
 
 export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";

@@ -1,5 +1,4 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "@/ui-components";
 import {useCallback, useLayoutEffect} from "react";
@@ -13,10 +12,11 @@ import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 
 type GenericFileParam =
-    UCloud.compute.ApplicationParameterNS.InputFile |
-    UCloud.compute.ApplicationParameterNS.InputDirectory;
+    ApplicationParameterNS.InputFile |
+    ApplicationParameterNS.InputDirectory;
 
 interface FilesProps extends WidgetProps {
     parameter: GenericFileParam;

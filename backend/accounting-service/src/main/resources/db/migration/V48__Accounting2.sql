@@ -39,7 +39,7 @@ with dkkinsert as (
 update_categories_credits as (
     update accounting.product_categories
     set accounting_unit = dkkinsert.id from dkkinsert
-    where postgres.accounting.product_categories.unit_of_price::text like 'CREDITS_PER%'
+    where accounting.product_categories.unit_of_price::text like 'CREDITS_PER%'
 ),
 licenseInsert as (
     insert into accounting.accounting_units

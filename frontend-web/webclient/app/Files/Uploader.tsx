@@ -26,7 +26,7 @@ import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
-import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
@@ -126,6 +126,7 @@ function createResumeable(
             request.open("POST", strategy!.endpoint.replace("integration-module:8889", "localhost:9000"));
             request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
             request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
+            request.setRequestHeader("Chunked-Upload-Total-Size", reader.fileSize().toString());
             request.setRequestHeader("UCloud-Username", b64EncodeUnicode(Client.username!));
             request.responseType = "text";
 
@@ -390,9 +391,7 @@ const Uploader: React.FunctionComponent = () => {
             className={CardClass}
         >
             <div style={{
-                maxHeight: "calc(80vh - 20px)",
-                height: "calc(80vh - 20px)",
-                minHeight: defaultModalStyle.content?.minHeight,
+                height: "100%",
                 overflowY: "hidden"
             }} className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <div className="title" style={{height: "55px"}}>

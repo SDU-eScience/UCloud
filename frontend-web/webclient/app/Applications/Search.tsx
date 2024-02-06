@@ -1,25 +1,24 @@
 import * as React from "react";
-import * as Heading from "@/ui-components/Heading";
-import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";
 import {useCallback, useEffect} from "react";
-import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import * as UCloud from "@/UCloud";
 import Grid from "@/ui-components/Grid";
-import {AppCard, AppCardStyle, AppCardType} from "@/Applications/Card";
-import * as Pagination from "@/Pagination";
+import {AppCard, AppCardType} from "@/Applications/Card";
 import {Box, Flex, Icon, Input} from "@/ui-components";
 import * as Pages from "./Pages";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";
-import {compute} from "@/UCloud";
-import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {useDispatch, useSelector} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {emptyPage} from "@/Utilities/PageUtilities";
-
+import * as AppStore from "@/Applications/AppStoreApi";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {UtilityBar} from "@/Navigation/UtilityBar";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {useTitle} from "@/Navigation/Redux";
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
@@ -54,7 +53,12 @@ const AppSearchBoxClass = injectStyle("app-search-box", k => `
     }
 `);
 
-
+export function useAppSearch(): (query: string) => void {
+    const navigate = useNavigate();
+    return useCallback(query => {
+        navigate(AppRoutes.apps.search(query));
+    }, [navigate]);
+}
 
 export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boolean}> = props => {
     const navigate = useNavigate();
@@ -100,53 +104,43 @@ export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boo
 }
 
 
-interface SearchQuery {
-    tags: string[];
-    query: string;
-    showAllVersions: boolean;
-    page: number;
-    itemsPerPage: number;
+function readQuery(queryParams: string): string {
+    return getQueryParamOrElse(queryParams, "q", "");
 }
 
-function readQuery(queryParams: string): SearchQuery {
-    const tags: string[] = [];
-    const tagsQuery = getQueryParamOrElse(queryParams, "tags", "");
-    tagsQuery.split(",").forEach(it => {
-        if (it !== "") {
-            tags.push(it);
-        }
-    });
-    const showAllVersions = getQueryParamOrElse(queryParams, "showAllVersions", "false") === "true";
-    const query = getQueryParamOrElse(queryParams, "query", "");
-    let itemsPerPage = parseInt(getQueryParamOrElse(queryParams, "itemsPerPage", "25"), 10);
-    let page = parseInt(getQueryParamOrElse(queryParams, "page", "0"), 10);
-    if (isNaN(itemsPerPage) || itemsPerPage <= 0) itemsPerPage = 25;
-    if (isNaN(page) || page < 0) page = 0;
+const OverviewStyle = injectStyle("search-results", k => `
+    ${k} {
+        margin: 0 auto;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 1100px;
+        min-width: 600px;
+        min-height: 100vh;
+    }
+`);
 
-    return {query, tags, showAllVersions, itemsPerPage, page};
-}
-
-export const SearchResults: React.FunctionComponent = () => {
-    const navigate = useNavigate();
+const SearchResults: React.FunctionComponent = () => {
     const location = useLocation();
     const dispatch = useDispatch();
-    const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
-        {noop: true},
+    const query = readQuery(location.search);
+    const [results, fetchResults] = useCloudAPI(
+        AppStore.search({query, itemsPerPage: 250}),
         emptyPage
     );
 
-    const queryParams = location.search;
-    const parsedQuery = readQuery(queryParams);
+    const refresh = useCallback(() => {
+        fetchResults(AppStore.search({query, itemsPerPage: 250})).then(doNothing);
+    }, [query]);
 
     useEffect(() => {
-        fetchResults(
-            UCloud.compute.apps.searchApps({
-                query: new URLSearchParams(queryParams).get("q") ?? "",
-                itemsPerPage: 100,
-                page: parsedQuery.page,
-            })
-        );
-    }, [queryParams]);
+        refresh();
+    }, [refresh]);
+
+    useTitle("Search results");
+    useSetRefreshFunction(refresh);
 
     const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
 
@@ -157,8 +151,8 @@ export const SearchResults: React.FunctionComponent = () => {
         dispatch(toggleAppFavorite(app, !isFavorite));
 
         try {
-            await callAPI(UCloud.compute.apps.toggleFavorite({
-                appName: app.metadata.name
+            await callAPI(AppStore.toggleStar({
+                name: app.metadata.name
             }));
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to toggle favorite");
@@ -166,50 +160,38 @@ export const SearchResults: React.FunctionComponent = () => {
         }
     }, [favoriteStatus]);
 
-    return <Box mx="auto" maxWidth="1340px">
-        <Flex width="100%" mt="30px" justifyContent="space-between">
-            <Heading.h2>Search results</Heading.h2>
-            <Flex justifyContent="right">
-                <AppSearchBox value={new URLSearchParams(queryParams).get("q") ?? ""} hidden={false} />
-                <ContextSwitcher />
-            </Flex>
-        </Flex>
-        <Box mt="30px" />
+    const appSearch = useAppSearch();
 
-        <Pagination.List
-            loading={results.loading}
-            page={results.data}
-            pageRenderer={page => (
-                <Grid
-                    width="100%"
-                    gridTemplateColumns={`repeat(auto-fill, 312px)`}
-                    gridGap="30px"
-                >
-                    {page.items.map(app => (
-                        <AppCard
-                            key={app.metadata.name}
-                            title={app.metadata.title}
-                            description={app.metadata.description}
-                            logo={app.metadata.name}
-                            type={AppCardType.APPLICATION}
-                            cardStyle={AppCardStyle.WIDE}
-                            link={Pages.run(app.metadata.name)}
-                            onFavorite={onFavorite}
-                            isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
-                            application={app}
-                        />
-                    ))}
-                </Grid>
-            )}
-            onPageChanged={newPage => {
-                navigate(buildQueryString("/applications/search", {
-                    q: new URLSearchParams(queryParams).get("q") ?? "",
-                    tags: joinToString(parsedQuery.tags),
-                    showAllVersions: parsedQuery.showAllVersions.toString(),
-                    page: newPage.toString(),
-                    itemsPerPage: parsedQuery.itemsPerPage.toString(),
-                }));
-            }}
-        />
-    </Box>;
+    return <div>
+        <div className={Gradient}>
+            <div className={GradientWithPolygons}>
+                <div className={OverviewStyle}>
+                    <Flex alignItems={"center"}>
+                        <h3>Search results</h3>
+                        <Box ml="auto"/>
+                        <UtilityBar onSearch={appSearch} initialSearchQuery={query}/>
+                    </Flex>
+
+                    <Grid gridTemplateColumns={"repeat(auto-fit, minmax(430px, 1fr))"} gap={"16px"}>
+                        {results.data.items.map(app => (
+                            <AppCard
+                                key={app.metadata.name}
+                                title={app.metadata.title}
+                                description={app.metadata.description}
+                                logo={app.metadata.name}
+                                type={AppCardType.APPLICATION}
+                                link={Pages.run(app.metadata.name)}
+                                onFavorite={onFavorite}
+                                isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
+                                application={app}
+                            />
+                        ))}
+                    </Grid>
+                </div>
+            </div>
+        </div>
+    </div>
 };
+
+
+export default SearchResults;

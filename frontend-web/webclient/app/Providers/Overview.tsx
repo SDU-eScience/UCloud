@@ -10,7 +10,6 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import Providers from "@/Assets/provider_info.json";
 import {Feature, hasFeature} from "@/Features";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {ApplicationCardClass} from "@/Applications/Card";
 import {CardClass} from "@/ui-components/Card";
 
 interface ProviderType {
@@ -28,7 +27,7 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode 
 
     return (
         <Link to={`/providers/detailed/${props.provider.id}`}>
-            <div className={classConcat(CardClass, ApplicationCardClass, ProviderCard)}>
+            <div className={classConcat(CardClass, ProviderCard)}>
                 <Flex mt="12px">
                     <Flex mx="auto">
                         <ProviderLogo providerId={props.provider.id} size={150} />

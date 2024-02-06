@@ -53,6 +53,10 @@ import {
 import {AvatarType} from "@/AvataaarLib";
 import {NewsPost} from "@/NewsPost";
 import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
+import * as AppStore from "@/Applications/AppStoreApi";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {isAdminOrPI} from "@/Project";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -498,20 +502,22 @@ function SecondarySidebar({
     const recentRuns = useSidebarRunsPage();
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
+    const project = useProject();
+    const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
         clearHover();
         clearClicked();
     }, [clearHover, clearClicked]);
 
-    const [favoriteApps] = useCloudAPI<Page<compute.ApplicationSummaryWithFavorite>>(
-        compute.apps.retrieveFavorites({itemsPerPage: 100, page: 0}),
-        {items: [], itemsPerPage: 0, itemsInTotal: 0, pageNumber: 0},
+    const [favoriteApps] = useCloudAPI(
+        AppStore.retrieveStars({}),
+        {items: []}
     );
 
-    const [appStoreSections] = useCloudAPI<compute.AppStoreSections>(
-        compute.apps.appStoreSections({page: "FULL"}),
-        {sections: []}
+    const [appStoreSections] = useCloudAPI(
+        AppStore.browseCategories({itemsPerPage: 250}),
+        emptyPageV2
     );
 
     const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
@@ -522,7 +528,7 @@ function SecondarySidebar({
         dispatch(setAppFavorites(favoriteApps.data.items));
     }, [favoriteApps]);
 
-    const appFavorites = useSelector<ReduxObject, compute.ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+    const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const isOpen = clicked !== "" || hovered !== "";
     const active = hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
@@ -554,7 +560,6 @@ function SecondarySidebar({
         const anchor = findAnchor(target);
         if (anchor) {
             const tab = anchor.getAttribute("data-tab") ?? "";
-            console.log("new tab", tab);
             setSelectedPage(current => {
                 if (current) return tab;
                 else return current;
@@ -588,7 +593,8 @@ function SecondarySidebar({
 
         <Flex flexDirection={"column"} gap={"5px"}>
             {active !== SidebarTabId.FILES ? null : <>
-                <SidebarSectionHeader to={AppRoutes.files.drives()} tab={SidebarTabId.FILES}>Drives</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.files.drives()}
+                    tab={SidebarTabId.FILES}>Drives</SidebarSectionHeader>
                 {(!canConsume || drives.data.items.length === 0) && <>
                     <SidebarEmpty>No drives available</SidebarEmpty>
                 </>}
@@ -625,7 +631,8 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.WORKSPACE ? null : <>
                 {!isPersonalWorkspace && <>
-                    <SidebarSectionHeader to={AppRoutes.project.members()} tab={SidebarTabId.WORKSPACE}>Management</SidebarSectionHeader>
+                    <SidebarSectionHeader to={AppRoutes.project.members()}
+                        tab={SidebarTabId.WORKSPACE}>Management</SidebarSectionHeader>
                     <SidebarEntry
                         to={AppRoutes.project.members()}
                         text={"Members"}
@@ -648,7 +655,8 @@ function SecondarySidebar({
                     />
                 </>}
 
-                <SidebarSectionHeader to={AppRoutes.accounting.allocations()} tab={SidebarTabId.WORKSPACE}>Resources</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.accounting.allocations()}
+                    tab={SidebarTabId.WORKSPACE}>Resources</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.accounting.allocations()}
                     text={"Allocations"}
@@ -674,12 +682,14 @@ function SecondarySidebar({
                     to={AppRoutes.grants.editor()}
                     text={"Apply for resources"}
                     icon={"heroPencilSquare"}
+                    disabled={!canApply}
                     tab={SidebarTabId.WORKSPACE}
                 />
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>
-                <SidebarSectionHeader to={AppRoutes.resources.publicLinks()} tab={SidebarTabId.RESOURCES}>Networking</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.resources.publicLinks()}
+                    tab={SidebarTabId.RESOURCES}>Networking</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.publicLinks()}
                     text={"Links"}
@@ -693,7 +703,8 @@ function SecondarySidebar({
                     tab={SidebarTabId.RESOURCES}
                 />
 
-                <SidebarSectionHeader to={AppRoutes.resources.sshKeys()} tab={SidebarTabId.RESOURCES}>Security & keys</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.resources.sshKeys()} tab={SidebarTabId.RESOURCES}>Security &
+                    keys</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.sshKeys()}
                     text={"SSH keys"}
@@ -701,7 +712,8 @@ function SecondarySidebar({
                     tab={SidebarTabId.RESOURCES}
                 />
 
-                <SidebarSectionHeader to={AppRoutes.resources.licenses()} tab={SidebarTabId.RESOURCES}>Software</SidebarSectionHeader>
+                <SidebarSectionHeader to={AppRoutes.resources.licenses()}
+                    tab={SidebarTabId.RESOURCES}>Software</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.licenses()}
                     text={"Licenses"}
@@ -711,16 +723,17 @@ function SecondarySidebar({
             </>}
 
             {active !== SidebarTabId.APPLICATIONS ? null : <>
-                <SidebarSectionHeader to={AppRoutes.apps.landing()} tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
-                {appStoreSections.data.sections.length === 0 && <>
+                <SidebarSectionHeader to={AppRoutes.apps.landing()}
+                    tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
+                {appStoreSections.data.items.length === 0 && <>
                     <SidebarEmpty>No applications found</SidebarEmpty>
                 </>}
 
-                {appStoreSections.data.sections.map(section =>
+                {appStoreSections.data.items.map(section =>
                     <SidebarEntry
                         key={section.id}
-                        to={AppRoutes.apps.section(section.id)}
-                        text={section.name}
+                        to={AppRoutes.apps.category(section.metadata.id)}
+                        text={section.specification.title}
                         icon={"heroCpuChip"}
                         tab={SidebarTabId.APPLICATIONS}
                     />
@@ -813,7 +826,7 @@ function Username({close}: {close(): void}): JSX.Element | null {
                 }}
                 width={"100%"}
             >
-                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" /> {Client.username}
+                <Icon name="heroIdentification" mr="0.5em" my="0.2em" size="1.3em" />{Client.username}
             </EllipsedText>
         )}
     >

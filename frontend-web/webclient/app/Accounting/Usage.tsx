@@ -1,8 +1,8 @@
 import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
-import {classConcat, injectStyle} from "@/Unstyled";
-import {Flex, Icon, Input, Radio} from "@/ui-components";
+import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
+import {Flex, Icon, Input, Link, Radio} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -24,6 +24,8 @@ import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import Warning from "@/ui-components/Warning";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {useTitle} from "@/Navigation/Redux";
+import AppRoutes from "@/Routes";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 // State
 // =====================================================================================================================
@@ -50,10 +52,6 @@ interface State {
             usage: number,
             quota: number,
             expiresAt: number,
-        },
-        nextAllocation?: {
-            startsAt: number,
-            quota: number,
         },
         usageOverTime: UsageChart,
         breakdownByProject: BreakdownChart,
@@ -231,6 +229,7 @@ function stateReducer(state: State, action: UIAction): State {
 
         const now = BigInt(timestampUnixMs());
         for (let i = 0; i < chartData.allocations.count; i++) {
+
             const alloc = chartData.allocations.get(i);
             if (alloc.startDate >= now) {
                 // Starts in the future
@@ -350,11 +349,6 @@ function stateReducer(state: State, action: UIAction): State {
                     quota: summary.quota,
                     expiresAt: earliestExpiration ?? timestampUnixMs(),
                 },
-                // TODO This doesn't actually work since we only get allocations for the selected period
-                nextAllocation: earliestNextAllocation === null ? undefined : {
-                    startsAt: earliestNextAllocation,
-                    quota: nextQuota,
-                },
                 usageOverTime: summary.chart,
                 breakdownByProject: summary.breakdownByProject,
                 jobUsageByUsers,
@@ -401,14 +395,14 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 
         switch (event.type) {
             case "Init": {
-                const [start, end] = normalizePeriod(initialState.selectedPeriod);
+                const {start, end} = normalizePeriod(initialState.selectedPeriod);
                 await doLoad(start, end);
                 break;
             }
 
             case "UpdateSelectedPeriod": {
                 dispatch(event);
-                const [start, end] = normalizePeriod(event.period);
+                const {start, end} = normalizePeriod(event.period);
                 await doLoad(start, end);
                 break;
             }
@@ -438,7 +432,7 @@ const Visualization: React.FunctionComponent = () => {
     // Event handlers
     // -----------------------------------------------------------------------------------------------------------------
     // These event handlers translate, primarily DOM, events to higher-level UIEvents which are sent to
-    // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. When you are writing
+    // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. ayou are writing
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
 
     useLayoutEffect(() => {
@@ -519,13 +513,13 @@ const Visualization: React.FunctionComponent = () => {
         <div style={{padding: "13px 16px 16px 16px"}}>
             <h3>Resource usage</h3>
 
-            {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight && <>
+            {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight ? <>
                 <HexSpin size={64} />
-            </>}
+            </> : null}
 
-            {state.summaries.length === 0 && state.remoteData.requestsInFlight === 0 && <>
+            {(state.summaries.length === 0 && state.remoteData.requestsInFlight === 0) ? <>
                 Could not find any usage data!
-            </>}
+            </> : null}
 
             <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingBottom={"26px"}>
                 {state.summaries.map(s =>
@@ -549,14 +543,12 @@ const Visualization: React.FunctionComponent = () => {
                 <>
                     {hasNoMeaningfulData ? "No usage data found" :
                         <div className="panels">
-                            <div className="panel-grid">
+                            <div className={classConcat("panel-grid", activeCategory?.productType === "COMPUTE" ? HasAlotOfInfoClass.class : undefined)}>
                                 <CategoryDescriptorPanel
                                     category={state.activeDashboard.category}
                                     usage={state.activeDashboard.currentAllocation.usage}
                                     quota={state.activeDashboard.currentAllocation.quota}
                                     expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                                    nextAllocationAt={state.activeDashboard.nextAllocation?.startsAt}
-                                    nextAllocation={state.activeDashboard.nextAllocation?.quota}
                                 />
                                 <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
                                 <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
@@ -577,6 +569,8 @@ const Visualization: React.FunctionComponent = () => {
 // Panel components
 // =====================================================================================================================
 // Components for the various panels used in the dashboard.
+
+const HasAlotOfInfoClass = makeClassName("has-a-lot-of-info");
 const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
     
     ${k} .stat > *:first-child {
@@ -588,7 +582,7 @@ const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
     }
     
     ${deviceBreakpoint({minWidth: "1901px"})} {
-         ${k} {
+        ${k} {
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
@@ -685,6 +679,67 @@ const CategoryDescriptorPanelStyle = injectStyle("category-descriptor", k => `
         }
     }
 
+    /* HACK(Jonas): Is fully repeated of the above media-query content. This is very bad. */
+    ${k}${HasAlotOfInfoClass.dot} {
+        display: grid;
+        grid-template-areas:
+            "fig description"
+            "fig stats";
+        grid-template-columns: 150px 1fr;
+        grid-template-rows: auto 50px;
+        gap: 20px;
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} .figure-and-title {
+        grid-area: fig;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} p {
+        grid-area: description;
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} .stat-container {
+        grid-area: stats;
+
+        display: flex;
+        gap: 30px;
+        flex-direction: row;
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} figure {
+        width: 64px;
+        margin: 0 auto;
+        margin-bottom: 7px; /* make size correct */
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} figure > *:nth-child(2) > *:first-child {
+        position: absolute;
+        top: -25px;
+        left: 32px;
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} figure > svg {
+        width: 64px;
+        height: 64px;
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} figure > div > div {
+        /* TODO fragile */
+        --wrapper-size: 32px !important;
+    }
+
+    ${k}${HasAlotOfInfoClass.dot} h1 {
+        font-size: 1.3em;
+        text-wrap: pretty;
+        text-align: center;
+        margin: 0 !important;
+        margin-top: 8px !important;
+    }
+    /* HACK(Jonas): Is fully repeated of the above media-query content. This is very bad. */
+
     ${deviceBreakpoint({maxWidth: "799px"})} {
         /* On small width-screens, show descriptions vertically instead of horizontal */
         ${k} {
@@ -698,12 +753,10 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     usage: number;
     quota: number;
     expiresAt: number;
-    nextAllocationAt?: number | null;
-    nextAllocation?: number | null;
 }> = props => {
     const now = timestampUnixMs();
     const description = Accounting.guestimateProductCategoryDescription(props.category.name, props.category.provider);
-    return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle)}>
+    return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle, props.category.productType === "COMPUTE" ? HasAlotOfInfoClass.class : undefined)}>
         <div className={"figure-and-title"}>
             <figure>
                 <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128} />
@@ -732,24 +785,10 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
                     </TooltipV2>
                 </div>
             </div>
-
-            <div className="stat">
-                <div>Next allocation</div>
-                <div>
-                    {props.nextAllocation && props.nextAllocationAt ? <>
-                        {Accounting.balanceToString(props.category, props.nextAllocation)}
-                        {" in "}
-                        <TooltipV2 tooltip={Accounting.utcDate(props.nextAllocationAt)}>
-                            {formatDistance(props.nextAllocationAt, now)}
-                        </TooltipV2>
-                    </> : <>
-                        None (<a href="#">apply</a>)
-                    </>}
-                </div>
-            </div>
         </div>
     </div>;
 };
+
 const BreakdownStyle = injectStyle("breakdown", k => `
     ${k} .pie-wrapper {
         width: 350px;
@@ -772,6 +811,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
         () => {
             const unsorted = props.chart.dataPoints.map(it => ({key: it.title, value: it.usage}));
             return unsorted.sort((a, b) => {
+                // Note(Jonas): Wouldn't `return a.value - b.value` work the same? 
                 if (a.value < b.value) return 1;
                 if (a.value > b.value) return -1;
                 return 0;
@@ -785,7 +825,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
     }, [unit]);
 
     const showWarning = (() => {
-        const [start, end] = normalizePeriod(props.period);
+        const {start, end} = normalizePeriod(props.period);
         const startDate = new Date(start);
         const endDate = new Date(end);
         return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
@@ -834,33 +874,33 @@ const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
 `);
 
 const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
-    if (data === undefined) return null;
-
     return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
         <div className="panel-title">
             <h4>Most used applications</h4>
         </div>
 
-        <div className="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Application</th>
-                        <th>Number of jobs</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.dataPoints.map(it =>
-                        <React.Fragment key={it.applicationTitle}>
-                            <tr>
-                                <td>{it.applicationTitle}</td>
-                                <td>{it.count}</td>
-                            </tr>
-                        </React.Fragment>
-                    )}
-                </tbody>
-            </table>
-        </div>
+        {data === undefined || data.dataPoints.length === 0 ? "No usage data found" :
+            <div className="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Application</th>
+                            <th>Number of jobs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.dataPoints.map(it =>
+                            <React.Fragment key={it.applicationTitle}>
+                                <tr>
+                                    <td>{it.applicationTitle}</td>
+                                    <td>{it.count}</td>
+                                </tr>
+                            </React.Fragment>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>;
 };
 
@@ -907,41 +947,41 @@ const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duratio
 }
 
 const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}> = ({data}) => {
-    if (data === undefined) return null;
-    const dataPoints = data.dataPoints;
     return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
         <div className="panel-title">
             <h4>When are your jobs being submitted?</h4>
         </div>
 
-        <div className="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Day</th>
-                        <th>Time of day</th>
-                        <th>Count</th>
-                        <th>Avg duration</th>
-                        <th>Avg queue</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {dataPoints.map((dp, i) => {
-                        const day = dayNames[dp.day];
-                        return <tr key={i}>
-                            <td>{day}</td>
-                            <td>
-                                {dp.hourOfDayStart.toString().padStart(2, '0')}:00-
-                                {dp.hourOfDayEnd.toString().padStart(2, '0')}:00
-                            </td>
-                            <td>{dp.numberOfJobs}</td>
-                            <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
-                            <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
-                        </tr>;
-                    })}
-                </tbody>
-            </table>
-        </div>
+        {data == null || data.dataPoints.length === 0 ? "No job data found" :
+            <div className="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Time of day</th>
+                            <th>Count</th>
+                            <th>Avg duration</th>
+                            <th>Avg queue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.dataPoints.map((dp, i) => {
+                            const day = dayNames[dp.day];
+                            return <tr key={i}>
+                                <td>{day}</td>
+                                <td>
+                                    {dp.hourOfDayStart.toString().padStart(2, '0')}:00-
+                                    {dp.hourOfDayEnd.toString().padStart(2, '0')}:00
+                                </td>
+                                <td>{dp.numberOfJobs}</td>
+                                <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
+                                <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
+                            </tr>;
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>;
 }
 
@@ -979,7 +1019,8 @@ const DynamicallySizedChart: React.FunctionComponent<{
     chart: any,
     aspectRatio: [number, number],
     maxWidth?: number,
-}> = ({Component, chart, aspectRatio, maxWidth}) => {
+    anyChartData: boolean,
+}> = ({Component, chart, aspectRatio, maxWidth, ...props}) => {
     // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
     // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
     // of a grid and a flexbox.
@@ -1015,7 +1056,6 @@ const DynamicallySizedChart: React.FunctionComponent<{
         // NOTE(Dan): If we do not add a bit of a delay, then we risk that this API sometimes gives us back a result
         // which is significantly larger than it should be.
         window.setTimeout(() => {
-            console.log("Calculating size!");
             const [minRatio, maxRatio] = aspectRatio;
 
             const boundingRect = wrapper.getBoundingClientRect();
@@ -1036,9 +1076,9 @@ const DynamicallySizedChart: React.FunctionComponent<{
                 }
             }
 
-            setDimensions({width: `${width}px`, height: `${height}px`});
-        }, 50);
-    }, [dimensions]);
+            setDimensions({width: `${width}px`, height: `${Math.max(height, 250)}px`});
+        }, 100);
+    }, [props.anyChartData, dimensions]);
 
     return <div
         style={dimensions.height ? {...dimensions, width: "100%", display: "flex", justifyContent: "center"} : styleForLayoutTest}
@@ -1079,44 +1119,64 @@ const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart
         return false;
     })();
 
+    const difference = React.useMemo(() => {
+        let difference = 0;
+        for (let idx = 0; idx < chart.dataPoints.length; idx++) {
+            const point = chart.dataPoints[idx];
+            if (idx == 0) continue;
+            const change = point.usage - chart.dataPoints[idx - 1].usage;
+            difference += change;
+        }
+        return difference;
+    }, [chart.dataPoints]);
+
+    // HACK(Jonas): Self-explanatory hack
+    const anyData = (chartProps.series?.[0] as any)?.data.length > 0;
+
     return <div className={classConcat(CardClass, PanelClass, UsageOverTimeStyle)}>
         <div className="panel-title">
             <h4>Usage over time</h4>
         </div>
 
-        <DynamicallySizedChart Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
+        <>
+            <DynamicallySizedChart anyChartData={sum !== 0 || anyData} Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
 
-        {showWarning && <>
-            <Warning>
-                It looks like the graph is showing data from multiple allocations.
-                Fluctuations in usage normally indicate that an allocation has expired.
-            </Warning>
-        </>}
+            {showWarning && <>
+                <Warning>
+                    It looks like the graph is showing data from multiple allocations.
+                    Fluctuations in usage normally indicate that an allocation has expired.
+                </Warning>
+            </>}
 
-        <div className="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Usage</th>
-                        <th>Change</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {chart.dataPoints.map((point, idx) => {
-                        if (idx == 0) return null;
-                        const change = point.usage - chart.dataPoints[idx - 1].usage;
-                        sum += change;
-                        if (change === 0) return null;
-                        return <tr key={idx}>
-                            <td>{dateToString(point.timestamp)}</td>
-                            <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))}</td>
-                            <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))}</td>
-                        </tr>;
-                    })}
-                </tbody>
-            </table>
-        </div>
+            <div className="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Usage</th>
+                            <th>Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {difference != 0 ? chart.dataPoints.map((point, idx, items) => {
+                            if (idx == 0) return null;
+                            const change = point.usage - items[idx - 1].usage;
+                            sum += change;
+                            if (change === 0) return null;
+                            return <tr key={idx}>
+                                <td>{dateToString(point.timestamp)}</td>
+                                <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))}</td>
+                                <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))}</td>
+                            </tr>;
+                        }) : (chart.dataPoints.length === 0 ? null : <tr>
+                            <td>{dateToString(chart.dataPoints[0].timestamp)}</td>
+                            <td>{Accounting.addThousandSeparators(chart.dataPoints[0].usage.toFixed(0))}</td>
+                            <td>N/A</td>
+                        </tr>)}
+                    </tbody>
+                </table>
+            </div>
+        </>
     </div>;
 };
 
@@ -1323,7 +1383,7 @@ const PieChart: React.FunctionComponent<{
                 tooltip: {
                     shared: false,
                     y: {
-                        formatter: function (val) {
+                        formatter: function (val: number) {
                             return props.valueFormatter(val);
                         }
                     }
@@ -1332,7 +1392,7 @@ const PieChart: React.FunctionComponent<{
         };
     }, [series]);
 
-    return <DynamicallySizedChart Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
+    return <DynamicallySizedChart anyChartData={filteredList.length > 0} Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
 };
 
 interface SubmissionStatistics {
@@ -1604,6 +1664,7 @@ const PanelClass = injectStyle("panel", k => `
         align-items: center;
         gap: 8px;
         margin: 10px 0;
+        z-index: 1; /* HACK(Jonas): Why is this needed for smaller widths? */
     }
 
     ${k} .panel-title > *:nth-child(1) {
@@ -1731,7 +1792,7 @@ const PeriodSelector: React.FunctionComponent<{
     value: Period;
     onChange: (period: Period) => void;
 }> = props => {
-    const [start, end] = normalizePeriod(props.value);
+    const {start, end} = normalizePeriod(props.value);
 
     function formatTs(ts: number): string {
         const d = new Date(ts);
@@ -1842,7 +1903,7 @@ const PeriodSelector: React.FunctionComponent<{
     </ClickableDropdown>;
 };
 
-function normalizePeriod(period: Period): [number, number] {
+function normalizePeriod(period: Period): {start: number, end: number} {
     switch (period.type) {
         case "relative": {
             let start = new Date();
@@ -1860,11 +1921,11 @@ function normalizePeriod(period: Period): [number, number] {
                     break;
                 }
             }
-            return [start.getTime(), end];
+            return {start: start.getTime(), end};
         }
 
         case "absolute": {
-            return [period.start, period.end];
+            return {start: period.start, end: period.end};
         }
     }
 }
@@ -1918,6 +1979,14 @@ const VisualizationStyle = injectStyle("visualization", k => `
         width: 100%;
         border-collapse: separate;
         border-spacing: 0;
+    }
+    
+    ${k} tr:nth-child(even) {
+        background-color: var(--rowActive);
+    }
+
+    ${k} tr:hover {
+        background-color: var(--rowHover);
     }
     
     ${k} tr > td:first-child,
@@ -1980,7 +2049,35 @@ const VisualizationStyle = injectStyle("visualization", k => `
         gap: 16px;
     }
     
-    ${deviceBreakpoint({minWidth: "1901px"})} {
+
+    ${deviceBreakpoint({minWidth: "2400px"})} {
+        ${k} .panel-grid {
+            display: grid;
+            height: max(600px, calc(100vh - 241px));
+        }
+
+        ${k} .panel-grid:not(${HasAlotOfInfoClass.dot}) {
+             display: grid;
+                grid-template-areas:
+                    "category breakdown over-time chart2"
+                    "category breakdown over-time chart2"
+                    "category breakdown over-time chart2"
+                    "category breakdown chart3 chart4"
+                    "category breakdown chart3 chart4";
+            grid-template-columns: 300px 450px 1fr 1fr;
+        }
+
+        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
+            display: grid;
+            grid-template-areas:
+                "category category  category  category"
+                "chart2   breakdown over-time over-time"
+                "chart3   chart3    chart4   chart4";
+            grid-template-rows: 160px 900px 500px;
+        }
+    }
+
+    ${deviceBreakpoint({minWidth: "1901px", maxWidth: "2399px"})} {
         ${k} .panel-grid {
             display: grid;
             grid-template-areas: 
@@ -1989,19 +2086,37 @@ const VisualizationStyle = injectStyle("visualization", k => `
                 "category breakdown over-time chart2"
                 "category breakdown chart3 chart4"
                 "category breakdown chart3 chart4";
-            height: calc(100vh - 165px - 50px - 26px);
+            height: max(600px, calc(100vh - 241px));
             grid-template-columns: 300px 450px 1fr 1fr;
+        }
+
+        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
+            grid-template-areas:
+                "category category category"
+                "over-time breakdown breakdown"
+                "chart4 chart2 chart3";
+            grid-template-rows: 160px 800px 600px 500px;
+            grid-template-columns: 50%;
         }
     }
     
     ${deviceBreakpoint({maxWidth: "1900px"})} {
-        ${k} .panel-grid {
+        ${k} .panel-grid:not(${HasAlotOfInfoClass.dot}) {
             display: grid;
-            grid-template-areas: 
+            grid-template-areas:
                 "category category category"
                 "breakdown over-time chart2"
                 "breakdown chart3 chart4";
-            grid-template-rows: 160px 900px 500px;
+            grid-template-rows: 160px 650px;
+        }
+
+        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
+            display: grid;
+            grid-template-areas:
+                "category category"
+                "breakdown chart2"
+                "over-time over-time"
+                "chart3 chart4";
         }
     }
     
@@ -2015,7 +2130,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
                 "chart3 chart4";
             grid-template-rows: 160px 1000px 900px 500px;
         }
-    }
+     }
     
     ${deviceBreakpoint({maxWidth: "900px"})} {
         ${k} .panel-grid {

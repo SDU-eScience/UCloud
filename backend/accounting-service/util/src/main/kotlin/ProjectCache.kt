@@ -18,11 +18,16 @@ data class MembershipStatusCacheEntry(
     data class GroupMemberOf(val project: String, val group: String)
 }
 
+interface IProjectCache {
+    suspend fun lookup(username: String): MembershipStatusCacheEntry
+    suspend fun invalidate(username: String)
+}
+
 class ProjectCache(
     private val state: DistributedStateFactory,
     private val db: DBContext,
-) {
-    suspend fun lookup(username: String): MembershipStatusCacheEntry {
+) : IProjectCache {
+    override suspend fun lookup(username: String): MembershipStatusCacheEntry {
         val data = state(username)
         val currentState = data.get()
         if (currentState != null) return currentState
@@ -63,7 +68,7 @@ class ProjectCache(
         return cacheEntry
     }
 
-    suspend fun invalidate(username: String) {
+    override suspend fun invalidate(username: String) {
         try {
             state(username).delete()
         } catch (ex: Throwable) {

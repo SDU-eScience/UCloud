@@ -120,7 +120,6 @@ private data class InternalWalletAllocation(
     fun verifyIntegrity() {
         require((notAfter ?: Long.MAX_VALUE) >= notBefore) { "notAfter >= notBefore ($notAfter >= $notBefore) $this" }
         require(quota >= 0) { "initialBalance >= 0 ($quota >= 0) $this" }
-        require((treeUsage ?: 0) <= quota) { "treeUsage <= quota ($treeUsage <= $quota) $this" }
         //legacy allocations does not live up to this requirement. Previous checks noted that this was only a problem
         //for allocations with id below 5900
         if (id > allocationIdCutoff) {
@@ -1141,6 +1140,12 @@ class AccountingProcessor(
     }
 
     private fun InternalWalletAllocation.toApiAllocation(): ApiWalletAllocation {
+        val internalWallAlloc = allocations[id]
+            ?: throw RPCException.fromStatusCode(
+                HttpStatusCode.InternalServerError,
+                "Cannot find allocations that is being translated"
+            )
+        val maxAllowedUsage = calculateMaxUsableQuotaFromParents(internalWallAlloc)
         return ApiWalletAllocation(
             id.toString(),
             run {
@@ -1162,7 +1167,8 @@ class AccountingProcessor(
             endDate = notAfter ?: Long.MAX_VALUE,
             grantedIn,
             canAllocate = canAllocate,
-            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate
+            allowSubAllocationsToAllocate = allowSubAllocationsToAllocate,
+            maxUsable = maxAllowedUsage
         )
     }
 
@@ -1296,6 +1302,22 @@ class AccountingProcessor(
                 parent.treeUsage = min((parent.treeUsage ?: 0) + currentAlloc.treeUsage!!, parent.quota)
                 parent.commit()
             }
+        }
+    }
+
+    private fun calculateMaxUsableQuotaFromParents(allocation: InternalWalletAllocation): Long {
+        if (allocation.parentAllocation != null) {
+            val parent = allocations.getOrNull(allocation.parentAllocation)
+                ?: throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError,
+                    "Allocation has parent error"
+                )
+            return min(
+                allocation.quota - ( allocation.treeUsage ?: allocation.localUsage ),
+                calculateMaxUsableQuotaFromParents(parent)
+                )
+        } else {
+            return allocation.quota - ( allocation.treeUsage ?: allocation.localUsage )
         }
     }
 
@@ -1469,22 +1491,40 @@ class AccountingProcessor(
         }
     }
 
+    private fun isLocked(allocation: InternalWalletAllocation): Boolean {
+        return allocation.quota <= allocation.localUsage || allocation.quota <= (allocation.treeUsage ?: 0)
+    }
+    private suspend fun allocationIsLocked(allocationId: Int): Boolean {
+        val allocation = allocations[allocationId] ?: return true
+        if (isLocked(allocation)) {
+            return true
+        }
+        if (allocation.parentAllocation != null) {
+            return allocationIsLocked(allocation.parentAllocation)
+        }
+        return false
+    }
+
     private suspend fun check(request: AccountingRequest.Charge): AccountingResponse {
         val productCategory = productCategories.retrieveProductCategory(request.productCategory)
             ?: return AccountingResponse.Error("No matching product category", 400)
         if (productCategory.freeToUse) {
             return AccountingResponse.Charge(true)
         }
+
         val wallet = wallets.find {
             it?.owner == request.owner &&
                     (it.paysFor.provider == productCategory.provider &&
                             it.paysFor.name == productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
 
-        val activeAllocations = wallet.allocations.filter { it.isActive() }
-        return AccountingResponse.Charge(
-            activeAllocations.sumOf { it.localUsage } < activeAllocations.sumOf { it.quota }
-        )
+        val activeAllocations = wallet.allocations.filter { it.isActive() && !allocationIsLocked(it.id.toInt()) }
+        //If local usage is higher or equal to quota no more charges can be made
+        if (activeAllocations.sumOf { it.localUsage } >= activeAllocations.sumOf { it.quota }) {
+            //local allocations are not sufficient
+            return AccountingResponse.Charge(false)
+        }
+        return AccountingResponse.Charge(true)
     }
 
     private suspend fun deltaCharge(request: AccountingRequest.Charge.DeltaCharge): AccountingResponse {
@@ -1535,17 +1575,33 @@ class AccountingProcessor(
         allocation: InternalWalletAllocation,
         delta: Long,
     ): Boolean {
+        var toCharge = delta
         if (allocation.parentAllocation == null) {
             return true
         } else {
             val parent = allocations[allocation.parentAllocation] ?: return false
             parent.begin()
-            parent.treeUsage = min((parent.treeUsage ?: parent.localUsage) + delta, parent.quota)
+            //If resources are being released we should be careful not to just subtract from the parent.
+            //The allocation might still be using its parens full capacity so parents should not be charged
+            //before the allocation is using less than what has been given.
+            if (toCharge < 0) {
+                if ((allocation.treeUsage ?: allocation.localUsage) > parent.quota) {
+                    //Dont update since the usage is still be over consumed so parent should just have quota as treeusage
+                } else {
+                    val previousOvercharge = ((allocation.treeUsage ?: allocation.localUsage) - toCharge) -  allocation.quota
+                    if (previousOvercharge > 0) {
+                        toCharge += previousOvercharge
+                    }
+                    parent.treeUsage = (parent.treeUsage ?: parent.localUsage) + toCharge
+                }
+            } else {
+                parent.treeUsage = min((parent.treeUsage ?: parent.localUsage) + toCharge, parent.quota)
+            }
             parent.commit()
             return if (parent.parentAllocation == null) {
                 true
             } else {
-                return updateParentTreeUsage(parent, delta)
+                return updateParentTreeUsage(parent, toCharge)
             }
         }
     }
@@ -1582,22 +1638,23 @@ class AccountingProcessor(
         return true
     }
 
-    private fun applyPeriodCharge(
+    private suspend fun applyPeriodCharge(
         delta: Long,
         walletAllocations: List<WalletAllocationV2>,
         chargeDescription: ChargeDescription,
     ): AccountingResponse {
+        var chargeFailed = false
         if (delta == 0L) return AccountingResponse.Charge(true)
         var activeQuota = 0L
         for (allocation in walletAllocations) {
             if (!allocation.isActive()) continue
-            if (allocation.isLocked()) continue
+            if (allocationIsLocked(allocation.id.toInt())) continue
             activeQuota += allocation.quota
         }
         var amountCharged = 0L
         for (allocation in walletAllocations) {
             if (!allocation.isActive()) continue
-            if (allocation.isLocked()) continue
+            if (allocationIsLocked(allocation.id.toInt())) continue
 
             //If we have no quota then just charge all to first allocation, and skip rest
             if (activeQuota == 0L) {
@@ -1607,6 +1664,7 @@ class AccountingProcessor(
                     )
                 }
                 amountCharged = delta
+                chargeFailed = true
                 break
             }
             val weight = allocation.quota.toDouble() / activeQuota.toDouble()
@@ -1619,7 +1677,7 @@ class AccountingProcessor(
             amountCharged += localCharge
         }
         if (amountCharged != delta) {
-            val stillActiveAllocations = walletAllocations.filter { it.isActive() && !it.isLocked() }
+            val stillActiveAllocations = walletAllocations.filter { it.isActive() && !allocationIsLocked(it.id.toInt()) }
             val difference = delta - amountCharged
             if (stillActiveAllocations.isEmpty()) {
                 // Will choose latest invalidated allocation to charge.
@@ -1658,7 +1716,7 @@ class AccountingProcessor(
                 }
             }
         }
-        return AccountingResponse.Charge(true)
+        return AccountingResponse.Charge(!chargeFailed)
     }
 
     private fun applyNonPeriodicCharge(
@@ -1692,31 +1750,40 @@ class AccountingProcessor(
                 ?: return AccountingResponse.Error("Error on finding walletAllocation", 500)
 
             val oldValue = alloc.localUsage
-            val quota = alloc.quota
             var diff = -oldValue
+
+            //Resetting the old localusage to 0 before updating if still active
+            alloc.begin()
+
             alloc.localUsage = 0L
-            var localChange = 0L
             var treeChange = 0L
 
             if (activeAllocations.contains(allocation.id)) {
-                alloc.begin()
-
                 val weight = alloc.quota.toDouble() / activeQuota.toDouble()
                 val toCharge = round(totalUsage.toDouble() * weight).toLong()
                 diff = toCharge - oldValue
-                if (diff < 0 && abs(diff) > quota) {
+                //Not sure why this is here. This case will only happen when an allocation
+                //has expried and moves all usage to other still active allocation and then
+                //charges less than the active allocations quota. And in this case the diff
+                //will always be correct as it is.
+                /*if (diff < 0 && abs(diff) > quota) {
                     diff += quota
-                }
+                }*/
                 alloc.localUsage = toCharge
-                localChange = toCharge
-                treeChange = min(diff, alloc.quota)
+                treeChange = diff
                 alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + treeChange
                 totalCharged += toCharge
 
-                alloc.commit()
+            } else {
+                treeChange = min(diff, alloc.quota)
+                alloc.treeUsage = (alloc.treeUsage ?: alloc.localUsage) + treeChange
             }
+            alloc.commit()
 
-            updateParentTreeUsage(alloc, min(diff, alloc.quota))
+            //No need to use time on recursive updating tree when diff == 0
+            if (diff != 0L) {
+                updateParentTreeUsage(alloc, min(diff, alloc.quota))
+            }
         }
 
         if (totalCharged != totalUsage) {
@@ -1764,9 +1831,9 @@ class AccountingProcessor(
                     }
                 }
             }
-            if (activeQuota < totalUsage) {
-                return AccountingResponse.Charge(false)
-            }
+        }
+        if (activeQuota < totalUsage) {
+            return AccountingResponse.Charge(false)
         }
         return AccountingResponse.Charge(true)
     }
@@ -1984,7 +2051,7 @@ class AccountingProcessor(
                     workspaceTitle = projectInfo.first.title,
                     workspaceIsProject = wall.owner.matches(PROJECT_REGEX),
                     projectPI = projectInfo.second,
-                    usage = allocation.localUsage,
+                    usage = allocation.treeUsage ?: allocation.localUsage,
                     quota = allocation.quota,
                     grantedIn = allocation.grantedIn
                 )

@@ -46,6 +46,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
+import {appendToXterm, useXTerm} from "./XTermLib";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -535,7 +536,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     );
 
     if (props.embedded) return main;
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 }
 
 const CompletedContent: React.FunctionComponent<{
@@ -549,18 +550,18 @@ const CompletedContent: React.FunctionComponent<{
     return <div className={Content}>
         <TabbedCard style={{flexBasis: "300px"}}>
             <TabbedCardTab icon={"heroServerStack"} name={"Job info"}>
-            <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
-                <Box><b>ID:</b> {shortUUID(job.id)}</Box>
-                <Box>
-                    <b>Reservation:</b>{" "}
-                    <ProviderTitle providerId={job.specification.product.provider} />
-                    {" "}/{" "}
-                    {job.specification.product.id}{" "}
-                    (x{job.specification.replicas})
-                </Box>
-                <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
-            </Flex>
+                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                    {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
+                    <Box><b>ID:</b> {shortUUID(job.id)}</Box>
+                    <Box>
+                        <b>Reservation:</b>{" "}
+                        <ProviderTitle providerId={job.specification.product.provider} />
+                        {" "}/{" "}
+                        {job.specification.product.id}{" "}
+                        (x{job.specification.replicas})
+                    </Box>
+                    <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
+                </Flex>
             </TabbedCardTab>
         </TabbedCard>
 
@@ -594,7 +595,7 @@ function PublicLinkEntry({id}: {id: string}): JSX.Element {
     if (id.startsWith("fake")) {
         domain = "https://fake-public-link.example.com";
     } else if (publicLink.data == null) {
-        return <li/>;
+        return <li />;
     } else {
         domain = publicLink.data.specification.domain;
     }
@@ -690,7 +691,7 @@ const Busy: React.FunctionComponent<{
             <Box>We are currently preparing your job. This step might take a few minutes.</Box>
         }
 
-        <Box flexGrow={1}/>
+        <Box flexGrow={1} />
         <Box><CancelButton job={job} state={"IN_QUEUE"} /></Box>
     </Box>;
 };
@@ -719,7 +720,7 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
                     {" "}
                     <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
                 </Heading.h2>
-                <Box flexGrow={1}/>
+                <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
             <RunningButtonGroup job={job} rank={0} isAtTop={true} />
@@ -946,99 +947,99 @@ const RunningContent: React.FunctionComponent<{
         <div className={RunningInfoWrapper}>
             <TabbedCard style={{flexBasis: "300px"}}>
                 <StandardPanelBody>
-                <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
-                    <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                        <Box>
-                            <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
-                        </Box>
-                        {!expiresAt && !localStorage.getItem("useFakeState") ? null :
-                            <>
-                                <Box>
-                                    <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
-                                </Box>
-                                <Box>
-                                    <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
-                                    :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
-                                    :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
-                                </Box>
-                            </>
-                        }
-                        <Box flexGrow={1} />
-                        <Box mb="12px">
-                            {(!expiresAt || !supportsExtension) && !localStorage.getItem("useFakeState") ? null : <>
-                                Extend allocation (hours):
-                                <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                    <Button onClick={() => extendJob(1)}>+1</Button>
-                                    <Button onClick={() => extendJob(8)}>+8</Button>
-                                    <Button onClick={() => extendJob(24)}>+24</Button>
-                                </AltButtonGroup>
-                            </>}
-                            {!supportsSuspend ? null :
-                                suspended ?
-                                    <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
-                                                        onAction={unsuspendJob} /> :
-                                    <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
-                                                        onAction={suspendJob} />
-
+                    <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
+                        <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                            <Box>
+                                <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
+                            </Box>
+                            {!expiresAt && !localStorage.getItem("useFakeState") ? null :
+                                <>
+                                    <Box>
+                                        <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
+                                    </Box>
+                                    <Box>
+                                        <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
+                                        :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
+                                        :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
+                                    </Box>
+                                </>
                             }
-                        </Box>
-                    </Flex>
-                </TabbedCardTab>
+                            <Box flexGrow={1} />
+                            <Box mb="12px">
+                                {(!expiresAt || !supportsExtension) && !localStorage.getItem("useFakeState") ? null : <>
+                                    Extend allocation (hours):
+                                    <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
+                                        <Button onClick={() => extendJob(1)}>+1</Button>
+                                        <Button onClick={() => extendJob(8)}>+8</Button>
+                                        <Button onClick={() => extendJob(24)}>+24</Button>
+                                    </AltButtonGroup>
+                                </>}
+                                {!supportsSuspend ? null :
+                                    suspended ?
+                                        <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
+                                            onAction={unsuspendJob} /> :
+                                        <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
+                                            onAction={suspendJob} />
+
+                                }
+                            </Box>
+                        </Flex>
+                    </TabbedCardTab>
                 </StandardPanelBody>
             </TabbedCard>
 
             <TabbedCard style={{flexBasis: "600px"}}>
                 <StandardPanelBody>
-                {!sshAccess ? null :
-                    <TabbedCardTab icon={"heroKey"} name={"SSH"}>
-                        {sshAccess.success ? null : <Warning>
-                            SSH was not configured successfully!
-                        </Warning>}
-                        {!sshAccess.message ? null : <>{sshAccess.message}</>}
-                        {!sshAccess.command ? null : <>
-                            <CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet>
-                        </>}
-                    </TabbedCardTab>
-                }
+                    {!sshAccess ? null :
+                        <TabbedCardTab icon={"heroKey"} name={"SSH"}>
+                            {sshAccess.success ? null : <Warning>
+                                SSH was not configured successfully!
+                            </Warning>}
+                            {!sshAccess.message ? null : <>{sshAccess.message}</>}
+                            {!sshAccess.command ? null : <>
+                                <CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet>
+                            </>}
+                        </TabbedCardTab>
+                    }
 
-                {!supportsPeers || peers.length === 0 ? null :
-                    <TabbedCardTab icon={"heroServerStack"} name={`Connected jobs (${peers.length})`}>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHeaderCell textAlign="left" width={"120px"}>Job ID</TableHeaderCell>
-                                    <TableHeaderCell textAlign="left">Hostname</TableHeaderCell>
-                                </TableRow>
-                            </TableHeader>
-                            <tbody>
-                            {peers.map(it =>
-                                <TableRow key={it.jobId}>
-                                    <TableCell textAlign="left" width={"120px"}>
-                                        <Link to={`/jobs/properties/${it.jobId}?app=`} target={"_blank"}>
-                                            {it.jobId}
-                                            {" "}
-                                            <Icon name={"heroArrowTopRightOnSquare"} mt={"-5px"}/>
-                                        </Link>
-                                    </TableCell>
+                    {!supportsPeers || peers.length === 0 ? null :
+                        <TabbedCardTab icon={"heroServerStack"} name={`Connected jobs (${peers.length})`}>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell textAlign="left" width={"120px"}>Job ID</TableHeaderCell>
+                                        <TableHeaderCell textAlign="left">Hostname</TableHeaderCell>
+                                    </TableRow>
+                                </TableHeader>
+                                <tbody>
+                                    {peers.map(it =>
+                                        <TableRow key={it.jobId}>
+                                            <TableCell textAlign="left" width={"120px"}>
+                                                <Link to={`/jobs/properties/${it.jobId}?app=`} target={"_blank"}>
+                                                    {it.jobId}
+                                                    {" "}
+                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={"-5px"} />
+                                                </Link>
+                                            </TableCell>
 
-                                    <TableCell textAlign="left">
-                                        <code><Truncate width={1}>{it.hostname}</Truncate></code>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                            </tbody>
-                        </Table>
-                    </TabbedCardTab>
-                }
+                                            <TableCell textAlign="left">
+                                                <code><Truncate width={1}>{it.hostname}</Truncate></code>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </tbody>
+                            </Table>
+                        </TabbedCardTab>
+                    }
 
-                {ingresses.length === 0 ? null :
-                    <TabbedCardTab icon={"heroGlobeEuropeAfrica"} name={`Links (${ingresses.length})`}>
-                        This job is publicly available through:
-                        <ul style={{paddingLeft: "2em"}}>
-                            {ingresses.map(ingress => <PublicLinkEntry key={ingress.id} id={ingress.id} />)}
-                        </ul>
-                    </TabbedCardTab>
-                }
+                    {ingresses.length === 0 ? null :
+                        <TabbedCardTab icon={"heroGlobeEuropeAfrica"} name={`Links (${ingresses.length})`}>
+                            This job is publicly available through:
+                            <ul style={{paddingLeft: "2em"}}>
+                                {ingresses.map(ingress => <PublicLinkEntry key={ingress.id} id={ingress.id} />)}
+                            </ul>
+                        </TabbedCardTab>
+                    }
                 </StandardPanelBody>
             </TabbedCard>
 
@@ -1074,11 +1075,6 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     ${k} {
         margin-top: 16px;
         margin-bottom: 16px;
-
-        display: grid;
-        grid-template-columns: 1fr 200px;
-        grid-template-rows: 1fr auto;
-        grid-gap: 16px;
     }
 
     ${k} .rank {
@@ -1090,12 +1086,7 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     ${k} .term {
         overflow-y: scroll;
         height: 100%;
-    }
-
-    ${k} .term .terminal {
-        /* NOTE(Dan): This fixes a feedback loop in the xtermjs fit function. Without this, the fit function is
-        unable to correctly determine the size of the terminal */
-        position: absolute;
+        width: 100%;
     }
 
     ${k} .buttons {
@@ -1139,13 +1130,13 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     }
 `);
 
+
 const RunningJobRank: React.FunctionComponent<{
     job: Job,
     rank: number,
     state: React.RefObject<JobUpdates>,
 }> = ({job, rank, state}) => {
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const [updates, setUpdates] = useState<string[]>([]);
+    const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
 
     useEffect(() => {
         const listener = () => {
@@ -1155,14 +1146,8 @@ const RunningJobRank: React.FunctionComponent<{
             const newLogQueue: LogMessage[] = [];
             for (const l of s.logQueue) {
                 if (l.rank === rank) {
-                    if (l.stderr != null) {
-                        const stderr = l.stderr;
-                        setUpdates(u => [...u, stderr]);
-                    }
-                    if (l.stdout != null) {
-                        const stdout = l.stdout;
-                        setUpdates(u => [...u, stdout]);
-                    }
+                    if (l.stderr != null) appendToXterm(terminal, l.stderr);
+                    if (l.stdout != null) appendToXterm(terminal, l.stdout);
                 } else {
                     newLogQueue.push(l);
                 }
@@ -1173,22 +1158,18 @@ const RunningJobRank: React.FunctionComponent<{
         state.current?.subscriptions?.push(listener);
         listener();
     }, [job.id, rank]);
+    
+    return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
+        <div className={RunningJobRankWrapper}>
+            <div ref={termRef} className="term" />
 
-    return <>
-        <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
-            <div className={RunningJobRankWrapper}>
-                <Box divRef={wrapperRef} className="term">
-                    <LogOutput updates={updates} maxHeight="" />
-                </Box>
-
-                {job.specification.replicas === 1 ? null : (
-                    <Absolute right={"32px"}>
-                        <RunningButtonGroup job={job} rank={rank} isAtTop={false}/>
-                    </Absolute>
-                )}
-            </div>
-        </TabbedCardTab>
-    </>;
+            {job.specification.replicas === 1 ? null : (
+                <Absolute right={"32px"}>
+                    <RunningButtonGroup job={job} rank={rank} isAtTop={false} />
+                </Absolute>
+            )}
+        </div>
+    </TabbedCardTab>
 };
 
 function jobStateToText(state: JobState) {
@@ -1224,7 +1205,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
-        <Box flexGrow={1}/>
+        <Box flexGrow={1} />
         {app.name === "unknown" ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
                 <Button>Run application again</Button>
@@ -1241,7 +1222,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
     }
     return <Card className={FadeInDiv} p={"0px"} height={"calc(100vh - 530px)"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
-            opts={{initialPath: pathRef.current, embedded: true}}
+            opts={{initialPath: pathRef.current, embedded: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
         />
     </Card>;
 }
@@ -1305,7 +1286,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                <Button><Icon name={"heroArrowTopRightOnSquare"}/> Open interface</Button>
+                <Button><Icon name={"heroArrowTopRightOnSquare"} /> Open interface</Button>
             </Link>
         )}
         {appType !== "VNC" || !supportsInterface ? null : (
@@ -1318,7 +1299,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=450,status=no"
                 );
             }}>
-                <Button><Icon name={"heroArrowTopRightOnSquare"}/> Open interface</Button>
+                <Button><Icon name={"heroArrowTopRightOnSquare"} /> Open interface</Button>
             </Link>
         )}
     </div>

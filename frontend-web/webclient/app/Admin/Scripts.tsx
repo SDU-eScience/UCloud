@@ -12,6 +12,7 @@ import {DATE_FORMAT} from "./NewsManagement";
 import {ButtonClass} from "@/ui-components/Button";
 import {createHTMLElements} from "@/UtilityFunctions";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {features} from "monaco-editor/esm/metadata";
 
 const baseContext = "/api/scripts";
 
@@ -91,7 +92,7 @@ function Scripts(): React.ReactNode {
                 browser.on("unhandledShortcut", listener => void 0);
 
                 browser.on("renderRow", (script, row, dim) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(false);
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "play",

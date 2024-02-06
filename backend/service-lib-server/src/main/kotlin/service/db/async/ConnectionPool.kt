@@ -42,6 +42,7 @@ sealed class TransactionMode {
 }
 
 sealed class DBContext
+object DiscardingDBContext : DBContext()
 object FakeDBContext : DBContext()
 private const val DEBUG_ERRORS = false
 
@@ -79,6 +80,9 @@ suspend fun <R> DBContext.withSession(
                 }
 
                 FakeDBContext -> error("Cannot call withSession on a FakeDBContext")
+                DiscardingDBContext -> {
+                    Unit as? R ?: throw IllegalStateException("Unable to use a fake discarding DB when withSession needs to return a result")
+                }
             }
         } catch (ex: GenericDatabaseException) {
             if (remapExceptions) {

@@ -1,24 +1,94 @@
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
-import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
 import Icon from "@/ui-components/Icon";
 import * as React from "react";
 import {useSelector} from "react-redux";
-import {useCallback} from "react";
+import {KeyboardEventHandler, useCallback, useRef, useState} from "react";
 import {injectStyle} from "@/Unstyled";
+import {Input} from "@/ui-components";
 
-export function UtilityBar(props: {searchEnabled: boolean; zIndex?: number}): JSX.Element {
-    return (<Flex zIndex={props.zIndex ?? 1} alignItems={"center"}>
-        {props.searchEnabled && <Box width="32px"><SearchIcon enabled={props.searchEnabled} /></Box>}
-        <Box width="32px" mr={10}><RefreshIcon /></Box>
-        <ContextSwitcher />
+export function UtilityBar(props: {
+    onSearch?: (query: string) => void;
+    zIndex?: number;
+    initialSearchQuery?: string;
+}): React.ReactNode {
+    return (<Flex zIndex={props.zIndex ?? 1} alignItems={"center"} gap={"16px"}>
+        {props.onSearch && <SearchIcon initialQuery={props.initialSearchQuery} onSearch={props.onSearch}/>}
+        <RefreshIcon/>
+        <ContextSwitcher/>
     </Flex>);
 }
 
-function SearchIcon({enabled}): JSX.Element | null {
-    if (!enabled) return null;
-    return <Icon id={"search-icon"} size={20} color="primaryMain" name="heroMagnifyingGlass" />
+const SearchClass = injectStyle("search", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+    }
+    
+    ${k} input {
+        --width: 200px;
+        left: 32px;
+        position: relative;
+        width: var(--width);
+        transition: transform 0.2s;
+    }
+    
+    ${k}[data-active=false] input {
+        transform: translate(calc(var(--width) / 2), 0) scale(0, 1)
+    }
+    
+    ${k}[data-active=true] input {
+        transform: translate(0, 0) scale(1);
+    }
+    
+    ${k} svg {
+        z-index: 1;
+    }
+`);
+
+function SearchIcon(props: {
+    onSearch: (query: string) => void;
+    initialQuery?: string;
+}): React.ReactNode | null {
+    const [visible, setVisible] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const ignoreNextToggle = useRef(false);
+
+    const close = useCallback(() => {
+        ignoreNextToggle.current = true;
+        setVisible(false);
+    }, []);
+
+    const toggleVisible = useCallback(() => {
+        if (ignoreNextToggle.current) {
+            ignoreNextToggle.current = false;
+            return;
+        }
+        setVisible(prev => !prev);
+        inputRef.current?.focus();
+    }, []);
+
+    const doSearch = useCallback((e: React.SyntheticEvent) => {
+        e.preventDefault();
+        const query = inputRef.current?.value ?? "";
+        props.onSearch(query);
+        close();
+    }, [props.onSearch]);
+
+    const handleEscape = useCallback<KeyboardEventHandler>(e => {
+        if (e.code === "Escape") {
+            close();
+            inputRef.current?.blur();
+        }
+    }, []);
+
+    return <form className={SearchClass} data-active={visible} onSubmit={doSearch}>
+        <Input inputRef={inputRef} onBlur={close} placeholder={"Search..."} onKeyDown={handleEscape}
+               defaultValue={props.initialQuery}/>
+        <Icon id={"search-icon"} size={20} color="primaryMain" name="heroMagnifyingGlass"
+              onClick={toggleVisible} cursor={"pointer"}/>
+    </form>;
 }
 
 // NOTE(Dan): This should be kept up with the similar implementation which exists in ResourceBrowser
@@ -32,7 +102,7 @@ const refreshIconClass = injectStyle("refresh-icon", k => `
     }
 `);
 
-function RefreshIcon(): JSX.Element | null {
+function RefreshIcon(): React.ReactNode {
     const refresh = useRefresh();
     const spin = useSelector((it: ReduxObject) => it.loading);
     const loading = useSelector((it: ReduxObject) => it.status.loading);

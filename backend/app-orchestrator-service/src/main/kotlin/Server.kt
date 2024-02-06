@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.rpc.*
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.authenticator
@@ -150,8 +149,6 @@ class Server(override val micro: Micro) : CommonServer {
             jobMonitoring = JobMonitoringService()
             statistics = StatisticsService()
             runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
-
-            eventStreams?.let { streams -> AppProcessor(streams, appCache).init() }
 
             configureControllers(
                 JobController(jobs, micro),

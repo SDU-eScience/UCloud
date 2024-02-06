@@ -62,6 +62,7 @@ export function normalizeDownloadEndpoint(endpoint: string): string {
 export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
+    isModal?: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
@@ -428,7 +429,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "copy",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
-                    (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
+                    (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
@@ -481,7 +482,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         return "File system is read-only";
                     }
                     if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
-                    return (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
+                    return (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                         selected.length > 0 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },

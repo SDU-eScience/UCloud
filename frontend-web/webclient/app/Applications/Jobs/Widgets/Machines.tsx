@@ -1,17 +1,19 @@
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
-import {accounting} from "@/UCloud";
+import {accounting, compute} from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
 import {ProductV2, productCategoryEquals, ProductV2Compute, ProductCompute} from "@/Accounting";
 import * as UCloud from "@/UCloud";
 import {ProductSelector} from "@/Products/Selector";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import JobsRetrieveProductsResponse = compute.JobsRetrieveProductsResponse;
+import {Application} from "@/Applications/AppStoreApi";
 
 export const reservationMachine = "reservation-machine";
 
 export function findRelevantMachinesForApplication(
-    application: UCloud.compute.Application,
-    machineSupport: UCloud.compute.JobsRetrieveProductsResponse,
+    application: Application,
+    machineSupport: JobsRetrieveProductsResponse,
     wallets: UCloud.PageV2<ProductV2Compute>
 ): ProductV2Compute[] {
     const supportedProducts: ProductCompute[] = ([] as ProductCompute[]).concat.apply(

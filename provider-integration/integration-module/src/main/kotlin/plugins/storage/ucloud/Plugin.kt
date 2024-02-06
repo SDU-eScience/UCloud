@@ -16,6 +16,7 @@ import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.config.removeProvider
+import dk.sdu.cloud.controllers.FilesUploadIpc
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
@@ -44,6 +45,7 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.MoveTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
@@ -57,6 +59,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 
 class UCloudFilePlugin : FilePlugin {
     override val pluginTitle: String = "UCloud"
@@ -78,6 +81,7 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var pathConverter: PathConverter
     lateinit var usageScan: UsageScan
     lateinit var driveLocator: DriveLocator
+    lateinit var uploadDescriptors: UploadDescriptors
     var computePlugin: UCloudComputePlugin? = null
 
     override fun supportsRealUserMode(): Boolean = false
@@ -109,12 +113,15 @@ class UCloudFilePlugin : FilePlugin {
         memberFiles = MemberFiles(fs, pathConverter)
         usageScan = UsageScan(pluginName, pathConverter, directoryStats)
         tasks = TaskSystem(pluginConfig, dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem, usageScan)
-        uploads = ChunkedUploadService(pathConverter, fs)
+        uploadDescriptors = UploadDescriptors(pathConverter, fs)
+        uploads = ChunkedUploadService(uploadDescriptors)
 
         val stagingFolderPath = pluginConfig.trash.stagingFolder?.takeIf { pluginConfig.trash.useStagingFolder }
         val stagingFolder = stagingFolderPath?.let { InternalFile(it) }?.takeIf {
             runCatching { fs.stat(it).fileType }.getOrNull() == FileType.DIRECTORY
         }
+
+        uploadDescriptors.startMonitoringLoop()
 
         with(tasks) {
             install(CopyTask())
@@ -189,7 +196,16 @@ class UCloudFilePlugin : FilePlugin {
 
     override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
         return request.items.map {
-            FileUploadSession(secureToken(32), it.id)
+            val ucloudFile = UCloudFile.create(it.id)
+            val descriptor = uploadDescriptors.get(ucloudFile.path, true)
+            limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(InternalFile(descriptor.targetPath)).drive.ucloudId.toString())
+            val targetUCloudPath = pathConverter.internalToUCloud(InternalFile(descriptor.targetPath))
+
+            val pluginData = defaultMapper.encodeToJsonElement(
+                FileUploadSessionPluginData(targetUCloudPath.path, it.conflictPolicy)
+            ).toString()
+
+            FileUploadSession(secureToken(32), pluginData)
         }
     }
 
@@ -197,9 +213,18 @@ class UCloudFilePlugin : FilePlugin {
         session: String,
         pluginData: String,
         offset: Long,
+        totalSize: Long,
         chunk: ByteReadChannel
     ) {
-        uploads.receiveChunk(UCloudFile.create(pluginData), offset, chunk)
+        val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
+        uploads.receiveChunk(UCloudFile.create(sessionData.target), offset, totalSize, chunk, sessionData.conflictPolicy)
+
+        if (offset + chunk.totalBytesRead >= totalSize) {
+            ipcClient.sendRequest(
+                FilesUploadIpc.delete,
+                FindByStringId(session)
+            )
+        }
     }
 
     override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> {
@@ -652,6 +677,12 @@ class UCloudFilePlugin : FilePlugin {
         val jobIds: List<String>
     )
 
+    @Serializable
+    private data class FileUploadSessionPluginData(
+        val target: String,
+        val conflictPolicy: WriteConflictPolicy
+    )
+
     private object CliIpc : IpcContainer("ucloud_storage_drives") {
         val enableMaintenanceMode =
             updateHandler("enableMaintenanceMode", EnableMaintenanceMode.serializer(), Unit.serializer())
@@ -662,6 +693,10 @@ class UCloudFilePlugin : FilePlugin {
         val browseBySystem = updateHandler("browseBySystem", BrowseBySystem.serializer(), DriveInfoItems.serializer())
         val locateInMaintenance = updateHandler("locateInMaintenance", Unit.serializer(), DriveInfoItems.serializer())
         val usedByJobs = updateHandler("usedByJobs", LocateByPath.serializer(), UsedBySystems.serializer())
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

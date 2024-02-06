@@ -4,19 +4,19 @@ import {Box, Flex, Icon, Tooltip} from "@/ui-components";
 import Text, {TextSpan} from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";
-import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
 
 export const AppHeader: React.FunctionComponent<{
-    application: UCloud.compute.ApplicationWithFavoriteAndTags;
-    allVersions: UCloud.compute.ApplicationSummaryWithFavorite[];
-    flavors: UCloud.compute.ApplicationSummaryWithFavorite[];
+    application: ApplicationWithFavoriteAndTags;
+    allVersions: ApplicationSummaryWithFavorite[];
+    flavors: ApplicationSummaryWithFavorite[];
     title: string;
 }> = props => {
     /* Results of `findByName` are ordered by apps `createdAt` field in descending order, so this should be correct. */
-    const newest: UCloud.compute.ApplicationSummaryWithFavorite | undefined = props.allVersions[0];
+    const newest: ApplicationSummaryWithFavorite | undefined = props.allVersions[0];
     const navigate = useNavigate();
     const close = React.useRef(() => void 0);
 

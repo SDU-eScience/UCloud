@@ -118,7 +118,7 @@ const colorsByTheme: { dark: ThemedColors; light: ThemedColors; } = {
     },
     light: {
         background: "#ffffff",
-        foreground: "#000000"
+        foreground: "#212529",
     }
 };
 
@@ -135,8 +135,8 @@ function generatePalette(): string {
         builder += `--backgroundCardBorderHover: ${mixColors(c.background, c.foreground, 0.60)};\n`;
 
         builder += `--textPrimary: ${c.foreground};\n`;
-        builder += `--textSecondary: ${mixColors(c.foreground, c.background, 0.4)};\n`;
-        builder += `--textDisabled: ${mixColors(c.foreground, c.background, 0.6)};\n`;
+        builder += `--textSecondary: ${mixColors(c.foreground, c.background, 0.3)};\n`;
+        builder += `--textDisabled: ${mixColors(c.foreground, c.background, 0.5)};\n`;
 
         builder += `--rowHover: ${mixColors(c.background, colors.primary, 0.15)};\n`;
         builder += `--rowActive: ${mixColors(c.background, colors.primary, 0.3)};\n`;
@@ -181,6 +181,7 @@ html {
     --popInWidth: 368px;
     --sidebarColor: hsl(216, 92%, 52%);
     --sidebarSecondaryColor: hsl(216, 92%, 60%);
+    --appLogoBackground: transparent;
 
     --secondaryText: 10px;
     --buttonText: 14px;
@@ -209,6 +210,7 @@ html {
 html.dark {
     --sidebarColor: #141414;
     --sidebarSecondaryColor: #1D1D1D;
+    --appLogoBackground: #ffffff;
 }
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
@@ -317,10 +319,6 @@ hr {
 /**
  * Add the correct display in IE.
  */
-
-main {
-  display: block;
-}
 
 /**
  * Remove the list style on navigation lists in all browsers (opinionated).

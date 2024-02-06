@@ -23,7 +23,7 @@ import {injectStyle} from "@/Unstyled";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
-import {GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -81,7 +81,7 @@ function Dashboard(): React.JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex py="12px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} searchEnabled={false} /></Flex>
+        <Flex pt="12px" pb="24px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
             <DashboardNews news={news} />
             <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
@@ -98,8 +98,10 @@ function Dashboard(): React.JSX.Element {
     </Box>);
 
     return (
-        <div className={GradientWithPolygons}>
-            <MainContainer main={main} />
+        <div className={Gradient}>
+            <div className={GradientWithPolygons}>
+                <MainContainer main={main} />
+            </div>
         </div>
     );
 }
@@ -128,7 +130,10 @@ const GridClass = injectStyle("grid", k => `
 }
 `);
 
-function Invites({projectReloadRef, inviteReloadRef}: {projectReloadRef: React.MutableRefObject<() => void>, inviteReloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
+function Invites({projectReloadRef, inviteReloadRef}: {
+    projectReloadRef: React.MutableRefObject<() => void>,
+    inviteReloadRef: React.MutableRefObject<() => void>
+}): React.ReactNode {
     const [showProjectInvites, setShowProjectInvites] = React.useState(false);
     const [showShareInvites, setShowShareInvites] = React.useState(false);
 
@@ -137,8 +142,14 @@ function Invites({projectReloadRef, inviteReloadRef}: {projectReloadRef: React.M
             icon="heroUserGroup"
             title="Invites"
         >
-            <div style={display(showProjectInvites)}><ProjectInviteBrowse opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
-            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{reloadRef: inviteReloadRef, embedded: true, setShowBrowser: setShowShareInvites, filterState: "PENDING"}} /></div>
+            <div style={display(showProjectInvites)}><ProjectInviteBrowse
+                opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
+            <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
+                reloadRef: inviteReloadRef,
+                embedded: true,
+                setShowBrowser: setShowShareInvites,
+                filterState: "PENDING"
+            }} /></div>
         </DashboardCard>
     </Flex>
 
@@ -173,9 +184,15 @@ function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => voi
     </DashboardCard>;
 }
 
-const APPLY_LINK_BUTTON = <Link to={AppRoutes.grants.editor()} mt={8}>
-    <Button mt={8}>Apply for resources</Button>
-</Link>;
+function ApplyLinkButton(): React.JSX.Element {
+    const project = useProject();
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
+    if (!canApply) return <div />
+
+    return <Link to={AppRoutes.grants.newApplication({projectId: Client.projectId})} mt={8}>
+        <Button mt={8}>Apply for resources</Button>
+    </Link>;
+}
 
 function DashboardResources({wallets}: {
     wallets: APICallState<PageV2<Accounting.WalletV2>>;
@@ -216,7 +233,7 @@ function DashboardResources({wallets}: {
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                     </Text>}
-                    {APPLY_LINK_BUTTON}
+                    <ApplyLinkButton />
                 </NoResultsCardBody>
             ) :
                 /* height is 100% - height of Heading 55px */
@@ -232,16 +249,22 @@ function DashboardResources({wallets}: {
                                         </Flex>
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                        {Accounting.balanceToString(n.category, n.used, {precision: 0, removeUnitIfPossible: true})}
+                                        {Accounting.balanceToString(n.category, n.used, {
+                                            precision: 0,
+                                            removeUnitIfPossible: true
+                                        })}
                                         {" "}/{" "}
-                                        {Accounting.balanceToString(n.category, n.quota, {precision: 0, removeUnitIfPossible: false})}
+                                        {Accounting.balanceToString(n.category, n.quota, {
+                                            precision: 0,
+                                            removeUnitIfPossible: false
+                                        })}
                                     </TableCell>
                                 </TableRow>
                             ))}
                         </tbody>
                     </Table>
                     <Box flexGrow={1} />
-                    <Flex mx="auto">{APPLY_LINK_BUTTON}</Flex>
+                    <Flex mx="auto"><ApplyLinkButton /></Flex>
                 </Flex>
             }
         </DashboardCard>
@@ -259,7 +282,14 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObj
         title="Grant applications"
         icon="heroDocumentCheck"
     >
-        <GrantApplicationBrowse opts={{reloadRef, embedded: true, omitFilters: true, disabledKeyhandlers: true, both: true, additionalFilters: {itemsPerPage: "10"}}} />
+        <GrantApplicationBrowse opts={{
+            reloadRef,
+            embedded: true,
+            omitFilters: true,
+            disabledKeyhandlers: true,
+            both: true,
+            additionalFilters: {itemsPerPage: "10"}
+        }} />
     </DashboardCard>;
 };
 
@@ -330,7 +360,7 @@ const NewsClass = injectStyle("with-graphic", k => `
          margin-right: auto;
          height: 400px;
          position: relative;
-         top: -120px;
+         top: -112px;
     }
     
     ${k} h5 {
@@ -393,7 +423,8 @@ const DashboardCard: React.FunctionComponent<{
     overflow?: string;
 }> = props => {
     return <TitledCard
-        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title}</Heading.h3></Link> : <Heading.h3>{props.title}</Heading.h3>}
+        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title}</Heading.h3></Link> :
+            <Heading.h3>{props.title}</Heading.h3>}
         icon={props.icon}
         overflow={props.overflow}
     >

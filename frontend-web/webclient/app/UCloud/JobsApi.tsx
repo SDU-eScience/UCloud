@@ -9,12 +9,10 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index";
-import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {EnumFilter} from "@/Resource/Filter";
-import Application = compute.Application;
 import {stateToTitle} from "@/Applications/Jobs";
 import {Box, Flex, Icon, Text} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
@@ -29,6 +27,7 @@ import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
+import {Application, NameAndVersion} from "@/Applications/AppStoreApi";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";

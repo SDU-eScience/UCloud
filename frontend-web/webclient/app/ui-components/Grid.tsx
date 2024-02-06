@@ -5,14 +5,14 @@ import {
     GridTemplateColumnsProps,
     GridTemplateRowsProps,
 } from "styled-system";
-import {BoxProps} from "@/ui-components/Box";
 import {extractSize, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
+import {BoxProps} from "./Types";
 
 export type GridProps =
     BoxProps &
     GridGapProps &
-    { gap?: string } &
+    {gap?: string} &
     GridTemplateColumnsProps &
     GridAutoFlowProps &
     GridTemplateRowsProps &

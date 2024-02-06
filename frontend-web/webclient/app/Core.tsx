@@ -7,7 +7,8 @@ import {BrowserRouter} from "react-router-dom";
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
 const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
-const ApplicationsGroup = React.lazy(() => import("./Applications/Group"));
+const ApplicationsGroup = React.lazy(() => import("@/Applications/Group"));
+const ApplicationSearch = React.lazy(() => import("@/Applications/Search"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
@@ -27,12 +28,14 @@ const Products = React.lazy(() => import("@/Products/Products"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectAcceptInviteLink = React.lazy(() => import("@/Project/AcceptInviteLink"));
-const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
-const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
 const StudioGroup = React.lazy(() => import("@/Applications/Studio/Group"));
 const StudioGroups = React.lazy(() => import("@/Applications/Studio/Groups"));
-const Tool = React.lazy(() => import("@/Applications/Studio/Tool"));
+const StudioCategories = React.lazy(() => import("@/Applications/Studio/Categories"));
+const StudioSpotlightsEditor = React.lazy(() => import("@/Applications/Studio/SpotlightsEditor"));
+const StudioSpotlights = React.lazy(() => import("@/Applications/Studio/Spotlights"));
+const StudioHero = React.lazy(() => import("@/Applications/Studio/HeroEditor"));
+const StudioTopPicks = React.lazy(() => import("@/Applications/Studio/TopPicksEditor"));
 const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
 const DevTestData = React.lazy(() => import("@/Admin/DevTestData"));
@@ -48,7 +51,6 @@ const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
-const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
 const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
@@ -117,19 +119,13 @@ const Core = (): React.JSX.Element => (
                         <Route path={AppRoutes.syncthing.syncthing()}
                             element={React.createElement(requireAuth(SyncthingOverview))} />
 
-                        <Route path={AppRoutes.apps.overview()}
-                            element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.landing()}
                             element={React.createElement(requireAuth(ApplicationsLanding))} />
                         <Route path={AppRoutes.apps.group(":id")}
                             element={React.createElement(requireAuth(ApplicationsGroup))} />
-
-                        {/* Is this actually in use */}
-                        <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(Search))} />
-
-                        {!inDevEnvironment() ? null :
-                            <Route path="/MANUAL-TESTING-OVERVIEW" element={<ManualTestingOverview />} />
-                        }
+                        <Route path={AppRoutes.apps.category()}
+                               element={React.createElement(requireAuth(ApplicationsOverview))} />
+                        <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
 
@@ -148,10 +144,12 @@ const Core = (): React.JSX.Element => (
                         <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SSHKeyBrowse))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
-                        <Route path={AppRoutes.apps.studio()} element={React.createElement(requireAuth(Studio))} />
+                        <Route path={AppRoutes.apps.studioTopPicks()} element={React.createElement(requireAuth(StudioTopPicks))} />
+                        <Route path={AppRoutes.apps.studioHero()} element={React.createElement(requireAuth(StudioHero))} />
+                        <Route path={AppRoutes.apps.studioSpotlights()} element={React.createElement(requireAuth(StudioSpotlights))} />
+                        <Route path={AppRoutes.apps.studioSpotlightsEditor()} element={React.createElement(requireAuth(StudioSpotlightsEditor))} />
+                        <Route path={AppRoutes.apps.studioCategories()} element={React.createElement(requireAuth(StudioCategories))} />
                         <Route path={AppRoutes.apps.studioGroups()} element={React.createElement(requireAuth(StudioGroups))} />
-                        <Route path={AppRoutes.apps.studioTool(":name")}
-                            element={React.createElement(requireAuth(Tool))} />
                         <Route path={AppRoutes.apps.studioApp(":name")}
                             element={React.createElement(requireAuth(App))} />
                         <Route path={AppRoutes.apps.studioGroup(":id")}

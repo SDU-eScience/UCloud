@@ -1,8 +1,6 @@
-import * as UCloud from "@/UCloud";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {useCallback, useEffect} from "react";
 import * as React from "react";
@@ -12,19 +10,21 @@ import {Button, Checkbox, Flex, Icon, Label, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
-import Input, {HiddenInputField, InputLabel} from "@/ui-components/Input";
+import Input, {InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {PropType, stopPropagation} from "@/UtilityFunctions";
-import {compute} from "@/UCloud";
-import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {ApplicationGroup, clearLogo, listGroups, setGroup, updateFlavor, uploadLogo} from "@/Applications/api";
+import {PropType, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useLoading, useTitle} from "@/Navigation/Redux";
 import {useParams} from "react-router";
-import {ButtonClass} from "@/ui-components/Button";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {emptyPage} from "@/Utilities/PageUtilities";
+import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
+import {
+    ApplicationGroup,
+    ApplicationSummaryWithFavorite,
+    DetailedEntityWithPermission
+} from "@/Applications/AppStoreApi";
+import * as AppStore from "@/Applications/AppStoreApi";
 
 interface AppVersion {
     version: string;
@@ -41,7 +41,7 @@ const entityTypes = [
     {text: prettifyEntityType(AccessEntityType.PROJECT_GROUP), value: AccessEntityType.PROJECT_GROUP},
 ];
 
-type ApplicationAccessRight = PropType<UCloud.compute.DetailedEntityWithPermission, "permission">;
+type ApplicationAccessRight = PropType<DetailedEntityWithPermission, "permission">;
 
 interface GroupSelectorProps {
     applicationName: string;
@@ -58,7 +58,6 @@ const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
         cursor: pointer;
         font-family: inherit;
         color: var(--textPrimary);
-        background-color: var(--primaryMain);
         margin: 0;
         border-width: 0px;
         
@@ -81,11 +80,17 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
 
     useEffect(() => {
         if (!props.selectedGroup) return;
-        invokeCommand(setGroup({groupId: props.selectedGroup.id, applicationName: props.applicationName}))
+        invokeCommand(AppStore.assignApplicationToGroup({
+            group: props.selectedGroup.metadata.id,
+            name: props.applicationName
+        }));
     }, [props.selectedGroup]);
 
     const options = React.useMemo(() => {
-        return props.options.map((appGroup) => ({text: appGroup.title, value: appGroup})).sort((a, b) => a.text > b.text ? 1 : -1) 
+        return props.options.map((appGroup) => ({
+            text: appGroup.specification.title,
+            value: appGroup
+        })).sort((a, b) => a.text > b.text ? 1 : -1)
     }, [props.options]);
 
     return (
@@ -93,9 +98,9 @@ const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
             fullWidth
             trigger={
                 <div className={GroupSelectorTriggerClass}>
-                    <Text>{props.selectedGroup ? props.selectedGroup.title : "No group selected"}</Text>
-                    <Icon name="chevronDownLight" ml="-32px" size={14} />
-                </div >
+                    <Text>{props.selectedGroup ? props.selectedGroup.specification.title : "No group selected"}</Text>
+                    <Icon name="chevronDownLight" ml="-32px" size={14}/>
+                </div>
             }
             options={options}
             onChange={props.onSelect}
@@ -126,7 +131,7 @@ function prettifyEntityType(entityType: AccessEntityType): string {
 
 function LeftAlignedTableHeader(props: React.PropsWithChildren): JSX.Element {
     return <thead className={LeftAlignedTableHeaderClass}>
-        {props.children}
+    {props.children}
     </thead>
 }
 
@@ -135,24 +140,25 @@ const LeftAlignedTableHeaderClass = injectStyleSimple("table-header", `
 `);
 
 export const App: React.FunctionComponent = () => {
-    const name = useParams<{name: string}>().name!;
+    const name = useParams<{ name: string }>().name!;
 
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const [, setLogoCacheBust] = useState("" + Date.now());
     const [access, setAccess] = React.useState<ApplicationAccessRight>("LAUNCH");
-    const [allGroups, setGroups] = useCloudAPI<ApplicationGroup[]>(
+    const [allGroupsPage, setGroups] = useCloudAPI<PageV2<ApplicationGroup>>(
         {noop: true},
-        []
+        emptyPageV2,
     );
+
+    const allGroups = allGroupsPage.data.items;
     const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | undefined>(undefined);
 
-    const [permissionEntries, fetchPermissionEntries] = useCloudAPI<UCloud.compute.DetailedEntityWithPermission[]>(
-        {noop: true},
-        []
+    const [permissionEntries, fetchPermissionEntries] = useCloudAPI(
+        AppStore.retrieveAcl({name: name}),
+        { entries: [] }
     );
 
     const [apps, setAppParameters] = useCloudAPI<Page<ApplicationSummaryWithFavorite>>(
-        UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}),
+        AppStore.findByName({appName: name, itemsPerPage: 50, page: 0}),
         emptyPage
     );
     const [versions, setVersions] = useState<AppVersion[]>([]);
@@ -163,9 +169,9 @@ export const App: React.FunctionComponent = () => {
     ];
 
     // Loading of permission entries
-    useEffect(() => {
-        fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
-        setGroups(listGroups({}));
+    useEffectSkipMount(() => {
+        fetchPermissionEntries(AppStore.retrieveAcl({name: name}));
+        setGroups(AppStore.browseGroups({itemsPerPage: 250}));
     }, [name]);
 
     useEffect(() => {
@@ -183,19 +189,23 @@ export const App: React.FunctionComponent = () => {
             appVersions.push({version: item.metadata.version, isPublic: item.metadata.public});
         });
         setVersions(appVersions);
+        if (apps.data.items.length && flavorField.current) {
+            flavorField.current.value = apps.data.items[0].metadata.flavorName ?? "";
+        }
     }, [apps.data.items]);
 
     useTitle("Application Studio | Applications");
 
     const refresh = useCallback(() => {
-        setAppParameters(UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}));
-        setGroups(listGroups({}));
+        setAppParameters(AppStore.findByName({appName: name, itemsPerPage: 50, page: 0}));
+        setGroups(AppStore.browseGroups({itemsPerPage: 250}));
     }, [name]);
 
     useSetRefreshFunction(refresh);
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
+    const flavorName = apps.data.items.length > 0 ? (apps.data.items[0].metadata.flavorName ?? appTitle) : undefined;
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const flavorField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
@@ -207,46 +217,10 @@ export const App: React.FunctionComponent = () => {
             header={(
                 <Flex justifyContent="space-between">
                     <Heading.h2 style={{margin: 0}}>
-                        <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} />
+                        <AppToolLogo name={name} type={"APPLICATION"} size={"64px"}/>
                         {" "}
                         {appTitle}
                     </Heading.h2>
-                    <Flex>
-                        <label className={ButtonClass}>
-                            Upload Logo
-                            <HiddenInputField
-                                type="file"
-                                onChange={async e => {
-                                    const target = e.target;
-                                    if (target.files) {
-                                        const file = target.files[0];
-                                        target.value = "";
-                                        if (file.size > 1024 * 512) {
-                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                        } else {
-                                            if (await uploadLogo({name, file, type: "APPLICATION"})) {
-                                                setLogoCacheBust("" + Date.now());
-                                            }
-                                        }
-                                        dialogStore.success();
-                                    }
-                                }}
-                            />
-                        </label>
-
-                        <Button
-                            mx="10px"
-                            type="button"
-                            color="errorMain"
-                            disabled={commandLoading}
-                            onClick={async () => {
-                                await invokeCommand(clearLogo({type: "APPLICATION", name}));
-                                setLogoCacheBust("" + Date.now());
-                            }}
-                        >
-                            Remove Logo
-                        </Button>
-                    </Flex>
                 </Flex>
             )}
             main={(<>
@@ -259,9 +233,9 @@ export const App: React.FunctionComponent = () => {
 
                                 if (!selectedGroup) return;
 
-                                await invokeCommand(setGroup({
-                                    groupId: selectedGroup.id,
-                                    applicationName: name
+                                await invokeCommand(AppStore.assignApplicationToGroup({
+                                    group: selectedGroup.metadata.id,
+                                    name,
                                 }));
 
                                 snackbarStore.addSuccess(`Added to group ${selectedGroup}`, false);
@@ -274,16 +248,14 @@ export const App: React.FunctionComponent = () => {
                                 <GroupSelector
                                     selectedGroup={selectedGroup}
                                     applicationName={name}
-                                    options={allGroups.data}
+                                    options={allGroups}
                                     onSelect={item => setSelectedGroup(item)}
                                 />
                             </Flex>
 
                             <Heading.h2>Flavor (name)</Heading.h2>
                             <Flex>
-                                <Input rightLabel inputRef={flavorField} placeholder={
-                                    apps.data.items.length > 0 ? apps.data.items[0].metadata.flavorName ?? appTitle : appTitle
-                                } />
+                                <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
                                 <Button
                                     attached
                                     onClick={async () => {
@@ -295,7 +267,10 @@ export const App: React.FunctionComponent = () => {
                                         const flavorFieldValue = flavorFieldCurrent.value;
                                         if (flavorFieldValue === "") return;
 
-                                        await invokeCommand(updateFlavor({applicationName: name, flavorName: flavorFieldValue}));
+                                        await invokeCommand(AppStore.updateApplicationFlavor({
+                                            applicationName: name,
+                                            flavorName: flavorFieldValue
+                                        }));
                                         refresh();
                                     }}
                                 >
@@ -319,15 +294,15 @@ export const App: React.FunctionComponent = () => {
                                         const userValue = userField.value;
                                         if (userValue === "") return;
 
-                                        await invokeCommand(UCloud.compute.apps.updateAcl({
-                                            applicationName: name,
+                                        await invokeCommand(AppStore.updateAcl({
+                                            name: name,
                                             changes: [{
                                                 entity: {user: userValue},
                                                 rights: access,
                                                 revoke: false
                                             }]
                                         }));
-                                        fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
+                                        fetchPermissionEntries(AppStore.retrieveAcl({name}));
                                         userField.value = "";
                                     } else if (selectedEntityType === AccessEntityType.PROJECT_GROUP) {
                                         const projectField = projectEntityField.current;
@@ -342,8 +317,8 @@ export const App: React.FunctionComponent = () => {
                                         const groupValue = groupField.value;
                                         if (groupValue === "") return;
 
-                                        await invokeCommand(UCloud.compute.apps.updateAcl({
-                                            applicationName: name,
+                                        await invokeCommand(AppStore.updateAcl({
+                                            name: name,
                                             changes: [
                                                 {
                                                     entity: {project: projectValue, group: groupValue},
@@ -352,7 +327,7 @@ export const App: React.FunctionComponent = () => {
                                                 }
                                             ]
                                         }));
-                                        fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
+                                        fetchPermissionEntries(AppStore.retrieveAcl({name}));
                                         projectField.value = "";
                                         groupField.value = "";
                                     }
@@ -408,7 +383,8 @@ export const App: React.FunctionComponent = () => {
                                             chevron
                                             width="180px"
                                             onChange={(val: ApplicationAccessRight) => setAccess(val)}
-                                            trigger={<span style={{minWidth: "250px"}}>{prettifyAccessRight(access)}</span>}
+                                            trigger={<span
+                                                style={{minWidth: "250px"}}>{prettifyAccessRight(access)}</span>}
                                             options={permissionLevels}
                                         />
                                     </InputLabel>
@@ -419,7 +395,7 @@ export const App: React.FunctionComponent = () => {
                         </Box>
                         <Flex key={5} mb={16} mt={26}>
                             <Box width={800}>
-                                {(permissionEntries.data.length > 0) ? (
+                                {(permissionEntries.data.entries.length > 0) ? (
                                     <Table>
                                         <LeftAlignedTableHeader>
                                             <TableRow>
@@ -429,57 +405,57 @@ export const App: React.FunctionComponent = () => {
                                             </TableRow>
                                         </LeftAlignedTableHeader>
                                         <tbody>
-                                            {permissionEntries.data.map((permissionEntry, index) => (
-                                                <TableRow key={index}>
-                                                    <TableCell>
-                                                        {(permissionEntry.entity.user) ? (
-                                                            permissionEntry.entity.user
-                                                        ) : (
-                                                            `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                        )}</TableCell>
-                                                    <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
-                                                    <TableCell textAlign="right">
-                                                        <Button
-                                                            color={"errorMain"}
-                                                            type={"button"}
-                                                            onClick={() => addStandardDialog({
-                                                                title: `Are you sure?`,
-                                                                message: (
-                                                                    <Box>
-                                                                        <Text>
-                                                                            Remove permission
-                                                                            for {(permissionEntry.entity.user) ? (
-                                                                                permissionEntry.entity.user
-                                                                            ) : (
-                                                                                `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                                            )}
-                                                                        </Text>
-                                                                    </Box>
-                                                                ),
-                                                                onConfirm: async () => {
-                                                                    await invokeCommand(UCloud.compute.apps.updateAcl({
-                                                                        applicationName: name,
-                                                                        changes: [
-                                                                            {
-                                                                                entity: {
-                                                                                    user: permissionEntry.entity.user,
-                                                                                    project: permissionEntry.entity.project?.id,
-                                                                                    group: permissionEntry.entity.group?.id
-                                                                                },
-                                                                                rights: permissionEntry.permission,
-                                                                                revoke: true
-                                                                            }
-                                                                        ]
-                                                                    }));
-                                                                    fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
-                                                                }
-                                                            })}
-                                                        >
-                                                            <Icon size={16} name="trash" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
+                                        {permissionEntries.data.entries.map((permissionEntry, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell>
+                                                    {(permissionEntry.entity.user) ? (
+                                                        permissionEntry.entity.user
+                                                    ) : (
+                                                        `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                    )}</TableCell>
+                                                <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
+                                                <TableCell textAlign="right">
+                                                    <Button
+                                                        color={"errorMain"}
+                                                        type={"button"}
+                                                        onClick={() => addStandardDialog({
+                                                            title: `Are you sure?`,
+                                                            message: (
+                                                                <Box>
+                                                                    <Text>
+                                                                        Remove permission
+                                                                        for {(permissionEntry.entity.user) ? (
+                                                                        permissionEntry.entity.user
+                                                                    ) : (
+                                                                        `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                                    )}
+                                                                    </Text>
+                                                                </Box>
+                                                            ),
+                                                            onConfirm: async () => {
+                                                                await invokeCommand(AppStore.updateAcl({
+                                                                    name: name,
+                                                                    changes: [
+                                                                        {
+                                                                            entity: {
+                                                                                user: permissionEntry.entity.user,
+                                                                                project: permissionEntry.entity.project?.id,
+                                                                                group: permissionEntry.entity.group?.id
+                                                                            },
+                                                                            rights: permissionEntry.permission,
+                                                                            revoke: true
+                                                                        }
+                                                                    ]
+                                                                }));
+                                                                fetchPermissionEntries(AppStore.retrieveAcl({name}));
+                                                            }
+                                                        })}
+                                                    >
+                                                        <Icon size={16} name="trash"/>
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                         </tbody>
                                     </Table>
                                 ) : (
@@ -499,50 +475,50 @@ export const App: React.FunctionComponent = () => {
                                     </TableRow>
                                 </LeftAlignedTableHeader>
                                 <tbody>
-                                    {versions.map(version => (
-                                        <TableRow key={version.version}>
-                                            <TableCell>
-                                                <div className={WordBreakDivClass}>
-                                                    {version.version}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Box mb={26} mt={16}>
-                                                    <Label>
-                                                        <Flex>
-                                                            <Checkbox
-                                                                checked={version.isPublic}
-                                                                onChange={stopPropagation}
-                                                                onClick={() => {
-                                                                    Client.post(`/hpc/apps/setPublic`, {
-                                                                        appName: name,
-                                                                        appVersion: version.version,
-                                                                        public: !version.isPublic
-                                                                    });
+                                {versions.map(version => (
+                                    <TableRow key={version.version}>
+                                        <TableCell>
+                                            <div className={WordBreakDivClass}>
+                                                {version.version}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Box mb={26} mt={16}>
+                                                <Label>
+                                                    <Flex>
+                                                        <Checkbox
+                                                            checked={version.isPublic}
+                                                            onChange={stopPropagation}
+                                                            onClick={() => {
+                                                                callAPI(AppStore.updatePublicFlag({
+                                                                    name,
+                                                                    version: version.version,
+                                                                    public: !version.isPublic
+                                                                }));
 
-                                                                    setVersions(versions.map(v =>
-                                                                        (v.version === version.version) ?
-                                                                            {
-                                                                                version: v.version,
-                                                                                isPublic: !v.isPublic
-                                                                            } : v
-                                                                    ));
-                                                                }}
-                                                            />
-                                                            <Box ml={8} mt="2px">Public</Box>
-                                                        </Flex>
-                                                    </Label>
-                                                    {version.isPublic ? (
-                                                        <Box ml={28}>Everyone can see and launch this version
-                                                            of {appTitle}.</Box>
-                                                    ) : (
-                                                        <Box ml={28}>Access to this version is restricted as defined in
-                                                            Permissions.</Box>
-                                                    )}
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                                                setVersions(versions.map(v =>
+                                                                    (v.version === version.version) ?
+                                                                        {
+                                                                            version: v.version,
+                                                                            isPublic: !v.isPublic
+                                                                        } : v
+                                                                ));
+                                                            }}
+                                                        />
+                                                        <Box ml={8} mt="2px">Public</Box>
+                                                    </Flex>
+                                                </Label>
+                                                {version.isPublic ? (
+                                                    <Box ml={28}>Everyone can see and launch this version
+                                                        of {appTitle}.</Box>
+                                                ) : (
+                                                    <Box ml={28}>Access to this version is restricted as defined in
+                                                        Permissions.</Box>
+                                                )}
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
                                 </tbody>
                             </Table>
                         </Box>

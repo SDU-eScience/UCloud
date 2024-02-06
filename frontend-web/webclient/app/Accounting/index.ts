@@ -432,7 +432,9 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {
-        if (totalPrice === 1 && probablyCurrencies.indexOf(unit.name) === -1) return "Quota based (" + unit.name + ")";
+        if (totalPrice === 1 && probablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
+            return "Quota based (" + unit.name + ")";
+        }
         return withoutSuffix;
     }
 }
@@ -524,6 +526,9 @@ export interface WalletAllocationV2 {
 
     canAllocate: boolean;
     allowSubAllocationsToAllocate: boolean;
+
+    maxUsable: number;
+
 }
 
 export interface SubAllocationV2 {
