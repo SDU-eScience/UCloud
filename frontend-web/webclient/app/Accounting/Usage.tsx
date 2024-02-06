@@ -510,7 +510,7 @@ const Visualization: React.FunctionComponent = () => {
             <ContextSwitcher />
         </header>
 
-        <div style={{padding: "13px 16px 16px 16px"}}>
+        <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
             <h3>Resource usage</h3>
 
             {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight ? <>
@@ -1975,6 +1975,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
     }
 
     ${k} header.at-top {
+        z-index: 12; /* Note(Jonas): Otherwise, the header is behind the apex-chart buttons */
         box-shadow: unset;
     }
     
