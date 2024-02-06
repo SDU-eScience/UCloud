@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Link, Radio} from "@/ui-components";
+import {Box, Flex, Icon, Input, Link, Radio, Text} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -539,32 +539,51 @@ const Visualization: React.FunctionComponent = () => {
                 )}
             </Flex>
 
-            {state.activeDashboard &&
-                <>
-                    {hasNoMeaningfulData ? "No usage data found" :
-                        <div className="panels">
-                            <div className={classConcat("panel-grid", activeCategory?.productType === "COMPUTE" ? HasAlotOfInfoClass.class : undefined)}>
-                                <CategoryDescriptorPanel
-                                    category={state.activeDashboard.category}
-                                    usage={state.activeDashboard.currentAllocation.usage}
-                                    quota={state.activeDashboard.currentAllocation.quota}
-                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                                />
-                                <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
-                                <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
-                                {activeCategory?.productType === "COMPUTE" && <>
-                                    <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                                    <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                                    <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                                </>}
-                            </div>
+            {state.activeDashboard ?
+                hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> :
+                    <div className="panels">
+                        <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
+                            <CategoryDescriptorPanel
+                                category={state.activeDashboard.category}
+                                usage={state.activeDashboard.currentAllocation.usage}
+                                quota={state.activeDashboard.currentAllocation.quota}
+                                expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                            />
+                            <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
+                            {hasChart3And4 ? <>
+                                <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
+                                <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
+                                <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
+                            </> : null}
                         </div>
-                    }
-                </>
+                    </div>
+                : null
             }
         </div>
     </div>;
 };
+
+const NoDataClass = injectStyle("no-data", k => `
+    ${k} {
+        background: var(--primaryMain);
+        height: 100px;
+        width: 100px;
+        display: flex;
+        border-radius: 100px;
+        align-items: center;
+        justify-content: center;
+    }
+`);
+
+function NoData({productType}: {productType?: Accounting.ProductArea}): React.JSX.Element {
+    return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px" height="400px">
+        <div className={NoDataClass}>
+            <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} size={60} />
+        </div>
+        <Text mt="16px" fontSize={16}>No usage data found!</Text>
+    </Flex>;
+}
 
 // Panel components
 // =====================================================================================================================
