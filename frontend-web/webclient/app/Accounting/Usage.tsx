@@ -863,24 +863,27 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
             <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Project</th>
-                    <th>Usage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {dataPoints.map((point, idx) => {
-                    const usage = point.value;
-
-                    return <tr key={idx}>
-                        <td>{point.key}</td>
-                        <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow  */}
+        <div style={{overflowY: "scroll"}}>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Usage</th>
                     </tr>
-                })}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {dataPoints.map((point, idx) => {
+                        const usage = point.value;
+
+                        return <tr key={idx}>
+                            <td>{point.key}</td>
+                            <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+                        </tr>
+                    })}
+                </tbody>
+            </table>
+        </div>
     </div>;
 };
 
