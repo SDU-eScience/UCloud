@@ -1806,12 +1806,11 @@ class AppService(
                 session.sendPreparedStatement(
                     {
                         setParameter("title", specification.title)
-                        setParameter("description", specification.description)
                         setParameter("priority", priority)
                     },
                     """
-                        insert into app_store.categories (tag, description, priority) 
-                        values (:title, :description, :priority)
+                        insert into app_store.categories (tag, priority) 
+                        values (:title, :priority)
                         returning id
                     """
                 ).rows.single().getInt(0)!!

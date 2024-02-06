@@ -27,6 +27,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.temporal.TemporalAdjusters
 import java.util.Calendar
 import java.util.Date
@@ -143,15 +145,20 @@ class AccountingController(
         }
 
         implementOrDispatch(Accounting.rootDeposit) {
-            val startOfYear = LocalDate.now().with(TemporalAdjusters.firstDayOfYear()).atStartOfDay().toTimestamp()
-            val endOfYear = LocalDate.now().with(TemporalAdjusters.lastDayOfYear()).atTime(23, 59, 59).toTimestamp()
+            val startOfYear = LocalDate.now(ZoneOffset.UTC).with(TemporalAdjusters.firstDayOfYear()).atStartOfDay().toTimestamp()
+            val endOfNextYear = LocalDate.now(ZoneOffset.UTC)
+                .with(TemporalAdjusters.ofDateAdjuster { it.plusYears(1) })
+                .with(TemporalAdjusters.lastDayOfYear())
+                .atTime(23, 59, 59, 999_999_999)
+                .toTimestamp()
+
             val newTypeRequest = request.items.map {
                 RootAllocationRequestItem(
                     it.recipient,
                     ProductCategoryIdV2(it.categoryId.name, it.categoryId.provider),
                     it.amount,
                     it.startDate ?: startOfYear,
-                    it.endDate ?: endOfYear,
+                    it.endDate ?: endOfNextYear,
                     deicAllocationId = null,
                     forcedSync = it.forcedSync
                 )
