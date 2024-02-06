@@ -1079,7 +1079,7 @@ class AppService(
 
         val normalizedNewDescription = newDescription?.trim()
         if (newTitle != null) checkSingleLine("title", newTitle, maximumSize = 64)
-        if (!normalizedNewDescription.isNullOrEmpty()) checkSingleLine("description", normalizedNewDescription, maximumSize = 240)
+        if (!normalizedNewDescription.isNullOrEmpty()) checkSingleLine("description", normalizedNewDescription, maximumSize = 600)
 
         val resizedLogo = if (newLogo != null) {
             if (newLogo.isEmpty()) {
@@ -1448,7 +1448,7 @@ class AppService(
                         },
                         """
                             insert into app_store.category_items (group_id, tag_id) 
-                            values (:group_id, :category_id)
+                            values (:group_id, :category_id) on conflict (group_id, tag_id) do nothing 
                         """
                     )
 

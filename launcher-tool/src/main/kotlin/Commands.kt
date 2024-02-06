@@ -240,7 +240,7 @@ object Commands {
     fun importApps() {
         LoadingIndicator("Importing applications").use {
             // NOTE(Dan): checksum is sha256 of the file
-            val checksum = "9a95b9527330b9d762a891127f2b0b1df53810136991ba712d3cd5153d242163"
+            val checksum = "18278e69174d204cf4b492bd4ac6f8a67a2c6a84dd7e3776e236dc6c2766efc6"
             callService(
                 "backend",
                 "POST",
