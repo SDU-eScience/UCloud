@@ -40,7 +40,7 @@ import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/R
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
-import {BulkResponse, FindByStringId} from "@/UCloud";
+import {accounting, BulkResponse, FindByStringId} from "@/UCloud";
 import {ProductV2, balanceToString, priceToString} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
@@ -59,6 +59,8 @@ import {
     ApplicationSummaryWithFavorite,
     ApplicationWithFavoriteAndTags
 } from "@/Applications/AppStoreApi";
+import wallets = accounting.wallets;
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 interface InsufficientFunds {
     why?: string;
@@ -117,8 +119,8 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{durationInMinutes: number, balance: number, numberOfNodes: number, product: ProductV2 | null}>({
-        durationInMinutes: 0, balance: 0, numberOfNodes: 1, product: null
+    const [estimatedCost, setEstimatedCost] = useState<{durationInMinutes: number, balance: number, maxUsable: number, numberOfNodes: number, product: ProductV2 | null}>({
+        durationInMinutes: 0, balance: 0, maxUsable: 0, numberOfNodes: 1, product: null
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -448,6 +450,23 @@ export const Create: React.FunctionComponent = () => {
                                                     <th>Current balance</th>
                                                     <td>{!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.balance)}</td>
                                                 </tr>
+                                                {
+                                                    estimatedCost.maxUsable == estimatedCost.balance ? null : (
+                                                        <tr>
+                                                            <th>Usable balance</th>
+                                                            <td><TooltipV2
+                                                                tooltip={"Allocation limitation. Contact your grant giver."}
+                                                            >
+                                                                <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+
+                                                                {!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.maxUsable)}
+                                                            </TooltipV2>
+                                                            </td>
+
+
+                                                        </tr>
+                                                    )
+                                                }
                                                 </tbody>
                                             </table>
                                         </div>
@@ -459,8 +478,8 @@ export const Create: React.FunctionComponent = () => {
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
-                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, balance, product) =>
-                                    setEstimatedCost({durationInMinutes, balance, numberOfNodes, product})}
+                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, balance, maxUsable, product) =>
+                                    setEstimatedCost({durationInMinutes, balance, maxUsable, numberOfNodes, product})}
                             />
                         </Card>
 

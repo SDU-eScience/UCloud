@@ -43,6 +43,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 import Avatar from "@/AvataaarLib/avatar";
+import {heroExclamationTriangle} from "@/ui-components/icons";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -132,6 +133,7 @@ interface UsageAndQuota {
     usage: number;
     quota: number;
     unit: string;
+    maxUsable: number;
 }
 
 // State reducer
@@ -490,17 +492,29 @@ function stateReducer(state: State, action: UIAction): State {
                         }))
                 );
 
+                const maxUsables = wallets.flatMap( wallet =>
+                    wallet.allocations
+                        .filter( alloc => allocationIsActive(alloc, now))
+                        .map(alloc => ({
+                            balance: alloc.maxUsable,
+                            category: wallet.paysFor
+                        }))
+                );
+
                 const combinedQuotas = Accounting.combineBalances(quotaBalances);
                 const combinedUsage = Accounting.combineBalances(usageBalances);
+                const combineMaxUsable = Accounting.combineBalances(maxUsables);
 
                 for (let i = 0; i < combinedQuotas.length; i++) {
                     const usage = combinedUsage[i];
                     const quota = combinedQuotas[i];
+                    const maxUsable = combineMaxUsable[i]
 
                     entry.usageAndQuota.push({
                         usage: usage.normalizedBalance,
                         quota: quota.normalizedBalance,
-                        unit: usage.unit
+                        unit: usage.unit,
+                        maxUsable: maxUsable.normalizedBalance
                     });
                 }
 
@@ -519,6 +533,16 @@ function stateReducer(state: State, action: UIAction): State {
                             .map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
                     );
 
+                    const maxUsable = Accounting.combineBalances(
+                        wallet.allocations
+                            .filter( alloc => allocationIsActive(alloc, now))
+                            .map(alloc => ({
+                                balance: alloc.maxUsable,
+                                category: wallet.paysFor
+                            }))
+                    );
+
+
                     const unit = Accounting.explainUnit(wallet.paysFor);
 
                     entry.wallets.push({
@@ -527,7 +551,8 @@ function stateReducer(state: State, action: UIAction): State {
                         usageAndQuota: {
                             usage: usage?.[0]?.normalizedBalance ?? 0,
                             quota: quota?.[0]?.normalizedBalance ?? 0,
-                            unit: usage?.[0]?.unit ?? ""
+                            unit: usage?.[0]?.unit ?? "",
+                            maxUsable: maxUsable?.[0]?.normalizedBalance ?? 0
                         },
 
                         allocations: wallet.allocations.map(alloc => ({
@@ -538,6 +563,7 @@ function stateReducer(state: State, action: UIAction): State {
                                 usage: (alloc.treeUsage ?? 0) * unit.priceFactor,
                                 quota: alloc.quota * unit.priceFactor,
                                 unit: usage?.[0]?.unit ?? unit.name,
+                                maxUsable: alloc.maxUsable * unit.priceFactor ?? 0
                             },
                             start: alloc.startDate,
                             end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
@@ -586,7 +612,10 @@ function stateReducer(state: State, action: UIAction): State {
                     usageAndQuota: {
                         usage: alloc.usage * productUnit.priceFactor,
                         quota: alloc.quota * productUnit.priceFactor,
-                        unit: productUnit.name
+                        unit: productUnit.name,
+                        //TODO(HENRIK) Should it just show quota or should it be changed to actually show maxUsable to
+                        //TODO(HENRIK) help project admins to better administrate their suballocs
+                        maxUsable: alloc.quota
                     },
                     note: allocationNote(alloc),
                     isEditing: false,
@@ -596,7 +625,7 @@ function stateReducer(state: State, action: UIAction): State {
             }
 
             for (const recipient of subAllocations.recipients) {
-                const uqBuilder: { type: Accounting.ProductType, unit: string, usage: number, quota: number }[] = [];
+                const uqBuilder: { type: Accounting.ProductType, unit: string, usage: number, quota: number, maxUsable: number }[] = [];
                 for (const alloc of recipient.allocations) {
                     if (alloc.note && alloc.note.rowShouldBeGreyedOut) continue;
 
@@ -611,7 +640,8 @@ function stateReducer(state: State, action: UIAction): State {
                             type: alloc.category.productType,
                             usage: alloc.usageAndQuota.usage,
                             quota: alloc.usageAndQuota.quota,
-                            unit: alloc.usageAndQuota.unit
+                            unit: alloc.usageAndQuota.unit,
+                            maxUsable: alloc.usageAndQuota.maxUsable
                         });
                     }
                 }
@@ -1505,14 +1535,20 @@ const Allocations: React.FunctionComponent = () => {
                             <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
                             {Accounting.productAreaTitle(type)}
                         </Flex>}
-                        right={<Flex gap={"8px"}>
-                            {tree.usageAndQuota.map((uq, idx) =>
+                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                            {tree.usageAndQuota.map((uq, idx) => <React.Fragment>
+                                {(uq.quota - uq.usage) == uq.maxUsable ? null :  <TooltipV2
+                                    tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
+                                >
+                                    <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                </TooltipV2>}
                                 <ProgressBarWithLabel
                                     key={idx}
                                     value={(uq.usage / uq.quota) * 100}
                                     text={progressText(type, uq)}
                                     width={`${baseProgress}px`}
                                 />
+                                </React.Fragment>
                             )}
                         </Flex>}
                         indent={indent}
@@ -1524,13 +1560,18 @@ const Allocations: React.FunctionComponent = () => {
                                     <ProviderLogo providerId={wallet.category.provider} size={20}/>
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
-                                right={<Box ml={"32px"}>
+                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                    {wallet.usageAndQuota.maxUsable == (wallet.usageAndQuota.quota - wallet.usageAndQuota.usage) ? null :  <TooltipV2
+                                        tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
+                                    >
+                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                    </TooltipV2> }
                                     <ProgressBarWithLabel
                                         value={(wallet.usageAndQuota.usage / wallet.usageAndQuota.quota) * 100}
                                         text={progressText(type, wallet.usageAndQuota)}
                                         width={`${baseProgress}px`}
                                     />
-                                </Box>}
+                                </Flex>}
                                 indent={indent * 2}
                             >
                                 {wallet.allocations
@@ -1559,6 +1600,11 @@ const Allocations: React.FunctionComponent = () => {
                                                         <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
                                                     </TooltipV2>
                                                 </>}
+                                                {alloc.usageAndQuota.maxUsable == (alloc.usageAndQuota.quota - alloc.usageAndQuota.usage) ? null : <TooltipV2
+                                                    tooltip={"Allocation limitation. Contact your grant giver."}
+                                                >
+                                                    <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                                </TooltipV2>}
                                                 <ProgressBarWithLabel
                                                     value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
                                                     text={progressText(type, alloc.usageAndQuota)}

@@ -24,7 +24,7 @@ const reservationReplicas = "reservation-replicas";
 export const ReservationParameter: React.FunctionComponent<{
     application: Application;
     errors: ReservationErrors;
-    onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, product: ProductV2 | null) => void;
+    onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, walletMaxUsable: number, product: ProductV2 | null) => void;
 }> = ({application, errors, onEstimatedCostChange}) => {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
@@ -36,6 +36,10 @@ export const ReservationParameter: React.FunctionComponent<{
     const balance = allocations
         .filter(it => Accounting.allocationIsValidNow(it))
         .reduce((sum, alloc) => sum + (alloc.quota - (alloc.treeUsage ?? 0)), 0);
+
+    const maxUsable = allocations
+        .filter(it => Accounting.allocationIsValidNow(it))
+        .reduce((sum, alloc) => sum + alloc.maxUsable, 0 );
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
@@ -80,7 +84,7 @@ export const ReservationParameter: React.FunctionComponent<{
         const {options} = validateReservation();
         if (options != null && options.timeAllocation != null) {
             if (onEstimatedCostChange) {
-                onEstimatedCostChange(options.timeAllocation?.hours * 60 + options.timeAllocation?.minutes, options.replicas, balance, selectedMachine);
+                onEstimatedCostChange(options.timeAllocation?.hours * 60 + options.timeAllocation?.minutes, options.replicas, balance, maxUsable, selectedMachine);
             }
         }
     }, [selectedMachine, balance, onEstimatedCostChange]);
