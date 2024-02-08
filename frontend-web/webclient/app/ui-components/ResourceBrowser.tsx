@@ -2576,11 +2576,8 @@ export class ResourceBrowser<T> {
                             window.setTimeout(() => {
                                 this.processingShortcut = false;
                             }, 0);
-                            
-                            const digitOrNumpad = ev.code.startsWith("Digit") ? "Digit" : "Numpad";
 
-                            const selectedItem = parseInt(ev.code.substring(digitOrNumpad.length), 10);
-                            console.log(selectedItem);
+                            const selectedItem = parseInt(ev.key, 10);
                             if (!isNaN(selectedItem) && selectedItem !== 0) {
                                 this.onContextMenuItemSelection(selectedItem - 1);
                             }
