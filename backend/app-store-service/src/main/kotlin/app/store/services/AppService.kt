@@ -36,281 +36,89 @@ import kotlin.collections.HashMap
 import kotlin.collections.HashSet
 import kotlin.math.max
 
+// Introduction
+// =====================================================================================================================
+// Applications in UCloud are the key abstraction used for users to perform a unit of execution. An application
+// describes the software package that will run the actual job. An application is an abstract concept which depend
+// heavily on the service provider itself. This idea is best described through a number of examples:
+//
+// An application can be:
+//
+// - A container image + description of the command to run
+// - A virtual machine base image (e.g. Ubuntu 22.04) + description of how to run it
+// - A pre-installed application + description of the command to run
+//
+// As you can probably tell, an application tells the service provider how to load the appropriate software artifacts,
+// and how to subsequently launch them with the user's input. Below is a short summary of the information contained in
+// an application:
+//
+// - Metadata:      Every application is identified by a name and a version (see `NameAndVersion`)
+// - Tool:          The tool is an abstraction which identifies the container image/VM base image/modules to load.
+// - Parameters:    The parameters of an application is a description of the input parameters a user can supply
+// - Invocation:    The invocation describes how to invoke the tool using the user input. For example, this can
+//                  construct a specific command to run inside a container.
+// - Control flags: Various control flags can change the behavior of applications, such as allowing certain resources
+//                  to be attached to it (e.g. public links)
+//
+// Users can select applications from a catalog. The catalog uses a hierarchical structure for discovery:
+//
+// 1. Categories:   Categories are an overall selection of applications and typically describe a given field
+//                  (e.g. Natural Sciences). They contain groups.
+// 2. Groups:       Groups are collection of identical software, but in potentially differing configurations (e.g.
+//                  VS Code for Java and VSCode for C++). Contains applications.
+// 3. Applications: Applications describe a single piece of software in a specific application. Each application can
+//                  have a flavor name (e.g. Java or C++)
 class AppService(
     private val db: DBContext,
     private val projectCache: IProjectCache,
     private val serviceClient: AuthenticatedClient,
 ) {
-    private class InternalVersions {
-        private val listOfVersions = AtomicReference<List<String>>(emptyList())
-        fun get(): List<String> = listOfVersions.get()
+    // Storage
+    // =================================================================================================================
+    // The application service is optimized for workloads that have a lot of random reads (of a globally accessible
+    // data) with very rare writes. Given this access pattern, the service heavily prefers reading immutable data in a
+    // way that does not require ever holding a mutex. The NonBlockingHashMap data-structure is commonly used to hold
+    // a lookup table. The values stored in the table themselves typically hold an atomic reference to immutable data
+    // which is swapped out when updates are made. This approach allows us to never require a read or write lock when
+    // reading and updating the data. This comes at the cost of writes being slightly more expensive, but this is not
+    // a big deal in this scenario since writes are very rare.
+    //
+    // The data for these tables are loaded at startup via the reloadData() function.
 
-        fun add(version: String) {
-            while (true) {
-                val old = get()
-                val new = old + version
-                if (listOfVersions.compareAndSet(old, new)) break
-            }
-        }
-    }
+    // Stores a lookup table of all tools and a mapping of all versions of a single tool
+    private val tools = NonBlockingHashMap<NameAndVersion, Tool>()
+    private val toolVersions = NonBlockingHashMap<String, InternalVersions>()
 
-    private class InternalGroup(
-        title: String,
-        description: String,
-        defaultFlavor: String?,
-        logo: ByteArray?,
-        applications: Set<NameAndVersion>,
-        tags: Set<Int>,
-    ) {
-        data class GroupDescription(
-            val title: String,
-            val description: String,
-            val defaultFlavor: String?,
-            @Suppress("ArrayInDataClass") val logo: ByteArray?,
-            val applications: Set<NameAndVersion>,
-            val tags: Set<Int>,
-        )
+    // Stores a lookup table of all apps and a mapping of all versions of a single app
+    private val applications = NonBlockingHashMap<NameAndVersion, Application>()
+    private val applicationVersions = NonBlockingHashMap<String, InternalVersions>()
 
-        private val ref = AtomicReference(
-            GroupDescription(
-                title,
-                description,
-                defaultFlavor,
-                logo,
-                applications,
-                tags
-            )
-        )
+    // Lookup tables for the hierarchical structuring of applications in the catalog
+    private val groups = NonBlockingHashMapLong<InternalGroup>()
+    private val categories = NonBlockingHashMapLong<InternalCategory>()
 
-        fun get() = ref.get()!!
-
-        fun updateMetadata(
-            title: String? = null,
-            description: String? = null,
-            defaultFlavor: String? = null,
-            logo: ByteArray? = null,
-        ) {
-            while (true) {
-                val oldRef = ref.get()
-                val newRef = oldRef.copy(
-                    title = title ?: oldRef.title,
-                    description = description ?: oldRef.description,
-                    defaultFlavor = defaultFlavor ?: oldRef.defaultFlavor,
-                    logo = if (logo?.size == 0) null else logo ?: oldRef.logo
-                )
-                if (ref.compareAndSet(oldRef, newRef)) break
-            }
-        }
-
-        fun addApplications(applications: Set<NameAndVersion>) {
-            while (true) {
-                val oldRef = ref.get()
-                val newRef = oldRef.copy(
-                    applications = oldRef.applications + applications
-                )
-                if (ref.compareAndSet(oldRef, newRef)) break
-            }
-        }
-
-        fun removeApplications(applications: Set<NameAndVersion>) {
-            while (true) {
-                val oldRef = ref.get()
-                val newRef = oldRef.copy(
-                    applications = oldRef.applications - applications
-                )
-                if (ref.compareAndSet(oldRef, newRef)) break
-            }
-        }
-
-        fun addTags(tags: Set<Int>) {
-            while (true) {
-                val oldRef = ref.get()
-                val newRef = oldRef.copy(
-                    tags = oldRef.tags + tags
-                )
-                if (ref.compareAndSet(oldRef, newRef)) break
-            }
-        }
-
-        fun removeTags(tags: Set<Int>) {
-            while (true) {
-                val oldRef = ref.get()
-                val newRef = oldRef.copy(
-                    tags = oldRef.tags - tags
-                )
-                if (ref.compareAndSet(oldRef, newRef)) break
-            }
-        }
-    }
-
-    class InternalAcl(acl: Set<EntityWithPermission>) {
-        private val acl = AtomicReference(acl)
-
-        fun get(): Set<EntityWithPermission> {
-            return acl.get()
-        }
-
-        fun addEntries(entries: Set<EntityWithPermission>) {
-            while (true) {
-                val old = acl.get()
-                val new = old + entries
-                if (acl.compareAndSet(old, new)) break
-            }
-        }
-
-        fun removeEntries(entries: Set<AccessEntity>) {
-            while (true) {
-                val old = acl.get()
-                val new = old.filter { it.entity !in entries }.toSet()
-                if (acl.compareAndSet(old, new)) break
-            }
-        }
-    }
-
-    class InternalTag(
-        title: String,
-        groups: Set<Int>,
-        priority: Int,
-    ) {
-        private val title = AtomicReference(title)
-        private val groups = AtomicReference(groups)
-        private val priority = AtomicInteger(priority)
-
-        fun updateTitle(newTitle: String) {
-            title.set(newTitle)
-        }
-
-        fun addGroup(set: Set<Int>) {
-            while (true) {
-                val old = groups.get()
-                val new = old + set
-                if (groups.compareAndSet(old, new)) break
-            }
-        }
-
-        fun removeGroup(set: Set<Int>) {
-            while (true) {
-                val old = groups.get()
-                val new = old - set
-                if (groups.compareAndSet(old, new)) break
-            }
-        }
-
-        fun updatePriority(value: Int) {
-            priority.set(value)
-        }
-
-        fun title() = title.get()
-        fun groups() = groups.get()
-        fun priority() = priority.get()
-    }
-
-    private class InternalSpotlight(spotlight: Spotlight) {
-        private val ref = AtomicReference(spotlight)
-
-        fun get() = ref.get()
-
-        fun update(transform: (Spotlight) -> Spotlight) {
-            while (true) {
-                val old = ref.get()
-                val new = transform(old)
-                if (ref.compareAndSet(old, new)) break
-            }
-        }
-    }
-
-    private class InternalTopPicks(topPicks: List<TopPick>) {
-        private val ref = AtomicReference(topPicks)
-
-        fun get() = ref.get()
-
-        fun update(transform: (List<TopPick>) -> List<TopPick>) {
-            while (true) {
-                val old = ref.get()
-                val new = transform(old)
-                if (ref.compareAndSet(old, new)) break
-            }
-        }
-    }
-
-    private class InternalCarrousel(items: List<CarrouselItem>) {
-        private val ref = AtomicReference(items)
-        private val images = AtomicReference<List<ByteArray>>(emptyList())
-
-        fun get() = ref.get()
-        fun getImages() = images.get()
-
-        fun update(transform: (List<CarrouselItem>) -> List<CarrouselItem>) {
-            while (true) {
-                val old = ref.get()
-                val new = transform(old)
-                if (ref.compareAndSet(old, new)) break
-            }
-        }
-
-        fun updateImages(transform: (List<ByteArray>) -> List<ByteArray>) {
-            while (true) {
-                val old = images.get()
-                val new = transform(old)
-                if (images.compareAndSet(old, new)) break
-            }
-        }
-    }
-
+    // Access control lists allow ordinary users to access non-public applications
     private val accessControlLists = NonBlockingHashMap<String, InternalAcl>()
 
-    private val applicationVersions = NonBlockingHashMap<String, InternalVersions>()
-    private val applications = NonBlockingHashMap<NameAndVersion, Application>()
-
-    private val toolVersions = NonBlockingHashMap<String, InternalVersions>()
-    private val tools = NonBlockingHashMap<NameAndVersion, Tool>()
-
-    private val groups = NonBlockingHashMapLong<InternalGroup>()
-
-    private val categories = NonBlockingHashMapLong<InternalTag>()
-
+    // The landing page has various UI components which advertise specific applications. These lookup tables control
+    // those widgets.
     private val spotlights = NonBlockingHashMapLong<InternalSpotlight>()
     private val topPicks = InternalTopPicks(emptyList())
     private val carrousel = InternalCarrousel(emptyList())
 
+    // We track new applications and new updates (for the landing page). These are just ordinary cyclic arrays with a
+    // small capacity. These are not thread-safe, so we use a mutex for the rare writes.
     private val appCreateMutex = Mutex()
     private val newApplications = CyclicArray<String>(5)
     private val newUpdates = CyclicArray<NameAndVersion>(5)
 
-    class InternalStars(stars: Set<String>) {
-        private val stars = AtomicReference(stars)
-
-        fun toggle(application: String) {
-            while (true) {
-                val old = stars.get()
-                val new = if (application in old) {
-                    old - application
-                } else {
-                    old + application
-                }
-
-                if (stars.compareAndSet(old, new)) break
-            }
-        }
-
-        fun set(isStarred: Boolean, application: String) {
-            while (true) {
-                val old = stars.get()
-                val new = if (isStarred) {
-                    old + application
-                } else {
-                    old - application
-                }
-
-                if (stars.compareAndSet(old, new)) break
-            }
-        }
-
-        fun get() = stars.get()!!
-    }
-
+    // Users can mark an application with a star, which allows for easy access. This is done at the application level
+    // but with no specific version. As a result, when you ask for your starred applications, you will get the most
+    // recent version from looking up in applicationVersions[starred].
     private val stars = NonBlockingHashMap<String, InternalStars>()
 
+    // TODO(Dan): This function is currently not able to actually reloadData. It is only capable of loading data.
+    //  We should add functionality which allows us to reload parts of the database as needed.
     suspend fun reloadData(id: NameAndVersion? = null) {
         db.withSession { session ->
             val toolRows = session.sendPreparedStatement(
@@ -438,7 +246,7 @@ class AppService(
                     val tagId = row.getInt(0)!!
                     val tag = row.getString(1)!!
                     val priority = row.getInt(2)!!
-                    categories.computeIfAbsent(tagId.toLong()) { InternalTag(tag, emptySet(), priority) }
+                    categories.computeIfAbsent(tagId.toLong()) { InternalCategory(tag, emptySet(), priority) }
                 }
 
                 val tagRows = session.sendPreparedStatement(
@@ -488,7 +296,7 @@ class AppService(
                     val title = row.getString(1)!!
                     val description = row.getString(2)!!
                     val active = row.getBoolean(3)!!
-                    spotlights[id.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active))
+                    spotlights[id.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active, id))
                 }
 
                 session.sendPreparedStatement(
@@ -543,12 +351,18 @@ class AppService(
                     val linkedGroup = row.getInt(5)
                     val image = row.getAs(6) ?: ByteArray(0)
 
-                    loadedCarrousel.add(CarrouselItem(title, body, imageCredit, linkedApplication,
-                        linkedWebPage, linkedGroup))
+                    loadedCarrousel.add(
+                        CarrouselItem(
+                            title, body, imageCredit, linkedApplication,
+                            linkedWebPage, linkedGroup
+                        )
+                    )
                     images.add(image)
                 }
                 carrousel.update { loadedCarrousel }
                 carrousel.updateImages { images }
+
+                reorderCategories()
             }
         }
     }
@@ -593,7 +407,8 @@ class AppService(
         )
     }
 
-    private suspend fun registerApplication(app: Application, flush: Boolean) {
+    private suspend fun registerApplication(inputApp: Application, flush: Boolean) {
+        var app = inputApp
         val key = NameAndVersion(app.metadata.name, app.metadata.version)
         if (applications[key] != null) {
             // NOTE(Dan): We purposefully don't deal with the race conflict we have here. I don't believe it is worth
@@ -601,12 +416,11 @@ class AppService(
             // depend on this not potentially having a race condition.
             throw RPCException("This application already exists!", HttpStatusCode.Conflict)
         }
-        applications[key] = app
 
         val appVersions = applicationVersions.computeIfAbsent(key.name) { InternalVersions() }
         appVersions.add(key.version)
         val allVersions = appVersions.get()
-        val previousVersion = if (allVersions.size > 2) allVersions[allVersions.size - 2] else null
+        val previousVersion = if (allVersions.size >= 2) allVersions[allVersions.size - 2] else null
         val previousApp = previousVersion?.let { v -> applications[NameAndVersion(app.metadata.name, v)] }
 
         val tool = app.invocation.tool.let { t -> tools[NameAndVersion(t.name, t.version)] }
@@ -614,11 +428,20 @@ class AppService(
             throw RPCException("This tool does not exist: ${app.invocation.tool}", HttpStatusCode.BadRequest)
         }
 
-        val group = app.metadata.group
+        val group = app.metadata.group ?: previousApp?.metadata?.group
         if (group != null) {
             val groupCache = registerGroup(group)
             groupCache.addApplications(setOf(key))
         }
+
+        app = app.copy(
+            metadata = app.metadata.copy(
+                flavorName = app.metadata.flavorName ?: previousApp?.metadata?.flavorName,
+                group = group,
+            )
+        )
+        println("This is the new app: ${inputApp.metadata} ${app.metadata} ${previousApp?.metadata}")
+        applications[key] = app
 
         if (flush) {
             db.withSession { session ->
@@ -705,17 +528,335 @@ class AppService(
     }
 
     private fun registerGroupTag(group: Int, tag: Int) {
-        groups[group.toLong()]?.addTags(setOf(tag))
+        groups[group.toLong()]?.addCategories(setOf(tag))
         categories[tag.toLong()]?.addGroup(setOf(group))
     }
 
-    // Utilities
+    // Catalog services (read)
     // =================================================================================================================
-    private fun isPrivileged(actorAndProject: ActorAndProject): Boolean {
-        val (actor) = actorAndProject
-        return actor == Actor.System || ((actor as? Actor.User)?.principal?.role ?: Role.GUEST) in Roles.PRIVILEGED
+    // This section of the code contain function to retrieve by ID and list items by different criteria. This includes
+    // functions for all parts of the catalog hierarchy. A small number of functions found in this section are
+    // privileged due to them only being used for management purposes. For example, we do not allow normal users to list
+    // all applications stored in the system. Instead, users must go through the hierarchy to find the applications they
+    // want to use.
+    suspend fun retrieveApplication(
+        actorAndProject: ActorAndProject,
+        name: String,
+        version: String?,
+        loadGroupApplications: Boolean = true,
+    ): ApplicationWithFavoriteAndTags? {
+        return if (version == null) {
+            listVersions(actorAndProject, name, loadGroupApplications = loadGroupApplications).firstOrNull()
+        } else {
+            loadApplications(
+                actorAndProject,
+                listOf(NameAndVersion(name, version)),
+                loadGroupApplications = loadGroupApplications
+            ).singleOrNull()
+        }
     }
 
+    suspend fun listVersions(
+        actorAndProject: ActorAndProject,
+        name: String,
+        loadGroupApplications: Boolean = false,
+    ): List<ApplicationWithFavoriteAndTags> {
+        val appVersions =
+            applicationVersions[name] ?: throw RPCException("Unknown application: $name", HttpStatusCode.NotFound)
+
+        val apps = loadApplications(
+            actorAndProject,
+            appVersions.get().map { NameAndVersion(name, it) },
+            withAllVersions = true,
+            loadGroupApplications = loadGroupApplications
+        )
+        return apps.sortedByDescending { it.metadata.createdAt }
+    }
+
+    suspend fun retrieveTool(
+        actorAndProject: ActorAndProject,
+        name: String,
+        version: String?,
+    ): Tool? {
+        return if (version == null) {
+            listToolVersions(actorAndProject, name).firstOrNull()
+        } else {
+            tools[NameAndVersion(name, version)]
+        }
+    }
+
+    suspend fun listToolVersions(
+        actorAndProject: ActorAndProject,
+        name: String
+    ): List<Tool> {
+        val result = ArrayList<Tool>()
+        val versions = toolVersions[name]?.get() ?: return emptyList()
+        for (v in versions) {
+            val key = NameAndVersion(name, v)
+            result.add(tools[key] ?: continue)
+        }
+        return result.sortedByDescending { it.createdAt }
+    }
+
+    private suspend fun TopPick.prepare(): TopPick {
+        val gid = groupId
+        if (gid != null) {
+            val g = groups[gid.toLong()]?.get() ?: return this
+            return copy(title = g.title, defaultApplicationToRun = g.defaultFlavor)
+        } else {
+            val a = retrieveApplication(ActorAndProject.System, applicationName ?: "", null) ?: return this
+            return copy(title = a.metadata.title, defaultApplicationToRun = a.metadata.name)
+        }
+    }
+
+    private suspend fun Spotlight.prepare(): Spotlight {
+        return copy(applications = applications.map { it.prepare() })
+    }
+
+    private suspend fun CarrouselItem.prepare(): CarrouselItem {
+        val defaultGroupApp = linkedGroup?.let { groups[it.toLong()]?.get()?.defaultFlavor }
+        return copy(resolvedLinkedApp = defaultGroupApp ?: linkedApplication)
+    }
+
+    suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
+        val picks = topPicks.get().map { it.prepare() }
+        val categories = listCategories()
+        val carrousel = carrousel.get().map { it.prepare() }
+        val spotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
+
+        val newlyCreated = ArrayList<String>()
+        val updated = ArrayList<NameAndVersion>()
+        for (i in (newUpdates.size - 1).downTo(0)) {
+            updated.add(newUpdates[i])
+        }
+
+        for (i in (newApplications.size - 1).downTo(0)) {
+            newlyCreated.add(newApplications[i])
+        }
+
+        return AppStore.RetrieveLandingPage.Response(
+            carrousel,
+            picks,
+            categories,
+            spotlight,
+            newlyCreated.mapNotNull {
+                retrieveApplication(actorAndProject, it, null, loadGroupApplications = false)?.withoutInvocation()
+            },
+            updated.mapNotNull {
+                retrieveApplication(
+                    actorAndProject,
+                    it.name,
+                    it.version,
+                    loadGroupApplications = false
+                )?.withoutInvocation()
+            }
+        )
+    }
+
+    fun retrieveCarrouselImage(index: Int): ByteArray {
+        return carrousel.getImages().getOrNull(index) ?: ByteArray(0)
+    }
+
+    fun listCategories(): List<ApplicationCategory> {
+        return categories.toList().sortedBy { it.second.priority() }.map { (k, v) ->
+            ApplicationCategory(
+                ApplicationCategory.Metadata(
+                    k.toInt(),
+                ),
+                ApplicationCategory.Specification(
+                    v.title(),
+                    "",
+                )
+            )
+        }
+    }
+
+    suspend fun retrieveCategory(
+        actorAndProject: ActorAndProject,
+        categoryId: Int,
+        loadGroups: Boolean = false
+    ): ApplicationCategory? {
+        val internal = categories[categoryId.toLong()] ?: return null
+        val title = internal.title()
+        var status = ApplicationCategory.Status()
+
+        if (loadGroups) {
+            val groups = internal.groups().mapNotNull { retrieveGroup(actorAndProject, it) }
+                .sortedBy { it.specification.title.lowercase() }
+            status = status.copy(groups = groups)
+        }
+
+        return ApplicationCategory(
+            ApplicationCategory.Metadata(categoryId),
+            ApplicationCategory.Specification(title),
+            status
+        )
+    }
+
+    suspend fun retrieveGroup(
+        actorAndProject: ActorAndProject,
+        groupId: Int,
+        loadApplications: Boolean = false
+    ): ApplicationGroup? {
+        val info = groups[groupId.toLong()]?.get() ?: return null
+        return ApplicationGroup(
+            ApplicationGroup.Metadata(
+                groupId,
+            ),
+            ApplicationGroup.Specification(
+                info.title,
+                info.description ?: "",
+                info.defaultFlavor,
+                info.categories
+            ),
+            ApplicationGroup.Status(
+                if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
+                else null,
+            )
+        )
+    }
+
+    fun retrieveGroupLogo(groupId: Int): ByteArray? {
+        val g = groups[groupId.toLong()]?.get() ?: return null
+        return g.logo
+    }
+
+    suspend fun listApplicationsInGroup(
+        actorAndProject: ActorAndProject,
+        groupId: Int
+    ): List<ApplicationWithFavoriteAndTags> {
+        val group = groups[groupId.toLong()]?.get() ?: return emptyList()
+        return loadApplications(actorAndProject, group.applications).sortedBy {
+            it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()
+        }
+    }
+
+    suspend fun listApplicationsInCategory(
+        actorAndProject: ActorAndProject,
+        category: Int
+    ): Pair<String, List<ApplicationWithFavoriteAndTags>> {
+        val resolvedCategory =
+            categories[category.toLong()] ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
+
+        val title = resolvedCategory.title()
+        val groupIds = resolvedCategory.groups()
+
+        val candidates = HashSet<NameAndVersion>()
+
+        for (groupId in groupIds) {
+            val group = groups[groupId.toLong()]?.get() ?: continue
+            candidates.addAll(group.applications)
+        }
+
+        return title to loadApplications(
+            actorAndProject,
+            candidates,
+            withAllVersions = false
+        ).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.title.lowercase() }
+    }
+
+    suspend fun listByExtension(
+        actorAndProject: ActorAndProject,
+        files: List<String>,
+    ): List<ApplicationWithExtension> {
+        val extensions = files.flatMap { file ->
+            if (file.contains(".")) {
+                listOf("." + file.substringAfterLast('.'))
+            } else {
+                buildList {
+                    val name = file.substringAfterLast('/')
+                    add(name.removeSuffix("/"))
+
+                    if (file.endsWith("/")) {
+                        val fixedName = file.removeSuffix("/").substringAfterLast("/")
+                        add("$fixedName/")
+                        add(fixedName)
+                        add("/")
+                    }
+                }
+            }
+        }.toSet()
+
+        val candidates = HashSet<NameAndVersion>()
+        for ((_, app) in applications) {
+            if (app.invocation.fileExtensions.any { it in extensions }) {
+                candidates.add(NameAndVersion(app.metadata.name, app.metadata.version))
+            }
+        }
+
+        val loaded = loadApplications(actorAndProject, candidates, withAllVersions = false)
+        return loaded.map {
+            val extsSupported = it.invocation.fileExtensions.filter { it in extensions }
+            ApplicationWithExtension(it.metadata, extsSupported)
+        }
+    }
+
+    suspend fun search(
+        actorAndProject: ActorAndProject,
+        query: String,
+    ): List<ApplicationWithFavoriteAndTags> {
+        // NOTE(Dan): This probably won't perform very well, but my quick tests tells me that it is probably
+        // still better than what we currently have.
+        val queryWords = query.split(" ")
+        val scores = HashMap<String, Int>()
+        val arr1 = IntArray(128)
+        val arr2 = IntArray(128)
+
+        val scoreCutoff = max(1, queryWords.minOf { it.length } / 2)
+
+        for ((nameAndVersion, app) in applications) {
+            if (nameAndVersion.name in scores) continue
+            val titleWords = app.metadata.title.split(" ")
+            val descriptionWords = app.metadata.description.split(" ")
+
+            // We rank each result by a home-brew system of inverting the editing distance. We search through both the
+            // title and the description. Each query word gets the best match it finds through both title and
+            // description. We sum the score of each query word to give a total score for each application. The
+            // applications with the highest scores returned to the user.
+            var totalScore = 0
+            for (q in queryWords) {
+                var maxScorePerWord = 0
+                for (t in titleWords) {
+                    var score = 0
+                    val distance = levenshteinDistance(q, t, arr1, arr2)
+                    val inverted = q.length - distance
+                    if (inverted > 0) score += inverted
+                    if (inverted == q.length) score += inverted
+
+                    maxScorePerWord = max(score, maxScorePerWord)
+                }
+
+                for (t in descriptionWords) {
+                    var score = 0
+                    val distance = levenshteinDistance(q, t, arr1, arr2)
+                    val inverted = q.length - distance
+                    if (inverted > 0) score += inverted
+                    if (inverted == q.length) score += inverted
+
+                    maxScorePerWord = max(score, maxScorePerWord)
+                }
+
+                totalScore += maxScorePerWord
+            }
+
+            scores[nameAndVersion.name] = totalScore
+        }
+
+        val candidates = ArrayList<NameAndVersion>()
+        scores.entries.sortedByDescending { it.value }.take(50).mapNotNull {
+            if (it.value < scoreCutoff) return@mapNotNull null
+            val name = it.key
+            val appVersions = applicationVersions[name]?.get() ?: return@mapNotNull null
+            candidates.addAll(appVersions.map { NameAndVersion(name, it) })
+        }
+
+        val loaded = loadApplications(actorAndProject, candidates, withAllVersions = false)
+        return loaded.sortedByDescending { scores[it.metadata.name] ?: 0 }
+    }
+
+    // Calculates the "editing" distance between two strings. This returns back a number representing how different
+    // two strings are. The number will always be positive. Lower numbers indicated similar strings. Zero indicates
+    // that the strings are identical. String comparisons are case-insensitive.
     private fun levenshteinDistance(a: String, b: String, arr1: IntArray, arr2: IntArray): Int {
         if (a == b) return 0
         if (a.isEmpty()) return b.length
@@ -746,7 +887,93 @@ class AppService(
         return cost[a.length]
     }
 
-    // Write access
+
+    suspend fun loadApplications(
+        actorAndProject: ActorAndProject,
+        versions: Collection<NameAndVersion>,
+        withAllVersions: Boolean = false,
+        loadGroupApplications: Boolean = false,
+    ): List<ApplicationWithFavoriteAndTags> {
+        val result = ArrayList<Application>()
+        val (actor) = actorAndProject
+        val isPrivileged = isPrivileged(actorAndProject)
+        val projectMembership = if (!isPrivileged) projectCache.lookup(actor.safeUsername()) else null
+
+        for (nameAndVersion in versions) {
+            val app = applications[nameAndVersion] ?: continue
+            if (!app.metadata.public && !isPrivileged) {
+                val username = actor.safeUsername()
+                if (projectMembership == null) continue
+                if (!hasPermission(nameAndVersion.name, username, projectMembership)) continue
+            }
+
+            val toolKey = app.invocation.tool.let { NameAndVersion(it.name, it.version) }
+            val tool = tools[toolKey] ?: continue
+            val group = app.metadata.group?.metadata?.id?.let { id ->
+                retrieveGroup(actorAndProject, id, loadGroupApplications)
+            }
+            result.add(
+                app.copy(
+                    metadata = app.metadata.copy(
+                        group = group,
+                    ),
+                    invocation = app.invocation.copy(
+                        tool = app.invocation.tool.copy(tool = tool)
+                    )
+                )
+            )
+        }
+
+        val deduped = if (!withAllVersions) {
+            result.groupBy { it.metadata.name }.map { (_, versions) ->
+                versions.maxBy { it.metadata.createdAt }
+            }
+        } else {
+            result
+        }
+
+        val myStars = stars[actorAndProject.actor.safeUsername()]?.get() ?: emptySet()
+        return deduped.map {
+            ApplicationWithFavoriteAndTags(
+                it.metadata,
+                it.invocation,
+                it.metadata.name in myStars,
+                emptyList(),
+            )
+        }
+    }
+
+    suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        return groups.mapNotNull { (groupId, ig) ->
+            retrieveGroup(actorAndProject, groupId.toInt())
+        }
+    }
+
+    fun listAllApplications(): List<NameAndVersion> {
+        return applicationVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
+    }
+
+    fun listAllTools(): List<NameAndVersion> {
+        return toolVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
+    }
+
+    suspend fun retrieveSpotlights(
+        actorAndProject: ActorAndProject,
+        id: Int,
+    ): Spotlight? {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        return spotlights[id.toLong()]?.get()
+    }
+
+    suspend fun listSpotlights(
+        actorAndProject: ActorAndProject,
+    ): List<Spotlight> {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        return spotlights.values.map { it.get() }
+    }
+
+    // Starred applications
     // =================================================================================================================
     suspend fun toggleStar(
         actorAndProject: ActorAndProject,
@@ -802,6 +1029,32 @@ class AppService(
         }
     }
 
+    suspend fun listStarredApplications(
+        actorAndProject: ActorAndProject,
+    ): List<ApplicationWithFavoriteAndTags> {
+        val appNames = stars[actorAndProject.actor.safeUsername()]?.get() ?: return emptyList()
+        val candidates = ArrayList<NameAndVersion>()
+        for (name in appNames) {
+            val versions = applicationVersions[name]?.get() ?: emptyList()
+            for (version in versions) {
+                candidates.add(NameAndVersion(name, version))
+            }
+        }
+        return loadApplications(actorAndProject, candidates, withAllVersions = false)
+    }
+
+    // Utilities
+    // =================================================================================================================
+    private fun isPrivileged(actorAndProject: ActorAndProject): Boolean {
+        val (actor) = actorAndProject
+        return actor == Actor.System || ((actor as? Actor.User)?.principal?.role ?: Role.GUEST) in Roles.PRIVILEGED
+    }
+
+    // Catalog services (write)
+    // =================================================================================================================
+    // This section of the code contain function to update the application catalog. Almost all calls in this section
+    // are privileged. These calls will commonly update both the in-memory version of data and the database
+    // immediately. When new applications are made, the appCreateMutex must be used.
     suspend fun createApplication(actorAndProject: ActorAndProject, application: Application) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
 
@@ -811,10 +1064,6 @@ class AppService(
     suspend fun createTool(actorAndProject: ActorAndProject, tool: Tool) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
         registerTool(tool, flush = true)
-    }
-
-    fun listAllApplications(): List<NameAndVersion> {
-        return applicationVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
     }
 
     suspend fun updateGroup(
@@ -828,8 +1077,9 @@ class AppService(
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
         val g = groups[id.toLong()] ?: throw RPCException("Unknown group: $id", HttpStatusCode.NotFound)
 
+        val normalizedNewDescription = newDescription?.trim()
         if (newTitle != null) checkSingleLine("title", newTitle, maximumSize = 64)
-        if (!newDescription.isNullOrEmpty()) checkSingleLine("description", newDescription, maximumSize = 64)
+        if (!normalizedNewDescription.isNullOrEmpty()) checkSingleLine("description", normalizedNewDescription, maximumSize = 600)
 
         val resizedLogo = if (newLogo != null) {
             if (newLogo.isEmpty()) {
@@ -866,7 +1116,7 @@ class AppService(
                 {
                     setParameter("id", id)
                     setParameter("newTitle", newTitle)
-                    setParameter("newDescription", newDescription)
+                    setParameter("newDescription", normalizedNewDescription)
                     setParameter("flavor", newDefaultFlavor)
                     setParameter("logo", resizedLogo)
                 },
@@ -904,7 +1154,7 @@ class AppService(
             }
         }
 
-        g.updateMetadata(newTitle, newDescription, newDefaultFlavor, resizedLogo)
+        g.updateMetadata(newTitle, normalizedNewDescription, newDefaultFlavor, resizedLogo)
     }
 
     suspend fun assignApplicationToGroup(
@@ -1172,92 +1422,54 @@ class AppService(
         }
     }
 
-    suspend fun addTagToGroup(
+    suspend fun addGroupToCategory(
         actorAndProject: ActorAndProject,
-        tagTitles: List<String>,
+        categoryIds: List<Int>,
         groupId: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val group = groups[groupId.toLong()] ?: throw RPCException("Unknown group: $groupId", HttpStatusCode.NotFound)
-        for (tagTitle in tagTitles) {
+        for (categoryId in categoryIds) {
             if (db == DiscardingDBContext) {
-                val initialTag = categories.entries.find { it.value.title().equals(tagTitle, ignoreCase = true) }
-                val (tagId, internalTag) = if (initialTag == null) {
-                    val actualId = groupIdAllocatorForTestsOnly.getAndIncrement()
-                    val t = InternalTag(tagTitle, emptySet(), 10000)
-                    categories[actualId.toLong()] = t
-                    actualId.toLong() to t
-                } else {
-                    initialTag.key to initialTag.value
-                }
+                val category = categories[categoryId.toLong()]
+                    ?: throw RPCException("Unknown category: $categoryId", HttpStatusCode.NotFound)
 
-                internalTag.addGroup(setOf(groupId))
-                group.addTags(setOf(tagId.toInt()))
+                category.addGroup(setOf(groupId))
+                group.addCategories(setOf(categoryId))
             } else {
                 db.withSession { session ->
-                    val initialTag = categories.entries.find { it.value.title().equals(tagTitle, ignoreCase = true) }
-                    val (tagId, internalTag) = if (initialTag == null) {
-                        val insertedTagId = session.sendPreparedStatement(
-                            { setParameter("tag", tagTitle) },
-                            """
-                                insert into app_store.categories (tag)
-                                values (:tag)
-                                on conflict do nothing
-                                returning id
-                            """
-                        ).rows.singleOrNull()?.getInt(0)
-
-                        val actualId = if (insertedTagId == null) {
-                            session.sendPreparedStatement(
-                                { setParameter("tag", tagTitle) },
-                                """
-                                    select id from app_store.categories where tag = :tag
-                                """
-                            ).rows.singleOrNull()?.getInt(0)
-                        } else {
-                            categories[insertedTagId.toLong()] = InternalTag(tagTitle, emptySet(), 10000)
-                            insertedTagId
-                        }
-
-                        if (actualId == null) throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-
-                        actualId.toLong() to categories[actualId.toLong()]
-                    } else {
-                        initialTag.key to initialTag.value
-                    }
+                    val category = categories[categoryId.toLong()]
+                        ?: throw RPCException("Unknown category: $categoryId", HttpStatusCode.NotFound)
 
                     session.sendPreparedStatement(
                         {
-                            setParameter("tag_id", tagId.toInt())
+                            setParameter("category_id", categoryId)
                             setParameter("group_id", groupId)
                         },
                         """
                             insert into app_store.category_items (group_id, tag_id) 
-                            values (:group_id, :tag_id)
+                            values (:group_id, :category_id) on conflict (group_id, tag_id) do nothing 
                         """
                     )
 
-                    internalTag.addGroup(setOf(groupId))
-                    group.addTags(setOf(tagId.toInt()))
+                    category.addGroup(setOf(groupId))
+                    group.addCategories(setOf(categoryId))
                 }
             }
         }
     }
 
-    suspend fun removeTagFromGroup(
+    suspend fun removeGroupFromCategories(
         actorAndProject: ActorAndProject,
-        tagTitles: List<String>,
+        tagIds: List<Int>,
         groupId: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val group = groups[groupId.toLong()] ?: throw RPCException("Unknown group: $groupId", HttpStatusCode.NotFound)
-        for (tagTitle in tagTitles) {
+        for (tagId in tagIds) {
             db.withSession { session ->
-                val entry = categories.entries.find { it.value.title().equals(tagTitle, ignoreCase = true) }
-                    ?: throw RPCException("Unknown tag: $tagTitle", HttpStatusCode.NotFound)
-
-                val tagId = entry.key.toInt()
-                val internalTag = entry.value
+                val entry = categories[tagId.toLong()]
+                    ?: throw RPCException("Unknown tag: $tagId", HttpStatusCode.NotFound)
 
                 session.sendPreparedStatement(
                     {
@@ -1272,78 +1484,9 @@ class AppService(
                     """
                 )
 
-                internalTag.removeGroup(setOf(groupId))
-                group.removeTags(setOf(tagId))
+                entry.removeGroup(setOf(groupId))
+                group.removeCategories(setOf(tagId))
             }
-        }
-    }
-
-    // Read access (applications)
-    // =================================================================================================================
-    suspend fun listCategories(): List<ApplicationCategory> {
-        return categories.toList().sortedBy { it.second.priority() }.map { (k, v) ->
-            ApplicationCategory(
-                ApplicationCategory.Metadata(
-                    k.toInt(),
-                ),
-                ApplicationCategory.Specification(
-                    v.title(),
-                    "",
-                )
-            )
-        }
-    }
-
-    suspend fun retrieveCategory(
-        actorAndProject: ActorAndProject,
-        categoryId: Int,
-        loadGroups: Boolean = false
-    ): ApplicationCategory? {
-        val internal = categories[categoryId.toLong()] ?: return null
-        val title = internal.title()
-        var status = ApplicationCategory.Status()
-
-        if (loadGroups) {
-            val groups = internal.groups().mapNotNull { retrieveGroup(actorAndProject, it) }
-                .sortedBy { it.specification.title.lowercase() }
-            status = status.copy(groups = groups)
-        }
-
-        return ApplicationCategory(
-            ApplicationCategory.Metadata(categoryId),
-            ApplicationCategory.Specification(title),
-            status
-        )
-    }
-
-    suspend fun retrieveGroup(actorAndProject: ActorAndProject, groupId: Int, loadApplications: Boolean = false): ApplicationGroup? {
-        val info = groups[groupId.toLong()]?.get() ?: return null
-        return ApplicationGroup(
-            ApplicationGroup.Metadata(
-                groupId,
-            ),
-            ApplicationGroup.Specification(
-                info.title,
-                info.description ?: "",
-                info.defaultFlavor,
-                info.tags
-            ),
-            ApplicationGroup.Status(
-                if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
-                else null,
-            )
-        )
-    }
-
-    suspend fun retrieveGroupLogo(groupId: Int): ByteArray? {
-        val g = groups[groupId.toLong()]?.get() ?: return null
-        return g.logo
-    }
-
-    suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        return groups.mapNotNull { (groupId, ig) ->
-            retrieveGroup(actorAndProject, groupId.toInt())
         }
     }
 
@@ -1395,228 +1538,6 @@ class AppService(
         }
     }
 
-    suspend fun loadApplications(
-        actorAndProject: ActorAndProject,
-        versions: Collection<NameAndVersion>,
-        withAllVersions: Boolean = false,
-        loadGroupApplications: Boolean = false,
-    ): List<ApplicationWithFavoriteAndTags> {
-        val result = ArrayList<Application>()
-        val (actor) = actorAndProject
-        val isPrivileged = isPrivileged(actorAndProject)
-        val projectMembership = if (!isPrivileged) projectCache.lookup(actor.safeUsername()) else null
-
-        for (nameAndVersion in versions) {
-            val app = applications[nameAndVersion] ?: continue
-            if (!app.metadata.public && !isPrivileged) {
-                val username = actor.safeUsername()
-                if (projectMembership == null) continue
-                if (!hasPermission(nameAndVersion.name, username, projectMembership)) continue
-            }
-
-            val toolKey = app.invocation.tool.let { NameAndVersion(it.name, it.version) }
-            val tool = tools[toolKey] ?: continue
-            val group = app.metadata.group?.metadata?.id?.let { id ->
-                retrieveGroup(actorAndProject, id, loadGroupApplications)
-            }
-            result.add(
-                app.copy(
-                    metadata = app.metadata.copy(
-                        group = group,
-                    ),
-                    invocation = app.invocation.copy(
-                        tool = app.invocation.tool.copy(tool = tool)
-                    )
-                )
-            )
-        }
-
-        val deduped = if (!withAllVersions) {
-            result.groupBy { it.metadata.name }.map { (_, versions) ->
-                versions.maxBy { it.metadata.createdAt }
-            }
-        } else {
-            result
-        }
-
-        val myStars = stars[actorAndProject.actor.safeUsername()]?.get() ?: emptySet()
-        return deduped.map {
-            ApplicationWithFavoriteAndTags(
-                it.metadata,
-                it.invocation,
-                it.metadata.name in myStars,
-                emptyList(),
-            )
-        }
-    }
-
-    suspend fun retrieveApplication(
-        actorAndProject: ActorAndProject,
-        name: String,
-        version: String?,
-        loadGroupApplications: Boolean = true,
-    ): ApplicationWithFavoriteAndTags? {
-        return if (version == null) {
-            listVersions(actorAndProject, name, loadGroupApplications = loadGroupApplications).firstOrNull()
-        } else {
-            loadApplications(actorAndProject, listOf(NameAndVersion(name, version)), loadGroupApplications = loadGroupApplications).singleOrNull()
-        }
-    }
-
-    suspend fun listVersions(
-        actorAndProject: ActorAndProject,
-        name: String,
-        loadGroupApplications: Boolean = false,
-    ): List<ApplicationWithFavoriteAndTags> {
-        val appVersions =
-            applicationVersions[name] ?: throw RPCException("Unknown application: $name", HttpStatusCode.NotFound)
-
-        val apps = loadApplications(
-            actorAndProject,
-            appVersions.get().map { NameAndVersion(name, it) },
-            withAllVersions = true,
-            loadGroupApplications = loadGroupApplications
-        )
-        return apps.sortedByDescending { it.metadata.createdAt }
-    }
-
-    suspend fun listApplicationsInGroup(
-        actorAndProject: ActorAndProject,
-        groupId: Int
-    ): List<ApplicationWithFavoriteAndTags> {
-        val group = groups[groupId.toLong()]?.get() ?: return emptyList()
-        return loadApplications(actorAndProject, group.applications).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()}
-    }
-
-    suspend fun listApplicationsInCategory(
-        actorAndProject: ActorAndProject,
-        category: Int
-    ): Pair<String, List<ApplicationWithFavoriteAndTags>> {
-        val resolvedCategory =
-            categories[category.toLong()] ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
-
-        val title = resolvedCategory.title()
-        val groupIds = resolvedCategory.groups()
-
-        val candidates = HashSet<NameAndVersion>()
-
-        for (groupId in groupIds) {
-            val group = groups[groupId.toLong()]?.get() ?: continue
-            candidates.addAll(group.applications)
-        }
-
-        return title to loadApplications(actorAndProject, candidates, withAllVersions = false).sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.title.lowercase() }
-    }
-
-    suspend fun listByExtension(
-        actorAndProject: ActorAndProject,
-        files: List<String>,
-    ): List<ApplicationWithExtension> {
-        val extensions = files.flatMap { file ->
-            if (file.contains(".")) {
-                listOf("." + file.substringAfterLast('.'))
-            } else {
-                buildList {
-                    val name = file.substringAfterLast('/')
-                    add(name.removeSuffix("/"))
-
-                    if (file.endsWith("/")) {
-                        val fixedName = file.removeSuffix("/").substringAfterLast("/")
-                        add("$fixedName/")
-                        add(fixedName)
-                        add("/")
-                    }
-                }
-            }
-        }.toSet()
-
-        val candidates = HashSet<NameAndVersion>()
-        for ((_, app) in applications) {
-            if (app.invocation.fileExtensions.any { it in extensions }) {
-                candidates.add(NameAndVersion(app.metadata.name, app.metadata.version))
-            }
-        }
-
-        val loaded = loadApplications(actorAndProject, candidates, withAllVersions = false)
-        return loaded.map {
-            val extsSupported = it.invocation.fileExtensions.filter { it in extensions }
-            ApplicationWithExtension(it.metadata, extsSupported)
-        }
-    }
-
-    suspend fun search(
-        actorAndProject: ActorAndProject,
-        query: String,
-    ): List<ApplicationWithFavoriteAndTags> {
-        // NOTE(Dan): This probably won't perform very well, but my quick tests tells me that it is probably
-        // still better than what we currently have.
-        val queryWords = query.split(" ")
-        val scores = HashMap<String, Int>()
-        val arr1 = IntArray(128)
-        val arr2 = IntArray(128)
-
-        val scoreCutoff = max(1, queryWords.minOf { it.length } / 2)
-
-        for ((nameAndVersion, app) in applications) {
-            if (nameAndVersion.name in scores) continue
-            val titleWords = app.metadata.title.split(" ")
-            val descriptionWords = app.metadata.description.split(" ")
-
-            var totalScore = 0
-            for (q in queryWords) {
-                var maxScorePerWord = 0
-                for (t in titleWords) {
-                    var score = 0
-                    val distance = levenshteinDistance(q, t, arr1, arr2)
-                    val inverted = q.length - distance
-                    if (inverted > 0) score += inverted
-                    if (inverted == q.length) score += inverted
-
-                    maxScorePerWord = max(score, maxScorePerWord)
-                }
-
-                for (t in descriptionWords) {
-                    var score = 0
-                    val distance = levenshteinDistance(q, t, arr1, arr2)
-                    val inverted = q.length - distance
-                    if (inverted > 0) score += inverted
-                    if (inverted == q.length) score += inverted
-
-                    maxScorePerWord = max(score, maxScorePerWord)
-                }
-
-                totalScore += maxScorePerWord
-            }
-
-            scores[nameAndVersion.name] = totalScore
-        }
-
-        val candidates = ArrayList<NameAndVersion>()
-        scores.entries.sortedByDescending { it.value }.take(50).mapNotNull {
-            if (it.value < scoreCutoff) return@mapNotNull null
-            val name = it.key
-            val appVersions = applicationVersions[name]?.get() ?: return@mapNotNull null
-            candidates.addAll(appVersions.map { NameAndVersion(name, it) })
-        }
-
-        val loaded = loadApplications(actorAndProject, candidates, withAllVersions = false)
-        return loaded.sortedByDescending { scores[it.metadata.name] ?: 0 }
-    }
-
-    suspend fun listStarredApplications(
-        actorAndProject: ActorAndProject,
-    ): List<ApplicationWithFavoriteAndTags> {
-        val appNames = stars[actorAndProject.actor.safeUsername()]?.get() ?: return emptyList()
-        val candidates = ArrayList<NameAndVersion>()
-        for (name in appNames) {
-            val versions = applicationVersions[name]?.get() ?: emptyList()
-            for (version in versions) {
-                candidates.add(NameAndVersion(name, version))
-            }
-        }
-        return loadApplications(actorAndProject, candidates, withAllVersions = false)
-    }
-
     private fun hasPermission(
         appName: String,
         username: String,
@@ -1637,95 +1558,57 @@ class AppService(
         return false
     }
 
-    // Read access (tools)
-    // =================================================================================================================
-    suspend fun retrieveTool(
-        actorAndProject: ActorAndProject,
-        name: String,
-        version: String?,
-    ): Tool? {
-        return if (version == null) {
-            listToolVersions(actorAndProject, name).firstOrNull()
-        } else {
-            tools[NameAndVersion(name, version)]
-        }
-    }
-
-    suspend fun listToolVersions(
-        actorAndProject: ActorAndProject,
-        name: String
-    ): List<Tool> {
-        val result = ArrayList<Tool>()
-        val versions = toolVersions[name]?.get() ?: return emptyList()
-        for (v in versions) {
-            val key = NameAndVersion(name, v)
-            result.add(tools[key] ?: continue)
-        }
-        return result.sortedByDescending { it.createdAt }
-    }
-
-    // Landing page
-    // =================================================================================================================
-    private suspend fun TopPick.prepare(): TopPick {
-        val gid = groupId
-        if (gid != null) {
-            val g = groups[gid.toLong()]?.get() ?: return this
-            return copy(title = g.title, defaultApplicationToRun = g.defaultFlavor)
-        } else {
-            val a = retrieveApplication(ActorAndProject.System, applicationName ?: "", null) ?: return this
-            return copy(title = a.metadata.title, defaultApplicationToRun = a.metadata.name)
-        }
-    }
-
-    private suspend fun Spotlight.prepare(): Spotlight {
-        return copy(applications = applications.map { it.prepare() })
-    }
-
-    private suspend fun CarrouselItem.prepare(): CarrouselItem {
-        val defaultGroupApp = linkedGroup?.let { groups[it.toLong()]?.get()?.defaultFlavor }
-        return copy(resolvedLinkedApp = defaultGroupApp ?: linkedApplication)
-    }
-
-    suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
-        val picks = topPicks.get().map { it.prepare() }
-        val categories = listCategories()
-        val carrousel = carrousel.get().map { it.prepare() }
-        val spotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
-
-        val newlyCreated = ArrayList<String>()
-        val updated = ArrayList<NameAndVersion>()
-        for (i in (newUpdates.size - 1).downTo(0)) {
-            updated.add(newUpdates[i])
-        }
-
-        for (i in (newApplications.size - 1).downTo(0)) {
-            newlyCreated.add(newApplications[i])
-        }
-
-        return AppStore.RetrieveLandingPage.Response(
-            carrousel,
-            picks,
-            categories,
-            spotlight,
-            newlyCreated.mapNotNull {
-                retrieveApplication(actorAndProject, it, null, loadGroupApplications = false)?.withoutInvocation()
-            },
-            updated.mapNotNull {
-                retrieveApplication(actorAndProject, it.name, it.version, loadGroupApplications = false)?.withoutInvocation()
-            }
-        )
-    }
-
-    suspend fun retrieveCarrouselImage(index: Int): ByteArray {
-        return carrousel.getImages().getOrNull(index) ?: ByteArray(0)
-    }
-
     suspend fun updateTopPicks(
         actorAndProject: ActorAndProject,
         newPicks: List<TopPick>,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+
+        for (slide in newPicks) {
+            val app = slide.applicationName
+            val group = slide.groupId
+            if (app != null) {
+                applicationVersions[app] ?: throw RPCException("Unknown linked application!", HttpStatusCode.NotFound)
+            }
+
+            if (group != null) {
+                groups[group.toLong()] ?: throw RPCException("Unknown linked group!", HttpStatusCode.NotFound)
+            }
+        }
+
+        topPicks.update { newPicks }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    delete from app_store.top_picks where true
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    newPicks.split {
+                        into("app_names") { it.applicationName }
+                        into("groups") { it.groupId }
+                        into("descriptions") { it.description }
+                    }
+                    setParameter("priorities", List(newPicks.size) { it })
+                },
+                """
+                    with data as (
+                        select
+                            unnest(:app_names::text[]) app_name,
+                            unnest(:groups::int[]) group_id,
+                            unnest(:descriptions::text[]) description,
+                            unnest(:priorities::int[]) priority
+                    )
+                    insert into app_store.top_picks (application_name, group_id, description, priority) 
+                    select app_name, group_id, description, priority
+                    from data
+                """
+            )
+        }
     }
 
     suspend fun createOrUpdateSpotlight(
@@ -1733,10 +1616,82 @@ class AppService(
         id: Int?,
         title: String,
         description: String,
+        active: Boolean,
         applications: List<TopPick>,
-    ) {
+    ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+        val id = db.withSession { session ->
+            val allocatedId = if (db == DiscardingDBContext) {
+                id ?: groupIdAllocatorForTestsOnly.getAndIncrement()
+            } else {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("title", title)
+                        setParameter("id", id)
+                        setParameter("description", description)
+                        setParameter("active", active)
+                    },
+                    """
+                        insert into app_store.spotlights (id, title, description, active)
+                        values (coalesce(:id::int, nextval('app_store.spotlights_id_seq')), :title, :description, :active)
+                        on conflict (id) do update set
+                            title = excluded.title,
+                            description = excluded.description,
+                            active = excluded.active
+                        returning id
+                    """
+                ).rows.single().getInt(0)!!
+            }
+
+            session.sendPreparedStatement(
+                { setParameter("id", allocatedId) },
+                """
+                    delete from app_store.spotlight_items
+                    where spotlight_id = :id
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", allocatedId)
+                    setParameter("priorities", IntArray(applications.size) { it }.toList())
+                    applications.split {
+                        into("titles") { it.title }
+                        into("application_names") { it.applicationName }
+                        into("group_ids") { it.groupId }
+                        into("descriptions") { it.description }
+                    }
+                },
+                """
+                    with data as (
+                        select
+                            unnest(:priorities::int[]) priority,
+                            unnest(:titles::text[]) title,
+                            unnest(:group_ids::int[]) group_id,
+                            unnest(:application_names::text[]) application_name,
+                            unnest(:descriptions::text[]) description
+                    )
+                    insert into app_store.spotlight_items (spotlight_id, application_name, group_id, description, priority) 
+                    select :id, application_name, group_id, description, priority
+                    from data
+                """
+            )
+
+            val newSpotlight = Spotlight(title, description, applications, false, allocatedId)
+            val spotlight = spotlights.computeIfAbsent(allocatedId.toLong()) {
+                InternalSpotlight(newSpotlight)
+            }
+
+            spotlight.update { newSpotlight }
+
+            allocatedId
+        }
+
+        if (active) {
+            activateSpotlight(actorAndProject, id)
+        }
+
+        return id
     }
 
     suspend fun activateSpotlight(
@@ -1744,7 +1699,21 @@ class AppService(
         id: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+
+        spotlights.values.forEach { spot -> spot.update { it.copy(active = false) } }
+        val spotlight = spotlights[id.toLong()] ?: throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
+        spotlight.update { it.copy(active = true) }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("id", id) },
+                """
+                    update app_store.spotlights
+                    set active = (id = :id)
+                    where true
+                """
+            )
+        }
     }
 
     suspend fun deleteSpotlight(
@@ -1752,14 +1721,515 @@ class AppService(
         id: Int,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+
+        val didRemove = spotlights.remove(id.toLong()) != null
+        if (!didRemove) throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("id", id) },
+                """
+                    delete from app_store.spotlight_items
+                    where spotlight_id = :id
+                """
+            )
+
+            session.sendPreparedStatement(
+                { setParameter("id", id) },
+                """
+                    delete from app_store.spotlights
+                    where id = :id
+                """
+            )
+        }
     }
 
-    suspend fun listSpotlights(
+    suspend fun assignPriorityToCategory(
         actorAndProject: ActorAndProject,
-    ): List<Spotlight> {
+        categoryId: Int,
+        priority: Int,
+    ) {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        TODO()
+        val category =
+            categories[categoryId.toLong()] ?: throw RPCException("Unknown category", HttpStatusCode.NotFound)
+        val currentPriority = category.priority()
+        if (currentPriority == priority) return
+
+        for (cat in categories.values) {
+            if (cat.priority() == priority) {
+                cat.updatePriority(currentPriority)
+            }
+        }
+
+        category.updatePriority(priority)
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("current_priority", currentPriority)
+                    setParameter("priority", priority)
+                    setParameter("id", categoryId)
+                },
+                """
+                    update app_store.categories
+                    set priority = :current_priority
+                    where priority = :priority
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("priority", priority)
+                    setParameter("id", categoryId)
+                },
+                """
+                    update app_store.categories
+                    set priority = :priority
+                    where id = :id
+                """
+            )
+        }
+    }
+
+    suspend fun createCategory(
+        actorAndProject: ActorAndProject,
+        specification: ApplicationCategory.Specification,
+    ): Int {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        val priority = categories.size
+
+        val id = if (db == DiscardingDBContext) {
+            groupIdAllocatorForTestsOnly.getAndIncrement()
+        } else {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("title", specification.title)
+                        setParameter("priority", priority)
+                    },
+                    """
+                        insert into app_store.categories (tag, priority) 
+                        values (:title, :priority)
+                        returning id
+                    """
+                ).rows.single().getInt(0)!!
+            }
+        }
+
+        val category = InternalCategory(specification.title, emptySet(), priority)
+        categories[id.toLong()] = category
+        return id
+    }
+
+    suspend fun deleteCategory(
+        actorAndProject: ActorAndProject,
+        categoryId: Int,
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val category =
+            categories[categoryId.toLong()] ?: throw RPCException("Unknown category", HttpStatusCode.NotFound)
+
+        for (groupId in category.groups()) {
+            runCatching { removeGroupFromCategories(actorAndProject, listOf(categoryId), groupId) }
+        }
+
+        categories.remove(categoryId.toLong())
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("category_id", categoryId)
+                },
+                """
+                    delete from app_store.category_items
+                    where tag_id = :category_id
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("category_id", categoryId)
+                },
+                """
+                    delete from app_store.categories
+                    where id = :category_id
+                """
+            )
+        }
+
+        reorderCategories()
+    }
+
+    private suspend fun reorderCategories() {
+        val allCategories = categories.toList().sortedBy { it.second.priority() }
+        for ((index, idAndCategory) in allCategories.withIndex()) {
+            val category = idAndCategory.second
+            category.updatePriority(index)
+        }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    allCategories.split {
+                        into("priorities") { it.second.priority() }
+                        into("ids") { it.first.toInt() }
+                    }
+                },
+                """
+                    with data as (
+                        select unnest(:priorities::int[]) as priority, unnest(:ids::int[]) as id
+                    )
+                    update app_store.categories c
+                    set priority = d.priority
+                    from data d
+                    where c.id = d.id
+                """
+            )
+        }
+    }
+
+    suspend fun updateCarrousel(
+        actorAndProject: ActorAndProject,
+        newSlides: List<CarrouselItem>
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        for (slide in newSlides) {
+            val app = slide.linkedApplication
+            val group = slide.linkedGroup
+            if (app != null) {
+                applicationVersions[app] ?: throw RPCException("Unknown linked application!", HttpStatusCode.NotFound)
+            }
+
+            if (group != null) {
+                groups[group.toLong()] ?: throw RPCException("Unknown linked group!", HttpStatusCode.NotFound)
+            }
+        }
+
+        carrousel.update { newSlides }
+        carrousel.updateImages { oldImages ->
+            List(newSlides.size) { i -> oldImages.getOrNull(i) ?: ByteArray(0) }
+        }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    newSlides.split {
+                        into("titles") { it.title }
+                        into("bodies") { it.body }
+                        into("image_credits") { it.imageCredit }
+                        into("linked_web_pages") { it.linkedWebPage }
+                        into("linked_groups") { it.linkedGroup }
+                        into("linked_applications") { it.linkedApplication }
+                    }
+                    setParameter("priorities", IntArray(newSlides.size) { it }.toList())
+                },
+                """
+                    with data as (
+                        select 
+                            unnest(:titles::text[]) title,
+                            unnest(:bodies::text[]) body, 
+                            unnest(:image_credits::text[]) image_credit,
+                            unnest(:linked_applications::text[]) linked_app,
+                            unnest(:linked_web_pages::text[]) linked_web,
+                            unnest(:priorities::int[]) priority,
+                            unnest(:linked_groups::int[]) linked_group
+                    )
+                    insert into app_store.carrousel_items
+                        (title, body, image_credit, linked_application, linked_web_page, priority, linked_group, image) 
+                    select title, body, image_credit, linked_app, linked_web, priority, linked_group, ''::bytea
+                    from data
+                    on conflict (priority) do update set
+                        title = excluded.title,
+                        body = excluded.body,
+                        image_credit = excluded.image_credit,
+                        linked_application = excluded.linked_application,
+                        linked_web_page = excluded.linked_web_page,
+                        linked_group = excluded.linked_group
+                """
+            )
+        }
+    }
+
+    suspend fun updateCarrouselImage(
+        actorAndProject: ActorAndProject,
+        slideIndex: Int,
+        image: ByteArray
+    ) {
+        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        carrousel.updateImages {
+            val copy = ArrayList(it)
+            if (slideIndex in it.indices) {
+                copy[slideIndex] = image
+            }
+
+            copy
+        }
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("index", slideIndex)
+                    setParameter("image", image)
+                },
+                """
+                    update app_store.carrousel_items
+                    set image = :image
+                    where priority = :index
+                """
+            )
+        }
+    }
+
+    // Internal storage classes
+    // =================================================================================================================
+    private class InternalVersions {
+        private val listOfVersions = AtomicReference<List<String>>(emptyList())
+        fun get(): List<String> = listOfVersions.get()
+
+        fun add(version: String) {
+            while (true) {
+                val old = get()
+                val new = old + version
+                if (listOfVersions.compareAndSet(old, new)) break
+            }
+        }
+    }
+
+    private class InternalGroup(
+        title: String,
+        description: String,
+        defaultFlavor: String?,
+        logo: ByteArray?,
+        applications: Set<NameAndVersion>,
+        categories: Set<Int>,
+    ) {
+        data class GroupDescription(
+            val title: String,
+            val description: String,
+            val defaultFlavor: String?,
+            @Suppress("ArrayInDataClass") val logo: ByteArray?,
+            val applications: Set<NameAndVersion>,
+            val categories: Set<Int>,
+        )
+
+        private val ref = AtomicReference(
+            GroupDescription(
+                title,
+                description,
+                defaultFlavor,
+                logo,
+                applications,
+                categories
+            )
+        )
+
+        fun get() = ref.get()!!
+
+        fun updateMetadata(
+            title: String? = null,
+            description: String? = null,
+            defaultFlavor: String? = null,
+            logo: ByteArray? = null,
+        ) {
+            while (true) {
+                val oldRef = ref.get()
+                val newRef = oldRef.copy(
+                    title = title ?: oldRef.title,
+                    description = description ?: oldRef.description,
+                    defaultFlavor = defaultFlavor ?: oldRef.defaultFlavor,
+                    logo = if (logo?.size == 0) null else logo ?: oldRef.logo
+                )
+                if (ref.compareAndSet(oldRef, newRef)) break
+            }
+        }
+
+        fun addApplications(applications: Set<NameAndVersion>) {
+            while (true) {
+                val oldRef = ref.get()
+                val newRef = oldRef.copy(
+                    applications = oldRef.applications + applications
+                )
+                if (ref.compareAndSet(oldRef, newRef)) break
+            }
+        }
+
+        fun removeApplications(applications: Set<NameAndVersion>) {
+            while (true) {
+                val oldRef = ref.get()
+                val newRef = oldRef.copy(
+                    applications = oldRef.applications - applications
+                )
+                if (ref.compareAndSet(oldRef, newRef)) break
+            }
+        }
+
+        fun addCategories(categoryIds: Set<Int>) {
+            while (true) {
+                val oldRef = ref.get()
+                val newRef = oldRef.copy(
+                    categories = oldRef.categories + categoryIds
+                )
+                if (ref.compareAndSet(oldRef, newRef)) break
+            }
+        }
+
+        fun removeCategories(categoryIds: Set<Int>) {
+            while (true) {
+                val oldRef = ref.get()
+                val newRef = oldRef.copy(
+                    categories = oldRef.categories - categoryIds
+                )
+                if (ref.compareAndSet(oldRef, newRef)) break
+            }
+        }
+    }
+
+    class InternalAcl(acl: Set<EntityWithPermission>) {
+        private val acl = AtomicReference(acl)
+
+        fun get(): Set<EntityWithPermission> {
+            return acl.get()
+        }
+
+        fun addEntries(entries: Set<EntityWithPermission>) {
+            while (true) {
+                val old = acl.get()
+                val new = old + entries
+                if (acl.compareAndSet(old, new)) break
+            }
+        }
+
+        fun removeEntries(entries: Set<AccessEntity>) {
+            while (true) {
+                val old = acl.get()
+                val new = old.filter { it.entity !in entries }.toSet()
+                if (acl.compareAndSet(old, new)) break
+            }
+        }
+    }
+
+    class InternalCategory(
+        title: String,
+        groups: Set<Int>,
+        priority: Int,
+    ) {
+        private val title = AtomicReference(title)
+        private val groups = AtomicReference(groups)
+        private val priority = AtomicInteger(priority)
+
+        fun updateTitle(newTitle: String) {
+            title.set(newTitle)
+        }
+
+        fun addGroup(set: Set<Int>) {
+            while (true) {
+                val old = groups.get()
+                val new = old + set
+                if (groups.compareAndSet(old, new)) break
+            }
+        }
+
+        fun removeGroup(set: Set<Int>) {
+            while (true) {
+                val old = groups.get()
+                val new = old - set
+                if (groups.compareAndSet(old, new)) break
+            }
+        }
+
+        fun updatePriority(value: Int) {
+            priority.set(value)
+        }
+
+        fun title() = title.get()
+        fun groups() = groups.get()
+        fun priority() = priority.get()
+    }
+
+    private class InternalSpotlight(spotlight: Spotlight) {
+        private val ref = AtomicReference(spotlight)
+
+        fun get() = ref.get()
+
+        fun update(transform: (Spotlight) -> Spotlight) {
+            while (true) {
+                val old = ref.get()
+                val new = transform(old)
+                if (ref.compareAndSet(old, new)) break
+            }
+        }
+    }
+
+    private class InternalTopPicks(topPicks: List<TopPick>) {
+        private val ref = AtomicReference(topPicks)
+
+        fun get() = ref.get()
+
+        fun update(transform: (List<TopPick>) -> List<TopPick>) {
+            while (true) {
+                val old = ref.get()
+                val new = transform(old)
+                if (ref.compareAndSet(old, new)) break
+            }
+        }
+    }
+
+    private class InternalCarrousel(items: List<CarrouselItem>) {
+        private val ref = AtomicReference(items)
+        private val images = AtomicReference<List<ByteArray>>(emptyList())
+
+        fun get() = ref.get()
+        fun getImages() = images.get()
+
+        fun update(transform: (List<CarrouselItem>) -> List<CarrouselItem>) {
+            while (true) {
+                val old = ref.get()
+                val new = transform(old)
+                if (ref.compareAndSet(old, new)) break
+            }
+        }
+
+        fun updateImages(transform: (List<ByteArray>) -> List<ByteArray>) {
+            while (true) {
+                val old = images.get()
+                val new = transform(old)
+                if (images.compareAndSet(old, new)) break
+            }
+        }
+    }
+
+    class InternalStars(stars: Set<String>) {
+        private val stars = AtomicReference(stars)
+
+        fun toggle(application: String) {
+            while (true) {
+                val old = stars.get()
+                val new = if (application in old) {
+                    old - application
+                } else {
+                    old + application
+                }
+
+                if (stars.compareAndSet(old, new)) break
+            }
+        }
+
+        fun set(isStarred: Boolean, application: String) {
+            while (true) {
+                val old = stars.get()
+                val new = if (isStarred) {
+                    old + application
+                } else {
+                    old - application
+                }
+
+                if (stars.compareAndSet(old, new)) break
+            }
+        }
+
+        fun get() = stars.get()!!
     }
 
     companion object {

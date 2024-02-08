@@ -1,15 +1,13 @@
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import {Box, Flex, Icon, Tooltip} from "@/ui-components";
 import Text, {TextSpan} from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";
-import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
-import * as AppStore from "@/Applications/AppStoreApi";
 
 export const AppHeader: React.FunctionComponent<{
     application: ApplicationWithFavoriteAndTags;
@@ -25,7 +23,7 @@ export const AppHeader: React.FunctionComponent<{
     return (
         <Flex flexDirection={"row"}>
             <Box mr={16} mt="auto">
-                <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={"64px"} />
+                <SafeLogo type={"APPLICATION"} name={props.application.metadata.name} size={"64px"} />
             </Box>
             {/* minWidth=0 is required for the ellipsed text children to work */}
             <Flex flexDirection={"column"} minWidth={0}>

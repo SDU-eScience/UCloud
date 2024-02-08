@@ -34,6 +34,7 @@ import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import {Project, isAdminOrPI} from "@/Project";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
+import {useTitle} from "@/Navigation/Redux";
 
 // State model
 // =====================================================================================================================
@@ -1434,6 +1435,7 @@ export function Editor(): React.JSX.Element {
     const scrollToTopRef = useRef(false);
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
+    useTitle("Grant application");
     const location = useLocation();
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";

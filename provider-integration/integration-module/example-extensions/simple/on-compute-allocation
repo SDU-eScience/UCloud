@@ -10,7 +10,7 @@ if os.getuid() != 0:
 with open(sys.argv[1]) as fp:
     request = json.load(fp)
 
-balance = request['balance']
+quota = request['quota']
 owner = request['owner']
 owner_type = owner['type']
 slurm_account = None

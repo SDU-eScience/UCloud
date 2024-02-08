@@ -434,8 +434,8 @@ sealed class ComposeService {
                 """
                     refreshToken: ${credentials.refreshToken}
                     envoy:
-                      executable: /usr/bin/envoy
-                      funceWrapper: false
+                      executable: /usr/local/bin/getenvoy
+                      funceWrapper: true
                       directory: /var/run/ucloud/envoy
                       
                     database:
@@ -707,21 +707,14 @@ sealed class ComposeService {
             if (!passwdFile.exists()) {
                 passwdFile.writeText(
                     """
-                        ucloud:x:998:998::/home/ucloud:/bin/sh
-                        ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
                     """.trimIndent()
                 )
                 groupFile.writeText(
                     """
-                        ucloud:x:998:
-                        ucloudalt:x:11042:
                     """.trimIndent()
                 )
-
                 shadowFile.writeText(
                     """
-                        ucloud:!:19110::::::
-                        ucloudalt:!:19110::::::
                     """.trimIndent()
                 )
             }
@@ -786,7 +779,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
                         "command": ["slurmdbd", "sshd", "user-sync"],
                         "hostname": "slurmdbd",
                         "volumes": [
@@ -813,7 +806,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
                         "command": ["slurmctld", "sshd", "user-sync"],
                         "hostname": "slurmctld",
                         "volumes": [
@@ -841,7 +834,7 @@ sealed class ComposeService {
                         //language=json
                         """
                           {
-                            "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                            "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
                             "command": ["slurmd", "sshd", "user-sync"],
                             "hostname": "c$id",
                             "volumes": [
@@ -918,8 +911,8 @@ sealed class ComposeService {
                 """
                     refreshToken: ${credentials.refreshToken}
                     envoy:
-                      executable: /usr/bin/envoy
-                      funceWrapper: false
+                      executable: /usr/bin/getenvoy
+                      funceWrapper: true
                       directory: /var/run/ucloud/envoy
                     database:
                       type: Embedded
@@ -936,6 +929,7 @@ sealed class ComposeService {
                 """
                     compute:
                       cpu:
+                        allowSubAllocations: false
                         cost:
                           type: Resource
                           interval: Minutely
@@ -946,11 +940,12 @@ sealed class ComposeService {
                           description: An example CPU machine with 1 vCPU.
                     storage: 
                       storage:
-                          cost:
-                            type: Resource
-                            unit: GB
-                          storage:
-                            description: An example storage system
+                        allowSubAllocations: false
+                        cost:
+                          type: Resource
+                          unit: GB
+                        storage:
+                          description: An example storage system
                 """.trimIndent()
             )
 
@@ -976,6 +971,9 @@ sealed class ComposeService {
                       matches: "*"
                       partition: normal
                       useFakeMemoryAllocations: true
+                      accountMapper:
+                        type: Extension
+                        extension: /etc/ucloud/extensions/slurm-account-extension
                       terminal:
                         type: SSH
                         generateSshKeys: true
@@ -983,6 +981,10 @@ sealed class ComposeService {
                         type: Simple
                         domainPrefix: slurm-
                         domainSuffix: .localhost.direct
+                      extensions:
+                        fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
+                           
+ 
 
                   fileCollections:
                     default:

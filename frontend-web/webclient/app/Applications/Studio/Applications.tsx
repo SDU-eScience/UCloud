@@ -1,4 +1,4 @@
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -217,7 +217,7 @@ export const App: React.FunctionComponent = () => {
             header={(
                 <Flex justifyContent="space-between">
                     <Heading.h2 style={{margin: 0}}>
-                        <AppToolLogo name={name} type={"APPLICATION"} size={"64px"}/>
+                        <SafeLogo name={name} type={"APPLICATION"} size={"64px"}/>
                         {" "}
                         {appTitle}
                     </Heading.h2>

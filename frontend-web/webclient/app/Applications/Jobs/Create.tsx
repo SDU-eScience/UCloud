@@ -365,7 +365,7 @@ export const Create: React.FunctionComponent = () => {
                                     <ExternalLink href={application.metadata.website}>
                                         <Button>
                                             <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
-                                            Documentation
+                                            <div>Documentation</div>
                                         </Button>
                                     </ExternalLink>
                                 </Box>

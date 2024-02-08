@@ -190,7 +190,7 @@ function ApplyLinkButton(): React.JSX.Element {
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
     if (!canApply) return <div />
 
-    return <Link to={AppRoutes.grants.newApplication({projectId: Client.projectId})} mt={8}>
+    return <Link to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()} mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 }

@@ -1,14 +1,14 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, DataList, Flex, Icon, Input, Label, Relative, TextArea} from "@/ui-components";
-import React, {useCallback, useEffect, useState} from "react";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {Box, Button, Checkbox, DataList, Flex, Icon, Input, Label, Relative, Select, TextArea} from "@/ui-components";
+import React, {useCallback, useEffect, useRef, useState} from "react";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate, useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {AppToolLogo, groupLogoCache} from "../AppToolLogo";
-import {stopPropagation} from "@/UtilityFunctions";
+import {AppToolLogo, groupLogoCache, SafeLogo} from "../AppToolLogo";
+import {doNothing, stopPropagation} from "@/UtilityFunctions";
 import {Tag} from "../Card";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -17,6 +17,9 @@ import {CardClass} from "@/ui-components/Card";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = parseInt(useParams<{ id: string }>().id ?? "-1");
@@ -44,29 +47,54 @@ export const AppGroup: React.FunctionComponent = () => {
     const appSearchField = React.useRef<HTMLInputElement>(null);
 
     const [defaultApplication, setDefaultApplication] = useState<string | undefined>(undefined);
-    const [tags, setTags] = useState<string[]>([]);
-    const [selectedTag, setSelectedTag] = useState<string>("");
-    const [allTags, fetchAllTags] = useCloudAPI<string[]>(
-        {noop: true},
-        []
-    );
+    const [categories, setCategories] = useState<AppStore.ApplicationCategory[]>([]);
+
     const [addApplicationOpen, setAddApplicationOpen] = useState<boolean>(false);
 
     const [commandLoading, invokeCommand] = useCloudCommand();
 
-    useEffect(() => {
-        fetchGroup(AppStore.retrieveGroup({id}));
+    const didCancel = useDidUnmount();
+
+    const refresh = useCallback(async () => {
+        fetchGroup(AppStore.retrieveGroup({id})).then(doNothing);
+        const categories = await fetchAll(next => {
+            return callAPI(AppStore.browseCategories({itemsPerPage: 250, next}));
+        });
+
+        if (!didCancel.current) {
+            setCategories(categories);
+        }
     }, [id]);
 
-    const refresh = useCallback(() => {
-        fetchGroup(AppStore.retrieveGroup({id}));
-    }, [id]);
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
 
     useEffect(() => {
         if (group.data) {
             setDefaultApplication(group.data?.specification?.defaultFlavor ?? undefined);
         }
     }, [group.data]);
+
+    const selectRef = useRef<HTMLSelectElement>(null);
+
+    const addCategory = useCallback(async () => {
+        const categoryId = parseInt(selectRef.current?.value ?? "");
+        await callAPI(AppStore.addGroupToCategory({
+            groupId: id,
+            categoryId,
+        }));
+        await refresh();
+    }, [id, refresh]);
+
+    const removeCategory = useCallback(async (key: string) => {
+        const categoryId = parseInt(key);
+        await callAPI(AppStore.removeGroupFromCategory({
+            groupId: id,
+            categoryId,
+        }));
+        await refresh();
+    }, [id, refresh]);
 
     const navigate = useNavigate();
 
@@ -110,7 +138,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                     <ListRow
                                         left={
                                             <Flex gap="10px">
-                                                <AppToolLogo name={app} type="APPLICATION" size="30px"/>
+                                                <SafeLogo name={app} type="APPLICATION" size="30px"/>
                                                 {app}
                                             </Flex>
                                         }
@@ -182,7 +210,7 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                 <Heading.h4>Logo</Heading.h4>
                                 <Flex justifyContent="space-between">
-                                    <Box><AppToolLogo name={id.toString()} type="GROUP"/></Box>
+                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"}/></Box>
                                     <Flex justifyContent="right">
                                         <label className={ButtonClass}>
                                             Upload
@@ -223,83 +251,29 @@ export const AppGroup: React.FunctionComponent = () => {
                                     </Flex>
                                 </Flex>
 
-                                <Box mt="30px">
-                                    <Heading.h4>Tags</Heading.h4>
-                                    <form onSubmit={async e => {
-                                        snackbarStore.addFailure("TODO", false);
-                                        /*
-                                        e.preventDefault();
+                                <Flex mt="30px" flexDirection={"column"} gap={"8px"}>
+                                    <Heading.h4>Categories</Heading.h4>
+                                    <Flex gap={"8px"}>
+                                        <Select selectRef={selectRef}>
+                                            {categories.map(c =>
+                                                <option key={c.metadata.id} value={c.metadata.id} disabled={group.data?.specification?.categories?.includes(c.metadata.id)}>
+                                                    {c.specification.title}
+                                                </option>
+                                            )}
+                                        </Select>
+                                        <Button onClick={addCategory}><Icon name={"heroPlus"} /></Button>
+                                    </Flex>
+                                    {group.data?.specification?.categories?.map(cat => {
+                                        const resolved = categories.find(it => it.metadata.id === cat);
+                                        if (!resolved) return null;
 
-                                        if (commandLoading) return;
-
-                                        if (selectedTag === null) return;
-                                        if (selectedTag === "") return;
-                                        if (!group.data) return;
-
-                                        await invokeCommand(UCloud.compute.apps.createTag({
-                                            groupId: group.data.group.id,
-                                            tags: [selectedTag]
-                                        }));
-
-                                        setSelectedTag("");
-
-                                        refresh();
-                                         */
-                                    }}>
-                                        <Box mb={46} mt={26}>
-                                            {tags.map(tag => (
-                                                <Flex key={tag} mb={16}>
-                                                    <Box flexGrow={1}>
-                                                        <Tag key={tag} label={tag}/>
-                                                    </Box>
-                                                    <Box>
-                                                        <Button
-                                                            color={"errorMain"}
-                                                            type={"button"}
-
-                                                            disabled={commandLoading}
-                                                            onClick={async () => {
-                                                                snackbarStore.addFailure("TODO", false);
-                                                                /*
-                                                                if (!group.data) return;
-
-                                                                await invokeCommand(UCloud.compute.apps.removeTag({
-                                                                    groupId: group.data.group.id,
-                                                                    tags: [tag]
-                                                                }));
-                                                                refresh();
-                                                                 */
-                                                            }}
-                                                        >
-                                                            <Icon size={16} name="trash"/>
-                                                        </Button>
-                                                    </Box>
-                                                </Flex>
-                                            ))}
-                                            <Flex>
-                                                <Box flexGrow={1}>
-                                                    <DataList
-                                                        rightLabel
-                                                        options={allTags.data.map(tag => ({value: tag, content: tag}))}
-                                                        onSelect={async item => {
-                                                            setSelectedTag(item);
-                                                        }}
-                                                        onChange={item => setSelectedTag(item)}
-                                                        placeholder={"Enter or choose a tag..."}
-                                                    />
-                                                </Box>
-                                                <Button
-                                                    disabled={commandLoading}
-                                                    type="submit"
-                                                    width={100}
-                                                    attached
-                                                >
-                                                    Add tag
-                                                </Button>
-                                            </Flex>
-                                        </Box>
-                                    </form>
-                                </Box>
+                                        return <Flex alignItems={"center"} key={cat}>
+                                            <div>{resolved.specification.title}</div>
+                                            <Box flexGrow={1}/>
+                                            <ConfirmationButton icon={"heroTrash"} color={"errorMain"} actionKey={cat.toString()} onAction={removeCategory}/>
+                                        </Flex>
+                                    })}
+                                </Flex>
 
                                 <Box mt="20px">
                                     <Flex justifyContent="space-between">
@@ -324,7 +298,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
                                                     <Flex justifyContent="left" gap="20px">
-                                                        <Box><AppToolLogo name={app.metadata.name} type="APPLICATION"
+                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION"
                                                                           size="30px"/></Box>
                                                         <Box>{app.metadata.title}</Box>
                                                     </Flex>

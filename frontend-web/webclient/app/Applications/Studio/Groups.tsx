@@ -1,19 +1,20 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, Label, List} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Link, List} from "@/ui-components";
 import React, {useCallback, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
-import {AppToolLogo} from "../AppToolLogo";
+import {AppToolLogo, SafeLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, onDevSite} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
+import AppRoutes from "@/Routes";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
     const [filter, setTitleFilter] = React.useState("");
@@ -43,8 +44,8 @@ export const ApplicationGroups: React.FunctionComponent = () => {
             header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Groups</Heading.h2>}
             main={
                 <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
-                    <Flex gap={"16px"} mb={"32px"}>
-                        <Label className={ButtonClass}>
+                    <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
+                        <label className={ButtonClass} style={{flexGrow: 1}}>
                             Upload application
                             <HiddenInputField
                                 type="file"
@@ -68,9 +69,9 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                     }
                                 }}
                             />
-                        </Label>
+                        </label>
 
-                        <Label className={ButtonClass}>
+                        <label className={ButtonClass} style={{flexGrow: 1}}>
                             Upload tool
                             <HiddenInputField
                                 type="file"
@@ -94,7 +95,53 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                     }
                                 }}
                             />
-                        </Label>
+                        </label>
+
+                        <Link to={AppRoutes.apps.studioHero()} flexGrow={1}><Button fullWidth>Carrousel</Button></Link>
+                        <Link to={AppRoutes.apps.studioTopPicks()} flexGrow={1}><Button fullWidth>Top picks</Button></Link>
+                        <Link to={AppRoutes.apps.studioSpotlights()} flexGrow={1}><Button fullWidth>Spotlights</Button></Link>
+                        <Link to={AppRoutes.apps.studioCategories()} flexGrow={1}><Button fullWidth>Categories</Button></Link>
+                        <Box flexGrow={1}>
+                            <Button fullWidth onClick={() => {
+                                AppStore.doExport().then(s => {
+                                    const element = document.createElement("a");
+                                    element.setAttribute("href", s);
+                                    document.body.appendChild(element);
+                                    element.click();
+                                    document.body.removeChild(element);
+                                });
+                            }}>
+                                Export to ZIP
+                            </Button>
+                        </Box>
+
+                        {onDevSite() &&
+                            <label className={ButtonClass} style={{flexGrow: 1}}>
+                                Import from ZIP
+                                <HiddenInputField
+                                    type="file"
+                                    onChange={async e => {
+                                        const target = e.target;
+                                        if (target.files) {
+                                            const file = target.files[0];
+                                            target.value = "";
+                                            if (file.size > 1024 * 1024 * 64) {
+                                                snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                            } else {
+                                                const error = (await AppStore.doImport(file)).error;
+                                                if (error != null) {
+                                                    setErrorMessage(error);
+                                                } else {
+                                                    snackbarStore.addSuccess("Tool uploaded successfully", false);
+                                                    setErrorMessage(null);
+                                                }
+                                            }
+                                            dialogStore.success();
+                                        }
+                                    }}
+                                />
+                            </label>
+                        }
                     </Flex>
 
                     {errorMessage && <Box mb={"32px"}>
@@ -138,7 +185,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 navigate={() => navigate(`/applications/studio/g/${group.metadata.id}`)}
                                 left={
                                     <Flex justifyContent="left">
-                                        <AppToolLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
+                                        <SafeLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
                                         <Box ml="10px">
                                             {group.specification.title}
                                         </Box>

@@ -4,6 +4,7 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import {appColors} from "@/ui-components/theme";
 import * as AppStore from "@/Applications/AppStoreApi";
+import {injectStyle} from "@/Unstyled";
 
 interface AppToolLogoProps {
     name: string;
@@ -82,7 +83,7 @@ class LogoCache {
         const retrievedItem = await localForage.getItem<Blob | false>(itemKey);
         if (retrievedItem === null) {
             // No cache entry at all
-            const url = Client.computeURL("/api", `/hpc/${this.context}/logo?name=${encodeURIComponent(name)}`);
+            const url = AppStore.retrieveAppLogo({name});
             try {
                 const blob = await (await fetch(url)).blob();
                 if (blob.type.indexOf("image/") === 0) {
@@ -186,6 +187,30 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}): JSX.Element
 
     return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />;
 };
+
+const SafeLogoStyle = injectStyle("safe-app-logo", k => `
+    ${k} {
+        display: flex;
+        background: var(--appLogoBackground);
+        padding: 4px;
+        border-radius: 5px;
+        border: var(--backgroundCardBorder);
+        align-items: center;
+        justify-content: center;
+    }
+`);
+export const SafeLogo: React.FunctionComponent<{
+    name: string,
+    type: "APPLICATION" | "TOOL" | "GROUP",
+    size: string
+}> = props => {
+    return <div
+        className={SafeLogoStyle}
+        style={{padding: `${parseInt(props.size.toString().replace("px", "")) / 8}px`}}
+    >
+        <AppToolLogo size={props.size} name={props.name} type={props.type}/>
+    </div>;
+}
 
 export function hashF(str: string): number {
     let hash = 5381;

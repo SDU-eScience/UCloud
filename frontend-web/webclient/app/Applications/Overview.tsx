@@ -1,13 +1,11 @@
-import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
-import {useCallback} from "react";
+import {useCallback, useEffect} from "react";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardType} from "./Card";
 import {useTitle} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useLocation} from "react-router";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {AppSearchBox, useAppSearch} from "./Search";
+import {useAppSearch} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {getQueryParam} from "@/Utilities/URIUtilities";
@@ -51,7 +49,11 @@ const ApplicationsOverview: React.FunctionComponent = () => {
 
     const refresh = useCallback(() => {
         fetchCategory(AppStore.retrieveCategory({id})).then(doNothing);
-    }, []);
+    }, [id]);
+
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
 
     const title = category?.specification?.title ?? "Applications";
     useTitle(title);
