@@ -1351,7 +1351,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
         const b = browserRef.current;
         if (b) {
-            b.renameField.style.left = "60px";
+            b.renameField.style.left = "65px";
         }
 
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
