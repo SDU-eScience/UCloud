@@ -850,6 +850,11 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
         return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
     })();
 
+    const datapointSum = useMemo(() => {
+        return dataPoints.reduce((a, b) => a + b.value, 0);
+    }, [dataPoints])
+
+
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
             <h4>Usage breakdown by sub-projects</h4>
@@ -859,28 +864,31 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
             <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
         </>}
 
-        <div className="pie-wrapper">
+        {datapointSum === 0 ? null : <div className="pie-wrapper">
             <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
-        </div>
+        </div>}
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Project</th>
-                    <th>Usage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {dataPoints.map((point, idx) => {
-                    const usage = point.value;
-
-                    return <tr key={idx}>
-                        <td>{point.key}</td>
-                        <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow  */}
+        <div style={{overflowY: "scroll"}}>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Usage</th>
                     </tr>
-                })}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {dataPoints.map((point, idx) => {
+                        const usage = point.value;
+
+                        return <tr key={idx}>
+                            <td>{point.key}</td>
+                            <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+                        </tr>
+                    })}
+                </tbody>
+            </table>
+        </div>
     </div>;
 };
 
