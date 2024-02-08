@@ -489,7 +489,8 @@ const Visualization: React.FunctionComponent = () => {
     const isAnyLoading = state.remoteData.requestsInFlight !== 0;
     const hasNoMeaningfulData =
         state.activeDashboard === undefined ||
-        state.activeDashboard.usageOverTime.dataPoints.every(it => it.usage === 0);
+        state.activeDashboard.usageOverTime.dataPoints.every(it => it.usage === 0) &&
+        (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -517,9 +518,7 @@ const Visualization: React.FunctionComponent = () => {
                 <HexSpin size={64} />
             </> : null}
 
-            {(state.summaries.length === 0 && state.remoteData.requestsInFlight === 0) ? <>
-                Could not find any usage data!
-            </> : null}
+            {hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> : null}
 
             <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingBottom={"26px"}>
                 {state.summaries.map(s =>
@@ -540,24 +539,23 @@ const Visualization: React.FunctionComponent = () => {
             </Flex>
 
             {state.activeDashboard ?
-                hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> :
-                    <div className="panels">
-                        <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
-                            <CategoryDescriptorPanel
-                                category={state.activeDashboard.category}
-                                usage={state.activeDashboard.currentAllocation.usage}
-                                quota={state.activeDashboard.currentAllocation.quota}
-                                expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                            />
-                            <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
-                            <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
-                            {hasChart3And4 ? <>
-                                <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                                <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                                <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                            </> : null}
-                        </div>
+                <div className="panels">
+                    <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
+                        <CategoryDescriptorPanel
+                            category={state.activeDashboard.category}
+                            usage={state.activeDashboard.currentAllocation.usage}
+                            quota={state.activeDashboard.currentAllocation.quota}
+                            expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                        />
+                        <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
+                        <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
+                        {hasChart3And4 ? <>
+                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
+                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
+                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
+                        </> : null}
                     </div>
+                </div>
                 : null
             }
         </div>
@@ -579,7 +577,7 @@ const NoDataClass = injectStyle("no-data", k => `
 function NoData({productType}: {productType?: Accounting.ProductArea}): React.JSX.Element {
     return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px" height="400px">
         <div className={NoDataClass}>
-            <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} size={60} />
+            <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} color2="primaryContrast" color="primaryContrast" size={60} />
         </div>
         <Text mt="16px" fontSize={16}>No usage data found!</Text>
     </Flex>;
@@ -868,7 +866,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
             <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
         </div>}
 
-        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow  */}
+        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected  */}
         <div style={{overflowY: "scroll"}}>
             <table>
                 <thead>
