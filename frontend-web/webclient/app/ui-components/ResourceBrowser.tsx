@@ -44,7 +44,7 @@ export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOpt
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
-    
+
     // Note(Jonas)/Hack(Jonas): This is a hack for the work-around when browser components are embedded, but the only key-input accepting component.
     // Ideally, embedded should not disable keyinputs, but maybe embedded should instead be an object like:
     // type ResourceBrowser.embedded = {
@@ -57,7 +57,7 @@ export interface ResourceBrowserOpts<T> {
     overrideDisabledKeyhandlers?: boolean;
     disabledKeyhandlers?: boolean;
     reloadRef?: React.MutableRefObject<() => void>;
-    
+
     // Note(Jonas): Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
     // are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
     embedded?: boolean;
@@ -2571,13 +2571,16 @@ export class ResourceBrowser<T> {
 
                 default: {
                     if (this.contextMenuHandlers.length) {
-                        if (ev.code.startsWith("Digit")) {
+                        if (ev.code.startsWith("Digit") || ev.code.startsWith("Numpad")) {
                             this.processingShortcut = true;
                             window.setTimeout(() => {
                                 this.processingShortcut = false;
                             }, 0);
+                            
+                            const digitOrNumpad = ev.code.startsWith("Digit") ? "Digit" : "Numpad";
 
-                            const selectedItem = parseInt(ev.code.substring("Digit".length));
+                            const selectedItem = parseInt(ev.code.substring(digitOrNumpad.length), 10);
+                            console.log(selectedItem);
                             if (!isNaN(selectedItem) && selectedItem !== 0) {
                                 this.onContextMenuItemSelection(selectedItem - 1);
                             }
