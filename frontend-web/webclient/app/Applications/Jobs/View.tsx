@@ -1280,13 +1280,17 @@ const RunningButtonGroup: React.FunctionComponent<{
                 );
             }}>
                 <Button type={"button"}>
-                    <Icon name={"heroCommandLine"} /> Open terminal
+                    <Icon name={"heroCommandLine"} />
+                    <div>Open terminal</div>
                 </Button>
             </Link>
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                <Button><Icon name={"heroArrowTopRightOnSquare"} /> Open interface</Button>
+                <Button>
+                    <Icon name={"heroArrowTopRightOnSquare"} />
+                    <div>Open interface</div>
+                </Button>
             </Link>
         )}
         {appType !== "VNC" || !supportsInterface ? null : (
@@ -1299,7 +1303,10 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=450,status=no"
                 );
             }}>
-                <Button><Icon name={"heroArrowTopRightOnSquare"} /> Open interface</Button>
+                <Button>
+                    <Icon name={"heroArrowTopRightOnSquare"} />
+                    <div>Open interface</div>
+                </Button>
             </Link>
         )}
     </div>

@@ -200,13 +200,13 @@ class AppStoreController(
                 importExportService.importFromZip(bytes)
                 ok(Unit)
             }
+        }
 
-            implement(AppStore.importFromFile) {
-                val http = ctx as HttpCall
-                val bytes = http.call.request.receiveChannel().readRemaining(1024 * 1024 * 64).readBytes()
-                importExportService.importFromZip(bytes)
-                ok(Unit)
-            }
+        implement(AppStore.importFromFile) {
+            val http = ctx as HttpCall
+            val bytes = http.call.request.receiveChannel().readRemaining(1024 * 1024 * 64).readBytes()
+            importExportService.importFromZip(bytes)
+            ok(Unit)
         }
 
         implement(AppStore.export) {

@@ -413,7 +413,8 @@ export function delay(ms: number): Promise<void> {
  */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
 export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
-    || window.location.hostname === "127.0.0.1" || window.location.hostname === "ucloud.localhost.direct";
+    || window.location.hostname === "127.0.0.1" || window.location.hostname === "ucloud.localhost.direct"
+    || window.location.hostname === "sandbox.dev.cloud.sdu.dk";
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();

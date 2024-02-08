@@ -84,7 +84,7 @@ const TabbedCard: React.FunctionComponent<{style?: CSSProperties; children: Reac
         if (!nav) return;
     }, [tabs]);
 
-    const onTabCLick = useCallback((ev: React.SyntheticEvent) => {
+    const onTabClick = useCallback((ev: React.SyntheticEvent) => {
         function findAttr(element: HTMLElement | null | undefined, attr: string): string | null {
             if (!element) return null;
             const value = element.getAttribute(attr);
@@ -98,12 +98,12 @@ const TabbedCard: React.FunctionComponent<{style?: CSSProperties; children: Reac
         setVisible(tabIdx);
     }, []);
 
-    return <Card style={style}>
+    return <Card style={style} className={tabs.length === 0 ? HideClass : undefined}>
         <div ref={rootDiv} className={ContainerClass} data-hidden={tabs.length === 0}>
             <nav>
                 {tabs.map((it, idx) =>
                     <div
-                        onClick={onTabCLick}
+                        onClick={onTabClick}
                         data-tab-idx={idx}
                         data-active={idx === visible}
                         key={it.name}
@@ -117,6 +117,12 @@ const TabbedCard: React.FunctionComponent<{style?: CSSProperties; children: Reac
         </div>
     </Card>;
 }
+
+const HideClass = injectStyle("hide", k => `
+    ${k} {
+        display: none;
+    }
+`);
 
 export const TabbedCardTab: React.FunctionComponent<Tab & {children: React.ReactNode}> = ({name, icon, children}) => {
     return <div className={TabClass.class} data-tab-name={name} data-tab-icon={icon}>{children}</div>;

@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2024.1.0-dev-25",
+    "version": "2024.1.0-dev-30",
     "description": "UCloud",
     "type": "module",
     "author": "IMADA - eScience Center, SDU",
@@ -20,7 +20,7 @@
         "@novnc/novnc": "1.4.0",
         "@reduxjs/toolkit": "2.1.0",
         "@rjsf/core": "4.2.3",
-        "@svgr/cli": "5.5.0",
+        "@svgr/cli": "8.1.0",
         "apexcharts": "3.45.2",
         "assert": "2.1.0",
         "date-fns": "3.3.1",

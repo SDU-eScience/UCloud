@@ -66,8 +66,6 @@ export enum SensitivityLevel {
     "SENSITIVE" = "Sensitive"
 }
 
-
-
 // Cached network data
 // =====================================================================================================================
 // This is stored outside the component since we want to be able to share it across all instances of the same component.

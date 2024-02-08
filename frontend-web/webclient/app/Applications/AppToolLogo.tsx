@@ -83,7 +83,7 @@ class LogoCache {
         const retrievedItem = await localForage.getItem<Blob | false>(itemKey);
         if (retrievedItem === null) {
             // No cache entry at all
-            const url = Client.computeURL("/api", `/hpc/${this.context}/logo?name=${encodeURIComponent(name)}`);
+            const url = AppStore.retrieveAppLogo({name});
             try {
                 const blob = await (await fetch(url)).blob();
                 if (blob.type.indexOf("image/") === 0) {

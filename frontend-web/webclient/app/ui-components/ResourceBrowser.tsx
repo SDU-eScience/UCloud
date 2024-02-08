@@ -46,7 +46,7 @@ export interface ResourceBrowserOpts<T> {
     omitFilters?: boolean;
     
     // Note(Jonas)/Hack(Jonas): This is a hack for the work-around when browser components are embedded, but the only key-input accepting component.
-    // Ideally, embedded should not disable keyinputs, but maybe embedded should instead be an object like: 
+    // Ideally, embedded should not disable keyinputs, but maybe embedded should instead be an object like:
     // type ResourceBrowser.embedded = {
     //      disableKeyhandlers?: boolean;
     //      omitFilters?: boolean;
@@ -3938,7 +3938,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
 export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, unknown> & any {
     return {
         text: "",
-        icon: "heroBolt",
+        icon: "keyboardSolid",
         onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, () => {}),
         enabled: () => true,
         shortcut: ShortcutKey.Z,

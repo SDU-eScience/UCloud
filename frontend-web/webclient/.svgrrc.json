@@ -1,0 +1,12 @@
+{
+  "svgProps": {
+    "fill": "currentcolor"
+  },
+  "replaceAttrValues": {
+    "#001833": "undefined",
+    "#53657d": "undefined",
+    "#8393a7": "{props.color2 ? props.color2 : \"currentcolor\" }"
+  },
+  "dimensions": false,
+  "typescript": true
+}
