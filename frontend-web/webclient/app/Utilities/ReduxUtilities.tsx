@@ -2,7 +2,7 @@ import {useEffect} from "react";
 import {Action, AnyAction, combineReducers} from "redux";
 
 import {dashboardReducer} from "@/Dashboard/Redux";
-import {LegacyReduxObject, initObject} from "@/DefaultObjects";
+import {initObject} from "@/DefaultObjects";
 import {statusReducer} from "@/Navigation/Redux";
 import * as ProjectRedux from "@/Project/ReduxState";
 import {avatarReducer} from "@/UserSettings/Redux";
@@ -20,9 +20,9 @@ export const USER_LOGOUT = "USER_LOGOUT";
 
 export function confStore(
     initialObject: ReduxObject,
-    reducers: ReducersMapObject<LegacyReduxObject, AnyAction>,
+    reducers: ReducersMapObject<ReduxObject, AnyAction>,
 ): EnhancedStore<ReduxObject> {
-    const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
+    const combinedReducers = combineReducers(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {
             state = initObject();

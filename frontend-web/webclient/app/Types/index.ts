@@ -53,8 +53,8 @@ export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T>
     };
 }
 
-export type SetLoadingAction<T> = PayloadAction<T, {loading: boolean}>;
-export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>;
+export type SetLoadingAction<T extends string> = PayloadAction<T, {loading: boolean}>;
+export type Error<T extends string> = PayloadAction<T, {error?: string, statusCode?: number}>;
 declare global {
-    export interface PayloadAction<Act, T> extends Action<Act> {payload: T;}
+    export interface PayloadAction<Act extends string, T> extends Action<Act> {payload: T;}
 }
