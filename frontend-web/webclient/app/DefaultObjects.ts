@@ -15,7 +15,7 @@ export interface StatusReduxObject {
 /**
  * Global state created via useGlobal() similar to ReduxObject
  */
-interface LegacyReduxObject {
+export interface LegacyReduxObject {
     hookStore: HookStore;
     dashboard: DashboardStateProps;
     status: StatusReduxObject;
