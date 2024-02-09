@@ -47,6 +47,7 @@ import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {appendToXterm, useXTerm} from "./XTermLib";
+import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -1272,9 +1273,12 @@ const RunningButtonGroup: React.FunctionComponent<{
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
+                
+                const link = findDomAttributeFromAncestors(e.target, "href");
+                if (!link) return;
 
                 window.open(
-                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    link,
                     undefined,
                     "width=800,height=600,status=no"
                 );
