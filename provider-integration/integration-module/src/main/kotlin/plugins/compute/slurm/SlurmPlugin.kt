@@ -77,8 +77,6 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.initialize() {
-        log.debug("INITIALIZING SLURM PLUGIN")
-
         ctx = this
 
         val poorlyConfiguredProduct = productAllocationResolved.find { it.category.allowSubAllocations }
@@ -112,7 +110,6 @@ class SlurmPlugin : ComputePlugin {
     // IPC
     // =================================================================================================================
     private fun PluginContext.initializeIpcServer() {
-        log.debug("INITIALIZING IPC SERVER")
         initializeJobsIpc()
         initializeSessionIpc()
         initializeAccountIpc()
@@ -234,8 +231,6 @@ class SlurmPlugin : ComputePlugin {
                 pluginConfig.partition
             )
         ).account
-
-        log.debug("FOUND ACCOUNT: $account")
 
         val sbatch = createSbatchFile(this, resource, this@SlurmPlugin, account, jobFolder)
 
@@ -588,8 +583,7 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            log.debug("Next scan: $nextAccountingScan last charge: $lastAccountingCharge -- Set new: ${lastAccountingCharge >= nextAccountingScan}")
-            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 // TODO(Brian) Revert this
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
         }
     }
 
@@ -616,7 +610,7 @@ class SlurmPlugin : ComputePlugin {
 
     private var lastScan: Long = 0L
     private suspend fun PluginContext.monitorAccounting(emitAccountingInfo: Boolean) {
-        // The job of this function is to monitor everything related to accounting. We run through two phases, each 
+        // The job of this function is to monitor everything related to accounting. We run through two phases, each
         // running at different frequencies:
         //
         // 1. Retrieve and process Slurm accounting
@@ -630,7 +624,6 @@ class SlurmPlugin : ComputePlugin {
 
         var registeredJobs = 0
 
-        // TODO(Brian): Documentation might be outdated.
         // Retrieve and process Slurm accounting
         // ------------------------------------------------------------------------------------------------------------
         // In this section we will be performing the following steps:
@@ -706,52 +699,59 @@ class SlurmPlugin : ComputePlugin {
             }
         }
 
-        debugSystem.normal("Registered $registeredJobs slurm jobs")
-
         // Send accounting information to UCloud
         // ------------------------------------------------------------------------------------------------------------
         if (!emitAccountingInfo) return
 
         val fetchUsageExtensionPath = pluginConfig.extensions.fetchComputeUsage ?: return
         val projectPlugin = config.plugins.projects ?: return
+        val categories = config.products.compute
+
         val projectMappings = with(projectPlugin) {
-            browseProjects()
+            browseProjects().items.flatMap { project ->
+                categories.map { category ->
+                    Pair(
+                        project.project.id,
+                        accountMapper.lookupByUCloud(
+                            ResourceOwner("", project.project.id),
+                            category.category.name,
+                            "normal"
+                        )?.account
+                    )
+                }
+            }
         }
 
         val userMappings = UserMapping.browseMappings(PaginationRequestV2(3000))
 
-        log.debug("Found ${projectMappings.items.size} project mappings: $projectMappings")
-        log.debug("Found ${userMappings.items.size} user mappings: $userMappings")
-
-        val categories = config.products.compute
-
         for (category in categories) {
+            val workspaces = userMappings.items.map {
+                UidOrGid(it.uid)
+            } + projectMappings.map {
+                UidOrGid(null, it.second!!)
+            }
+
+            if (workspaces.isEmpty()) continue
+
             val usageRequest = FetchComputeUsageRequest(
                 category.name,
-                userMappings.items.map {
-                    UidOrGid(it.uid)
-                } + projectMappings.items.map {
-                    UidOrGid(null, it.localId)
-                }
+                workspaces
             )
 
-            val usage = fetchComputeUsageExtension.invoke(this, fetchUsageExtensionPath, usageRequest)
+            val usageResponse = fetchComputeUsageExtension.invoke(this, fetchUsageExtensionPath, usageRequest)
 
-            log.debug("Plugin responded with: $usage")
-
-            usage.forEach {
-                val resp = it as FetchComputeUsageResponse.Slurm
-                val ucloudId = if (resp.id.gid != null) {
-                    projectMappings.items.find { it.localId == resp.id.gid }?.project?.id
+            usageResponse?.usage?.forEach { workspaceUsage ->
+                val ucloudId = if (workspaceUsage.gid != null) {
+                    projectMappings.find { it.second == workspaceUsage.gid}?.first
                 } else {
-                    userMappings.items.find { it.uid == resp.id.uid }?.username
+                    userMappings.items.find { it.uid == workspaceUsage.uid }?.username
                 }
 
                 if (ucloudId != null) {
                     reportUsage(
                         walletOwnerFromOwnerString(ucloudId),
                         ProductCategoryIdV2(category.name, providerId),
-                        resp.usage
+                        workspaceUsage.usage
                     )
                 }
             }
@@ -892,14 +892,14 @@ class SlurmPlugin : ComputePlugin {
         const val ALLOCATED_PORT_FILE = "allocated-port.txt"
         private const val sshId = "id_ucloud_im"
 
-        val fetchComputeUsageExtension = extension(FetchComputeUsageRequest.serializer(), ListSerializer(FetchComputeUsageResponse.serializer()))
+        val fetchComputeUsageExtension = extension(FetchComputeUsageRequest.serializer(), FetchComputeUsageResponse.Slurm.serializer())
     }
 }
 
 @Serializable
 data class UidOrGid(
     val uid: Int? = null,
-    val gid: Int? = null
+    val gid: String? = null
 )
 
 @Serializable
@@ -909,12 +909,18 @@ data class FetchComputeUsageRequest(
 )
 
 @Serializable
+data class FetchComputeUsageItem(
+    val uid: Int? = null,
+    val gid: String? = null,
+    val usage: Long
+)
+
+@Serializable
 sealed class FetchComputeUsageResponse {
     @Serializable
     @SerialName("Slurm")
     data class Slurm(
-        val id: UidOrGid,
-        val usage: Long,
+        val usage: List<FetchComputeUsageItem>,
     ) : FetchComputeUsageResponse()
 
     @Serializable

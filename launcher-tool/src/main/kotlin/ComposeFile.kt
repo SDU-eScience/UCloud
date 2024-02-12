@@ -5,7 +5,7 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
-const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-21"
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-14-issue-4135-4"
 
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int
@@ -1119,7 +1119,7 @@ sealed class ComposeService {
                           "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
                           "${passwdDir.absolutePath}:/mnt/passwd"
-                        ],
+                        ]
                       }
                     """.trimIndent(),
                 ),

@@ -58,7 +58,7 @@ if slurm_account is None:
 
 args = {
     'account' : slurm_account,
-    'credits' : balance
+    'credits' : quota
 }
 
 slurm_account_modify(args)
