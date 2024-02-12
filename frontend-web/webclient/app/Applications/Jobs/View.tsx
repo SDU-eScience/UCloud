@@ -756,12 +756,6 @@ function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} 
     </div>
 }
 
-const AltButtonGroupClass = injectStyleSimple("alt-button-group", `
-  display: grid;
-  width: 100%;
-  grid-gap: 8px;
-`);
-
 AltButtonGroup.defaultProps = {
     marginTop: "8px",
     marginBottom: "8px"
@@ -1065,6 +1059,25 @@ const RunningContent: React.FunctionComponent<{
     </>;
 };
 
+function transformToSSHUrl(command: string): string {
+    const splitCommand = command.split(" ");
+    // EXAMPLE:
+    // ssh ucloud@ssh.cloud.sdu.dk -p 1234
+    const [ssh, hostname, portFlag, port] = splitCommand as [string?, string?, string?, string?];
+    if (ssh !== "ssh") return "#"; // NOTE(Jonas): Ensure ssh command
+    if (!hostname?.includes("@")) return "#"; // NOTE(Jonas): Ensure @ is contained.
+    if (portFlag !== "-p") return "#"; // NOTE(Jonas): Ensure -p flag is there.
+    if (!port?.length) return "#"; // NOTE(Jonas): Ensure port number is defined and ensure port is number.
+    try {
+        parseInt(port, 10);
+    } catch (e) {
+        console.warn("Failed to parse port", e);
+        return "#";
+    }
+
+    return `ssh://${hostname}:${port}`;
+}
+
 const StandardPanelBody: React.FunctionComponent<{
     children: React.ReactNode;
     divRef?: React.RefObject<HTMLDivElement>;
@@ -1159,7 +1172,7 @@ const RunningJobRank: React.FunctionComponent<{
         state.current?.subscriptions?.push(listener);
         listener();
     }, [job.id, rank]);
-    
+
     return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
         <div className={RunningJobRankWrapper}>
             <div ref={termRef} className="term" />
@@ -1273,7 +1286,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
-                
+
                 const link = findDomAttributeFromAncestors(e.target, "href");
                 if (!link) return;
 

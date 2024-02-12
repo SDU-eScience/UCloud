@@ -101,6 +101,10 @@ export interface AcceptLinkRequest {
     token: string;
 }
 
+export function isViewingShareGroupPreview(s: OutgoingShareGroup | OutgoingShareGroupPreview): s is OutgoingShareGroupPreview {
+    return !("sourceFilePath" in s);
+}
+
 class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
     ShareFlags, ShareStatus, ShareSupport> {
     routingNamespace = "shares";

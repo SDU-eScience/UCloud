@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux";
-import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState} from "@/UCloud/SharesApi";
+import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState, isViewingShareGroupPreview} from "@/UCloud/SharesApi";
 import MainContainer from "@/ui-components/MainContainer";
 import {prettyFilePath} from "@/Files/FilePath";
 import {
@@ -60,7 +60,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
         if (activeProjectId) {
             navigate(AppRoutes.dashboard.dashboardA());
         }
-    },[activeProjectId])
+    }, [activeProjectId])
 
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview> | null>(null);
@@ -133,10 +133,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                 function insertFakeEntry(dummyId: string): void {
                     browser.insertEntryIntoCurrentPage({permissions: ["READ"], shareId: dummyId, sharedWith: "", state: "PENDING"} as OutgoingShareGroupPreview);
-                }
-
-                function isViewingShareGroupPreview(s: OutgoingShareGroup | OutgoingShareGroupPreview): s is OutgoingShareGroupPreview {
-                    return !("sourceFilePath" in s);
                 }
 
                 function isDeleted(share: OutgoingShareGroup | OutgoingShareGroupPreview) {
@@ -269,14 +265,14 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                 });
 
                 avatarState.subscribe(() => browser.rerender());
-                
+
 
                 browser.on("renderRow", (share, row, dims) => {
                     const avatarWrapper = document.createElement("div");
 
                     if (isViewingShareGroupPreview(share)) {
-                        const sharedWithAvatar = avatarState.avatar(share.sharedWith);
                         row.title.append(avatarWrapper);
+                        const sharedWithAvatar = avatarState.avatar(share.sharedWith);
                         new ReactStaticRenderer(() =>
                             <Tooltip
                                 trigger={<Avatar style={{height: "32px", width: "32px", marginRight: "12px"}} avatarStyle="Circle" {...sharedWithAvatar} />}
@@ -284,7 +280,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                 Shared with {share.sharedWith}
                             </Tooltip>
                         ).promise.then(it => {
-                            avatarWrapper.appendChild(it.clone());
+                            const avatar = it.clone();
+                            avatarWrapper.appendChild(avatar);
                         });
                     } else {
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
@@ -425,9 +422,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                 text.innerText = `${pending.length} pending`;
                                 state = "PENDING";
                             } else if (anyRejected) {
-                                text.innerText = `${rejected.length} pending`;
+                                text.innerText = `${rejected.length} rejected`;
                                 state = "REJECTED";
-                            } else { // All must be approved in none are rejected or pending.
+                            } else { // All must be approved if none are rejected or pending.
                                 text.innerText = `All accepted`;
                                 state = "APPROVED";
                             }
@@ -613,6 +610,16 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         },
                         onClick([selection]: [OutgoingShareGroupPreview]) {
                             navigate(AppRoutes.resource.properties("shares", selection.shareId));
+                        },
+                        shortcut: ShortcutKey.P
+                    }, {
+                        icon: "properties",
+                        text: "Manage share",
+                        enabled(selected) {
+                            return selected.length === 1 && !isViewingShareGroupPreview(selected[0])
+                        },
+                        onClick([selection]: [OutgoingShareGroup]) {
+                            navigate(`/shares/outgoing?path=${selection.sourceFilePath}`);
                         },
                         shortcut: ShortcutKey.P
                     }];
