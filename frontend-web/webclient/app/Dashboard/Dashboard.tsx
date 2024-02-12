@@ -206,7 +206,7 @@ function DashboardResources({wallets}: {
         const filtered = w.allocations.filter(a => now >= a.startDate && now <= a.endDate);
         const quota = filtered.reduce((a, b) => a + b.quota, 0);
         const used = filtered.reduce((a, b) => a + (b.treeUsage ?? b.localUsage), 0);
-        const maxUsable = filtered.reduce((a, b ) => a + (b.maxUsable), 0);
+        const maxUsable = filtered.reduce((a, b) => a + (b.maxUsable), 0);
         return {used, quota, category: w.paysFor, maxUsable};
     }).filter(it => !it.category.freeToUse && it.quota > 0);
 
@@ -251,17 +251,19 @@ function DashboardResources({wallets}: {
                                         </Flex>
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                        {n.maxUsable == (n.quota - n.used) ? null :
-                                            <TooltipV2 tooltip={"Allocation limitation. Contact your grant giver."}><Icon name={"heroExclamationTriangle"} color={"warningMain"}/> </TooltipV2>}
-                                        {Accounting.balanceToString(n.category, n.used, {
-                                            precision: 0,
-                                            removeUnitIfPossible: true
-                                        })}
-                                        {" "}/{" "}
-                                        {Accounting.balanceToString(n.category, n.quota, {
-                                            precision: 0,
-                                            removeUnitIfPossible: false
-                                        })}
+                                        <Flex justifyContent="end">
+                                            {n.maxUsable == (n.quota - n.used) ? null :
+                                                <TooltipV2 tooltip={"Allocation limitation. Contact your grant giver."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2>}
+                                            {Accounting.balanceToString(n.category, n.used, {
+                                                precision: 0,
+                                                removeUnitIfPossible: true
+                                            })}
+                                            {" "}/{" "}
+                                            {Accounting.balanceToString(n.category, n.quota, {
+                                                precision: 0,
+                                                removeUnitIfPossible: false
+                                            })}
+                                        </Flex>
                                     </TableCell>
                                 </TableRow>
                             ))}
