@@ -672,8 +672,6 @@ class SlurmPlugin : ComputePlugin {
             )
         }
 
-        registeredJobs = jobsToRegister.size
-
         for (batch in jobsToRegister.chunked(100)) {
             if (batch.isEmpty()) continue
             val ids = JobsControl.register.call(
