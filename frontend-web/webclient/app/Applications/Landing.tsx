@@ -2,13 +2,13 @@ import * as React from "react";
 import {useTitle} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Box, Button, Card, Flex, Grid, Icon, Markdown} from "@/ui-components";
+import {Absolute, Box, Button, Card, Flex, Grid, Icon, Markdown, Relative} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {SafeLogo} from "@/Applications/AppToolLogo";
+import {appColor, AppLogo, AppLogoRaw, AppToolLogo, hashF, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
-import {HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
-import {ThemeColor} from "@/ui-components/theme";
+import {CSSProperties, HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
+import {appColors, ThemeColor} from "@/ui-components/theme";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -17,9 +17,11 @@ import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
 import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
+import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
+        display: flex;
     }
     
     ${k} {
@@ -28,15 +30,20 @@ const landingStyle = injectStyle("landing-page", k => `
         padding-bottom: 16px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 24px;
         max-width: 1100px;
         min-width: 600px;
         min-height: 100vh;
     }
     
+    ${k} h3 {
+        font-size: 1.2rem;
+        padding: 0.6rem 0;
+    }
+    
     ${k} > h1 {
         font-size: 1.2rem;
-        padding: 0.6rem;
+        padding: 0.6rem 0;
     }
 `);
 
@@ -75,51 +82,50 @@ const LandingPage: React.FunctionComponent = () => {
                     <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
                     <Hero slides={landingPage.carrousel}/>
                     {starred.data.items.length > 0 &&
-                        <TitledCard title={"Starred applications"} icon={"heroStar"}>
-                            <AppCardGrid>
-                                {starred.data.items.map(a => {
-                                    return <AppCard1 name={a.metadata.name} title={a.metadata.title}
-                                                     description={a.metadata.description} key={a.metadata.name}
-                                                     isApplication/>;
-                                })}
-                            </AppCardGrid>
-                        </TitledCard>
+                        <StarredApplications2 apps={starred.data.items}/>
                     }
 
-                    <TopPicksCard topPicks={landingPage.topPicks} />
+                    {/*<TopPicksCard topPicks={landingPage.topPicks} />*/}
+                    <TopPicksCard2 topPicks={landingPage.topPicks}/>
 
-                    <TitledCard title={"Browse by category"} icon={"heroMagnifyingGlass"}>
-                        <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(200px, 1fr)"}>
+                    {landingPage.spotlight && <SpotlightCard2 spotlight={landingPage.spotlight}/>}
+
+                    <div>
+                        <h3>Browse by category</h3>
+                        <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
                             {landingPage.categories.map(c =>
                                 <CategoryCard key={c.metadata.id} id={c.metadata.id}
                                               categoryTitle={c.specification.title}/>
                             )}
                         </Grid>
-                    </TitledCard>
+                    </div>
 
-                    {landingPage.spotlight && <SpotlightCard spotlight={landingPage.spotlight} />}
+                    <div>
+                        <h3>Updated applications</h3>
+                        <TabbedCard>
+                            <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
+                                <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
+                                    {landingPage.newApplications.map(app => (
+                                        <AppCard1 name={app.metadata.name} title={app.metadata.title}
+                                                  description={app.metadata.description} fullWidth
+                                                  key={app.metadata.name}
+                                                  isApplication/>
+                                    ))}
+                                </Flex>
+                            </TabbedCardTab>
 
-                    <TabbedCard>
-                        <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
-                            <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                {landingPage.newApplications.map(app => (
-                                    <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                              description={app.metadata.description} fullWidth key={app.metadata.name}
-                                              isApplication/>
-                                ))}
-                            </Flex>
-                        </TabbedCardTab>
-
-                        <TabbedCardTab icon={"heroCheckCircle"} name={"Recently updated"}>
-                            <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                {landingPage.recentlyUpdated.map(app => (
-                                    <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                              description={app.metadata.description} fullWidth key={app.metadata.name}
-                                              isApplication/>
-                                ))}
-                            </Flex>
-                        </TabbedCardTab>
-                    </TabbedCard>
+                            <TabbedCardTab icon={"heroCheckCircle"} name={"Recently updated"}>
+                                <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
+                                    {landingPage.recentlyUpdated.map(app => (
+                                        <AppCard1 name={app.metadata.name} title={app.metadata.title}
+                                                  description={app.metadata.description} fullWidth
+                                                  key={app.metadata.name}
+                                                  isApplication/>
+                                    ))}
+                                </Flex>
+                            </TabbedCardTab>
+                        </TabbedCard>
+                    </div>
                 </article>
             </div>
         </div>
@@ -153,6 +159,38 @@ export const SpotlightCard: React.FunctionComponent<{
             </Box>
         </Flex>
     </TitledCard>
+};
+
+export const SpotlightCard2: React.FunctionComponent<{
+    spotlight: Spotlight;
+    target?: HTMLAttributeAnchorTarget;
+}> = ({spotlight, target}) => {
+    return <div>
+        <h3>Spotlight: {spotlight.title}</h3>
+        <Flex gap={"16px"}>
+            <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
+                {spotlight.applications.map((pick, idx) => {
+                    if (pick.groupId) {
+                        return <AppCard2 key={idx} name={pick.groupId.toString()}
+                                         title={pick.title} description={pick.description}
+                                         applicationName={pick.defaultApplicationToRun}
+                                         fullWidth target={target}/>;
+                    } else {
+                        return null;
+                    }
+                })}
+            </Flex>
+
+            <blockquote
+                className={SpotlightDescription}
+                style={{fontStyle: "italic", flexShrink: "1", flexBasis: "400px"}}
+            >
+                <Markdown allowedElements={["p"]}>
+                    {spotlight.body}
+                </Markdown>
+            </blockquote>
+        </Flex>
+    </div>;
 };
 
 const HeroStyle = injectStyle("hero", k => `
@@ -388,6 +426,84 @@ const AppCard1: React.FunctionComponent<{
     </ReactRouterLink>;
 };
 
+const AppCard2Style = injectStyle("app-card-2", k => `
+    ${k} {
+        display: flex;
+        gap: 16px;
+        border-bottom: 1px solid var(--appCardBorderColor, var(--borderColor));
+        width: 331px;
+        cursor: pointer;
+        align-items: center;
+        background: var(--backgroundCard);
+        border-radius: 8px;
+        box-shadow: var(--defaultShadow);
+    }
+    
+    ${k} > *:first-child {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    
+    ${k}.full-width {
+        width: 100%;
+    }
+    
+    ${k} h2 {
+        font-size: 1.0rem;
+        font-weight: bold;
+        margin: 0;
+        margin-top: -0.3rem;
+    }
+    
+    ${k} .content {
+        margin: 16px 0;
+        max-width: calc(100% - 50px);
+    }
+    
+    ${k} .description, ${k} .description p {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        font-size: 1rem;
+        color: var(--textSecondary);
+        margin: 0;
+    }
+    
+    ${k} .description p:first-child {
+        margin-top: 0;
+    }
+    
+    ${k} .description p:last-child {
+        margin-bottom: 0;
+    }
+`);
+
+const AppCard2: React.FunctionComponent<{
+    name: string;
+    title: string;
+    description: string;
+    fullWidth?: boolean;
+    isApplication?: boolean;
+    applicationName?: string | null;
+    target?: HTMLAttributeAnchorTarget;
+}> = props => {
+    let link = props.isApplication ? AppRoutes.jobs.create(props.name) : AppRoutes.apps.group(props.name);
+    if (props.applicationName) {
+        link = AppRoutes.jobs.create(props.applicationName);
+    }
+
+    return <ReactRouterLink to={link} target={props.target}
+                            className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"}/>
+        <div className={"content"}>
+            <h2>{props.title}</h2>
+            <div className={"description"}>
+                <Markdown allowedElements={["p", "i", "b"]}>{props.description}</Markdown>
+            </div>
+        </div>
+    </ReactRouterLink>;
+};
+
 const AppCardGridStyle = injectStyle("app-card-grid", k => `
     ${k} {
         display: flex;
@@ -407,16 +523,76 @@ const AppCardGrid: React.FunctionComponent<{ children: React.ReactNode }> = ({ch
     return <div className={AppCardGridStyle}>{children}</div>;
 }
 
+const CategoryCardStyle = injectStyle("category-card", k => `
+    ${k} {
+        border-radius: 8px;
+        height: 90px;
+        font-size: 17px;
+        display: flex;
+        align-items: end;
+        padding: 16px;
+        overflow: hidden;
+        color: var(--fixedWhite);
+        box-shadow: var(--defaultShadow);
+        background: linear-gradient(var(--card-start), var(--card-end));
+    }
+    
+    ${k}:hover {
+        background: linear-gradient(var(--card-start), var(--card-end-hover));
+    }
+    
+    ${k} .logo-wrapper {
+        position: absolute;
+        top: -140px;
+        left: 160px;
+        z-index: 0;
+        transform: rotate(180deg);
+    }
+    
+    ${k} span {
+        z-index: 10;
+    }
+`);
+
 const CategoryCard: React.FunctionComponent<{
     id: number;
     categoryTitle: string;
 }> = props => {
+    const hash = hashF(props.categoryTitle);
+    const appC = appColors[appColor(hash)][1];
+    // const gradStart = "#6DA8EE";
+    let [h, s, l] = rgbToHsl(appC)
+    console.log(appC, h, s, l);
+    s /= 1.0;
+    // h += 0.50;
+    h %= 1;
+    const baseColor = hslToRgb(h, s, l);
+    const gradStart = tint(baseColor, 0.1);
+    const gradEndHover = shade(gradStart, 0.2);
+    const gradEnd = shade(gradStart, 0.3);
+
+    const style: CSSProperties = {};
+    style["--card-start"] = gradStart;
+    style["--card-end"] = gradEnd;
+    style["--card-end-hover"] = gradEndHover;
+
     return <ReactRouterLink to={AppRoutes.apps.category(props.id)}>
-        <Button fullWidth>{props.categoryTitle}</Button>
+        <div className={CategoryCardStyle} style={style}>
+            <Relative>
+                <div className={"logo-wrapper"}><AppLogo size={"130px"} hash={hash}/></div>
+            </Relative>
+            <span>{props.categoryTitle}</span>
+        </div>
     </ReactRouterLink>;
 }
 
 const SpotlightDescription = injectStyle("spotlight-description", k => `
+    blockquote${k} {
+        margin: 0;
+        padding-left: 16px;
+        border-left: 5px solid var(--borderColorHover);
+    }
+    
     ${k} p:first-child {
         margin-top: 0;
     }
@@ -426,7 +602,7 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     }
 `)
 
-export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
+export const TopPicksCard: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
     return <TitledCard title={"Top picks"} icon={"heroChartBar"}>
         <AppCardGrid>
             {topPicks.map(pick => {
@@ -440,6 +616,137 @@ export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({to
             })}
         </AppCardGrid>
     </TitledCard>
+};
+
+const TopPickCardGridStyle = injectStyle("top-pick-grid", k => `
+    ${k} {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-rows: repeat(auto-fit, 115px);
+        gap: 16px;
+    }
+    
+    ${k} > *:first-child {
+        grid-row: span 2;
+    }
+    
+    ${k} > *:first-child > * {
+        height: calc(115px * 2 + 16px);
+    }
+    
+    ${k}.small > *:first-child {
+        grid-row: span 1;
+    }
+    
+    ${k}.small > *:first-child > * {
+        grid-row: span 1;
+        height: 115px;
+    }
+    
+    ${k} > * {
+        height: 115px;
+    }
+`);
+
+const TopPickCardStyle = injectStyle("top-pick", k => `
+    ${k} {
+        height: 115px;
+        box-shadow: var(--defaultShadow);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    ${k} > *:first-child {
+        position: relative;
+        left: var(--offset-x, 0);
+        top: var(--offset-y, 0);
+        transition: filter 0.3s;
+    }
+    
+    ${k}:hover > *:first-child {
+        filter: blur(10px);
+    }
+`);
+
+const backgroundColorTable: Record<number, string> = {
+    84: "#00bd80",
+    // 55: "#000000",
+    // 44: "#4097dc",
+    // 39: "#ffffff",
+};
+
+const offsetTable: Record<number, [number, number]> = {
+    84: [0, 0],
+    // 55: [0, 40],
+    18: [0, -5],
+    22: [5, 0],
+};
+
+const sizeTable: Record<number, string> = {
+    84: "192px",
+    // 55: "192px",
+    39: "224px",
+    7: "100px",
+    18: "140px",
+    22: "140px",
+};
+
+const LogoCard: React.FunctionComponent<{
+    groupId: number;
+    link: string;
+}> = ({groupId, link}) => {
+    const style: CSSProperties = {};
+    style["background"] = backgroundColorTable[groupId] ?? "white";
+    const [offX, offY] = offsetTable[groupId] ?? [0, 0];
+    style["--offset-x"] = offX + "px";
+    style["--offset-y"] = offY + "px";
+
+    return <ReactRouterLink to={link}>
+        <div className={TopPickCardStyle} style={style}>
+            <AppToolLogo size={sizeTable[groupId] ?? "100px"} name={groupId.toString()}
+                         type={"GROUP"}/>
+
+        </div>
+    </ReactRouterLink>;
+}
+
+export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
+    return <div>
+        <h3>Top picks</h3>
+        <div className={TopPickCardGridStyle}>
+            {topPicks.map(pick => {
+                if (pick.groupId) {
+                    let link = AppRoutes.apps.group(pick.groupId.toString());
+                    if (pick.defaultApplicationToRun) {
+                        link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
+                    }
+
+                    return <LogoCard groupId={pick.groupId} link={link}/>;
+                } else {
+                    return null;
+                }
+            })}
+        </div>
+    </div>
+};
+
+export const StarredApplications2: React.FunctionComponent<{
+    apps: AppStore.ApplicationSummaryWithFavorite[]
+}> = ({apps}) => {
+    return <div>
+        <h3>Starred applications</h3>
+        <div className={classConcat(TopPickCardGridStyle, apps.length <= 4 ? "small" : undefined)}>
+            {apps.map(app => {
+                const link = AppRoutes.jobs.create(app.metadata.name);
+                const groupId = app.metadata.group?.metadata?.id ?? 0;
+
+                return <LogoCard groupId={groupId} link={link}/>;
+            })}
+        </div>
+    </div>
 };
 
 export default LandingPage;

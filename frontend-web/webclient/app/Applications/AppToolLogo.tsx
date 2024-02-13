@@ -144,7 +144,7 @@ const S32 = Math.sqrt(3) * .5;
 const R1 = 0.5; // inner radius of outer element (outer radius is 1)
 const R2 = 0.7; // outer radius of inner element
 const R3 = (1 + R2) * .5; // radius of white background hexagon
-const CENTER_C = nColors - 1;
+const CENTER_COLORS = ["#C9D3DF", "#8393A7", "#53657D"]
 export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLogoRawProps): JSX.Element => {
     const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
     const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
@@ -166,19 +166,19 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLog
                 />
             </defs>
             <g transform={`rotate(${rot} 0 0)`}>
-                <use href="#hex_th___" fill="#fff" />
-                <use href="#hex_to___" fill={appColors[appC][c1[0]]} />
-                <use href="#hex_to___" fill={appColors[appC][c1[1]]} transform={ROT120} />
-                <use href="#hex_to___" fill={appColors[appC][c1[2]]} transform={ROT240} />
-                <use href="#hex_ti___" fill={appColors[CENTER_C][c2[0]]} />
-                <use href="#hex_ti___" fill={appColors[CENTER_C][c2[1]]} transform={ROT120} />
-                <use href="#hex_ti___" fill={appColors[CENTER_C][c2[2]]} transform={ROT240} />
+                <use href="#hex_th___" fill="#fff"/>
+                <use href="#hex_to___" fill={appColors[appC][c1[0]]}/>
+                <use href="#hex_to___" fill={appColors[appC][c1[1]]} transform={ROT120}/>
+                <use href="#hex_to___" fill={appColors[appC][c1[2]]} transform={ROT240}/>
+                <use href="#hex_ti___" fill={CENTER_COLORS[c2[0]]}/>
+                <use href="#hex_ti___" fill={CENTER_COLORS[c2[1]]} transform={ROT120}/>
+                <use href="#hex_ti___" fill={CENTER_COLORS[c2[2]]} transform={ROT240}/>
             </g>
         </svg>
     );
 };
 
-export const AppLogo = ({size, hash}: {size: string, hash: number}): JSX.Element => {
+export const AppLogo = ({size, hash}: { size: string, hash: number }): JSX.Element => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
     const rot = [0, 15, 30];
@@ -200,13 +200,14 @@ const SafeLogoStyle = injectStyle("safe-app-logo", k => `
     }
 `);
 export const SafeLogo: React.FunctionComponent<{
-    name: string,
-    type: "APPLICATION" | "TOOL" | "GROUP",
-    size: string
+    name: string;
+    type: "APPLICATION" | "TOOL" | "GROUP";
+    size: string;
+    forceBackground?: boolean;
 }> = props => {
     return <div
         className={SafeLogoStyle}
-        style={{padding: `${parseInt(props.size.toString().replace("px", "")) / 8}px`}}
+        style={{padding: `${parseInt(props.size.toString().replace("px", "")) / 8}px`, background: props.forceBackground ? "white" : undefined}}
     >
         <AppToolLogo size={props.size} name={props.name} type={props.type}/>
     </div>;
