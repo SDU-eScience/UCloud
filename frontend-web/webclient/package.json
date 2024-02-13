@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2024.1.0-dev-22",
+    "version": "2024.1.0-dev-30",
     "description": "UCloud",
     "type": "module",
     "author": "IMADA - eScience Center, SDU",
@@ -20,7 +20,7 @@
         "@novnc/novnc": "1.4.0",
         "@reduxjs/toolkit": "2.1.0",
         "@rjsf/core": "4.2.3",
-        "@svgr/cli": "5.5.0",
+        "@svgr/cli": "8.1.0",
         "apexcharts": "3.45.2",
         "assert": "2.1.0",
         "date-fns": "3.3.1",
@@ -30,7 +30,7 @@
         "jsrsasign": "10.8.6",
         "localforage": "1.10.0",
         "magic-bytes.js": "1.8.0",
-        "monaco-editor": "0.45.0",
+        "monaco-editor": "0.46.0",
         "path-browserify": "1.0.1",
         "react": "18.2.0",
         "react-apexcharts": "1.4.1",
@@ -43,7 +43,7 @@
         "react-router-dom": "6.22.0",
         "react-syntax-highlighter": "15.5.0",
         "react-transition-group": "4.4.5",
-        "react-virtualized-auto-sizer": "1.0.21",
+        "react-virtualized-auto-sizer": "1.0.22",
         "react-window": "1.8.10",
         "redux": "4.2.1",
         "svgi": "1.1.2",
@@ -55,9 +55,9 @@
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.15",
         "@types/jsrsasign": "10.5.12",
-        "@types/react": "18.2.53",
-        "@types/react-datepicker": "4.19.5",
-        "@types/react-dom": "18.2.18",
+        "@types/react": "18.2.55",
+        "@types/react-datepicker": "4.19.6",
+        "@types/react-dom": "18.2.19",
         "@types/react-dropzone": "5.1.0",
         "@types/react-modal": "3.16.3",
         "@types/react-redux": "7.1.33",
@@ -69,6 +69,6 @@
         "@vitejs/plugin-react": "^4.2.1",
         "@vitejs/plugin-react-refresh": "1.3.6",
         "typescript": "5.3.3",
-        "vite": "5.0.12"
+        "vite": "5.1.1"
     }
 }

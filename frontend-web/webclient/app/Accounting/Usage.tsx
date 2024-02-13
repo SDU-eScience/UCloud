@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Link, Radio} from "@/ui-components";
+import {Box, Flex, Icon, Input, Link, Radio, Text} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -489,7 +489,8 @@ const Visualization: React.FunctionComponent = () => {
     const isAnyLoading = state.remoteData.requestsInFlight !== 0;
     const hasNoMeaningfulData =
         state.activeDashboard === undefined ||
-        state.activeDashboard.usageOverTime.dataPoints.every(it => it.usage === 0);
+        state.activeDashboard.usageOverTime.dataPoints.every(it => it.usage === 0) &&
+        (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -510,16 +511,14 @@ const Visualization: React.FunctionComponent = () => {
             <ContextSwitcher />
         </header>
 
-        <div style={{padding: "13px 16px 16px 16px"}}>
+        <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
             <h3>Resource usage</h3>
 
             {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight ? <>
                 <HexSpin size={64} />
             </> : null}
 
-            {(state.summaries.length === 0 && state.remoteData.requestsInFlight === 0) ? <>
-                Could not find any usage data!
-            </> : null}
+            {hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> : null}
 
             <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingBottom={"26px"}>
                 {state.summaries.map(s =>
@@ -539,32 +538,50 @@ const Visualization: React.FunctionComponent = () => {
                 )}
             </Flex>
 
-            {state.activeDashboard &&
-                <>
-                    {hasNoMeaningfulData ? "No usage data found" :
-                        <div className="panels">
-                            <div className={classConcat("panel-grid", activeCategory?.productType === "COMPUTE" ? HasAlotOfInfoClass.class : undefined)}>
-                                <CategoryDescriptorPanel
-                                    category={state.activeDashboard.category}
-                                    usage={state.activeDashboard.currentAllocation.usage}
-                                    quota={state.activeDashboard.currentAllocation.quota}
-                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                                />
-                                <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
-                                <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
-                                {activeCategory?.productType === "COMPUTE" && <>
-                                    <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                                    <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                                    <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                                </>}
-                            </div>
-                        </div>
-                    }
-                </>
+            {state.activeDashboard ?
+                <div className="panels">
+                    <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
+                        <CategoryDescriptorPanel
+                            category={state.activeDashboard.category}
+                            usage={state.activeDashboard.currentAllocation.usage}
+                            quota={state.activeDashboard.currentAllocation.quota}
+                            expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                        />
+                        <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
+                        <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
+                        {hasChart3And4 ? <>
+                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
+                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
+                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
+                        </> : null}
+                    </div>
+                </div>
+                : null
             }
         </div>
     </div>;
 };
+
+const NoDataClass = injectStyle("no-data", k => `
+    ${k} {
+        background: var(--primaryMain);
+        height: 100px;
+        width: 100px;
+        display: flex;
+        border-radius: 100px;
+        align-items: center;
+        justify-content: center;
+    }
+`);
+
+function NoData({productType}: {productType?: Accounting.ProductArea}): React.JSX.Element {
+    return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px" height="400px">
+        <div className={NoDataClass}>
+            <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} color2="primaryContrast" color="primaryContrast" size={60} />
+        </div>
+        <Text mt="16px" fontSize={16}>No usage data found!</Text>
+    </Flex>;
+}
 
 // Panel components
 // =====================================================================================================================
@@ -831,6 +848,11 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
         return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
     })();
 
+    const datapointSum = useMemo(() => {
+        return dataPoints.reduce((a, b) => a + b.value, 0);
+    }, [dataPoints])
+
+
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
             <h4>Usage breakdown by sub-projects</h4>
@@ -840,28 +862,31 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
             <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
         </>}
 
-        <div className="pie-wrapper">
+        {datapointSum === 0 ? null : <div className="pie-wrapper">
             <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
-        </div>
+        </div>}
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Project</th>
-                    <th>Usage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {dataPoints.map((point, idx) => {
-                    const usage = point.value;
-
-                    return <tr key={idx}>
-                        <td>{point.key}</td>
-                        <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected  */}
+        <div style={{overflowY: "scroll"}}>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Usage</th>
                     </tr>
-                })}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {dataPoints.map((point, idx) => {
+                        const usage = point.value;
+
+                        return <tr key={idx}>
+                            <td>{point.key}</td>
+                            <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+                        </tr>
+                    })}
+                </tbody>
+            </table>
+        </div>
     </div>;
 };
 
@@ -1956,6 +1981,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
     }
 
     ${k} header.at-top {
+        z-index: 12; /* Note(Jonas): Otherwise, the header is behind the apex-chart buttons */
         box-shadow: unset;
     }
     

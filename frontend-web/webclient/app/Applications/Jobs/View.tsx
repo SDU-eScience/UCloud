@@ -7,7 +7,7 @@ import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import {Absolute, Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -47,6 +47,7 @@ import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {appendToXterm, useXTerm} from "./XTermLib";
+import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -452,7 +453,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
             <div className={`${logoWrapper.class} ${active.class}`}>
                 <div className={logoScale.class}>
                     <div className="logo">
-                        <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
+                        <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
                             size={"var(--logoSize)"} />
                     </div>
@@ -754,12 +755,6 @@ function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} 
         {props.children}
     </div>
 }
-
-const AltButtonGroupClass = injectStyleSimple("alt-button-group", `
-  display: grid;
-  width: 100%;
-  grid-gap: 8px;
-`);
 
 AltButtonGroup.defaultProps = {
     marginTop: "8px",
@@ -1064,6 +1059,25 @@ const RunningContent: React.FunctionComponent<{
     </>;
 };
 
+function transformToSSHUrl(command: string): string {
+    const splitCommand = command.split(" ");
+    // EXAMPLE:
+    // ssh ucloud@ssh.cloud.sdu.dk -p 1234
+    const [ssh, hostname, portFlag, port] = splitCommand as [string?, string?, string?, string?];
+    if (ssh !== "ssh") return "#"; // NOTE(Jonas): Ensure ssh command
+    if (!hostname?.includes("@")) return "#"; // NOTE(Jonas): Ensure @ is contained.
+    if (portFlag !== "-p") return "#"; // NOTE(Jonas): Ensure -p flag is there.
+    if (!port?.length) return "#"; // NOTE(Jonas): Ensure port number is defined and ensure port is number.
+    try {
+        parseInt(port, 10);
+    } catch (e) {
+        console.warn("Failed to parse port", e);
+        return "#";
+    }
+
+    return `ssh://${hostname}:${port}`;
+}
+
 const StandardPanelBody: React.FunctionComponent<{
     children: React.ReactNode;
     divRef?: React.RefObject<HTMLDivElement>;
@@ -1158,7 +1172,7 @@ const RunningJobRank: React.FunctionComponent<{
         state.current?.subscriptions?.push(listener);
         listener();
     }, [job.id, rank]);
-    
+
     return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
         <div className={RunningJobRankWrapper}>
             <div ref={termRef} className="term" />
@@ -1273,20 +1287,27 @@ const RunningButtonGroup: React.FunctionComponent<{
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
 
+                const link = findDomAttributeFromAncestors(e.target, "href");
+                if (!link) return;
+
                 window.open(
-                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    link,
                     undefined,
                     "width=800,height=600,status=no"
                 );
             }}>
                 <Button type={"button"}>
-                    <Icon name={"heroCommandLine"} /> Open terminal
+                    <Icon name={"heroCommandLine"} />
+                    <div>Open terminal</div>
                 </Button>
             </Link>
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                <Button><Icon name={"heroArrowTopRightOnSquare"} /> Open interface</Button>
+                <Button>
+                    <Icon name={"heroArrowTopRightOnSquare"} />
+                    <div>Open interface</div>
+                </Button>
             </Link>
         )}
         {appType !== "VNC" || !supportsInterface ? null : (
@@ -1299,7 +1320,10 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=450,status=no"
                 );
             }}>
-                <Button><Icon name={"heroArrowTopRightOnSquare"} /> Open interface</Button>
+                <Button>
+                    <Icon name={"heroArrowTopRightOnSquare"} />
+                    <div>Open interface</div>
+                </Button>
             </Link>
         )}
     </div>

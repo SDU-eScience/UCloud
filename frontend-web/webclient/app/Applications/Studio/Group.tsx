@@ -7,7 +7,7 @@ import {useNavigate, useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {AppToolLogo, groupLogoCache} from "../AppToolLogo";
+import {AppToolLogo, groupLogoCache, SafeLogo} from "../AppToolLogo";
 import {doNothing, stopPropagation} from "@/UtilityFunctions";
 import {Tag} from "../Card";
 import ReactModal from "react-modal";
@@ -138,7 +138,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                     <ListRow
                                         left={
                                             <Flex gap="10px">
-                                                <AppToolLogo name={app} type="APPLICATION" size="30px"/>
+                                                <SafeLogo name={app} type="APPLICATION" size="30px"/>
                                                 {app}
                                             </Flex>
                                         }
@@ -210,7 +210,7 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                 <Heading.h4>Logo</Heading.h4>
                                 <Flex justifyContent="space-between">
-                                    <Box><AppToolLogo name={id.toString()} type="GROUP"/></Box>
+                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"}/></Box>
                                     <Flex justifyContent="right">
                                         <label className={ButtonClass}>
                                             Upload
@@ -298,7 +298,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
                                                     <Flex justifyContent="left" gap="20px">
-                                                        <Box><AppToolLogo name={app.metadata.name} type="APPLICATION"
+                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION"
                                                                           size="30px"/></Box>
                                                         <Box>{app.metadata.title}</Box>
                                                     </Flex>

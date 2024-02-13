@@ -27,7 +27,7 @@ import Divider from "./Divider";
 import {ThemeToggler} from "./ThemeToggle";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {compute, Page, PageV2} from "@/UCloud";
+import {Page, PageV2} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
@@ -36,7 +36,7 @@ import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
 import Absolute from "./Absolute";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
 import {api as FilesApi} from "@/UCloud/FilesApi";
@@ -503,6 +503,7 @@ function SecondarySidebar({
     const activeProjectId = useProjectId();
     const isPersonalWorkspace = !activeProjectId;
     const project = useProject();
+    const projectId = useProjectId();
     const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
@@ -520,7 +521,7 @@ function SecondarySidebar({
         emptyPageV2
     );
 
-    const canConsume = checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+    const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
 
     const dispatch = useDispatch();
     React.useEffect(() => {
@@ -599,7 +600,7 @@ function SecondarySidebar({
                     <SidebarEmpty>No drives available</SidebarEmpty>
                 </>}
 
-                {canConsume && drives.data.items.slice(0, 8).map(drive =>
+                {canConsume ? drives.data.items.slice(0, 8).map(drive =>
                     <SidebarEntry
                         key={drive.id}
                         text={drive.specification.title}
@@ -608,9 +609,9 @@ function SecondarySidebar({
                         to={AppRoutes.files.drive(drive.id)}
                         tab={SidebarTabId.FILES}
                     />
-                )}
+                ) : null}
 
-                {canConsume && favoriteFiles.length > 0 && <>
+                {canConsume && favoriteFiles.length > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
@@ -621,12 +622,12 @@ function SecondarySidebar({
                             tab={SidebarTabId.FILES}
                         />
                     )}
-                </>}
+                </> : null}
 
-                {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace && <>
+                {canConsume && sharesLinksInfo.length > 0 && isPersonalWorkspace ? <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Shared files</SidebarSectionHeader>
                     <SidebarLinkColumn links={sharesLinksInfo} />
-                </>}
+                </> : null}
             </>}
 
             {active !== SidebarTabId.WORKSPACE ? null : <>
@@ -679,7 +680,7 @@ function SecondarySidebar({
                 />
 
                 <SidebarEntry
-                    to={AppRoutes.grants.editor()}
+                    to={!canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId})}
                     text={"Apply for resources"}
                     icon={"heroPencilSquare"}
                     disabled={!canApply}
@@ -723,23 +724,7 @@ function SecondarySidebar({
             </>}
 
             {active !== SidebarTabId.APPLICATIONS ? null : <>
-                <SidebarSectionHeader to={AppRoutes.apps.landing()}
-                    tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
-                {appStoreSections.data.items.length === 0 && <>
-                    <SidebarEmpty>No applications found</SidebarEmpty>
-                </>}
-
-                {appStoreSections.data.items.map(section =>
-                    <SidebarEntry
-                        key={section.id}
-                        to={AppRoutes.apps.category(section.metadata.id)}
-                        text={section.specification.title}
-                        icon={"heroCpuChip"}
-                        tab={SidebarTabId.APPLICATIONS}
-                    />
-                )}
-
-                {appFavorites.length > 0 && <>
+                {appFavorites.length > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>
                     {appFavorites.map((fav, i) =>
                         <SidebarEntry
@@ -750,7 +735,23 @@ function SecondarySidebar({
                             tab={SidebarTabId.APPLICATIONS}
                         />
                     )}
+                </> : null}
+
+                <SidebarSectionHeader to={AppRoutes.apps.landing()}
+                    tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
+                {appStoreSections.data.items.length === 0 && <>
+                    <SidebarEmpty>No applications found</SidebarEmpty>
                 </>}
+
+                {appStoreSections.data.items.map(section =>
+                    <SidebarEntry
+                        key={section.metadata.id}
+                        to={AppRoutes.apps.category(section.metadata.id)}
+                        text={section.specification.title}
+                        icon={"heroCpuChip"}
+                        tab={SidebarTabId.APPLICATIONS}
+                    />
+                )}
             </>}
 
             {active !== SidebarTabId.RUNS ? null : <>
@@ -795,22 +796,7 @@ function SecondarySidebar({
 }
 
 function AppLogo({name}: {name: string}): JSX.Element {
-    return <Flex alignItems={"center"}>
-        <Flex
-            p="2px"
-            mr="4px"
-            justifyContent="center"
-            alignItems="center"
-            backgroundColor="var(--fixedWhite)"
-            width="16px"
-            height="16px"
-            minHeight="16px"
-            minWidth="16px"
-            borderRadius="4px"
-        >
-            <AppToolLogo size="12px" name={name} type="APPLICATION" />
-        </Flex>
-    </Flex>;
+    return <SafeLogo size="16px" name={name} type="APPLICATION" forceBackground />;
 }
 
 function Username({close}: {close(): void}): JSX.Element | null {

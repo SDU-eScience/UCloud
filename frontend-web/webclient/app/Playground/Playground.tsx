@@ -22,12 +22,19 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SnackType} from "@/Snackbar/Snackbars";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {Project} from "@/Project";
+import {testGenerator} from "@/Applications/LogoGenerator";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
 const Playground: React.FunctionComponent = () => {
     const main = (
         <>
+            <Button onClick={() => {
+                testGenerator();
+            }}>
+                Logo generator
+            </Button>
+            {/*
             <Button onClick={() => {
                 messageTest();
             }}>UCloud message test</Button>
@@ -143,6 +150,7 @@ const Playground: React.FunctionComponent = () => {
                     Connections!
                 </TabbedCardTab>
             </TabbedCard>
+            */}
         </>
     );
     return <MainContainer main={main} />;

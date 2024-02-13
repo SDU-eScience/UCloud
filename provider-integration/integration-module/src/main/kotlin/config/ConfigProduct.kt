@@ -9,6 +9,7 @@ import kotlinx.serialization.Transient
 import java.math.BigDecimal
 import java.math.MathContext
 import kotlin.math.ceil
+import kotlin.math.floor
 
 // Core model
 // =====================================================================================================================
@@ -169,7 +170,9 @@ enum class StorageUnit(val bytes: Long) {
     ;
 
     fun convertToThisUnitFromBytes(bytes: Long): Long {
-        return ceil(bytes.toDouble() / this.bytes).toLong()
+        // NOTE(Dan): we need to floor this, because otherwise we won't actually give people the full quota
+        // they deserve (this becomes very apparent when granting small quotas).
+        return floor(bytes.toDouble() / this.bytes).toLong()
     }
 
     fun convertFromThisUnitToBytes(amount: Long): Long {

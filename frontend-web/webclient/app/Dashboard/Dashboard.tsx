@@ -35,6 +35,7 @@ import {NewsPost} from "@/NewsPost";
 import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
+import tooltip, {TooltipV2} from "@/ui-components/Tooltip";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -189,7 +190,7 @@ function ApplyLinkButton(): React.JSX.Element {
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
     if (!canApply) return <div />
 
-    return <Link to={AppRoutes.grants.newApplication({projectId: Client.projectId})} mt={8}>
+    return <Link to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()} mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 }
@@ -205,7 +206,8 @@ function DashboardResources({wallets}: {
         const filtered = w.allocations.filter(a => now >= a.startDate && now <= a.endDate);
         const quota = filtered.reduce((a, b) => a + b.quota, 0);
         const used = filtered.reduce((a, b) => a + (b.treeUsage ?? b.localUsage), 0);
-        return {used, quota, category: w.paysFor};
+        const maxUsable = filtered.reduce((a, b) => a + (b.maxUsable), 0);
+        return {used, quota, category: w.paysFor, maxUsable};
     }).filter(it => !it.category.freeToUse && it.quota > 0);
 
     mapped.sort((a, b) => {
@@ -249,15 +251,19 @@ function DashboardResources({wallets}: {
                                         </Flex>
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                        {Accounting.balanceToString(n.category, n.used, {
-                                            precision: 0,
-                                            removeUnitIfPossible: true
-                                        })}
-                                        {" "}/{" "}
-                                        {Accounting.balanceToString(n.category, n.quota, {
-                                            precision: 0,
-                                            removeUnitIfPossible: false
-                                        })}
+                                        <Flex justifyContent="end">
+                                            {n.maxUsable == (n.quota - n.used) ? null :
+                                                <TooltipV2 tooltip={"Allocation limitation. Contact your grant giver."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2>}
+                                            {Accounting.balanceToString(n.category, n.used, {
+                                                precision: 0,
+                                                removeUnitIfPossible: true
+                                            })}
+                                            {" "}/{" "}
+                                            {Accounting.balanceToString(n.category, n.quota, {
+                                                precision: 0,
+                                                removeUnitIfPossible: false
+                                            })}
+                                        </Flex>
                                     </TableCell>
                                 </TableRow>
                             ))}

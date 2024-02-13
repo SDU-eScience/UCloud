@@ -1,4 +1,4 @@
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import {Flex, Icon, Relative} from "@/ui-components";
 import Link from "@/ui-components/Link";
@@ -105,18 +105,6 @@ const ApplicationCardClass = injectStyle("application-card", k => `
         text-overflow: ellipsis;
         overflow: hidden;
     }
-
-    ${k} > div.image {
-        background-color: transparent;
-        border-radius: 12px;
-        margin-left: auto;
-        margin-right: auto;
-        display: flex;
-    }
-
-    html.dark ${k} > div.image {
-        background-color: white;
-    }
 `);
 
 function MultiLineTruncate(props: React.PropsWithChildren<{ lines: number }>): JSX.Element {
@@ -137,15 +125,13 @@ export interface AppCardProps extends React.PropsWithChildren<ApplicationCardPro
 export function AppCard(props: AppCardProps): JSX.Element {
     return React.useMemo(() => {
         const card = <div className={classConcat(CardClass, ApplicationCardClass)}>
-            <div className="image">
-                <AppToolLogo
-                    size={"85px"}
-                    name={props.logo}
-                    type={props.type === AppCardType.APPLICATION ?
-                        "APPLICATION" : "GROUP"
-                    }
-                />
-            </div>
+            <SafeLogo
+                size={"85px"}
+                name={props.logo}
+                type={props.type === AppCardType.APPLICATION ?
+                    "APPLICATION" : "GROUP"
+                }
+            />
 
             <div title={props.title} className={TitleAndDescriptionClass}>
                 <h2>{props.title}</h2>

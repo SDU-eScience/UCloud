@@ -1,5 +1,5 @@
 import {useEffect} from "react";
-import {Action, AnyAction, combineReducers, compose} from "redux";
+import {Action, AnyAction, combineReducers} from "redux";
 
 import {dashboardReducer} from "@/Dashboard/Redux";
 import {initObject} from "@/DefaultObjects";
@@ -10,7 +10,7 @@ import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
 import {popInReducer} from "@/ui-components/PopIn";
 import sidebar from "@/Applications/Redux/Reducer";
-import {EnhancedStore, configureStore} from "@reduxjs/toolkit";
+import {EnhancedStore, ReducersMapObject, configureStore} from "@reduxjs/toolkit";
 import {noopCall} from "@/Authentication/DataHook";
 
 export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
@@ -20,17 +20,16 @@ export const USER_LOGOUT = "USER_LOGOUT";
 
 export function confStore(
     initialObject: ReduxObject,
-    reducers,
-    enhancers?
+    reducers: ReducersMapObject<ReduxObject, AnyAction>,
 ): EnhancedStore<ReduxObject> {
-    const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
+    const combinedReducers = combineReducers(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {
             state = initObject();
         }
         return combinedReducers(state, action);
     };
-    return configureStore<ReduxObject>({reducer: rootReducer, preloadedState: initialObject, enhancers: compose(enhancers)});
+    return configureStore<ReduxObject>({reducer: rootReducer, preloadedState: initialObject});
 }
 
 export const store = confStore(initObject(), {

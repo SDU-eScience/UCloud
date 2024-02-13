@@ -4,12 +4,12 @@ import React, {useCallback, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
-import {AppToolLogo} from "../AppToolLogo";
+import {AppToolLogo, SafeLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, onDevSite} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -100,6 +100,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                         <Link to={AppRoutes.apps.studioHero()} flexGrow={1}><Button fullWidth>Carrousel</Button></Link>
                         <Link to={AppRoutes.apps.studioTopPicks()} flexGrow={1}><Button fullWidth>Top picks</Button></Link>
                         <Link to={AppRoutes.apps.studioSpotlights()} flexGrow={1}><Button fullWidth>Spotlights</Button></Link>
+                        <Link to={AppRoutes.apps.studioCategories()} flexGrow={1}><Button fullWidth>Categories</Button></Link>
                         <Box flexGrow={1}>
                             <Button fullWidth onClick={() => {
                                 AppStore.doExport().then(s => {
@@ -113,6 +114,34 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 Export to ZIP
                             </Button>
                         </Box>
+
+                        {onDevSite() &&
+                            <label className={ButtonClass} style={{flexGrow: 1}}>
+                                Import from ZIP
+                                <HiddenInputField
+                                    type="file"
+                                    onChange={async e => {
+                                        const target = e.target;
+                                        if (target.files) {
+                                            const file = target.files[0];
+                                            target.value = "";
+                                            if (file.size > 1024 * 1024 * 64) {
+                                                snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                            } else {
+                                                const error = (await AppStore.doImport(file)).error;
+                                                if (error != null) {
+                                                    setErrorMessage(error);
+                                                } else {
+                                                    snackbarStore.addSuccess("Tool uploaded successfully", false);
+                                                    setErrorMessage(null);
+                                                }
+                                            }
+                                            dialogStore.success();
+                                        }
+                                    }}
+                                />
+                            </label>
+                        }
                     </Flex>
 
                     {errorMessage && <Box mb={"32px"}>
@@ -156,7 +185,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 navigate={() => navigate(`/applications/studio/g/${group.metadata.id}`)}
                                 left={
                                     <Flex justifyContent="left">
-                                        <AppToolLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
+                                        <SafeLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
                                         <Box ml="10px">
                                             {group.specification.title}
                                         </Box>

@@ -54,6 +54,7 @@ class ImportExport(
         val currentLanding = service.retrieveLandingPage(ActorAndProject.System)
         val carrousel: List<CarrouselItem> = currentLanding.carrousel
         val carrouselImages = carrousel.mapIndexed { index, _ -> service.retrieveCarrouselImage(index) }
+        val topPicks: List<TopPick> = currentLanding.topPicks
 
         // Encoding
         val categoriesFile = defaultMapper.encodeToString(categories).encodeToByteArray()
@@ -64,6 +65,7 @@ class ImportExport(
         val appsFile = defaultMapper.encodeToString(apps).encodeToByteArray()
         val spotlightFile = defaultMapper.encodeToString(spotlights).encodeToByteArray()
         val carrouselFile = defaultMapper.encodeToString(carrousel).encodeToByteArray()
+        val topPicksFile = defaultMapper.encodeToString(topPicks).encodeToByteArray()
 
         return withContext(Dispatchers.IO) {
             val zipBytes = ByteArrayOutputStream()
@@ -84,6 +86,7 @@ class ImportExport(
                 writeEntry(appsFileName, appsFile)
                 writeEntry(spotlightFileName, spotlightFile)
                 writeEntry(carrouselFileName, carrouselFile)
+                writeEntry(topPicksFileName, topPicksFile)
 
                 for ((index, img) in carrouselImages.withIndex()) {
                     writeEntry(carrouselImageFileName(index), img)
@@ -134,6 +137,7 @@ class ImportExport(
         val spotlights = decode(spotlightFileName, ListSerializer(Spotlight.serializer()))
         val carrousel = decode(carrouselFileName, ListSerializer(CarrouselItem.serializer()))
         val carrouselImages = carrousel.mapIndexedNotNull { index, _ -> importedData[carrouselImageFileName(index)] }
+        val topPicks = decode(topPicksFileName, ListSerializer(TopPick.serializer()))
 
         val a = ActorAndProject.System
         for (tool in tools) {
@@ -149,7 +153,7 @@ class ImportExport(
         for (app in apps) {
             if (service.retrieveApplication(a, app.metadata.name, app.metadata.version) == null) {
                 try {
-                    service.createApplication(a, Application(app.metadata, app.invocation))
+                    service.createApplication(a, Application(app.metadata.copy(group = null), app.invocation))
                 } catch (ex: Throwable) {
                     error("Could not create tool: ${app.metadata}\n${ex.toReadableStacktrace()}")
                 }
@@ -169,6 +173,16 @@ class ImportExport(
 
             val newId = service.createGroup(a, group.specification.title)
             groupIdRemapper[group.metadata.id] = newId
+        }
+
+        for (group in groups) {
+            val mappedId = groupIdRemapper.getValue(group.metadata.id)
+            service.updateGroup(
+                a,
+                mappedId,
+                newDescription = group.specification.description,
+                newDefaultFlavor = group.specification.defaultFlavor
+            )
         }
 
         for (group in groups) {
@@ -202,10 +216,12 @@ class ImportExport(
         for ((rawId, membership) in categoryMembership) {
             val mappedId = categoryIdRemapper.getValue(rawId)
             for (member in membership) {
-                service.addGroupToCategory(a, listOf(mappedId), member)
+                val mappedMember = groupIdRemapper.getValue(member)
+                service.addGroupToCategory(a, listOf(mappedId), mappedMember)
             }
         }
 
+        println("Creating spotlights...")
         val existingSpotlights = service.listSpotlights(a)
         for (spotlight in spotlights) {
             val existingId = existingSpotlights.find { it.title == spotlight.title }?.id
@@ -221,10 +237,21 @@ class ImportExport(
             )
         }
 
-        service.updateCarrousel(a, carrousel)
+        println("Updating carrousel")
+        service.updateCarrousel(a, carrousel.map { s ->
+            s.copy(
+                linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) }
+            )
+        })
         for ((index, image) in carrouselImages.withIndex()) {
             service.updateCarrouselImage(a, index, image)
         }
+
+        val newTopPicks = topPicks.map { pick ->
+            pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
+        }
+        println("These are the picks! $newTopPicks")
+        service.updateTopPicks(a, newTopPicks)
     }
 
     companion object {
@@ -236,6 +263,7 @@ class ImportExport(
         private const val appsFileName = "apps.json"
         private const val spotlightFileName = "spotlights.json"
         private const val carrouselFileName = "carrousel.json"
+        private const val topPicksFileName = "topPicks.json"
 
         private fun carrouselImageFileName(index: Int) = "carrousel-$index.bin"
         private fun groupLogoFileName(groupId: Int) = "group-logo-${groupId}.bin"

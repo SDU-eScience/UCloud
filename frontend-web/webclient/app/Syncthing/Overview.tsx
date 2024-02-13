@@ -1,7 +1,7 @@
 import * as React from "react";
 import {NavigateFunction, useNavigate} from "react-router";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import {useTitle} from "@/Navigation/Redux";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {default as ReactModal} from "react-modal";
@@ -655,7 +655,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
 const ServerRenderer: ItemRenderer<Job> = {
     Icon: ({resource, size}) => {
         if (!resource) return null;
-        return <AppToolLogo type="APPLICATION" name={resource.specification.application.name} size={size} />;
+        return <SafeLogo type="APPLICATION" name={resource.specification.application.name} size={size} />;
     },
 
     MainTitle: ({resource}) => {

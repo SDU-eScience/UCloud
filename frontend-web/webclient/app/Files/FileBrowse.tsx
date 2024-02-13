@@ -66,8 +66,6 @@ export enum SensitivityLevel {
     "SENSITIVE" = "Sensitive"
 }
 
-
-
 // Cached network data
 // =====================================================================================================================
 // This is stored outside the component since we want to be able to share it across all instances of the same component.
@@ -449,8 +447,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 };
 
                 let shouldRemoveFakeDirectory = true;
+                const fakeFileName = ".00000000000000000000$NEW_DIR"
                 const showCreateDirectory = () => {
-                    const fakeFileName = ".00000000000000000000$NEW_DIR"
                     const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName;
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                     shouldRemoveFakeDirectory = false;
@@ -765,7 +763,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             row.stat2.innerText = dateToString(modifiedAt)
                     }));
 
-                    if (opts?.selection) {
+                    if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
                         const button = browser.defaultButtonRenderer(opts.selection, file);
                         if (button) {
                             row.stat3.replaceChildren(button);
@@ -1353,7 +1351,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
         const b = browserRef.current;
         if (b) {
-            b.renameField.style.left = "60px";
+            b.renameField.style.left = "65px";
         }
 
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);

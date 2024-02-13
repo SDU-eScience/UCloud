@@ -18,16 +18,20 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.feature
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.actorAndProject
+import dk.sdu.cloud.service.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.temporal.TemporalAdjusters
+import java.util.Calendar
+import java.util.Date
 
 class AccountingController(
     private val micro: Micro,
@@ -141,14 +145,20 @@ class AccountingController(
         }
 
         implementOrDispatch(Accounting.rootDeposit) {
+            val startOfYear = LocalDate.now(ZoneOffset.UTC).with(TemporalAdjusters.firstDayOfYear()).atStartOfDay().toTimestamp()
+            val endOfNextYear = LocalDate.now(ZoneOffset.UTC)
+                .with(TemporalAdjusters.ofDateAdjuster { it.plusYears(1) })
+                .with(TemporalAdjusters.lastDayOfYear())
+                .atTime(23, 59, 59, 999_999_999)
+                .toTimestamp()
+
             val newTypeRequest = request.items.map {
                 RootAllocationRequestItem(
                     it.recipient,
                     ProductCategoryIdV2(it.categoryId.name, it.categoryId.provider),
                     it.amount,
-                    it.startDate ?: Time.now(),
-                    it.endDate
-                        ?: 4102444800000, //Long.MaxValue is to large for Postgres so we give the timestamp to 1/1/2100
+                    it.startDate ?: startOfYear,
+                    it.endDate ?: endOfNextYear,
                     deicAllocationId = null,
                     forcedSync = it.forcedSync
                 )
