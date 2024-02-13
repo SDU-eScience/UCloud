@@ -23,6 +23,7 @@ import {SnackType} from "@/Snackbar/Snackbars";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {Project} from "@/Project";
 import {testGenerator} from "@/Applications/LogoGenerator";
+import {NewAndImprovedProgress} from "@/ui-components/Progress";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -34,6 +35,14 @@ const Playground: React.FunctionComponent = () => {
             }}>
                 Logo generator
             </Button>
+            <NewAndImprovedProgress limit={20} label="Twenty!" percentage={30} />
+            <NewAndImprovedProgress limit={40} label="Forty!" percentage={30} />
+            <NewAndImprovedProgress limit={60} label="Sixty!" percentage={30} />
+            <NewAndImprovedProgress limit={80} label="Eighty!" percentage={30} />
+            <NewAndImprovedProgress limit={100} label="Hundred!" percentage={30} />
+            <NewAndImprovedProgress limit={120} label="Above!!" percentage={30} />
+            <NewAndImprovedProgress limit={120} label="OY!" percentage={110} />
+            <NewAndImprovedProgress limit={100} label="OY!" percentage={130} />
             {/*
             <Button onClick={() => {
                 messageTest();
