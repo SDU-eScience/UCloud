@@ -724,6 +724,19 @@ function SecondarySidebar({
             </>}
 
             {active !== SidebarTabId.APPLICATIONS ? null : <>
+                {appFavorites.length > 0 ? <>
+                    <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>
+                    {appFavorites.map((fav, i) =>
+                        <SidebarEntry
+                            key={i}
+                            to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
+                            text={fav.metadata.title}
+                            icon={<AppLogo name={fav.metadata.name} />}
+                            tab={SidebarTabId.APPLICATIONS}
+                        />
+                    )}
+                </> : null}
+
                 <SidebarSectionHeader to={AppRoutes.apps.landing()}
                     tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
                 {appStoreSections.data.items.length === 0 && <>
@@ -739,19 +752,6 @@ function SecondarySidebar({
                         tab={SidebarTabId.APPLICATIONS}
                     />
                 )}
-
-                {appFavorites.length > 0 ? <>
-                    <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>
-                    {appFavorites.map((fav, i) =>
-                        <SidebarEntry
-                            key={i}
-                            to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
-                            text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name} />}
-                            tab={SidebarTabId.APPLICATIONS}
-                        />
-                    )}
-                </> : null}
             </>}
 
             {active !== SidebarTabId.RUNS ? null : <>
@@ -796,7 +796,7 @@ function SecondarySidebar({
 }
 
 function AppLogo({name}: {name: string}): JSX.Element {
-    return <SafeLogo size="12px" name={name} type="APPLICATION" />;
+    return <SafeLogo size="16px" name={name} type="APPLICATION" forceBackground />;
 }
 
 function Username({close}: {close(): void}): JSX.Element | null {

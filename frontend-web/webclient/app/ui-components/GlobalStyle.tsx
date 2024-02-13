@@ -23,7 +23,7 @@ export function injectFonts(): void {
     document.head.appendChild(styleTag);
 }
 
-function toRgb(color: string): [number, number, number] {
+export function hexToRgb(color: string): [number, number, number] {
     const normalized = color.replace("#", "")
     const r = parseInt(normalized.substring(0, 2), 16);
     const g = parseInt(normalized.substring(2, 4), 16);
@@ -31,9 +31,9 @@ function toRgb(color: string): [number, number, number] {
     return [r, g, b];
 }
 
-function mixColors(initialColor: string, endColor: string, percentage: number): string {
-    const colorA = toRgb(initialColor);
-    const colorB = toRgb(endColor);
+export function mixColors(initialColor: string, endColor: string, percentage: number): string {
+    const colorA = hexToRgb(initialColor);
+    const colorB = hexToRgb(endColor);
 
     const diff = [colorB[0] - colorA[0], colorB[1] - colorA[1], colorB[2] - colorA[2]];
 
@@ -43,12 +43,75 @@ function mixColors(initialColor: string, endColor: string, percentage: number): 
     return "#" + newR + newG + newB;
 }
 
-function shade(color: string, percentage: number): string {
+export function rgbToHex(r: number, g: number, b: number): string {
+    let result = "#";
+    result += Math.min(255, r).toString(16).padStart(2, '0');
+    result += Math.min(255, g).toString(16).padStart(2, '0');
+    result += Math.min(255, b).toString(16).padStart(2, '0');
+    return result;
+}
+
+export function shade(color: string, percentage: number): string {
     return mixColors(color, "#000000", percentage);
 }
 
-function tint(color: string, percentage: number): string {
+export function tint(color: string, percentage: number): string {
     return mixColors(color, "#ffffff", percentage);
+}
+
+export function compRgbToHsl(r: number, g: number, b: number): [number, number, number] {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const vmax = Math.max(r, g, b);
+    const vmin = Math.min(r, g, b);
+    let h: number = 0;
+    let s: number;
+    let l: number;
+    l = (vmax + vmin) / 2;
+
+    if (vmax === vmin) {
+        return [0, 0, l]; // achromatic
+    }
+
+    const d = vmax - vmin;
+    s = l > 0.5 ? d / (2 - vmax - vmin) : d / (vmax + vmin);
+    if (vmax === r) h = (g - b) / d + (g < b ? 6 : 0);
+    if (vmax === g) h = (b - r) / d + 2;
+    if (vmax === b) h = (r - g) / d + 4;
+    h /= 6;
+
+    return [h, s, l];
+}
+
+export function hslToRgb(h: number, s: number, l: number): string {
+    function hueToRgb(p, q, t) {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+    }
+
+    let r, g, b;
+
+    if (s === 0) {
+        r = g = b = l; // achromatic
+    } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hueToRgb(p, q, h + 1/3);
+        g = hueToRgb(p, q, h);
+        b = hueToRgb(p, q, h - 1/3);
+    }
+
+    return rgbToHex(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
+}
+
+export function rgbToHsl(rgbHex: string): [h: number, s: number, l: number] {
+    const [r, g, b] = hexToRgb(rgbHex)
+    return compRgbToHsl(r, g, b);
 }
 
 function luminance(r: number, g: number, b: number) {
@@ -67,8 +130,8 @@ function luminance(r: number, g: number, b: number) {
 }
 
 function contrast(rgb1: string, rgb2: string) {
-    const lum1 = luminance(...toRgb(rgb1));
-    const lum2 = luminance(...toRgb(rgb2));
+    const lum1 = luminance(...hexToRgb(rgb1));
+    const lum2 = luminance(...hexToRgb(rgb2));
     const brightest = Math.max(lum1, lum2);
     const darkest = Math.min(lum1, lum2);
     return (brightest + 0.05) / (darkest + 0.05);

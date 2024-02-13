@@ -14,7 +14,7 @@ export const appColors = [
     ["#D57AC5", "#E439C9", "#A1328F"], // purple
     ["#98E0F9", "#53A5F5", "#3E79C0"], // lightblue
     ["#DC6AA6", "#C62A5A", "#AA2457"], // red
-    ["#C9D3DF", "#8393A7", "#53657D"], // gray colors from the theme
+    // ["#C9D3DF", "#8393A7", "#53657D"], // gray colors from the theme
 ];
 
 export type ThemeColor =

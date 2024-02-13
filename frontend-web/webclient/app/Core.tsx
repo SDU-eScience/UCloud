@@ -296,9 +296,11 @@ async function onLogin(dispatch: Dispatch): Promise<void> {
     if (action !== null) dispatch(action);
 }
 
-injectStyle("ignored", () => `
-    ${UIGlobalStyle}
-`);
+(() => {
+    const globalStyle = document.createElement("style");
+    globalStyle.innerHTML = UIGlobalStyle;
+    document.head.append(globalStyle);
+})();
 
 Client.initializeStore(store);
 removeExpiredFileUploads();
