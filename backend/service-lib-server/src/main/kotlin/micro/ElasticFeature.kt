@@ -8,6 +8,8 @@ import dk.sdu.cloud.service.Loggable
 import org.apache.http.HttpHost
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
+import org.apache.http.conn.ssl.NoopHostnameVerifier
+import org.apache.http.conn.ssl.TrustAllStrategy
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.ssl.SSLContextBuilder
 import org.apache.http.ssl.SSLContexts
@@ -41,10 +43,10 @@ class ElasticFeature : MicroFeature {
                 configuration.credentials?.password ?: "")
         )
 
-        val sslBuilder: SSLContextBuilder = SSLContexts
+        val sslContext = SSLContexts
             .custom()
-            .loadTrustMaterial(null) { _, _ -> true }
-        val sslContext: SSLContext = sslBuilder.build()
+            .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
+            .build()
 
         val lowLevelClient = RestClient
             .builder(
@@ -56,12 +58,8 @@ class ElasticFeature : MicroFeature {
             )
             .setHttpClientConfigCallback {
                 it.setSSLContext(sslContext)
-                it.setSSLHostnameVerifier { _, _ -> true }
-            }
-            .setHttpClientConfigCallback { httpClientBuilder ->
-                httpClientBuilder.setDefaultCredentialsProvider(
-                    credentialsProvider
-                )
+                it.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                it.setDefaultCredentialsProvider(credentialsProvider)
             }
             .setRequestConfigCallback { requestConfigBuilder ->
                 requestConfigBuilder
