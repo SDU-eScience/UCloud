@@ -622,8 +622,6 @@ class SlurmPlugin : ComputePlugin {
         //
         // 2. Send accounting information to UCloud
 
-        var registeredJobs = 0
-
         // Retrieve and process Slurm accounting
         // ------------------------------------------------------------------------------------------------------------
         // In this section we will be performing the following steps:
@@ -713,7 +711,7 @@ class SlurmPlugin : ComputePlugin {
                         accountMapper.lookupByUCloud(
                             ResourceOwner("", project.project.id),
                             category.category.name,
-                            "normal"
+                            pluginConfig.partition
                         )?.account
                     )
                 }
@@ -738,7 +736,7 @@ class SlurmPlugin : ComputePlugin {
 
             val usageResponse = fetchComputeUsageExtension.invoke(this, fetchUsageExtensionPath, usageRequest)
 
-            usageResponse?.usage?.forEach { workspaceUsage ->
+            usageResponse.usage.forEach { workspaceUsage ->
                 val ucloudId = if (workspaceUsage.gid != null) {
                     projectMappings.find { it.second == workspaceUsage.gid}?.first
                 } else {
