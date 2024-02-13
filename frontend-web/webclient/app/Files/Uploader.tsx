@@ -390,16 +390,13 @@ const Uploader: React.FunctionComponent = () => {
             onRequestClose={closeModal}
             className={CardClass}
         >
-            <div style={{
-                height: "100%",
-                overflowY: "hidden"
-            }} className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
+            <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <div className="title" style={{height: "55px"}}>
                     <Flex onClick={closeModal}>
                         <Box ml="auto" />
                         <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
                     </Flex>
-                    <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads} />
+                    <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     <Text color="white">{uploadingText}</Text>
                 </div>
                 <div className="uploads" style={{overflowY: "auto", width: "100%", maxHeight: "calc(80vh - 200px)"}}>
@@ -411,7 +408,7 @@ const Uploader: React.FunctionComponent = () => {
                         />
                     ))}
                 </div>
-                <Flex minHeight={"150px"} justifyContent="center" marginTop="auto">
+                <Flex justifyContent="center">
                     <label style={{width: "100%"}} htmlFor={"fileUploadBrowse"}>
                         <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
                             onDragOver={preventDefault} data-slim={hasUploads}>
@@ -419,7 +416,7 @@ const Uploader: React.FunctionComponent = () => {
                                 {hasUploads ? null :
                                     <UploaderArt />
                                 }
-                                <div className="upload-more-text" color="white">
+                                <div className="upload-more-text" style={{marginTop: "22px"}} color="white">
                                     <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast" name="upload" /></TextSpan>
                                     <TextSpan mr="0.3em">Drop files here or</TextSpan>
                                     <i style={{cursor: "pointer"}}>browse</i>
@@ -434,15 +431,15 @@ const Uploader: React.FunctionComponent = () => {
                         </div>
                     </label>
                 </Flex>
-
                 {resumables.length === 0 ? null :
                     <div style={{
                         marginTop: hasUploads ? "-60px" : "-18px",
                         marginBottom: "4px",
-                        marginLeft: "4px",
-                        marginRight: "4px"
+                        marginLeft: "8px",
+                        marginRight: "4px",
+                        overflowY: "scroll"
                     }}>
-                        <Text color="text">Drag files to resume: </Text>
+                        <Text color="#fff">Drag files to resume: </Text>
                         {resumables.map(it =>
                             <div className={UploaderRowClass} key={it}>
                                 <Spacer paddingTop="20px"
@@ -496,10 +493,9 @@ interface UploadCallback {
 }
 
 const UploaderText = injectStyle("uploader-text", k => `
-    ${k}::after {
-        content: "Upload files";
+    ${k} {
         margin-left: 28px;
-        color: var(--fixedWhite);
+        color: white;
         font-size: 25px;
     }
 
@@ -519,23 +515,21 @@ const UploadMoreClass = injectStyle("upload-more", k => `
         align-items: center;
         text-align: center;
         flex-direction: column;
-        margin-top: 82px;
     }
     
     ${k} > div.upload-more-text {
-        color: var(--fixedWhite);
-        margin-top: 18px;
+        color: white;
     }
 
     ${k}[data-has-uploads="true"] {
         display: flex;
         background-color: transparent; 
-        color: var(--fixedWhite);
+        color: white;
         height: 70px;
         width: 100%;
         align-items: center;
         border-width: 2px;
-        border-color: var(--fixedWhite);
+        border-color: white;
         border-style: dashed;
         border-radius: 24px;
     }
@@ -544,8 +538,8 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 const UploaderRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 24px;
-        background-color: var(--fixedWhite); 
-        color: var(--fixedBlack);
+        background-color: white; 
+        color: black;
         height: 70px;
         width: 100%;
         margin-top: 12px;
@@ -638,7 +632,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
 }
 
 const ErrorSpan = injectStyleSimple("error-span", `
-    color: var(--fixedWhite);
+    color: white;
     border: 1px solid red;
     background-color: red;
     padding-left: 4px;
@@ -662,8 +656,8 @@ const UploaderArt: React.FunctionComponent = () => {
 const modalStyle = ({
     content: {
         ...largeModalStyle.content,
-        minHeight: "460px",
-        backgroundColor: "#4D8BFC",
+        left: `calc(50vw - 300px)`,
+        backgroundColor: "var(--primaryMain)",
         minWidth: "250px",
         width: "600px",
         maxWidth: "600px",
@@ -673,20 +667,28 @@ const modalStyle = ({
 const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
     ${k}[data-has-uploads="false"] {
         border-width: 2px;
-        border-color: var(--fixedWhite);
+        border-color: white;
         border-style: dashed;
         border-radius: 5px;
+    }
+    
+    ${k} {
+        overflow-y: scroll;
+        height: 100%;
+        max-height: 80vh;
     }
 `);
 
 const DropZoneBox = injectStyle("dropzone-box", k => `
     ${k} {
-        width: 100%;
-        height: 280px;
-        margin: 16px 0 16px 0;
+        width: 100%;        
         display: flex;
-        align-items: center;
         justify-content: center;
+    }
+
+    ${k}[data-slim="false"] {
+        height: 240px;
+        align-items: center;
     }
 
     ${k}[data-slim="true"] {
