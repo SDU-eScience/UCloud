@@ -4,6 +4,8 @@ import Text from "./Text";
 import {ThemeColor} from "./theme";
 import {injectStyle} from "@/Unstyled";
 import {CSSProperties} from "react";
+import {TooltipV2} from "./Tooltip";
+import Icon from "./Icon";
 
 const ProgressBaseClass = injectStyle("progress-base", k => `
     ${k} {
@@ -109,7 +111,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
 `)
 
 const DEBUGGING_PURPOSES = DEVELOPMENT_ENV;
-export function NewAndImprovedProgress({label, percentage, limit}: {label: string; percentage: number; limit: number;}) {
+export function NewAndImprovedProgress({label, percentage, limit, withWarning}: {label: string; percentage: number; limit: number; withWarning?: boolean}) {
     React.useEffect(() => {
         if (DEBUGGING_PURPOSES) {
             if (percentage > 100) {
@@ -125,7 +127,8 @@ export function NewAndImprovedProgress({label, percentage, limit}: {label: strin
     const style: CSSProperties = {};
     style["--percentage"] = percentage + "%";
     style["--limit"] = limit + "%";
-    return <div className={NewAndImprovedProgressStyle} data-label={label} style={style} />
+    const warning = withWarning ? <TooltipV2 tooltip={"Allocation limitation reached. Contact your grant giver."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2> : null;
+    return <Flex>{warning}<div className={NewAndImprovedProgressStyle} data-label={label} style={style} /></Flex>
 }
 
 export default Progress;

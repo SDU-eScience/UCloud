@@ -42,7 +42,7 @@ const Playground: React.FunctionComponent = () => {
             <NewAndImprovedProgress limit={100} label="Hundred!" percentage={30} />
             <NewAndImprovedProgress limit={120} label="Above!!" percentage={30} />
             <NewAndImprovedProgress limit={120} label="OY!" percentage={110} />
-            <NewAndImprovedProgress limit={100} label="OY!" percentage={130} />
+            <NewAndImprovedProgress limit={100} label="OY!" percentage={130} withWarning />
             {/*
             <Button onClick={() => {
                 messageTest();
