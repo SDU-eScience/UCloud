@@ -9,10 +9,15 @@ import org.apache.http.HttpHost
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.impl.client.BasicCredentialsProvider
+import org.apache.http.ssl.SSLContextBuilder
+import org.apache.http.ssl.SSLContexts
 import org.elasticsearch.client.RestClient
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.net.ssl.SSLContext
+
+
 
 class ElasticFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -35,13 +40,24 @@ class ElasticFeature : MicroFeature {
                 configuration.credentials?.username ?: "",
                 configuration.credentials?.password ?: "")
         )
-        val lowLevelClient = RestClient.builder(
-            HttpHost(
-                configuration.hostname,
-                configuration.port!!,
-                "http"
+
+        val sslBuilder: SSLContextBuilder = SSLContexts
+            .custom()
+            .loadTrustMaterial(null) { _, _ -> true }
+        val sslContext: SSLContext = sslBuilder.build()
+
+        val lowLevelClient = RestClient
+            .builder(
+                HttpHost(
+                    configuration.hostname,
+                    configuration.port!!,
+                    configuration.scheme ?: "http",
+                )
             )
-        )
+            .setHttpClientConfigCallback {
+                it.setSSLContext(sslContext)
+                it.setSSLHostnameVerifier { _, _ -> true }
+            }
             .setHttpClientConfigCallback { httpClientBuilder ->
                 httpClientBuilder.setDefaultCredentialsProvider(
                     credentialsProvider
@@ -98,6 +114,7 @@ class ElasticFeature : MicroFeature {
         data class Config(
             val hostname: String? = findValidHostname(listOf("elasticsearch", "localhost")),
             val port: Int? = 9200,
+            val scheme: String? = null,
             val credentials: Credentials? = null
         )
 
