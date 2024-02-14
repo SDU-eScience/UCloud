@@ -391,7 +391,7 @@ const Uploader: React.FunctionComponent = () => {
             className={CardClass}
         >
             <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
-                <div className="title" style={{height: "55px"}}>
+                <div className="title">
                     <Flex onClick={closeModal}>
                         <Box ml="auto" />
                         <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
@@ -409,7 +409,7 @@ const Uploader: React.FunctionComponent = () => {
                     ))}
                 </div>
                 <Flex justifyContent="center">
-                    <label style={{width: "100%"}} htmlFor={"fileUploadBrowse"}>
+                    <label style={{width: "100%", height: !hasUploads ? undefined : "70px", marginBottom: "8px"}} htmlFor={"fileUploadBrowse"}>
                         <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
                             onDragOver={preventDefault} data-slim={hasUploads}>
                             <div data-has-uploads={hasUploads} className={UploadMoreClass}>
@@ -433,13 +433,12 @@ const Uploader: React.FunctionComponent = () => {
                 </Flex>
                 {resumables.length === 0 ? null :
                     <div style={{
-                        marginTop: hasUploads ? "-60px" : "-18px",
                         marginBottom: "4px",
                         marginLeft: "8px",
                         marginRight: "4px",
                         overflowY: "scroll"
                     }}>
-                        <Text color="#fff">Drag files to resume: </Text>
+                        <Text color="var(--textPrimary)">Drag files to resume: </Text>
                         {resumables.map(it =>
                             <div className={UploaderRowClass} key={it}>
                                 <Spacer paddingTop="20px"
@@ -495,12 +494,8 @@ interface UploadCallback {
 const UploaderText = injectStyle("uploader-text", k => `
     ${k} {
         margin-left: 28px;
-        color: white;
+        color: var(--textPrimaryadsadsadsadsads);
         font-size: 25px;
-    }
-
-    ${k}[data-has-uploads="true"] {
-        margin-top: -22px;
     }
 
     ${k}[data-has-uploads="true"]::after {
@@ -538,8 +533,7 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 const UploaderRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 24px;
-        background-color: white; 
-        color: black;
+        border: 1px solid var(--textPrimary);
         height: 70px;
         width: 100%;
         margin-top: 12px;
@@ -589,7 +583,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
         <div>
             <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row.rootEntry.name)}} size="32px" /></div>
             <div>
-                <Truncate maxWidth="270px" fontSize="18px">{upload.row.rootEntry.name}</Truncate>
+                <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.row.rootEntry.name}</Truncate>
                 <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
             </div>
             <div />
@@ -657,7 +651,6 @@ const modalStyle = ({
     content: {
         ...largeModalStyle.content,
         left: `calc(50vw - 300px)`,
-        backgroundColor: "var(--primaryMain)",
         minWidth: "250px",
         width: "600px",
         maxWidth: "600px",
@@ -665,13 +658,6 @@ const modalStyle = ({
 });
 
 const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
-    ${k}[data-has-uploads="false"] {
-        border-width: 2px;
-        border-color: white;
-        border-style: dashed;
-        border-radius: 5px;
-    }
-    
     ${k} {
         overflow-y: scroll;
         height: 100%;
