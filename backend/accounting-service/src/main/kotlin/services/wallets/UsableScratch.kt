@@ -1,7 +1,5 @@
 package dk.sdu.cloud.accounting.services.wallets
 
-import java.util.PriorityQueue
-
 class Vertex(
     var edgesTo: IntArray,
     var costs: IntArray
