@@ -25,7 +25,7 @@ else:
 if slurm_account is None:
     sys.exit('Could not resolve slurm account')
 
-if not slurm_account_set_quota(slurm_account, balance):
+if not slurm_account_set_quota(slurm_account, quota):
     sys.exit('Failed to update slurm quota')
 
 print('{ "type": "ucloud_managed" }')

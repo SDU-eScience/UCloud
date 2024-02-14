@@ -33,35 +33,7 @@ class AccountMapper(
         }
         if (hasCached) return cached
 
-        val result = lookupOrRefresh(owner, productCategory, partition)
-        if (result != null) {
-            dbConnection.withSession { session ->
-                session.prepareStatement(
-                    //language=postgresql
-                    """
-                        insert into slurm_account_mapper
-                            (username, project_id, category, partition, slurm_account)
-                        values
-                            (:username, :project_id, :category, :partition, :slurm_account)
-                    """
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        if (owner.project == null) {
-                            bindString("username", owner.createdBy)
-                            bindNull("project_id")
-                        } else {
-                            bindNull("username")
-                            bindString("project_id", owner.project!!)
-                        }
-
-                        bindString("category", productCategory)
-                        bindString("partition", partition)
-                        bindString("slurm_account", result.account)
-                    }
-                )
-            }
-        }
-        return result
+        return lookupOrRefresh(owner, productCategory, partition)
     }
 
     private suspend fun lookupOrRefresh(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
@@ -75,14 +47,14 @@ class AccountMapper(
                         slurm_account_mapper
                     where
                         (:project_id::text is null or project_id = :project_id::text) and
-                        (:username is null or username = :username) and
+                        (:username::text is null or username = :username::text) and
                         category = :category and
                         partition = :partition
                 """
             ).useAndInvoke(
                 prepare = {
                     bindStringNullable("project_id", owner.project)
-                    bindString("username", owner.createdBy)
+                    bindStringNullable("username", owner.createdBy.ifEmpty { null })
                     bindString("category", productCategory)
                     bindString("partition", partition)
                 },
@@ -95,6 +67,36 @@ class AccountMapper(
         val slurmKey = when (val acc = account) {
             null -> lookupFromScript(owner, productCategory, partition)
             else -> SlurmKey(acc, partition)
+        }
+
+        // Insert if not exist
+        if (account == null && slurmKey != null)  {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    //language=postgresql
+                    """
+                            insert into slurm_account_mapper
+                                (username, project_id, category, partition, slurm_account)
+                            values
+                                (:username, :project_id, :category, :partition, :slurm_account)
+                            
+                        """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        if (owner.project == null) {
+                            bindString("username", owner.createdBy)
+                            bindNull("project_id")
+                        } else {
+                            bindNull("username")
+                            bindString("project_id", owner.project!!)
+                        }
+
+                        bindString("category", productCategory)
+                        bindString("partition", partition)
+                        bindString("slurm_account", slurmKey.account)
+                    }
+                )
+            }
         }
 
         mutex.withLock {

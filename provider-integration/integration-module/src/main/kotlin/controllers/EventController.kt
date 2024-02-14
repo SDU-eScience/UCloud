@@ -344,6 +344,10 @@ class EventController(
         // TODO(Dan): Very fragile piece of code that will break if too many people don't connect to the system. We
         //  are only marking notifications as read if we can resolve the owner. This can easily lead to a situation
         //  where the batch is always full of items that we cannot handle/starvation problem.
+        // NOTE(Brian): This does not resolve the above problem, but by marking notifications as read, for projects
+        //  in projectsToIgnore, the number of irrelevant notifications can be reduced even further. This is now
+        //  implemented as well, and should be okay, since projects are only ignored if canConsumeResources is false.
+
         val batch = DepositNotifications.retrieve.call(
             Unit,
             controllerContext.pluginContext.rpcClient
@@ -352,6 +356,7 @@ class EventController(
         if (batch.responses.isEmpty()) return
 
         var notifications = batch.responses
+        var ignoredNotifications: MutableList<DepositNotification> = mutableListOf()
         val projects = batch.responses.mapNotNull { (it.owner as? WalletOwner.Project)?.projectId }.toSet()
         if (projects.isNotEmpty()) {
             val projectsToIgnore = HashSet<String>()
@@ -376,7 +381,10 @@ class EventController(
                 val owner = event.owner
 
                 val shouldIgnoreProject = owner is WalletOwner.Project && owner.projectId in projectsToIgnore
-                if (shouldIgnoreProject) return@filter false
+                if (shouldIgnoreProject) {
+                    ignoredNotifications.add(event)
+                    return@filter false
+                }
 
                 val isRegistered = ResourceOwnerWithId.load(owner, controllerContext.pluginContext) != null
                 if (!isRegistered) return@filter false
@@ -391,6 +399,10 @@ class EventController(
 
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
         for (notification in notifications) {
+            items.add(DepositNotificationsMarkAsReadRequestItem(notification.id))
+        }
+
+        for (notification in ignoredNotifications) {
             items.add(DepositNotificationsMarkAsReadRequestItem(notification.id))
         }
 
