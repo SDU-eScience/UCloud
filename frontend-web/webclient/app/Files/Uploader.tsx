@@ -391,7 +391,7 @@ const Uploader: React.FunctionComponent = () => {
             className={CardClass}
         >
             <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
-                <div className="title">
+                <div>
                     <Flex onClick={closeModal}>
                         <Box ml="auto" />
                         <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
@@ -399,7 +399,7 @@ const Uploader: React.FunctionComponent = () => {
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     <Text color="white">{uploadingText}</Text>
                 </div>
-                <div className="uploads" style={{overflowY: "auto", width: "100%", maxHeight: "calc(80vh - 200px)"}}>
+                <div className="uploads" style={{width: "100%"}}>
                     {uploads.map((upload, idx) => (
                         <UploadRow
                             key={`${upload.row.rootEntry.name}-${idx}`}
@@ -416,7 +416,7 @@ const Uploader: React.FunctionComponent = () => {
                                 {hasUploads ? null :
                                     <UploaderArt />
                                 }
-                                <div className="upload-more-text" style={{marginTop: "22px"}} color="white">
+                                <div className="upload-more-text" style={{marginTop: "22px"}}>
                                     <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast" name="upload" /></TextSpan>
                                     <TextSpan mr="0.3em">Drop files here or</TextSpan>
                                     <i style={{cursor: "pointer"}}>browse</i>
@@ -493,15 +493,9 @@ interface UploadCallback {
 
 const UploaderText = injectStyle("uploader-text", k => `
     ${k} {
-        margin-left: 28px;
-        color: var(--textPrimaryadsadsadsadsads);
+        margin-left: 12px;
+        color: var(--textPrimary);
         font-size: 25px;
-    }
-
-    ${k}[data-has-uploads="true"]::after {
-        content: "File uploads";
-        margin-left: auto;
-        margin-right: auto;
     }
 `);
 
@@ -512,19 +506,13 @@ const UploadMoreClass = injectStyle("upload-more", k => `
         flex-direction: column;
     }
     
-    ${k} > div.upload-more-text {
-        color: white;
-    }
-
     ${k}[data-has-uploads="true"] {
         display: flex;
-        background-color: transparent; 
-        color: white;
         height: 70px;
         width: 100%;
         align-items: center;
         border-width: 2px;
-        border-color: white;
+        border-color: var(--textPrimary);
         border-style: dashed;
         border-radius: 24px;
     }
@@ -647,21 +635,21 @@ const UploaderArt: React.FunctionComponent = () => {
 
 // Styles
 
-const modalStyle = ({
+const modalStyle: ReactModal.Styles = ({
     content: {
         ...largeModalStyle.content,
         left: `calc(50vw - 300px)`,
         minWidth: "250px",
         width: "600px",
         maxWidth: "600px",
+        height: "auto",
+        overflowY: "auto"
     }
 });
 
 const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
     ${k} {
-        overflow-y: scroll;
-        height: 100%;
-        max-height: 80vh;
+        height: auto;
     }
 `);
 
@@ -675,10 +663,6 @@ const DropZoneBox = injectStyle("dropzone-box", k => `
     ${k}[data-slim="false"] {
         height: 240px;
         align-items: center;
-    }
-
-    ${k}[data-slim="true"] {
-        height: 0px;
     }
 
     ${k} > p {
