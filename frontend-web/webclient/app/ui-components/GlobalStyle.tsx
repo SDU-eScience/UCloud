@@ -237,6 +237,82 @@ html.dark {
 }
 
 html {
+    /* New color palette */
+    --purple-50: #FCF9FC;
+    --purple-100: #F5EBF5;
+    --purple-200: #E6CDE6;
+    --purple-300: #D8B0D8;
+    --purple-400: #C993C9;
+    --purple-500: #B972B9;
+    --purple-600: #A74EA7;
+    --purple-700: #993399;
+    --purple-800: #870F87;
+    --purple-900: #680068;
+    --red-50: #FFF9F6;
+    --red-100: #FFE9E1;
+    --red-200: #FFC9B6;
+    --red-300: #FFA78C;
+    --red-400: #FF805F;
+    --red-500: #FF4628;
+    --red-600: #E11005;
+    --red-700: #BD1809;
+    --red-800: #961B0B;
+    --red-900: #6C1A0C;
+    --orange-50: #FFF9F3;
+    --orange-100: #FFEAD7;
+    --orange-200: #FFCA9A;
+    --orange-300: #FFA95B;
+    --orange-400: #FF8018;
+    --orange-500: #E0680D;
+    --orange-600: #B7540A;
+    --orange-700: #9B4708;
+    --orange-800: #7D3806;
+    --orange-900: #5D2A05;
+    --yellow-50: #FFFAE2;
+    --yellow-100: #FFEE98;
+    --yellow-200: #FFCF04;
+    --yellow-300: #E6B704;
+    --yellow-400: #CA9F04;
+    --yellow-500: #AC8604;
+    --yellow-600: #8E6C03;
+    --yellow-700: #795B02;
+    --yellow-800: #624802;
+    --yellow-900: #493501;
+    --green-50: #F2FDEF;
+    --green-100: #D3F8C9;
+    --green-200: #89EC6D;
+    --green-300: #4BD823;
+    --green-400: #42BD1F;
+    --green-500: #389F1A;
+    --green-600: #2D8215;
+    --green-700: #266D12;
+    --green-800: #1F580E;
+    --green-900: #17410B;
+    --gray-50: #F9FAFB;
+    --gray-100: #ECEEF0;
+    --gray-200: #D0D5DC;
+    --gray-300: #B6BEC8;
+    --gray-400: #9BA6B4;
+    --gray-500: #7F8C9E;
+    --gray-600: #627288;
+    --gray-700: #4F6178;
+    --gray-800: #404D60;
+    --gray-900: #2F3946;
+    --blue-50: #F7FAFE;
+    --blue-100: #E4EFFC;
+    --blue-200: #BCD7F7;
+    --blue-300: #95C0F3;
+    --blue-400: #6DA8EE;
+    --blue-500: #3E8CE9;
+    --blue-600: #096DE3;
+    --blue-700: #035BC3;
+    --blue-800: #03499D;
+    --blue-900: #023774;
+    /* New color palette END */
+
+
+
+
     --backgroundDisabled: var(--backgroundCard);
     --defaultShadow: 0px  3px  1px -2px rgba(0,0,0,0.2), 0px  2px  2px 0px rgba(0,0,0,.14),0px 1px  5px 0px rgba(0,0,0,.12);
     --sidebarWidth: 64px;

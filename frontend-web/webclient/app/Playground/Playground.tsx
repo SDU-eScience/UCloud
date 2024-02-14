@@ -1,26 +1,12 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Grid, Button} from "@/ui-components";
+import {IconName} from "@/ui-components/Icon";
+import {Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import BaseLink from "@/ui-components/BaseLink";
-import {sendNotification} from "@/Notifications";
-import {timestampUnixMs} from "@/UtilityFunctions";
-import {ProductSelectorPlayground} from "@/Products/Selector";
 import * as icons from "@/ui-components/icons";
-import {BinaryAllocator, loadMessage, messageTest} from "@/UCloud/Messages";
-import {
-    AppParameterFile,
-    Wrapper
-} from "@/UCloud/Scratch";
-import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {SnackType} from "@/Snackbar/Snackbars";
-import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {Project} from "@/Project";
 import {testGenerator} from "@/Applications/LogoGenerator";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
@@ -43,6 +29,7 @@ const Playground: React.FunctionComponent = () => {
             <NewAndImprovedProgress limit={120} label="Above!!" percentage={30} />
             <NewAndImprovedProgress limit={120} label="OY!" percentage={110} />
             <NewAndImprovedProgress limit={100} label="OY!" percentage={130} withWarning />
+            <PaletteColors />
             {/*
             <Button onClick={() => {
                 messageTest();
@@ -225,5 +212,27 @@ const colors: ThemeColor[] = [
 
     "wayfGreen",
 ];
+
+
+const paletteColors = ["purple", "red", "orange", "yellow", "green", "gray", "blue"];
+const numbers = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+
+function CSSPaletteColorVar({color, num}: {color: string, num: number}) {
+    const style: React.CSSProperties = {
+        backgroundColor: `var(--${color}-${num})`,
+        color: num >= 600 ? "white" : "black",
+        width: "150px",
+        height: "100px",
+        paddingTop: "38px",
+        paddingLeft: "32px",
+    }
+    return <div style={style}>--{color}-{num}</div>
+}
+
+function PaletteColors(): JSX.Element {
+    return <Flex>
+        {paletteColors.map(color => <div>{numbers.map(number => <CSSPaletteColorVar color={color} num={number} />)}</div>)}
+    </Flex>
+}
 
 export default Playground;
