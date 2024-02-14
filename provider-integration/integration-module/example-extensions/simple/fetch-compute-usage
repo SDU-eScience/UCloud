@@ -34,7 +34,7 @@ for line in lines:
     data[account] = int(usage)
 
 for n, w in enumerate(workspaces):
-    if 'uid' in w:
+    if 'uid' in w and w['uid'] is not None:
         account = get_username_by_uid(w['uid'])
     else:
         account = get_group_by_gid(w['gid'])
@@ -44,7 +44,7 @@ for n, w in enumerate(workspaces):
     else:
         usage = 0
 
-    workspaces[n]['usage'] = int(usage / 60) # remove 'int' if we want fractions
+    workspaces[n]['usage'] = int(usage)
 
 response = {
     'usage' : workspaces

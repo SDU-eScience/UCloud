@@ -9,7 +9,7 @@ class ProductEstimator(
     private val config: VerifiedConfig,
 ) {
     private val plugins = config.plugins.jobs.values.filterIsInstance<SlurmPlugin>()
-    private val allProducts = plugins.flatMap { it.productAllocationResolved.filterIsInstance<Product.Compute>() }
+    private val allProducts = plugins.flatMap { it.productAllocationResolved.filterIsInstance<ProductV2.Compute>() }
 
     data class EstimatedProduct(
         val product: ProductReference,
@@ -55,7 +55,7 @@ class ProductEstimator(
                     row.gpu <= (row.gpu ?: 0)
             }
             .sortedWith(
-                compareBy<Product.Compute> { (it.cpu ?: 0) + (it.gpu ?: 0) }
+                compareBy<ProductV2.Compute> { (it.cpu ?: 0) + (it.gpu ?: 0) }
                     .thenBy { (it.memoryInGigs ?: 0) }
                     .thenBy { "${it.name}/${it.category.name}" }
             )

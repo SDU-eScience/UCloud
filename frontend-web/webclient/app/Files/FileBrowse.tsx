@@ -439,7 +439,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             throw "Could not find trash folder";
                         });
 
+                        if (files.some(it => it.id.startsWith(trash.id))) {
+                            // Note(Jonas): If we are in the trash folder, then maybe don't move to the same folder on delete.
+                            return;
+                        }
+
+
                         copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
+                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false);
                     } catch (e) {
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
                         browser.refresh();
