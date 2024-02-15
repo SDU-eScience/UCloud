@@ -35,9 +35,11 @@ const Style = injectStyle("code-snippet", k => `
     }
 `);
 
-const CodeSnippet: React.FunctionComponent<{ children: React.ReactNode, maxHeight: string }> = ({children, maxHeight}) => {
+const CodeSnippet: React.FunctionComponent<{children: React.ReactNode, maxHeight: string}> = ({children, maxHeight}) => {
     const preRef = useRef<HTMLPreElement>(null);
-    const doCopy = useCallback(() => {
+    const doCopy = useCallback((e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.preventDefault();
+        e.stopPropagation();
         copyToClipboard({
             value: preRef.current?.textContent ?? "",
             message: "Copied to clipboard!"
@@ -47,9 +49,9 @@ const CodeSnippet: React.FunctionComponent<{ children: React.ReactNode, maxHeigh
     return <div className={Style} style={{maxHeight}}>
         <pre ref={preRef}>{children}</pre>
         <Relative>
-            <button onClick={doCopy}>
+            <button onClick={e => doCopy}>
                 <TooltipV2 tooltip={"Copy"}>
-                    <Icon name={"heroClipboardDocument"} color={"fixedWhite"}/>
+                    <Icon name={"heroClipboardDocument"} color={"fixedWhite"} />
                 </TooltipV2>
             </button>
         </Relative>

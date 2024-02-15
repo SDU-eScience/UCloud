@@ -38,7 +38,7 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
-import {chain, classConcat, injectStyle, injectStyleSimple, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
+import {chain, classConcat, injectStyle, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {LogOutput} from "@/UtilityComponents";
@@ -938,6 +938,8 @@ const RunningContent: React.FunctionComponent<{
         }
     }
 
+    const sshUrl = React.useMemo(() => transformToSSHUrl(sshAccess?.command), [sshAccess?.command]);
+
     return <>
         <div className={RunningInfoWrapper}>
             <TabbedCard style={{flexBasis: "300px"}}>
@@ -992,7 +994,10 @@ const RunningContent: React.FunctionComponent<{
                             </Warning>}
                             {!sshAccess.message ? null : <>{sshAccess.message}</>}
                             {!sshAccess.command ? null : <>
-                                <CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet>
+                                {sshUrl != null ?
+                                    <a href={sshUrl}><CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet></a> :
+                                    <CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet>
+                                }
                             </>}
                         </TabbedCardTab>
                     }
@@ -1059,23 +1064,39 @@ const RunningContent: React.FunctionComponent<{
     </>;
 };
 
-function transformToSSHUrl(command: string): string {
-    const splitCommand = command.split(" ");
+function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}` | null {
+    if (!command) return null;
+    const parser = new SillyParser(command);
+
     // EXAMPLE:
     // ssh ucloud@ssh.cloud.sdu.dk -p 1234
-    const [ssh, hostname, portFlag, port] = splitCommand as [string?, string?, string?, string?];
-    if (ssh !== "ssh") return "#"; // NOTE(Jonas): Ensure ssh command
-    if (!hostname?.includes("@")) return "#"; // NOTE(Jonas): Ensure @ is contained.
-    if (portFlag !== "-p") return "#"; // NOTE(Jonas): Ensure -p flag is there.
-    if (!port?.length) return "#"; // NOTE(Jonas): Ensure port number is defined and ensure port is number.
-    try {
-        parseInt(port, 10);
-    } catch (e) {
-        console.warn("Failed to parse port", e);
-        return "#";
+
+    if (parser.consumeWord().toLocaleLowerCase() !== "ssh") {
+        return null;
     }
 
-    return `ssh://${hostname}:${port}`;
+    const hostname = parser.consumeWord();
+
+    const atSymbolIndex = hostname.indexOf("@");
+
+    if (atSymbolIndex === -1) return null;
+    const [username, host] = hostname.split("@");
+
+    if (username.length === 0 || host.length === 0) return null;
+
+    let portNumber = 22; // Note(Jonas): Fallback value if none present.
+
+    if (parser.consumeWord().toLocaleLowerCase() === "-p") {
+        const portNumberString = parser.consumeWord();
+        try {
+            portNumber = parseInt(portNumberString, 10);
+        } catch (e) {
+            console.warn("Failed to parse port number.", e);
+        }
+    }
+
+    // Fallback port 22
+    return `ssh://${hostname}:${portNumber}`;
 }
 
 const StandardPanelBody: React.FunctionComponent<{
@@ -1150,7 +1171,7 @@ const RunningJobRank: React.FunctionComponent<{
     rank: number,
     state: React.RefObject<JobUpdates>,
 }> = ({job, rank, state}) => {
-    const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
+    const {termRef, terminal} = useXTerm({autofit: true});
 
     useEffect(() => {
         const listener = () => {
