@@ -399,66 +399,70 @@ const Uploader: React.FunctionComponent = () => {
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     <Text color="white">{uploadingText}</Text>
                 </div>
-                <div className="uploads" style={{width: "100%"}}>
-                    {uploads.map((upload, idx) => (
-                        <UploadRow
-                            key={`${upload.row.rootEntry.name}-${idx}`}
-                            upload={upload}
-                            callbacks={callbacks}
-                        />
-                    ))}
-                </div>
-                <Flex justifyContent="center">
-                    <label style={{width: "100%", height: !hasUploads ? undefined : "70px", marginBottom: "8px"}} htmlFor={"fileUploadBrowse"}>
-                        <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                            onDragOver={preventDefault} data-slim={hasUploads}>
-                            <div data-has-uploads={hasUploads} className={UploadMoreClass}>
-                                {hasUploads ? null :
-                                    <UploaderArt />
-                                }
-                                <div className="upload-more-text" style={{marginTop: "22px"}}>
-                                    <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast" name="upload" /></TextSpan>
-                                    <TextSpan mr="0.3em">Drop files here or</TextSpan>
-                                    <i style={{cursor: "pointer"}}>browse</i>
-                                    <input
-                                        id={"fileUploadBrowse"}
-                                        type={"file"}
-                                        style={{display: "none"}}
-                                        onChange={onSelectedFile}
-                                    />
+                <div style={{
+                    // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
+                    maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`, overflowY: "scroll"
+                }}>
+                    <div className="uploads" style={{width: "100%"}}>
+                        {uploads.map((upload, idx) => (
+                            <UploadRow
+                                key={`${upload.row.rootEntry.name}-${idx}`}
+                                upload={upload}
+                                callbacks={callbacks}
+                            />
+                        ))}
+                    </div>
+                    <Flex justifyContent="center">
+                        <label style={{width: "100%", height: !hasUploads ? undefined : "70px", marginBottom: "8px"}} htmlFor={"fileUploadBrowse"}>
+                            <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
+                                onDragOver={preventDefault} data-slim={hasUploads}>
+                                <div data-has-uploads={hasUploads} className={UploadMoreClass}>
+                                    {hasUploads ? null :
+                                        <UploaderArt />
+                                    }
+                                    <div className="upload-more-text" style={{marginTop: "22px"}}>
+                                        <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast" name="upload" /></TextSpan>
+                                        <TextSpan mr="0.3em">Drop files here or</TextSpan>
+                                        <i style={{cursor: "pointer"}}>browse</i>
+                                        <input
+                                            id={"fileUploadBrowse"}
+                                            type={"file"}
+                                            style={{display: "none"}}
+                                            onChange={onSelectedFile}
+                                        />
+                                    </div>
                                 </div>
                             </div>
+                        </label>
+                    </Flex>
+                    {resumables.length === 0 ? null :
+                        <div style={{
+                            marginBottom: "4px",
+                            marginLeft: "8px",
+                            marginRight: "4px"
+                        }}>
+                            <Text color="var(--textPrimary)">Drag files to resume: </Text>
+                            {resumables.map(it =>
+                                <div className={UploaderRowClass} key={it}>
+                                    <Spacer paddingTop="20px"
+                                        left={<>
+                                            <div>
+                                                <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}} size="32px" />
+                                            </div>
+                                            <div>
+                                                <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
+                                            </div>
+                                        </>}
+                                        right={<Icon cursor="pointer" name="close" color="errorMain" mr="12px" onClick={() => {
+                                            setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                            removeUploadFromStorage(it);
+                                        }} />}
+                                    />
+                                </div>
+                            )}
                         </div>
-                    </label>
-                </Flex>
-                {resumables.length === 0 ? null :
-                    <div style={{
-                        marginBottom: "4px",
-                        marginLeft: "8px",
-                        marginRight: "4px",
-                        overflowY: "scroll"
-                    }}>
-                        <Text color="var(--textPrimary)">Drag files to resume: </Text>
-                        {resumables.map(it =>
-                            <div className={UploaderRowClass} key={it}>
-                                <Spacer paddingTop="20px"
-                                    left={<>
-                                        <div>
-                                            <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}} size="32px" />
-                                        </div>
-                                        <div>
-                                            <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
-                                        </div>
-                                    </>}
-                                    right={<Icon cursor="pointer" name="close" color="errorMain" mr="12px" onClick={() => {
-                                        setPausedFilesInFolder(files => files.filter(file => file !== it));
-                                        removeUploadFromStorage(it);
-                                    }} />}
-                                />
-                            </div>
-                        )}
-                    </div>
-                }
+                    }
+                </div>
             </div>
         </ReactModal>
     </>;
@@ -643,7 +647,7 @@ const modalStyle: ReactModal.Styles = ({
         width: "600px",
         maxWidth: "600px",
         height: "auto",
-        overflowY: "auto"
+        overflowY: "hidden",
     }
 });
 
