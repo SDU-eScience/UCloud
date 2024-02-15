@@ -441,7 +441,6 @@ const Uploader: React.FunctionComponent = () => {
                             marginLeft: "8px",
                             marginRight: "4px"
                         }}>
-                            <Text color="var(--textPrimary)">Drag files to resume: </Text>
                             {resumables.map(it =>
                                 <div className={UploaderRowClass} key={it}>
                                     <Spacer paddingTop="20px"
@@ -453,10 +452,21 @@ const Uploader: React.FunctionComponent = () => {
                                                 <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
                                             </div>
                                         </>}
-                                        right={<Icon cursor="pointer" name="close" color="errorMain" mr="12px" onClick={() => {
-                                            setPausedFilesInFolder(files => files.filter(file => file !== it));
-                                            removeUploadFromStorage(it);
-                                        }} />}
+                                        right={<>
+                                            <label htmlFor="fileUploadBrowseResume">
+                                                <input
+                                                    id={"fileUploadBrowseResume"}
+                                                    type={"file"}
+                                                    style={{display: "none"}}
+                                                    onChange={onSelectedFile}
+                                                />
+                                                <Icon cursor="pointer" title="Resume upload" name="play" color="primaryMain" mr="12px" />
+                                            </label>
+                                            <Icon cursor="pointer" title="Remove" name="close" color="errorMain" mr="12px" onClick={() => {
+                                                setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                                removeUploadFromStorage(it);
+                                            }} />
+                                        </>}
                                     />
                                 </div>
                             )}
@@ -579,7 +589,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                 <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
             </div>
             <div />
-            {inProgress ? <Flex mr="16px">
+            <Flex mr="16px">
                 <Text style={{fontSize: "var(--secondaryText)"}}>
                     {sizeToString(upload.progressInBytes + upload.initialProgress)}
                     {" / "}
@@ -588,28 +598,31 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                     ({sizeToString(uploadCalculateSpeed(upload))}/s)
                 </Text>
                 <Box mr="8px" />
-                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
-                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
-            </Flex> :
-                <>
-                    {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
-                    <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-                        callbacks.clearUploads([upload]);
-                        upload.row.fetcher().then(files => {
-                            if (files.length === 0) return;
-                            if (files.length > 1) {
-                                upload.error = "Folder uploads not yet supported";
-                                upload.state = UploadState.DONE;
-                                return;
-                            }
+                {inProgress ? <>
+                    {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
+                    {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
+                    <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
+                </>
+                    :
+                    <>
+                        {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
+                        <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+                            callbacks.clearUploads([upload]);
+                            upload.row.fetcher().then(files => {
+                                if (files.length === 0) return;
+                                if (files.length > 1) {
+                                    upload.error = "Folder uploads not yet supported";
+                                    upload.state = UploadState.DONE;
+                                    return;
+                                }
 
-                            const theFile = files[0];
-                            const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
-                            removeUploadFromStorage(fullFilePath);
-                        });
-                    }} color={stopped ? "errorMain" : "primaryMain"} />
-                </>}
+                                const theFile = files[0];
+                                const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
+                                removeUploadFromStorage(fullFilePath);
+                            });
+                        }} color={stopped ? "errorMain" : "primaryMain"} />
+                    </>}
+            </Flex>
         </div>
         <div className="error-box">
             {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
