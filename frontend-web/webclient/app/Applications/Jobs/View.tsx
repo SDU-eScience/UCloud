@@ -1064,7 +1064,19 @@ const RunningContent: React.FunctionComponent<{
     </>;
 };
 
+
+/* 
+ *  tests:
+    console.log(transformToSSHUrl("foobar baz -p bar"), "invalid");
+    console.log(transformToSSHUrl("ssh baz -p bar"), "invalid");
+    console.log(transformToSSHUrl("ssh -p bar"), "invalid");
+    console.log(transformToSSHUrl("ssh baz 200"), "invalid");
+    console.log(transformToSSHUrl("ssh baz bar"), "invalid");
+    console.log(transformToSSHUrl("ssh ssh.example.com -P 41231"), "valid");
+    console.log(transformToSSHUrl("ssh example@ssh.example.com -P 41231"), "valid")
+*/
 function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}` | null {
+
     if (!command) return null;
     const parser = new SillyParser(command);
 
@@ -1077,22 +1089,19 @@ function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}`
 
     const hostname = parser.consumeWord();
 
-    const atSymbolIndex = hostname.indexOf("@");
-
-    if (atSymbolIndex === -1) return null;
-    const [username, host] = hostname.split("@");
-
-    if (username.length === 0 || host.length === 0) return null;
+    if (!hostname || hostname.toLocaleLowerCase() === "-p") return null;
 
     let portNumber = 22; // Note(Jonas): Fallback value if none present.
 
-    if (parser.consumeWord().toLocaleLowerCase() === "-p") {
+    const portFlag = parser.consumeWord();
+
+    if (portFlag.toLocaleLowerCase() === "-p") {
         const portNumberString = parser.consumeWord();
-        try {
-            portNumber = parseInt(portNumberString, 10);
-        } catch (e) {
-            console.warn("Failed to parse port number.", e);
-        }
+        const parsed = parseInt(portNumberString, 10);
+        if (isNaN(parsed)) return null;
+        portNumber = parsed;
+    } else {
+        if (portFlag !== hostname) return null;
     }
 
     // Fallback port 22

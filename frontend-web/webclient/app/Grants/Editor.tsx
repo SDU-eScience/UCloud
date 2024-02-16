@@ -27,7 +27,6 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
-import formatDistance from "date-fns/formatDistance";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
@@ -35,6 +34,7 @@ import AppRoutes from "@/Routes";
 import {Project, isAdminOrPI} from "@/Project";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {useTitle} from "@/Navigation/Redux";
+import {formatDistance} from "date-fns/formatDistance";
 
 // State model
 // =====================================================================================================================

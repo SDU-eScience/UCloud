@@ -49,7 +49,7 @@ const CodeSnippet: React.FunctionComponent<{children: React.ReactNode, maxHeight
     return <div className={Style} style={{maxHeight}}>
         <pre ref={preRef}>{children}</pre>
         <Relative>
-            <button onClick={e => doCopy}>
+            <button onClick={doCopy}>
                 <TooltipV2 tooltip={"Copy"}>
                     <Icon name={"heroClipboardDocument"} color={"fixedWhite"} />
                 </TooltipV2>
