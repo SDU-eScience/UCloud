@@ -9,18 +9,14 @@ class Wallet(
     val allocationIds: IntArray,
 
     var localUsage: Long = 0L,
-    private var realTreeUsageByParent: HashMap<Int?, Long> = HashMap(),
+    private var realTreeUsageByChildren: HashMap<Int, Long> = HashMap(),
 ) {
-    val treeUsageByParent = HashMap<Int?, Long>()
-    fun treeUsage() = realTreeUsageByParent.values.sumOf { it }
-    fun treeUsageInParent(parentId: Int?): Long = realTreeUsageByParent[parentId] ?: 0L
+    fun incrementTreeUsage(childId: Int, amount: Long) {
+        realTreeUsageByChildren[childId] = (realTreeUsageByChildren[childId] ?: 0L) + amount
+    }
 
-    fun incrementTreeUsage(parentId: Int?, amount: Long) {
-        val quotasByParent = quotasByParent()
-        val cap = if (parentId == null) Long.MAX_VALUE else quotasByParent.getValue(parentId)
-
-        realTreeUsageByParent[parentId] = (realTreeUsageByParent[parentId] ?: 0L) + amount
-        treeUsageByParent[parentId] = min(realTreeUsageByParent.getValue(parentId), cap)
+    fun realUsageFromChild(childId: Int): Long {
+        return realTreeUsageByChildren[childId] ?: 0L
     }
 
     fun isRootWallet() = allocationIds.any { allocations[it].parentWallet == null }
@@ -28,6 +24,14 @@ class Wallet(
     fun quota() = allocationIds.sumOf {
         val alloc = allocations[it]
         if (alloc.isActiveNow()) alloc.quota else 0
+    }
+
+    fun children(): List<Wallet> {
+        return allocations.filter { it.parentWallet == id }.map { it.belongsTo }.toSet().map { wallets[it] }
+    }
+
+    fun quotaFromParent(parentId: Int): Long {
+        return quotasByParent()[parentId] ?: 0L
     }
 
     fun quotasByParent(): Map<Int?, Long> {
@@ -39,10 +43,12 @@ class Wallet(
     }
 
     fun hasResources(): Boolean {
-        val quotaByParent = quotasByParent()
-        return quotaByParent.entries.any { (parent, quota) ->
-            (treeUsageByParent[parent] ?: 0) <= quota
+        val allChildren = children()
+        val cappedUsage = localUsage + allChildren.sumOf {
+            min(it.quotaFromParent(id), realUsageFromChild(it.id))
         }
+
+        return cappedUsage <= quota()
     }
 }
 
@@ -50,8 +56,9 @@ class Allocation(
     val belongsTo: Int,
     val parentWallet: Int?,
     var quota: Long,
+    var expired: Boolean = false,
 ) {
-    fun isActiveNow() = true
+    fun isActiveNow() = !expired
 }
 
 /*
@@ -126,7 +133,7 @@ fun proposeSplit(child: Wallet, uniqueParents: List<Wallet>, amount: Long): List
     val result = ArrayList<Long>()
     val orderedList = if (amount < 0) uniqueParents.reversed() else uniqueParents
     for (parent in orderedList) {
-        val parentTreeUsage = child.treeUsageInParent(parent.id)
+        val parentTreeUsage = parent.realUsageFromChild(child.id)
         val capacity =
             if (amount < 0) parentTreeUsage
             else max(0, byParent.getValue(parent.id) - parentTreeUsage)
@@ -163,33 +170,18 @@ fun chargeDelta2(
     if (leaf) wallet.localUsage += amount
 
     if (wallet.isRootWallet()) {
-        wallet.incrementTreeUsage(null, amount)
         if (!wallet.hasResources()) anyFailure = true
     } else {
         if (parents.isNotEmpty()) {
-            val parentQuotas = wallet.quotasByParent()
             val split = proposeSplit(wallet, parents, amount)
 
             for ((parentWallet, splitAmount) in parents.zip(split)) {
-                /*
-                val maxToSpend = max(
-                    0,
-                    parentQuotas.getValue(parentWallet.id) - wallet.treeUsageInParent(parentWallet.id)
-                )
-
-                val minToSpend = max(-parentQuotas.getValue(parentWallet.id), splitAmount)
-
-                 */
-
-                wallet.incrementTreeUsage(parentWallet.id, splitAmount)
+                parentWallet.incrementTreeUsage(wallet.id, splitAmount)
 
                 val localSuccess = wallet.hasResources()
-
-//                val amount1 = min(maxToSpend, max(minToSpend, splitAmount))
-                val amount1 = splitAmount
                 val parentSuccess = chargeDelta2(
                     parentWallet.id,
-                    amount1,
+                    splitAmount,
                     leaf = false
                 )
 
@@ -293,40 +285,38 @@ fun updateUsage(
 }
  */
 
-/*
 val wallets = arrayOf(
-    Wallet(intArrayOf(0)), // 0
-    Wallet(intArrayOf(1, 12)), // 1
-    Wallet(intArrayOf(2, 10)), // 2
-    Wallet(intArrayOf(3, 4, 5)), // 3
-    Wallet(intArrayOf(6, 7, 8, 11)), // 4
-    Wallet(intArrayOf(9)), // 5
+    Wallet(id = 0, intArrayOf(0)), // 0
+    Wallet(id = 1, intArrayOf(1, 12)), // 1
+    Wallet(id = 2, intArrayOf(2, 10)), // 2
+    Wallet(id = 3, intArrayOf(3, 4, 5)), // 3
+    Wallet(id = 4, intArrayOf(6, 7, 8, 11)), // 4
+    Wallet(id = 5, intArrayOf(9)), // 5
 )
 
 val allocations = arrayOf(
-    Allocation(belongsTo = 0, parentWallet = null, localUsage = 0, treeUsage = 0, quota = 2500), // 0
+    Allocation(belongsTo = 0, parentWallet = null, quota = 2500), // 0
 
-    Allocation(belongsTo = 1, parentWallet = 0, localUsage = 0, treeUsage = 0, quota = 600), // 1
+    Allocation(belongsTo = 1, parentWallet = 0, quota = 600), // 1
 
-    Allocation(belongsTo = 2, parentWallet = 0, localUsage = 0, treeUsage = 0, quota = 10000), // 2
+    Allocation(belongsTo = 2, parentWallet = 0, quota = 10000), // 2
 
-    Allocation(belongsTo = 3, parentWallet = 1, localUsage = 0, treeUsage = 0, quota = 334), // 3
-    Allocation(belongsTo = 3, parentWallet = 1, localUsage = 0, treeUsage = 0, quota = 333), // 4
-    Allocation(belongsTo = 3, parentWallet = 1, localUsage = 0, treeUsage = 0, quota = 333), // 5
+    Allocation(belongsTo = 3, parentWallet = 1, quota = 334), // 3
+    Allocation(belongsTo = 3, parentWallet = 1, quota = 333), // 4
+    Allocation(belongsTo = 3, parentWallet = 1, quota = 333), // 5
 
-    Allocation(belongsTo = 4, parentWallet = 3, localUsage = 0, treeUsage = 0, quota = 1000), // 6
-    Allocation(belongsTo = 4, parentWallet = 1, localUsage = 0, treeUsage = 0, quota = 1000), // 7
-    Allocation(belongsTo = 4, parentWallet = 2, localUsage = 0, treeUsage = 0, quota = 2000), // 8
+    Allocation(belongsTo = 4, parentWallet = 3, quota = 1000), // 6
+    Allocation(belongsTo = 4, parentWallet = 1, quota = 1000), // 7
+    Allocation(belongsTo = 4, parentWallet = 2, quota = 2000), // 8
 
-    Allocation(belongsTo = 5, parentWallet = null, localUsage = 0, treeUsage = 0, quota = 2500), // 9
+    Allocation(belongsTo = 5, parentWallet = null, quota = 2500), // 9
 
-    Allocation(belongsTo = 2, parentWallet = 5, localUsage = 0, treeUsage = 0, quota = 2000), // 10
+    Allocation(belongsTo = 2, parentWallet = 5, quota = 2000), // 10
 
-    Allocation(belongsTo = 4, parentWallet = 5, localUsage = 0, treeUsage = 0, quota = 1000), // 11
+    Allocation(belongsTo = 4, parentWallet = 5, quota = 1000), // 11
 
-    Allocation(belongsTo = 1, parentWallet = 0, localUsage = 0, treeUsage = 0, quota = 600), // 12
+    Allocation(belongsTo = 1, parentWallet = 0, quota = 600), // 12
 )
- */
 
 /*
 val wallets = arrayOf(
@@ -344,12 +334,13 @@ val allocations = arrayOf(
 )
  */
 
+/*
 val wallets = arrayOf(
     Wallet(id = 0, intArrayOf(0)), // 0
     Wallet(id = 1, intArrayOf(1, 2)), // 1
     Wallet(id = 2, intArrayOf(3, 4, 5)), // 2
     Wallet(id = 3, intArrayOf(6, 7)), // 3
-    Wallet(id = 4, intArrayOf(8)), // 3
+    Wallet(id = 4, intArrayOf(8)), // 4
 )
 
 val allocations = arrayOf(
@@ -365,14 +356,14 @@ val allocations = arrayOf(
     Allocation(belongsTo = 3, parentWallet = 2, quota = 1000), // 6
     Allocation(belongsTo = 3, parentWallet = 1, quota = 1000), // 7
 
-    Allocation(belongsTo = 4, parentWallet = 0, quota = 1000), // 7
+    Allocation(belongsTo = 4, parentWallet = 0, quota = 1000), // 8
 )
+ */
 
 fun main() {
-    val s1 = chargeDelta2(3, 2000)
-    val rootHasResources = wallets[0].hasResources()
-    val s2 = chargeDelta2(4, 1000)
-    val s3 = chargeDelta2(3, -2000)
+    val s1 = chargeDelta2(4, 5000)
+    val s2 = chargeDelta2(4, -3000)
+    val s3 = chargeDelta2(4, 1000)
 }
 
 // Wallet 0:
