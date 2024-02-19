@@ -30,6 +30,7 @@ import {bulkRequestOf} from "@/UtilityFunctions";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
 import {useProjectId} from "@/Project/Api";
+import {FlexClass} from "@/ui-components/Flex";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -50,11 +51,14 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
 };
 
+let avatarCache: Record<string, ReactStaticRenderer> = {}
+
 const shareValidationCache: Record<string, ShareValidateState> = {};
 
-export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<OutgoingShareGroup | OutgoingShareGroupPreview>}): JSX.Element {
+const TITLE = "Shared by me";
 
-    //Projects should now show this page
+export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<OutgoingShareGroup | OutgoingShareGroupPreview>}): JSX.Element {
+    // Projects should now show this page
     const activeProjectId = useProjectId();
     React.useEffect(() => {
         if (activeProjectId) {
@@ -68,17 +72,22 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
     const dispatch = useDispatch();
     const location = useLocation();
 
-    useTitle("Shared by me");
+    useTitle(TITLE);
 
     const features: ResourceBrowseFeatures = FEATURES;
 
     const dateRanges = dateRangeFilters("Created after");
     var isInitial = true;
 
+    avatarState.subscribe(() => {
+        avatarCache = {};
+        browserRef.current?.renderRows();
+    });
+
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, "Shared by me", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, TITLE, opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
                 let shouldRemoveFakeDirectory = true;
@@ -266,23 +275,28 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                 avatarState.subscribe(() => browser.rerender());
 
-
                 browser.on("renderRow", (share, row, dims) => {
                     const avatarWrapper = document.createElement("div");
 
                     if (isViewingShareGroupPreview(share)) {
                         row.title.append(avatarWrapper);
-                        const sharedWithAvatar = avatarState.avatar(share.sharedWith);
-                        new ReactStaticRenderer(() =>
-                            <Tooltip
-                                trigger={<Avatar style={{height: "32px", width: "32px", marginRight: "12px"}} avatarStyle="Circle" {...sharedWithAvatar} />}
-                            >
-                                Shared with {share.sharedWith}
-                            </Tooltip>
-                        ).promise.then(it => {
-                            const avatar = it.clone();
-                            avatarWrapper.appendChild(avatar);
-                        });
+
+                        if (avatarCache[share.sharedWith]) {
+                            const wrapper = createHTMLElements({
+                                tagType: "div",
+                                style: {marginRight: "8px"}
+                            });
+                            wrapper.appendChild(avatarCache[share.sharedWith].clone());
+                            avatarWrapper.appendChild(wrapper);
+                        } else {
+                            const sharedWithAvatar = avatarState.avatar(share.sharedWith);
+                            new ReactStaticRenderer(() =>
+                                <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...sharedWithAvatar} />
+                            ).promise.then(it => {
+                                avatarCache[share.sharedWith] = it;
+                                avatarWrapper.appendChild(it.clone());
+                            });
+                        }
                     } else {
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
 
@@ -457,23 +471,34 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
                     // causing multiple avatars to be shown.
                     if (!isViewingShareGroupPreview(share)) {
-                        row.stat3.append(avatarWrapper);
-                        const sharedWithAvatars = share.sharePreview.map(it => avatarState.avatar(it.sharedWith));
-                        new ReactStaticRenderer(() =>
-                            <Tooltip
-                                trigger={<Flex marginRight="26px">
-                                    {sharedWithAvatars.slice(0, 5).map(
-                                        (avatar, index) => <div key={share.sharePreview[index].sharedWith} style={{marginRight: "-26px"}}>
-                                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
-                                        </div>
-                                    )}
-                                </Flex>}
-                            >
-                                Shared with {share.sharePreview.map(it => it.sharedWith)}
-                            </Tooltip>
-                        ).promise.then(it => {
-                            avatarWrapper.appendChild(it.clone());
+                        const sharedWithAvatars = share.sharePreview.slice(0, 5).map(it => avatarState.avatar(it.sharedWith));
+                        const flexWrapper = createHTMLElements({
+                            tagType: "div",
+                            className: FlexClass,
+                            style: {marginRight: "26px"}
                         });
+                        row.stat3.append(flexWrapper);
+                        if (share.sharePreview.every(it => avatarCache[it.sharedWith] != null)) {
+                            share.sharePreview.forEach(s => {
+                                const wrapper = createHTMLElements({
+                                    tagType: "div",
+                                    style: {marginRight: "-26px"},
+                                });
+                                wrapper.appendChild(avatarCache[s.sharedWith].clone());
+                                flexWrapper.appendChild(wrapper);
+                            });
+                        } else {
+                            sharedWithAvatars.forEach((avatar, index) => {
+                                const sharedWith = share.sharePreview[index].sharedWith;
+                                new ReactStaticRenderer(() =>
+                                    <Avatar key={sharedWith} style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
+                                ).promise.then(it => {
+                                    avatarCache[sharedWith] = it;
+                                    flexWrapper.appendChild(it.clone());
+                                });
+                            })
+
+                        }
                     }
                 });
 

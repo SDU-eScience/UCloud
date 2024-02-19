@@ -90,11 +90,44 @@ export function addShareModal(selected: SelectedShare, cb: ShareCallbacks): void
     );
 }
 
+export const ICONS: Record<string, ReactStaticRenderer | null> = {
+    READ_ICON: null,
+    EDIT_ICON: null,
+}
+
+new ReactStaticRenderer(() =>
+    <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            checked={false}
+            name={"READ"}
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+).promise.then(it => ICONS.READ_ICON = it);
+
+new ReactStaticRenderer(() =>
+    <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            disabled
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            checked={false}
+            name={"EDIT"}
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+).promise.then(it => ICONS.EDIT_ICON = it);
+
 const ShareModal: React.FunctionComponent<{
     selected: SelectedShare,
     cb: ShareCallbacks
 }> = ({selected, cb}) => {
-
     const [inviteLinks, fetchLinks] = useCloudAPI<PageV2<ShareLink>>({noop: true}, emptyPageV2);
     const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedPermission, setSelectedPermission] = useState<string>("READ");
@@ -292,6 +325,8 @@ interface SetShowBrowserHack {
     setShowBrowser?: (show: boolean) => void;
 }
 
+const TITLE = "Shared with me";
+
 export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): JSX.Element {
 
     //Projects should now show this page
@@ -310,7 +345,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     const avatars = useAvatars();
 
     if (!opts?.embedded) {
-        useTitle("Shared with me");
+        useTitle(TITLE);
     }
 
     const features: ResourceBrowseFeatures = {
@@ -328,7 +363,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Share>(mount, "Shared with me", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Share>(mount, TITLE, opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
@@ -403,8 +438,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         width: 32
                     }).then(setIcon);
 
-                    const sharedByMe = share.specification.sharedWith !== Client.username;
-
                     // Row title
                     row.title.append(
                         ResourceBrowser.defaultTitleRenderer(
@@ -425,37 +458,14 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     wrapper.style.marginTop = wrapper.style.marginBottom = "auto"
 
                     const isEdit = share.specification.permissions.some(it => it === "EDIT");
-                    // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
-                    // the re-render doesn't happen multiple times, when re-rendering. The radioTilesContainerWrapper can be dead,
-                    // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
-                    // causing multiple avatars to be shown.
                     const radioTilesContainerWrapper = document.createElement("div");
                     wrapper.appendChild(radioTilesContainerWrapper);
-                    // TODO(Jonas): Cache these icons
-                    new ReactStaticRenderer(() =>
-                        <RadioTilesContainer height={48} onClick={stopPropagation}>
-                            {!isEdit ? <RadioTile
-                                disabled={share.owner.createdBy !== Client.username}
-                                label={"Read"}
-                                onChange={noopCall}
-                                icon={"search"}
-                                name={"READ"}
-                                checked={!isEdit && sharedByMe}
-                                height={40}
-                                fontSize={"0.5em"}
-                            /> : null}
-                            {isEdit ? <RadioTile
-                                disabled
-                                label={"Edit"}
-                                onChange={noopCall}
-                                icon={"edit"}
-                                name={"EDIT"}
-                                checked={isEdit && sharedByMe}
-                                height={40}
-                                fontSize={"0.5em"}
-                            /> : null}
-                        </RadioTilesContainer>
-                    ).promise.then(it => radioTilesContainerWrapper.append(it.clone()));
+                    if (isEdit) {
+                        if (ICONS.EDIT_ICON) radioTilesContainerWrapper.append(ICONS.EDIT_ICON.clone());
+                    } else {
+                        if (ICONS.READ_ICON) radioTilesContainerWrapper.append(ICONS.READ_ICON.clone());
+                    }
+
 
                     if (pendingSharedWithMe) {
                         const group = createHTMLElements<HTMLDivElement>({

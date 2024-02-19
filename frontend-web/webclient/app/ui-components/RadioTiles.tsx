@@ -15,11 +15,11 @@ export const RadioTilesContainerClass = injectStyle("radio-tiles-container", k =
     }
 `);
 
-const RadioTilesContainer: React.FunctionComponent<BoxProps & {children?: React.ReactNode}> = props => {
+function RadioTilesContainer(props: React.PropsWithChildren<BoxProps>): React.JSX.Element {
     return <Box {...props} className={RadioTilesContainerClass} />;
 }
 
-const RadioTile = (props: RadioTileProps): JSX.Element => {
+function RadioTile(props: RadioTileProps): JSX.Element {
     const {height, label, icon, checked, disabled, fontSize, onChange, name} = props;
 
     return (
