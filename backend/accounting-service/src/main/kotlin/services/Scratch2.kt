@@ -57,8 +57,32 @@ class Allocation(
     val parentWallet: Int?,
     var quota: Long,
     var expired: Boolean = false,
+    var retired: Boolean = false,
+    var retiredUsage: Long = 0L,
 ) {
     fun isActiveNow() = !expired
+}
+
+fun retireAllocation(allocationId: Int, isQuotaBased: Boolean) {
+    val allocation = allocations[allocationId]
+    val wallet = wallets[allocation.belongsTo]
+    val parentWallet = allocation.parentWallet?.let { wallets[it] }
+
+    require(allocation.expired && !allocation.retired)
+    if (isQuotaBased) TODO()
+
+    allocation.retired = true
+
+    if (parentWallet != null) {
+        val ourTreeUsage2 = parentWallet.realUsageFromChild(wallet.id)
+        allocation.retiredUsage = max(allocation.quota, ourTreeUsage2)
+
+        if (wallet.localUsage > 0) {
+            val toSubtractFromLocal = min(wallet.localUsage, allocation.retiredUsage)
+            wallet.localUsage -= toSubtractFromLocal
+            allocation.retiredUsage += toSubtractFromLocal
+        }
+    }
 }
 
 /*
@@ -360,10 +384,12 @@ val allocations = arrayOf(
 )
  */
 
+var productCategoriesAreQuotaBased = false
+
 fun main() {
     val s1 = chargeDelta2(4, 5000)
-    val s2 = chargeDelta2(4, -3000)
-    val s3 = chargeDelta2(4, 1000)
+    allocations[6].expired = true
+    retireAllocation(6, productCategoriesAreQuotaBased)
 }
 
 // Wallet 0:
