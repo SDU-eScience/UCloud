@@ -63,6 +63,8 @@ function inviteLinkFromToken(token: string): string {
     return window.location.origin + "/app/shares/invite/" + token;
 }
 
+let avatarCache: Record<string, ReactStaticRenderer> = {}
+
 const ShareModalStyle = {
     ...defaultModalStyle,
     content: {...defaultModalStyle.content, minHeight: undefined, top: "25%"}
@@ -318,7 +320,10 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
     const dateRanges = dateRangeFilters("Created after");
 
-    avatars.subscribe(() => browserRef.current?.renderRows());
+    avatars.subscribe(() => {
+        avatarCache = {};
+        browserRef.current?.renderRows()
+    });
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -370,7 +375,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     browser.registerPage(result, path, false);
                 });
 
-                // GET https://dev.cloud.sdu.dk/api/shares/browse?itemsPerPage=100&includeUpdates=true&includeOthers=true&filterCreatedAfter=1693951200000&filterCreatedBy=a&sortDirection=ascending&filterIngoing=true&filterRejected=true
                 browser.on("fetchFilters", () => [{
                     key: "filterCreatedBy",
                     type: "input",
@@ -391,7 +395,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 browser.on("renderRow", (share, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
                     row.title.append(icon);
-                    // TODO(Jonas): For some reason, the arrow is not rendered.
                     browser.icons.renderIcon({
                         name: "ftSharesFolder",
                         color: "iconColor",
@@ -428,6 +431,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     // causing multiple avatars to be shown.
                     const radioTilesContainerWrapper = document.createElement("div");
                     wrapper.appendChild(radioTilesContainerWrapper);
+                    // TODO(Jonas): Cache these icons
                     new ReactStaticRenderer(() =>
                         <RadioTilesContainer height={48} onClick={stopPropagation}>
                             {!isEdit ? <RadioTile
@@ -506,16 +510,20 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     // causing multiple avatars to be shown.
                     const avatarWrapper = document.createElement("div");
                     row.stat3.append(avatarWrapper);
-
-                    new ReactStaticRenderer(() =>
-                        <Tooltip
-                            trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />}
-                        >
-                            Shared by {share.owner.createdBy}
-                        </Tooltip>
-                    ).promise.then(it => {
-                        avatarWrapper.appendChild(it.clone());
-                    });
+                    if (avatarCache[share.owner.createdBy]) {
+                        avatarWrapper.appendChild(avatarCache[share.owner.createdBy].clone());
+                    } else {
+                        new ReactStaticRenderer(() =>
+                            <Tooltip
+                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />}
+                            >
+                                Shared by {share.owner.createdBy}
+                            </Tooltip>
+                        ).promise.then(it => {
+                            avatarCache[share.owner.createdBy] = it;
+                            avatarWrapper.appendChild(it.clone());
+                        });
+                    }
                 });
 
                 browser.setEmptyIcon("heroShare");

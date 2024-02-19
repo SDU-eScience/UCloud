@@ -7,7 +7,7 @@ import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {useTitle} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import {Absolute, Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -480,7 +480,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                         <div className={Content}>
                             <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
                                 <TitledCard>
-                                    <ProviderUpdates job={job} state={jobUpdateState} addOverflow={true} />
+                                    <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
                                 </TitledCard>
                             </Box>
                         </div>
@@ -569,7 +569,7 @@ const CompletedContent: React.FunctionComponent<{
         <TabbedCard style={{flexBasis: "600px"}}>
             <StandardPanelBody>
                 <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
-                    <ProviderUpdates job={job} state={state} addOverflow={false} />
+                    <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
                 </TabbedCardTab>
             </StandardPanelBody>
         </TabbedCard>
@@ -1046,7 +1046,7 @@ const RunningContent: React.FunctionComponent<{
             <TabbedCard style={{flexBasis: "600px"}}>
                 <StandardPanelBody divRef={messagesRef}>
                     <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
-                        <ProviderUpdates job={job} state={state} addOverflow={false} />
+                        <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
                     </TabbedCardTab>
                 </StandardPanelBody>
             </TabbedCard>
@@ -1101,7 +1101,7 @@ function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}`
         if (isNaN(parsed)) return null;
         portNumber = parsed;
     } else {
-        if (portFlag !== hostname) return null;
+        if (portFlag !== hostname) return null; // Note(Jonas): Is the last parsed word already read, so this is repeated?
     }
 
     // Fallback port 22
@@ -1264,7 +1264,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | 
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
-    return <Card className={FadeInDiv} p={"0px"} height={"calc(100vh - 530px)"} minHeight={"500px"} mt={"16px"}>
+    return <Card key={job.id} className={FadeInDiv} p={"0px"} height={"calc(100vh - 530px)"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{initialPath: pathRef.current, embedded: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
         />

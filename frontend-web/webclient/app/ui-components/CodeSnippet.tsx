@@ -51,7 +51,7 @@ const CodeSnippet: React.FunctionComponent<{children: React.ReactNode, maxHeight
         <Relative>
             <button onClick={doCopy}>
                 <TooltipV2 tooltip={"Copy"}>
-                    <Icon name={"heroClipboardDocument"} color={"fixedWhite"} />
+                    <Icon cursor="pointer" name={"heroClipboardDocument"} color={"fixedWhite"} />
                 </TooltipV2>
             </button>
         </Relative>
