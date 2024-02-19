@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -25,10 +26,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 
 class JobController(
@@ -103,7 +101,9 @@ class JobController(
                                                 sendMessage("usage: browse <username> [project (can be null)] [next]")
                                             } else {
                                                 val result = jobs.browseBy(
-                                                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), project?.takeIf { it != "-" && it != "null" }),
+                                                    ActorAndProject(
+                                                        Actor.SystemOnBehalfOfUser(username),
+                                                        project?.takeIf { it != "-" && it != "null" }),
                                                     ResourceBrowseRequest(
                                                         JobIncludeFlags(
                                                             includeParameters = true,
@@ -306,7 +306,12 @@ class JobController(
                                                 sendMessage("Usage: acl-test <id> <username> <target> <type> <perms>")
                                             } else {
                                                 val added = if (type == "add") {
-                                                    listOf(ResourceAclEntry(AclEntity.User(target), listOf(Permission.READ, Permission.EDIT)))
+                                                    listOf(
+                                                        ResourceAclEntry(
+                                                            AclEntity.User(target),
+                                                            listOf(Permission.READ, Permission.EDIT)
+                                                        )
+                                                    )
                                                 } else {
                                                     emptyList()
                                                 }
@@ -368,7 +373,19 @@ class JobController(
         }
 
         implement(JobsControl.retrieve) {
-            ok(jobs.retrieve(actorAndProject, request) ?: throw RPCException("Unknown job", HttpStatusCode.NotFound))
+            try {
+                withTimeout(5000) {
+                    ok(
+                        jobs.retrieve(actorAndProject, request) ?: throw RPCException(
+                            "Unknown job",
+                            HttpStatusCode.NotFound
+                        )
+                    )
+                }
+            } catch (e: Throwable) {
+                log.warn("TIMEOUT IN JOBS CONTROL RETRIEVE $actorAndProject $request")
+                throw RPCException("Jobs control retrieve timeout", HttpStatusCode.GatewayTimeout)
+            }
         }
 
         implement(JobsControl.update) {
