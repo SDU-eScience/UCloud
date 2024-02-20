@@ -3,12 +3,7 @@ import {useTitle} from "@/Navigation/Redux";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState, isViewingShareGroupPreview} from "@/UCloud/SharesApi";
 import MainContainer from "@/ui-components/MainContainer";
 import {prettyFilePath} from "@/Files/FilePath";
-import {
-    Flex,
-    RadioTile,
-    RadioTilesContainer,
-    Tooltip
-} from "@/ui-components";
+import {RadioTile, RadioTilesContainer} from "@/ui-components";
 import {capitalized, createHTMLElements, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
@@ -52,6 +47,87 @@ const defaultRetrieveFlags: {itemsPerPage: number} = {
 };
 
 let avatarCache: Record<string, ReactStaticRenderer> = {}
+let RIGHTS_TOGGLE_ICON_CACHE: {
+    ENABLED_READ: null | ReactStaticRenderer,
+    ENABLED_EDIT: null | ReactStaticRenderer,
+    REJECTED: null | ReactStaticRenderer,
+} = {
+    ENABLED_READ: null,
+    ENABLED_EDIT: null,
+    REJECTED: null,
+}
+
+new ReactStaticRenderer(() =>
+    <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            name={"READ"}
+            checked
+            height={40}
+            fontSize={"0.5em"}
+        />
+        <RadioTile
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            name={"EDIT"}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_READ = it);
+
+new ReactStaticRenderer(() =>
+    <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            name={"READ"}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+        <RadioTile
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            name={"EDIT"}
+            checked
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.ENABLED_EDIT = it);
+
+new ReactStaticRenderer(() => {
+    const foo = Math.random();
+    return <RadioTilesContainer height={48} onClick={stopPropagation}>
+        <RadioTile
+            disabled
+            label={"Read"}
+            onChange={noopCall}
+            icon={"search"}
+            name={foo.toString()}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+        <RadioTile
+            disabled
+            label={"Edit"}
+            onChange={noopCall}
+            icon={"edit"}
+            name={foo.toString()}
+            checked={false}
+            height={40}
+            fontSize={"0.5em"}
+        />
+    </RadioTilesContainer>
+}).promise.then(it => RIGHTS_TOGGLE_ICON_CACHE.REJECTED = it);
 
 const shareValidationCache: Record<string, ShareValidateState> = {};
 
@@ -280,21 +356,21 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                     if (isViewingShareGroupPreview(share)) {
                         row.title.append(avatarWrapper);
+                        const wrapper = createHTMLElements({
+                            tagType: "div",
+                            style: {marginRight: "8px"}
+                        });
+                        avatarWrapper.appendChild(wrapper);
 
                         if (avatarCache[share.sharedWith]) {
-                            const wrapper = createHTMLElements({
-                                tagType: "div",
-                                style: {marginRight: "8px"}
-                            });
                             wrapper.appendChild(avatarCache[share.sharedWith].clone());
-                            avatarWrapper.appendChild(wrapper);
                         } else {
                             const sharedWithAvatar = avatarState.avatar(share.sharedWith);
                             new ReactStaticRenderer(() =>
                                 <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...sharedWithAvatar} />
                             ).promise.then(it => {
                                 avatarCache[share.sharedWith] = it;
-                                avatarWrapper.appendChild(it.clone());
+                                wrapper.appendChild(it.clone());
                             });
                         }
                     } else {
@@ -333,43 +409,22 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         row.stat1.append(deletedTextNode);
                     } else if (isViewingShareGroupPreview(share)) {
                         const isEdit = share.permissions.some(it => it === "EDIT");
-                        // Note(Jonas): To any future reader (as opposed to past reader?) the radioTilesContainerWrapper is to ensure that
-                        // the re-render doesn't happen multiple times, when re-rendering. The radioTilesContainerWrapper can be dead,
-                        // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
-                        // causing multiple avatars to be shown.
                         const radioTilesContainerWrapper = document.createElement("div");
                         row.stat1.append(radioTilesContainerWrapper);
-                        new ReactStaticRenderer(() =>
-                            <RadioTilesContainer height={48} onClick={stopPropagation}>
-                                <RadioTile
-                                    disabled={share.state === "REJECTED"}
-                                    label={"Read"}
-                                    onChange={noopCall}
-                                    icon={"search"}
-                                    name={share.shareId}
-                                    checked={!isEdit}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                                <RadioTile
-                                    disabled={share.state === "REJECTED"}
-                                    label={"Edit"}
-                                    onChange={noopCall}
-                                    icon={"edit"}
-                                    name={share.shareId}
-                                    checked={isEdit}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                            </RadioTilesContainer>
-                        ).promise.then(it => {
-                            radioTilesContainerWrapper.append(it.clone());
-                            if (share.state !== "REJECTED") {
+                        const isRejected = share.state === "REJECTED";
+                        if (isRejected) {
+                            const rejectedIcon = RIGHTS_TOGGLE_ICON_CACHE.REJECTED;
+                            if (rejectedIcon) radioTilesContainerWrapper.append(rejectedIcon.clone());
+                        } else {
+                            let icons = isEdit ? RIGHTS_TOGGLE_ICON_CACHE.ENABLED_EDIT : RIGHTS_TOGGLE_ICON_CACHE.ENABLED_READ;
+                            if (icons) {
+                                radioTilesContainerWrapper.append(icons.clone());
                                 const tiles = radioTilesContainerWrapper.querySelectorAll(":scope input[type='radio']");
-                                const readTile = tiles.item(0);
-                                const writeTile = tiles.item(1);
-                                if (readTile && writeTile) {
-                                    readTile["onclick"] = writeTile["onclick"] = e => e.stopPropagation();
+                                const readTile = tiles.item(0) as HTMLInputElement;
+                                const editTile = tiles.item(1) as HTMLInputElement;
+                                if (readTile && editTile) {
+                                    readTile.id = editTile.id = readTile.name = editTile.name = share.shareId;
+                                    readTile["onclick"] = editTile["onclick"] = e => e.stopPropagation();
                                     readTile["onchange"] = () => {
                                         if (share.permissions.includes("EDIT")) {
                                             updatePermissions(share, false);
@@ -377,16 +432,18 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                             browser.renderRows();
                                         }
                                     }
-                                    writeTile["onchange"] = () => {
+                                    editTile["onchange"] = () => {
                                         if (!share.permissions.includes("EDIT")) {
                                             updatePermissions(share, true);
                                             share.permissions = ["READ", "EDIT"];
                                             browser.renderRows();
                                         }
                                     }
+                                } else {
+                                    console.log("NOT defined")
                                 }
                             }
-                        });
+                        }
                     }
 
                     // Row stat2
@@ -494,7 +551,12 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                     <Avatar key={sharedWith} style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
                                 ).promise.then(it => {
                                     avatarCache[sharedWith] = it;
-                                    flexWrapper.appendChild(it.clone());
+                                    const wrapper = createHTMLElements({
+                                        tagType: "div",
+                                        style: {marginRight: "-26px"},
+                                    });
+                                    wrapper.appendChild(it.clone());
+                                    flexWrapper.appendChild(wrapper);
                                 });
                             })
 
