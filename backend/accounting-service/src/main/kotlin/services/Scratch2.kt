@@ -9,14 +9,17 @@ class Wallet(
     val allocationIds: IntArray,
 
     var localUsage: Long = 0L,
-    private var realTreeUsageByChildren: HashMap<Int, Long> = HashMap(),
+    var _realTreeUsageByChildren: HashMap<Int, Long> = HashMap(),
+
+    var tempLocalUsage: Long = 0L,
+    var tempRealTreeUsageByChildren: HashMap<Int, Long> = HashMap(),
 ) {
     fun incrementTreeUsage(childId: Int, amount: Long) {
-        realTreeUsageByChildren[childId] = (realTreeUsageByChildren[childId] ?: 0L) + amount
+        _realTreeUsageByChildren[childId] = (_realTreeUsageByChildren[childId] ?: 0L) + amount
     }
 
     fun realUsageFromChild(childId: Int): Long {
-        return realTreeUsageByChildren[childId] ?: 0L
+        return _realTreeUsageByChildren[childId] ?: 0L
     }
 
     fun isRootWallet() = allocationIds.any { allocations[it].parentWallet == null }
@@ -42,6 +45,20 @@ class Wallet(
             .mapValues { (_, allocs) -> allocs.sumOf { it.quota } }
     }
 
+    fun tempCurrentUsage(): Long {
+        val allChildren = children()
+        return tempLocalUsage + allChildren.sumOf {
+            min(it.quotaFromParent(id), tempRealTreeUsageByChildren[it.id] ?: 0L)
+        }
+    }
+
+    fun currentUsage(): Long {
+        val allChildren = children()
+        return localUsage + allChildren.sumOf {
+            min(it.quotaFromParent(id), realUsageFromChild(it.id))
+        }
+    }
+
     fun hasResources(): Boolean {
         val allChildren = children()
         val cappedUsage = localUsage + allChildren.sumOf {
@@ -61,6 +78,73 @@ class Allocation(
     var retiredUsage: Long = 0L,
 ) {
     fun isActiveNow() = !expired
+}
+
+fun prepareCloneOfTree(walletId: Int) {
+    val wallet = wallets[walletId]
+    wallet.tempLocalUsage = wallet.localUsage
+    for ((k, v) in wallet._realTreeUsageByChildren) {
+        wallet.tempRealTreeUsageByChildren[k] = v
+    }
+
+    wallet.allocationIds.map { allocations[it].parentWallet }.toSet().forEach { parentWallet ->
+        if (parentWallet != null) prepareCloneOfTree(parentWallet)
+    }
+}
+
+data class ProposedCharge(val sourceWallet: Int?, val amount: Long)
+
+fun proposeChargeTree(
+    walletId: Int,
+    delta: Long,
+    charges: HashMap<Int, List<ProposedCharge>>,
+    sourceWallet: Int? = null,
+): Long {
+    if (sourceWallet == null) prepareCloneOfTree(walletId)
+    if (delta == 0L) return 0
+    var remaining = delta
+    if (delta > 0) {
+        val wallet = wallets[walletId]
+        val parents = wallet.allocationIds
+            .map { allocations[it].parentWallet?.let { wallets[it] } }
+            .filterNotNull()
+            .toSet()
+            .sortedBy { it.id }
+
+        val quotasByParent = wallet.quotasByParent()
+
+        if (parents.isEmpty()) {
+            val combinedQuota = quotasByParent[null] ?: 0L
+            val currentUsage = wallet.tempCurrentUsage()
+
+            val capacity = combinedQuota - currentUsage
+            val toBeConsumed = min(delta, capacity)
+            (charges[walletId] ?: emptyList()) + ProposedCharge(sourceWallet, toBeConsumed)
+
+            if (sourceWallet == null) {
+                wallet.tempLocalUsage += toBeConsumed
+            } else {
+                wallet.tempRealTreeUsageByChildren[sourceWallet] =
+                    (wallet.tempRealTreeUsageByChildren[sourceWallet] ?: 0L) + toBeConsumed
+            }
+            return toBeConsumed
+        } else {
+            for (parent in parents) {
+                val quotaFromParent = quotasByParent[parent.id] ?: 0L
+                val f = proposeChargeTree(
+                    parent.id,
+                    min(remaining, quotaFromParent),
+                    charges
+                )
+
+//                remaining -= f.amountCharged
+
+            }
+        }
+    } else {
+        TODO()
+    }
+    TODO()
 }
 
 fun retireAllocation(allocationId: Int, isQuotaBased: Boolean) {
@@ -178,7 +262,6 @@ fun chargeDelta2(
     amount: Long,
     leaf: Boolean = true,
 ): Boolean {
-    // Wallet is not monotonically increasing in usage
     if (amount == 0L) return true
 
     val wallet = wallets[walletId]
