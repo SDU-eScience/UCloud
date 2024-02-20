@@ -338,10 +338,10 @@ const HoverClass = injectStyle("hover-class", k => `
 export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
-    
+
     const [selectedPage, setSelectedPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
-    
+
     const tab = useSelector((it: {status: {tab: SidebarTabId}}) => it.status.tab);
 
     const dispatch = useDispatch();
@@ -508,9 +508,9 @@ function SecondarySidebar({
     const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
-        clearHover();
+        /* clearHover(); */
         clearClicked();
-    }, [clearHover, clearClicked]);
+    }, [/* clearHover */, clearClicked]);
 
     const [favoriteApps] = useCloudAPI(
         AppStore.retrieveStars({}),
@@ -575,7 +575,7 @@ function SecondarySidebar({
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {
-            if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
+            if (!clicked && !hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
         }}
         data-open={isOpen}
         data-as-pop-over={!!asPopOver}
