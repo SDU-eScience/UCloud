@@ -7,6 +7,7 @@ use.
 ## 20-02-23
 
 ```
+UCloud/Frontend @ 2023.4.12
 Type 1/SDU @ 2023.4.12
 ```
 

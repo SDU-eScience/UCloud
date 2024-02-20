@@ -27,6 +27,7 @@ npm run build
 cd ../
 
 docker build \
+    --platform linux/amd64 \
     --build-arg SERVICE_NAME="${name}" \
     -t "${name}:${version}" \
     -f Dockerfile \
