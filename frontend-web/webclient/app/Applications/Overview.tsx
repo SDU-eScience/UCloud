@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardType} from "./Card";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useLocation} from "react-router";
 import {useAppSearch} from "./Search";
@@ -15,6 +15,7 @@ import {ApplicationGroup} from "@/Applications/AppStoreApi";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {injectStyle} from "@/Unstyled";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 function link(group: ApplicationGroup): string {
     if (group.specification.defaultFlavor) {
@@ -56,7 +57,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     }, [refresh]);
 
     const title = category?.specification?.title ?? "Applications";
-    useTitle(title);
+    usePage(title, SidebarTabId.APPLICATIONS);
     useSetRefreshFunction(refresh);
     const appSearch = useAppSearch();
 

@@ -14,7 +14,7 @@ import Input, {InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
-import {useLoading, useTitle} from "@/Navigation/Redux";
+import {useLoading, usePage} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -25,6 +25,7 @@ import {
     DetailedEntityWithPermission
 } from "@/Applications/AppStoreApi";
 import * as AppStore from "@/Applications/AppStoreApi";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface AppVersion {
     version: string;
@@ -194,7 +195,7 @@ export const App: React.FunctionComponent = () => {
         }
     }, [apps.data.items]);
 
-    useTitle("Application Studio | Applications");
+    usePage("Application Studio | Applications", SidebarTabId.ADMIN);
 
     const refresh = useCallback(() => {
         setAppParameters(AppStore.findByName({appName: name, itemsPerPage: 50, page: 0}));

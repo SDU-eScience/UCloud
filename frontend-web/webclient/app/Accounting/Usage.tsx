@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Box, Flex, Icon, Input, Link, Radio, Text} from "@/ui-components";
+import {Flex, Icon, Input, Radio, Text} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -23,9 +23,8 @@ import {deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import Warning from "@/ui-components/Warning";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux";
-import AppRoutes from "@/Routes";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 // State
 // =====================================================================================================================
@@ -423,7 +422,7 @@ const Visualization: React.FunctionComponent = () => {
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
 
-    useTitle("Usage");
+    usePage("Usage", SidebarTabId.WORKSPACE);
 
     useEffect(() => {
         dispatchEvent({type: "Init"});

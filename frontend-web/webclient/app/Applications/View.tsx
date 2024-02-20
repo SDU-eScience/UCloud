@@ -1,4 +1,4 @@
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import {Box, Flex, Icon, Tooltip} from "@/ui-components";
 import Text, {TextSpan} from "@/ui-components/Text";

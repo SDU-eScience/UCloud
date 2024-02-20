@@ -18,7 +18,7 @@ import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentic
 import {useNavigate} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -39,6 +39,7 @@ import {projectTitleFromCache} from "./ContextSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
 import {OldProjectRole, isAdminOrPI} from ".";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -101,7 +102,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const didUnmount = useDidUnmount();
 
-    useTitle("Project Settings");
+    usePage("Project Settings", SidebarTabId.WORKSPACE);
     const [settings, setSettings] = useState<Grants.RequestSettings>({
         enabled: false,
         description: "No description",

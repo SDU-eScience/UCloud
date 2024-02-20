@@ -1,5 +1,5 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, DataList, Flex, Icon, Input, Label, Relative, Select, TextArea} from "@/ui-components";
+import {Box, Button, Checkbox, Flex, Icon, Input, Label, Relative, Select, TextArea} from "@/ui-components";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
@@ -7,9 +7,8 @@ import {useNavigate, useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {AppToolLogo, groupLogoCache, SafeLogo} from "../AppToolLogo";
+import {groupLogoCache, SafeLogo} from "../AppToolLogo";
 import {doNothing, stopPropagation} from "@/UtilityFunctions";
-import {Tag} from "../Card";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import List, {ListRow} from "@/ui-components/List";
@@ -20,6 +19,8 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {usePage} from "@/Navigation/Redux";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = parseInt(useParams<{ id: string }>().id ?? "-1");
@@ -30,6 +31,8 @@ export const AppGroup: React.FunctionComponent = () => {
         AppStore.listAllApplications({}),
         { items: [] },
     );
+    
+    usePage("Edit group", SidebarTabId.ADMIN);
 
     const uniqueAppsSet = new Set<string>();
     appList.data.items.forEach(it => {
@@ -164,7 +167,7 @@ export const AppGroup: React.FunctionComponent = () => {
                 <MainContainer
                     header={
                         <Flex justifyContent="space-between">
-                            <Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Edit Group</Heading.h2>
+                            <Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Edit group</Heading.h2>
                             <Flex justifyContent="right" mr="10px">
                                 <Button type="button" onClick={async () => {
                                     if (!group.data) return;

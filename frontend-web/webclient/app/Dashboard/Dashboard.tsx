@@ -1,5 +1,5 @@
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
@@ -35,7 +35,8 @@ import {NewsPost} from "@/NewsPost";
 import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
-import tooltip, {TooltipV2} from "@/ui-components/Tooltip";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -50,6 +51,8 @@ function Dashboard(): React.JSX.Element {
         page: 0,
         withHidden: false,
     }), emptyPage);
+    
+    usePage("Dashboard", SidebarTabId.NONE);
 
     const dispatch = useDispatch();
     const invitesReload = React.useRef<() => void>(initialCall); // Oui
@@ -61,7 +64,6 @@ function Dashboard(): React.JSX.Element {
 
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
 
-    useTitle("Dashboard");
 
     React.useEffect(() => {
         reload();

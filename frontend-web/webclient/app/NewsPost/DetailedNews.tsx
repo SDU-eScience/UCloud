@@ -8,7 +8,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {Tag} from "@/Applications/Card";
 import {format} from "date-fns";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Spacer} from "@/ui-components/Spacer";
 import {DatePicker} from "@/ui-components/DatePicker";
@@ -19,6 +19,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import Fuse from "fuse.js";
 import {Toggle} from "@/ui-components/Toggle";
 import {NewsPost} from ".";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -38,7 +39,7 @@ export const DetailedNews: React.FC = () => {
         setParams(getByIdRequest({id}));
     }, [id]);
 
-    useTitle("Post: " + newsPost.data?.title ?? "Detailed News");
+    usePage("Post: " + newsPost.data?.title ?? "Detailed News", SidebarTabId.NONE);
 
     if (newsPost.loading) return <MainContainer headerSize={0} main={<Loading size={24} />} />;
     if (newsPost.data == null) return <MainContainer headerSize={0} main="News post not found" />;

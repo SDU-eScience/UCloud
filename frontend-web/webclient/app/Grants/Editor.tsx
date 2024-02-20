@@ -33,8 +33,9 @@ import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import {Project, isAdminOrPI} from "@/Project";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {formatDistance} from "date-fns/formatDistance";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 // State model
 // =====================================================================================================================
@@ -1435,7 +1436,7 @@ export function Editor(): React.JSX.Element {
     const scrollToTopRef = useRef(false);
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
-    useTitle("Grant application");
+    usePage("Grant application", SidebarTabId.WORKSPACE);
     const location = useLocation();
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";

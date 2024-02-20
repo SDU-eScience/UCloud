@@ -4,7 +4,7 @@ import jobs = UCloud.compute.jobs;
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {errorMessageOrDefault, isAbsoluteUrl, shortUUID} from "@/UtilityFunctions";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
@@ -14,6 +14,7 @@ import * as VncLog from '@novnc/novnc/core/util/logging.js';
 import {Box, Button} from "@/ui-components";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf} from "@/UtilityFunctions";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface ConnectionDetails {
     url: string;
@@ -31,7 +32,7 @@ export const Vnc: React.FunctionComponent = () => {
     );
 
     const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
-    useTitle(`Remote Desktop: ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
+    usePage(`Remote Desktop: ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`, SidebarTabId.APPLICATIONS);
 
     useEffect(() => {
         if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {

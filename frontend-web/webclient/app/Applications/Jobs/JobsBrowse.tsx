@@ -1,6 +1,6 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
@@ -17,6 +17,7 @@ import {Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {logoDataUrls} from "./LogoDataCache";
 import {jobCache} from "./View";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -42,7 +43,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useTitle("Jobs");
+        usePage("Jobs", SidebarTabId.RUNS);
     }
 
     const omitFilters = !!opts?.omitFilters;

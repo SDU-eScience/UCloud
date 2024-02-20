@@ -1,7 +1,7 @@
 import * as React from "react";
 import {Button, Flex, Icon, MainContainer} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {fetchAll} from "@/Utilities/PageUtilities";
@@ -12,10 +12,11 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {doNothing} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const Categories: React.FunctionComponent = () => {
     const [categories, setCategories] = useState<ApplicationCategory[]>([]);
-    useTitle("Application Studio | Categories")
+    usePage("Application Studio | Categories", SidebarTabId.APPLICATIONS);
 
     const refresh = useCallback(() => {
         let didCancel = false;

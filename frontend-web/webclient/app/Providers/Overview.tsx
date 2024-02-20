@@ -1,5 +1,5 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {Box, Flex, Link} from "@/ui-components";
 import {GridCardGroup} from "@/ui-components/Grid";
 import * as React from "react";
@@ -11,6 +11,7 @@ import Providers from "@/Assets/provider_info.json";
 import {Feature, hasFeature} from "@/Features";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface ProviderType {
     id: string;
@@ -48,7 +49,7 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode 
 export default function ProviderOverview() {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
 
-    useTitle("Provider overview");
+    usePage("Provider overview", SidebarTabId.NONE);
 
     const main = <Box m="12px 24px">
         <GridCardGroup minmax={250}>

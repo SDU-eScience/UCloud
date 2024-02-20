@@ -35,7 +35,7 @@ import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import BaseLink from "@/ui-components/BaseLink";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {useTitle, useLoading} from "@/Navigation/Redux";
+import {usePage, useLoading} from "@/Navigation/Redux";
 import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {timestampUnixMs} from "@/UtilityFunctions";
@@ -50,6 +50,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from ".";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
@@ -566,7 +567,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         groupMemberToggleSet.uncheckAll();
     }, [inspectingGroup?.status?.members]);
 
-    useTitle("Member and Group Management");
+    usePage("Member and Group Management", SidebarTabId.WORKSPACE);
     useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 

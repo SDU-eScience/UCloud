@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {Absolute, Box, Button, Card, Flex, Grid, Icon, Markdown, Relative} from "@/ui-components";
@@ -18,6 +18,7 @@ import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
 import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -48,7 +49,7 @@ const landingStyle = injectStyle("landing-page", k => `
 `);
 
 const LandingPage: React.FunctionComponent = () => {
-    useTitle("Applications");
+    usePage("Applications", SidebarTabId.APPLICATIONS);
     const [landingPageState, fetchLandingPage] = useCloudAPI(
         AppStore.retrieveLandingPage({}),
         null

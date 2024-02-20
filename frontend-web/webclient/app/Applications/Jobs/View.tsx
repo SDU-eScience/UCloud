@@ -5,7 +5,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import {Absolute, Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
@@ -48,6 +48,7 @@ import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {appendToXterm, useXTerm} from "./XTermLib";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -316,7 +317,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
     if (!props.embedded) {
-        useTitle(`Job ${shortUUID(id)}`);
+        usePage(`Job ${shortUUID(id)}`, SidebarTabId.RUNS);
     }
 
     useEffect(() => {

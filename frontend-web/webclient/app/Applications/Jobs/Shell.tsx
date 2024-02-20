@@ -6,12 +6,13 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
 import {Box, Button} from "@/ui-components";
 import {shortUUID} from "@/UtilityFunctions";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkResponseOf, bulkRequestOf} from "@/UtilityFunctions";
 import {default as JobsApi, InteractiveSession} from "@/UCloud/JobsApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {BulkResponse} from "@/UCloud";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
@@ -25,7 +26,7 @@ export const Shell: React.FunctionComponent = () => {
 
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
-    useTitle(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
+    usePage(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`, SidebarTabId.APPLICATIONS);
 
     useEffect(() => {
         openSession(JobsApi.openInteractiveSession(

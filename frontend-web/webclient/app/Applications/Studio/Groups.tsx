@@ -15,6 +15,8 @@ import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
     const [filter, setTitleFilter] = React.useState("");
@@ -27,6 +29,8 @@ export const ApplicationGroups: React.FunctionComponent = () => {
         AppStore.browseGroups({itemsPerPage: 250}),
         emptyPageV2,
     );
+    
+    usePage("Application groups", SidebarTabId.ADMIN)
 
     const refresh = useCallback(() => {
         setGroups(AppStore.browseGroups({itemsPerPage: 250})).then(doNothing);
@@ -41,7 +45,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application Groups</Heading.h2>}
+            header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application groups</Heading.h2>}
             main={
                 <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                     <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>

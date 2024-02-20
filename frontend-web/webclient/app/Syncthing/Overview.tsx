@@ -1,8 +1,8 @@
 import * as React from "react";
 import {NavigateFunction, useNavigate} from "react-router";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
-import {useTitle} from "@/Navigation/Redux";
+import {SafeLogo} from "@/Applications/AppToolLogo";
+import {usePage} from "@/Navigation/Redux";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
@@ -39,6 +39,7 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 // UI state management
 // ================================================================================
@@ -420,7 +421,7 @@ export const Overview: React.FunctionComponent = () => {
         })).catch(() => reload());
     }, [folders.length, devices.length, selectedProduct]);
 
-    useTitle("File Synchronization");
+    usePage("File Synchronization", SidebarTabId.FILES);
     useSetRefreshFunction(reload);
 
     let main: JSX.Element;

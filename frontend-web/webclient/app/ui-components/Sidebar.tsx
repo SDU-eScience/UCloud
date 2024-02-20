@@ -72,7 +72,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         overflow-x: hidden;
         height: 100vh;
         padding: 13px 16px 16px 16px;
-        
+        z-index: 10;
         font-size: 14px;
     }
     
@@ -82,7 +82,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
 
     ${k}[data-as-pop-over="true"] {
         left: var(--sidebarWidth);
-        z-index: 10;
         position: absolute;
     }
     
@@ -339,9 +338,11 @@ const HoverClass = injectStyle("hover-class", k => `
 export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
-
+    
     const [selectedPage, setSelectedPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
+    
+    const tab = useSelector((it: {status: {tab: SidebarTabId}}) => it.status.tab);
 
     const dispatch = useDispatch();
     React.useEffect(() => {
@@ -381,7 +382,7 @@ export function Sidebar(): JSX.Element | null {
                         to ? (
                             <Link hoverColor="fixedWhite" key={label} to={typeof to === "function" ? to() : to}>
                                 <div
-                                    data-active={label === selectedPage}
+                                    data-active={tab === label}
                                     onMouseEnter={() => setHoveredPage(label)}
                                     onClick={() => {
                                         if (selectedPage) {
@@ -394,7 +395,7 @@ export function Sidebar(): JSX.Element | null {
                                 </div>
                             </Link>) : <div
                                 key={label}
-                                data-active={label === selectedPage}
+                                data-active={tab === label}
                                 onClick={() => {
                                     if (selectedPage) {
                                         setSelectedPage(label);

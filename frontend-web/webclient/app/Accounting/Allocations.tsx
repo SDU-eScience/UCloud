@@ -44,6 +44,8 @@ import * as Heading from "@/ui-components/Heading";
 import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 import Avatar from "@/AvataaarLib/avatar";
 import {heroExclamationTriangle} from "@/ui-components/icons";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {usePage} from "@/Navigation/Redux";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -811,6 +813,8 @@ const Allocations: React.FunctionComponent = () => {
     const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
+    
+    usePage("Allocations", SidebarTabId.WORKSPACE);
 
     useEffect(() => {
         dispatchEvent({type: "Init"});

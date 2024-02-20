@@ -1,21 +1,21 @@
 import * as Heading from "@/ui-components/Heading";
-import React, {useCallback, useEffect} from "react";
+import React, {useCallback} from "react";
 import {useParams} from "react-router";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {AppToolLogo, SafeLogo} from "./AppToolLogo";
+import {SafeLogo} from "./AppToolLogo";
 import {Box, Flex, Grid} from "@/ui-components";
 import {AppCard, AppCardType} from "./Card";
 import * as AppStore from "@/Applications/AppStoreApi";
 import * as Pages from "./Pages";
-import {AppSearchBox, useAppSearch} from "./Search";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {useAppSearch} from "./Search";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {useDispatch, useSelector} from "react-redux";
 import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
-import {ApplicationGroup, ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 
 const ApplicationsGroup: React.FunctionComponent = () => {
@@ -30,7 +30,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
         fetchAppGroup(AppStore.retrieveGroup({id})).then(doNothing);
     }, [id]);
 
-    useTitle(appGroup.data?.specification.title ?? "Application");
+    usePage(appGroup.data?.specification.title ?? "Application", SidebarTabId.APPLICATIONS);
     useSetRefreshFunction(refresh);
 
     const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);

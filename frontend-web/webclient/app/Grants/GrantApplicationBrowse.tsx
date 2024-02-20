@@ -2,7 +2,7 @@ import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowser
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import AppRoutes from "@/Routes";
@@ -14,6 +14,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {addTrailingSlash, createHTMLElements, timestampUnixMs} from "@/UtilityFunctions";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -35,7 +36,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useTitle("Grant Applications");
+        usePage("Grant Applications", SidebarTabId.WORKSPACE);
     }
 
     const location = useLocation();

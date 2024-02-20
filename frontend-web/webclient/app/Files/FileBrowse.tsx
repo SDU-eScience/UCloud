@@ -48,7 +48,7 @@ import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {div, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";
@@ -58,6 +58,7 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -111,7 +112,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
     if (!opts?.embedded && !opts?.isModal) {
-        useTitle("Files");
+        usePage("Files", SidebarTabId.FILES);
     }
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {

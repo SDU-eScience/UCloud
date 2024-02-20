@@ -1,7 +1,7 @@
 import {callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import MainContainer from "@/ui-components/MainContainer";
-import {useLoading, useTitle} from "@/Navigation/Redux";
+import {useLoading, usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as UCloud from "@/UCloud";
@@ -12,11 +12,12 @@ import {Toggle} from "@/ui-components/Toggle";
 import {useLocation, useNavigate} from "react-router";
 import {FindByStringId} from "@/UCloud";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 function ApproveOrSign(): JSX.Element | null {
     const [loading, invokeCommand] = useCloudCommand();
 
-    useTitle("Approve Provider");
+    usePage("Approve Provider", SidebarTabId.NONE);
     useLoading(loading);
     const navigate = useNavigate();
     const location = useLocation();

@@ -1,6 +1,6 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -8,6 +8,7 @@ import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {image} from "@/Utilities/HTMLUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -28,7 +29,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
     const browserRef = React.useRef<ResourceBrowser<SSHKey> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    useTitle("SSH keys");
+    usePage("SSH keys", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     React.useLayoutEffect(() => {

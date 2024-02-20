@@ -2,7 +2,7 @@ import {ColumnTitleList, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowse
 import * as React from "react";
 import api, {ProjectInvite} from "./Api";
 import {callAPI} from "@/Authentication/DataHook";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {format} from "date-fns";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -11,6 +11,7 @@ import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {MainContainer} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags: {itemsPerPage: number; filterType: "INGOING"} = {
     itemsPerPage: 250,
@@ -39,7 +40,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useTitle("Providers");
+        usePage("Project invites", SidebarTabId.WORKSPACE);
     }
 
     const omitFilters = !!opts?.omitFilters;

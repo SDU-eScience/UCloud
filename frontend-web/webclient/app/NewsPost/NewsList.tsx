@@ -11,10 +11,11 @@ import {format} from "date-fns";
 import {Tag} from "@/Applications/Card";
 import {capitalized} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {NewsPost} from ".";
 import {emptyPage} from "@/Utilities/PageUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;
@@ -48,7 +49,7 @@ export const NewsList: React.FC = () => {
         );
     }, [filter]);
 
-    useTitle("News");
+    usePage("News", SidebarTabId.NONE);
 
     const navigate = useNavigate();
 

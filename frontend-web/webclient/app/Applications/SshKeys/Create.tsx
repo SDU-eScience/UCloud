@@ -1,7 +1,7 @@
 import * as React from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import {ResourceOptions} from "@/Resource/ResourceOptions";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import SshKeyApi from "@/UCloud/SshKeyApi";
 import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
@@ -15,6 +15,7 @@ import * as Heading from "@/ui-components/Heading";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface GenericInputFieldProps {
     name: string;
@@ -65,7 +66,7 @@ const GenericTextArea: React.FunctionComponent<GenericInputFieldProps> = props =
 }
 
 export const SshKeysCreate: React.FunctionComponent = () => {
-    useTitle(SshKeyApi.titlePlural);
+    usePage(SshKeyApi.titlePlural, SidebarTabId.RESOURCES);
 
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);

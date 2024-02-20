@@ -1,7 +1,11 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue, providerIcon, resourceCreationWithProductSelector, setFilterStorageValue} from "@/ui-components/ResourceBrowser";
+import {usePage} from "@/Navigation/Redux";
+import {
+    EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts,
+    addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue,
+     providerIcon, resourceCreationWithProductSelector, setFilterStorageValue
+} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -19,6 +23,7 @@ import {bulkRequestOf} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -47,7 +52,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState<JSX.Element>(<></>);
-    useTitle("Licenses");
+    usePage("Licenses", SidebarTabId.RESOURCES);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -136,7 +141,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
                     })
                 });
 
-                browser.on("unhandledShortcut", () => { });
+                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
@@ -249,7 +254,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
-                        startCreation: opts?.isModal ? undefined : function(): void {
+                        startCreation: opts?.isModal ? undefined : function (): void {
                             startCreation();
                         },
                         cancelCreation: doNothing,

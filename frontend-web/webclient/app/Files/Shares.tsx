@@ -27,7 +27,7 @@ import AppRoutes from "@/Routes";
 import {injectStyleSimple} from "@/Unstyled";
 import MainContainer from "@/ui-components/MainContainer";
 import {useDispatch} from "react-redux";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {
     clearFilterStorageValue,
     dateRangeFilters,
@@ -345,7 +345,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     const avatars = useAvatars();
 
     if (!opts?.embedded) {
-        useTitle(TITLE);
+        usePage(TITLE, SidebarTabId.FILES);
     }
 
     const features: ResourceBrowseFeatures = {

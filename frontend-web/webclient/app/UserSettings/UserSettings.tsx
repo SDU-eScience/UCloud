@@ -1,6 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {setLoading, useTitle} from "@/Navigation/Redux";
+import {setLoading, usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {Box, Flex} from "@/ui-components";
@@ -13,10 +13,11 @@ import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 function UserSettings(): React.ReactNode {
 
-    useTitle("User Settings");
+    usePage("User Settings", SidebarTabId.NONE);
 
     const headerLoading = useSelector(({status}: ReduxObject) => status.loading);
     const dispatch = useDispatch();

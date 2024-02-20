@@ -18,7 +18,8 @@ import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const AppSearchBoxClass = injectStyle("app-search-box", k => `
     ${k} {
@@ -139,7 +140,7 @@ const SearchResults: React.FunctionComponent = () => {
         refresh();
     }, [refresh]);
 
-    useTitle("Search results");
+    usePage("Search results", SidebarTabId.APPLICATIONS);
     useSetRefreshFunction(refresh);
 
     const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);

@@ -4,10 +4,11 @@ import jobs = UCloud.compute.jobs;
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {isAbsoluteUrl} from "@/UtilityFunctions";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {useEffect} from "react";
 import {bulkRequestOf} from "@/UtilityFunctions";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface SessionType {
     jobId: string;
@@ -49,7 +50,7 @@ export const Web: React.FunctionComponent = () => {
         null
     );
 
-    useTitle("Redirecting to web interface")
+    usePage("Redirecting to web interface", SidebarTabId.APPLICATIONS)
 
     useEffect(() => {
         if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {

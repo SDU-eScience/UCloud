@@ -28,10 +28,11 @@ import {
 import {ProductV2, ProductV2Storage} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -64,7 +65,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
     const dispatch = useDispatch();
-    useTitle("Drives");
+    usePage("Drives", SidebarTabId.FILES);
 
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);

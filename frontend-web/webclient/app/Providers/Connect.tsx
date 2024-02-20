@@ -10,11 +10,12 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "./ConnectionState";
 import {useUState} from "@/Utilities/UState";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
@@ -123,7 +124,7 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
         // NOTE(Dan): You are not meant to swap the embedded property on a mounted component. We should be fine even
         // though we are breaking rules of hooks.
         // NOTE(Jonas): Woohooo, breaking the rules of hooks!
-        useTitle("Connect to Providers");
+        usePage("Connect to Providers", SidebarTabId.NONE);
         return <MainContainer
             header={
                 <Heading.h3 style={{marginLeft: "8px"}}>Provider connections</Heading.h3>

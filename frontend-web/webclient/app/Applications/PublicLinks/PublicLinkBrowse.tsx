@@ -2,7 +2,7 @@ import {productTypeToIcon, ProductV2, ProductV2Ingress} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
@@ -20,6 +20,7 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -47,7 +48,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    useTitle("Public links");
+    usePage("Public links", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 

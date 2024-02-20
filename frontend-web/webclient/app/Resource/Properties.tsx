@@ -11,7 +11,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useLoading, useTitle} from "@/Navigation/Redux";
+import {useLoading, usePage} from "@/Navigation/Redux";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
@@ -31,6 +31,7 @@ import {Truncate} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {LogOutput} from "@/UtilityComponents";
 import {isAdminOrPI} from "@/Project";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -265,7 +266,7 @@ export function ResourceProperties<Res extends Resource>(
     const operations = useMemo(() => api.retrieveOperations(), [api]);
 
     if (props.embedded != true) {
-        useTitle(props.api.title);
+        usePage(props.api.title, SidebarTabId.NONE); // Note(Jonas): Do something different here? 
         useLoading(ownResource.loading);
         useSetRefreshFunction(reload);
     }

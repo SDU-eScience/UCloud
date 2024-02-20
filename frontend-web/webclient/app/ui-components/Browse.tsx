@@ -14,11 +14,12 @@ import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
 import {NavigateFunction, useNavigate} from "react-router";
 import {Box, List} from "@/ui-components/index";
-import {useLoading, useTitle} from "@/Navigation/Redux";
+import {useLoading, usePage} from "@/Navigation/Redux";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "./MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "./SidebarComponents";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -264,6 +265,7 @@ interface StandardListBrowse<T, CB> {
     emptyPage?: JSX.Element;
     extraCallbacks?: CB;
     hide?: boolean;
+    page: SidebarTabId;
     navigate?: (item: T) => void;
     header?: React.ReactNode;
     headerSize?: number;
@@ -346,7 +348,7 @@ export function StandardList<T, CB = EmptyObject>(
     );
 
     if (isMainContainer) {
-        useTitle(titlePlural);
+        usePage(titlePlural, props.page);
         useLoading(commandLoading || loadingRef.current);
     }
 

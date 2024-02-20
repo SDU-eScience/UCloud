@@ -45,7 +45,17 @@ import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {injectStyle} from "@/Unstyled";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
+import {ExtensionType, extensionFromPath, extensionType, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
+import {Markdown} from "@/ui-components";
+import {classConcat, injectStyleSimple} from "@/Unstyled";
+import fileType from "magic-bytes.js";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {useSelector} from "react-redux";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
+import {FilesCopyRequestItem, FilesCreateDownloadRequestItem, FilesCreateDownloadResponseItem, FilesCreateFolderRequestItem, FilesCreateUploadRequestItem, FilesEmptyTrashRequestItem, FilesMoveRequestItem, FilesTrashRequestItem, UFile, UFileIncludeFlags, UFileSpecification, UFileStatus} from "./UFile";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -211,7 +221,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         const prettyPath = usePrettyFilePath(id ?? "");
         const downloadRef = React.useRef(new Uint8Array());
-        useTitle(prettyPath);
+        usePage(prettyPath, SidebarTabId.FILES);
 
         const [, invokeCommand] = useCloudCommand();
 
@@ -987,17 +997,6 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
 }
 
 const api = new FilesApi();
-
-
-import {ExtensionType, extensionFromPath, extensionType, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
-import {Markdown} from "@/ui-components";
-import {classConcat, injectStyleSimple} from "@/Unstyled";
-import fileType from "magic-bytes.js";
-import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {AsyncCache} from "@/Utilities/AsyncCache";
-import {useSelector} from "react-redux";
-import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
-import {FilesCopyRequestItem, FilesCreateDownloadRequestItem, FilesCreateDownloadResponseItem, FilesCreateFolderRequestItem, FilesCreateUploadRequestItem, FilesEmptyTrashRequestItem, FilesMoveRequestItem, FilesTrashRequestItem, UFile, UFileIncludeFlags, UFileSpecification, UFileStatus} from "./UFile";
 
 const monacoCache = new AsyncCache<any>();
 

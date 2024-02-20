@@ -24,6 +24,7 @@ import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
 import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
@@ -158,6 +159,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
                 operations={this.templateOps}
                 title={"Version"}
                 embedded={"inline"}
+                page={SidebarTabId.FILES}
                 onSelect={props.onSelect}
                 extraCallbacks={extraCallbacks}
                 navigate={it => setPreviewing(it)}

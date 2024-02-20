@@ -1,5 +1,5 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {setLoading, useTitle} from "@/Navigation/Redux";
+import {setLoading, usePage} from "@/Navigation/Redux";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -8,6 +8,7 @@ import * as Heading from "@/ui-components/Heading";
 import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
 import {useDispatch} from "react-redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const initialState: UserCreationState = {
     username: "",
@@ -58,7 +59,7 @@ function UserCreation(): JSX.Element | null {
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();
 
-    useTitle("User Creation");
+    usePage("User Creation", SidebarTabId.ADMIN);
 
     if (!Client.userIsAdmin) return null;
 

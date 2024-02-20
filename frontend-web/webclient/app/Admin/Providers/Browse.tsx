@@ -4,13 +4,14 @@ import {useNavigate} from "react-router";
 import MainContainer from "@/ui-components/MainContainer";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import AppRoutes from "@/Routes";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -37,7 +38,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        useTitle("Providers");
+        usePage("Providers", SidebarTabId.NONE);
     }
 
     const omitFilters = !!opts?.omitFilters;

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share, ShareState, isViewingShareGroupPreview} from "@/UCloud/SharesApi";
 import MainContainer from "@/ui-components/MainContainer";
 import {prettyFilePath} from "@/Files/FilePath";
@@ -26,6 +26,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
 import {useProjectId} from "@/Project/Api";
 import {FlexClass} from "@/ui-components/Flex";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -148,7 +149,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
     const dispatch = useDispatch();
     const location = useLocation();
 
-    useTitle(TITLE);
+    usePage(TITLE, SidebarTabId.FILES);
 
     const features: ResourceBrowseFeatures = FEATURES;
 

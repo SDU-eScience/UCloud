@@ -1,7 +1,7 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {format} from "date-fns";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import * as Pagination from "@/Pagination";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
@@ -20,6 +20,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import AppRoutes from "@/Routes";
 import {NewsPost} from "@/NewsPost";
 import {emptyPage} from "@/Utilities/PageUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
@@ -34,7 +35,7 @@ function NewsManagement(): JSX.Element | null {
     const categoryRef = React.useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
 
-    useTitle("News Management");
+    usePage("News Management", SidebarTabId.NONE);
 
     React.useEffect(() => {
         fetchNewsPost(0, 25);

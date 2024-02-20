@@ -5,14 +5,14 @@ import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {PageV2} from "@/UCloud";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {format} from "date-fns";
 import {ResourceBrowseFeatures, ResourceBrowser, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {DATE_FORMAT} from "./NewsManagement";
 import {ButtonClass} from "@/ui-components/Button";
 import {createHTMLElements} from "@/UtilityFunctions";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {features} from "monaco-editor/esm/metadata";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const baseContext = "/api/scripts";
 
@@ -58,7 +58,7 @@ const ROW_TITLES: ColumnTitleList = [{name: "Script"}, {name: ""}, {name: "Last 
 function Scripts(): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ScriptInfo> | null>(null);
-    useTitle("Scripts");
+    usePage("Scripts", SidebarTabId.ADMIN);
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {

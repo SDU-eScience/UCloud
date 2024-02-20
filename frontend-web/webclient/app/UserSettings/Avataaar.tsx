@@ -1,6 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";
 import {useDispatch} from "react-redux";
@@ -13,12 +13,13 @@ import {saveAvatar} from "./Redux";
 import {avatarState} from "@/AvataaarLib/hook";
 import {AvatarType, defaultAvatar} from "@/AvataaarLib";
 import Avatar from "@/AvataaarLib/avatar";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 function Modification(): React.JSX.Element {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
     const [loading, setLoading] = React.useState(true);
 
-    useTitle("Edit Avatar");
+    usePage("Edit Avatar", SidebarTabId.NONE);
 
     const dispatch = useDispatch();
 

@@ -5,11 +5,12 @@ import {useCallback, useEffect, useState} from "react";
 import {Spotlight} from "@/Applications/AppStoreApi";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {ListRow} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import * as Heading from "@/ui-components/Heading";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const Spotlights: React.FunctionComponent = () => {
     const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
@@ -30,7 +31,7 @@ const Spotlights: React.FunctionComponent = () => {
         refresh();
     }, [refresh]);
 
-    useTitle("Spotlights");
+    usePage("Spotlights", SidebarTabId.APPLICATIONS);
 
     return <MainContainer
         main={<Flex flexDirection={"column"} margin={"0 auto"} maxWidth={"900px"} gap={"16px"}>

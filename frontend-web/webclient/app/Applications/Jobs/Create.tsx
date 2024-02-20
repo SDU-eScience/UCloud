@@ -34,7 +34,7 @@ import {displayErrorMessageOrDefault, extractErrorCode, prettierString, useDidMo
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
-import {useTitle} from "@/Navigation/Redux";
+import {usePage} from "@/Navigation/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "@/UtilityFunctions";
@@ -61,6 +61,7 @@ import {
 } from "@/Applications/AppStoreApi";
 import wallets = accounting.wallets;
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 interface InsufficientFunds {
     why?: string;
@@ -109,9 +110,9 @@ export const Create: React.FunctionComponent = () => {
     );
 
     if (applicationResp) {
-        useTitle(`${applicationResp.data?.metadata.title} ${applicationResp.data?.metadata.version ?? ""}`);
+        usePage(`${applicationResp.data?.metadata.title} ${applicationResp.data?.metadata.version ?? ""}`, SidebarTabId.APPLICATIONS);
     } else {
-        useTitle(`${appName} ${appVersion ?? ""}`);
+        usePage(`${appName} ${appVersion ?? ""}`, SidebarTabId.APPLICATIONS);
     }
 
     const [previousResp, fetchPrevious] = useCloudAPI<Page<ApplicationSummaryWithFavorite> | null>(
