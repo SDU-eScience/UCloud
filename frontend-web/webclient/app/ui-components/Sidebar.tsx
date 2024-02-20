@@ -61,29 +61,31 @@ import {isAdminOrPI} from "@/Project";
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
         background-color: var(--sidebarSecondaryColor);
-        transition: transform 0.1s;
-        width: 0;
+        transition: left 0.15s;
         display: flex;
+        width: var(--secondarySidebarWidth);
+        position: absolute;
         flex-direction: column;
-        transform: translate(-300px, 0);
+        left: calc(0px - var(--secondarySidebarWidth));
         box-sizing: border-box;
         overflow-y: auto;
         overflow-x: hidden;
         height: 100vh;
+        padding: 13px 16px 16px 16px;
         
         font-size: 14px;
     }
     
-    ${k}, ${k} a, ${k} a:hover {
-        color: white;
-    }
-    
     ${k}[data-open="true"] {
-        transform: translate(0, 0);
-        padding: 13px 16px 16px 16px;
-        width: var(--secondarySidebarWidth);
+        position: unset;
     }
 
+    ${k}[data-as-pop-over="true"] {
+        left: var(--sidebarWidth);
+        z-index: 10;
+        position: absolute;
+    }
+    
     @media screen and (max-width: 640px) {
         ${k}[data-open="true"] {
             position: absolute;
@@ -91,14 +93,11 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
             z-index: 1;
         }
     }
-    
 
-    ${k}[data-as-pop-over="true"] {
-        position: absolute;
-        left: var(--sidebarWidth);
-        z-index: 10;
-    }
-    
+    ${k}, ${k} a, ${k} a:hover {
+        color: white;
+    } 
+
     ${k} header {
         display: flex;
         align-items: center;
@@ -150,7 +149,7 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", `
     height: 100vh;
     width: var(--sidebarWidth);
 
-    /* Required by Safari */
+    /* Note(Jonas): Required by Safari */
     min-width: var(--sidebarWidth);
     
     background-color: var(--sidebarColor);
@@ -274,9 +273,9 @@ function UserMenuExternalLink(props: {
     </div>
 }
 
-const UserMenu: React.FunctionComponent<{
+function UserMenu({avatar}: {
     avatar: AvatarType;
-}> = ({avatar}) => {
+}) {
     const close = React.useRef(() => undefined);
     return <ClickableDropdown
         width="230px"
@@ -501,6 +500,7 @@ function SecondarySidebar({
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
     const activeProjectId = useProjectId();
+    const lastHover = React.useRef("");
     const isPersonalWorkspace = !activeProjectId;
     const project = useProject();
     const projectId = useProjectId();
@@ -531,8 +531,10 @@ function SecondarySidebar({
 
     const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
     const isOpen = clicked !== "" || hovered !== "";
-    const active = hovered ? hovered : clicked;
+    const active = !isOpen ? lastHover.current : hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
+
+    lastHover.current = active;
 
     useEffect(() => {
         const firstLevel = parseInt(getCssPropertyValue("sidebarWidth").replace("px", ""), 10);
