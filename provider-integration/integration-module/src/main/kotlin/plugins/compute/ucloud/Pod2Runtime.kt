@@ -539,11 +539,7 @@ class Pod2Runtime(
                     val (jobId, rank) = jobAndRank
                     if (scheduler.findRunningReplica(jobId, rank, touch = true) == null) {
                         val podLimits = pod.spec?.containers?.firstOrNull()?.resources?.limits
-                        if (podLimits == null) {
-                            log.warn("Pod without resource limits: $pod")
-                            k8Client.deleteResource(KubernetesResources.pod.withNameAndNamespace(podName, namespace))
-                            continue
-                        }
+                            ?: JsonObject(emptyMap())
 
                         fun limit(name: String): String? = (podLimits.get(name) as? JsonPrimitive)?.contentOrNull
 
