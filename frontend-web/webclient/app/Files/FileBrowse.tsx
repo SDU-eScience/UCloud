@@ -103,7 +103,7 @@ const FEATURES: ResourceBrowseFeatures = {
 }
 
 let lastActiveProject: string | undefined = "";
-const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", sortById: "MODIFIED_AT"}, {name: "Size", sortById: "SIZE"}];
+const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: ""}, {name: "Modified at", sortById: "MODIFIED_AT"}, {name: "Size", sortById: "SIZE"}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();

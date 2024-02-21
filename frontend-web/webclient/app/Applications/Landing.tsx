@@ -562,7 +562,6 @@ const CategoryCard: React.FunctionComponent<{
     const appC = appColors[appColor(hash)][1];
     // const gradStart = "#6DA8EE";
     let [h, s, l] = rgbToHsl(appC)
-    console.log(appC, h, s, l);
     s /= 1.0;
     // h += 0.50;
     h %= 1;

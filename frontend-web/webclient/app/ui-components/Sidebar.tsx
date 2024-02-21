@@ -741,7 +741,7 @@ function SecondarySidebar({
                 </> : null}
 
                 <SidebarSectionHeader to={AppRoutes.apps.landing()}
-                    tab={SidebarTabId.APPLICATIONS}>Categories</SidebarSectionHeader>
+                    tab={SidebarTabId.APPLICATIONS}>Store</SidebarSectionHeader>
                 {appStoreSections.data.items.length === 0 && <>
                     <SidebarEmpty>No applications found</SidebarEmpty>
                 </>}

@@ -440,8 +440,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                             browser.renderRows();
                                         }
                                     }
-                                } else {
-                                    console.log("NOT defined")
                                 }
                             }
                         }
