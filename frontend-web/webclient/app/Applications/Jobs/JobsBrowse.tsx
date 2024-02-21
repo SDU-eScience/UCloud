@@ -278,7 +278,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     IN_QUEUE: ["heroCalendar", "iconColor"],
-    RUNNING: ["heroClock", "iconColor"],
+    RUNNING: ["heroClock", "successMain"],
     SUCCESS: ["heroCheck", "successMain"],
     FAILURE: ["heroXMark", "errorMain"],
     EXPIRED: ["heroClock", "warningMain"],

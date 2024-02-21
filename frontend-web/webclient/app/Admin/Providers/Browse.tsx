@@ -38,7 +38,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        usePage("Providers", SidebarTabId.NONE);
+        usePage("Providers", SidebarTabId.ADMIN);
     }
 
     const omitFilters = !!opts?.omitFilters;
