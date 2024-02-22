@@ -2,7 +2,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {copyToClipboard, displayErrorMessageOrDefault, joinToString, useFrameHidden} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard, displayErrorMessageOrDefault, joinToString, useFrameHidden} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -58,6 +58,7 @@ import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
+import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -121,6 +122,11 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     
     ${k} h3 {
         font-size: 16px;
+    }
+
+    ${k} .heading, ${k} a.heading, ${k} h3.no-link, ${k} a, ${k} h3.no-link, ${k} h1 {
+        user-select: none;
+        -webkit-user-select: none;
     }
     
     ${k} a.heading, ${k} h3.no-link  {
@@ -447,7 +453,6 @@ function useSidebarFilesPage(): [
 ] {
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, {items: [], itemsPerPage: 0});
 
-
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
 
     React.useEffect(() => {
@@ -458,6 +463,14 @@ function useSidebarFilesPage(): [
             } catch (e) {
                 if (e?.request?.status === 404) {
                     fileTypeCache[file.path] = "DELETED";
+                    callAPI(
+                        metadataDocumentApi.delete(
+                            bulkRequestOf({
+                                changeLog: "File no longer exists.",
+                                id: file.metadata.id
+                            })
+                        )
+                    );
                 }
             }
         });
@@ -527,9 +540,8 @@ function SecondarySidebar({
     const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
-        /* clearHover(); */
         clearClicked();
-    }, [/* clearHover */, clearClicked]);
+    }, [clearClicked]);
 
     const [favoriteApps] = useCloudAPI(
         AppStore.retrieveStars({}),
@@ -591,10 +603,6 @@ function SecondarySidebar({
         }
     }, [clearHover]);
 
-    const visibleFavoriteCount = React.useMemo(() =>
-        favoriteFiles.reduce((acc, file) => (fileTypeCache[file.path] !== "DELETED" ? 1 : 0) + acc, 0),
-        [favoriteFiles]);
-
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {
@@ -642,7 +650,7 @@ function SecondarySidebar({
                     />
                 ) : null}
 
-                {canConsume && visibleFavoriteCount > 0 ? <>
+                {canConsume && favoriteFiles.length > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
