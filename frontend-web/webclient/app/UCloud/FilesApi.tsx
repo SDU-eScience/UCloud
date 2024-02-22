@@ -626,7 +626,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
             {
                 icon: "refresh",
-                text: "Manage synchronization",
+                text: "Sync",
                 enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig,
                 onClick: (selected, extra) =>
                     extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`),

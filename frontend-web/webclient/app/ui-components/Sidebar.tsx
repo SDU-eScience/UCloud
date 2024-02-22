@@ -31,7 +31,7 @@ import {Page, PageV2} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
-import {fileName} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
@@ -57,6 +57,7 @@ import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
+import {FileType} from "@/Files";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -339,8 +340,8 @@ export function Sidebar(): JSX.Element | null {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
 
-    const [selectedPage, setSelectedPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
-    const [hoveredPage, setHoveredPage] = React.useState<SidebarTabId>(SidebarTabId.NONE);
+    const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
+    const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);
 
     const tab = useSelector((it: {status: {tab: SidebarTabId}}) => it.status.tab);
 
@@ -431,6 +432,7 @@ export function Sidebar(): JSX.Element | null {
                 hovered={hoveredPage}
                 clicked={selectedPage}
                 setSelectedPage={setSelectedPage}
+                setHoveredPage={setHoveredPage}
                 clearHover={() => setHoveredPage(SidebarTabId.NONE)}
                 clearClicked={() => setSelectedPage(SidebarTabId.NONE)}
             />
@@ -438,13 +440,28 @@ export function Sidebar(): JSX.Element | null {
     );
 }
 
+const fileTypeCache: Record<string, FileType | "DELETED"> = {}
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
     FileMetadataAttached[]
 ] {
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, {items: [], itemsPerPage: 0});
 
+
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
+
+    React.useEffect(() => {
+        favorites.items.filter(it => fileTypeCache[it.path] == null).forEach(async file => {
+            try {
+                const f = await callAPI(FilesApi.retrieve({id: file.path}))
+                fileTypeCache[file.path] = f.status.type;
+            } catch (e) {
+                if (e?.request?.status === 404) {
+                    fileTypeCache[file.path] = "DELETED";
+                }
+            }
+        });
+    }, [favorites]);
 
     React.useEffect(() => {
         sidebarFavoriteCache.fetch();
@@ -484,7 +501,8 @@ interface SecondarySidebarProps {
 
     clearClicked(): void;
 
-    setSelectedPage: React.Dispatch<React.SetStateAction<string>>;
+    setSelectedPage: React.Dispatch<React.SetStateAction<SidebarTabId>>;
+    setHoveredPage: React.Dispatch<React.SetStateAction<SidebarTabId>>;
 }
 
 function isShare(d: FileCollection) {
@@ -494,6 +512,7 @@ function isShare(d: FileCollection) {
 function SecondarySidebar({
     hovered,
     clicked,
+    setHoveredPage,
     clearHover,
     setSelectedPage,
     clearClicked
@@ -501,7 +520,7 @@ function SecondarySidebar({
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
     const activeProjectId = useProjectId();
-    const lastHover = React.useRef("");
+    const lastHover = React.useRef(SidebarTabId.NONE);
     const isPersonalWorkspace = !activeProjectId;
     const project = useProject();
     const projectId = useProjectId();
@@ -565,17 +584,26 @@ function SecondarySidebar({
         if (anchor) {
             const tab = anchor.getAttribute("data-tab") ?? "";
             setSelectedPage(current => {
-                if (current) return tab;
+                if (current) return tab as SidebarTabId;
                 else return current;
             });
             clearHover();
         }
     }, [clearHover]);
 
+    const visibleFavoriteCount = React.useMemo(() =>
+        favoriteFiles.reduce((acc, file) => (fileTypeCache[file.path] !== "DELETED" ? 1 : 0) + acc, 0),
+        [favoriteFiles]);
+
     return <div
         className={classConcat(SecondarySidebarClass, SIDEBAR_IDENTIFIER)}
         onMouseLeave={e => {
-            if (!clicked && !hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
+            if (!hasOrParentHasClass(e.relatedTarget, SIDEBAR_IDENTIFIER)) clearHover();
+        }}
+        onMouseEnter={() => {
+            if (active) {
+                setHoveredPage(active);
+            }
         }}
         data-open={isOpen}
         data-as-pop-over={!!asPopOver}
@@ -614,12 +642,13 @@ function SecondarySidebar({
                     />
                 ) : null}
 
-                {canConsume && favoriteFiles.length > 0 ? <>
+                {canConsume && visibleFavoriteCount > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.FILES}>Starred files</SidebarSectionHeader>
                     {favoriteFiles.map(file =>
                         <SidebarEntry
                             key={file.path}
-                            to={AppRoutes.files.path(file.path)}
+                            to={AppRoutes.files.path(fileTypeCache[file.path] === "DIRECTORY" ? file.path : getParentPath(file.path))}
+                            disabled={fileTypeCache[file.path] === "DELETED"} /* TODO(Jonas): Handle differently, but how? Show, but prompt for deletion on click? */
                             icon={"heroStar"}
                             text={fileName(file.path)}
                             tab={SidebarTabId.FILES}
@@ -634,9 +663,8 @@ function SecondarySidebar({
             </>}
 
             {active !== SidebarTabId.WORKSPACE ? null : <>
-                {!isPersonalWorkspace && <>
-                    <SidebarSectionHeader to={AppRoutes.project.members()}
-                        tab={SidebarTabId.WORKSPACE}>Management</SidebarSectionHeader>
+                <SidebarSectionEmptyHeader />
+                {!isPersonalWorkspace ? <>
                     <SidebarEntry
                         to={AppRoutes.project.members()}
                         text={"Members"}
@@ -657,10 +685,8 @@ function SecondarySidebar({
                         icon={"heroWrenchScrewdriver"}
                         tab={SidebarTabId.WORKSPACE}
                     />
-                </>}
+                </> : null}
 
-                <SidebarSectionHeader to={AppRoutes.accounting.allocations()}
-                    tab={SidebarTabId.WORKSPACE}>Resources</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.accounting.allocations()}
                     text={"Allocations"}
@@ -692,8 +718,7 @@ function SecondarySidebar({
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>
-                <SidebarSectionHeader to={AppRoutes.resources.publicLinks()}
-                    tab={SidebarTabId.RESOURCES}>Networking</SidebarSectionHeader>
+                <SidebarSectionEmptyHeader />
                 <SidebarEntry
                     to={AppRoutes.resources.publicLinks()}
                     text={"Links"}
@@ -707,8 +732,6 @@ function SecondarySidebar({
                     tab={SidebarTabId.RESOURCES}
                 />
 
-                <SidebarSectionHeader to={AppRoutes.resources.sshKeys()} tab={SidebarTabId.RESOURCES}>Security &
-                    keys</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.sshKeys()}
                     text={"SSH keys"}
@@ -716,8 +739,6 @@ function SecondarySidebar({
                     tab={SidebarTabId.RESOURCES}
                 />
 
-                <SidebarSectionHeader to={AppRoutes.resources.licenses()}
-                    tab={SidebarTabId.RESOURCES}>Software</SidebarSectionHeader>
                 <SidebarEntry
                     to={AppRoutes.resources.licenses()}
                     text={"Licenses"}
@@ -800,6 +821,10 @@ function SecondarySidebar({
 
 function AppLogo({name}: {name: string}): JSX.Element {
     return <SafeLogo size="16px" name={name} type="APPLICATION" forceBackground />;
+}
+
+function SidebarSectionEmptyHeader(): React.JSX.Element {
+    return <Box height="11px" />
 }
 
 function Username({close}: {close(): void}): JSX.Element | null {
