@@ -59,6 +59,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -832,6 +833,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             b.innerText = value.toString()[0];
                         });
 
+                        
+                        HTMLTooltip(badge, div("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
                         row.stat1.append(badge);
                     });
 

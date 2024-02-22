@@ -27,6 +27,8 @@ import Avatar from "@/AvataaarLib/avatar";
 import {useProjectId} from "@/Project/Api";
 import {FlexClass} from "@/ui-components/Flex";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -540,6 +542,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                     tagType: "div",
                                     style: {marginRight: "-26px"},
                                 });
+                                HTMLTooltip(wrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Shared with ${s.sharedWith}`}), {tooltipContentWidth: 250});
                                 wrapper.appendChild(avatarCache[s.sharedWith].clone());
                                 flexWrapper.appendChild(wrapper);
                             });
@@ -554,6 +557,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                         tagType: "div",
                                         style: {marginRight: "-26px"},
                                     });
+                                    HTMLTooltip(wrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Shared with ${sharedWith}`}), {tooltipContentWidth: 250});
                                     wrapper.appendChild(it.clone());
                                     flexWrapper.appendChild(wrapper);
                                 });
