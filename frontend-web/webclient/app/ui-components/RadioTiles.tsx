@@ -75,14 +75,6 @@ const RadioTileClass = injectStyle("radio-tile", k => `
         position: relative;
     }
     
-    ${k}:hover {
-        transform: translateY(-2px);
-    }
-    
-    ${k}[data-checked="true"]:hover, ${k}[data-disabled="true"] {
-        transform: unset;
-    }
-    
     ${k}[data-disabled="false"]:hover > .${RadioTileIconClass} {
         color: var(--primaryMain, #f00); 
         border: 1px solid var(--primaryMain, #f00);

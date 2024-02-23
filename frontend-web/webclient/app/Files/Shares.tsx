@@ -473,7 +473,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         const group = createHTMLElements<HTMLDivElement>({
                             tagType: "div",
                             className: ButtonGroupClass,
-                            style: {marginTop: "auto", marginBottom: "auto"},
+                            style: {marginTop: "auto", marginBottom: "auto", marginLeft: "12px"},
                         });
                         wrapper.append(group);
                         group.appendChild(browser.defaultButtonRenderer({
@@ -528,11 +528,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         avatarWrapper.appendChild(avatar);
                     } else {
                         new ReactStaticRenderer(() =>
-                            <Tooltip
-                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />}
-                            >
-                                Shared by {share.owner.createdBy}
-                            </Tooltip>
+                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
                         ).promise.then(it => {
                             avatarCache[share.owner.createdBy] = it;
                             const avatar = it.clone();

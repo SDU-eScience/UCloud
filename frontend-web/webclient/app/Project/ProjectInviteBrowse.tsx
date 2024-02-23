@@ -12,6 +12,11 @@ import {ShortcutKey} from "@/ui-components/Operation";
 import {MainContainer} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {TruncateClass} from "@/ui-components/Truncate";
+import Avatar from "@/AvataaarLib/avatar";
 
 const defaultRetrieveFlags: {itemsPerPage: number; filterType: "INGOING"} = {
     itemsPerPage: 250,
@@ -33,7 +38,9 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: ""}, {name: "Invited by"}, {name: "Invited"}];
+let avatarCache: Record<string, ReactStaticRenderer> = {}
+
+const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: ""}, {name: "Invited"}, {name: "Invited by"}];
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & SetShowBrowserHack}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ProjectInvite> | null>(null);
@@ -44,6 +51,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
     }
 
     const omitFilters = !!opts?.omitFilters;
+    const avatars = useAvatars();
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
@@ -54,11 +62,18 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
         search: !opts?.embedded,
     };
 
+    avatars.subscribe(() => {
+        avatarCache = {};
+        browserRef.current?.renderRows()
+    });
+
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<ProjectInvite>(mount, "", opts).init(browserRef, features, "", browser => {
                 browser.setColumnTitles(rowTitles);
+                let currentAvatars = new Set<string>();
+                let fetchedAvatars = new Set<string>();
 
                 browser.on("beforeOpen", (oldPath, newPath, res) => res != null);
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -91,13 +106,43 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                     opts?.setShowBrowser?.(result.items.length > 0);
                 });
 
+                browser.on("endRenderPage", () => {
+                    if (currentAvatars.size > 0) {
+                        avatars.updateCache([...currentAvatars]);
+                        currentAvatars.forEach(it => fetchedAvatars.add(it));
+                        currentAvatars.clear();
+                    }
+                });
+
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (invite, row, dims) => {
                     row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, dims, row));
 
-                    row.stat2.innerText = invite.invitedBy;
-                    row.stat3.innerText = format(invite.createdAt, "dd/MM/yy");
+                    const avatarWrapper = document.createElement("div");
+                    row.stat3.append(avatarWrapper);
+                    HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Invited by ${invite.invitedBy}`}), {tooltipContentWidth: 250});
+                    if (avatarCache[invite.invitedBy]) {
+                        const avatar = avatarCache[invite.invitedBy].clone()
+                        avatarWrapper.appendChild(avatar);
+                    } else {
+                        // Row stat3
+                        const avatar = avatars.avatar(invite.invitedBy);
+                        if (!fetchedAvatars.has(invite.invitedBy)) {
+                            currentAvatars.add(invite.invitedBy);
+                        }
+
+                        new ReactStaticRenderer(() =>
+                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
+                        ).promise.then(it => {
+                            avatarCache[invite.invitedBy] = it;
+                            const avatar = it.clone();
+                            avatarWrapper.appendChild(avatar);
+                        });
+                    }
+
+                    row.stat2.innerText = format(invite.createdAt, "hh:mm dd/MM/yyyy");
+                    row.stat2.style.marginTop = row.stat2.style.marginBottom = "auto";
                     const group = createHTMLElements<HTMLDivElement>({
                         tagType: "div",
                         className: ButtonGroupClass,
