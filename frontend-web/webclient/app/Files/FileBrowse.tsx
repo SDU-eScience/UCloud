@@ -733,11 +733,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             tagType: "div",
                             style: {
                                 position: "relative",
-                                left: "13px",
+                                left: "24px",
                                 top: "-2px",
                                 backgroundColor: "var(--primaryMain)",
-                                height: "10px",
-                                width: "10px",
+                                height: "12px",
+                                width: "12px",
                                 padding: "4px",
                                 borderRadius: "8px"
                             }
@@ -747,8 +747,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
                         syncThingIcon.style.height = "8px";
                         syncThingIcon.style.width = "8px";
-                        syncThingIcon.style.marginLeft = "-3px";
-                        syncThingIcon.style.marginTop = "-3px";
+                        syncThingIcon.style.marginLeft = "-2px";
+                        syncThingIcon.style.marginTop = "-2px";
                         syncThingIcon.style.display = "block";
                         iconWrapper.appendChild(syncThingIcon);
                         browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
