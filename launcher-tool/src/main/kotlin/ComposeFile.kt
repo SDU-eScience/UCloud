@@ -434,8 +434,8 @@ sealed class ComposeService {
                 """
                     refreshToken: ${credentials.refreshToken}
                     envoy:
-                      executable: /usr/local/bin/getenvoy
-                      funceWrapper: true
+                      executable: /usr/bin/envoy
+                      funceWrapper: false
                       directory: /var/run/ucloud/envoy
                       
                     database:
@@ -1162,8 +1162,8 @@ sealed class ComposeService {
                 """
                     refreshToken: ${credentials.refreshToken}
                     envoy:
-                      executable: /usr/local/bin/getenvoy
-                      funceWrapper: true
+                      executable: /usr/bin/getenvoy
+                      funceWrapper: false
                       directory: /var/run/ucloud/envoy
                     database:
                       type: Embedded
