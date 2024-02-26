@@ -18,6 +18,7 @@ import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
 import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
+import {LogoWithText} from "@/Applications/LogoGenerator";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const landingStyle = injectStyle("landing-page", k => `
@@ -184,7 +185,7 @@ export const SpotlightCard2: React.FunctionComponent<{
 
             <blockquote
                 className={SpotlightDescription}
-                style={{fontStyle: "italic", flexShrink: "1", flexBasis: "400px"}}
+                style={{fontStyle: "italic", flexShrink: "1", flexBasis: "400px", display: "flex", alignItems: "center"}}
             >
                 <Markdown allowedElements={["p"]}>
                     {spotlight.body}
@@ -664,11 +665,6 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
         position: relative;
         left: var(--offset-x, 0);
         top: var(--offset-y, 0);
-        transition: filter 0.3s;
-    }
-    
-    ${k}:hover > *:first-child {
-        filter: blur(10px);
     }
 `);
 
@@ -698,7 +694,9 @@ const sizeTable: Record<number, string> = {
 const LogoCard: React.FunctionComponent<{
     groupId: number;
     link: string;
-}> = ({groupId, link}) => {
+    title: string;
+    large?: boolean;
+}> = ({groupId, link, title, large}) => {
     const style: CSSProperties = {};
     style["background"] = backgroundColorTable[groupId] ?? "white";
     const [offX, offY] = offsetTable[groupId] ?? [0, 0];
@@ -707,9 +705,9 @@ const LogoCard: React.FunctionComponent<{
 
     return <ReactRouterLink to={link}>
         <div className={TopPickCardStyle} style={style}>
-            <AppToolLogo size={sizeTable[groupId] ?? "100px"} name={groupId.toString()}
-                         type={"GROUP"}/>
-
+            <LogoWithText groupId={groupId} title={title} size={100} forceUnder={large}/>
+            {/*<AppToolLogo size={sizeTable[groupId] ?? "100px"} name={groupId.toString()}*/}
+            {/*             type={"GROUP"}/>*/}
         </div>
     </ReactRouterLink>;
 }
@@ -718,14 +716,15 @@ export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = (
     return <div>
         <h3>Top picks</h3>
         <div className={TopPickCardGridStyle}>
-            {topPicks.map(pick => {
+            {topPicks.map((pick, idx) => {
                 if (pick.groupId) {
                     let link = AppRoutes.apps.group(pick.groupId.toString());
                     if (pick.defaultApplicationToRun) {
                         link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
                     }
 
-                    return <LogoCard groupId={pick.groupId} link={link}/>;
+                    return <LogoCard large={idx === 0 && topPicks.length > 4} groupId={pick.groupId}
+                                     title={pick.title} link={link}/>;
                 } else {
                     return null;
                 }
@@ -740,11 +739,11 @@ export const StarredApplications2: React.FunctionComponent<{
     return <div>
         <h3>Starred applications</h3>
         <div className={classConcat(TopPickCardGridStyle, apps.length <= 4 ? "small" : undefined)}>
-            {apps.map(app => {
+            {apps.map((app, idx) => {
                 const link = AppRoutes.jobs.create(app.metadata.name);
                 const groupId = app.metadata.group?.metadata?.id ?? 0;
 
-                return <LogoCard groupId={groupId} link={link}/>;
+                return <LogoCard large={idx === 0 && apps.length > 4} title={app.metadata.title} groupId={groupId} link={link}/>;
             })}
         </div>
     </div>
