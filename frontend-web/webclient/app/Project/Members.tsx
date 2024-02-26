@@ -518,6 +518,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         onChangeRole={(username, newRole) => {
             dispatch({type: "ChangeRole", changes: [{username: username, role: newRole}]});
         }}
+        onRemoveFromProject={(username) => {
+            dispatch({type: "RemoveMember", members: [username]});
+        }}
         onRefresh={reload}
         invitations={invites.items}
         project={modifiedProject}
