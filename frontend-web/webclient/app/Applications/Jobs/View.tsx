@@ -49,6 +49,7 @@ import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {appendToXterm, useXTerm} from "./XTermLib";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {JobsOpenInteractiveSessionResponse, WebSession} from "./Web";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -1303,6 +1304,11 @@ const RunningButtonGroup: React.FunctionComponent<{
     rank: number;
     isAtTop: boolean;
 }> = ({job, rank, isAtTop}) => {
+    const [sessionResp, fetchSession] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
+        {noop: true},
+        null
+    );
+
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
@@ -1312,6 +1318,21 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "WEB" && isSupported(backendType, support, "web")) ||
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
+    React.useEffect(() => {
+        if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+            fetchSession(JobsApi.openInteractiveSession(bulkRequestOf({sessionType: "WEB", id: job.id, rank})));
+        }
+    }, [job.status.state, appType, supportsInterface]);
+
+    const redirectToWeb = React.useMemo(() => {
+        if (sessionResp.data == null) return "";
+        for (const res of sessionResp.data.responses) {
+            if ((res.session as WebSession).redirectClientTo) {
+                return (res.session as WebSession).redirectClientTo
+            } 
+        }
+        return "";
+    }, [sessionResp]);
 
     return <div className={!isAtTop ? "buttons" : topButtons.class}>
         {!supportTerminal ? null : (
@@ -1334,8 +1355,8 @@ const RunningButtonGroup: React.FunctionComponent<{
             </Link>
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
-            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                <Button>
+            <Link to={redirectToWeb} aria-disabled={!redirectToWeb} target={"_blank"}>
+                <Button disabled={!redirectToWeb}>
                     <Icon name={"heroArrowTopRightOnSquare"} />
                     <div>Open interface</div>
                 </Button>

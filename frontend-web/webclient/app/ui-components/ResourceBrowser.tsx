@@ -1093,8 +1093,8 @@ export class ResourceBrowser<T> {
         // image itself, which breaks the drag-and-drop functionality.
         const icon = createHTMLElements<HTMLDivElement>({
             tagType: "div", style: {
-                width: embedded ? "20px" : "30px",
-                height: embedded ? "20px" : "30px",
+                width: "30px",
+                height: "30px",
                 backgroundSize: "contain",
                 marginRight: "8px",
                 display: "inline-block",
@@ -2936,9 +2936,7 @@ export class ResourceBrowser<T> {
                 width: 20px;
             }
 
-            /* Remove this if not shown on selected ${browserClass.dot} .row[data-selected="true"] img */
-
-            ${browserClass.dot} .row .favorite[data-favorite="true"] > img, ${browserClass.dot} .row[data-selected="true"] img, ${browserClass.dot} .row:hover .favorite > img {
+            ${browserClass.dot} .row .favorite[data-favorite="true"] > img, ${browserClass.dot} .row:hover .favorite > img {
                 display: block;
             }
 

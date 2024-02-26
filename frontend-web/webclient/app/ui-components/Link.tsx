@@ -17,6 +17,7 @@ function Link({active, ...props}: LinkProps): JSX.Element {
         style={style}
         children={props.children}
         to={props.to}
+        aria-disabled={props["aria-disabled"]}
         target={props.target}
         title={props.title}
         {...extractEventHandlers(props)}
