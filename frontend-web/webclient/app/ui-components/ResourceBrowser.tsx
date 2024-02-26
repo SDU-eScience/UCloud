@@ -2926,6 +2926,21 @@ export class ResourceBrowser<T> {
                 margin: 16px;
                 white-space: pre;
             }
+            
+            ${browserClass.dot} .favorite > img {
+                display: none;
+            }
+
+            ${browserClass.dot} .favorite[data-favorite="false"] {
+                content: '';
+                width: 20px;
+            }
+
+            /* Remove this if not shown on selected ${browserClass.dot} .row[data-selected="true"] img */
+
+            ${browserClass.dot} .row .favorite[data-favorite="true"] > img, ${browserClass.dot} .row[data-selected="true"] img, ${browserClass.dot} .row:hover .favorite > img {
+                display: block;
+            }
 
             ${browserClass.dot} header[data-has-filters] .filters, 
             ${browserClass.dot} header[data-has-filters] .session-filters, 

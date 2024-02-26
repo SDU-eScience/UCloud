@@ -805,6 +805,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             width: 64
                         });
 
+                        row.star.setAttribute("data-favorite", isFavorite.toString());
+
                         if (isOutOfDate()) return;
 
                         favoriteIcon.src = icon;

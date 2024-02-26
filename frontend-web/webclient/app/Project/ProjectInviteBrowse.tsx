@@ -145,6 +145,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                     const group = createHTMLElements<HTMLDivElement>({
                         tagType: "div",
                         className: ButtonGroupClass,
+                        style: {marginTop: "auto", marginBottom: "auto"}
                     });
                     row.stat1.append(group);
                     group.appendChild(browser.defaultButtonRenderer({
