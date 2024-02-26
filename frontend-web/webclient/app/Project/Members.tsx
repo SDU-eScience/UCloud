@@ -51,6 +51,7 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {MembersContainer} from "@/Project/MembersUI";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
@@ -422,10 +423,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     const [uiState, pureDispatch] = useReducer(projectReducer, {project: null, invites: emptyPageV2});
     const {project, invites} = uiState;
     const [creatingGroup, setIsCreatingGroup] = useState(false);
-    const groupToggleSet = useToggleSet([]);
-    const groupMemberToggleSet = useToggleSet([]);
-    const inviteToggleSet = useToggleSet([]);
-    const memberToggleSet = useToggleSet([]);
     const newMemberRef = useRef<HTMLInputElement>(null);
 
     const [memberQuery, setMemberQuery] = useState<string>("");
@@ -518,24 +515,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         return allMembers.filter(m => m.username.toLowerCase().indexOf(normalizedQuery) != -1);
     }, [project, memberQuery]);
 
-    const callbacks: Callbacks = useMemo(() => ({
-        dispatch,
-        inspectingGroup,
-        isAdmin,
-        project,
-    }), [dispatch, inspectingGroup, isAdmin, project]);
-
-    const groupCallbacks: GroupCallbacks = useMemo(() => ({
-        ...callbacks,
-        setRenaming: groupRenaming.setRenaming,
-        setIsCreating: setIsCreatingGroup,
-        create: (title: string) => {
-            setIsCreatingGroup(false);
-            callbacks.dispatch({type: "CreateGroup", title, placeholderId: groupIdCounter++});
-        },
-
-    }), [callbacks, setIsCreatingGroup, groupRenaming.setRenaming]);
-
     // Effects
     useEffect(() => reload(), [reload]);
 
@@ -551,494 +530,29 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         dispatch({type: "ReloadInvites", invites: invitesFromApi.data});
     }, [invitesFromApi.data]);
 
-    useEffect(() => {
-        inviteToggleSet.uncheckAll();
-    }, [invites]);
-
-    useEffect(() => {
-        groupToggleSet.uncheckAll();
-    }, [groups]);
-
-    useEffect(() => {
-        memberToggleSet.uncheckAll();
-    }, [relevantMembers]);
-
-    useEffect(() => {
-        groupMemberToggleSet.uncheckAll();
-    }, [inspectingGroup?.status?.members]);
-
     usePage("Member and Group Management", SidebarTabId.WORKSPACE);
     useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
     if (!project) return null;
 
-    return <MainContainer
-        header={<Spacer
-            left={<ProjectPageTitle>Members</ProjectPageTitle>}
-            right={<Flex mr="36px" height={"26px"}><UtilityBar /></Flex>}
-        />}
-        headerSize={72}
-        main={
-            <Box className={TwoColumnLayout} height="calc(100vh - 120px)">
-                <div className="left">
-                    <Flex className={SearchContainer} flexWrap="wrap">
-                        {!isAdmin ? null : (
-                            <form onSubmit={onAddMember}>
-                                <Input
-                                    height={"48px"}
-                                    width="100%"
-                                    id="new-project-member"
-                                    placeholder="Username"
-                                    autoComplete="off"
-                                    inputRef={newMemberRef}
-                                />
-                                <Button ml="10px" my="auto" height="36px" type={"submit"}>
-                                    <Text fontSize={"20px"}>Add</Text>
-                                </Button>
-                                <Relative width={"0px"} height={"0px"} left="-122px" top="10px">
-                                    {USER_ID_HELP}
-                                </Relative>
-                                <Button
-                                    mt={"6px"}
-                                    mx={10}
-                                    height="36px"
-                                    color="successMain"
-                                    type="button"
-                                    title="Invite with link"
-                                    onClick={async () => {
-                                        dialogStore.addDialog(
-                                            <InviteLinkEditor
-                                                groups={groups}
-                                                project={project}
-                                            />,
-                                            doNothing,
-                                            true
-                                        );
-                                    }}
-                                >
-                                    <Text fontSize="20px">+</Text>
-                                </Button>
-                            </form>
-                        )}
-                    </Flex>
-                    <form onSubmit={preventDefault}>
-                        <Input
-                            id="project-member-search"
-                            placeholder="Search existing project members..."
-                            pr="30px"
-                            height={"48px"}
-                            autoComplete="off"
-                            value={memberQuery}
-                            onChange={updateMemberQueryFromEvent}
-                        />
-                        <Relative>
-                            <Absolute right="12px" bottom="12px">
-                                <Label htmlFor="project-member-search">
-                                    <Icon name="search" size="24" />
-                                </Label>
-                            </Absolute>
-                        </Relative>
-                    </form>
-                    <List mt="16px" mb="32px">
-                        {invites.items.map(i =>
-                            <ItemRow
-                                item={i}
-                                key={i.recipient}
-                                browseType={BrowseType.Embedded}
-                                renderer={InviteRenderer}
-                                toggleSet={inviteToggleSet}
-                                operations={inviteOperations}
-                                callbacks={callbacks}
-                                itemTitle={"Invite"}
-                            />
-                        )}
-                        {relevantMembers.map(it => (
-                            <ItemRow
-                                item={it}
-                                key={it.username}
-                                browseType={BrowseType.Embedded}
-                                renderer={MemberRenderer}
-                                toggleSet={memberToggleSet}
-                                callbacks={callbacks}
-                                operations={memberOperations}
-                                itemTitle={"Member"}
-                            />
-                        ))}
-                    </List>
-                </div>
-                <div className="right">
-                    {inspectingGroup ? null : <>
-                        <Flex mb={"12px"}>
-                            <BreadCrumbsBase embedded={false}>
-                                <span>Groups</span>
-                            </BreadCrumbsBase>
-                            <div style={{flexGrow: 1}} />
-                            {!isAdmin ? null : (
-                                <Button mt={"2px"} disableStandardSizes height={"40px"} width={"110px"} px="12px" onClick={startGroupCreation}>
-                                    New group
-                                </Button>
-                            )}
-                        </Flex>
-                        {groups.length !== 0 ? null : <>
-                            <Flex justifyContent={"center"} alignItems={"center"} minHeight={"300px"}
-                                flexDirection={"column"}>
-                                <Heading.h4>You have no groups to manage.</Heading.h4>
-                                <ul>
-                                    <li>Groups are used to manage permissions in your project</li>
-                                    <li>You must create a group to grant members access to the project&#039;s files</li>
-                                </ul>
-                            </Flex>
-                        </>}
-
-                        <List>
-                            {groups.map(g =>
-                                <ItemRow
-                                    item={g}
-                                    key={g?.id ?? "creating"}
-                                    browseType={BrowseType.Embedded}
-                                    renderer={GroupRenderer}
-                                    toggleSet={groupToggleSet}
-                                    operations={groupOperations}
-                                    callbacks={groupCallbacks}
-                                    renaming={groupRenaming}
-                                    itemTitle={"Group"}
-                                    navigate={() => !g ? null : dispatch({type: "InspectGroup", group: g.id})}
-                                />
-                            )}
-                        </List>
-                    </>}
-
-                    {!inspectingGroup ? null : <>
-                        <Flex mb="16px">
-                            <BaseLink onClick={() => dispatch({type: "InspectGroup", group: null})}>
-                                <Button mt="4px" width="42px" height="34px"><Icon rotation={90} name="arrowDown" /></Button>
-                            </BaseLink>
-                            <Text mx="8px" fontSize="25px">|</Text>
-                            <Flex width={"100%"}>
-                                <Truncate fontSize="25px" width={1}>{inspectingGroup.specification.title}</Truncate>
-                            </Flex>
-                        </Flex>
-
-                        {inspectingGroup.status.members!.length !== 0 ? null : <>
-                            <Text mt={40} textAlign="center">
-                                <Heading.h4>No members in group</Heading.h4>
-                                You can add members by clicking on the green arrow in the
-                                &apos;Members&apos; panel.
-                            </Text>
-                        </>}
-
-                        <List>
-                            {inspectingGroup.status.members!.map((member, idx) => (
-                                <ItemRow
-                                    item={member}
-                                    key={idx}
-                                    browseType={BrowseType.Embedded}
-                                    renderer={GroupMemberRenderer}
-                                    toggleSet={groupMemberToggleSet}
-                                    operations={groupMemberOperations}
-                                    callbacks={callbacks}
-                                    itemTitle={"Member"}
-                                />
-                            ))}
-                        </List>
-                    </>}
-                </div>
-            </Box>
-        }
+    return <MembersContainer
+        onInvite={doNothing}
+        onSearch={doNothing}
+        onCreateLink={doNothing}
+        onAddToGroup={doNothing}
+        onRemoveFromGroup={doNothing}
+        onCreateGroup={doNothing}
+        onDeleteGroup={doNothing}
+        onChangeRole={doNothing}
+        onRefresh={doNothing}
+        invitations={invites.items}
+        project={project}
     />;
 };
 
 // Secondary interface (e.g. member rows and group rows)
 // ================================================================================
-const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
-    Icon: ({resource}) => {
-        const avatars = useAvatars();
-        if (!resource) return null;
-
-        return <UserAvatar avatar={avatars.avatar(resource.username)} height="48px" width="48px" />;
-    },
-
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-        return <Text fontSize={"16px"}>{resource.username}</Text>;
-    },
-
-    ImportantStats: ({resource, callbacks}) => {
-        const {inspectingGroup, isAdmin, project} = callbacks;
-        if (!resource || !project) return null;
-
-        const memberOfThisGroup = !inspectingGroup ? false : inspectingGroup.status.members!.some(m => m === resource.username);
-
-        let options: RoleOption[];
-        if (!isAdmin || resource.username === Client.username || !!inspectingGroup) {
-            options = [roleOptionForRole(resource.role)];
-        } else {
-            options = [roleOptionForRole(OldProjectRole.USER), roleOptionForRole(OldProjectRole.ADMIN)];
-
-            if (project.status.myRole! === OldProjectRole.PI) {
-                options.push(roleOptionForRole(OldProjectRole.PI));
-            }
-
-            if (resource.role === OldProjectRole.PI) {
-                options = [roleOptionForRole(OldProjectRole.PI)]
-            }
-        }
-
-        const onRoleChange: Record<ProjectRole, (e: React.SyntheticEvent) => void> = useMemo(() => {
-            const dispatchChange = (e: React.SyntheticEvent, role: ProjectRole) => {
-                e.stopPropagation();
-                callbacks.dispatch({type: "ChangeRole", changes: [{username: resource.username, role}]});
-            };
-
-            const result: Record<ProjectRole, (e: React.SyntheticEvent) => void> = {
-                [OldProjectRole.USER]: (e) => dispatchChange(e, OldProjectRole.USER),
-                [OldProjectRole.ADMIN]: (e) => dispatchChange(e, OldProjectRole.ADMIN),
-                [OldProjectRole.PI]: (e) => {
-                    e.stopPropagation();
-                    addStandardDialog({
-                        title: "Transfer PI Role",
-                        message: "Are you sure you wish to transfer the PI role? " +
-                            "A project can only have one PI. " +
-                            "Your own user will be demoted to admin.",
-                        onConfirm: () => {
-                            callbacks.dispatch({
-                                type: "ChangeRole", changes: [
-                                    {username: resource.username, role: OldProjectRole.PI},
-                                    {username: Client.username!, role: OldProjectRole.ADMIN}
-                                ]
-                            });
-                        },
-                        confirmText: "Transfer PI role"
-                    });
-                },
-            };
-            return result;
-        }, [callbacks.dispatch, resource.username]);
-
-        const addToGroup = useCallback((e: React.SyntheticEvent) => {
-            e.stopPropagation();
-            if (!inspectingGroup) return;
-            callbacks.dispatch({type: "AddToGroup", member: resource.username, group: inspectingGroup.id});
-        }, [callbacks.dispatch, resource, inspectingGroup]);
-
-        return <div className={MemberRowWrapper}>
-            <RadioTilesContainer height={"48px"}>
-                {options.map(it => (
-                    <RadioTile
-                        key={it.text}
-                        name={resource.username}
-                        icon={it.icon}
-                        height={40}
-                        labeled
-                        label={it.text}
-                        fontSize={"0.5em"}
-                        checked={resource.role === it.value}
-                        onChange={onRoleChange[it.value]}
-                    />
-                ))}
-            </RadioTilesContainer>
-
-            {!isAdmin ? null : !inspectingGroup ? null : <>
-                <Button ml="8px" color="successMain" height="35px" width="35px" onClick={addToGroup}
-                    disabled={memberOfThisGroup}>
-                    <Icon
-                        color="primaryContrast"
-                        name="arrowDown"
-                        rotation={-90}
-                        width="1em"
-                        title="Add to group"
-                    />
-                </Button>
-            </>}
-        </div>;
-    },
-
-    Stats: ({resource, callbacks}) => {
-        const {project} = callbacks;
-        if (!resource || !project) return null;
-        const memberOfAnyGroup = (project.status.groups ?? [])
-            .some(g => g.status.members!.some(m => m === resource.username));
-
-        return <>
-            {memberOfAnyGroup ? null : <>
-                <Text color={"errorMain"}>
-                    <Icon name={"warning"} size={20} mr={"6px"} color="errorMain" />
-                    Not a member of any group
-                </Text>
-            </>}
-        </>;
-    }
-};
-
-const memberOperations: Operation<ProjectMember, Callbacks>[] = [
-    {
-        text: "Promote to admin",
-        icon: "userAdmin",
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role === OldProjectRole.USER && m.username !== Client.username),
-        onClick: (members, cb) => {
-            cb.dispatch({
-                type: "ChangeRole",
-                changes: members.map(m => ({username: m.username, role: OldProjectRole.ADMIN}))
-            });
-        },
-        shortcut: ShortcutKey.A
-    },
-    {
-        text: "Demote to user",
-        icon: "user",
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role === OldProjectRole.ADMIN && m.username !== Client.username),
-        onClick: (members, cb) => {
-            cb.dispatch({
-                type: "ChangeRole",
-                changes: members.map(m => ({username: m.username, role: OldProjectRole.USER}))
-            });
-        },
-        shortcut: ShortcutKey.U
-    },
-    {
-        text: "Remove",
-        icon: "close",
-        color: "errorMain",
-        confirm: true,
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role !== OldProjectRole.PI && m.username !== Client.username),
-        onClick: (members, cb) => {
-            cb.dispatch({type: "RemoveMember", members: members.map(it => it.username)});
-        },
-        shortcut: ShortcutKey.R
-    },
-    {
-        text: "Add to group",
-        icon: "arrowDown",
-        iconRotation: -90,
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !!cb.inspectingGroup,
-        onClick: (members, cb) => {
-            for (const member of members) {
-                cb.dispatch({type: "AddToGroup", group: cb.inspectingGroup!.id, member: member.username});
-            }
-        },
-        shortcut: ShortcutKey.G
-    }
-];
-
-const InviteRenderer: ItemRenderer<ProjectInvite> = {
-    Icon: ({resource}) => {
-        const avatars = useAvatars();
-        if (!resource) return null;
-        return <UserAvatar avatar={avatars.avatar(resource.recipient)} height="48px" width="48px" />;
-    },
-
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-        return <>{resource.recipient}</>;
-    },
-
-    Stats: ({resource}) => {
-        if (!resource) return null;
-        return <>Invited to join by {resource.invitedBy}</>;
-    }
-};
-
-const inviteOperations: Operation<ProjectInvite, Callbacks>[] = [
-    {
-        text: "Remove",
-        icon: "close",
-        color: "errorMain",
-        confirm: true,
-        enabled: (invites, cb) => invites.length > 0 && cb.isAdmin,
-        onClick: (invites, cb) => {
-            cb.dispatch({type: "RemoveInvite", members: invites.map(it => it.recipient)});
-        },
-        shortcut: ShortcutKey.R
-    }
-];
-
-const GroupRenderer: ItemRenderer<ProjectGroup> = addNamingToRenderer({
-    Icon: () => null,
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-
-        const isPlaceholder = resource.id.indexOf(placeholderPrefix) === 0;
-        return <Flex alignItems="center">
-            <Box mr="10px">{resource?.specification?.title}</Box>
-            {!isPlaceholder ? null : <Spinner />}
-        </Flex>;
-    },
-    Stats: () => null,
-    ImportantStats: ({resource}) => {
-        if (!resource) return null;
-        const numberOfMembers = resource.status.members?.length;
-        return <><Icon name="user" mr="8px" /> {numberOfMembers}</>;
-    },
-});
-
-interface GroupCallbacks extends Callbacks, CreationCallbacks {
-    setRenaming: (group: ProjectGroup) => void;
-}
-
-const groupOperations: Operation<ProjectGroup, GroupCallbacks>[] = [
-    {
-        text: "Rename",
-        icon: "rename",
-        enabled: (groups, cb) => {
-            return groups.length === 1 && cb.isAdmin;
-        },
-        onClick: ([group], cb) => {
-            cb.setRenaming(group);
-        },
-        shortcut: ShortcutKey.R
-    },
-    {
-        text: "Delete",
-        icon: "trash",
-        color: "errorMain",
-        confirm: true,
-        enabled: (groups, cb) => groups.length >= 1 && cb.isAdmin,
-        onClick: (groups, cb) => {
-            cb.dispatch({type: "RemoveGroup", ids: groups.map(it => it.id)});
-        },
-        shortcut: ShortcutKey.D
-    },
-    {
-        text: "Properties",
-        icon: "properties",
-        enabled: (groups) => groups.length === 1,
-        onClick: ([group], cb) => {
-            cb.dispatch({type: "InspectGroup", group: group.id});
-        },
-        shortcut: ShortcutKey.P
-    },
-];
-
-const GroupMemberRenderer: ItemRenderer<string> = {
-    Icon: ({resource}) => {
-        const avatars = useAvatars();
-        if (!resource) return null;
-        return <UserAvatar avatar={avatars.avatar(resource)} height="48px" width="48px" />;
-    },
-    MainTitle: ({resource}) => <>{resource}</>,
-};
-
-const groupMemberOperations: Operation<string, Callbacks>[] = [
-    {
-        text: "Remove",
-        icon: "close",
-        color: "errorMain",
-        primary: true,
-        enabled: (members, cb) => members.length > 0 && !!cb.inspectingGroup && cb.isAdmin,
-        onClick: (members, cb) => {
-            if (!cb.inspectingGroup) return;
-            members.forEach(member => {
-                cb.dispatch({type: "RemoveFromGroup", member, group: cb.inspectingGroup!.id});
-            });
-        },
-        shortcut: ShortcutKey.D
-    }
-];
-
 function daysLeftToTimestamp(timestamp: number): number {
     return Math.floor((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
 }
@@ -1046,7 +560,6 @@ function daysLeftToTimestamp(timestamp: number): number {
 function inviteLinkFromToken(token: string): string {
     return window.location.origin + "/app/projects/invite/" + token;
 }
-
 
 const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (ProjectGroup | undefined)[]}> = ({project, groups}) => {
     const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
@@ -1264,13 +777,6 @@ const SelectBox = injectStyleSimple("select-box", `
 
 // Utilities
 // ================================================================================
-interface Callbacks {
-    dispatch: (action: ProjectAction) => void;
-    inspectingGroup: ProjectGroup | null;
-    project: Project | null;
-    isAdmin: boolean;
-}
-
 interface RoleOption {
     text: string;
     icon: IconName;
@@ -1283,89 +789,9 @@ const allRoleOptions: RoleOption[] = [
     {text: "PI", icon: "userPi", value: OldProjectRole.PI}
 ];
 
-function roleOptionForRole(role: ProjectRole): RoleOption {
-    return allRoleOptions.find(it => it.value === role)!;
-}
-
-interface CreationCallbacks {
-    create: (title: string) => void;
-    setIsCreating: (visible: boolean) => void;
-}
-
-function addNamingToRenderer<T, CB extends CreationCallbacks>(renderer: ItemRenderer<T, CB>): ItemRenderer<T, CB> {
-    const copy: ItemRenderer<T, CB> = {...renderer};
-    const NormalMainTitle = renderer.MainTitle;
-    copy.MainTitle = function mainTitle(props) {
-        const {resource, callbacks} = props;
-        const cancelCreate = useCallback(() => callbacks.setIsCreating(false), [callbacks.setIsCreating]);
-        const inputRef = useRef<HTMLInputElement>(null);
-        const onCreate = useCallback(() => {
-            const value = inputRef.current?.value;
-            if (!value) return;
-            callbacks.create(value);
-        }, [callbacks.create]);
-
-        if (resource === undefined) {
-            return <NamingField
-                confirmText={"Create"}
-                inputRef={inputRef}
-                onCancel={cancelCreate}
-                onSubmit={onCreate}
-            />;
-        } else {
-            return NormalMainTitle ? <NormalMainTitle {...props} /> : null;
-        }
-    };
-    return copy;
-}
-
 // Styling
 // ================================================================================
-// div
-const MemberRowWrapper = injectStyleSimple("member-row-wrapper", `
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`);
 
-export const TwoColumnLayout = injectStyle("two-column-layout", k => `
-    ${k} {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        width: 100%;
-    }
-
-    ${k} > * {
-        flex-basis: 100%;
-    }
-
-    @media screen and (min-width: 1200px) {
-        ${k} > .left {
-            border-right: 2px solid var(--borderColor, #f00);
-            height: 100%;
-            flex: 1;
-            margin-right: 16px;
-            padding-right: 16px;
-        }
-
-        ${k} > .left > .${ListClass} {
-            overflow-y: auto;
-            max-height: calc(100% - 48px - 48px - 10px);
-        }
-        
-        ${k}[data-hide-border="true"] > .left {
-            border-right: 0px solid red;
-        }
-
-        ${k} > .right {
-            flex: 1;
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-    }
-`);
 
 const SearchContainer = injectStyle("search-container", k => `
     ${k} > form {
