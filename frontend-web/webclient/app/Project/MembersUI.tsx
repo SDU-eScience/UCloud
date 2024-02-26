@@ -44,6 +44,7 @@ export const MembersContainer: React.FunctionComponent<{
     onCreateLink: () => void;
     onAddToGroup: (username: string, groupId: string) => void;
     onRemoveFromGroup: (username: string, groupId: string) => void;
+    onRemoveFromProject: (username: string) => void;
     onCreateGroup: (groupTitle: string) => void;
     onDeleteGroup: (groupId: string) => void;
     onChangeRole: (username: string, newRole: ProjectRole) => void;
