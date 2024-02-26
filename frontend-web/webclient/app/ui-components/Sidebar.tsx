@@ -643,7 +643,7 @@ function SecondarySidebar({
                     <SidebarEntry
                         key={drive.id}
                         text={drive.specification.title}
-                        icon={isShare(drive) ? <Icon mt="2px" name="ftSharesFolder" color={"primaryContrast"} color2={"primaryDark"} /> :
+                        icon={isShare(drive) ? <Icon mt="2px" name="ftSharesFolder" color={"iconColor"} color2={"iconColor2"} /> :
                             <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
                         to={AppRoutes.files.drive(drive.id)}
                         tab={SidebarTabId.FILES}

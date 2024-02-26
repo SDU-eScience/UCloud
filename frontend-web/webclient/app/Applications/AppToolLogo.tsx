@@ -1,5 +1,4 @@
 import * as localForage from "localforage";
-import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {appColors} from "@/ui-components/theme";
