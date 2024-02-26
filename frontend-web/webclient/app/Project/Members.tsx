@@ -291,7 +291,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             // such a change is meant only for the frontend, and not the backend. The backend will implicitly perform
             // this change for us, since there can be only one PI.
             const success = await callAPIWithErrorHandler({
-                ...Api.changeRole(bulkRequestOf(...action.changes.filter(it => it.username != Client.username!))),
+                ...Api.changeRole(bulkRequestOf(...action.changes)),
                 projectOverride: project.id
             });
 
