@@ -1093,8 +1093,8 @@ export class ResourceBrowser<T> {
         // image itself, which breaks the drag-and-drop functionality.
         const icon = createHTMLElements<HTMLDivElement>({
             tagType: "div", style: {
-                width: embedded ? "20px" : "24px",
-                height: embedded ? "20px" : "24px",
+                width: embedded ? "20px" : "30px",
+                height: embedded ? "20px" : "30px",
                 backgroundSize: "contain",
                 marginRight: "8px",
                 display: "inline-block",

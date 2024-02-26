@@ -72,7 +72,6 @@ export class SvgCache {
         height: number
     }): Promise<string> {
         const c1 = getCssPropertyValue(color);
-        const c2 = color2 ? getCssPropertyValue(color) : undefined;
         const currentTheme = isLightThemeStored() ? "light" : "dark";
         return await this.renderSvg(
             `${name}-${color}-${color2}-${width}-${height}-${currentTheme}`,

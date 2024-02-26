@@ -751,7 +751,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         syncThingIcon.style.marginTop = "-3px";
                         syncThingIcon.style.display = "block";
                         iconWrapper.appendChild(syncThingIcon);
-                        browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 24, height: 24}).then(setSyncthingIcon);
+                        browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
