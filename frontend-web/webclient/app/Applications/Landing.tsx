@@ -81,13 +81,12 @@ const LandingPage: React.FunctionComponent = () => {
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
                 <article className={landingStyle}>
-                    <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
+                    <Flex alignItems={"center"}><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
                     <Hero slides={landingPage.carrousel}/>
                     {starred.data.items.length > 0 &&
                         <StarredApplications2 apps={starred.data.items}/>
                     }
 
-                    {/*<TopPicksCard topPicks={landingPage.topPicks} />*/}
                     <TopPicksCard2 topPicks={landingPage.topPicks}/>
 
                     {landingPage.spotlight && <SpotlightCard2 spotlight={landingPage.spotlight}/>}
@@ -564,7 +563,6 @@ const CategoryCard: React.FunctionComponent<{
     const appC = appColors[appColor(hash)][1];
     // const gradStart = "#6DA8EE";
     let [h, s, l] = rgbToHsl(appC)
-    console.log(appC, h, s, l);
     s /= 1.0;
     // h += 0.50;
     h %= 1;

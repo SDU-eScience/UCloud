@@ -80,21 +80,25 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.display = "none";
 
     function onHover(ev: MouseEvent) {
+        portal.append(contentWrapper);
         const wrapperRect = trigger.getBoundingClientRect();
-        contentWrapper.style.left = `${wrapperRect.x + wrapperRect.width / 2 - width / 2}px`;
+        const expectedLeft = wrapperRect.x + wrapperRect.width / 2 - width / 2;
+        if (expectedLeft + width > window.innerWidth) {
+            contentWrapper.style.left = `${window.innerWidth - width - 24}px`;
+        } else {
+            contentWrapper.style.left = `${expectedLeft}px`;
+        }
         contentWrapper.style.top = `${wrapperRect.y + wrapperRect.height}px`;
         contentWrapper.style.display = "block";
     }
 
     function onLeave() {
+        portal.innerHTML = "";
         contentWrapper.style.display = "none";
     }
 
     trigger.onmouseover = onHover;
     trigger.onmouseleave = tooltip.onmouseleave = onLeave;
-
-    portal.innerHTML = "";
-    portal.append(contentWrapper);
 }
 
 export function TooltipV2(props: {
