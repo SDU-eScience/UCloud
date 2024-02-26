@@ -8,6 +8,7 @@
         "start": "vite",
         "start:local": "vite --mode local-dev",
         "start:compose": "vite --mode compose",
+        "start:sandbox": "vite --mode sandbox",
         "watch": "tsc --watch --noEmit",
         "build": "node scripts/update-version-file.js && vite build",
         "serve": "vite preview",

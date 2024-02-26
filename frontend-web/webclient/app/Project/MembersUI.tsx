@@ -1,12 +1,18 @@
 import * as React from "react";
+import {EventHandler, MouseEvent} from "react";
 import {ProjectInvite} from "@/Project/Api";
-import {Project, ProjectGroup, ProjectMember, ProjectRole} from "@/Project";
+import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
-import {Flex, MainContainer} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, List, MainContainer, RadioTile, RadioTilesContainer} from "@/ui-components";
 import {UtilityBar} from "@/Navigation/UtilityBar";
-import {ProjectPageTitle} from "@/Project/Members";
 import {injectStyle} from "@/Unstyled";
-import {ListClass} from "@/ui-components/List";
+import {ListRow} from "@/ui-components/List";
+import * as Heading from "@/ui-components/Heading";
+import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
+import {doNothing} from "@/UtilityFunctions";
+import {heroUserPlus} from "@/ui-components/icons";
+import {Operations, ShortcutKey} from "@/ui-components/Operation";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -50,25 +56,190 @@ export const MembersContainer: React.FunctionComponent<{
     onRefresh: () => void;
 
     invitations: ProjectInvite[];
-    project: Project
+    project: Project;
 }> = props => {
     const members: ProjectMember[] = props.project.status.members ?? [];
     const groups: ProjectGroup[] = props.project.status.groups ?? [];
 
+    // event handlers
+    function handleInvite(username: string) {
+        props.onInvite(username);
+    }
+
+    function handleSearch(event: React.SyntheticEvent) {
+        const value = (event.target as HTMLInputElement).value;
+        props.onSearch(value);
+    }
+
+    function handleCreateLink() {
+
+    }
+
+    function handleAddToGroup() {
+
+    }
+
+    function handleRemoveFromGroup() {
+
+    }
+
+    function handleCreateGroup() {
+
+    }
+
+    function handleDeleteGroup(groupId: string) {
+
+    }
+
+    function handleChangeRole (username: string, newRole: ProjectRole) {
+        props.onChangeRole(username, newRole);
+    }
+
+    function handleRefresh () {
+
+    }
+
+    console.log(props.project);
+
+    const isPi = props.project.status.myRole === OldProjectRole.PI;
+
     return <MainContainer
         header={<Spacer
-            left={<ProjectPageTitle>Members</ProjectPageTitle>}
-            right={<Flex mr="36px" height={"26px"}><UtilityBar /></Flex>}
+            left={<Heading.h3>{props.project.specification.title}</Heading.h3>}
+            right={<Flex marginRight={"16px"} height={"26px"}><UtilityBar/></Flex>}
         />}
-        headerSize={72}
         main={<div className={TwoColumnLayout}>
             <div className={"left"}>
-                We have {members.length} members. The first one is {members[0].username} with role {members[0].role}.
+                <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
+                <Flex gap={"8px"} marginBottom={"8px"}>
+                    <Input type="text" placeholder="Add by username ..." />
+                    <Button><Icon name={"heroUserPlus"} /></Button>
+                    <Button color={"successMain"} onClick={() => {
+                        dialogStore.addDialog(
+                            <LinkInviteCard />,
+                            doNothing,
+                        )
+                    }}>
+                        <Icon name={"heroLink"} />
+                    </Button>
+                </Flex>
+                <Input type="search" placeholder="Search existing project members ..." marginBottom={"8px"} onChange={handleSearch}/>
+                <Box height={"calc(100vh - 220px)"} overflowY={"auto"}>
+                    <List>
+                        {members.map(member => <MemberCard isPi={isPi} member={member} key={member.username} handleChangeRole={handleChangeRole}/>)}
+                    </List>
+                </Box>
             </div>
 
             <div className={"right"}>
-                Right panel
+                <Flex marginBottom={"8px"}>
+                    <Heading.h3>Groups</Heading.h3>
+                    <Box flexGrow={1}></Box>
+                    <Button>New group</Button>
+                </Flex>
+                <Box height={"calc(100vh - 100px)"} overflowY={"auto"}>
+                    <List>
+                        {groups.map(group => <GroupCard group={group} key={group.id}/>)}
+                    </List>
+                </Box>
             </div>
         </div>}
+    />;
+}
+
+const LinkInviteCard: React.FunctionComponent<{}> = props => {
+    return <div>Hello!</div>;
+}
+
+const MemberCard: React.FunctionComponent<{
+    isPi: boolean;
+    member: ProjectMember;
+    handleChangeRole: (username: string, newRole: ProjectRole) => void;
+}> = props => {
+    const role = props.member.role;
+    console.log(props.member, role, role === OldProjectRole.ADMIN)
+    return <ListRow
+        disableSelection
+        left={<Flex alignItems={"center"}>
+            <AvatarForUser username={props.member.username} height={"35px"} width={"35px"}/>
+            {props.member.username}
+        </Flex>}
+        right={<Flex alignItems={"center"} gap={"8px"}>
+            <RadioTilesContainer>
+                {(props.isPi || role === OldProjectRole.PI) &&
+                    <RadioTile fontSize={"8px"} checked={role === OldProjectRole.PI} height={35} icon={"heroTrophy"}
+                               label={"PI"} name={"PI" + props.member.username}
+                               onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.PI)}/>
+                }
+                {(role !== OldProjectRole.PI) &&
+                    <>
+                        <RadioTile fontSize={"8px"} checked={role === OldProjectRole.ADMIN} height={35}
+                                   icon={"heroBriefcase"}
+                                   label={"Admin"}
+                                   name={"Admin" + props.member.username}
+                                   onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.ADMIN)}/>
+                        <RadioTile fontSize={"8px"} checked={role === OldProjectRole.USER} height={35}
+                                   icon={"heroTrash"}
+                                   label={"User"} name={"User" + props.member.username}
+                                   onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.USER)}/>
+                    </>
+                }
+            </RadioTilesContainer>
+            <Button color={"errorMain"}>Remove</Button>
+        </Flex>}
+    />;
+}
+
+const GroupCard: React.FunctionComponent<{ group: ProjectGroup }> = props => {
+    const openFn: React.MutableRefObject<(left: number, top: number) => void> = {current: doNothing};
+    const onContextMenu: EventHandler<MouseEvent<never>> = e => {
+        e.stopPropagation();
+        e.preventDefault();
+        openFn.current(e.clientX, e.clientY);
+    };
+
+    return <ListRow
+        disableSelection
+
+        onContextMenu={onContextMenu}
+        left={<>
+            {props.group.specification.title}
+        </>}
+        right={<>
+            <Flex alignItems={"center"}>
+                <Icon name={"heroUser"}/>
+                <Box width={"24px"} textAlign={"center"}>
+                    {props.group.status.members?.length}
+                </Box>
+            </Flex>
+            <Operations
+                location={"IN_ROW"}
+                operations={[
+                    {
+                        confirm: false,
+                        text: "Rename",
+                        icon: "rename",
+                        enabled: () => true,
+                        onClick: doNothing,
+                        shortcut: ShortcutKey.U
+                    },
+                    {
+                        confirm: true,
+                        color: "errorMain",
+                        text: "Delete",
+                        icon: "heroTrash",
+                        enabled: () => true,
+                        onClick: doNothing,
+                        shortcut: ShortcutKey.U
+                    }
+                ]}
+                selected={[]}
+                extra={null}
+                entityNameSingular={"Group"}
+                row={42}
+                openFnRef={openFn}
+                forceEvaluationOnOpen
+            />
+        </>}
     />;
 }
