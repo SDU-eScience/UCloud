@@ -80,7 +80,7 @@ interface RemoveMember {
 
 interface ChangeRole {
     type: "ChangeRole";
-    changes: {username: string; role: ProjectRole}[];
+    changes: { username: string; role: ProjectRole }[];
 }
 
 interface AddToGroup {
@@ -109,6 +109,7 @@ interface RenameGroup {
 const placeholderPrefix = "ucloud-placeholder-id-";
 
 let groupIdCounter = 0;
+
 interface CreateGroup {
     type: "CreateGroup";
     title: string;
@@ -295,7 +296,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             });
 
             if (!success) {
-                const oldRoles: {username: string, role: ProjectRole}[] = [];
+                const oldRoles: { username: string, role: ProjectRole }[] = [];
                 for (const member of project.status.members!) {
                     const hasChange = action.changes.some(it => it.username === member.username);
                     if (hasChange) {
@@ -410,8 +411,6 @@ interface ActionCallbacks {
 export const ProjectMembers2: React.FunctionComponent = () => {
     // Input "parameters"
     const navigate = useNavigate();
-    const location = useLocation();
-    const inspectingGroupId = getQueryParam(location.search, "group");
     const projectId = useProjectId() ?? "";
 
     // Remote data
@@ -422,13 +421,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     // UI state
     const [uiState, pureDispatch] = useReducer(projectReducer, {project: null, invites: emptyPageV2});
     const {project, invites} = uiState;
-    const [creatingGroup, setIsCreatingGroup] = useState(false);
-    const newMemberRef = useRef<HTMLInputElement>(null);
 
     const [memberQuery, setMemberQuery] = useState<string>("");
-    const updateMemberQueryFromEvent = useCallback((e: React.SyntheticEvent) => {
-        setMemberQuery((e.target as HTMLInputElement).value);
-    }, []);
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
@@ -462,57 +456,21 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         pureDispatch(action);
     }, [uiState, pureDispatch, actionCb]);
 
-    const onAddMember = useCallback((e: React.SyntheticEvent) => {
-        e.preventDefault();
-        const value = newMemberRef.current?.value;
-        if (!value) return;
-
-        newMemberRef.current.value = "";
-        avatars.updateCache([value]);
-        dispatch({type: "InviteMember", members: [value]});
-    }, [dispatch]);
-
-    const startGroupCreation = useCallback(() => {
-        setIsCreatingGroup(true);
-    }, []);
-
-    const groupRenaming = useRenamingState<ProjectGroup>(
-        (group) => group.specification.title,
-        [],
-
-        (a, b) => a.id === b.id,
-        [],
-
-        async (group, newTitle) => {
-            dispatch({type: "RenameGroup", group: group.id, newTitle});
-        },
-        [dispatch]
-    );
-
-    // Aliases and computed data
-    const inspectingGroup: ProjectGroup | null =
-        !inspectingGroupId || !project ? null :
-            project.status.groups!.find(it => it.id === inspectingGroupId) ?? null;
-
-    const isAdmin = !project ? false : isAdminOrPI(project.status.myRole!);
-
-    const groups: (ProjectGroup | undefined)[] = useMemo(() => {
-        if (!project) return [];
-        if (creatingGroup) {
-            return [undefined, ...project.status.groups!];
-        } else {
-            return project.status.groups!;
-        }
-    }, [creatingGroup, project]);
-
-    const relevantMembers: ProjectMember[] = useMemo(() => {
-        if (!project) return [];
+    const modifiedProject: Project | null = useMemo(() => {
+        if (!project) return project;
 
         const allMembers = project.status.members!;
         const normalizedQuery = memberQuery.trim().toLowerCase();
-        if (normalizedQuery === "") return allMembers;
+        if (normalizedQuery === "") return project;
 
-        return allMembers.filter(m => m.username.toLowerCase().indexOf(normalizedQuery) != -1);
+        const relevantMembers = allMembers.filter(m => m.username.toLowerCase().indexOf(normalizedQuery) != -1);
+        return {
+            ...project,
+            status: {
+                ...project.status,
+                members: relevantMembers,
+            }
+        };
     }, [project, memberQuery]);
 
     // Effects
@@ -534,20 +492,35 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
-    if (!project) return null;
+    if (!modifiedProject) return null;
 
     return <MembersContainer
-        onInvite={doNothing}
-        onSearch={doNothing}
+        onInvite={username => {
+            avatars.updateCache([username]);
+            dispatch({type: "InviteMember", members: [username]});
+        }}
+        onSearch={query => {
+            setMemberQuery(query);
+        }}
         onCreateLink={doNothing}
-        onAddToGroup={doNothing}
-        onRemoveFromGroup={doNothing}
-        onCreateGroup={doNothing}
-        onDeleteGroup={doNothing}
-        onChangeRole={doNothing}
-        onRefresh={doNothing}
+        onAddToGroup={(username, groupId) => {
+            dispatch({type: "AddToGroup", member: username, group: groupId});
+        }}
+        onRemoveFromGroup={(username, groupId) => {
+            dispatch({type: "RemoveFromGroup", member: username, group: groupId});
+        }}
+        onCreateGroup={(groupTitle) => {
+            dispatch({type: "CreateGroup", title: groupTitle, placeholderId: groupIdCounter++});
+        }}
+        onDeleteGroup={(groupId) => {
+            dispatch({type: "RemoveGroup", ids: [groupId]});
+        }}
+        onChangeRole={(username, newRole) => {
+            dispatch({type: "ChangeRole", changes: [{username: username, role: newRole}]});
+        }}
+        onRefresh={reload}
         invitations={invites.items}
-        project={project}
+        project={modifiedProject}
     />;
 };
 
@@ -561,7 +534,10 @@ function inviteLinkFromToken(token: string): string {
     return window.location.origin + "/app/projects/invite/" + token;
 }
 
-const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (ProjectGroup | undefined)[]}> = ({project, groups}) => {
+const InviteLinkEditor: React.FunctionComponent<{
+    project: Project,
+    groups: (ProjectGroup | undefined)[]
+}> = ({project, groups}) => {
     const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
     const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
@@ -618,7 +594,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
             <Box minHeight="200px">
                 <Flex>
                     <Button mr={20} onClick={() => setEditingLink(undefined)}>
-                        <Icon name="backward" size={20} />
+                        <Icon name="backward" size={20}/>
                     </Button>
                     <Heading.h3>Edit link settings</Heading.h3>
                 </Flex>
@@ -671,7 +647,11 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                                         selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
 
                                                 await callAPIWithErrorHandler({
-                                                    ...Api.updateInviteLink({token: editingLink, role: selectedRole, groups: newSelection}),
+                                                    ...Api.updateInviteLink({
+                                                        token: editingLink,
+                                                        role: selectedRole,
+                                                        groups: newSelection
+                                                    }),
                                                     projectOverride: project.id
                                                 });
 
@@ -681,7 +661,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                                 });
                                             }}
                                         >
-                                            <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
+                                            <Checkbox checked={selectedGroups.includes(item.value)} readOnly/>
                                             {item.text}
                                         </Box>
                                         : <></>
@@ -721,7 +701,10 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                                 readOnly
                                                 style={{"cursor": "pointer"}}
                                                 onClick={() => {
-                                                    copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
+                                                    copyToClipboard({
+                                                        value: inviteLinkFromToken(link.token),
+                                                        message: "Link copied to clipboard"
+                                                    })
                                                 }}
                                                 mr={10}
                                                 value={inviteLinkFromToken(link.token)}
@@ -731,7 +714,8 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                     >
                                         Click to copy link to clipboard
                                     </Tooltip>
-                                    <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
+                                    <Text fontSize={12}>This link will automatically expire
+                                        in {daysLeftToTimestamp(link.expires)} days</Text>
                                 </Flex>
                                 <Flex>
                                     <Button
@@ -741,7 +725,7 @@ const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (Proj
                                             setEditingLink(link.token)
                                         }
                                     >
-                                        <Icon name="edit" size={20} />
+                                        <Icon name="edit" size={20}/>
                                     </Button>
 
                                     <ConfirmationButton
@@ -820,9 +804,10 @@ const HelpCircleClass = injectStyle("help-circle", k => `
 `);
 
 const USER_ID_HELP = (
-    <Tooltip tooltipContentWidth={250} trigger={<div className={HelpCircleClass} />}>
+    <Tooltip tooltipContentWidth={250} trigger={<div className={HelpCircleClass}/>}>
         <Text fontSize={12}>
-            Your username can be found next to {" "}<Icon name="heroIdentification" />, by clicking the avatar in the bottom of the sidebar.
+            Your username can be found next to {" "}<Icon name="heroIdentification"/>, by clicking the avatar in the
+            bottom of the sidebar.
         </Text>
     </Tooltip>
 );
