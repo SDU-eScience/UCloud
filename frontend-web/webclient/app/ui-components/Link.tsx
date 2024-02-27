@@ -10,7 +10,9 @@ export type LinkProps = LProps & BaseLinkProps & {
 
 function Link({active, ...props}: LinkProps): JSX.Element {
     const style: CSSProperties = unbox(props);
+    delete style["color"];
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
+    if (props.color) style["--textColor"] = `var(--${props.color})`;
 
     return <ReactRouterLink
         className={classConcat(BaseLinkClass, props.className)}
