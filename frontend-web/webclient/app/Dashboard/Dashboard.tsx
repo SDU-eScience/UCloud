@@ -413,7 +413,7 @@ const DeicBanner = injectStyle("deic-banner", k => `
     }
     
     ${k} a, ${k} svg {
-        z-index: 10000;
+        z-index: 1;
     }
 `);
 
