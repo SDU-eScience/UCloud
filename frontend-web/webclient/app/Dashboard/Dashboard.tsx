@@ -431,7 +431,7 @@ const DashboardCard: React.FunctionComponent<{
     overflow?: string;
 }> = props => {
     return <TitledCard
-        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title}</Heading.h3></Link> :
+        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px" name="heroArrowTopRightOnSquare" /></Heading.h3></Link> :
             <Heading.h3>{props.title}</Heading.h3>}
         icon={props.icon}
         overflow={props.overflow}
