@@ -3252,7 +3252,7 @@ export class ResourceBrowser<T> {
                 gap: 8px;
             }
             
-            ${browserClass.dot} kbd {
+            ${browserClass.dot} .${ShortcutClass} {
                 font-family: var(--sansSerif);
             }
 
