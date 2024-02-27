@@ -1,5 +1,5 @@
 import * as React from "react";
-import {ProjectInvite} from "@/Project/Api";
+import {ProjectInvite, ProjectInviteLink} from "@/Project/Api";
 import {Project, ProjectGroup, ProjectMember, ProjectRole} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
 import {Flex, MainContainer} from "@/ui-components";
@@ -50,6 +50,7 @@ export const MembersContainer: React.FunctionComponent<{
     onChangeRole: (username: string, newRole: ProjectRole) => void;
     onRefresh: () => void;
 
+    inviteLinks: ProjectInviteLink[];
     invitations: ProjectInvite[];
     project: Project
 }> = props => {
