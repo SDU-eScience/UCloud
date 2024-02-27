@@ -1541,7 +1541,11 @@ export class ResourceBrowser<T> {
                         shortcutElement.innerText = item;
                         element.append(shortcutElement);
                         if (index < shortcutItems.length - 1) {
-                            element.append("+");
+                            element.append(createHTMLElements({
+                                tagType: "span",
+                                className: "ShortCutPlusSymbol",
+                                innerText: "+"
+                            }));
                         }
                     }
                 }
@@ -3255,10 +3259,11 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .${ShortcutClass} {
                 font-family: var(--sansSerif);
             }
-
-            ${browserClass.dot} .context-menu li kbd {
-                flex-grow: 1;
-                text-align: end;
+            
+            @media screen and (max-width: 800px) {
+                ${browserClass.dot} .${ShortcutClass}, ${browserClass.dot} .ShortCutPlusSymbol {
+                    display: none;
+                }
             }
 
             ${browserClass.dot} .context-menu li[data-selected=true] {
