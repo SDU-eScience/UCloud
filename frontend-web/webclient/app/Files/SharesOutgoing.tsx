@@ -383,8 +383,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         // TODO(Jonas): For some reason, the arrow is not rendered.
                         browser.icons.renderIcon({
                             name: "ftSharesFolder",
-                            color: "iconColor",
-                            color2: "iconColor2",
+                            color: "FtFolderColor",
+                            color2: "FtFolderColor2",
                             height: 32,
                             width: 32
                         }).then(setIcon);

@@ -334,7 +334,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     //Projects should now show this page
     const activeProjectId = useProjectId();
     React.useEffect(() => {
-        if (activeProjectId) {
+        if (activeProjectId && !opts?.embedded) {
             navigate(AppRoutes.dashboard.dashboardA());
         }
     }, [activeProjectId])
@@ -434,10 +434,10 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "ftSharesFolder",
-                        color: "iconColor",
-                        color2: "iconColor2",
-                        height: 32,
-                        width: 32
+                        color: "FtFolderColor",
+                        color2: "FtFolderColor2",
+                        height: 64,
+                        width: 64
                     }).then(setIcon);
 
                     // Row title
@@ -498,8 +498,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         browser.icons.renderIcon({
                             ...StateIconAndColor[state],
                             color2: "iconColor2",
-                            height: 32,
-                            width: 32,
+                            height: 64,
+                            width: 64,
                         }).then(setStateIcon);
                     }
 

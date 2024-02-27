@@ -314,8 +314,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                 height: 64,
                                 width: 64,
                             }).then(setIcon);
-                            icon.style.marginLeft = "4px";
-                            icon.style.marginRight = "10px";
+                            icon.style.marginRight = "8px";
                         } else {
                             const pIcon = providerIcon(drive.specification.product.provider);
                             pIcon.style.marginRight = "8px";
