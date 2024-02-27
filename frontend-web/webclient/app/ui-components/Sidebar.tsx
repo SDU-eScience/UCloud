@@ -91,7 +91,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         ${k}[data-open="true"] {
             position: absolute;
             left: var(--sidebarWidth);
-            z-index: 1;
         }
     }
 
