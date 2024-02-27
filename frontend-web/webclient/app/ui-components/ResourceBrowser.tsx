@@ -1283,7 +1283,8 @@ export class ResourceBrowser<T> {
                 let operationText = op.text;
                 if (operationText) element.append(operationText);
                 if (operationText && shortcut) {
-                    const shortcutElem = document.createElement("kbd");
+                    const shortcutElem = document.createElement("div");
+                    shortcutElem.className = ShortcutClass;
                     shortcutElem.append(shortcut);
                     element.append(shortcutElem);
                 }
@@ -1303,7 +1304,7 @@ export class ResourceBrowser<T> {
             let shortcutNumber = counter;
             for (const child of options) {
                 const item = document.createElement("li");
-                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `[${shortcutNumber}]` : undefined);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `${shortcutNumber}` : undefined);
 
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
@@ -1532,9 +1533,17 @@ export class ResourceBrowser<T> {
                     element.append(operationText);
                 }
                 if (operationText && shortcut) {
-                    const shortcutElem = document.createElement("kbd");
-                    shortcutElem.append(shortcut);
-                    element.append(shortcutElem);
+                    const shortcutItems = shortcut.split("+");
+                    for (const [index, item] of shortcutItems.entries()) {
+                        const shortcutElement = document.createElement("div");
+                        shortcutElement.className = ShortcutClass;
+                        if (index === 0) shortcutElement.style.marginLeft = "auto";
+                        shortcutElement.innerText = item;
+                        element.append(shortcutElement);
+                        if (index < shortcutItems.length - 1) {
+                            element.append("+");
+                        }
+                    }
                 }
             }
         }
@@ -1586,7 +1595,7 @@ export class ResourceBrowser<T> {
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
 
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `${shortcutNumber}` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
@@ -1652,7 +1661,7 @@ export class ResourceBrowser<T> {
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
-            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY} + ${op.shortcut.replace("Key", "")}]` : undefined);
+            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `${ALT_KEY} + ${op.shortcut.replace("Key", "")}` : undefined);
 
             {
                 // ...and the handlers
@@ -3842,10 +3851,11 @@ const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";
 const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "alt";
 const CTRL_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "ctrl";
-const ShortcutClass = injectStyle("shortcut", k => `
+export const ShortcutClass = injectStyle("shortcut", k => `
     ${k} {
         border-radius: 5px;
-        border: 1px solid var(--textPrimary);
+        border: 1px solid;
+        mix-blend-mode: invert;
         font-size: 12px;
         min-width: 20px;
         height: 20px;

@@ -380,7 +380,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.F
             },
             {
-                text: "Open with...",
+                text: "Launch with...",
                 icon: "open",
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected, cb) => {

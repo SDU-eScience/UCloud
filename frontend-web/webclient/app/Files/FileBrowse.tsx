@@ -17,7 +17,8 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    controlsOperation
+    controlsOperation,
+    ShortcutClass
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -1459,8 +1460,9 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
         span.innerText = `${collection.specification.title} (${collection.id})`;
         span.className = TruncateClass;
         if (index + 1 <= 9) {
-            const shortcutElem = document.createElement("kbd");
-            shortcutElem.append(`[${index + 1}]`);
+            const shortcutElem = document.createElement("div");
+            shortcutElem.className = ShortcutClass;
+            shortcutElem.append(`${index + 1}`);
             wrapper.append(shortcutElem);
         }
         return wrapper;
