@@ -640,6 +640,8 @@ ${ApiConventions.nonConformingApiWarning}
             val newTitle: String? = null,
             val newDefaultFlavor: String? = null,
             val newDescription: String? = null,
+            val newBackgroundColor: String? = null,
+            val newLogoHasText: Boolean? = null,
         )
 
         val call = call(
@@ -788,7 +790,7 @@ ${ApiConventions.nonConformingApiWarning}
             PageV2.serializer(ApplicationCategory.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpBrowse(baseContext, "categories", roles = Roles.PRIVILEGED)
+                httpBrowse(baseContext, "categories", roles = Roles.END_USER)
             }
         )
     }
@@ -1153,6 +1155,8 @@ data class TopPick(
     val groupId: Int? = null,
     val description: String,
     val defaultApplicationToRun: String? = null,
+    val logoHasText: Boolean = false,
+    val logoBackgroundColor: String? = null,
 ) {
     init {
         if (applicationName != null && groupId != null) {
@@ -1232,6 +1236,8 @@ data class ApplicationGroup(
         val description: String,
         val defaultFlavor: String? = null,
         val categories: Set<Int> = emptySet(),
+        val backgroundColor: String? = null,
+        val logoHasText: Boolean = false,
     )
 
     @Serializable

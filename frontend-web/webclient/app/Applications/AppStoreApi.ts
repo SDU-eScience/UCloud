@@ -338,6 +338,8 @@ export interface ApplicationGroupSpecification {
     description: string;
     defaultFlavor?: string | null;
     categories: number[];
+    backgroundColor?: string | null;
+    logoHasText?: boolean;
 }
 
 export interface ApplicationGroupStatus {
@@ -532,6 +534,8 @@ export function updateGroup(request: {
     newTitle?: string | null;
     newDefaultFlavor?: string | null;
     newDescription?: string | null;
+    newBackgroundColor?: string | null;
+    newLogoHasText?: boolean;
 }): APICallParameters<unknown, unknown> {
     return apiUpdate(request, baseContext, "updateGroup");
 }
@@ -691,6 +695,8 @@ export interface TopPick {
     groupId?: number | null;
     description: string;
     defaultApplicationToRun?: string | null;
+    logoHasText?: boolean;
+    logoBackgroundColor?: string;
 }
 
 export interface Spotlight {

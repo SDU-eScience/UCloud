@@ -44,4 +44,5 @@ export type BoxProps =
     FontSizeProps &
     {cursor?: Cursor} &
     {objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down"} &
-    WithEventHandlers;
+    WithEventHandlers &
+    {columnGap?: string; rowGap?: string};

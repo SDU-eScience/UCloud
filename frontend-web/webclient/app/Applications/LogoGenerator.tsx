@@ -1,9 +1,10 @@
-import {compRgbToHsl, hslToRgb} from "@/ui-components/GlobalStyle";
+import {compRgbToHsl, contrast, hslToRgb} from "@/ui-components/GlobalStyle";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {callAPI} from "@/Authentication/DataHook";
 import React, {useEffect, useMemo, useState} from "react";
 import Box from "@/ui-components/Box";
 import {height} from "styled-system";
+import {selectContrastColor} from "@/ui-components/theme";
 
 function fetchImage(id: number): Promise<HTMLImageElement> {
     const image = document.createElement("img");
@@ -20,8 +21,7 @@ function fetchImage(id: number): Promise<HTMLImageElement> {
 }
 
 export async function testGenerator() {
-    /*
-    const ids = [
+    /*const ids = [
         1,
         2,
         3,
@@ -120,7 +120,7 @@ export async function testGenerator() {
         96,
     ];
      */
-    const ids = [30]
+    const ids = [2];
 
     document.querySelector("#output")?.remove();
     const output = document.createElement("output");
@@ -132,7 +132,7 @@ export async function testGenerator() {
             const group = await callAPI(AppStore.retrieveGroup({id}));
             const logo = await fetchImage(id);
             {
-                const [canvas, color] = generateLogoWithText(group.specification.title, logo);
+                const [canvas, color] = generateLogoWithText(group.specification.title, logo, true);
                 const wrap = document.createElement("div");
                 wrap.style.display = "flex";
                 wrap.style.gap = "16px";
@@ -180,12 +180,13 @@ export const LogoWithText: React.FunctionComponent<{
     title: string;
     size: number;
     forceUnder?: boolean;
-}> = ({title, groupId, size, forceUnder}) => {
+    hasText?: boolean;
+}> = ({title, groupId, size, forceUnder, hasText}) => {
     const [element, setElement] = useState<string | null>(null);
     useEffect(() => {
         let didCancel = false;
 
-        if (hasTextInLogo[groupId]) {
+        if (hasText) {
             setElement(AppStore.retrieveGroupLogo({id: groupId}));
         } else {
             (async () => {
@@ -198,12 +199,20 @@ export const LogoWithText: React.FunctionComponent<{
         return () => {
             didCancel = true;
         };
-    }, [groupId]);
+    }, [groupId, hasText]);
 
     if (element === null) {
         return <Box height={size}/>;
     } else {
-        return <img src={element} alt={title} style={{maxHeight: `calc(100% - 32px)`, maxWidth: "calc(100% - 32px)"}}/>;
+        return <img
+            src={element}
+            alt={title}
+            style={{
+                maxHeight: `calc(100% - 32px)`,
+                maxWidth: "calc(100% - 32px)",
+                padding: hasText ? undefined : "10px",
+            }}
+        />
     }
 }
 
@@ -214,9 +223,8 @@ export function generateLogoWithText(
 ): [HTMLCanvasElement, string, string] {
     const scaledImageCanvas = document.createElement("canvas");
     const aspectRatio = input.width / input.height;
-    scaledImageCanvas.height = 128;
+    scaledImageCanvas.height = 256;
     scaledImageCanvas.width = aspectRatio * scaledImageCanvas.height;
-    console.log(scaledImageCanvas.height, scaledImageCanvas.width)
     const gs = scaledImageCanvas.getContext("2d")!;
 
     gs.imageSmoothingEnabled = true;
@@ -248,17 +256,17 @@ export function generateLogoWithText(
             b = (1 - nA) * bgChannel + nA * b;
         }
 
-        if (a < 255) continue;
-
         let x = Math.floor((i / 4) % imageData.width);
         let y = Math.floor((i / 4) / imageData.width);
-        if (r !== 255 && g !== 255 && b !== 255) {
+        if (!(r === 255 && g === 255 && b === 255)) {
             if (x < firstImageX) firstImageX = x;
             if (y < firstImageY) firstImageY = y;
 
             if (x > lastImageX) lastImageX = x;
             if (y > lastImageY) lastImageY = y;
         }
+
+        if (a < 255) continue;
 
         let [h, s, l] = compRgbToHsl(r, g, b);
         h = Math.floor(h * 255) / bucketSize;
@@ -267,8 +275,6 @@ export function generateLogoWithText(
         const key = (h << 16) | (s << 8) | l;
         histogram[key] = (histogram[key] ?? 0) + 1;
     }
-
-    console.log(firstImageX, firstImageY, lastImageX, lastImageY, imageData.width, imageData.height);
 
     // const imageWidth = imageData.width;
     // const imageHeight = imageData.height;
@@ -294,42 +300,16 @@ export function generateLogoWithText(
             const maxS = (((k >> 8) & 0xFF) * bucketSize) / 255;
             const maxL = (((k >> 0) & 0xFF) * bucketSize) / 255;
 
-            const looksLikeWhite = maxS < 0.15 && maxS > 0.8
-            if (count > max && maxS > 0.10 && !looksLikeWhite) {
+            const rgbColor = hslToRgb(maxH, maxS, maxL);
+            if (contrast("#ffffff", rgbColor) >= 3.0) {
                 maxHsl = [maxH, maxS, maxL];
                 max = count;
             }
         }
     }
 
-    if (max < 0.05 * sortedEntries[0][1]) {
-        for (const [key, _] of sortedEntries) {
-            const k = parseInt(key);
-            const maxH = (((k >> 16) & 0xFF) * bucketSize) / 255;
-            const maxS = (((k >> 8) & 0xFF) * bucketSize) / 255;
-            const maxL = (((k >> 0) & 0xFF) * bucketSize) / 255;
-
-            const looksLikeWhite = (maxS < 0.15 && maxL > 0.5) || maxL > 0.8
-            if (looksLikeWhite) continue
-            maxHsl = [maxH, maxS, maxL];
-            break;
-        }
-    }
-
-
-    let canPlaceUnderAtSize = forceUnder ? 40 : -1;
+    let canPlaceUnderAtSize = forceUnder ? 60 : -1;
     const font = "Inter";
-    /*
-    const desiredFontSizes = [38, 40, 42];
-    for (const size of desiredFontSizes) {
-        g.font = `${size}px ${font}`;
-        const width = g.measureText(title).width;
-        if (width < canvas.width) {
-            canPlaceUnderAtSize = size;
-        }
-    }
-     */
-
 
     const canvas = document.createElement("canvas");
     if (canPlaceUnderAtSize > 0) {
@@ -340,11 +320,12 @@ export function generateLogoWithText(
         }
 
         canvas.width = Math.max(textWidth, imageWidth);
-        canvas.height = canvas.height + canPlaceUnderAtSize * 1.5;
+        canvas.height = imageHeight + canPlaceUnderAtSize * 1.2;
         const g = canvas.getContext("2d")!;
 
         const logoPadding = textWidth > imageWidth ? (textWidth - imageWidth) / 2 : 0;
         const textPadding = imageWidth > textWidth ? (imageWidth - textWidth) / 2 : 0;
+        console.log(title, logoPadding, textWidth, imageWidth, firstImageX, lastImageX);
 
         g.clearRect(0, 0, canvas.width, canvas.height);
         g.drawImage(
@@ -366,10 +347,8 @@ export function generateLogoWithText(
         g.fillStyle = hslToRgb(maxHsl[0], maxHsl[1], maxHsl[2]);
         g.fillText(title, textPadding, imageHeight + canPlaceUnderAtSize * 1.1);
     } else {
-        const size = 40;
-        const paddingX = 16;
-
-        console.log("imageWidth = ", imageWidth, "imageHeight = ", imageHeight)
+        const size = 120;
+        const paddingX = 60;
 
         const titleWords = title.split(" ");
         let currentLine = "";
@@ -380,7 +359,7 @@ export function generateLogoWithText(
             currentLine += word + " ";
             const newWidth = gs.measureText(currentLine).width;
             if (newWidth > maxWidth) maxWidth = newWidth;
-            if (newWidth > 200) {
+            if (newWidth > 500) {
                 linesOfText.push(currentLine.trim());
                 currentLine = "";
             }
@@ -388,7 +367,6 @@ export function generateLogoWithText(
         if (currentLine) linesOfText.push(currentLine.trim());
 
         const textHeight = ((linesOfText.length - 1) * 1.1 * size) + size;
-        console.log(title, textHeight);
         const textWidth = maxWidth;
 
         canvas.width = imageWidth + paddingX + textWidth;

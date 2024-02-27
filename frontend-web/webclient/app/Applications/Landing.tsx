@@ -9,14 +9,14 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {CSSProperties, HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
 import {appColors, ThemeColor} from "@/ui-components/theme";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
-import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
+import {ApplicationGroup, Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoGenerator";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -415,8 +415,11 @@ const AppCard1: React.FunctionComponent<{
         link = AppRoutes.jobs.create(props.applicationName);
     }
 
-    return <ReactRouterLink to={link} target={props.target}
-                            className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}>
+    return <ReactRouterLink
+        to={link}
+        target={props.target}
+        className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}
+    >
         <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
         <div className={"content"}>
             <h2>{props.title}</h2>
@@ -440,6 +443,10 @@ const AppCard2Style = injectStyle("app-card-2", k => `
         box-shadow: var(--defaultShadow);
     }
     
+    ${k}:hover {
+        background: var(--backgroundDefault);
+    }
+    
     ${k} > *:first-child {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
@@ -458,7 +465,7 @@ const AppCard2Style = injectStyle("app-card-2", k => `
     
     ${k} .content {
         margin: 16px 0;
-        max-width: calc(100% - 50px);
+        max-width: calc(100% - 102px);
     }
     
     ${k} .description, ${k} .description p {
@@ -479,7 +486,7 @@ const AppCard2Style = injectStyle("app-card-2", k => `
     }
 `);
 
-const AppCard2: React.FunctionComponent<{
+export const AppCard2: React.FunctionComponent<{
     name: string;
     title: string;
     description: string;
@@ -657,55 +664,30 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
         display: flex;
         justify-content: center;
         align-items: center;
+        background: var(--backgroundColor);
     }
     
-    ${k} > *:first-child {
-        position: relative;
-        left: var(--offset-x, 0);
-        top: var(--offset-y, 0);
+    ${k}:hover {
+        background: var(--backgroundHover);
     }
 `);
-
-const backgroundColorTable: Record<number, string> = {
-    84: "#00bd80",
-    // 55: "#000000",
-    // 44: "#4097dc",
-    // 39: "#ffffff",
-};
-
-const offsetTable: Record<number, [number, number]> = {
-    84: [0, 0],
-    // 55: [0, 40],
-    18: [0, -5],
-    22: [5, 0],
-};
-
-const sizeTable: Record<number, string> = {
-    84: "192px",
-    // 55: "192px",
-    39: "224px",
-    7: "100px",
-    18: "140px",
-    22: "140px",
-};
 
 const LogoCard: React.FunctionComponent<{
     groupId: number;
     link: string;
     title: string;
     large?: boolean;
-}> = ({groupId, link, title, large}) => {
+    backgroundColor?: string;
+    logoHasText?: boolean;
+}> = ({groupId, link, title, large, backgroundColor, logoHasText}) => {
     const style: CSSProperties = {};
-    style["background"] = backgroundColorTable[groupId] ?? "white";
-    const [offX, offY] = offsetTable[groupId] ?? [0, 0];
-    style["--offset-x"] = offX + "px";
-    style["--offset-y"] = offY + "px";
+    const background = backgroundColor ?? "#ffffff";
+    style["--backgroundColor"] = background;
+    style["--backgroundHover"] = shade(background, 0.05);
 
     return <ReactRouterLink to={link}>
         <div className={TopPickCardStyle} style={style}>
-            <LogoWithText groupId={groupId} title={title} size={100} forceUnder={large}/>
-            {/*<AppToolLogo size={sizeTable[groupId] ?? "100px"} name={groupId.toString()}*/}
-            {/*             type={"GROUP"}/>*/}
+            <LogoWithText groupId={groupId} title={title} size={100} forceUnder={large} hasText={logoHasText}/>
         </div>
     </ReactRouterLink>;
 }
@@ -722,7 +704,8 @@ export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = (
                     }
 
                     return <LogoCard large={idx === 0 && topPicks.length > 4} groupId={pick.groupId}
-                                     title={pick.title} link={link}/>;
+                                     title={pick.title} link={link} backgroundColor={pick.logoBackgroundColor}
+                                     logoHasText={pick.logoHasText}/>;
                 } else {
                     return null;
                 }
@@ -741,7 +724,14 @@ export const StarredApplications2: React.FunctionComponent<{
                 const link = AppRoutes.jobs.create(app.metadata.name);
                 const groupId = app.metadata.group?.metadata?.id ?? 0;
 
-                return <LogoCard large={idx === 0 && apps.length > 4} title={app.metadata.title} groupId={groupId} link={link}/>;
+                return <LogoCard
+                    large={idx === 0 && apps.length > 4}
+                    title={app.metadata.title}
+                    groupId={groupId}
+                    link={link}
+                    logoHasText={app.metadata.group?.specification.logoHasText ?? false}
+                    backgroundColor={app.metadata.group?.specification.backgroundColor ?? undefined}
+                />;
             })}
         </div>
     </div>

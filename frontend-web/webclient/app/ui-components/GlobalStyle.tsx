@@ -129,7 +129,7 @@ function luminance(r: number, g: number, b: number) {
     return a[0] * RED + a[1] * GREEN + a[2] * BLUE;
 }
 
-function contrast(rgb1: string, rgb2: string) {
+export function contrast(rgb1: string, rgb2: string) {
     const lum1 = luminance(...hexToRgb(rgb1));
     const lum2 = luminance(...hexToRgb(rgb2));
     const brightest = Math.max(lum1, lum2);

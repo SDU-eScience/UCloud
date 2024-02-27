@@ -142,6 +142,8 @@ export function unbox(props: BoxProps | SpaceProps): React.CSSProperties {
     if ("fontSize" in props && props.fontSize) result.fontSize = extractSize(props.fontSize);
     if ("backgroundColor" in props && props.backgroundColor) result.backgroundColor = props.backgroundColor.toString();
     if ("objectFit" in props && props.objectFit) result.objectFit = props.objectFit;
+    if ("columnGap" in props && props.columnGap) result.columnGap = props.columnGap;
+    if ("rowGap" in props && props.rowGap) result.rowGap = props.rowGap;
 
     return result;
 }

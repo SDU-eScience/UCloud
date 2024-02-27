@@ -23,7 +23,6 @@ import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.util.*
-import io.ktor.util.cio.*
 import io.ktor.util.cio.toByteReadChannel
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
@@ -31,9 +30,6 @@ import io.ktor.utils.io.jvm.javaio.*
 import org.yaml.snakeyaml.reader.ReaderException
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.nio.file.Files
 import java.security.MessageDigest
 import kotlin.text.String
 
@@ -108,6 +104,8 @@ class AppStoreController(
                 newTitle = request.newTitle,
                 newDescription = request.newDescription,
                 newDefaultFlavor = request.newDefaultFlavor,
+                newLogoHasText = request.newLogoHasText,
+                newBackgroundColor = request.newBackgroundColor,
             )
 
             ok(Unit)
