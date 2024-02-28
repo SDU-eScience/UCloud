@@ -41,7 +41,6 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
 export const MembersContainer: React.FunctionComponent<{
     onInvite: (username: string) => void;
     onSearch: (newFilter: string) => void;
-    onCreateLink: () => void;
     onAddToGroup: (username: string, groupId: string) => void;
     onRemoveFromGroup: (username: string, groupId: string) => void;
     onRemoveFromProject: (username: string) => void;
@@ -49,6 +48,10 @@ export const MembersContainer: React.FunctionComponent<{
     onDeleteGroup: (groupId: string) => void;
     onChangeRole: (username: string, newRole: ProjectRole) => void;
     onRefresh: () => void;
+    onCreateInviteLink: () => void;
+    onUpdateLinkRole: (linkId: string, role: ProjectRole) => void;
+    onDeleteLink: (linkId: string) => void;
+    onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
 
     inviteLinks: ProjectInviteLink[];
     invitations: ProjectInvite[];
