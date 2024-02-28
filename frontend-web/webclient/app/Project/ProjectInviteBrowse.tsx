@@ -39,7 +39,7 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 let avatarCache: Record<string, ReactStaticRenderer> = {}
-const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: ""}, {name: "Invited"}, {name: "Invited by"}];
+const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: "", columnWidth: 150}, {name: "Invited", columnWidth: 150}, {name: "Invited by", columnWidth: 80}];
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & SetShowBrowserHack}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ProjectInvite> | null>(null);

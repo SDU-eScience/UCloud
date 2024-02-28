@@ -229,9 +229,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (newPath !== "/") {
-                        browser.setColumnTitles([{name: "Shared with"}, {name: "Share rights"}, {name: "State"}, {name: ""}]);
+                        browser.setColumnTitles([{name: "Shared with"}, {name: "Share rights", columnWidth: 50}, {name: "State", columnWidth: 50}, {name: "", columnWidth: 250}]);
                     } else {
-                        browser.setColumnTitles([{name: "Filename"}, {name: ""}, {name: "Permissions"}, {name: "Shared with"}])
+                        browser.setColumnTitles([{name: "Filename"}, {name: "", columnWidth: 250}, {name: "Permissions", columnWidth: 50}, {name: "Shared with", columnWidth: 50}])
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share

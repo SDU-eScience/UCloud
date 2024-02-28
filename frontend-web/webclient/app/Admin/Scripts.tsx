@@ -54,7 +54,7 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
 };
 
-const ROW_TITLES: ColumnTitleList = [{name: "Script"}, {name: ""}, {name: "Last run"}, {name: ""}];
+const ROW_TITLES: ColumnTitleList = [{name: "Script"}, {name: "", columnWidth: 0}, {name: "Last run", columnWidth: 250}, {name: "", columnWidth: 50}];
 function Scripts(): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ScriptInfo> | null>(null);
@@ -107,6 +107,7 @@ function Scripts(): React.ReactNode {
                     const lastRun = script.lastRun === 0 ? "Never" : format(script.lastRun, DATE_FORMAT)
                     const textNode = document.createTextNode(lastRun);
                     row.stat2.append(textNode);
+                    row.stat2.style.marginTop = row.stat2.style.marginBottom = "auto";
 
                     const runButton = createHTMLElements({
                         tagType: "button",

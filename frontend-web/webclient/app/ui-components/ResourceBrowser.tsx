@@ -288,10 +288,11 @@ export interface ResourceBrowseFeatures {
 
 export interface ColumnTitle {
     name: string;
+    columnWidth: number;
     sortById?: string;
 }
 
-export type ColumnTitleList = [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle];
+export type ColumnTitleList = [Omit<ColumnTitle, "columnWidth">, ColumnTitle, ColumnTitle, ColumnTitle];
 
 export class ResourceBrowser<T> {
     // DOM component references
@@ -437,7 +438,7 @@ export class ResourceBrowser<T> {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
             disabledKeyhandlers: !!opts?.disabledKeyhandlers,
-            columnTitles: [{name: ""}, {name: ""}, {name: ""}, {name: ""}]
+            columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}]
         }
     };
 
@@ -460,6 +461,9 @@ export class ResourceBrowser<T> {
         ResourceBrowser.injectStyle();
         const browserClass = makeClassName("browser");
         this.root.classList.add(browserClass.class);
+        this.root.style.setProperty("--stat1Width", this.opts.columnTitles[1].columnWidth + "px");
+        this.root.style.setProperty("--stat2Width", this.opts.columnTitles[2].columnWidth + "px");
+        this.root.style.setProperty("--stat3Width", this.opts.columnTitles[3].columnWidth + "px");
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -3160,6 +3164,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .stat-wrapper {
                 flex-grow: 1;
                 flex-shrink: 1;
+                justify-content: end;
                 display: flex;
                 gap: 8px;
             }
@@ -3172,12 +3177,25 @@ export class ResourceBrowser<T> {
 
             @media screen and (min-width: 860px) {
                 ${browserClass.dot} .row .stat1,
-                ${browserClass.dot} .row .stat2,
+                ${browserClass.dot} .row .stat2 {
+                    display: flex;
+                    justify-content: center;
+                    text-align: center;
+                }
+
+                ${browserClass.dot} .row .stat1 {
+                    width: var(--stat1Width);
+                }
+                
+                ${browserClass.dot} .row .stat2 {
+                    width: var(--stat2Width);
+                }
+
                 ${browserClass.dot} .row .stat3 {
                     display: flex;
                     justify-content: end;
                     text-align: end;
-                    width: 33%;
+                    width: var(--stat3Width);
                 }
             }
 
@@ -3599,7 +3617,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    private setTitleAndHandlers(el: HTMLElement, rowTitle: ColumnTitle, position: "left" | "right"): void {
+    private setTitleAndHandlers(el: HTMLElement, rowTitle: Omit<ColumnTitle, "columnWidth">, position: "left" | "right"): void {
         el.innerHTML = "";
         const wrapper = document.createElement("div");
         el.append(wrapper);

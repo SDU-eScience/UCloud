@@ -59,9 +59,9 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumnTitles([
                     {name: "IP address"},
-                    {name: ""},
-                    {name: ""},
-                    {name: "In use with"},
+                    {name: "", columnWidth: 0},
+                    {name: "", columnWidth: 0},
+                    {name: "In use with", columnWidth: 250},
                 ]);
 
                 let startCreation = doNothing;

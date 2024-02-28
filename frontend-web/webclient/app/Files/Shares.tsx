@@ -369,7 +369,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setColumnTitles([{name: "Filename"}, {name: "Share state"}, {name: "Last updated"}, {name: "Shared by"}]);
+                browser.setColumnTitles([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 150}, {name: "Shared by", columnWidth: 80}]);
 
                 browser.on("beforeOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {

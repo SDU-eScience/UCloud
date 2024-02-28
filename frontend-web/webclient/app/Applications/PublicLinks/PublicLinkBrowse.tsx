@@ -60,9 +60,9 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
             new ResourceBrowser<PublicLink>(mount, "Public Links", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumnTitles([
                     {name: "Domain"},
-                    {name: ""},
-                    {name: ""},
-                    {name: "In use with"},
+                    {name: "", columnWidth: 0},
+                    {name: "", columnWidth: 0},
+                    {name: "In use with", columnWidth: 250},
                 ]);
 
                 let startCreation: () => void = doNothing;

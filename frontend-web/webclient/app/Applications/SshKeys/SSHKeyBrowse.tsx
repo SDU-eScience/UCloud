@@ -36,7 +36,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<SSHKey>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumnTitles([{name: "Title"}, {name: ""}, {name: ""}, {name: ""}]);
+                browser.setColumnTitles([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
                 // Ensure no refecthing on `beforeOpen`.
                 browser.on("beforeOpen", (oldPath, path, resource) => resource != null);
