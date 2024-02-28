@@ -412,8 +412,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     // Input "parameters"
     const navigate = useNavigate();
     const projectId = useProjectId() ?? "";
-    const location = useLocation();
-    const groupIdParam = getQueryParam(location.search, "groupId");
 
     // Remote data
     const [invitesFromApi, fetchInvites] = useCloudAPI<PageV2<ProjectInvite>>({noop: true}, emptyPageV2);
@@ -505,9 +503,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
     if (!modifiedProject) return null;
 
-    const activeGroup = (modifiedProject.status.groups ?? [])
-        .find(it => it.id === groupIdParam) ?? null;
-
     return <MembersContainer
         onInvite={username => {
             avatars.updateCache([username]);
@@ -535,14 +530,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         onRemoveFromProject={(username) => {
             dispatch({type: "RemoveMember", members: [username]});
         }}
-        onRenameGroup={(groupId, newTitle) => {
-            dispatch({ type: "RenameGroup", group: groupId, newTitle });
-        }}
         onRefresh={reload}
         invitations={invites.items}
         project={modifiedProject}
         inviteLinks={inviteLinksFromApi.data.items}
-        activeGroup={activeGroup}
     />;
 };
 

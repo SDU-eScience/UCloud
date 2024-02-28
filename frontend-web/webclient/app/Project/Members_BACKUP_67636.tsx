@@ -541,8 +541,11 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         onRefresh={reload}
         invitations={invites.items}
         project={modifiedProject}
-        inviteLinks={inviteLinksFromApi.data.items}
+<<<<<<< HEAD
         activeGroup={activeGroup}
+=======
+        inviteLinks={inviteLinksFromApi.data.items}
+>>>>>>> 6b04511abd08fcb5ab5fc0a4db81dfa1aab01e24
     />;
 };
 

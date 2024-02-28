@@ -494,15 +494,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
-    const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
-    useEffect(() => {
-        fetchInviteLinks({
-            ...Api.browseInviteLinks({itemsPerPage: 10}),
-            projectOverride: projectId,
-        }).then(doNothing);
-    }, []);
-
-
     if (!modifiedProject) return null;
 
     const activeGroup = (modifiedProject.status.groups ?? [])
@@ -541,7 +532,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         onRefresh={reload}
         invitations={invites.items}
         project={modifiedProject}
-        inviteLinks={inviteLinksFromApi.data.items}
         activeGroup={activeGroup}
     />;
 };

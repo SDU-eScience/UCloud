@@ -1,11 +1,11 @@
 import * as React from "react";
 import {EventHandler, MouseEvent, useState} from "react";
-import {ProjectInvite} from "@/Project/Api";
+import {ProjectInvite, ProjectInviteLink} from "@/Project/Api";
 import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
 import {
     Box,
-    Button,
+    Button, Checkbox,
     Flex,
     Icon,
     Input,
@@ -20,7 +20,7 @@ import {injectStyle} from "@/Unstyled";
 import {ListRow} from "@/ui-components/List";
 import * as Heading from "@/ui-components/Heading";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, preventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {heroUserPlus} from "@/ui-components/icons";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -69,6 +69,7 @@ export const MembersContainer: React.FunctionComponent<{
     onRefresh: () => void;
     onRenameGroup: (groupId: string, newTitle: string) => void;
 
+    inviteLinks: ProjectInviteLink[];
     invitations: ProjectInvite[];
     project: Project;
     activeGroup: ProjectGroup | null;
@@ -161,7 +162,7 @@ export const MembersContainer: React.FunctionComponent<{
                     </form>
                     <Button color={"successMain"} onClick={() => {
                         dialogStore.addDialog(
-                            <LinkInviteCard/>,
+                            <LinkInviteCard links={props.inviteLinks} groups={groups}/>,
                             doNothing,
                         )
                     }}
@@ -194,14 +195,16 @@ export const MembersContainer: React.FunctionComponent<{
                             <Link to={"?"} color={"textPrimary"}><Heading.h3>Groups</Heading.h3></Link>
                             <Heading.h3>/ {props.activeGroup.specification.title}</Heading.h3>
                         </Flex>
-                        <List>
-                            {props.activeGroup.status.members!.map(member => <ActiveGroupCard
-                                member={member}
-                                key={member}
-                                handleRemoveFromGroup={handleRemoveFromGroup}
-                                activeGroup={props.activeGroup!}
-                            />)}
-                        </List>
+                        <Box height={"calc(100vh - 100px)"} overflowY={"auto"}>
+                            <List>
+                                {props.activeGroup.status.members!.map(member => <ActiveGroupCard
+                                    member={member}
+                                    key={member}
+                                    handleRemoveFromGroup={handleRemoveFromGroup}
+                                    activeGroup={props.activeGroup!}
+                                />)}
+                            </List>
+                        </Box>
                     </> : <>
                         <Flex marginBottom={"8px"}>
                             <Heading.h3>Groups</Heading.h3>
@@ -260,8 +263,84 @@ export const MembersContainer: React.FunctionComponent<{
     />;
 }
 
-const LinkInviteCard: React.FunctionComponent<{}> = props => {
-    return <div>Hello!</div>;
+const LinkInviteCard: React.FunctionComponent<{
+    links: ProjectInviteLink[];
+    groups: ProjectGroup[];
+}> = props => {
+    const [activeLink, setActiveLink] = useState<ProjectInviteLink | null>(null);
+
+    function daysLeftToTimestamp(timestamp: number): number {
+        return Math.floor((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
+    }
+
+    function inviteLinkFromToken(token: string): string {
+        return window.location.origin + "/app/projects/invite/" + token;
+    }
+
+    return <>
+        {activeLink ? <>
+            <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
+                <Link to={"?"}
+                      onClick={event => {
+                          setActiveLink(null);
+                      }}
+                      color={"textPrimary"}
+                >
+                    <Heading.h3>Invite with link</Heading.h3>
+                </Link>
+                <Heading.h3>/ Settings</Heading.h3>
+            </Flex>
+            <Flex gap={"8px"} marginBottom={"16px"} alignItems={"center"}>
+                <div>Assign new members to role</div>
+                <Box flexGrow={1}/>
+                <RadioTilesContainer>
+                    <RadioTile fontSize={"6px"} checked={activeLink.roleAssignment === OldProjectRole.ADMIN} height={35}
+                               icon={"heroBriefcase"}
+                               label={"Admin"}
+                               name={"Admin"}
+                               onChange={doNothing}/>
+                    <RadioTile fontSize={"6px"} checked={activeLink.roleAssignment === OldProjectRole.USER} height={35}
+                               icon={"heroUsers"}
+                               label={"User"}
+                               name={"User"}
+                               onChange={doNothing}/>
+                </RadioTilesContainer>
+            </Flex>
+            <Flex gap={"8px"} marginBottom={"8px"} alignItems={"center"}>
+                <div>Assign new members to groups</div>
+            </Flex>
+            <Flex flexDirection={"column"} maxHeight={"256px"} overflowY={"auto"} marginBottom={"5px"}>
+                <List>
+                    {props.groups.map(group =>
+                        <ListRow
+                            left={<div style={{marginLeft: "8px"}}>{group.specification.title}</div>}
+                            right={<><Checkbox /*value={} onChange={}*/></Checkbox></>}
+                        />
+                    )}
+                </List>
+            </Flex>
+        </> : <>
+            <Flex alignItems={"center"} paddingBottom={"8px"}>
+                <Heading.h3>Invite with link</Heading.h3>
+                <Box flexGrow={1}></Box>
+                <Button>Create link</Button>
+            </Flex>
+            {props.links.map(link =>
+                <Box>
+                    <Flex padding={"8px 0px"} gap={"8px"} key={link.token}>
+                        <Input value={inviteLinkFromToken(link.token)}></Input>
+                        <Button onClick={() => {
+                            setActiveLink(link)
+                        }} width={"48px"}><Icon name={"heroCog6Tooth"}/></Button>
+                        <Button width={"48px"} color={"errorMain"}><Icon name={"heroTrash"}/></Button>
+                    </Flex>
+                    <div style={{marginBottom: "8px", color: "var(--textSecondary)"}}>This link will automatically
+                        expire in {daysLeftToTimestamp(link.expires)} days
+                    </div>
+                </Box>
+            )}
+        </>}
+    </>
 }
 
 const MemberCard: React.FunctionComponent<{
