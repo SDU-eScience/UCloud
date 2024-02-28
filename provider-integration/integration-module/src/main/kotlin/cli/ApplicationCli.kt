@@ -146,9 +146,6 @@ fun ApplicationCli(controllerContext: ControllerContext) {
 
                 inline("- ")
                 code { line("ucloud tool upload <file.yaml>") }
-
-                inline("- ")
-                code { line("ucloud tool logo <tool> <file.png>") }
             }
         }
 
@@ -184,40 +181,6 @@ fun ApplicationCli(controllerContext: ControllerContext) {
 
                     sendTerminalMessage {
                         bold { green { line("Application has been uploaded successfully!") } }
-                    }
-                }
-
-                "logo" -> {
-                    if (args.size != 3) {
-                        sendHelp()
-                        return@CliHandler
-                    }
-
-                    val toolName = args[1]
-                    val file = File(args[2])
-                    if (!file.exists()) {
-                        sendTerminalMessage {
-                            red { bold { inline("File not found: ")  } }
-                            code { line(file.absolutePath) }
-                        }
-                        return@CliHandler
-                    }
-
-                    val logoEncoded = base64Encode(file.readBytes())
-                    if (logoEncoded.length >= 500_000) {
-                        sendTerminalMessage {
-                            red { bold { line("File size is too big. Try a different file.") } }
-                        }
-                        return@CliHandler
-                    }
-
-                    ipcClient.sendRequest(
-                        ApplicationIpc.uploadLogo,
-                        UploadLogoRequest(toolName, logoEncoded)
-                    )
-
-                    sendTerminalMessage {
-                        bold { green { line("Logo has been uploaded successfully!") } }
                     }
                 }
 
@@ -263,13 +226,13 @@ fun ApplicationCli(controllerContext: ControllerContext) {
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
             if (request.entity == null) {
-                AppStore.setPublic.call(
-                    SetPublicRequest(request.application, request.version, !request.revoke),
+                AppStore.updatePublicFlag.call(
+                    AppStore.UpdatePublicFlag.Request(request.application, request.version, !request.revoke),
                     rpcClient
                 ).orThrow()
             } else {
                 AppStore.updateAcl.call(
-                    UpdateAclRequest(
+                    AppStore.UpdateAcl.Request(
                         request.application,
                         listOf(
                             ACLEntryRequest(
@@ -282,17 +245,6 @@ fun ApplicationCli(controllerContext: ControllerContext) {
                     rpcClient
                 ).orThrow()
             }
-        })
-
-        pluginCtx.ipcServer.addHandler(ApplicationIpc.uploadLogo.handler { user, request ->
-            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
-            val logoBytes = base64Decode(request.contentBase64)
-
-            ToolStore.uploadLogo.call(
-                UploadApplicationLogoRequest(request.tool),
-                rpcClient.withHttpBody(ContentType.Image.Any, logoBytes.size.toLong(), ByteReadChannel(logoBytes))
-            ).orThrow()
         })
     }
 }
