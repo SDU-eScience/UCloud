@@ -20,6 +20,7 @@ import {ApplicationGroup, Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoGenerator";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -664,11 +665,11 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
         display: flex;
         justify-content: center;
         align-items: center;
-        background: var(--backgroundColor);
+        background: var(--backgroundCard);
     }
     
     ${k}:hover {
-        background: var(--backgroundHover);
+        background: var(--backgroundDefault);
     }
 `);
 
@@ -680,14 +681,9 @@ const LogoCard: React.FunctionComponent<{
     backgroundColor?: string;
     logoHasText?: boolean;
 }> = ({groupId, link, title, large, backgroundColor, logoHasText}) => {
-    const style: CSSProperties = {};
-    const background = backgroundColor ?? "#ffffff";
-    style["--backgroundColor"] = background;
-    style["--backgroundHover"] = shade(background, 0.05);
-
     return <ReactRouterLink to={link}>
-        <div className={TopPickCardStyle} style={style}>
-            <LogoWithText groupId={groupId} title={title} size={100} forceUnder={large} hasText={logoHasText}/>
+        <div className={TopPickCardStyle}>
+            <LogoWithText groupId={groupId} title={title} size={60} forceUnder={large} hasText={logoHasText}/>
         </div>
     </ReactRouterLink>;
 }

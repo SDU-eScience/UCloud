@@ -1,10 +1,20 @@
-import {compRgbToHsl, contrast, hslToRgb} from "@/ui-components/GlobalStyle";
+import {
+    colorDistanceRgb,
+    compRgbToHsl,
+    contrast, grayScaleRgb,
+    hexToRgb,
+    hslToRgb, invertColorRgb,
+    rgbToHex,
+    rgbToHsl
+} from "@/ui-components/GlobalStyle";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {callAPI} from "@/Authentication/DataHook";
 import React, {useEffect, useMemo, useState} from "react";
 import Box from "@/ui-components/Box";
 import {height} from "styled-system";
-import {selectContrastColor} from "@/ui-components/theme";
+import {selectContrastColor, useIsLightThemeStored} from "@/ui-components/theme";
+import {isLightThemeStored} from "@/UtilityFunctions";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 function fetchImage(id: number): Promise<HTMLImageElement> {
     const image = document.createElement("img");
@@ -175,6 +185,54 @@ const hasTextInLogo: Record<number, true> = {
     84: true, // whisper
 };
 
+type Replacements = Record<number, Record<string, string | "grayscale-invert" | "invert">>;
+const darkModeReplacements: Replacements = {
+    18: {
+        "#3c3a3e": "#ffffff",
+    },
+    13: {
+        "#ffffff": "",
+        "#333333": "invert",
+    },
+    84: {
+        "#000000": "invert",
+    },
+    39: {
+        "#4e4e4e": "invert",
+        "#9e9e9e": "invert",
+    },
+    72: {
+        "#303030": "#7e7e7e"
+    },
+    41: {
+        "#4e3528": "invert"
+    },
+    91: {
+        "#000000": "invert"
+    },
+    80: {
+        "#383838": "invert"
+    },
+    67: {
+        "#000000": "invert",
+    },
+    74: {
+        "#153057": "grayscale-invert"
+    },
+    34: {
+        "#000000": "invert"
+    },
+    25: {
+        "#000000": "invert"
+    }
+};
+
+const lightModeReplacements: Replacements = {
+    13: {
+        "#ffffff": "",
+    }
+};
+
 export const LogoWithText: React.FunctionComponent<{
     groupId: number;
     title: string;
@@ -182,24 +240,24 @@ export const LogoWithText: React.FunctionComponent<{
     forceUnder?: boolean;
     hasText?: boolean;
 }> = ({title, groupId, size, forceUnder, hasText}) => {
+    const isLight = useIsLightThemeStored();
     const [element, setElement] = useState<string | null>(null);
+    const allReplacements = isLight ? lightModeReplacements : darkModeReplacements;
+    const groupReplacements = allReplacements[groupId] ?? {};
+
     useEffect(() => {
         let didCancel = false;
 
-        if (hasText) {
-            setElement(AppStore.retrieveGroupLogo({id: groupId}));
-        } else {
-            (async () => {
-                const image = await fetchImage(groupId)
-                const [, , logo] = generateLogoWithText(title, image, forceUnder);
-                if (!didCancel) setElement(logo);
-            })();
-        }
+        (async () => {
+            const image = await fetchImage(groupId)
+            const [, , logo] = generateLogoWithText(!hasText ? title : "", image, forceUnder, groupReplacements);
+            if (!didCancel) setElement(logo);
+        })();
 
         return () => {
             didCancel = true;
         };
-    }, [groupId, hasText]);
+    }, [groupId, hasText, isLight]);
 
     if (element === null) {
         return <Box height={size}/>;
@@ -208,9 +266,8 @@ export const LogoWithText: React.FunctionComponent<{
             src={element}
             alt={title}
             style={{
-                maxHeight: `calc(100% - 32px)`,
+                maxHeight: forceUnder ? "calc(100% - 32px)" : hasText ? `${size * 1.50}px` : `${size}px`,
                 maxWidth: "calc(100% - 32px)",
-                padding: hasText ? undefined : "10px",
             }}
         />
     }
@@ -219,7 +276,8 @@ export const LogoWithText: React.FunctionComponent<{
 export function generateLogoWithText(
     title: string,
     input: HTMLImageElement,
-    forceUnder?: boolean
+    forceUnder?: boolean,
+    colorReplacements: Record<string, string> = {},
 ): [HTMLCanvasElement, string, string] {
     const scaledImageCanvas = document.createElement("canvas");
     const aspectRatio = input.width / input.height;
@@ -236,6 +294,7 @@ export function generateLogoWithText(
 
     const histogram: Record<number, number> = {};
     const imageData = gs.getImageData(0, 0, scaledImageCanvas.width, scaledImageCanvas.height);
+    let didModify = false;
     let firstImageX = 10000000;
     let firstImageY = 10000000;
     let lastImageX = 0;
@@ -244,7 +303,45 @@ export function generateLogoWithText(
         let r = imageData.data[i];
         let g = imageData.data[i + 1];
         let b = imageData.data[i + 2];
-        const a = imageData.data[i + 3];
+        let a = imageData.data[i + 3];
+
+        const oldRgb = rgbToHex(r, g, b);
+        let newColor: string | null = null;
+        for (const [find, replace] of Object.entries(colorReplacements)) {
+            if (colorDistanceRgb(oldRgb, find) < 80) {
+                newColor = replace;
+            }
+        }
+        if (newColor !== null) {
+            if (newColor === "") {
+                a = 0;
+            } else {
+                if (newColor === "grayscale-invert") {
+                    const [gr, gg, gb] = grayScaleRgb(r, g, b);
+                    const newColorRgb = invertColorRgb(gr, gg, gb);
+                    r = newColorRgb[0];
+                    g = newColorRgb[1];
+                    b = newColorRgb[2];
+                } else if (newColor === "invert") {
+                    const newColorRgb = invertColorRgb(r, g, b);
+                    r = newColorRgb[0];
+                    g = newColorRgb[1];
+                    b = newColorRgb[2];
+                } else {
+                    const newColorRgb = hexToRgb(newColor);
+                    r = newColorRgb[0];
+                    g = newColorRgb[1];
+                    b = newColorRgb[2];
+                }
+            }
+
+            imageData.data[i] = r;
+            imageData.data[i + 1] = g;
+            imageData.data[i + 2] = b;
+            imageData.data[i + 3] = a;
+            didModify = true;
+        }
+
         if (a <= 1) continue;
         if (a < 255 && a > 0) {
             const bgChannel = 255;
@@ -276,6 +373,11 @@ export function generateLogoWithText(
         histogram[key] = (histogram[key] ?? 0) + 1;
     }
 
+    if (didModify) {
+        gs.clearRect(0, 0, scaledImageCanvas.width, scaledImageCanvas.height);
+        gs.putImageData(imageData, 0, 0);
+    }
+
     // const imageWidth = imageData.width;
     // const imageHeight = imageData.height;
     const imageWidth = (lastImageX - firstImageX) + 1;
@@ -300,12 +402,18 @@ export function generateLogoWithText(
             const maxS = (((k >> 8) & 0xFF) * bucketSize) / 255;
             const maxL = (((k >> 0) & 0xFF) * bucketSize) / 255;
 
+            const backgroundColor = isLightThemeStored() ? "#ffffff" : getCssPropertyValue("backgroundCard");
             const rgbColor = hslToRgb(maxH, maxS, maxL);
-            if (contrast("#ffffff", rgbColor) >= 3.0) {
+            let number = contrast(backgroundColor, rgbColor);
+            if (number >= 3.0) {
                 maxHsl = [maxH, maxS, maxL];
                 max = count;
             }
         }
+    }
+
+    if (max === -1) {
+        maxHsl = rgbToHsl(getCssPropertyValue("textPrimary"));
     }
 
     let canPlaceUnderAtSize = forceUnder ? 60 : -1;
@@ -319,13 +427,17 @@ export function generateLogoWithText(
             textWidth = gs.measureText(title).width;
         }
 
+        if (title === "") {
+            textWidth = 0;
+            canPlaceUnderAtSize = 0;
+        }
+
         canvas.width = Math.max(textWidth, imageWidth);
         canvas.height = imageHeight + canPlaceUnderAtSize * 1.2;
         const g = canvas.getContext("2d")!;
 
         const logoPadding = textWidth > imageWidth ? (textWidth - imageWidth) / 2 : 0;
         const textPadding = imageWidth > textWidth ? (imageWidth - textWidth) / 2 : 0;
-        console.log(title, logoPadding, textWidth, imageWidth, firstImageX, lastImageX);
 
         g.clearRect(0, 0, canvas.width, canvas.height);
         g.drawImage(
@@ -347,66 +459,88 @@ export function generateLogoWithText(
         g.fillStyle = hslToRgb(maxHsl[0], maxHsl[1], maxHsl[2]);
         g.fillText(title, textPadding, imageHeight + canPlaceUnderAtSize * 1.1);
     } else {
-        const size = 120;
-        const paddingX = 60;
+        const sizes = [120, 110, 100, 90, 80, 70, 60, 50];
+        for (const size of sizes) {
+            const paddingX = 30;
 
-        const titleWords = title.split(" ");
-        let currentLine = "";
-        let linesOfText: string[] = [];
-        let maxWidth = 0;
-        gs.font = `${size}px ${font}`;
-        for (const word of titleWords) {
-            currentLine += word + " ";
-            const newWidth = gs.measureText(currentLine).width;
-            if (newWidth > maxWidth) maxWidth = newWidth;
-            if (newWidth > 500) {
-                linesOfText.push(currentLine.trim());
-                currentLine = "";
+            const titleWords = title.split(" ");
+            let currentLine = "";
+            let linesOfText: string[] = [];
+            let maxWidth = 0;
+            gs.font = `${size}px ${font}`;
+            if (titleWords.length === 2) {
+                linesOfText = titleWords;
+                for (const word of titleWords) {
+                    const newWidth = gs.measureText(word).width;
+                    if (newWidth > maxWidth) maxWidth = newWidth;
+                }
+            } else {
+                for (const word of titleWords) {
+                    currentLine += word + " ";
+                    const newWidth = gs.measureText(currentLine.trim()).width;
+                    if (newWidth > maxWidth) maxWidth = newWidth;
+                    if (newWidth > 250) {
+                        linesOfText.push(currentLine.trim());
+                        currentLine = "";
+                    }
+                }
             }
-        }
-        if (currentLine) linesOfText.push(currentLine.trim());
+            if (currentLine) linesOfText.push(currentLine.trim());
 
-        const textHeight = ((linesOfText.length - 1) * 1.1 * size) + size;
-        const textWidth = maxWidth;
+            let textHeight = ((linesOfText.length - 1) * 1.1 * size) + size;
+            let textWidth = maxWidth;
+            if (title === "") {
+                textHeight = 0;
+                textWidth = 0;
+            }
 
-        canvas.width = imageWidth + paddingX + textWidth;
-        canvas.height = Math.max(imageHeight, textHeight);
-        canvas.style.width = `${canvas.width}px`;
-        canvas.style.height = `${canvas.height}px`;
-        const g = canvas.getContext("2d")!;
+            if (linesOfText.length === 1 && textHeight > imageHeight * 0.55) {
+                continue;
+            }
+            if (linesOfText.length > 1 && textHeight > imageHeight * 0.80) {
+                continue;
+            }
+
+            canvas.width = imageWidth + paddingX + textWidth;
+            canvas.height = Math.max(imageHeight, textHeight);
+            canvas.style.width = `${canvas.width}px`;
+            canvas.style.height = `${canvas.height}px`;
+            const g = canvas.getContext("2d")!;
 
 
-        g.imageSmoothingEnabled = true;
-        g.imageSmoothingQuality = "high";
+            g.imageSmoothingEnabled = true;
+            g.imageSmoothingQuality = "high";
 
-        g.font = `${size}px ${font}`;
-        g.fillStyle = "black";
-        g.fillRect(0, 0, 10, 10);
+            g.font = `${size}px ${font}`;
+            g.fillStyle = "black";
+            g.fillRect(0, 0, 10, 10);
 
-        g.fillStyle = hslToRgb(maxHsl[0], maxHsl[1], maxHsl[2]);
-        const paddingY = textHeight > imageHeight ? 0 : ((canvas.height - textHeight) / 2);
-        g.textBaseline = "bottom"
+            g.fillStyle = hslToRgb(maxHsl[0], maxHsl[1], maxHsl[2]);
+            const paddingY = textHeight > imageHeight ? 0 : ((canvas.height - textHeight) / 2);
+            g.textBaseline = "bottom"
 
-        let textY = size + paddingY;
-        g.font = `${size}px ${font}`;
-        g.clearRect(0, 0, canvas.width, canvas.height);
+            let textY = size + paddingY;
+            g.font = `${size}px ${font}`;
+            g.clearRect(0, 0, canvas.width, canvas.height);
 
-        g.drawImage(
-            scaledImageCanvas,
-            firstImageX,
-            firstImageY,
-            imageWidth,
-            imageHeight,
-            0,
-            0,
-            imageWidth,
-            imageHeight,
-        );
-        g.fillStyle = hslToRgb(maxHsl[0], maxHsl[1], maxHsl[2]);
+            g.drawImage(
+                scaledImageCanvas,
+                firstImageX,
+                firstImageY,
+                imageWidth,
+                imageHeight,
+                0,
+                0,
+                imageWidth,
+                imageHeight,
+            );
+            g.fillStyle = hslToRgb(maxHsl[0], maxHsl[1], maxHsl[2]);
 
-        for (const line of linesOfText) {
-            g.fillText(line, imageWidth + paddingX, textY);
-            textY += size * 1.1;
+            for (const line of linesOfText) {
+                g.fillText(line, imageWidth + paddingX, textY);
+                textY += size * 1.1;
+            }
+            break;
         }
     }
     const dataUrl = canvas.toDataURL("image/png");
