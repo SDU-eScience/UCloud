@@ -69,7 +69,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                if (!simpleView) browser.setColumnTitles(rowTitles);
+                browser.setColumnTitles(rowTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -260,6 +260,10 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
             }
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        if (simpleView) {
+            mount?.style.setProperty("--stat1Width", "0");
+            mount?.style.setProperty("--stat3Width", "28px");
+        }
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
