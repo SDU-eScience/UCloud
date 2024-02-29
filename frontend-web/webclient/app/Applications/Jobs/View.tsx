@@ -548,7 +548,7 @@ const CompletedContent: React.FunctionComponent<{
 }> = ({job, state}) => {
     const project = useProject();
     const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
-        "My Workspace" : "My Workspace";
+        "My workspace" : "My workspace";
 
     return <div className={Content}>
         <TabbedCard style={{flexBasis: "300px"}}>
