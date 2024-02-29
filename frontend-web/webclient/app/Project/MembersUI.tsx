@@ -5,7 +5,8 @@ import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole} from 
 import {Spacer} from "@/ui-components/Spacer";
 import {
     Box,
-    Button, Checkbox,
+    Button,
+    Checkbox,
     Flex,
     Icon,
     Input,
@@ -13,18 +14,20 @@ import {
     List,
     MainContainer,
     RadioTile,
-    RadioTilesContainer
+    RadioTilesContainer, Select
 } from "@/ui-components";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {injectStyle} from "@/Unstyled";
 import {ListRow} from "@/ui-components/List";
 import * as Heading from "@/ui-components/Heading";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
-import {doNothing, preventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {heroUserPlus} from "@/ui-components/icons";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
-import {dialogStore} from "@/Dialog/DialogStore";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import ReactModal from "react-modal";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {CardClass} from "@/ui-components/Card";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -37,8 +40,21 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} > * {
         flex-basis: 100%;
     }
+    
+    @media screen and (max-width: 1200px) {
+        ${k} {
+            --newGroupButtonWidth: 111px;
+        }
+        ${k} > .left {
+        
+        }
+        ${k} > .right {
+            margin-top: 32px;
+        }
+    }
 
     @media screen and (min-width: 1200px) {
+        
         ${k} > .left {
             border-right: 2px solid var(--borderColor, #f00);
             height: 100%;
@@ -59,7 +75,6 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
 export const MembersContainer: React.FunctionComponent<{
     onInvite: (username: string) => void;
     onSearch: (newFilter: string) => void;
-    onCreateLink: () => void;
     onAddToGroup: (username: string, groupId: string) => void;
     onRemoveFromGroup: (username: string, groupId: string) => void;
     onRemoveFromProject: (username: string) => void;
@@ -67,12 +82,19 @@ export const MembersContainer: React.FunctionComponent<{
     onDeleteGroup: (groupId: string) => void;
     onChangeRole: (username: string, newRole: ProjectRole) => void;
     onRefresh: () => void;
+    onRemoveInvite: (username: string) => void;
+    onCreateInviteLink: () => void;
+    onUpdateLinkRole: (linkId: string, role: ProjectRole) => void;
+    onDeleteLink: (linkId: string) => void;
+    onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
     onRenameGroup: (groupId: string, newTitle: string) => void;
-
     inviteLinks: ProjectInviteLink[];
     invitations: ProjectInvite[];
     project: Project;
     activeGroup: ProjectGroup | null;
+    onDuplicate: (groupId: string) => void;
+    onSortUpdated: (name: string) => void;
+    currentSortOption: string;
 }> = props => {
     const members: ProjectMember[] = props.project.status.members ?? [];
     const groups: ProjectGroup[] = props.project.status.groups ?? [];
@@ -82,6 +104,7 @@ export const MembersContainer: React.FunctionComponent<{
     const [newGroupName, setNewGroupName] = useState("");
     const [renameGroupId, setRenameGroupId] = useState("");
     const [renameGroupName, setRenameGroupName] = useState("");
+    const [isShowingInviteLinks, setIsShowingInviteLinks] = useState(false);
 
     // event handlers
     function handleInvite(event: React.SyntheticEvent) {
@@ -93,10 +116,6 @@ export const MembersContainer: React.FunctionComponent<{
     function handleSearch(event: React.SyntheticEvent) {
         const value = (event.target as HTMLInputElement).value;
         props.onSearch(value);
-    }
-
-    function handleCreateLink() {
-
     }
 
     function handleAddToGroup(username: string, groupId: string) {
@@ -135,8 +154,6 @@ export const MembersContainer: React.FunctionComponent<{
 
     useSetRefreshFunction(props.onRefresh);
 
-    console.log(props.project);
-
     const isPi = props.project.status.myRole === OldProjectRole.PI;
 
     return <MainContainer
@@ -145,6 +162,25 @@ export const MembersContainer: React.FunctionComponent<{
             right={<Flex marginRight={"16px"} height={"26px"}><UtilityBar/></Flex>}
         />}
         main={<div className={TwoColumnLayout}>
+            <ReactModal
+                isOpen={isShowingInviteLinks}
+                onRequestClose={() => setIsShowingInviteLinks(false)}
+                style={defaultModalStyle}
+                shouldCloseOnEsc
+                ariaHideApp={false}
+                onAfterOpen={() => undefined}
+                className={CardClass}
+            >
+                <LinkInviteCard
+                    links={props.inviteLinks}
+                    groups={groups}
+                    onCreateInviteLink={props.onCreateInviteLink}
+                    onDeleteLink={props.onDeleteLink}
+                    onLinkGroupsUpdated={props.onLinkGroupsUpdated}
+                    onUpdateLinkRole={props.onUpdateLinkRole}
+                />
+            </ReactModal>
+
             <div className={"left"}>
                 <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
                 <Flex gap={"8px"} marginBottom={"8px"}>
@@ -158,22 +194,55 @@ export const MembersContainer: React.FunctionComponent<{
                                 setUsername((event.target as HTMLInputElement).value);
                             }}
                         />
-                        <Button type={"submit"}><Icon name={"heroUserPlus"}/></Button>
+                        <Button type={"submit"}
+                                disabled={username === ""}><Icon name={"heroUserPlus"}/></Button>
                     </form>
                     <Button color={"successMain"} onClick={() => {
-                        dialogStore.addDialog(
-                            <LinkInviteCard links={props.inviteLinks} groups={groups}/>,
-                            doNothing,
-                        )
+                        setIsShowingInviteLinks(true);
                     }}
                     >
                         <Icon name={"heroLink"}/>
                     </Button>
                 </Flex>
-                <Input type="search" placeholder="Search existing project members ..." marginBottom={"8px"}
-                       onChange={handleSearch}/>
+                <Flex height={"35px"} gap={"8px"} marginBottom={"8px"}>
+                    <Input type="search" placeholder="Search existing project members ..." marginBottom={"8px"}
+                           onChange={handleSearch} style={{flexShrink: "1"}}/>
+                    <Select
+                        name="sort"
+                        height={"35px"}
+                        width={"111px"}
+                        flexShrink={0}
+                        flexBasis={111}
+                        value={props.currentSortOption}
+                        onChange={(event) => props.onSortUpdated(event.target.value)}>
+                        <option disabled={true} value={""}>Sort by</option>
+                        <option value={"name"}>Name</option>
+                        <option value={"role"}>Role</option>
+                    </Select>
+                </Flex>
                 <Box height={"calc(100vh - 220px)"} overflowY={"auto"}>
                     <List>
+                        {props.invitations.map((invite) => {
+                            return <ListRow key={invite.recipient}
+                                            left={
+                                                <Flex alignItems={"center"} padding={"4px 0"}>
+                                                    <AvatarForUser username={invite.recipient} height={"35px"}
+                                                                   width={"35px"}/>
+                                                    <div>{invite.recipient} has been invited
+                                                        to {invite.projectTitle} by {invite.invitedBy}</div>
+                                                </Flex>
+                                            }
+                                            right={
+                                                <Flex alignItems={"center"} padding={"4px 0"}>
+                                                    <Box flexGrow={1}/>
+                                                    <Button
+                                                        width={"88px"}
+                                                        color={"errorMain"}
+                                                        onClick={() => props.onRemoveInvite(invite.recipient)}
+                                                        disabled={props.activeGroup !== null}>Remove</Button>
+                                                </Flex>
+                                            }/>
+                        })}
                         {members.map(member =>
                             <MemberCard
                                 isPi={isPi}
@@ -195,7 +264,7 @@ export const MembersContainer: React.FunctionComponent<{
                             <Link to={"?"} color={"textPrimary"}><Heading.h3>Groups</Heading.h3></Link>
                             <Heading.h3>/ {props.activeGroup.specification.title}</Heading.h3>
                         </Flex>
-                        <Box height={"calc(100vh - 100px)"} overflowY={"auto"}>
+                        <Box height={"calc(100vh - 135px)"} overflowY={"auto"}>
                             <List>
                                 {props.activeGroup.status.members!.map(member => <ActiveGroupCard
                                     member={member}
@@ -223,7 +292,9 @@ export const MembersContainer: React.FunctionComponent<{
                                                 setNewGroupName((event.target as HTMLInputElement).value);
                                             }}
                                         />
-                                        <Button type={"submit"}>Create</Button>
+                                        <Button
+                                            type={"submit"}
+                                            disabled={newGroupName === ""}>Create</Button>
                                         <Button
                                             type={"button"}
                                             color={"errorMain"}
@@ -234,12 +305,13 @@ export const MembersContainer: React.FunctionComponent<{
                                 </> :
                                 <>
                                     <Button
+                                        width={"var(--newGroupButtonWidth, auto)"}
                                         onClick={() => {
                                             setNewGroup(true);
                                         }}>New group</Button>
                                 </>}
                         </Flex>
-                        <Box height={"calc(100vh - 100px)"} overflowY={"auto"}>
+                        <Box height={"calc(100vh - 135px)"} overflowY={"auto"}>
                             <List>
                                 {groups.map(group =>
                                     <GroupCard
@@ -250,6 +322,7 @@ export const MembersContainer: React.FunctionComponent<{
                                         setRename={setRenameGroupName}
                                         renameGroup={renameGroupName}
                                         handleRenameGroup={handleRenameGroup}
+                                        onDuplicate={props.onDuplicate}
                                         handleStartRenaming={(groupId) => {
                                             setRenameGroupId(groupId);
                                         }}
@@ -266,8 +339,13 @@ export const MembersContainer: React.FunctionComponent<{
 const LinkInviteCard: React.FunctionComponent<{
     links: ProjectInviteLink[];
     groups: ProjectGroup[];
+    onCreateInviteLink: () => void;
+    onUpdateLinkRole: (linkId: string, role: ProjectRole) => void;
+    onDeleteLink: (linkId: string) => void;
+    onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
 }> = props => {
-    const [activeLink, setActiveLink] = useState<ProjectInviteLink | null>(null);
+    const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
+    const activeLink = props.links.find(it => it.token === activeLinkId);
 
     function daysLeftToTimestamp(timestamp: number): number {
         return Math.floor((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
@@ -281,8 +359,8 @@ const LinkInviteCard: React.FunctionComponent<{
         {activeLink ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
                 <Link to={"?"}
-                      onClick={event => {
-                          setActiveLink(null);
+                      onClick={() => {
+                          setActiveLinkId(null);
                       }}
                       color={"textPrimary"}
                 >
@@ -298,24 +376,40 @@ const LinkInviteCard: React.FunctionComponent<{
                                icon={"heroBriefcase"}
                                label={"Admin"}
                                name={"Admin"}
-                               onChange={doNothing}/>
+                               onChange={() => props.onUpdateLinkRole(activeLink.token, OldProjectRole.ADMIN)}/>
                     <RadioTile fontSize={"6px"} checked={activeLink.roleAssignment === OldProjectRole.USER} height={35}
                                icon={"heroUsers"}
                                label={"User"}
                                name={"User"}
-                               onChange={doNothing}/>
+                               onChange={() => props.onUpdateLinkRole(activeLink.token, OldProjectRole.USER)}/>
                 </RadioTilesContainer>
             </Flex>
             <Flex gap={"8px"} marginBottom={"8px"} alignItems={"center"}>
                 <div>Assign new members to groups</div>
             </Flex>
-            <Flex flexDirection={"column"} maxHeight={"256px"} overflowY={"auto"} marginBottom={"5px"}>
+            <Flex flexDirection={"column"} maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
                 <List>
-                    {props.groups.map(group =>
-                        <ListRow
-                            left={<div style={{marginLeft: "8px"}}>{group.specification.title}</div>}
-                            right={<><Checkbox /*value={} onChange={}*/></Checkbox></>}
-                        />
+                    {props.groups.map(group => {
+                            if (group.specification.title === "All users") return null;
+
+                        let handleWrapperClick = () => {
+                            const isChecked = activeLink.groupAssignment.some(element => element === group.id);
+                            const groupAssignment = (activeLink?.groupAssignment ?? []).filter(it => it !== group.id);
+                            if (!isChecked) groupAssignment.push(group.id);
+                            props.onLinkGroupsUpdated(activeLink.token, groupAssignment);
+                        };
+                        return <ListRow
+                                key={group.id}
+                                select={handleWrapperClick}
+                                left={<div style={{marginLeft: "8px"}}>{group.specification.title}</div>}
+                                right={<>
+                                    <Checkbox
+                                        checked={activeLink.groupAssignment.some(element => element === group.id)}
+                                        handleWrapperClick={handleWrapperClick}
+                                    />
+                                </>}
+                            />
+                        }
                     )}
                 </List>
             </Flex>
@@ -323,16 +417,29 @@ const LinkInviteCard: React.FunctionComponent<{
             <Flex alignItems={"center"} paddingBottom={"8px"}>
                 <Heading.h3>Invite with link</Heading.h3>
                 <Box flexGrow={1}></Box>
-                <Button>Create link</Button>
+                <Button onClick={() => props.onCreateInviteLink()}>Create link</Button>
             </Flex>
+
+            {props.links.length === 0 ? <>
+                <Flex alignItems={"center"} justifyContent={"center"} paddingTop={"32px"}>
+                    <Heading.h3>Create a link to invite collaborators to this project</Heading.h3>
+                </Flex>
+            </> : null}
+
             {props.links.map(link =>
-                <Box>
-                    <Flex padding={"8px 0px"} gap={"8px"} key={link.token}>
-                        <Input value={inviteLinkFromToken(link.token)}></Input>
+                <Box key={link.token}>
+                    <Flex padding={"8px 0px"} gap={"8px"}>
+                        <Input value={inviteLinkFromToken(link.token)} onChange={doNothing} readOnly={true}></Input>
                         <Button onClick={() => {
-                            setActiveLink(link)
+                            setActiveLinkId(link.token);
                         }} width={"48px"}><Icon name={"heroCog6Tooth"}/></Button>
-                        <Button width={"48px"} color={"errorMain"}><Icon name={"heroTrash"}/></Button>
+                        <Button
+                            onClick={() => props.onDeleteLink(link.token)}
+                            width={"48px"}
+                            color={"errorMain"}
+                        >
+                            <Icon name={"heroTrash"}/>
+                        </Button>
                     </Flex>
                     <div style={{marginBottom: "8px", color: "var(--textSecondary)"}}>This link will automatically
                         expire in {daysLeftToTimestamp(link.expires)} days
@@ -393,9 +500,9 @@ const MemberCard: React.FunctionComponent<{
                         }
                     </RadioTilesContainer>
                     <Button color={"errorMain"}
+                            width={"88px"}
                             onClick={() => props.handleRemoveFromProject(props.member.username)}>Remove</Button>
                 </>}
-
         </Flex>}
     />;
 }
@@ -408,6 +515,7 @@ const GroupCard: React.FunctionComponent<{
     renameGroup: string;
     setRename: (newGroupName: string) => void;
     handleRenameGroup: (event: React.SyntheticEvent) => void;
+    onDuplicate: (groupId: string) => void;
 }> = props => {
     const openFn: React.MutableRefObject<(left: number, top: number) => void> = {current: doNothing};
     const onContextMenu: EventHandler<MouseEvent<never>> = e => {
@@ -433,8 +541,9 @@ const GroupCard: React.FunctionComponent<{
                             props.setRename((event.target as HTMLInputElement).value);
                         }}
                     />
-                    <Button type={"submit"}>Create</Button>
+                    <Button type={"submit"}>Rename</Button>
                     <Button
+                        marginRight={"16px"}
                         type={"button"}
                         color={"errorMain"}
                         onClick={() => {
@@ -448,27 +557,35 @@ const GroupCard: React.FunctionComponent<{
             </>
         }
         right={<>
-            <Flex alignItems={"center"}>
+            <Flex
+                alignItems={"center"}
+                margin={"7px 0"}>
                 <Icon name={"heroUser"}/>
                 <Box width={"24px"} textAlign={"center"}>
                     {props.group.status.members?.length}
                 </Box>
             </Flex>
-
-
             <Operations
                 location={"IN_ROW"}
                 operations={[
                     {
                         confirm: false,
                         text: "Rename",
-                        icon: "rename",
+                        icon: "heroPencilSquare",
                         enabled: () => true,
                         onClick: () => {
                             props.handleStartRenaming(props.group.id);
                             props.setRename(props.group.specification.title);
                         },
-                        shortcut: ShortcutKey.U
+                        shortcut: ShortcutKey.F
+                    },
+                    {
+                        confirm: false,
+                        text: "Duplicate",
+                        icon: "heroDocumentDuplicate",
+                        enabled: () => true,
+                        onClick: () => props.onDuplicate(props.group.id),
+                        shortcut: ShortcutKey.I
                     },
                     {
                         confirm: true,
@@ -477,7 +594,7 @@ const GroupCard: React.FunctionComponent<{
                         icon: "heroTrash",
                         enabled: () => true,
                         onClick: () => props.handleDeleteGroup(props.group.id),
-                        shortcut: ShortcutKey.U
+                        shortcut: ShortcutKey.E
                     }
                 ]}
                 selected={[]}
@@ -503,6 +620,7 @@ const ActiveGroupCard: React.FunctionComponent<{
         </Flex>}
         right={<Flex>
             <Button color={"errorMain"}
+                    width={"88px"}
                     onClick={() => props.handleRemoveFromGroup(props.member, props.activeGroup.id)}>Remove</Button>
         </Flex>}
     />

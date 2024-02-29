@@ -1,57 +1,27 @@
 import * as React from "react";
-import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
+import {useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, ProjectInvite, ProjectInviteLink, useProjectId} from "./Api";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
-import MainContainer from "@/ui-components/MainContainer";
-import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
-import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
-import {
-    Absolute,
-    Box,
-    Button,
-    Checkbox,
-    Flex,
-    Icon,
-    Input,
-    Label,
-    List,
-    RadioTile,
-    RadioTilesContainer,
-    Relative,
-    Text,
-    Tooltip, Truncate
-} from "@/ui-components";
-import {addStandardDialog, NamingField} from "@/UtilityComponents";
-import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
+import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {Box, Button, Checkbox, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
+import {bulkRequestOf, copyToClipboard, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {IconName} from "@/ui-components/Icon";
-import {bulkRequestOf} from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
-import {ItemRenderer, ItemRow, useRenamingState} from "@/ui-components/Browse";
-import {BrowseType} from "@/Resource/BrowseType";
-import {useToggleSet} from "@/Utilities/ToggleSet";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
-import BaseLink from "@/ui-components/BaseLink";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {usePage, useLoading} from "@/Navigation/Redux";
-import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
+import {useLoading, usePage} from "@/Navigation/Redux";
+import {BulkResponse, FindByStringId, PageV2} from "@/UCloud";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {timestampUnixMs} from "@/UtilityFunctions";
-import Spinner from "@/LoadingIcon/LoadingIcon";
-import {dialogStore} from "@/Dialog/DialogStore";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {Spacer} from "@/ui-components/Spacer";
-import {ListClass} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {UtilityBar} from "@/Navigation/UtilityBar";
-import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from ".";
+import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
+import {OldProjectRole, Project, ProjectGroup, ProjectRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {MembersContainer} from "@/Project/MembersUI";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
@@ -423,6 +393,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     // UI state
     const [uiState, pureDispatch] = useReducer(projectReducer, {project: null, invites: emptyPageV2});
     const {project, invites} = uiState;
+    const [sortUpdate, setSortUpdate] = useState("");
 
     const [memberQuery, setMemberQuery] = useState<string>("");
 
@@ -458,14 +429,39 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         pureDispatch(action);
     }, [uiState, pureDispatch, actionCb]);
 
+    console.log("Sort Update", sortUpdate);
+
+    const roleToOrder: Record<ProjectRole, number> = {
+        PI: 0,
+        ADMIN: 1,
+        USER: 2
+    };
+
     const modifiedProject: Project | null = useMemo(() => {
         if (!project) return project;
 
         const allMembers = project.status.members!;
         const normalizedQuery = memberQuery.trim().toLowerCase();
-        if (normalizedQuery === "") return project;
 
-        const relevantMembers = allMembers.filter(m => m.username.toLowerCase().indexOf(normalizedQuery) != -1);
+        console.log(sortUpdate)
+        let relevantMembers = allMembers.filter(m => normalizedQuery === "" || m.username.toLowerCase().indexOf(normalizedQuery) != -1);
+        relevantMembers = relevantMembers.sort((a, b) => {
+            if (sortUpdate === "name") {
+                return a.username.localeCompare(b.username);
+            } else if (sortUpdate === "role") {
+                const aOrder = roleToOrder[a.role];
+                const bOrder = roleToOrder[b.role];
+                if (aOrder > bOrder) {
+                    return 1;
+                } else if (aOrder < bOrder) {
+                    return -1;
+                } else {
+                    return a.username.localeCompare(b.username);
+                }
+            } else {
+                return a.username.localeCompare(b.username);
+            }
+        });
         return {
             ...project,
             status: {
@@ -473,7 +469,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                 members: relevantMembers,
             }
         };
-    }, [project, memberQuery]);
+    }, [project, memberQuery, sortUpdate]);
 
     // Effects
     useEffect(() => reload(), [reload]);
@@ -494,14 +490,50 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
-    const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
+    const [inviteLinks, setInviteLinks] = useState<ProjectInviteLink[]>([]);
+
     useEffect(() => {
-        fetchInviteLinks({
-            ...Api.browseInviteLinks({itemsPerPage: 10}),
-            projectOverride: projectId,
-        }).then(doNothing);
+        let didCancel = false;
+        (async () => {
+            const links = await fetchAll(next => {
+                return callAPI<PageV2<ProjectInviteLink>>({
+                    ...Api.browseInviteLinks({itemsPerPage: 250, next}),
+                    projectOverride: projectId,
+                });
+            });
+
+            if (!didCancel) setInviteLinks(links);
+        })();
+        return () => {
+            didCancel = true;
+        };
     }, []);
 
+    function updateLink(linkId: string, newGroups: string[] | null, newRole: ProjectRole | null) {
+        console.log(linkId, newGroups, newRole);
+        const oldLink = inviteLinks.find(it => it.token === linkId);
+        const newLink = {
+            token: linkId,
+            role: newRole ?? oldLink?.roleAssignment ?? OldProjectRole.USER,
+            groups: newGroups ?? oldLink?.groupAssignment ?? [],
+        };
+
+        callAPI(Api.updateInviteLink(newLink)).then(doNothing);
+        setInviteLinks(prev => {
+            return prev.map(it => {
+                if (it.token === newLink.token) {
+                    return {
+                        token: newLink.token,
+                        groupAssignment: newLink.groups,
+                        roleAssignment: newLink.role,
+                        expires: oldLink?.expires ?? 0,
+                    };
+                } else {
+                    return it;
+                }
+            });
+        });
+    }
 
     if (!modifiedProject) return null;
 
@@ -509,6 +541,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         .find(it => it.id === groupIdParam) ?? null;
 
     return <MembersContainer
+        onSortUpdated={setSortUpdate}
+        currentSortOption={sortUpdate}
         onInvite={username => {
             avatars.updateCache([username]);
             dispatch({type: "InviteMember", members: [username]});
@@ -516,7 +550,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         onSearch={query => {
             setMemberQuery(query);
         }}
-        onCreateLink={doNothing}
         onAddToGroup={(username, groupId) => {
             dispatch({type: "AddToGroup", member: username, group: groupId});
         }}
@@ -535,14 +568,75 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         onRemoveFromProject={(username) => {
             dispatch({type: "RemoveMember", members: [username]});
         }}
+        onCreateInviteLink={async () => {
+            const link = await callAPI(Api.createInviteLink());
+            setInviteLinks(prev => {
+                return [...prev, link];
+            });
+        }}
+        onDeleteLink={linkId => {
+            callAPI(Api.deleteInviteLink({token: linkId})).then(doNothing);
+            setInviteLinks(prev => {
+                return prev.filter(it => it.token !== linkId)
+            });
+        }}
+        onLinkGroupsUpdated={(linkId, groupIds) => {
+            updateLink(linkId, groupIds, null);
+        }}
+        onUpdateLinkRole={(linkId, role) => {
+            updateLink(linkId, null, role);
+        }}
         onRenameGroup={(groupId, newTitle) => {
-            dispatch({ type: "RenameGroup", group: groupId, newTitle });
+            dispatch({type: "RenameGroup", group: groupId, newTitle});
+        }}
+        onRemoveInvite={username => {
+            dispatch({type: "RemoveInvite", members: [username]});
+        }}
+        onDuplicate={async (groupId: string) => {
+            if (project === null) return;
+            const group = modifiedProject?.status.groups?.find((group) => group.id === groupId);
+            if (group === undefined) return;
+            for (let i = 1; i < 100; i += 1) {
+                let ids: BulkResponse<FindByStringId>;
+                try {
+                    ids = await callAPI<BulkResponse<FindByStringId>>({
+                        ...Api.createGroup(bulkRequestOf({
+                            project: project.id,
+                            title: `${group.specification.title} (${i})`
+                        })),
+                        projectOverride: project.id
+                    });
+                } catch (e) {
+                    continue;
+                }
+                const newId = ids.responses[0].id;
+
+                const newGroupMembers = group.status.members!.map((member) => {
+                    return {group: newId, username: member};
+                });
+
+                if (newGroupMembers.length === 0) {
+                    reload();
+                    return;
+                }
+
+                const success = await callAPIWithErrorHandler({
+                    ...Api.createGroupMember(bulkRequestOf(...newGroupMembers)),
+                    projectOverride: project.id
+                }) != null;
+                if (!success) {
+                    snackbarStore.addFailure("Could not duplicate group", false);
+                    return;
+                }
+                reload();
+                break;
+            }
         }}
         onRefresh={reload}
         invitations={invites.items}
         project={modifiedProject}
-        inviteLinks={inviteLinksFromApi.data.items}
         activeGroup={activeGroup}
+        inviteLinks={inviteLinks}
     />;
 };
 
