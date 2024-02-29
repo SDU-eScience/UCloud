@@ -3097,7 +3097,6 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header > div > div > ul li::before {
                 display: inline-block;
                 content: '/';
-                margin-right: 8px;
                 text-decoration: none !important;
             }
 
