@@ -744,7 +744,7 @@ fun main(args: Array<String>) {
             if (rpcServer != null) {
                 rpcServer.configureControllers(
                     controllerContext,
-                    FileController(controllerContext, envoyConfig),
+                    FileController(controllerContext, envoyConfig, ktorEngine!!.application),
                     FileCollectionController(controllerContext),
                     ComputeController(controllerContext, envoyConfig, ktorEngine!!.application),
                     IngressController(controllerContext),

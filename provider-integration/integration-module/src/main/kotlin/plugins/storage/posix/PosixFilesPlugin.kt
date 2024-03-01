@@ -551,8 +551,8 @@ class PosixFilesPlugin : FilePlugin {
         session: String,
         pluginData: String,
         offset: Long,
-        totalSize: Long,
-        chunk: ByteReadChannel
+        chunk: ByteReadChannel,
+        lastChunk: Boolean
     ) {
         val file = RandomAccessFile(pluginData, "rw")
         file.use { file ->

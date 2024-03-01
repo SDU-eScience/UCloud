@@ -13,9 +13,9 @@ class ChunkedUploadService(
     suspend fun receiveChunk(
         target: UCloudFile,
         offset: Long,
-        totalSize: Long,
         payload: ByteReadChannel,
-        conflictPolicy: WriteConflictPolicy
+        conflictPolicy: WriteConflictPolicy,
+        shouldClose: Boolean = false
     ) {
         val descriptor = openFileDescriptors.get(target.path)
         val stream = LinuxOutputStream(descriptor.handle)
@@ -23,7 +23,7 @@ class ChunkedUploadService(
         payload.copyTo(stream)
         descriptor.release()
 
-        if (offset + payload.totalBytesRead >= totalSize) {
+        if (shouldClose) {
             openFileDescriptors.close(descriptor, conflictPolicy)
         }
     }

@@ -213,13 +213,13 @@ class UCloudFilePlugin : FilePlugin {
         session: String,
         pluginData: String,
         offset: Long,
-        totalSize: Long,
-        chunk: ByteReadChannel
+        chunk: ByteReadChannel,
+        lastChunk: Boolean
     ) {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
-        uploads.receiveChunk(UCloudFile.create(sessionData.target), offset, totalSize, chunk, sessionData.conflictPolicy)
+        uploads.receiveChunk(UCloudFile.create(sessionData.target), offset, chunk, sessionData.conflictPolicy, lastChunk)
 
-        if (offset + chunk.totalBytesRead >= totalSize) {
+        if (lastChunk) {
             ipcClient.sendRequest(
                 FilesUploadIpc.delete,
                 FindByStringId(session)

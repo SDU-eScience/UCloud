@@ -81,6 +81,8 @@ class UploadDescriptors(
     }
 
     suspend fun close(descriptor: UploadDescriptor, conflictPolicy: WriteConflictPolicy) {
+        println("closing file descriptor")
+
         if (descriptor.inUse) return
 
         val partialInternalFile = InternalFile(descriptor.partialPath)
@@ -90,6 +92,7 @@ class UploadDescriptors(
 
         descriptor.handle.close()
         openDescriptors.remove(descriptor)
+        println("closed file descriptor")
     }
 
     companion object : Loggable {
