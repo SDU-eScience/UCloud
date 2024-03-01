@@ -20,7 +20,7 @@ import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
@@ -68,7 +68,7 @@ async function processUpload(upload: Upload) {
         return;
     }
 
-    if (strategy.protocol !== "CHUNKED") {
+    if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET") {
         upload.error = "Upload not supported for this provider";
         upload.state = UploadState.DONE;
         return;
@@ -96,25 +96,89 @@ function createResumeable(
     fullFilePath: string
 ) {
     return async () => {
-        while (!reader.isEof() && !upload.terminationRequested) {
-            await sendChunk(await reader.readChunk(maxChunkSize));
+        console.log("creating resumable")
+        console.log(`offset=${reader.offset}`);
+        console.log(`progressInBytes=${upload.progressInBytes}`);
+        if (strategy.protocol === "CHUNKED") {
+            while (!reader.isEof() && !upload.terminationRequested) {
+                await sendChunk(await reader.readChunk(maxChunkSize));
 
-            const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
-            localStorage.setItem(
-                createLocalStorageUploadKey(fullFilePath),
-                JSON.stringify({
-                    offset: reader.offset,
-                    size: upload.fileSizeInBytes,
-                    strategy: strategy!,
-                    expiration
-                } as LocalStorageFileUploadInfo)
-            );
-        }
+                const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                localStorage.setItem(
+                    createLocalStorageUploadKey(fullFilePath),
+                    JSON.stringify({
+                        offset: reader.offset,
+                        size: upload.fileSizeInBytes,
+                        strategy: strategy!,
+                        expiration
+                    } as LocalStorageFileUploadInfo)
+                );
+            }
 
-        if (!upload.paused) {
-            localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+            if (!upload.paused) {
+                localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+            } else {
+                upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+            }
         } else {
-            upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+            const uploadSocket = new WebSocket(
+                strategy!.endpoint.replace("integration-module:8889", "localhost:9000")
+                    .replace("http://", "ws://").replace("https://", "wss://") + "/" + strategy.token
+            );
+            const progressStart = upload.progressInBytes;
+            console.log(`progressStart=${progressStart}`)
+
+            
+            await new Promise((resolve, reject) => {
+                uploadSocket.addEventListener("message", async (message) => {
+                    upload.progressInBytes = progressStart + parseInt(message.data);
+                    uploadTrackProgress(upload);
+
+                    const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                    localStorage.setItem(
+                        createLocalStorageUploadKey(fullFilePath),
+                        JSON.stringify({
+                            offset: upload.progressInBytes,
+                            size: upload.fileSizeInBytes,
+                            strategy: strategy!,
+                            expiration
+                        } as LocalStorageFileUploadInfo)
+                    );
+
+                    if (upload.progressInBytes === upload.fileSizeInBytes) {
+                        console.log("Upload finished. Cleaning up.");
+                        localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+                        upload.state = UploadState.DONE;
+                        uploadSocket.close()
+                        resolve(true);
+                    }
+
+                    if (upload.terminationRequested) {
+                        console.log("termination was requested.");
+
+                        if (!upload.paused) {
+                            localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
+                        }
+
+                        uploadSocket.close();
+                        reject();
+                    }
+                });
+
+                uploadSocket.addEventListener("open", async (event) => {
+                    console.log("Connection is now open");
+
+                    uploadSocket.send(`${progressStart} ${reader.fileSize().toString()}`)
+
+                    while (!reader.isEof() && !upload.terminationRequested) {
+                        console.log("Termination was not requested, sending");
+                        const chunk = await reader.readChunk(maxChunkSize);
+                        uploadSocket.send(chunk);
+                    }
+                    console.log("loop ended.");
+                });
+            });
+
         }
     };
 
