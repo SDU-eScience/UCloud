@@ -88,6 +88,7 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
                             allowHeader("refreshToken")
                             allowHeader("chunked-upload-offset")
                             allowHeader("chunked-upload-token")
+                            allowHeader("chunked-upload-total-size")
                             allowHeader("upload-name")
                         }
                     }
