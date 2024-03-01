@@ -21,11 +21,16 @@ RUN install -o ucloud -g ucloud -d /etc/ucloud
 RUN echo 'ucloud ALL=(ALL) NOPASSWD: /usr/bin/ucloud , /etc/ucloud/extensions/*' >> /etc/sudoers
 RUN echo 'Defaults runas_allow_unknown_id' >> /etc/sudoers
 
+# Use specific envoy version
+USER ucloud
+RUN /usr/local/bin/getenvoy use 1.22.11
+USER 0
+
 # Envoy
 WORKDIR /tmp
 RUN dnf -y install xz
 RUN if [ "$(uname -p)" = "arm" ]; then ARCH=arm64; else ARCH=amd64; fi \
-    && curl -L https://archive.tetratelabs.io/envoy/download/v1.23.0/envoy-v1.23.0-linux-${ARCH}.tar.xz -o envoy.tar.xz
+    && curl -L https://archive.tetratelabs.io/envoy/download/v1.22.11/envoy-v1.22.11-linux-${ARCH}.tar.xz -o envoy.tar.xz \
 RUN tar xvf /tmp/envoy.tar.xz
 RUN install /tmp/envoy-*/bin/envoy /usr/bin/envoy
 RUN rm -rf envoy*
