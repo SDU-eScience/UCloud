@@ -3048,6 +3048,7 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 font-size: 120%;
                 height: 35px;
+                font-feature-settings: unset;
             }
             
             ${browserClass.dot} header[has-location-bar] .location:hover {
@@ -3116,7 +3117,6 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 align-items: center;
                 border-bottom: 1px solid var(--borderColor);
-                gap: 8px;
                 user-select: none;
                 -webkit-user-select: none;
                 padding: 0 8px;

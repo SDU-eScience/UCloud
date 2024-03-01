@@ -37,7 +37,6 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
