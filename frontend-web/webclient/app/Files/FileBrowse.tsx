@@ -793,8 +793,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     {
                         row.star.innerHTML = "";
                         row.star.append(favoriteIcon);
-                        row.star.style.marginBottom = "5px";
                         row.star.style.cursor = "pointer";
+                        row.star.style.marginRight = "8px";
                     }
 
                     findFavoriteStatus(file).then(async isFavorite => {
