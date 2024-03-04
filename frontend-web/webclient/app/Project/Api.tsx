@@ -120,7 +120,7 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "deleteInvite");
     }
 
-    public createInviteLink(): APICallParameters {
+    public createInviteLink(): APICallParameters<unknown, ProjectInviteLink> {
         return apiCreate(undefined, this.baseContext, "link");
     }
 
