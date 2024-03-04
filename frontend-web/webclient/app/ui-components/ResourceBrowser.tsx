@@ -3013,7 +3013,6 @@ export class ResourceBrowser<T> {
                 margin: 0;
                 display: flex;
                 flex-direction: row;
-                gap: 8px;
                 height: 35px;
                 white-space: pre;
                 align-items: center;
@@ -3086,7 +3085,8 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} header > div > div > ul {
-                margin-left: 6px;
+                margin-left: 7px;
+                margin-top: 0px;
             }
             
             ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
