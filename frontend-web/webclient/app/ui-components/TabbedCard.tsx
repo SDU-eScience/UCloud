@@ -38,7 +38,7 @@ const ContainerClass = injectStyle("tabbed-card", k => `
         padding: 12px 20px;
     }
     
-    ${k} nav > div:hover {
+    ${k} nav > div:not(:only-child):hover {
         cursor: pointer;
         border-bottom: 2px solid var(--borderColor);
     }
