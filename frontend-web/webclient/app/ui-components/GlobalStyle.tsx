@@ -541,14 +541,7 @@ strong {
 code,
 kbd,
 samp {
-  font-family:
-    /* macOS 10.10+ */ Menlo,
-    /* Windows 6+ */ Consolas,
-    /* Android 4+ */ Roboto Mono,
-    /* Ubuntu 10.10+ */ Ubuntu Monospace,
-    /* KDE Plasma 4+ */ Oxygen Mono,
-    /* Linux/OpenOffice fallback */ Liberation Mono,
-    /* fallback */ monospace; /* 1 */
+  font-family: var(--monospace);
 
   font-size: 1em; /* 2 */
 }

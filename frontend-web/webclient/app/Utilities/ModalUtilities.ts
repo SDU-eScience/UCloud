@@ -22,7 +22,7 @@ export const defaultModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",
         width: "900px",
-        minHeight: "400px",
+        minHeight: "200px",
         maxHeight: "80vh",
         maxWidth: "calc(100vw - 10px)",
         position: "fixed",

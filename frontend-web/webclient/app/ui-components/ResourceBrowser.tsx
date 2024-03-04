@@ -218,7 +218,7 @@ interface ResourceBrowserListenerMap<T> {
     "endRenderPage": () => void;
 
     // beforeOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
-    "beforeOpen": (oldPath: string, path: string, resource?: T) => boolean;
+    "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
     "search": (query: string) => void;
@@ -288,10 +288,11 @@ export interface ResourceBrowseFeatures {
 
 export interface ColumnTitle {
     name: string;
+    columnWidth: number;
     sortById?: string;
 }
 
-export type ColumnTitleList = [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle];
+export type ColumnTitleList = [Omit<ColumnTitle, "columnWidth">, ColumnTitle, ColumnTitle, ColumnTitle];
 
 export class ResourceBrowser<T> {
     // DOM component references
@@ -437,7 +438,7 @@ export class ResourceBrowser<T> {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
             disabledKeyhandlers: !!opts?.disabledKeyhandlers,
-            columnTitles: [{name: ""}, {name: ""}, {name: ""}, {name: ""}]
+            columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}]
         }
     };
 
@@ -460,6 +461,9 @@ export class ResourceBrowser<T> {
         ResourceBrowser.injectStyle();
         const browserClass = makeClassName("browser");
         this.root.classList.add(browserClass.class);
+        this.root.style.setProperty("--stat1Width", this.opts.columnTitles[1].columnWidth + "px");
+        this.root.style.setProperty("--stat2Width", this.opts.columnTitles[2].columnWidth + "px");
+        this.root.style.setProperty("--stat3Width", this.opts.columnTitles[3].columnWidth + "px");
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -1283,7 +1287,8 @@ export class ResourceBrowser<T> {
                 let operationText = op.text;
                 if (operationText) element.append(operationText);
                 if (operationText && shortcut) {
-                    const shortcutElem = document.createElement("kbd");
+                    const shortcutElem = document.createElement("div");
+                    shortcutElem.className = ShortcutClass;
                     shortcutElem.append(shortcut);
                     element.append(shortcutElem);
                 }
@@ -1303,7 +1308,7 @@ export class ResourceBrowser<T> {
             let shortcutNumber = counter;
             for (const child of options) {
                 const item = document.createElement("li");
-                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `[${shortcutNumber}]` : undefined);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `${shortcutNumber}` : undefined);
 
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
@@ -1532,9 +1537,21 @@ export class ResourceBrowser<T> {
                     element.append(operationText);
                 }
                 if (operationText && shortcut) {
-                    const shortcutElem = document.createElement("kbd");
-                    shortcutElem.append(shortcut);
-                    element.append(shortcutElem);
+                    const shortcutItems = shortcut.split("+");
+                    for (const [index, item] of shortcutItems.entries()) {
+                        const shortcutElement = document.createElement("div");
+                        shortcutElement.className = ShortcutClass;
+                        if (index === 0) shortcutElement.style.marginLeft = "auto";
+                        shortcutElement.innerText = item;
+                        element.append(shortcutElement);
+                        if (index < shortcutItems.length - 1) {
+                            element.append(createHTMLElements({
+                                tagType: "span",
+                                className: "ShortCutPlusSymbol",
+                                innerText: "+"
+                            }));
+                        }
+                    }
                 }
             }
         }
@@ -1586,7 +1603,7 @@ export class ResourceBrowser<T> {
                     HTMLTooltip(item, d, {tooltipContentWidth: 450});
                 }
 
-                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `[${shortcutNumber}]` : undefined, true);
+                renderOpIconAndText(child, item, shortcutNumber <= 9 && useShortcuts && !isDisabled ? `${shortcutNumber}` : undefined, true);
 
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
@@ -1652,7 +1669,7 @@ export class ResourceBrowser<T> {
                 HTMLTooltip(element, d, {tooltipContentWidth: 230});
             }
 
-            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `[${ALT_KEY} + ${op.shortcut.replace("Key", "")}]` : undefined);
+            renderOpIconAndText(op, element, useShortcuts && op.shortcut ? `${ALT_KEY} + ${op.shortcut.replace("Key", "")}` : undefined);
 
             {
                 // ...and the handlers
@@ -2247,7 +2264,7 @@ export class ResourceBrowser<T> {
 
         const page = this.cachedData[this.currentPath] ?? [];
         const pathToEntry = this.dispatchMessage("pathToEntry", fn => fn(page[entryIdx]));
-        if (this.dispatchMessage("beforeOpen", fn => fn(pathToEntry, "", page[entryIdx]))) return;
+        if (this.dispatchMessage("skipOpen", fn => fn(pathToEntry, "", page[entryIdx]))) return;
         this.open(pathToEntry, false, page[entryIdx]);
     }
 
@@ -2558,7 +2575,7 @@ export class ResourceBrowser<T> {
                             if (selected[i] !== 0) {
                                 const entry = this.cachedData[this.currentPath][i];
                                 const path = this.dispatchMessage("pathToEntry", fn => fn(entry));
-                                if (!this.dispatchMessage("beforeOpen", fn => fn(this.currentPath, path, entry))) {
+                                if (!this.dispatchMessage("skipOpen", fn => fn(this.currentPath, path, entry))) {
                                     this.open(path, false, entry);
                                 }
 
@@ -2804,7 +2821,7 @@ export class ResourceBrowser<T> {
 
     private defaultHandlers: Partial<ResourceBrowserListenerMap<T>> = {
         open: doNothing,
-        beforeOpen: () => false,
+        skipOpen: () => false,
         rowSelectionUpdated: doNothing,
         mount: doNothing,
         unmount: doNothing,
@@ -2996,7 +3013,6 @@ export class ResourceBrowser<T> {
                 margin: 0;
                 display: flex;
                 flex-direction: row;
-                gap: 8px;
                 height: 35px;
                 white-space: pre;
                 align-items: center;
@@ -3031,6 +3047,7 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 font-size: 120%;
                 height: 35px;
+                font-feature-settings: unset;
             }
             
             ${browserClass.dot} header[has-location-bar] .location:hover {
@@ -3068,7 +3085,8 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} header > div > div > ul {
-                margin-left: 6px;
+                margin-left: 7px;
+                margin-top: 0px;
             }
             
             ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
@@ -3080,7 +3098,6 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header > div > div > ul li::before {
                 display: inline-block;
                 content: '/';
-                margin-right: 8px;
                 text-decoration: none !important;
             }
 
@@ -3100,7 +3117,6 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 align-items: center;
                 border-bottom: 1px solid var(--borderColor);
-                gap: 8px;
                 user-select: none;
                 -webkit-user-select: none;
                 padding: 0 8px;
@@ -3147,6 +3163,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .stat-wrapper {
                 flex-grow: 1;
                 flex-shrink: 1;
+                justify-content: end;
                 display: flex;
                 gap: 8px;
             }
@@ -3159,12 +3176,25 @@ export class ResourceBrowser<T> {
 
             @media screen and (min-width: 860px) {
                 ${browserClass.dot} .row .stat1,
-                ${browserClass.dot} .row .stat2,
+                ${browserClass.dot} .row .stat2 {
+                    display: flex;
+                    justify-content: center;
+                    text-align: center;
+                }
+
+                ${browserClass.dot} .row .stat1 {
+                    width: var(--stat1Width);
+                }
+                
+                ${browserClass.dot} .row .stat2 {
+                    width: var(--stat2Width);
+                }
+
                 ${browserClass.dot} .row .stat3 {
                     display: flex;
                     justify-content: end;
                     text-align: end;
-                    width: 33%;
+                    width: var(--stat3Width);
                 }
             }
 
@@ -3243,13 +3273,14 @@ export class ResourceBrowser<T> {
                 gap: 8px;
             }
             
-            ${browserClass.dot} kbd {
+            ${browserClass.dot} .${ShortcutClass} {
                 font-family: var(--sansSerif);
             }
-
-            ${browserClass.dot} .context-menu li kbd {
-                flex-grow: 1;
-                text-align: end;
+            
+            @media screen and (max-width: 800px) {
+                ${browserClass.dot} .${ShortcutClass}, ${browserClass.dot} .ShortCutPlusSymbol {
+                    display: none;
+                }
             }
 
             ${browserClass.dot} .context-menu li[data-selected=true] {
@@ -3585,7 +3616,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    private setTitleAndHandlers(el: HTMLElement, rowTitle: ColumnTitle, position: "left" | "right"): void {
+    private setTitleAndHandlers(el: HTMLElement, rowTitle: Omit<ColumnTitle, "columnWidth">, position: "left" | "right"): void {
         el.innerHTML = "";
         const wrapper = document.createElement("div");
         el.append(wrapper);
@@ -3842,10 +3873,11 @@ const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";
 const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "alt";
 const CTRL_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "ctrl";
-const ShortcutClass = injectStyle("shortcut", k => `
+export const ShortcutClass = injectStyle("shortcut", k => `
     ${k} {
         border-radius: 5px;
-        border: 1px solid var(--textPrimary);
+        border: 1px solid;
+        mix-blend-mode: invert;
         font-size: 12px;
         min-width: 20px;
         height: 20px;

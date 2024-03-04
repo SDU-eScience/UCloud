@@ -548,7 +548,7 @@ const CompletedContent: React.FunctionComponent<{
 }> = ({job, state}) => {
     const project = useProject();
     const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
-        "My Workspace" : "My Workspace";
+        "My workspace" : "My workspace";
 
     return <div className={Content}>
         <TabbedCard style={{flexBasis: "300px"}}>
@@ -1366,8 +1366,11 @@ const RunningButtonGroup: React.FunctionComponent<{
             <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
                 e.preventDefault();
 
+                const link = findDomAttributeFromAncestors(e.target, "href");
+                if (!link) return;
+
                 window.open(
-                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    link,
                     `vnc-${job.id}-${rank}`,
                     "width=800,height=450,status=no"
                 );

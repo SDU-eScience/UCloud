@@ -17,7 +17,8 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    controlsOperation
+    controlsOperation,
+    ShortcutClass
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -104,7 +105,7 @@ const FEATURES: ResourceBrowseFeatures = {
 }
 
 let lastActiveProject: string | undefined = "";
-const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: ""}, {name: "Modified at", sortById: "MODIFIED_AT"}, {name: "Size", sortById: "SIZE"}];
+const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 150}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -792,8 +793,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     {
                         row.star.innerHTML = "";
                         row.star.append(favoriteIcon);
-                        row.star.style.marginBottom = "5px";
                         row.star.style.cursor = "pointer";
+                        row.star.style.marginRight = "8px";
                     }
 
                     findFavoriteStatus(file).then(async isFavorite => {
@@ -1120,6 +1121,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     return promise;
                 };
 
+                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === fakeFileName);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
                         if (opts?.selection) {
@@ -1459,8 +1461,9 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
         span.innerText = `${collection.specification.title} (${collection.id})`;
         span.className = TruncateClass;
         if (index + 1 <= 9) {
-            const shortcutElem = document.createElement("kbd");
-            shortcutElem.append(`[${index + 1}]`);
+            const shortcutElem = document.createElement("div");
+            shortcutElem.className = ShortcutClass;
+            shortcutElem.append(`${index + 1}`);
             wrapper.append(shortcutElem);
         }
         return wrapper;

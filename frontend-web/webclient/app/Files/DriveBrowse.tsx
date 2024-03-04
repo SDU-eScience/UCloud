@@ -76,9 +76,9 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
             new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
                 browser.setColumnTitles([
                     {name: "Drive name", sortById: "title"},
-                    {name: ""},
-                    {name: "Created by", sortById: "createdBy"},
-                    {name: "Created at", sortById: "createdAt"},
+                    {name: "", columnWidth: 0},
+                    {name: "Created by", sortById: "createdBy", columnWidth: 150},
+                    {name: "Created at", sortById: "createdAt", columnWidth: 150},
                 ]);
 
                 // Load products and initialize dependencies
@@ -197,7 +197,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     );
                 };
 
-                browser.on("beforeOpen", (oldPath, newPath, drive) =>
+                browser.on("skipOpen", (oldPath, newPath, drive) =>
                     drive?.id === dummyEntry.id
                 );
 
@@ -314,8 +314,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                 height: 64,
                                 width: 64,
                             }).then(setIcon);
-                            icon.style.marginLeft = "4px";
-                            icon.style.marginRight = "10px";
+                            icon.style.marginRight = "8px";
                         } else {
                             const pIcon = providerIcon(drive.specification.product.provider);
                             pIcon.style.marginRight = "8px";

@@ -3,7 +3,6 @@ import Icon, {IconName} from "@/ui-components/Icon";
 import {injectStyle, makeClassName} from "@/Unstyled";
 import {CSSProperties, useCallback, useLayoutEffect, useRef, useState} from "react";
 import Card from "@/ui-components/Card";
-import {Absolute} from "@/ui-components/index";
 
 interface Tab {
     icon: IconName;
@@ -39,12 +38,16 @@ const ContainerClass = injectStyle("tabbed-card", k => `
         padding: 12px 20px;
     }
     
-    ${k} nav > div:hover {
+    ${k} nav > div:not(:only-child):hover {
         cursor: pointer;
         border-bottom: 2px solid var(--borderColor);
     }
     
-    ${k} nav > div[data-active=true] {
+    ${k} nav > div:not(:only-child)[data-active=true] {
+        border-bottom: 2px solid var(--primaryMain);
+    }
+    
+    ${k} nav:has(> div[data-active=true]:only-child) {
         border-bottom: 2px solid var(--primaryMain);
     }
 `);

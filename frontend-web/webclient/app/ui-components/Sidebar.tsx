@@ -91,7 +91,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         ${k}[data-open="true"] {
             position: absolute;
             left: var(--sidebarWidth);
-            z-index: 1;
         }
     }
 
@@ -643,7 +642,7 @@ function SecondarySidebar({
                     <SidebarEntry
                         key={drive.id}
                         text={drive.specification.title}
-                        icon={isShare(drive) ? <Icon mt="2px" name="ftSharesFolder" color={"iconColor"} color2={"iconColor2"} /> :
+                        icon={isShare(drive) ? <Icon mt="2px" name="ftSharesFolder" color={"FtFolderColor"} color2={"FtFolderColor2"} /> :
                             <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
                         to={AppRoutes.files.drive(drive.id)}
                         tab={SidebarTabId.FILES}
@@ -755,12 +754,13 @@ function SecondarySidebar({
                 />
             </>}
 
-            {active !== SidebarTabId.APPLICATIONS ? null : <>
+            {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
+            <div style={{display: active !== SidebarTabId.APPLICATIONS ? "none" : undefined}}>
                 {appFavorites.length > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>
                     {appFavorites.map((fav, i) =>
                         <SidebarEntry
-                            key={i}
+                            key={fav.metadata.name}
                             to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
                             text={fav.metadata.title}
                             icon={<AppLogo name={fav.metadata.name} />}
@@ -784,9 +784,10 @@ function SecondarySidebar({
                         tab={SidebarTabId.APPLICATIONS}
                     />
                 )}
-            </>}
+            </div>
 
-            {active !== SidebarTabId.RUNS ? null : <>
+            {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
+            <div style={{display: active !== SidebarTabId.RUNS ? "none" : undefined}}>
                 <SidebarSectionHeader tab={SidebarTabId.RUNS}>Running jobs</SidebarSectionHeader>
                 {recentRuns.length === 0 && <>
                     <SidebarEmpty>No running jobs</SidebarEmpty>
@@ -806,7 +807,7 @@ function SecondarySidebar({
                         tab={SidebarTabId.RUNS}
                     />
                 })}
-            </>}
+            </div>
 
             {active !== SidebarTabId.ADMIN ? null : <>
                 <SidebarSectionHeader tab={SidebarTabId.ADMIN}>Tools</SidebarSectionHeader>
