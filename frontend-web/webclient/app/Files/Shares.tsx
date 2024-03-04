@@ -371,7 +371,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
                 browser.setColumnTitles([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 150}, {name: "Shared by", columnWidth: 80}]);
 
-                browser.on("beforeOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
+                browser.on("skipOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(buildQueryString("/files", {path: resource.status.shareAvailableAt}));

@@ -1121,6 +1121,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     return promise;
                 };
 
+                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === fakeFileName);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
                         if (opts?.selection) {

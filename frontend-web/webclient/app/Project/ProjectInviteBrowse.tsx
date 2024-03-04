@@ -74,7 +74,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 let currentAvatars = new Set<string>();
                 let fetchedAvatars = new Set<string>();
 
-                browser.on("beforeOpen", (oldPath, newPath, res) => res != null);
+                browser.on("skipOpen", (oldPath, newPath, res) => res != null);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) return;
 

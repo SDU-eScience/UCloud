@@ -39,7 +39,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                 browser.setColumnTitles([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
                 // Ensure no refecthing on `beforeOpen`.
-                browser.on("beforeOpen", (oldPath, path, resource) => resource != null);
+                browser.on("skipOpen", (oldPath, path, resource) => resource != null);
                 browser.on("open", (oldPath, newPath, resource) => {
                     // For initial fetch.
                     if (oldPath === newPath) return;

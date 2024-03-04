@@ -218,7 +218,7 @@ interface ResourceBrowserListenerMap<T> {
     "endRenderPage": () => void;
 
     // beforeOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
-    "beforeOpen": (oldPath: string, path: string, resource?: T) => boolean;
+    "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
     "search": (query: string) => void;
@@ -2264,7 +2264,7 @@ export class ResourceBrowser<T> {
 
         const page = this.cachedData[this.currentPath] ?? [];
         const pathToEntry = this.dispatchMessage("pathToEntry", fn => fn(page[entryIdx]));
-        if (this.dispatchMessage("beforeOpen", fn => fn(pathToEntry, "", page[entryIdx]))) return;
+        if (this.dispatchMessage("skipOpen", fn => fn(pathToEntry, "", page[entryIdx]))) return;
         this.open(pathToEntry, false, page[entryIdx]);
     }
 
@@ -2575,7 +2575,7 @@ export class ResourceBrowser<T> {
                             if (selected[i] !== 0) {
                                 const entry = this.cachedData[this.currentPath][i];
                                 const path = this.dispatchMessage("pathToEntry", fn => fn(entry));
-                                if (!this.dispatchMessage("beforeOpen", fn => fn(this.currentPath, path, entry))) {
+                                if (!this.dispatchMessage("skipOpen", fn => fn(this.currentPath, path, entry))) {
                                     this.open(path, false, entry);
                                 }
 
@@ -2821,7 +2821,7 @@ export class ResourceBrowser<T> {
 
     private defaultHandlers: Partial<ResourceBrowserListenerMap<T>> = {
         open: doNothing,
-        beforeOpen: () => false,
+        skipOpen: () => false,
         rowSelectionUpdated: doNothing,
         mount: doNothing,
         unmount: doNothing,

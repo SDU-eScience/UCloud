@@ -197,7 +197,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     );
                 };
 
-                browser.on("beforeOpen", (oldPath, newPath, drive) =>
+                browser.on("skipOpen", (oldPath, newPath, drive) =>
                     drive?.id === dummyEntry.id
                 );
 
