@@ -248,11 +248,19 @@ export const LogoWithText: React.FunctionComponent<{
     useEffect(() => {
         let didCancel = false;
 
+        /*
         (async () => {
             const image = await fetchImage(groupId)
             const [, , logo] = generateLogoWithText(!hasText ? title : "", image, forceUnder, groupReplacements);
             if (!didCancel) setElement(logo);
         })();
+         */
+        setElement(AppStore.retrieveGroupLogo({
+            id: groupId,
+            darkMode: !isLight,
+            includeText: true,
+            placeTextUnderLogo: forceUnder === true,
+        }));
 
         return () => {
             didCancel = true;
@@ -513,7 +521,6 @@ export function generateLogoWithText(
 
             g.font = `${size}px ${font}`;
             g.fillStyle = "black";
-            g.fillRect(0, 0, 10, 10);
 
             g.fillStyle = hslToRgb(maxHsl[0], maxHsl[1], maxHsl[2]);
             const paddingY = textHeight > imageHeight ? 0 : ((canvas.height - textHeight) / 2);

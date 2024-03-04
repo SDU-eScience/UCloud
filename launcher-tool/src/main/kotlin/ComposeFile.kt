@@ -5,7 +5,7 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
-const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-14-issue-4135-4"
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-22"
 
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int

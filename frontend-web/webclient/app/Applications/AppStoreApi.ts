@@ -552,11 +552,21 @@ export function removeLogoFromGroup(request: { id: number }): APICallParameters<
     return apiUpdate(request, baseContext, "removeLogoFromGroup");
 }
 
-export function retrieveGroupLogo(request: { id: number }): string {
+export function retrieveGroupLogo(request: {
+    id: number;
+    darkMode?: boolean;
+    includeText?: boolean;
+    placeTextUnderLogo?: boolean;
+}): string {
     return buildQueryString(`${baseContext}/retrieveGroupLogo`, request);
 }
 
-export function retrieveAppLogo(request: { name: string }): string {
+export function retrieveAppLogo(request: {
+    name: string;
+    darkMode?: boolean;
+    includeText?: boolean;
+    placeTextUnderLogo?: boolean;
+}): string {
     return buildQueryString(`${baseContext}/retrieveAppLogo`, request);
 }
 

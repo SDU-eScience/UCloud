@@ -167,7 +167,8 @@ class AppService(
                         ag.default_name as default_name,
                         ag.logo as group_logo,
                         ag.background_color as group_background_color,
-                        ag.logo_has_text as group_logo_has_text
+                        ag.logo_has_text as group_logo_has_text,
+                        ag.color_remapping as color_remapping
                     from
                         app_store.applications a
                         left join app_store.application_groups ag
@@ -192,12 +193,21 @@ class AppService(
                 val groupLogo = row.getAs<ByteArray?>("group_logo")
                 val backgroundColor = row.getString("group_background_color")
                 val logoHasText = row.getBoolean("group_logo_has_text") ?: false
+                val colorRemapping = row.getString("color_remapping")?.let {
+                    defaultMapper.decodeFromString<Map<String, Map<Int, Int>>>(it)
+                }
+
+                val darkRemapping = colorRemapping?.get("dark")
+                val lightRemapping = colorRemapping?.get("light")
+
                 val g = app.metadata.group
                 if (g != null) {
                     groups[g.metadata.id.toLong()]?.updateMetadata(
                         logo = groupLogo,
                         newBackgroundColor = backgroundColor,
-                        newLogoHasText = logoHasText
+                        newLogoHasText = logoHasText,
+                        colorRemappingLight = lightRemapping,
+                        colorRemappingDark = darkRemapping,
                     )
                 }
             }
@@ -532,7 +542,9 @@ class AppService(
                 emptySet(),
                 emptySet(),
                 group.specification.backgroundColor,
-                group.specification.logoHasText
+                group.specification.logoHasText,
+                null,
+                null,
             )
         }
     }
@@ -731,9 +743,82 @@ class AppService(
         )
     }
 
-    fun retrieveGroupLogo(groupId: Int): ByteArray? {
+    val darkModeReplacements: Map<Int, Map<Int, Int>> = mapOf(
+        18 to mapOf(
+            0x3c3a3e to 0xffffff,
+        ),
+        13 to mapOf(
+            0xffffff to DeleteColor,
+            0x333333 to InvertColor,
+        ),
+        84 to mapOf(
+            0x000000 to InvertColor,
+        ),
+        39 to mapOf(
+            0x4e4e4e to InvertColor,
+            0x9e9e9e to InvertColor,
+        ),
+        72 to mapOf(
+            0x303030 to 0x7e7e7e,
+        ),
+        41 to mapOf(
+            0x4e3528 to InvertColor
+        ),
+        91 to mapOf(
+            0x000000 to InvertColor
+        ),
+        80 to mapOf(
+            0x383838 to InvertColor
+        ),
+        67 to mapOf(
+            0x000000 to InvertColor,
+        ),
+        74 to mapOf(
+            0x153057 to GrayscaleInvertColor,
+        ),
+        34 to mapOf(
+            0x000000 to InvertColor,
+        ),
+        25 to mapOf(
+            0x000000 to InvertColor,
+        ),
+        61 to mapOf(
+            0x535353 to InvertColor,
+        )
+    )
+
+    val lightModeReplacements: Map<Int, Map<Int, Int>> = mapOf(
+        13 to mapOf(0xffffff to DeleteColor),
+        86 to mapOf(0xffffff to DarkenColor5),
+        88 to mapOf(0xffffff to DarkenColor5),
+    )
+
+    suspend fun retrieveGroupLogo(
+        groupId: Int,
+        darkMode: Boolean = false,
+        includeText: Boolean = false,
+        placeTextUnderLogo: Boolean = false,
+    ): ByteArray? {
         val g = groups[groupId.toLong()]?.get() ?: return null
-        return g.logo
+        val logo = g.logo ?: return null
+
+
+        val replacements = if (darkMode) g.colorRemappingDark else g.colorRemappingLight
+        val cacheKey = buildString {
+            append(groupId)
+            append(darkMode)
+            append(includeText)
+            append(placeTextUnderLogo)
+        }
+
+        return LogoGenerator.generateLogoWithText(
+            cacheKey,
+            if (includeText && !g.logoHasText) g.title else "",
+            logo,
+            placeTextUnderLogo,
+            if (darkMode) DarkBackground else LightBackground,
+            replacements ?: emptyMap(),
+        )
     }
 
     suspend fun listApplicationsInGroup(
@@ -1179,7 +1264,8 @@ class AppService(
             }
         }
 
-        g.updateMetadata(newTitle, normalizedNewDescription, newDefaultFlavor, resizedLogo, newLogoHasText, newBackgroundColor)
+        g.updateMetadata(newTitle, normalizedNewDescription, newDefaultFlavor, resizedLogo,
+            newLogoHasText, newBackgroundColor, null, null)
     }
 
     suspend fun assignApplicationToGroup(
@@ -1247,7 +1333,7 @@ class AppService(
             }
         }
 
-        groups[id.toLong()] = InternalGroup(title, "", null, null, emptySet(), emptySet(), null, false)
+        groups[id.toLong()] = InternalGroup(title, "", null, null, emptySet(), emptySet(), null, false, null, null)
         return id
     }
 
@@ -2031,6 +2117,8 @@ class AppService(
         categories: Set<Int>,
         backgroundColor: String?,
         logoHasText: Boolean,
+        colorRemappingLight: Map<Int, Int>?,
+        colorRemappingDark: Map<Int, Int>?,
     ) {
         data class GroupDescription(
             val title: String,
@@ -2041,6 +2129,8 @@ class AppService(
             val categories: Set<Int>,
             val backgroundColor: String?,
             val logoHasText: Boolean,
+            val colorRemappingLight: Map<Int, Int>?,
+            val colorRemappingDark: Map<Int, Int>?,
         )
 
         private val ref = AtomicReference(
@@ -2053,6 +2143,8 @@ class AppService(
                 categories,
                 backgroundColor,
                 logoHasText,
+                colorRemappingLight,
+                colorRemappingDark,
             )
         )
 
@@ -2065,6 +2157,8 @@ class AppService(
             logo: ByteArray? = null,
             newLogoHasText: Boolean? = null,
             newBackgroundColor: String? = null,
+            colorRemappingLight: Map<Int, Int>?,
+            colorRemappingDark: Map<Int, Int>?,
         ) {
             while (true) {
                 val oldRef = ref.get()
@@ -2074,7 +2168,9 @@ class AppService(
                     defaultFlavor = defaultFlavor ?: oldRef.defaultFlavor,
                     logo = if (logo?.size == 0) null else logo ?: oldRef.logo,
                     logoHasText = newLogoHasText ?: oldRef.logoHasText,
-                    backgroundColor = if (newBackgroundColor == "") null else newBackgroundColor ?: oldRef.backgroundColor
+                    backgroundColor = if (newBackgroundColor == "") null else newBackgroundColor ?: oldRef.backgroundColor,
+                    colorRemappingLight = colorRemappingLight,
+                    colorRemappingDark = colorRemappingDark,
                 )
                 if (ref.compareAndSet(oldRef, newRef)) break
             }

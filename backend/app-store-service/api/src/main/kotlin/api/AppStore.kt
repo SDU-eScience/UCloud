@@ -869,9 +869,17 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     object RetrieveGroupLogo {
+        @Serializable
+        data class Request(
+            val id: Int,
+            val darkMode: Boolean = false,
+            val includeText: Boolean = false,
+            val placeTextUnderLogo: Boolean = false,
+        )
+
         val call = call(
             "retrieveGroupLogo",
-            FindByIntId.serializer(),
+            Request.serializer(),
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
@@ -884,6 +892,9 @@ ${ApiConventions.nonConformingApiWarning}
         @Serializable
         data class Request(
             val name: String,
+            val darkMode: Boolean = false,
+            val includeText: Boolean = false,
+            val placeTextUnderLogo: Boolean = false,
         )
 
         val call = call(

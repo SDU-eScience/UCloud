@@ -11,6 +11,7 @@ RUN if [ "$(uname -p)" = "arm" ]; then ARCH=arm64; else ARCH=amd64; fi \
     && curl https://storage.googleapis.com/kubernetes-release/release/v1.27.9/bin/linux/${ARCH}/kubectl -o /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
 RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
+RUN dnf install -y freetype fontconfig
 
 # Users
 RUN useradd -u 11042 -M -d /etc/ucloud ucloud
@@ -42,3 +43,4 @@ WORKDIR /opt/ucloud
 RUN cp /etc/passwd /etc/passwd.orig
 RUN cp /etc/group /etc/group.orig
 RUN cp /etc/shadow /etc/shadow.orig
+
