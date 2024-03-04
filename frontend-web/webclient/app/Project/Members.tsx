@@ -509,7 +509,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
     function updateLink(linkId: string, newGroups: string[] | null, newRole: ProjectRole | null) {
         const oldLink = inviteLinks.find(it => it.token === linkId);
-        const newLink = {
+        const newLink: ProjectInviteLink = {
             token: linkId,
             role: newRole ?? oldLink?.roleAssignment ?? OldProjectRole.USER,
             groups: newGroups ?? oldLink?.groupAssignment ?? [],
