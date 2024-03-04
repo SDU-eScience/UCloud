@@ -442,7 +442,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         const allMembers = project.status.members!;
         const normalizedQuery = memberQuery.trim().toLowerCase();
 
-        console.log(sortUpdate)
         let relevantMembers = allMembers.filter(m => normalizedQuery === "" || m.username.toLowerCase().indexOf(normalizedQuery) != -1);
         relevantMembers = relevantMembers.sort((a, b) => {
             if (sortUpdate === "name") {
