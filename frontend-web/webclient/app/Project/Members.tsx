@@ -429,7 +429,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         pureDispatch(action);
     }, [uiState, pureDispatch, actionCb]);
 
-    console.log("Sort Update", sortUpdate);
 
     const roleToOrder: Record<ProjectRole, number> = {
         PI: 0,
