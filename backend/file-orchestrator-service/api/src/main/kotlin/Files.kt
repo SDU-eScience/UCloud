@@ -141,7 +141,8 @@ data class FilesCreateUploadResponseItem(
 
 @UCloudApiStable
 enum class UploadProtocol {
-    CHUNKED
+    CHUNKED,
+    WEBSOCKET
 }
 
 typealias FilesCreateDownloadRequest = BulkRequest<FilesCreateDownloadRequestItem>

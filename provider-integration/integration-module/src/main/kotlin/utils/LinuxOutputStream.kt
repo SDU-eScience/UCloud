@@ -64,7 +64,8 @@ suspend fun ByteReadChannel.copyTo(output: LinuxOutputStream) {
         try {
             read { readBuffer ->
                 while (readBuffer.hasRemaining()) {
-                    output.write(readBuffer)
+                    val count = output.write(readBuffer)
+                    if (count == -1) break
                 }
             }
         } catch (ex: EOFException) {

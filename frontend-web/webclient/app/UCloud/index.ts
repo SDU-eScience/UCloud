@@ -488,12 +488,12 @@ export interface FilesCreateDownloadRequestItem {
 }
 export interface FilesCreateUploadResponseItem {
     endpoint: string,
-    protocol: ("CHUNKED"),
+    protocol: ("CHUNKED" | "WEBSOCKET"),
     token: string,
 }
 export interface FilesCreateUploadRequestItem {
     path: string,
-    supportedProtocols: ("CHUNKED")[],
+    supportedProtocols: ("CHUNKED"|"WEBSOCKET")[],
     conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FilesCreateFolderRequestItem {

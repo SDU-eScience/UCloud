@@ -4,6 +4,8 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.HttpMethod
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
@@ -13,15 +15,22 @@ import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPoolForFileIo
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.pool.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -29,7 +38,10 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.coroutines.coroutineContext
+import kotlin.math.min
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -64,6 +76,7 @@ data class IMFileDownloadRequest(val token: String)
 class FileController(
     controllerContext: ControllerContext,
     private val envoyConfig: EnvoyConfigurationService?,
+    private val ktor: Application,
 ) : BaseResourceController<Product.Storage, FSSupport, UFile, FilePlugin, FilesProvider>(controllerContext) {
     override fun retrievePlugins() = controllerContext.configuration.plugins.files.values
     override fun retrieveApi(providerId: String): FilesProvider = FilesProvider(providerId)
@@ -276,7 +289,7 @@ class FileController(
 
                 http {
                     method = HttpMethod.Post
-                    path { using(uploadPath(null, providerId)) }
+                    path { using(uploadPath(null, providerId, UploadProtocol.CHUNKED)) }
                 }
             }
         }
@@ -413,7 +426,7 @@ class FileController(
 
                 sctx.ktor.call.respondRedirect(
                     downloadPath(config, controllerContext.configuration.core.providerId, request.token) +
-                            "&attempt=${attempt + 1}"
+                        "&attempt=${attempt + 1}"
                 )
 
                 okContentAlreadyDelivered()
@@ -444,11 +457,17 @@ class FileController(
 
                 with(requestContext(controllerContext)) {
                     with(plugin) {
+                        val protocol = if (uploadRequest.supportedProtocols.contains(UploadProtocol.WEBSOCKET)) {
+                            UploadProtocol.WEBSOCKET
+                        } else {
+                            UploadProtocol.CHUNKED
+                        }
+
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
                             sessions.add(
                                 FilesCreateUploadResponseItem(
-                                    uploadPath(config, providerId),
-                                    UploadProtocol.CHUNKED,
+                                    uploadPath(config, providerId, protocol),
+                                    protocol,
                                     it.session
                                 )
                             )
@@ -481,13 +500,14 @@ class FileController(
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                     ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
 
+                val lastChunk = offset + (sctx.ktor.call.request.headers[HttpHeaders.ContentLength]?.toLong() ?: 0) >= totalSize
                 with(plugin) {
                     handleUpload(
                         token,
                         handler.pluginData,
                         offset,
-                        totalSize,
-                        sctx.ktor.call.request.receiveChannel()
+                        sctx.ktor.call.request.receiveChannel(),
+                        lastChunk
                     )
                 }
             }
@@ -571,6 +591,79 @@ class FileController(
         }
     }
 
+    override fun onServerReady(rpcServer: RpcServer) {
+        ktor.routing {
+            webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, withToken = true)) {
+                val context = SimpleRequestContext(controllerContext.pluginContext, "")
+                val token = call.parameters["token"]
+                    ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
+                var fileOffset = 0L
+                var totalSize = 0L
+
+                with(context) {
+                    val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
+                    val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
+                        ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
+
+                    for (frame in incoming) {
+                        if (frame.frameType == FrameType.TEXT) {
+                            val metadata = (frame as? Frame.Text)?.readText()?.split(' ')
+                            if (metadata != null) {
+                                fileOffset = metadata[0].toLong()
+                                totalSize = metadata[1].toLong()
+                            }
+                        } else {
+                            if (!frame.buffer.isDirect) {
+                                DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
+                                    try {
+                                        var offset = 0
+                                        while (offset < frame.data.size) {
+                                            if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
+                                            val count = min(frame.data.size - offset, nativeBuffer.remaining())
+                                            nativeBuffer.put(frame.data, offset, count)
+                                            nativeBuffer.flip()
+                                            offset += count
+                                            val channel = ByteReadChannel(nativeBuffer)
+                                            with(plugin) {
+                                                handleUpload(
+                                                    token,
+                                                    handler.pluginData,
+                                                    fileOffset,
+                                                    channel,
+                                                    fileOffset + count >= totalSize
+                                                )
+                                            }
+
+                                            fileOffset += count
+                                        }
+                                    } catch (ex: Throwable) {
+                                        ex.printStackTrace()
+                                        throw ex
+                                    }
+                                }
+                            } else {
+                                with(plugin) {
+                                    handleUpload(
+                                        token,
+                                        handler.pluginData,
+                                        fileOffset,
+                                        ByteReadChannel(frame.data),
+                                        fileOffset + frame.data.size >= totalSize
+                                    )
+                                }
+
+                                fileOffset += frame.data.size
+                            }
+
+                            send("$fileOffset")
+                        }
+                    }
+                }
+                this.close()
+            }
+        }
+    }
+
     private val collectionCache = SimpleCache<String, FileCollection>(
         maxAge = 60_000 * 10L,
         lookup = { collectionId ->
@@ -588,9 +681,19 @@ class FileController(
             if (token != null) append("?token=$token")
         }
 
-        fun uploadPath(config: VerifiedConfig?, providerId: String): String = buildString {
+        fun uploadPath(
+            config: VerifiedConfig?,
+            providerId: String,
+            protocol: UploadProtocol,
+            withToken: Boolean = false
+        ): String = buildString {
             if (config != null) append(config.core.hosts.self?.toStringOmitDefaultPort() ?: "")
-            append("/ucloud/${providerId}/chunked/upload")
+            val token = if (withToken) {
+                "/{token}"
+            } else {
+                ""
+            }
+            append("/ucloud/${providerId}/${protocol.name.lowercase(Locale.getDefault())}/upload${token}")
         }
     }
 }
