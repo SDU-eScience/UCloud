@@ -301,14 +301,13 @@ export const MembersContainer: React.FunctionComponent<{
                                             setNewGroup(false);
                                         }}>Cancel</Button>
                                 </form>
-                            </> :
-                                <>
-                                    <Button
-                                        width={"var(--newGroupButtonWidth, auto)"}
-                                        onClick={() => {
-                                            setNewGroup(true);
-                                        }}>New group</Button>
-                                </>}
+                            </> : isAdminOrPI(props.project.status.myRole) ?
+                                <Button
+                                    width={"var(--newGroupButtonWidth, auto)"}
+                                    onClick={() => {
+                                        setNewGroup(true);
+                                    }}>New group</Button>
+                                : null}
                         </Flex>
                         <Box height={"calc(100vh - 135px)"} overflowY={"auto"}>
                             <List>
@@ -473,7 +472,7 @@ const MemberCard: React.FunctionComponent<{
             {props.member.username}
         </Flex>}
         right={<Flex alignItems={"center"} gap={"8px"}>
-            {props.activeGroup ? <>
+            {props.activeGroup && isAdminOrPI(props.myRole) ? <>
                 <Button
                     disabled={isInActiveGroup}
                     color={"successMain"}
@@ -499,8 +498,7 @@ const MemberCard: React.FunctionComponent<{
                                     icon={"heroUsers"}
                                     label={"User"} name={"User" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.USER)} />
-                            </>
-                            : null}
+                            </> : null}
                     </RadioTilesContainer>
                     {isAdminOrPI(props.myRole) ?
 
