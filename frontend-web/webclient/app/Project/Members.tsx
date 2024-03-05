@@ -16,6 +16,9 @@ import {OldProjectRole, Project, ProjectRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {MembersContainer} from "@/Project/MembersUI";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import AppRoutes from "@/Routes";
+import {useDispatch} from "react-redux";
+import {dispatchSetProjectAction} from "./ReduxState";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
@@ -44,7 +47,7 @@ interface RemoveMember {
 
 interface ChangeRole {
     type: "ChangeRole";
-    changes: { username: string; role: ProjectRole }[];
+    changes: {username: string; role: ProjectRole}[];
 }
 
 interface AddToGroup {
@@ -245,6 +248,12 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
                 projectOverride: project.id
             });
 
+            const containsMyself = action.members.some(it => it === Client.username);
+            if (containsMyself && Client.projectId === project.id) {
+                cb.clearProject();
+                cb.navigate(AppRoutes.dashboard.dashboardB());
+            }
+
             // NOTE(Dan): Something is probably really wrong if this happens. Just reload the entire thing.
             if (!success) cb.requestReload();
             break;
@@ -260,7 +269,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             });
 
             if (!success) {
-                const oldRoles: { username: string, role: ProjectRole }[] = [];
+                const oldRoles: {username: string, role: ProjectRole}[] = [];
                 for (const member of project.status.members!) {
                     const hasChange = action.changes.some(it => it.username === member.username);
                     if (hasChange) {
@@ -368,6 +377,7 @@ interface ActionCallbacks {
     navigate: NavigateFunction;
     pureDispatch: (action: ProjectAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
+    clearProject: () => void; // NOTE(Jonas): When you leave the active project
 }
 
 // Primary user interface
@@ -388,6 +398,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     const [uiState, pureDispatch] = useReducer(projectReducer, {project: null, invites: emptyPageV2});
     const {project, invites} = uiState;
     const [sortUpdate, setSortUpdate] = useState("");
+    const reduxDispatch = useDispatch();
+
 
     const [memberQuery, setMemberQuery] = useState<string>("");
 
@@ -415,7 +427,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     const actionCb: ActionCallbacks = useMemo(() => ({
         navigate,
         pureDispatch,
-        requestReload: reload
+        requestReload: reload,
+        clearProject: () => {
+            dispatchSetProjectAction(reduxDispatch, undefined);
+        }
     }), [pureDispatch, reload]);
 
     const dispatch = useCallback((action: ProjectAction) => {
@@ -429,6 +444,12 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         ADMIN: 1,
         USER: 2
     };
+    
+    React.useEffect(() => {
+        if (!Client.hasActiveProject) {
+            navigate(AppRoutes.dashboard.dashboardA());
+        }
+    }, [])
 
     const modifiedProject: Project | null = useMemo(() => {
         if (!project) return project;
@@ -561,8 +582,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         }}
         onCreateInviteLink={async () => {
             const link = await callAPI(Api.createInviteLink());
-            setInviteLinks(prev => 
-                 [...prev, link]
+            setInviteLinks(prev =>
+                [...prev, link]
             );
         }}
         onDeleteLink={linkId => {

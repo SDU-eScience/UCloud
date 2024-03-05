@@ -29,6 +29,7 @@ import ReactModal from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -501,15 +502,13 @@ const MemberCard: React.FunctionComponent<{
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.USER)} />
                             </> : null}
                     </RadioTilesContainer>
-                    {isAdminOrPI(props.myRole) ?
-
-                        isUserPIRole ? <TooltipV2 tooltip="PI role must be transfered to remove member">
+                    {isUserPIRole ? <TooltipV2 tooltip="PI role must be transfered to remove member">
                             <Button color={"errorMain"} width={"88px"} disabled>Remove</Button>
                         </TooltipV2> :
                             <Button color={"errorMain"}
                                 width={"88px"}
-                                onClick={() => props.handleRemoveFromProject(props.member.username)}>Remove</Button>
-                        : null}
+                                disabled={!isAdminOrPI(props.myRole) && props.member.username !== Client.username}
+                                onClick={() => props.handleRemoveFromProject(props.member.username)}>Remove</Button>}
                 </>}
         </Flex>}
     />;
