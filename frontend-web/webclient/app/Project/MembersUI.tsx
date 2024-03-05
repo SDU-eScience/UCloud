@@ -266,6 +266,7 @@ export const MembersContainer: React.FunctionComponent<{
                         <Box height={"calc(100vh - 135px)"} overflowY={"auto"}>
                             <List>
                                 {props.activeGroup.status.members!.map(member => <ActiveGroupCard
+                                    myRole={props.project.status.myRole}
                                     member={member}
                                     key={member}
                                     handleRemoveFromGroup={handleRemoveFromGroup}
@@ -616,6 +617,7 @@ const GroupCard: React.FunctionComponent<{
 }
 
 const ActiveGroupCard: React.FunctionComponent<{
+    myRole: ProjectRole | undefined | null;
     member: string;
     handleRemoveFromGroup: (username: string, groupId: string) => void;
     activeGroup: ProjectGroup;
@@ -626,9 +628,9 @@ const ActiveGroupCard: React.FunctionComponent<{
             {props.member}
         </Flex>}
         right={<Flex>
-            <Button color={"errorMain"}
+            {isAdminOrPI(props.myRole) ? <Button color={"errorMain"}
                 width={"88px"}
-                onClick={() => props.handleRemoveFromGroup(props.member, props.activeGroup.id)}>Remove</Button>
+                onClick={() => props.handleRemoveFromGroup(props.member, props.activeGroup.id)}>Remove</Button> : null}
         </Flex>}
     />
 }
