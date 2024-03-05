@@ -17,7 +17,8 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    controlsOperation
+    controlsOperation,
+    ShortcutClass
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -59,6 +60,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -103,7 +105,7 @@ const FEATURES: ResourceBrowseFeatures = {
 }
 
 let lastActiveProject: string | undefined = "";
-const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "Sensitivity"}, {name: "Modified at", sortById: "MODIFIED_AT"}, {name: "Size", sortById: "SIZE"}];
+const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 150}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -588,7 +590,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
-                    ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
+                    if (!opts?.isModal) ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
                     return ops;
                 });
 
@@ -732,11 +734,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             tagType: "div",
                             style: {
                                 position: "relative",
-                                left: "13px",
+                                left: "24px",
                                 top: "-2px",
                                 backgroundColor: "var(--primaryMain)",
-                                height: "10px",
-                                width: "10px",
+                                height: "12px",
+                                width: "12px",
                                 padding: "4px",
                                 borderRadius: "8px"
                             }
@@ -746,11 +748,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
                         syncThingIcon.style.height = "8px";
                         syncThingIcon.style.width = "8px";
-                        syncThingIcon.style.marginLeft = "-3px";
-                        syncThingIcon.style.marginTop = "-3px";
+                        syncThingIcon.style.marginLeft = "-2px";
+                        syncThingIcon.style.marginTop = "-2px";
                         syncThingIcon.style.display = "block";
                         iconWrapper.appendChild(syncThingIcon);
-                        browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 24, height: 24}).then(setSyncthingIcon);
+                        browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
@@ -791,8 +793,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     {
                         row.star.innerHTML = "";
                         row.star.append(favoriteIcon);
-                        row.star.style.marginBottom = "5px";
                         row.star.style.cursor = "pointer";
+                        row.star.style.marginRight = "8px";
                     }
 
                     findFavoriteStatus(file).then(async isFavorite => {
@@ -803,6 +805,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             height: 64,
                             width: 64
                         });
+
+                        row.star.setAttribute("data-favorite", isFavorite.toString());
 
                         if (isOutOfDate()) return;
 
@@ -832,6 +836,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             b.innerText = value.toString()[0];
                         });
 
+                        
+                        HTMLTooltip(badge, div("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
                         row.stat1.append(badge);
                     });
 
@@ -1115,6 +1121,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     return promise;
                 };
 
+                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === fakeFileName);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
                         if (opts?.selection) {
@@ -1454,8 +1461,9 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
         span.innerText = `${collection.specification.title} (${collection.id})`;
         span.className = TruncateClass;
         if (index + 1 <= 9) {
-            const shortcutElem = document.createElement("kbd");
-            shortcutElem.append(`[${index + 1}]`);
+            const shortcutElem = document.createElement("div");
+            shortcutElem.className = ShortcutClass;
+            shortcutElem.append(`${index + 1}`);
             wrapper.append(shortcutElem);
         }
         return wrapper;

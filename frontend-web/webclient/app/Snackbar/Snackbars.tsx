@@ -12,9 +12,9 @@ interface IconColorAndName {
 }
 
 const iconNameAndColorFromSnack: Record<Exclude<SnackType, SnackType.Custom>, IconColorAndName> = {
-    [SnackType.Success]: {name: "check", color: "fixedWhite", color2: "fixedWhite"},
-    [SnackType.Information]: {name: "info", color: "fixedBlack", color2: "fixedWhite"},
-    [SnackType.Failure]: {name: "close", color: "fixedWhite", color2: "fixedWhite"},
+    [SnackType.Success]: {name: "check", color: "textSecondary", color2: "successMain"},
+    [SnackType.Information]: {name: "heroInformationCircle", color: "fixedBlack", color2: "fixedWhite"},
+    [SnackType.Failure]: {name: "close", color: "textSecondary", color2: "errorMain"},
 };
 
 interface SnackProps<SnackType> {
@@ -32,7 +32,7 @@ export const CustomSnack: React.FC<SnackProps<CustomSnack>> = ({snack, onCancel}
 export const DefaultSnack: React.FC<SnackProps<DefaultSnack>> = ({snack, onCancel}) => {
     const icon = iconNameAndColorFromSnack[snack.type];
     return <SnackBody snack={snack} onCancel={onCancel}>
-        <Icon mt="4px" mr="8px" size="14px" {...icon} />
+        <Icon mt="4px" mr="8px" size="18px" {...icon} />
     </SnackBody>
 };
 

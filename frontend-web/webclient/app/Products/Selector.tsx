@@ -13,7 +13,7 @@ import {useUState} from "@/Utilities/UState";
 import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {NoResultsCardBody} from "@/UtilityComponents";
 
 const NEED_CONNECT = "need-connection";
@@ -225,10 +225,8 @@ export const ProductSelector: React.FunctionComponent<{
 
     const showHeadings = filteredProducts.length >= 5 || categorizedProducts.some(it => it === NEED_CONNECT);
 
-
-
     return <>
-        <div className={props.slim === true ? SelectorBoxClass + " slim" : SelectorBoxClass} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
+        <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
             <div className="selected">
                 {selected ? selected.name : <>No {productName} selected</>}<br />
                 {selected ? <>
@@ -601,7 +599,7 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
 
     ${k}.slim svg {
         position: absolute;
-        top: calc(50% - 4px);
+        top: 30%;
         right: 5px;
     }
 `);

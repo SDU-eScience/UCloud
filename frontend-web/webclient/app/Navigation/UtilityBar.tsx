@@ -50,7 +50,7 @@ const SearchClass = injectStyle("search", k => `
 function SearchIcon(props: {
     onSearch: (query: string) => void;
     initialQuery?: string;
-}): React.ReactNode | null {
+}): React.ReactNode {
     const [visible, setVisible] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const ignoreNextToggle = useRef(false);

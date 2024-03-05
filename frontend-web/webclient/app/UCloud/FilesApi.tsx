@@ -380,7 +380,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.F
             },
             {
-                text: "Open with...",
+                text: "Launch with...",
                 icon: "open",
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected, cb) => {
@@ -626,8 +626,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
             {
                 icon: "refresh",
-                text: "Manage synchronization",
-                enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig,
+                text: "Sync",
+                enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig && !extra.isModal,
                 onClick: (selected, extra) =>
                     extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`),
                 shortcut: ShortcutKey.M

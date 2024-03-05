@@ -27,6 +27,8 @@ import Avatar from "@/AvataaarLib/avatar";
 import {useProjectId} from "@/Project/Api";
 import {FlexClass} from "@/ui-components/Flex";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 enum ShareValidateState {
     NOT_VALIDATED,
@@ -227,9 +229,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (newPath !== "/") {
-                        browser.setColumnTitles([{name: "Shared with"}, {name: "Share rights"}, {name: "State"}, {name: ""}]);
+                        browser.setColumnTitles([{name: "Shared with"}, {name: "Share rights", columnWidth: 50}, {name: "State", columnWidth: 50}, {name: "", columnWidth: 250}]);
                     } else {
-                        browser.setColumnTitles([{name: "Filename"}, {name: ""}, {name: "Permissions"}, {name: "Shared with"}])
+                        browser.setColumnTitles([{name: "Filename"}, {name: "", columnWidth: 250}, {name: "Permissions", columnWidth: 50}, {name: "Shared with", columnWidth: 50}])
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share
@@ -381,8 +383,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         // TODO(Jonas): For some reason, the arrow is not rendered.
                         browser.icons.renderIcon({
                             name: "ftSharesFolder",
-                            color: "iconColor",
-                            color2: "iconColor2",
+                            color: "FtFolderColor",
+                            color2: "FtFolderColor2",
                             height: 32,
                             width: 32
                         }).then(setIcon);
@@ -440,8 +442,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                             browser.renderRows();
                                         }
                                     }
-                                } else {
-                                    console.log("NOT defined")
                                 }
                             }
                         }
@@ -542,6 +542,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                     tagType: "div",
                                     style: {marginRight: "-26px"},
                                 });
+                                HTMLTooltip(wrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Shared with ${s.sharedWith}`}), {tooltipContentWidth: 250});
                                 wrapper.appendChild(avatarCache[s.sharedWith].clone());
                                 flexWrapper.appendChild(wrapper);
                             });
@@ -556,6 +557,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                                         tagType: "div",
                                         style: {marginRight: "-26px"},
                                     });
+                                    HTMLTooltip(wrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Shared with ${sharedWith}`}), {tooltipContentWidth: 250});
                                     wrapper.appendChild(it.clone());
                                     flexWrapper.appendChild(wrapper);
                                 });

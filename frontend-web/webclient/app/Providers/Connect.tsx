@@ -16,6 +16,13 @@ import Spinner from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "./ConnectionState";
 import {useUState} from "@/Utilities/UState";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {injectStyle} from "@/Unstyled";
+
+const FixedHeightProvider = injectStyle("FixedHeightProvider", k => `
+    ${k} {
+        height: 41px;
+    }
+`)
 
 export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
@@ -54,6 +61,7 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                     <ListRow
                         onContextMenu={onContextMenu}
                         key={it.provider}
+                        className={FixedHeightProvider}
                         icon={<ProviderLogo providerId={it.providerTitle} size={20} />}
                         left={<Text fontSize={"16px"}><ProviderTitle providerId={it.providerTitle} /></Text>}
                         right={!canConnect ?

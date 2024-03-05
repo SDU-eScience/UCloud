@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {Box, Flex, Grid} from "@/ui-components";
+import {Box, Flex, Grid, Link} from "@/ui-components";
 import {AppCard, AppCardType} from "./Card";
 import {usePage} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -16,6 +16,8 @@ import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {injectStyle} from "@/Unstyled";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {AppCard2} from "@/Applications/Landing";
+import BaseLink from "@/ui-components/BaseLink";
 
 function link(group: ApplicationGroup): string {
     if (group.specification.defaultFlavor) {
@@ -72,15 +74,16 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                             <UtilityBar onSearch={appSearch}/>
                         </Flex>
 
-                        <Grid gridTemplateColumns={"repeat(auto-fit, minmax(430px, 1fr))"} gap={"16px"}>
+                        <Grid gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"} columnGap={"16px"} rowGap={"16px"}>
                             {groups.map(section =>
-                                <AppCard
+                                <AppCard2
+                                    fullWidth
                                     key={section.metadata.id}
                                     title={section.specification.title}
-                                    logo={section.metadata.id.toString()}
-                                    type={AppCardType.GROUP}
+                                    isApplication={false}
                                     description={section.specification.description}
-                                    link={link(section)}
+                                    name={section.metadata.id.toString()}
+                                    applicationName={section.specification.defaultFlavor}
                                 />
                             )}
                         </Grid>

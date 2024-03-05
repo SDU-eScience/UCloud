@@ -84,7 +84,7 @@ function Dashboard(): React.JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex pt="12px" pb="24px"><h3>Dashboard</h3><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
+        <Flex pt="12px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
             <DashboardNews news={news} />
             <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
@@ -413,7 +413,7 @@ const DeicBanner = injectStyle("deic-banner", k => `
     }
     
     ${k} a, ${k} svg {
-        z-index: 10000;
+        z-index: 1;
     }
 `);
 
@@ -431,7 +431,7 @@ const DashboardCard: React.FunctionComponent<{
     overflow?: string;
 }> = props => {
     return <TitledCard
-        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title}</Heading.h3></Link> :
+        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px" name="heroArrowTopRightOnSquare" /></Heading.h3></Link> :
             <Heading.h3>{props.title}</Heading.h3>}
         icon={props.icon}
         overflow={props.overflow}

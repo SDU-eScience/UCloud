@@ -11,7 +11,7 @@ export const RadioTilesContainerClass = injectStyle("radio-tiles-container", k =
         display: inline-grid;
         grid-auto-flow: column;
         grid-template-columns: repeat(auto);
-        column-gap: 5px;
+        column-gap: 8px;
     }
 `);
 
@@ -73,14 +73,6 @@ const RadioTileIconClass = injectStyle("radio-tile-icon", () => ``);
 const RadioTileClass = injectStyle("radio-tile", k => `
     ${k} {
         position: relative;
-    }
-    
-    ${k}:hover {
-        transform: translateY(-2px);
-    }
-    
-    ${k}[data-checked="true"]:hover, ${k}[data-disabled="true"] {
-        transform: unset;
     }
     
     ${k}[data-disabled="false"]:hover > .${RadioTileIconClass} {

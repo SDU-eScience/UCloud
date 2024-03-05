@@ -21,6 +21,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
+import {Toggle} from "@/ui-components/Toggle";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = parseInt(useParams<{ id: string }>().id ?? "-1");
@@ -53,6 +54,8 @@ export const AppGroup: React.FunctionComponent = () => {
     const [categories, setCategories] = useState<AppStore.ApplicationCategory[]>([]);
 
     const [addApplicationOpen, setAddApplicationOpen] = useState<boolean>(false);
+    const [logoHasText, setLogoHasText] = useState(false);
+    const [customBackground, setCustomBackground] = useState("");
 
     const [commandLoading, invokeCommand] = useCloudCommand();
 
@@ -76,6 +79,8 @@ export const AppGroup: React.FunctionComponent = () => {
     useEffect(() => {
         if (group.data) {
             setDefaultApplication(group.data?.specification?.defaultFlavor ?? undefined);
+            setLogoHasText(group.data?.specification?.logoHasText ?? false);
+            setCustomBackground(group.data?.specification?.backgroundColor ?? "");
         }
     }, [group.data]);
 
@@ -191,9 +196,11 @@ export const AppGroup: React.FunctionComponent = () => {
                                         newTitle: newTitle,
                                         newDescription: newDescription,
                                         newDefaultFlavor: defaultApplication,
+                                        newBackgroundColor: customBackground,
+                                        newLogoHasText: logoHasText
                                         // tags
-                                    }))
-                                    navigate(`/applications/studio/groups`);
+                                    }));
+                                    refresh();
                                 }}>Save changes</Button>
                             </Flex>
                         </Flex>
@@ -253,6 +260,18 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                     </Flex>
                                 </Flex>
+
+                                <Heading.h4 mt={"30px"}>Logo properties</Heading.h4>
+                                <Flex alignItems={"center"} gap={"8px"} my={16}>
+                                    <Toggle checked={logoHasText} onChange={() => setLogoHasText(!logoHasText)} />
+                                    <span onClick={() => setLogoHasText(!logoHasText)}>Logo contains text</span>
+                                </Flex>
+                                <Label>
+                                    Custom background color:
+                                    <Input placeholder={"For example: #52342d"} value={customBackground} onChange={e => {
+                                        setCustomBackground((e.target as HTMLInputElement).value);
+                                    }} />
+                                </Label>
 
                                 <Flex mt="30px" flexDirection={"column"} gap={"8px"}>
                                     <Heading.h4>Categories</Heading.h4>

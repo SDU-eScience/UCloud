@@ -62,7 +62,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
             new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
                 let startCreation = doNothing;
 
-                browser.setColumnTitles([{name: "License id"}, {name: ""}, {name: ""}, {name: ""}]);
+                browser.setColumnTitles([{name: "License id"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
                 supportByProvider.retrieve("", () => retrieveSupportV2(LicenseApi)).then(res => {
                     const creatableProducts: ProductV2[] = [];

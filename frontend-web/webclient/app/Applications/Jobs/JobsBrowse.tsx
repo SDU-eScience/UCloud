@@ -4,7 +4,7 @@ import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {AppLogo, appLogoCache, hashF} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
@@ -34,7 +34,7 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const rowTitles: [ColumnTitle, ColumnTitle, ColumnTitle, ColumnTitle] = [{name: "Job name"}, {name: "Created by", sortById: "createdBy"}, {name: "Created at", sortById: "createdAt"}, {name: "State"}];
+const rowTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 150}, {name: "State", columnWidth: 75}];
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
@@ -69,7 +69,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                if (!simpleView) browser.setColumnTitles(rowTitles);
+                browser.setColumnTitles(rowTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -260,6 +260,10 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
             }
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        if (simpleView) {
+            mount?.style.setProperty("--stat1Width", "0");
+            mount?.style.setProperty("--stat3Width", "28px");
+        }
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
@@ -278,7 +282,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
 const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     IN_QUEUE: ["heroCalendar", "iconColor"],
-    RUNNING: ["heroClock", "iconColor"],
+    RUNNING: ["heroClock", "successMain"],
     SUCCESS: ["heroCheck", "successMain"],
     FAILURE: ["heroXMark", "errorMain"],
     EXPIRED: ["heroClock", "warningMain"],

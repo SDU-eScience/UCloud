@@ -271,6 +271,7 @@ case '/api/files/metadata/reject': return 'files.metadata.reject';
 break;
 case 'GET':
 switch (path) {
+case '/api/hpc/apps/retrieveGroups': return '';
 case '/api/products/retrieve': return 'products.retrieve';
 case '/api/products/browse': return 'products.browse';
 case '/api/mail/retrieveEmailSettings': return 'mail.retrieveEmailSettings';

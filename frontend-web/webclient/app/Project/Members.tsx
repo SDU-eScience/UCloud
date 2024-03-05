@@ -1,56 +1,27 @@
 import * as React from "react";
-import {useRef, useCallback, useEffect, useMemo, useReducer, useState} from "react";
-import {default as Api, ProjectInvite, ProjectInviteLink, useProjectId} from "./Api";
+import {useCallback, useEffect, useMemo, useReducer, useState} from "react";
+import {default as Api, ProjectInvite, ProjectInviteLink, UpdateInviteLinkRequest, useProjectId} from "./Api";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
-import MainContainer from "@/ui-components/MainContainer";
-import {callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
-import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
-import {
-    Absolute,
-    Box,
-    Button,
-    Checkbox,
-    Flex,
-    Icon,
-    Input,
-    Label,
-    List,
-    RadioTile,
-    RadioTilesContainer,
-    Relative,
-    Text,
-    Tooltip, Truncate
-} from "@/ui-components";
-import {addStandardDialog, NamingField} from "@/UtilityComponents";
-import {copyToClipboard, doNothing, preventDefault} from "@/UtilityFunctions";
+import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {Box, Button, Checkbox, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
+import {bulkRequestOf, copyToClipboard, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {IconName} from "@/ui-components/Icon";
-import {bulkRequestOf} from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
-import {ItemRenderer, ItemRow, useRenamingState} from "@/ui-components/Browse";
-import {BrowseType} from "@/Resource/BrowseType";
-import {useToggleSet} from "@/Utilities/ToggleSet";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
-import BaseLink from "@/ui-components/BaseLink";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {usePage, useLoading} from "@/Navigation/Redux";
-import {PageV2, BulkResponse, FindByStringId} from "@/UCloud";
+import {useLoading, usePage} from "@/Navigation/Redux";
+import {BulkResponse, FindByStringId, PageV2} from "@/UCloud";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {timestampUnixMs} from "@/UtilityFunctions";
-import Spinner from "@/LoadingIcon/LoadingIcon";
-import {dialogStore} from "@/Dialog/DialogStore";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {Spacer} from "@/ui-components/Spacer";
-import {ListClass} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {UtilityBar} from "@/Navigation/UtilityBar";
-import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from ".";
+import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
+import {OldProjectRole, Project, ProjectGroup, ProjectRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {MembersContainer} from "@/Project/MembersUI";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
@@ -79,7 +50,7 @@ interface RemoveMember {
 
 interface ChangeRole {
     type: "ChangeRole";
-    changes: {username: string; role: ProjectRole}[];
+    changes: { username: string; role: ProjectRole }[];
 }
 
 interface AddToGroup {
@@ -108,6 +79,7 @@ interface RenameGroup {
 const placeholderPrefix = "ucloud-placeholder-id-";
 
 let groupIdCounter = 0;
+
 interface CreateGroup {
     type: "CreateGroup";
     title: string;
@@ -289,12 +261,12 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
             // such a change is meant only for the frontend, and not the backend. The backend will implicitly perform
             // this change for us, since there can be only one PI.
             const success = await callAPIWithErrorHandler({
-                ...Api.changeRole(bulkRequestOf(...action.changes.filter(it => it.username != Client.username!))),
+                ...Api.changeRole(bulkRequestOf(...action.changes)),
                 projectOverride: project.id
             });
 
             if (!success) {
-                const oldRoles: {username: string, role: ProjectRole}[] = [];
+                const oldRoles: { username: string, role: ProjectRole }[] = [];
                 for (const member of project.status.members!) {
                     const hasChange = action.changes.some(it => it.username === member.username);
                     if (hasChange) {
@@ -409,9 +381,9 @@ interface ActionCallbacks {
 export const ProjectMembers2: React.FunctionComponent = () => {
     // Input "parameters"
     const navigate = useNavigate();
-    const location = useLocation();
-    const inspectingGroupId = getQueryParam(location.search, "group");
     const projectId = useProjectId() ?? "";
+    const location = useLocation();
+    const groupIdParam = getQueryParam(location.search, "groupId");
 
     // Remote data
     const [invitesFromApi, fetchInvites] = useCloudAPI<PageV2<ProjectInvite>>({noop: true}, emptyPageV2);
@@ -421,17 +393,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     // UI state
     const [uiState, pureDispatch] = useReducer(projectReducer, {project: null, invites: emptyPageV2});
     const {project, invites} = uiState;
-    const [creatingGroup, setIsCreatingGroup] = useState(false);
-    const groupToggleSet = useToggleSet([]);
-    const groupMemberToggleSet = useToggleSet([]);
-    const inviteToggleSet = useToggleSet([]);
-    const memberToggleSet = useToggleSet([]);
-    const newMemberRef = useRef<HTMLInputElement>(null);
+    const [sortUpdate, setSortUpdate] = useState("");
 
     const [memberQuery, setMemberQuery] = useState<string>("");
-    const updateMemberQueryFromEvent = useCallback((e: React.SyntheticEvent) => {
-        setMemberQuery((e.target as HTMLInputElement).value);
-    }, []);
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
@@ -465,76 +429,45 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         pureDispatch(action);
     }, [uiState, pureDispatch, actionCb]);
 
-    const onAddMember = useCallback((e: React.SyntheticEvent) => {
-        e.preventDefault();
-        const value = newMemberRef.current?.value;
-        if (!value) return;
 
-        newMemberRef.current.value = "";
-        avatars.updateCache([value]);
-        dispatch({type: "InviteMember", members: [value]});
-    }, [dispatch]);
+    const roleToOrder: Record<ProjectRole, number> = {
+        PI: 0,
+        ADMIN: 1,
+        USER: 2
+    };
 
-    const startGroupCreation = useCallback(() => {
-        setIsCreatingGroup(true);
-    }, []);
-
-    const groupRenaming = useRenamingState<ProjectGroup>(
-        (group) => group.specification.title,
-        [],
-
-        (a, b) => a.id === b.id,
-        [],
-
-        async (group, newTitle) => {
-            dispatch({type: "RenameGroup", group: group.id, newTitle});
-        },
-        [dispatch]
-    );
-
-    // Aliases and computed data
-    const inspectingGroup: ProjectGroup | null =
-        !inspectingGroupId || !project ? null :
-            project.status.groups!.find(it => it.id === inspectingGroupId) ?? null;
-
-    const isAdmin = !project ? false : isAdminOrPI(project.status.myRole!);
-
-    const groups: (ProjectGroup | undefined)[] = useMemo(() => {
-        if (!project) return [];
-        if (creatingGroup) {
-            return [undefined, ...project.status.groups!];
-        } else {
-            return project.status.groups!;
-        }
-    }, [creatingGroup, project]);
-
-    const relevantMembers: ProjectMember[] = useMemo(() => {
-        if (!project) return [];
+    const modifiedProject: Project | null = useMemo(() => {
+        if (!project) return project;
 
         const allMembers = project.status.members!;
         const normalizedQuery = memberQuery.trim().toLowerCase();
-        if (normalizedQuery === "") return allMembers;
 
-        return allMembers.filter(m => m.username.toLowerCase().indexOf(normalizedQuery) != -1);
-    }, [project, memberQuery]);
-
-    const callbacks: Callbacks = useMemo(() => ({
-        dispatch,
-        inspectingGroup,
-        isAdmin,
-        project,
-    }), [dispatch, inspectingGroup, isAdmin, project]);
-
-    const groupCallbacks: GroupCallbacks = useMemo(() => ({
-        ...callbacks,
-        setRenaming: groupRenaming.setRenaming,
-        setIsCreating: setIsCreatingGroup,
-        create: (title: string) => {
-            setIsCreatingGroup(false);
-            callbacks.dispatch({type: "CreateGroup", title, placeholderId: groupIdCounter++});
-        },
-
-    }), [callbacks, setIsCreatingGroup, groupRenaming.setRenaming]);
+        let relevantMembers = allMembers.filter(m => normalizedQuery === "" || m.username.toLowerCase().indexOf(normalizedQuery) != -1);
+        relevantMembers = relevantMembers.sort((a, b) => {
+            if (sortUpdate === "name") {
+                return a.username.localeCompare(b.username);
+            } else if (sortUpdate === "role") {
+                const aOrder = roleToOrder[a.role];
+                const bOrder = roleToOrder[b.role];
+                if (aOrder > bOrder) {
+                    return 1;
+                } else if (aOrder < bOrder) {
+                    return -1;
+                } else {
+                    return a.username.localeCompare(b.username);
+                }
+            } else {
+                return a.username.localeCompare(b.username);
+            }
+        });
+        return {
+            ...project,
+            status: {
+                ...project.status,
+                members: relevantMembers,
+            }
+        };
+    }, [project, memberQuery, sortUpdate]);
 
     // Effects
     useEffect(() => reload(), [reload]);
@@ -551,854 +484,157 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         dispatch({type: "ReloadInvites", invites: invitesFromApi.data});
     }, [invitesFromApi.data]);
 
-    useEffect(() => {
-        inviteToggleSet.uncheckAll();
-    }, [invites]);
-
-    useEffect(() => {
-        groupToggleSet.uncheckAll();
-    }, [groups]);
-
-    useEffect(() => {
-        memberToggleSet.uncheckAll();
-    }, [relevantMembers]);
-
-    useEffect(() => {
-        groupMemberToggleSet.uncheckAll();
-    }, [inspectingGroup?.status?.members]);
-
     usePage("Member and Group Management", SidebarTabId.WORKSPACE);
     useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
-    if (!project) return null;
-
-    return <MainContainer
-        header={<Spacer
-            left={<ProjectPageTitle>Members</ProjectPageTitle>}
-            right={<Flex mr="36px" height={"26px"}><UtilityBar /></Flex>}
-        />}
-        headerSize={72}
-        main={
-            <Box className={TwoColumnLayout} height="calc(100vh - 120px)">
-                <div className="left">
-                    <Flex className={SearchContainer} flexWrap="wrap">
-                        {!isAdmin ? null : (
-                            <form onSubmit={onAddMember}>
-                                <Input
-                                    height={"48px"}
-                                    width="100%"
-                                    id="new-project-member"
-                                    placeholder="Username"
-                                    autoComplete="off"
-                                    inputRef={newMemberRef}
-                                />
-                                <Button ml="10px" my="auto" height="36px" type={"submit"}>
-                                    <Text fontSize={"20px"}>Add</Text>
-                                </Button>
-                                <Relative width={"0px"} height={"0px"} left="-122px" top="10px">
-                                    {USER_ID_HELP}
-                                </Relative>
-                                <Button
-                                    mt={"6px"}
-                                    mx={10}
-                                    height="36px"
-                                    color="successMain"
-                                    type="button"
-                                    title="Invite with link"
-                                    onClick={async () => {
-                                        dialogStore.addDialog(
-                                            <InviteLinkEditor
-                                                groups={groups}
-                                                project={project}
-                                            />,
-                                            doNothing,
-                                            true
-                                        );
-                                    }}
-                                >
-                                    <Text fontSize="20px">+</Text>
-                                </Button>
-                            </form>
-                        )}
-                    </Flex>
-                    <form onSubmit={preventDefault}>
-                        <Input
-                            id="project-member-search"
-                            placeholder="Search existing project members..."
-                            pr="30px"
-                            height={"48px"}
-                            autoComplete="off"
-                            value={memberQuery}
-                            onChange={updateMemberQueryFromEvent}
-                        />
-                        <Relative>
-                            <Absolute right="12px" bottom="12px">
-                                <Label htmlFor="project-member-search">
-                                    <Icon name="search" size="24" />
-                                </Label>
-                            </Absolute>
-                        </Relative>
-                    </form>
-                    <List mt="16px" mb="32px">
-                        {invites.items.map(i =>
-                            <ItemRow
-                                item={i}
-                                key={i.recipient}
-                                browseType={BrowseType.Embedded}
-                                renderer={InviteRenderer}
-                                toggleSet={inviteToggleSet}
-                                operations={inviteOperations}
-                                callbacks={callbacks}
-                                itemTitle={"Invite"}
-                            />
-                        )}
-                        {relevantMembers.map(it => (
-                            <ItemRow
-                                item={it}
-                                key={it.username}
-                                browseType={BrowseType.Embedded}
-                                renderer={MemberRenderer}
-                                toggleSet={memberToggleSet}
-                                callbacks={callbacks}
-                                operations={memberOperations}
-                                itemTitle={"Member"}
-                            />
-                        ))}
-                    </List>
-                </div>
-                <div className="right">
-                    {inspectingGroup ? null : <>
-                        <Flex mb={"12px"}>
-                            <BreadCrumbsBase embedded={false}>
-                                <span>Groups</span>
-                            </BreadCrumbsBase>
-                            <div style={{flexGrow: 1}} />
-                            {!isAdmin ? null : (
-                                <Button mt={"2px"} disableStandardSizes height={"40px"} width={"110px"} px="12px" onClick={startGroupCreation}>
-                                    New group
-                                </Button>
-                            )}
-                        </Flex>
-                        {groups.length !== 0 ? null : <>
-                            <Flex justifyContent={"center"} alignItems={"center"} minHeight={"300px"}
-                                flexDirection={"column"}>
-                                <Heading.h4>You have no groups to manage.</Heading.h4>
-                                <ul>
-                                    <li>Groups are used to manage permissions in your project</li>
-                                    <li>You must create a group to grant members access to the project&#039;s files</li>
-                                </ul>
-                            </Flex>
-                        </>}
-
-                        <List>
-                            {groups.map(g =>
-                                <ItemRow
-                                    item={g}
-                                    key={g?.id ?? "creating"}
-                                    browseType={BrowseType.Embedded}
-                                    renderer={GroupRenderer}
-                                    toggleSet={groupToggleSet}
-                                    operations={groupOperations}
-                                    callbacks={groupCallbacks}
-                                    renaming={groupRenaming}
-                                    itemTitle={"Group"}
-                                    navigate={() => !g ? null : dispatch({type: "InspectGroup", group: g.id})}
-                                />
-                            )}
-                        </List>
-                    </>}
-
-                    {!inspectingGroup ? null : <>
-                        <Flex mb="16px">
-                            <BaseLink onClick={() => dispatch({type: "InspectGroup", group: null})}>
-                                <Button mt="4px" width="42px" height="34px"><Icon rotation={90} name="arrowDown" /></Button>
-                            </BaseLink>
-                            <Text mx="8px" fontSize="25px">|</Text>
-                            <Flex width={"100%"}>
-                                <Truncate fontSize="25px" width={1}>{inspectingGroup.specification.title}</Truncate>
-                            </Flex>
-                        </Flex>
-
-                        {inspectingGroup.status.members!.length !== 0 ? null : <>
-                            <Text mt={40} textAlign="center">
-                                <Heading.h4>No members in group</Heading.h4>
-                                You can add members by clicking on the green arrow in the
-                                &apos;Members&apos; panel.
-                            </Text>
-                        </>}
-
-                        <List>
-                            {inspectingGroup.status.members!.map((member, idx) => (
-                                <ItemRow
-                                    item={member}
-                                    key={idx}
-                                    browseType={BrowseType.Embedded}
-                                    renderer={GroupMemberRenderer}
-                                    toggleSet={groupMemberToggleSet}
-                                    operations={groupMemberOperations}
-                                    callbacks={callbacks}
-                                    itemTitle={"Member"}
-                                />
-                            ))}
-                        </List>
-                    </>}
-                </div>
-            </Box>
-        }
-    />;
-};
-
-// Secondary interface (e.g. member rows and group rows)
-// ================================================================================
-const MemberRenderer: ItemRenderer<ProjectMember, Callbacks> = {
-    Icon: ({resource}) => {
-        const avatars = useAvatars();
-        if (!resource) return null;
-
-        return <UserAvatar avatar={avatars.avatar(resource.username)} height="48px" width="48px" />;
-    },
-
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-        return <Text fontSize={"16px"}>{resource.username}</Text>;
-    },
-
-    ImportantStats: ({resource, callbacks}) => {
-        const {inspectingGroup, isAdmin, project} = callbacks;
-        if (!resource || !project) return null;
-
-        const memberOfThisGroup = !inspectingGroup ? false : inspectingGroup.status.members!.some(m => m === resource.username);
-
-        let options: RoleOption[];
-        if (!isAdmin || resource.username === Client.username || !!inspectingGroup) {
-            options = [roleOptionForRole(resource.role)];
-        } else {
-            options = [roleOptionForRole(OldProjectRole.USER), roleOptionForRole(OldProjectRole.ADMIN)];
-
-            if (project.status.myRole! === OldProjectRole.PI) {
-                options.push(roleOptionForRole(OldProjectRole.PI));
-            }
-
-            if (resource.role === OldProjectRole.PI) {
-                options = [roleOptionForRole(OldProjectRole.PI)]
-            }
-        }
-
-        const onRoleChange: Record<ProjectRole, (e: React.SyntheticEvent) => void> = useMemo(() => {
-            const dispatchChange = (e: React.SyntheticEvent, role: ProjectRole) => {
-                e.stopPropagation();
-                callbacks.dispatch({type: "ChangeRole", changes: [{username: resource.username, role}]});
-            };
-
-            const result: Record<ProjectRole, (e: React.SyntheticEvent) => void> = {
-                [OldProjectRole.USER]: (e) => dispatchChange(e, OldProjectRole.USER),
-                [OldProjectRole.ADMIN]: (e) => dispatchChange(e, OldProjectRole.ADMIN),
-                [OldProjectRole.PI]: (e) => {
-                    e.stopPropagation();
-                    addStandardDialog({
-                        title: "Transfer PI Role",
-                        message: "Are you sure you wish to transfer the PI role? " +
-                            "A project can only have one PI. " +
-                            "Your own user will be demoted to admin.",
-                        onConfirm: () => {
-                            callbacks.dispatch({
-                                type: "ChangeRole", changes: [
-                                    {username: resource.username, role: OldProjectRole.PI},
-                                    {username: Client.username!, role: OldProjectRole.ADMIN}
-                                ]
-                            });
-                        },
-                        confirmText: "Transfer PI role"
-                    });
-                },
-            };
-            return result;
-        }, [callbacks.dispatch, resource.username]);
-
-        const addToGroup = useCallback((e: React.SyntheticEvent) => {
-            e.stopPropagation();
-            if (!inspectingGroup) return;
-            callbacks.dispatch({type: "AddToGroup", member: resource.username, group: inspectingGroup.id});
-        }, [callbacks.dispatch, resource, inspectingGroup]);
-
-        return <div className={MemberRowWrapper}>
-            <RadioTilesContainer height={"48px"}>
-                {options.map(it => (
-                    <RadioTile
-                        key={it.text}
-                        name={resource.username}
-                        icon={it.icon}
-                        height={40}
-                        labeled
-                        label={it.text}
-                        fontSize={"0.5em"}
-                        checked={resource.role === it.value}
-                        onChange={onRoleChange[it.value]}
-                    />
-                ))}
-            </RadioTilesContainer>
-
-            {!isAdmin ? null : !inspectingGroup ? null : <>
-                <Button ml="8px" color="successMain" height="35px" width="35px" onClick={addToGroup}
-                    disabled={memberOfThisGroup}>
-                    <Icon
-                        color="primaryContrast"
-                        name="arrowDown"
-                        rotation={-90}
-                        width="1em"
-                        title="Add to group"
-                    />
-                </Button>
-            </>}
-        </div>;
-    },
-
-    Stats: ({resource, callbacks}) => {
-        const {project} = callbacks;
-        if (!resource || !project) return null;
-        const memberOfAnyGroup = (project.status.groups ?? [])
-            .some(g => g.status.members!.some(m => m === resource.username));
-
-        return <>
-            {memberOfAnyGroup ? null : <>
-                <Text color={"errorMain"}>
-                    <Icon name={"warning"} size={20} mr={"6px"} color="errorMain" />
-                    Not a member of any group
-                </Text>
-            </>}
-        </>;
-    }
-};
-
-const memberOperations: Operation<ProjectMember, Callbacks>[] = [
-    {
-        text: "Promote to admin",
-        icon: "userAdmin",
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role === OldProjectRole.USER && m.username !== Client.username),
-        onClick: (members, cb) => {
-            cb.dispatch({
-                type: "ChangeRole",
-                changes: members.map(m => ({username: m.username, role: OldProjectRole.ADMIN}))
-            });
-        },
-        shortcut: ShortcutKey.A
-    },
-    {
-        text: "Demote to user",
-        icon: "user",
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role === OldProjectRole.ADMIN && m.username !== Client.username),
-        onClick: (members, cb) => {
-            cb.dispatch({
-                type: "ChangeRole",
-                changes: members.map(m => ({username: m.username, role: OldProjectRole.USER}))
-            });
-        },
-        shortcut: ShortcutKey.U
-    },
-    {
-        text: "Remove",
-        icon: "close",
-        color: "errorMain",
-        confirm: true,
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !cb.inspectingGroup &&
-            members.every(m => m.role !== OldProjectRole.PI && m.username !== Client.username),
-        onClick: (members, cb) => {
-            cb.dispatch({type: "RemoveMember", members: members.map(it => it.username)});
-        },
-        shortcut: ShortcutKey.R
-    },
-    {
-        text: "Add to group",
-        icon: "arrowDown",
-        iconRotation: -90,
-        enabled: (members, cb) => members.length >= 1 && cb.isAdmin && !!cb.inspectingGroup,
-        onClick: (members, cb) => {
-            for (const member of members) {
-                cb.dispatch({type: "AddToGroup", group: cb.inspectingGroup!.id, member: member.username});
-            }
-        },
-        shortcut: ShortcutKey.G
-    }
-];
-
-const InviteRenderer: ItemRenderer<ProjectInvite> = {
-    Icon: ({resource}) => {
-        const avatars = useAvatars();
-        if (!resource) return null;
-        return <UserAvatar avatar={avatars.avatar(resource.recipient)} height="48px" width="48px" />;
-    },
-
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-        return <>{resource.recipient}</>;
-    },
-
-    Stats: ({resource}) => {
-        if (!resource) return null;
-        return <>Invited to join by {resource.invitedBy}</>;
-    }
-};
-
-const inviteOperations: Operation<ProjectInvite, Callbacks>[] = [
-    {
-        text: "Remove",
-        icon: "close",
-        color: "errorMain",
-        confirm: true,
-        enabled: (invites, cb) => invites.length > 0 && cb.isAdmin,
-        onClick: (invites, cb) => {
-            cb.dispatch({type: "RemoveInvite", members: invites.map(it => it.recipient)});
-        },
-        shortcut: ShortcutKey.R
-    }
-];
-
-const GroupRenderer: ItemRenderer<ProjectGroup> = addNamingToRenderer({
-    Icon: () => null,
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-
-        const isPlaceholder = resource.id.indexOf(placeholderPrefix) === 0;
-        return <Flex alignItems="center">
-            <Box mr="10px">{resource?.specification?.title}</Box>
-            {!isPlaceholder ? null : <Spinner />}
-        </Flex>;
-    },
-    Stats: () => null,
-    ImportantStats: ({resource}) => {
-        if (!resource) return null;
-        const numberOfMembers = resource.status.members?.length;
-        return <><Icon name="user" mr="8px" /> {numberOfMembers}</>;
-    },
-});
-
-interface GroupCallbacks extends Callbacks, CreationCallbacks {
-    setRenaming: (group: ProjectGroup) => void;
-}
-
-const groupOperations: Operation<ProjectGroup, GroupCallbacks>[] = [
-    {
-        text: "Rename",
-        icon: "rename",
-        enabled: (groups, cb) => {
-            return groups.length === 1 && cb.isAdmin;
-        },
-        onClick: ([group], cb) => {
-            cb.setRenaming(group);
-        },
-        shortcut: ShortcutKey.R
-    },
-    {
-        text: "Delete",
-        icon: "trash",
-        color: "errorMain",
-        confirm: true,
-        enabled: (groups, cb) => groups.length >= 1 && cb.isAdmin,
-        onClick: (groups, cb) => {
-            cb.dispatch({type: "RemoveGroup", ids: groups.map(it => it.id)});
-        },
-        shortcut: ShortcutKey.D
-    },
-    {
-        text: "Properties",
-        icon: "properties",
-        enabled: (groups) => groups.length === 1,
-        onClick: ([group], cb) => {
-            cb.dispatch({type: "InspectGroup", group: group.id});
-        },
-        shortcut: ShortcutKey.P
-    },
-];
-
-const GroupMemberRenderer: ItemRenderer<string> = {
-    Icon: ({resource}) => {
-        const avatars = useAvatars();
-        if (!resource) return null;
-        return <UserAvatar avatar={avatars.avatar(resource)} height="48px" width="48px" />;
-    },
-    MainTitle: ({resource}) => <>{resource}</>,
-};
-
-const groupMemberOperations: Operation<string, Callbacks>[] = [
-    {
-        text: "Remove",
-        icon: "close",
-        color: "errorMain",
-        primary: true,
-        enabled: (members, cb) => members.length > 0 && !!cb.inspectingGroup && cb.isAdmin,
-        onClick: (members, cb) => {
-            if (!cb.inspectingGroup) return;
-            members.forEach(member => {
-                cb.dispatch({type: "RemoveFromGroup", member, group: cb.inspectingGroup!.id});
-            });
-        },
-        shortcut: ShortcutKey.D
-    }
-];
-
-function daysLeftToTimestamp(timestamp: number): number {
-    return Math.floor((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
-}
-
-function inviteLinkFromToken(token: string): string {
-    return window.location.origin + "/app/projects/invite/" + token;
-}
-
-
-const InviteLinkEditor: React.FunctionComponent<{project: Project, groups: (ProjectGroup | undefined)[]}> = ({project, groups}) => {
-    const [inviteLinksFromApi, fetchInviteLinks] = useCloudAPI<PageV2<ProjectInviteLink>>({noop: true}, emptyPageV2);
-    const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
-    const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-    const [selectedRole, setSelectedRole] = useState<string>("USER");
-
-    const roles = [
-        {text: "User", value: "USER"},
-        {text: "Admin", value: "ADMIN"}
-    ];
-
-    const groupItems = groups.map(g =>
-        g ? {text: g.specification.title, value: g.id} : null
-    ).filter(g => g?.text != "All users");
+    const [inviteLinks, setInviteLinks] = useState<ProjectInviteLink[]>([]);
 
     useEffect(() => {
-        if (editingLink) {
-            setSelectedRole(
-                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.roleAssignment ?? "USER"
-            );
+        let didCancel = false;
+        (async () => {
+            const links = await fetchAll(next => {
+                return callAPI<PageV2<ProjectInviteLink>>({
+                    ...Api.browseInviteLinks({itemsPerPage: 250, next}),
+                    projectOverride: projectId,
+                });
+            });
 
-            setSelectedGroups(
-                inviteLinksFromApi.data.items.find(it => it.token === editingLink)?.groupAssignment.map(it => it) ?? []
-            );
-        }
-    }, [editingLink, inviteLinksFromApi]);
-
-    useEffect(() => {
-        fetchInviteLinks({
-            ...Api.browseInviteLinks({itemsPerPage: 10}),
-            projectOverride: project.id
-        });
+            if (!didCancel) setInviteLinks(links);
+        })();
+        return () => {
+            didCancel = true;
+        };
     }, []);
 
-    return inviteLinksFromApi.data.items.length < 1 ? <>
-        <Heading.h3>Invite with link</Heading.h3>
-        <Box textAlign="center">
-            <Text mb="20px" mt="20px">Invite collaborators to this project with a link</Text>
-            <Button
-                onClick={async () => {
-                    await callAPIWithErrorHandler({
-                        ...Api.createInviteLink(),
+    function updateLink(linkId: string, newGroups: string[] | null, newRole: ProjectRole | null) {
+        const oldLink = inviteLinks.find(it => it.token === linkId);
+        const newLink: UpdateInviteLinkRequest = {
+            token: linkId,
+            role: newRole ?? oldLink?.roleAssignment ?? OldProjectRole.USER,
+            groups: newGroups ?? oldLink?.groupAssignment ?? [],
+        };
+
+        callAPI(Api.updateInviteLink(newLink)).then(doNothing);
+        setInviteLinks(prev => {
+            return prev.map(it => {
+                if (it.token === newLink.token) {
+                    return {
+                        token: newLink.token,
+                        groupAssignment: newLink.groups,
+                        roleAssignment: newLink.role as ProjectRole,
+                        expires: oldLink?.expires ?? 0,
+                    };
+                } else {
+                    return it;
+                }
+            });
+        });
+    }
+
+    if (!modifiedProject) return null;
+
+    const activeGroup = (modifiedProject.status.groups ?? [])
+        .find(it => it.id === groupIdParam) ?? null;
+
+    return <MembersContainer
+        onSortUpdated={setSortUpdate}
+        currentSortOption={sortUpdate}
+        onInvite={username => {
+            avatars.updateCache([username]);
+            dispatch({type: "InviteMember", members: [username]});
+        }}
+        onSearch={query => {
+            setMemberQuery(query);
+        }}
+        onAddToGroup={(username, groupId) => {
+            dispatch({type: "AddToGroup", member: username, group: groupId});
+        }}
+        onRemoveFromGroup={(username, groupId) => {
+            dispatch({type: "RemoveFromGroup", member: username, group: groupId});
+        }}
+        onCreateGroup={(groupTitle) => {
+            dispatch({type: "CreateGroup", title: groupTitle, placeholderId: groupIdCounter++});
+        }}
+        onDeleteGroup={(groupId) => {
+            dispatch({type: "RemoveGroup", ids: [groupId]});
+        }}
+        onChangeRole={(username, newRole) => {
+            dispatch({type: "ChangeRole", changes: [{username: username, role: newRole}]});
+        }}
+        onRemoveFromProject={(username) => {
+            dispatch({type: "RemoveMember", members: [username]});
+        }}
+        onCreateInviteLink={async () => {
+            const link = await callAPI(Api.createInviteLink());
+            setInviteLinks(prev => {
+                return [...prev, link];
+            });
+        }}
+        onDeleteLink={linkId => {
+            callAPI(Api.deleteInviteLink({token: linkId})).then(doNothing);
+            setInviteLinks(prev => {
+                return prev.filter(it => it.token !== linkId)
+            });
+        }}
+        onLinkGroupsUpdated={(linkId, groupIds) => {
+            updateLink(linkId, groupIds, null);
+        }}
+        onUpdateLinkRole={(linkId, role) => {
+            updateLink(linkId, null, role);
+        }}
+        onRenameGroup={(groupId, newTitle) => {
+            dispatch({type: "RenameGroup", group: groupId, newTitle});
+        }}
+        onRemoveInvite={username => {
+            dispatch({type: "RemoveInvite", members: [username]});
+        }}
+        onDuplicate={async (groupId: string) => {
+            if (project === null) return;
+            const group = modifiedProject?.status.groups?.find((group) => group.id === groupId);
+            if (group === undefined) return;
+            for (let i = 1; i < 100; i += 1) {
+                let ids: BulkResponse<FindByStringId>;
+                try {
+                    ids = await callAPI<BulkResponse<FindByStringId>>({
+                        ...Api.createGroup(bulkRequestOf({
+                            project: project.id,
+                            title: `${group.specification.title} (${i})`
+                        })),
                         projectOverride: project.id
                     });
+                } catch (e) {
+                    continue;
+                }
+                const newId = ids.responses[0].id;
 
-                    fetchInviteLinks({
-                        ...Api.browseInviteLinks({itemsPerPage: 10}),
-                        projectOverride: project.id
-                    });
-                }}
-            >Create link</Button>
-        </Box>
-    </> : <>
-        {editingLink !== undefined ?
-            <Box minHeight="200px">
-                <Flex>
-                    <Button mr={20} onClick={() => setEditingLink(undefined)}>
-                        <Icon name="backward" size={20} />
-                    </Button>
-                    <Heading.h3>Edit link settings</Heading.h3>
-                </Flex>
+                const newGroupMembers = group.status.members!.map((member) => {
+                    return {group: newId, username: member};
+                });
 
-                <Flex justifyContent="space-between" mt={20} mb={10}>
-                    <Text pt="10px">Assign members to role</Text>
-                    <div className={SelectBox}>
-                        <ClickableDropdown
-                            useMousePositioning
-                            width="100px"
-                            chevron
-                            trigger={roles.find(it => it.value === selectedRole)?.text}
-                            options={roles}
-                            onChange={async role => {
-                                await callAPIWithErrorHandler({
-                                    ...Api.updateInviteLink({token: editingLink, role: role, groups: selectedGroups}),
-                                    projectOverride: project.id
-                                });
+                if (newGroupMembers.length === 0) {
+                    reload();
+                    return;
+                }
 
-                                fetchInviteLinks({
-                                    ...Api.browseInviteLinks({itemsPerPage: 10}),
-                                    projectOverride: project.id
-                                });
-                            }}
-                        />
-                    </div>
-                </Flex>
-                <Flex justifyContent="space-between">
-                    <Text pt="10px">Assign members to groups</Text>
-
-                    <div className={SelectBox}>
-                        <ClickableDropdown
-                            useMousePositioning
-                            width="300px"
-                            height={300}
-                            chevron
-                            trigger={<>{selectedGroups.length} selected groups</>}
-                            keepOpenOnClick={true}
-                        >
-                            {groupItems.length < 1 ?
-                                <>No selectable groups</>
-                                :
-                                groupItems.map(item =>
-                                    item ?
-                                        <Box
-                                            key={item.value}
-                                            onClick={async () => {
-                                                const newSelection = selectedGroups.length < 1 ? [item.value] :
-                                                    selectedGroups.includes(item.value) ?
-                                                        selectedGroups.filter(it => it != item.value) : selectedGroups.concat([item.value]);
-
-                                                await callAPIWithErrorHandler({
-                                                    ...Api.updateInviteLink({token: editingLink, role: selectedRole, groups: newSelection}),
-                                                    projectOverride: project.id
-                                                });
-
-                                                fetchInviteLinks({
-                                                    ...Api.browseInviteLinks({itemsPerPage: 10}),
-                                                    projectOverride: project.id
-                                                });
-                                            }}
-                                        >
-                                            <Checkbox checked={selectedGroups.includes(item.value)} readOnly />
-                                            {item.text}
-                                        </Box>
-                                        : <></>
-                                )
-                            }
-                        </ClickableDropdown>
-                    </div>
-                </Flex>
-            </Box> : <>
-                <Flex justifyContent="space-between">
-                    <Heading.h3>Invite with link</Heading.h3>
-                    <Box textAlign="right">
-                        <Button
-                            onClick={async () => {
-                                await callAPIWithErrorHandler({
-                                    ...Api.createInviteLink(),
-                                    projectOverride: project.id
-                                });
-
-                                fetchInviteLinks({
-                                    ...Api.browseInviteLinks({itemsPerPage: 10}),
-                                    projectOverride: project.id
-                                });
-                            }}
-                        >Create link</Button>
-                    </Box>
-                </Flex>
-                <Box mt={20}>
-                    {inviteLinksFromApi.data.items.map(link => (
-                        <Box key={link.token} mb="10px">
-                            <Flex justifyContent="space-between">
-
-                                <Flex flexDirection={"column"}>
-                                    <Tooltip
-                                        trigger={(
-                                            <Input
-                                                readOnly
-                                                style={{"cursor": "pointer"}}
-                                                onClick={() => {
-                                                    copyToClipboard({value: inviteLinkFromToken(link.token), message: "Link copied to clipboard"})
-                                                }}
-                                                mr={10}
-                                                value={inviteLinkFromToken(link.token)}
-                                                width="500px"
-                                            />
-                                        )}
-                                    >
-                                        Click to copy link to clipboard
-                                    </Tooltip>
-                                    <Text fontSize={12}>This link will automatically expire in {daysLeftToTimestamp(link.expires)} days</Text>
-                                </Flex>
-                                <Flex>
-                                    <Button
-                                        mr="5px"
-                                        height={40}
-                                        onClick={() =>
-                                            setEditingLink(link.token)
-                                        }
-                                    >
-                                        <Icon name="edit" size={20} />
-                                    </Button>
-
-                                    <ConfirmationButton
-                                        color="errorMain"
-                                        height={40}
-                                        onAction={async () => {
-                                            await callAPIWithErrorHandler({
-                                                ...Api.deleteInviteLink({token: link.token}),
-                                                projectOverride: project.id
-                                            });
-
-                                            fetchInviteLinks({
-                                                ...Api.browseInviteLinks({itemsPerPage: 10}),
-                                                projectOverride: project.id
-                                            });
-                                        }}
-                                        icon="trash"
-                                    />
-                                </Flex>
-                            </Flex>
-                        </Box>
-                    ))}
-                </Box>
-            </>}
-    </>
+                const success = await callAPIWithErrorHandler({
+                    ...Api.createGroupMember(bulkRequestOf(...newGroupMembers)),
+                    projectOverride: project.id
+                }) != null;
+                if (!success) {
+                    snackbarStore.addFailure("Could not duplicate group", false);
+                    return;
+                }
+                reload();
+                break;
+            }
+        }}
+        onRefresh={reload}
+        invitations={invites.items}
+        project={modifiedProject}
+        activeGroup={activeGroup}
+        inviteLinks={inviteLinks}
+    />;
 };
-
-const SelectBox = injectStyleSimple("select-box", `
-    border: 2px solid var(--borderColor);
-    border-radius: 5px;
-    padding: 10px;
-`);
-
-// Utilities
-// ================================================================================
-interface Callbacks {
-    dispatch: (action: ProjectAction) => void;
-    inspectingGroup: ProjectGroup | null;
-    project: Project | null;
-    isAdmin: boolean;
-}
-
-interface RoleOption {
-    text: string;
-    icon: IconName;
-    value: ProjectRole;
-}
-
-const allRoleOptions: RoleOption[] = [
-    {text: "User", icon: "user", value: OldProjectRole.USER},
-    {text: "Admin", icon: "userAdmin", value: OldProjectRole.ADMIN},
-    {text: "PI", icon: "userPi", value: OldProjectRole.PI}
-];
-
-function roleOptionForRole(role: ProjectRole): RoleOption {
-    return allRoleOptions.find(it => it.value === role)!;
-}
-
-interface CreationCallbacks {
-    create: (title: string) => void;
-    setIsCreating: (visible: boolean) => void;
-}
-
-function addNamingToRenderer<T, CB extends CreationCallbacks>(renderer: ItemRenderer<T, CB>): ItemRenderer<T, CB> {
-    const copy: ItemRenderer<T, CB> = {...renderer};
-    const NormalMainTitle = renderer.MainTitle;
-    copy.MainTitle = function mainTitle(props) {
-        const {resource, callbacks} = props;
-        const cancelCreate = useCallback(() => callbacks.setIsCreating(false), [callbacks.setIsCreating]);
-        const inputRef = useRef<HTMLInputElement>(null);
-        const onCreate = useCallback(() => {
-            const value = inputRef.current?.value;
-            if (!value) return;
-            callbacks.create(value);
-        }, [callbacks.create]);
-
-        if (resource === undefined) {
-            return <NamingField
-                confirmText={"Create"}
-                inputRef={inputRef}
-                onCancel={cancelCreate}
-                onSubmit={onCreate}
-            />;
-        } else {
-            return NormalMainTitle ? <NormalMainTitle {...props} /> : null;
-        }
-    };
-    return copy;
-}
-
-// Styling
-// ================================================================================
-// div
-const MemberRowWrapper = injectStyleSimple("member-row-wrapper", `
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`);
-
-export const TwoColumnLayout = injectStyle("two-column-layout", k => `
-    ${k} {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        width: 100%;
-    }
-
-    ${k} > * {
-        flex-basis: 100%;
-    }
-
-    @media screen and (min-width: 1200px) {
-        ${k} > .left {
-            border-right: 2px solid var(--borderColor, #f00);
-            height: 100%;
-            flex: 1;
-            margin-right: 16px;
-            padding-right: 16px;
-        }
-
-        ${k} > .left > .${ListClass} {
-            overflow-y: auto;
-            max-height: calc(100% - 48px - 48px - 10px);
-        }
-        
-        ${k}[data-hide-border="true"] > .left {
-            border-right: 0px solid red;
-        }
-
-        ${k} > .right {
-            flex: 1;
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-    }
-`);
-
-const SearchContainer = injectStyle("search-container", k => `
-    ${k} > form {
-        display: flex;
-        margin-right: 10px;
-        margin-bottom: 10px;
-        flex-grow: 1;
-        flex-basis: 350px;
-    }
-`);
-
-const HelpCircleClass = injectStyle("help-circle", k => `
-    ${k} {
-        border-radius: 500px;
-        width: 26px;
-        height: 26px;
-        border: 2px solid var(--textPrimary);
-        cursor: pointer;
-    }
-
-    ${k}::after {
-        content: "?";
-        display: flex;
-        justify-content: center;
-    }
-`);
-
-const USER_ID_HELP = (
-    <Tooltip tooltipContentWidth={250} trigger={<div className={HelpCircleClass} />}>
-        <Text fontSize={12}>
-            Your username can be found next to {" "}<Icon name="heroIdentification" />, by clicking the avatar in the bottom of the sidebar.
-        </Text>
-    </Tooltip>
-);
 
 export default ProjectMembers2;

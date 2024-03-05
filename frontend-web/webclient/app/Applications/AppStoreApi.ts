@@ -1,7 +1,6 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {apiBrowse, apiRetrieve, apiSearch, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {inSuccessRange} from "@/UtilityFunctions";
 import {FindByLongId, PaginationRequestV2} from "@/UCloud";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 
@@ -338,6 +337,8 @@ export interface ApplicationGroupSpecification {
     description: string;
     defaultFlavor?: string | null;
     categories: number[];
+    backgroundColor?: string | null;
+    logoHasText?: boolean;
 }
 
 export interface ApplicationGroupStatus {
@@ -532,6 +533,8 @@ export function updateGroup(request: {
     newTitle?: string | null;
     newDefaultFlavor?: string | null;
     newDescription?: string | null;
+    newBackgroundColor?: string | null;
+    newLogoHasText?: boolean;
 }): APICallParameters<unknown, unknown> {
     return apiUpdate(request, baseContext, "updateGroup");
 }
@@ -548,11 +551,21 @@ export function removeLogoFromGroup(request: { id: number }): APICallParameters<
     return apiUpdate(request, baseContext, "removeLogoFromGroup");
 }
 
-export function retrieveGroupLogo(request: { id: number }): string {
+export function retrieveGroupLogo(request: {
+    id: number;
+    darkMode?: boolean;
+    includeText?: boolean;
+    placeTextUnderLogo?: boolean;
+}): string {
     return buildQueryString(`${baseContext}/retrieveGroupLogo`, request);
 }
 
-export function retrieveAppLogo(request: { name: string }): string {
+export function retrieveAppLogo(request: {
+    name: string;
+    darkMode?: boolean;
+    includeText?: boolean;
+    placeTextUnderLogo?: boolean;
+}): string {
     return buildQueryString(`${baseContext}/retrieveAppLogo`, request);
 }
 
@@ -691,6 +704,8 @@ export interface TopPick {
     groupId?: number | null;
     description: string;
     defaultApplicationToRun?: string | null;
+    logoHasText?: boolean;
+    logoBackgroundColor?: string;
 }
 
 export interface Spotlight {

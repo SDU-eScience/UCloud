@@ -7,7 +7,7 @@ import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {LinkInfo, SidebarTabId} from "@/ui-components/SidebarComponents";
-import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip, Truncate} from "@/ui-components";
 import {accounting, BulkResponse, PageV2} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler, InvokeCommand, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
@@ -49,6 +49,8 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {useProjectId} from "@/Project/Api";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES},
@@ -332,7 +334,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     //Projects should now show this page
     const activeProjectId = useProjectId();
     React.useEffect(() => {
-        if (activeProjectId) {
+        if (activeProjectId && !opts?.embedded) {
             navigate(AppRoutes.dashboard.dashboardA());
         }
     }, [activeProjectId])
@@ -367,9 +369,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setColumnTitles([{name: "Filename"}, {name: "Share state"}, {name: "Last updated"}, {name: "Shared by"}]);
+                browser.setColumnTitles([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 150}, {name: "Shared by", columnWidth: 80}]);
 
-                browser.on("beforeOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
+                browser.on("skipOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(buildQueryString("/files", {path: resource.status.shareAvailableAt}));
@@ -432,10 +434,10 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "ftSharesFolder",
-                        color: "iconColor",
-                        color2: "iconColor2",
-                        height: 32,
-                        width: 32
+                        color: "FtFolderColor",
+                        color2: "FtFolderColor2",
+                        height: 64,
+                        width: 64
                     }).then(setIcon);
 
                     // Row title
@@ -471,7 +473,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         const group = createHTMLElements<HTMLDivElement>({
                             tagType: "div",
                             className: ButtonGroupClass,
-                            style: {marginTop: "auto", marginBottom: "auto"},
+                            style: {marginTop: "auto", marginBottom: "auto", marginLeft: "12px"},
                         });
                         wrapper.append(group);
                         group.appendChild(browser.defaultButtonRenderer({
@@ -496,8 +498,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         browser.icons.renderIcon({
                             ...StateIconAndColor[state],
                             color2: "iconColor2",
-                            height: 32,
-                            width: 32,
+                            height: 64,
+                            width: 64,
                         }).then(setStateIcon);
                     }
 
@@ -520,18 +522,17 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     // causing multiple avatars to be shown.
                     const avatarWrapper = document.createElement("div");
                     row.stat3.append(avatarWrapper);
+                    HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Shared by ${share.owner.createdBy}`}), {tooltipContentWidth: 250});
                     if (avatarCache[share.owner.createdBy]) {
-                        avatarWrapper.appendChild(avatarCache[share.owner.createdBy].clone());
+                        const avatar = avatarCache[share.owner.createdBy].clone()
+                        avatarWrapper.appendChild(avatar);
                     } else {
                         new ReactStaticRenderer(() =>
-                            <Tooltip
-                                trigger={<Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />}
-                            >
-                                Shared by {share.owner.createdBy}
-                            </Tooltip>
+                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
                         ).promise.then(it => {
                             avatarCache[share.owner.createdBy] = it;
-                            avatarWrapper.appendChild(it.clone());
+                            const avatar = it.clone();
+                            avatarWrapper.appendChild(avatar);
                         });
                     }
                 });

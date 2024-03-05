@@ -229,7 +229,7 @@ const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, i
         case "DIRECTORY_JOBS":
             return (<Icon name="ftResultsFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "DIRECTORY_SHARES":
-            return (<Icon name="ftSharesFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
+            return (<Icon name="ftSharesFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"}/>);
         case "DIRECTORY_STAR":
             return (<Icon name="ftFavFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "DIRECTORY_TRASH":
@@ -238,7 +238,7 @@ const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, i
 
     switch (fileIcon.type) {
         case "SHARESFOLDER":
-            return (<Icon name="ftSharesFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
+            return (<Icon name="ftSharesFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"}/>);
         case "FAVFOLDER":
             return (<Icon name="ftFavFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "TRASHFOLDER":

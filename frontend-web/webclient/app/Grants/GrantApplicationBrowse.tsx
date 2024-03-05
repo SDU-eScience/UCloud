@@ -44,13 +44,15 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
-        dragToSelect: !opts?.embedded,
+        dragToSelect: !opts?.embedded && !opts?.isModal,
+        showColumnTitles: !opts?.embedded && !opts?.isModal,
     };
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Grants.Application>(mount, "Grant Application", opts).init(browserRef, features, "", browser => {
+                browser.setColumnTitles([{name: "Recipient"}, {name: "", columnWidth: 0}, {name: "Last updated", columnWidth: 150}, {name: "", columnWidth: 50}]);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.grants.editor(resource.id));

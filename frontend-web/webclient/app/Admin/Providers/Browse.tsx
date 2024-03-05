@@ -29,7 +29,7 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 
-const rowTitles: ColumnTitleList = [{name: "Provider name"}, {name: ""}, {name: ""}, {name: ""}];
+const rowTitles: ColumnTitleList = [{name: "Provider name"}, {name: "", columnWidth: 150}, {name: "", columnWidth: 150}, {name: "", columnWidth: 0}];
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Provider> | null>(null);
@@ -38,7 +38,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        usePage("Providers", SidebarTabId.NONE);
+        usePage("Providers", SidebarTabId.ADMIN);
     }
 
     const omitFilters = !!opts?.omitFilters;

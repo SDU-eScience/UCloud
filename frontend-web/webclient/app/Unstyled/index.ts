@@ -136,12 +136,14 @@ export function unbox(props: BoxProps | SpaceProps): React.CSSProperties {
     if ("justifyContent" in props && props.justifyContent) result.justifyContent = props.justifyContent.toString() as any;
     if ("flexGrow" in props && props.flexGrow) result.flexGrow = props.flexGrow.toString();
     if ("flexBasis" in props && props.flexBasis) result.flexBasis = props.flexBasis.toString();
-    if ("flexShrink" in props && props.flexShrink) result.flexShrink = props.flexShrink.toString();
+    if ("flexShrink" in props && props.flexShrink != null) result.flexShrink = props.flexShrink.toString();
     if ("textAlign" in props && props.textAlign) result.textAlign = props.textAlign.toString() as any;
     if ("verticalAlign" in props && props.verticalAlign) result.verticalAlign = props.verticalAlign.toString() as any;
     if ("fontSize" in props && props.fontSize) result.fontSize = extractSize(props.fontSize);
     if ("backgroundColor" in props && props.backgroundColor) result.backgroundColor = props.backgroundColor.toString();
     if ("objectFit" in props && props.objectFit) result.objectFit = props.objectFit;
+    if ("columnGap" in props && props.columnGap) result.columnGap = props.columnGap;
+    if ("rowGap" in props && props.rowGap) result.rowGap = props.rowGap;
 
     return result;
 }

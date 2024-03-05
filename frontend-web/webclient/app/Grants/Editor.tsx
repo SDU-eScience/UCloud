@@ -2117,7 +2117,7 @@ export function Editor(): React.JSX.Element {
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
                                             New project (<a className={BaseLinkClass} href="#" onClick={switchToExistingWorkspace}>
-                                                click here to select an existing workspace instead
+                                                select an existing workspace instead
                                             </a>)
                                             <Input id={FormIds.title}
                                                 placeholder={"Please enter the title of your project"}
@@ -2127,7 +2127,7 @@ export function Editor(): React.JSX.Element {
                                         </>}
                                         {!state.stateDuringCreate.creatingWorkspace && <>
                                             Existing workspace (<a href="#" className={BaseLinkClass} onClick={switchToNewWorkspace}>
-                                                click here to create a new project instead
+                                                create a new project instead
                                             </a>)
                                             <Select value={state.stateDuringCreate.reference || "null"}
                                                 onChange={onProjectSelected}>

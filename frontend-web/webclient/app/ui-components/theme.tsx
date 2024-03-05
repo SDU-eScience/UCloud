@@ -1,4 +1,5 @@
 import {isLightThemeStored, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
+import {useEffect, useState} from "react";
 
 export const appColors = [
     // ["#0096ff", "#043eff"], // blue
@@ -119,4 +120,20 @@ export function addThemeListener(key: string, op: () => void) {
 
 export function removeThemeListener(key: string) {
     delete themeListeners[key];
+}
+
+export function useIsLightThemeStored(): boolean {
+    const [isLight, setIsLight] = useState(isLightThemeStored());
+
+    useEffect(() => {
+        const random = Math.random().toString();
+        addThemeListener(random, () => {
+            setIsLight(isLightThemeStored());
+        });
+        return () => {
+            removeThemeListener(random);
+        }
+    }, []);
+
+    return isLight;
 }

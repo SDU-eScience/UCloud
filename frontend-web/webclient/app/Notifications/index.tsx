@@ -132,7 +132,7 @@ function resolveNotification(event: Notification): {
                 modifiedMessage: jobsFailedMessage
             };
         default:
-            return {icon: "info", color: "iconColor", color2: "iconColor2"};
+            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor2"};
     }
 }
 

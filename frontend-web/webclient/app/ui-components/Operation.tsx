@@ -103,6 +103,7 @@ const OperationComponent: React.FunctionComponent<{
     location: OperationLocation;
     onAction: () => void;
     text: string;
+    idx: number;
 }> = ({As, op, selected, all, extra, reasonDisabled, location, onAction, text}) => {
     const onClick = useCallback((e?: React.SyntheticEvent) => {
         if (op.primary === true) e?.stopPropagation();
@@ -204,8 +205,8 @@ export const Operations: OperationsType = props => {
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
     const operations: {elem: JSX.Element, priority: number, primary: boolean}[] = props.operations
-        .filter(op => op.enabled(selected, props.extra, props.all) !== false /* && op.canAppearInLocation?.(props.location) !== false */)
-        .map(op => {
+        .filter(op => op.enabled(selected, props.extra, props.all) !== false)
+        .map((op, idx) => {
             const enabled = op.enabled(selected, props.extra, props.all);
             let reasonDisabled: string | undefined = undefined;
             if (typeof enabled === "string") {
@@ -218,7 +219,7 @@ export const Operations: OperationsType = props => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const As = opTypeFn(props.location, props.operations) as React.ComponentType<any>;
             const elem = <OperationComponent key={text} As={As} op={op} extra={props.extra} selected={selected}
-                reasonDisabled={reasonDisabled} location={props.location} all={props.all}
+                reasonDisabled={reasonDisabled} location={props.location} all={props.all} idx={idx}
                 onAction={closeDropdown} text={text} />;
             const priority = As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};

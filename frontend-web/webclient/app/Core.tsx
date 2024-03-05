@@ -15,7 +15,6 @@ const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
 const ProviderRouter = React.lazy(() => import("@/Admin/Providers/Router"));
 const SharesAcceptLink = React.lazy(() => import("@/Files/SharesAcceptLink"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
-const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
 const LoginPage = React.lazy(() => import("@/Login/Login"));
 const Registration = React.lazy(() => import("@/Login/Registration"));
@@ -132,8 +131,6 @@ const Core = (): React.JSX.Element => (
 
                         <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobShell))} />
-                        <Route path={AppRoutes.apps.web(":jobId", ":rank")}
-                            element={React.createElement(requireAuth(JobWeb))} />
                         <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
                             element={React.createElement(requireAuth(JobVnc))} />
 

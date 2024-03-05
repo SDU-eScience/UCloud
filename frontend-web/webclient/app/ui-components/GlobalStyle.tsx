@@ -43,6 +43,21 @@ export function mixColors(initialColor: string, endColor: string, percentage: nu
     return "#" + newR + newG + newB;
 }
 
+export function colorDistanceRgb(color1Hex: string, color2Hex: string): number {
+    const [r1, g1, b1] = hexToRgb(color1Hex);
+    const [r2, g2, b2] = hexToRgb(color2Hex);
+    return Math.sqrt(((r2 - r1) * (r2 - r1)) + ((g2 - g1) * (g2 - g1)) + ((b2 - b1) * (b2 - b1)));
+}
+
+export function grayScaleRgb(r: number, g: number, b: number): [number, number, number] {
+    const avg = (r + g + b) / 3;
+    return [avg, avg, avg];
+}
+
+export function invertColorRgb(r: number, g: number, b: number): [number, number, number] {
+    return [255 - r, 255 - b, 255 - g];
+}
+
 export function rgbToHex(r: number, g: number, b: number): string {
     let result = "#";
     result += Math.min(255, r).toString(16).padStart(2, '0');
@@ -88,9 +103,9 @@ export function hslToRgb(h: number, s: number, l: number): string {
     function hueToRgb(p, q, t) {
         if (t < 0) t += 1;
         if (t > 1) t -= 1;
-        if (t < 1/6) return p + (q - p) * 6 * t;
-        if (t < 1/2) return q;
-        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
         return p;
     }
 
@@ -101,9 +116,9 @@ export function hslToRgb(h: number, s: number, l: number): string {
     } else {
         const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
         const p = 2 * l - q;
-        r = hueToRgb(p, q, h + 1/3);
+        r = hueToRgb(p, q, h + 1 / 3);
         g = hueToRgb(p, q, h);
-        b = hueToRgb(p, q, h - 1/3);
+        b = hueToRgb(p, q, h - 1 / 3);
     }
 
     return rgbToHex(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
@@ -129,7 +144,7 @@ function luminance(r: number, g: number, b: number) {
     return a[0] * RED + a[1] * GREEN + a[2] * BLUE;
 }
 
-function contrast(rgb1: string, rgb2: string) {
+export function contrast(rgb1: string, rgb2: string) {
     const lum1 = luminance(...hexToRgb(rgb1));
     const lum2 = luminance(...hexToRgb(rgb2));
     const brightest = Math.max(lum1, lum2);
@@ -526,14 +541,7 @@ strong {
 code,
 kbd,
 samp {
-  font-family:
-    /* macOS 10.10+ */ Menlo,
-    /* Windows 6+ */ Consolas,
-    /* Android 4+ */ Roboto Mono,
-    /* Ubuntu 10.10+ */ Ubuntu Monospace,
-    /* KDE Plasma 4+ */ Oxygen Mono,
-    /* Linux/OpenOffice fallback */ Liberation Mono,
-    /* fallback */ monospace; /* 1 */
+  font-family: var(--monospace);
 
   font-size: 1em; /* 2 */
 }

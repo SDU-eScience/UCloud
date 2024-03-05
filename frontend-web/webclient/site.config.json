@@ -3,6 +3,7 @@
     "PRODUCT_NAME": "UCloud",
     "VERSION_TEXT": "",
     "DEV_SITE": "dev.cloud.sdu.dk",
+    "SANDBOX_SITE": "sandbox.dev.cloud.sdu.dk",
     "STAGING_SITE": "staging.dev.cloud.sdu.dk",
     "PRODUCTION_SITE": "cloud.sdu.dk",
     "DEV_WEBDAV_URL": "https://webdav.dev.cloud.sdu.dk/",

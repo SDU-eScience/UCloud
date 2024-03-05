@@ -1,8 +1,7 @@
 import * as localForage from "localforage";
-import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {appColors} from "@/ui-components/theme";
+import {appColors, useIsLightThemeStored} from "@/ui-components/theme";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {injectStyle} from "@/Unstyled";
 
@@ -15,6 +14,7 @@ interface AppToolLogoProps {
 export type LogoType = "APPLICATION" | "TOOL" | "GROUP";
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
+    const isLight = useIsLightThemeStored();
     const size = props.size !== undefined ? props.size : "48px";
 
     const [dataUrl, setDataUrl] = useState<string | null | "loading">("loading");
@@ -27,8 +27,8 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         } else {
             (async () => {
                 const url = props.type === "GROUP" ?
-                    AppStore.retrieveGroupLogo({ id: parseInt(props.name) })
-                    : AppStore.retrieveAppLogo({ name: props.name });
+                    AppStore.retrieveGroupLogo({id: parseInt(props.name), includeText: false, darkMode: !isLight})
+                    : AppStore.retrieveAppLogo({name: props.name, includeText: false, darkMode: !isLight});
 
                 try {
                     const blob = await (await fetch(url)).blob();
@@ -39,23 +39,26 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
                             setDataUrl(null);
                         }
                     }
-                } catch (e) {}
+                } catch (e) {
+                }
             })();
         }
 
         return () => {
             didCancel = true;
         };
-    }, [props.name]);
+    }, [props.name, isLight]);
 
-    return dataUrl === "loading" ?
-        <div style={{width: size, height: size}} /> :
-        dataUrl === null ?
-            <AppLogo size={size} hash={hashF(props.name)} /> :
-            <img src={dataUrl} alt={props.name}
-                style={{width: size, height: size, objectFit: "contain"}}
-            />;
-};
+    if (dataUrl == null) return null;
+    return <img
+        src={dataUrl}
+        alt={"Logo"}
+        style={{
+            maxHeight: size,
+            maxWidth: size,
+        }}
+    />;
+}
 
 class LogoCache {
     private readonly context: string;
@@ -64,8 +67,8 @@ class LogoCache {
         this.context = context;
         (async () => {
             const now = window.performance &&
-                window.performance["now"] &&
-                window.performance.timing &&
+            window.performance["now"] &&
+            window.performance.timing &&
                 window.performance.timing.navigationStart ?
                 window.performance.now() + window.performance.timing.navigationStart : Date.now();
             const expiry = await localForage.getItem<number>("logoCacheExpiry");
@@ -206,8 +209,7 @@ export const SafeLogo: React.FunctionComponent<{
     forceBackground?: boolean;
 }> = props => {
     return <div
-        className={SafeLogoStyle}
-        style={{padding: `${parseInt(props.size.toString().replace("px", "")) / 8}px`, background: props.forceBackground ? "white" : undefined}}
+        style={{padding: `${parseInt(props.size.toString().replace("px", "")) / 8}px`}}
     >
         <AppToolLogo size={props.size} name={props.name} type={props.type}/>
     </div>;

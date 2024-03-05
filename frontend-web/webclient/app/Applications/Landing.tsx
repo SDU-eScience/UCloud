@@ -9,16 +9,18 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {CSSProperties, HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
 import {appColors, ThemeColor} from "@/ui-components/theme";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
-import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
+import {ApplicationGroup, Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
+import {LogoWithText} from "@/Applications/LogoGenerator";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -80,13 +82,12 @@ const LandingPage: React.FunctionComponent = () => {
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
                 <article className={landingStyle}>
-                    <Flex alignItems={"center"}><h3>Applications</h3><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
+                    <Flex alignItems={"center"}><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
                     <Hero slides={landingPage.carrousel}/>
                     {starred.data.items.length > 0 &&
                         <StarredApplications2 apps={starred.data.items}/>
                     }
 
-                    {/*<TopPicksCard topPicks={landingPage.topPicks} />*/}
                     <TopPicksCard2 topPicks={landingPage.topPicks}/>
 
                     {landingPage.spotlight && <SpotlightCard2 spotlight={landingPage.spotlight}/>}
@@ -184,7 +185,13 @@ export const SpotlightCard2: React.FunctionComponent<{
 
             <blockquote
                 className={SpotlightDescription}
-                style={{fontStyle: "italic", flexShrink: "1", flexBasis: "400px"}}
+                style={{
+                    fontStyle: "italic",
+                    flexShrink: "1",
+                    flexBasis: "400px",
+                    display: "flex",
+                    alignItems: "center"
+                }}
             >
                 <Markdown allowedElements={["p"]}>
                     {spotlight.body}
@@ -415,8 +422,11 @@ const AppCard1: React.FunctionComponent<{
         link = AppRoutes.jobs.create(props.applicationName);
     }
 
-    return <ReactRouterLink to={link} target={props.target}
-                            className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}>
+    return <ReactRouterLink
+        to={link}
+        target={props.target}
+        className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}
+    >
         <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
         <div className={"content"}>
             <h2>{props.title}</h2>
@@ -440,6 +450,10 @@ const AppCard2Style = injectStyle("app-card-2", k => `
         box-shadow: var(--defaultShadow);
     }
     
+    ${k}:hover {
+        background: var(--backgroundDefault);
+    }
+    
     ${k} > *:first-child {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
@@ -458,7 +472,7 @@ const AppCard2Style = injectStyle("app-card-2", k => `
     
     ${k} .content {
         margin: 16px 0;
-        max-width: calc(100% - 50px);
+        max-width: calc(100% - 102px);
     }
     
     ${k} .description, ${k} .description p {
@@ -479,7 +493,7 @@ const AppCard2Style = injectStyle("app-card-2", k => `
     }
 `);
 
-const AppCard2: React.FunctionComponent<{
+export const AppCard2: React.FunctionComponent<{
     name: string;
     title: string;
     description: string;
@@ -563,7 +577,6 @@ const CategoryCard: React.FunctionComponent<{
     const appC = appColors[appColor(hash)][1];
     // const gradStart = "#6DA8EE";
     let [h, s, l] = rgbToHsl(appC)
-    console.log(appC, h, s, l);
     s /= 1.0;
     // h += 0.50;
     h %= 1;
@@ -658,58 +671,23 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
         display: flex;
         justify-content: center;
         align-items: center;
+        background: var(--backgroundCard);
     }
     
-    ${k} > *:first-child {
-        position: relative;
-        left: var(--offset-x, 0);
-        top: var(--offset-y, 0);
-        transition: filter 0.3s;
-    }
-    
-    ${k}:hover > *:first-child {
-        filter: blur(10px);
+    ${k}:hover {
+        background: var(--backgroundDefault);
     }
 `);
 
-const backgroundColorTable: Record<number, string> = {
-    84: "#00bd80",
-    // 55: "#000000",
-    // 44: "#4097dc",
-    // 39: "#ffffff",
-};
-
-const offsetTable: Record<number, [number, number]> = {
-    84: [0, 0],
-    // 55: [0, 40],
-    18: [0, -5],
-    22: [5, 0],
-};
-
-const sizeTable: Record<number, string> = {
-    84: "192px",
-    // 55: "192px",
-    39: "224px",
-    7: "100px",
-    18: "140px",
-    22: "140px",
-};
-
 const LogoCard: React.FunctionComponent<{
-    groupId: number;
+    id: string | number;
     link: string;
-}> = ({groupId, link}) => {
-    const style: CSSProperties = {};
-    style["background"] = backgroundColorTable[groupId] ?? "white";
-    const [offX, offY] = offsetTable[groupId] ?? [0, 0];
-    style["--offset-x"] = offX + "px";
-    style["--offset-y"] = offY + "px";
-
+    title: string;
+    large?: boolean;
+}> = ({id, link, title, large}) => {
     return <ReactRouterLink to={link}>
-        <div className={TopPickCardStyle} style={style}>
-            <AppToolLogo size={sizeTable[groupId] ?? "100px"} name={groupId.toString()}
-                         type={"GROUP"}/>
-
+        <div className={TopPickCardStyle}>
+            <LogoWithText id={id} title={title} size={60} forceUnder={large}/>
         </div>
     </ReactRouterLink>;
 }
@@ -718,14 +696,15 @@ export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = (
     return <div>
         <h3>Top picks</h3>
         <div className={TopPickCardGridStyle}>
-            {topPicks.map(pick => {
+            {topPicks.map((pick, idx) => {
                 if (pick.groupId) {
                     let link = AppRoutes.apps.group(pick.groupId.toString());
                     if (pick.defaultApplicationToRun) {
                         link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
                     }
 
-                    return <LogoCard groupId={pick.groupId} link={link}/>;
+                    return <LogoCard large={idx === 0 && topPicks.length > 4} id={pick.groupId}
+                                     title={pick.title} link={link}/>;
                 } else {
                     return null;
                 }
@@ -740,11 +719,16 @@ export const StarredApplications2: React.FunctionComponent<{
     return <div>
         <h3>Starred applications</h3>
         <div className={classConcat(TopPickCardGridStyle, apps.length <= 4 ? "small" : undefined)}>
-            {apps.map(app => {
+            {apps.map((app, idx) => {
                 const link = AppRoutes.jobs.create(app.metadata.name);
                 const groupId = app.metadata.group?.metadata?.id ?? 0;
 
-                return <LogoCard groupId={groupId} link={link}/>;
+                return <LogoCard
+                    large={idx === 0 && apps.length > 4}
+                    title={app.metadata.title}
+                    id={app.metadata.name}
+                    link={link}
+                />;
             })}
         </div>
     </div>

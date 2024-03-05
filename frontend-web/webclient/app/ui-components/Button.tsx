@@ -45,6 +45,8 @@ export const ButtonClass = injectStyle("button", k => `
         align-items: center;
         padding: calc(.5em - 1px) 1.2em;
         border-radius: 8px;
+        user-select: none;
+        -webkit-user-select: none;
     }
 
     ${k}:hover {
