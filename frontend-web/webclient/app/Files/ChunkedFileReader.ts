@@ -7,7 +7,7 @@ export function createLocalStorageUploadKey(path: string): string {
 }
 
 export function removeUploadFromStorage(path: string): void {
-    localStorage.removeItem(`${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`);
+    localStorage.removeItem(createLocalStorageUploadKey(path));
 }
 
 export class ChunkedFileReader {

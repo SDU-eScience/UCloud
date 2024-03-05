@@ -34,6 +34,7 @@ import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCl
 const MAX_CONCURRENT_UPLOADS = 5;
 const maxChunkSize = 16 * 1000 * 1000;
 const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
+const MAX_WS_BUFFER = 1024 * 1024 * 16 * 4
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -75,7 +76,7 @@ async function processUpload(upload: Upload) {
     }
 
     const theFile = files[0];
-    const fullFilePath = (upload.targetPath + theFile.fullPath);
+    const fullFilePath = (upload.targetPath + "/" + theFile.fullPath);
 
     const reader = new ChunkedFileReader(theFile.fileObject);
 
@@ -96,9 +97,6 @@ function createResumeable(
     fullFilePath: string
 ) {
     return async () => {
-        console.log("creating resumable")
-        console.log(`offset=${reader.offset}`);
-        console.log(`progressInBytes=${upload.progressInBytes}`);
         if (strategy.protocol === "CHUNKED") {
             while (!reader.isEof() && !upload.terminationRequested) {
                 await sendChunk(await reader.readChunk(maxChunkSize));
@@ -126,12 +124,12 @@ function createResumeable(
                     .replace("http://", "ws://").replace("https://", "wss://") + "/" + strategy.token
             );
             const progressStart = upload.progressInBytes;
-            console.log(`progressStart=${progressStart}`)
+            reader.offset = progressStart;
 
             
             await new Promise((resolve, reject) => {
                 uploadSocket.addEventListener("message", async (message) => {
-                    upload.progressInBytes = progressStart + parseInt(message.data);
+                    upload.progressInBytes = parseInt(message.data);
                     uploadTrackProgress(upload);
 
                     const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
@@ -145,8 +143,7 @@ function createResumeable(
                         } as LocalStorageFileUploadInfo)
                     );
 
-                    if (upload.progressInBytes === upload.fileSizeInBytes) {
-                        console.log("Upload finished. Cleaning up.");
+                    if (parseInt(message.data) === upload.fileSizeInBytes) {
                         localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
                         upload.state = UploadState.DONE;
                         uploadSocket.close()
@@ -154,33 +151,42 @@ function createResumeable(
                     }
 
                     if (upload.terminationRequested) {
-                        console.log("termination was requested.");
-
                         if (!upload.paused) {
                             localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
                         }
-
                         uploadSocket.close();
-                        reject();
+                        resolve(true);
                     }
                 });
 
                 uploadSocket.addEventListener("open", async (event) => {
-                    console.log("Connection is now open");
-
                     uploadSocket.send(`${progressStart} ${reader.fileSize().toString()}`)
 
                     while (!reader.isEof() && !upload.terminationRequested) {
-                        console.log("Termination was not requested, sending");
                         const chunk = await reader.readChunk(maxChunkSize);
-                        uploadSocket.send(chunk);
+                        await sendWsChunk(uploadSocket, chunk);
                     }
-                    console.log("loop ended.");
                 });
             });
-
         }
     };
+
+    function sendWsChunk(connection: WebSocket, chunk: ArrayBuffer): Promise<void> {
+        return new Promise((resolve) => {
+            _sendWsChunk(connection, chunk, resolve);
+        });
+    }
+
+    function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () => void) {
+        if (connection.bufferedAmount + chunk.byteLength < MAX_WS_BUFFER) {
+            connection.send(chunk);
+            onComplete();
+        } else {
+            window.setTimeout(() => {
+                _sendWsChunk(connection, chunk, onComplete)
+            }, 50);
+        }
+    }
 
     function sendChunk(chunk: ArrayBuffer): Promise<void> {
         return new Promise(((resolve, reject) => {
@@ -672,6 +678,9 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                         {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
                         <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                             callbacks.clearUploads([upload]);
+                            const fullFilePath = upload.targetPath + "/" + upload.row.rootEntry.name;
+                            removeUploadFromStorage(fullFilePath);
+                            upload.state = UploadState.DONE;
                             upload.row.fetcher().then(files => {
                                 if (files.length === 0) return;
                                 if (files.length > 1) {
@@ -679,10 +688,6 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                                     upload.state = UploadState.DONE;
                                     return;
                                 }
-
-                                const theFile = files[0];
-                                const fullFilePath = upload.targetPath + "/" + theFile.fullPath;
-                                removeUploadFromStorage(fullFilePath);
                             });
                         }} color={stopped ? "errorMain" : "primaryMain"} />
                     </>}
