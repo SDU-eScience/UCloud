@@ -255,7 +255,8 @@ class AppStoreController(
                 request.id,
                 request.darkMode,
                 request.includeText,
-                request.placeTextUnderLogo
+                request.placeTextUnderLogo,
+                null
             ) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             (ctx as HttpCall).call.respond(
@@ -277,8 +278,10 @@ class AppStoreController(
             val groupId = app.metadata.group?.metadata?.id
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            val bytes = service.retrieveGroupLogo(groupId, request.darkMode, request.includeText,
-                request.placeTextUnderLogo) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val bytes = service.retrieveGroupLogo(
+                groupId, request.darkMode, request.includeText,
+                request.placeTextUnderLogo, app.metadata.flavorName
+            ) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             (ctx as HttpCall).call.respond(
                 object : OutgoingContent.ReadChannelContent() {

@@ -185,7 +185,13 @@ export const SpotlightCard2: React.FunctionComponent<{
 
             <blockquote
                 className={SpotlightDescription}
-                style={{fontStyle: "italic", flexShrink: "1", flexBasis: "400px", display: "flex", alignItems: "center"}}
+                style={{
+                    fontStyle: "italic",
+                    flexShrink: "1",
+                    flexBasis: "400px",
+                    display: "flex",
+                    alignItems: "center"
+                }}
             >
                 <Markdown allowedElements={["p"]}>
                     {spotlight.body}
@@ -674,16 +680,14 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
 `);
 
 const LogoCard: React.FunctionComponent<{
-    groupId: number;
+    id: string | number;
     link: string;
     title: string;
     large?: boolean;
-    backgroundColor?: string;
-    logoHasText?: boolean;
-}> = ({groupId, link, title, large, backgroundColor, logoHasText}) => {
+}> = ({id, link, title, large}) => {
     return <ReactRouterLink to={link}>
         <div className={TopPickCardStyle}>
-            <LogoWithText groupId={groupId} title={title} size={60} forceUnder={large} hasText={logoHasText}/>
+            <LogoWithText id={id} title={title} size={60} forceUnder={large}/>
         </div>
     </ReactRouterLink>;
 }
@@ -699,9 +703,8 @@ export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = (
                         link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
                     }
 
-                    return <LogoCard large={idx === 0 && topPicks.length > 4} groupId={pick.groupId}
-                                     title={pick.title} link={link} backgroundColor={pick.logoBackgroundColor}
-                                     logoHasText={pick.logoHasText}/>;
+                    return <LogoCard large={idx === 0 && topPicks.length > 4} id={pick.groupId}
+                                     title={pick.title} link={link}/>;
                 } else {
                     return null;
                 }
@@ -723,10 +726,8 @@ export const StarredApplications2: React.FunctionComponent<{
                 return <LogoCard
                     large={idx === 0 && apps.length > 4}
                     title={app.metadata.title}
-                    groupId={groupId}
+                    id={app.metadata.name}
                     link={link}
-                    logoHasText={app.metadata.group?.specification.logoHasText ?? false}
-                    backgroundColor={app.metadata.group?.specification.backgroundColor ?? undefined}
                 />;
             })}
         </div>

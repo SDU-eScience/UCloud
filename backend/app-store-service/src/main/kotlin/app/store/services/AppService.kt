@@ -458,7 +458,6 @@ class AppService(
                 group = group,
             )
         )
-        println("This is the new app: ${inputApp.metadata} ${app.metadata} ${previousApp?.metadata}")
         applications[key] = app
 
         if (flush) {
@@ -743,69 +742,29 @@ class AppService(
         )
     }
 
-    val darkModeReplacements: Map<Int, Map<Int, Int>> = mapOf(
-        18 to mapOf(
-            0x3c3a3e to 0xffffff,
-        ),
-        13 to mapOf(
-            0xffffff to DeleteColor,
-            0x333333 to InvertColor,
-        ),
-        84 to mapOf(
-            0x000000 to InvertColor,
-        ),
-        39 to mapOf(
-            0x4e4e4e to InvertColor,
-            0x9e9e9e to InvertColor,
-        ),
-        72 to mapOf(
-            0x303030 to 0x7e7e7e,
-        ),
-        41 to mapOf(
-            0x4e3528 to InvertColor
-        ),
-        91 to mapOf(
-            0x000000 to InvertColor
-        ),
-        80 to mapOf(
-            0x383838 to InvertColor
-        ),
-        67 to mapOf(
-            0x000000 to InvertColor,
-        ),
-        74 to mapOf(
-            0x153057 to GrayscaleInvertColor,
-        ),
-        34 to mapOf(
-            0x000000 to InvertColor,
-        ),
-        25 to mapOf(
-            0x000000 to InvertColor,
-        ),
-        61 to mapOf(
-            0x535353 to InvertColor,
-        )
-    )
-
-    val lightModeReplacements: Map<Int, Map<Int, Int>> = mapOf(
-        13 to mapOf(0xffffff to DeleteColor),
-        86 to mapOf(0xffffff to DarkenColor5),
-        88 to mapOf(0xffffff to DarkenColor5),
-    )
-
     suspend fun retrieveGroupLogo(
         groupId: Int,
         darkMode: Boolean = false,
         includeText: Boolean = false,
         placeTextUnderLogo: Boolean = false,
+        flavorName: String? = null,
     ): ByteArray? {
         val g = groups[groupId.toLong()]?.get() ?: return null
         val logo = g.logo ?: return null
 
+        val fullTitle = buildString {
+            append(g.title.trim())
+            if (flavorName != null) {
+                append(" (")
+                append(flavorName)
+                append(")")
+            }
+        }
 
         val replacements = if (darkMode) g.colorRemappingDark else g.colorRemappingLight
         val cacheKey = buildString {
             append(groupId)
+            append(fullTitle)
             append(darkMode)
             append(includeText)
             append(placeTextUnderLogo)
@@ -813,7 +772,7 @@ class AppService(
 
         return LogoGenerator.generateLogoWithText(
             cacheKey,
-            if (includeText && !g.logoHasText) g.title else "",
+            if (includeText && !g.logoHasText) fullTitle else "",
             logo,
             placeTextUnderLogo,
             if (darkMode) DarkBackground else LightBackground,
