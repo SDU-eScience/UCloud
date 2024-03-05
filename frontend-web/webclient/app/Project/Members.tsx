@@ -3,22 +3,16 @@ import {useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, ProjectInvite, ProjectInviteLink, UpdateInviteLinkRequest, useProjectId} from "./Api";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
-import {Box, Button, Checkbox, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
-import {bulkRequestOf, copyToClipboard, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {bulkRequestOf, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {IconName} from "@/ui-components/Icon";
-import * as Heading from "@/ui-components/Heading";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useLoading, usePage} from "@/Navigation/Redux";
 import {BulkResponse, FindByStringId, PageV2} from "@/UCloud";
 import {Client} from "@/Authentication/HttpClientInstance";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
-import {OldProjectRole, Project, ProjectGroup, ProjectRole} from ".";
+import {OldProjectRole, Project, ProjectRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {MembersContainer} from "@/Project/MembersUI";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -567,9 +561,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         }}
         onCreateInviteLink={async () => {
             const link = await callAPI(Api.createInviteLink());
-            setInviteLinks(prev => {
-                return [...prev, link];
-            });
+            setInviteLinks(prev => 
+                 [...prev, link]
+            );
         }}
         onDeleteLink={linkId => {
             callAPI(Api.deleteInviteLink({token: linkId})).then(doNothing);
