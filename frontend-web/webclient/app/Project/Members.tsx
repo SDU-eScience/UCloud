@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useReducer, useState} from "react";
-import {default as Api, ProjectInvite, ProjectInviteLink, useProjectId} from "./Api";
+import {default as Api, ProjectInvite, ProjectInviteLink, UpdateInviteLinkRequest, useProjectId} from "./Api";
 import {NavigateFunction, useLocation, useNavigate} from "react-router";
 import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {Box, Button, Checkbox, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
@@ -509,7 +509,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
     function updateLink(linkId: string, newGroups: string[] | null, newRole: ProjectRole | null) {
         const oldLink = inviteLinks.find(it => it.token === linkId);
-        const newLink: ProjectInviteLink = {
+        const newLink: UpdateInviteLinkRequest = {
             token: linkId,
             role: newRole ?? oldLink?.roleAssignment ?? OldProjectRole.USER,
             groups: newGroups ?? oldLink?.groupAssignment ?? [],
@@ -522,7 +522,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                     return {
                         token: newLink.token,
                         groupAssignment: newLink.groups,
-                        roleAssignment: newLink.role,
+                        roleAssignment: newLink.role as ProjectRole,
                         expires: oldLink?.expires ?? 0,
                     };
                 } else {
