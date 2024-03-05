@@ -77,9 +77,10 @@ class LibC {
                 if (!file.exists()) continue
 
                 try {
+                    val data = if (System.getProperty("os.arch") == "aarch64") libcSharedDataArm64 else libcSharedData
                     val randomIdentifier = UUID.randomUUID().toString()
                     val outputFile = File(file, "libc_wrapper_$randomIdentifier.so")
-                    outputFile.writeBytes(Base64.getDecoder().decode(libcSharedData.replace("\n", "")))
+                    outputFile.writeBytes(Base64.getDecoder().decode(data.replace("\n", "")))
                     Files.setPosixFilePermissions(
                         outputFile.toPath(),
                         PosixFilePermissions.fromString("r-x------")
@@ -87,6 +88,7 @@ class LibC {
                     try {
                         System.load(outputFile.absolutePath)
                     } catch (ex: Throwable) {
+                        ex.printStackTrace()
                         runCatching { outputFile.delete() }
                         continue
                     }
@@ -115,7 +117,7 @@ class LibC {
 
             if (!didLoad) {
                 sendTerminalMessage {
-                    bold { red { line("Could not load native library!") } }
+                    bold { red { line("Could not load native library! (os.arch = ${System.getProperty("os.arch")})") } }
                     line()
                     line("The native support library must be loaded but it wasn't found in any of the expected locations.")
                     line()

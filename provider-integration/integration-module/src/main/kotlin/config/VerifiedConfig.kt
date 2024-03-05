@@ -43,6 +43,7 @@ data class VerifiedConfig(
         val disableInsecureFileCheck: Boolean,
         val maintenance: Maintenance,
         val internalBindAddress: String,
+        val experimental: ConfigSchema.Core.Experimental,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -433,7 +434,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             cors,
             core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true,
             maintenance,
-            internalBindAddress
+            internalBindAddress,
+            core.experimental,
         )
     }
 

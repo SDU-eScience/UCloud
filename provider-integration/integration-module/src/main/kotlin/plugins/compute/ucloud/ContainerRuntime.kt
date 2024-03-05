@@ -122,4 +122,5 @@ interface ContainerBuilder {
     fun hostAlias(jobId: String, rank: Int, alias: String)
 
     fun upsertAnnotation(key: String, value: String)
+    fun upsertLabel(key: String, value: String)
 }

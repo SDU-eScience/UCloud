@@ -69,6 +69,7 @@ object Commands {
     }
     
     fun createProvider(providerName: String) {
+        val resolvedProvider = ComposeService.providerFromName(providerName)
         startProviderService(providerName)
 
         var credentials: ProviderCredentials? = null
@@ -87,77 +88,81 @@ object Commands {
             startService(serviceByName(providerName)).executeToText()
         }
 
-        LoadingIndicator("Registering products with UCloud/Core").use {
-            compose.exec(
-                currentEnvironment,
-                providerName,
-                listOf("sh", "-c", """
-                    while ! test -e "/var/run/ucloud/ucloud.sock"; do
-                      sleep 1
-                      echo "Waiting for UCloud/IM to be ready..."
-                    done
-                """.trimIndent()),
-                tty = false,
-            ).streamOutput().executeToText()
+        if (resolvedProvider.canRegisterProducts) {
+            LoadingIndicator("Registering products with UCloud/Core").use {
+                compose.exec(
+                    currentEnvironment,
+                    providerName,
+                    listOf(
+                        "sh", "-c", """
+                            while ! test -e "/var/run/ucloud/ucloud.sock"; do
+                              sleep 1
+                              echo "Waiting for UCloud/IM to be ready..."
+                            done
+                        """.trimIndent()
+                    ),
+                    tty = false,
+                ).streamOutput().executeToText()
 
-            compose.exec(
-                currentEnvironment,
-                providerName,
-                listOf("sh", "-c", "yes | ucloud products register"),
-                tty = false,
-            ).also {
-                it.deadlineInMillis = 30_000
-            }.streamOutput().executeToText()
-        }
-
-        LoadingIndicator("Restarting provider...").use {
-            stopService(serviceByName(providerName)).executeToText()
-            startService(serviceByName(providerName)).executeToText()
-        }
-
-        LoadingIndicator("Granting credits to provider project").use {
-            val accessToken = fetchAccessToken()
-            val productPage = defaultMapper.decodeFromString(
-                JsonObject.serializer(),
-                callService(
-                    "backend",
-                    "GET",
-                    "http://localhost:8080/api/products/browse?filterProvider=${providerName}&itemsPerPage=250",
-                    accessToken
-                ) ?: error("Failed to retrieve products from UCloud")
-            )
-
-            val productItems = productPage["items"] as JsonArray
-            val productCategories = HashSet<String>()
-            productItems.forEach { item ->
-                productCategories.add(
-                    (((item as JsonObject)["category"] as JsonObject)["name"] as JsonPrimitive).content
-                )
+                compose.exec(
+                    currentEnvironment,
+                    providerName,
+                    listOf("sh", "-c", "yes | ucloud products register"),
+                    tty = false,
+                ).also {
+                    it.deadlineInMillis = 30_000
+                }.streamOutput().executeToText()
             }
 
-            productCategories.forEach { category ->
-                callService(
-                    "backend",
-                    "POST",
-                    "http://localhost:8080/api/accounting/rootDeposit",
-                    accessToken,
-                    //language=json
-                    """
-                      {
-                        "items": [
-                          {
-                            "categoryId": { "name": "$category", "provider": "${providerName}" },
-                            "amount": 50000000000,
-                            "description": "Root deposit",
-                            "recipient": {
-                              "type": "project",
-                              "projectId": "${creds.projectId}"
-                            }
-                          }
-                        ]
-                      }
-                    """.trimIndent()
+            LoadingIndicator("Restarting provider...").use {
+                stopService(serviceByName(providerName)).executeToText()
+                startService(serviceByName(providerName)).executeToText()
+            }
+
+            LoadingIndicator("Granting credits to provider project").use {
+                val accessToken = fetchAccessToken()
+                val productPage = defaultMapper.decodeFromString(
+                    JsonObject.serializer(),
+                    callService(
+                        "backend",
+                        "GET",
+                        "http://localhost:8080/api/products/browse?filterProvider=${providerName}&itemsPerPage=250",
+                        accessToken
+                    ) ?: error("Failed to retrieve products from UCloud")
                 )
+
+                val productItems = productPage["items"] as JsonArray
+                val productCategories = HashSet<String>()
+                productItems.forEach { item ->
+                    productCategories.add(
+                        (((item as JsonObject)["category"] as JsonObject)["name"] as JsonPrimitive).content
+                    )
+                }
+
+                productCategories.forEach { category ->
+                    callService(
+                        "backend",
+                        "POST",
+                        "http://localhost:8080/api/accounting/rootDeposit",
+                        accessToken,
+                        //language=json
+                        """
+                          {
+                            "items": [
+                              {
+                                "categoryId": { "name": "$category", "provider": "${providerName}" },
+                                "amount": 50000000000,
+                                "description": "Root deposit",
+                                "recipient": {
+                                  "type": "project",
+                                  "projectId": "${creds.projectId}"
+                                }
+                              }
+                            ]
+                          }
+                        """.trimIndent()
+                    ) ?: error("Failed to create root deposit for $category")
+                }
             }
         }
     }
@@ -239,7 +244,6 @@ object Commands {
                 "POST",
                 "http://localhost:8080/api/hpc/apps/devImport",
                 fetchAccessToken(),
-                // NOTE(Dan): checksum is sha256 of the file
                 """
                     {
                         "endpoint": "https://launcher-assets.cloud.sdu.dk/apps.zip",

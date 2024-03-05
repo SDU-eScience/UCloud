@@ -1114,4 +1114,14 @@ class Pod2ContainerBuilder(
 
         pod.metadata!!.annotations = JsonObject(annotationEntries)
     }
+
+    override fun upsertLabel(key: String, value: String) {
+        val entries = (pod.metadata?.labels?.entries ?: emptySet())
+            .associate { it.key to it.value }
+            .toMutableMap()
+
+        entries[key] = JsonPrimitive(value)
+
+        pod.metadata!!.labels = JsonObject(entries)
+    }
 }

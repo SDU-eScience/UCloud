@@ -150,7 +150,8 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
             jobCache,
             MaintenanceService(dbConnection, k8),
             ResourceCache(k8),
-            pluginConfig
+            pluginConfig,
+            config.core.experimental.sensitiveProjects.toSet(),
         )
 
         logService = K8LogService(k8, runtime)

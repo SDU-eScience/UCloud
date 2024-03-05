@@ -5,6 +5,8 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-36"
+
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int
 
@@ -104,6 +106,7 @@ sealed class ComposeService {
     sealed class Provider : ComposeService() {
         abstract val name: String
         abstract val title: String
+        open val canRegisterProducts: Boolean = true
         abstract fun install(credentials: ProviderCredentials)
     }
 
@@ -115,6 +118,7 @@ sealed class ComposeService {
         fun allProviders(): List<Provider> = listOf(
             Kubernetes,
             Slurm,
+            GoSlurm,
         )
     }
 
@@ -124,7 +128,6 @@ sealed class ComposeService {
             val homeDir = environment.dataDirectory.child("backend-home").also { it.mkdirs() }
             val configDir = environment.dataDirectory.child("backend-config").also { it.mkdirs() }
             val gradleDir = environment.dataDirectory.child("backend-gradle").also { it.mkdirs() }
-            val debuggerGradle = environment.dataDirectory.child("debugger-gradle").also { it.mkdirs() }
 
             service(
                 "backend",
@@ -133,69 +136,21 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.3.0",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "backend",
                         "ports": [
-                          "${portAllocator.allocate(8080)}:8080"
+                          "${portAllocator.allocate(8080)}:8080",
+                          "${portAllocator.allocate(11412)}:11412"
                         ],
                         "volumes": [
                           "${environment.repoRoot}/backend:/opt/ucloud",
-                          "${environment.repoRoot}/debugger:/opt/debugger",
                           "${environment.repoRoot}/frontend-web/webclient:/opt/frontend",
                           "${logs.absolutePath}:/var/log/ucloud",
                           "${configDir.absolutePath}:/etc/ucloud",
                           "${homeDir.absolutePath}:/home",
                           "${gradleDir.absolutePath}:/root/.gradle"
-                        ]
-                      }
-                    """.trimIndent(),
-                ),
-                serviceConvention = true
-            )
-
-            service(
-                "debugger-fe",
-                "UCloud/Core: Debugger Frontend",
-                Json(
-                    //language=json
-                    //"command": ["sh", "-c", "cd /opt/ucloud/ ; npm install ; npm start"],
-
-                    """
-                      {
-                        "image": "dreg.cloud.sdu.dk/ucloud/debugger:2023.1.0",
-                        "command": ["sh", "-c", "npm install ; npm start"],
-                        "restart": "always",
-                        "hostname": "debugger-fe",
-                        "working_dir": "/opt/ucloud",
-                        "ports": [],
-                        "volumes": [
-                          "${environment.repoRoot}/debugger/frontend:/opt/ucloud",
-                          "${logs.absolutePath}:/var/log/ucloud"
-                        ]
-                      }
-                    """.trimIndent(),
-                ),
-                serviceConvention = false
-            )
-
-            service(
-                "debugger-be",
-                "UCloud/Core: Debugger Backend",
-                Json(
-                    //language=json
-                    """
-                      {
-                        "image": "dreg.cloud.sdu.dk/ucloud/debugger:2023.1.0",
-                        "command": ["sleep", "inf"],
-                        "restart": "always",
-                        "hostname": "debugger-be",
-                        "working_dir": "/opt/ucloud",
-                        "ports": [],
-                        "volumes": [
-                          "${environment.repoRoot}/debugger/backend:/opt/ucloud",
-                          "${logs.absolutePath}:/var/log/ucloud"
                         ]
                       }
                     """.trimIndent(),
@@ -406,7 +361,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "k8",
                         "volumes": [
@@ -758,21 +713,14 @@ sealed class ComposeService {
             if (!passwdFile.exists()) {
                 passwdFile.writeText(
                     """
-                        ucloud:x:998:998::/home/ucloud:/bin/sh
-                        ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
                     """.trimIndent()
                 )
                 groupFile.writeText(
                     """
-                        ucloud:x:998:
-                        ucloudalt:x:11042:
                     """.trimIndent()
                 )
-
                 shadowFile.writeText(
                     """
-                        ucloud:!:19110::::::
-                        ucloudalt:!:19110::::::
                     """.trimIndent()
                 )
             }
@@ -784,7 +732,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "slurm",
                         "volumes": [
@@ -837,7 +785,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
                         "command": ["slurmdbd", "sshd", "user-sync"],
                         "hostname": "slurmdbd",
                         "volumes": [
@@ -864,7 +812,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
                         "command": ["slurmctld", "sshd", "user-sync"],
                         "hostname": "slurmctld",
                         "volumes": [
@@ -892,7 +840,7 @@ sealed class ComposeService {
                         //language=json
                         """
                           {
-                            "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                            "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
                             "command": ["slurmd", "sshd", "user-sync"],
                             "hostname": "c$id",
                             "volumes": [
@@ -1037,6 +985,9 @@ sealed class ComposeService {
                       matches: "*"
                       partition: normal
                       useFakeMemoryAllocations: true
+                      accountMapper:
+                        type: Extension
+                        extension: /etc/ucloud/extensions/slurm-account-extension
                       terminal:
                         type: SSH
                         generateSshKeys: true
@@ -1044,6 +995,10 @@ sealed class ComposeService {
                         type: Simple
                         domainPrefix: slurm-
                         domainSuffix: .localhost.direct
+                      extensions:
+                        fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
+                           
+ 
 
                   fileCollections:
                     default:
@@ -1118,6 +1073,193 @@ sealed class ComposeService {
         }
     }
 
+    object GoSlurm : Provider() {
+        override val name = "go-slurm"
+        override val title = "Slurm (Go test)"
+        override val canRegisterProducts: Boolean = false
+
+        override fun ComposeBuilder.build() {
+            val provider = environment.dataDirectory.child("go-slurm").also { it.mkdirs() }
+
+            val imDir = provider.child("im").also { it.mkdirs() }
+            val imGradle = imDir.child("gradle").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
+            val imHome = imDir.child("home").also { it.mkdirs() }
+            val imWork = imDir.child("work").also { it.mkdirs() }
+            val imLogs = environment.dataDirectory.child("logs").also { it.mkdirs() }
+
+            val passwdDir = imDir.child("passwd").also { it.mkdirs() }
+            val passwdFile = passwdDir.child("passwd")
+            val groupFile = passwdDir.child("group")
+            val shadowFile = passwdDir.child("shadow")
+            if (!passwdFile.exists()) {
+                passwdFile.writeText(
+                    """
+                        ucloud:x:998:998::/home/ucloud:/bin/sh
+                        ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
+                    """.trimIndent()
+                )
+                groupFile.writeText(
+                    """
+                        ucloud:x:998:
+                        ucloudalt:x:11042:
+                    """.trimIndent()
+                )
+
+                shadowFile.writeText(
+                    """
+                        ucloud:!:19110::::::
+                        ucloudalt:!:19110::::::
+                    """.trimIndent()
+                )
+            }
+
+            service(
+                "go-slurm",
+                "Slurm (Go test)",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "$imDevImage",
+                        "command": ["sleep", "inf"],
+                        "hostname": "go-slurm",
+                        "init": true,
+                        "volumes": [
+                          "${imGradle.absolutePath}:/root/.gradle",
+                          "${imData.absolutePath}:/etc/ucloud",
+                          "${imLogs.absolutePath}:/var/log/ucloud",
+                          "${imHome.absolutePath}:/home",
+                          "${imWork.absolutePath}:/work",
+                          "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
+                          "${passwdDir.absolutePath}:/mnt/passwd"
+                        ]
+                      }
+                    """.trimIndent(),
+                ),
+                serviceConvention = true
+            )
+        }
+
+        override fun install(credentials: ProviderCredentials) {
+            val slurmProvider = currentEnvironment.child("go-slurm").also { it.mkdirs() }
+            val imDir = slurmProvider.child("im").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
+
+            val installMarker = imData.child(".install-marker")
+            if (installMarker.exists()) return
+
+            imData.child("core.yaml").writeText(
+                //language=yaml
+                """
+                    providerId: slurm
+                    launchRealUserInstances: true
+                    allowRootMode: false
+                    developmentMode: true
+                    disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: true
+                    hosts:
+                      ucloud:
+                        host: backend
+                        scheme: http
+                        port: 8080
+                      self:
+                        host: slurm.localhost.direct
+                        scheme: https
+                        port: 443
+                    cors:
+                      allowHosts: ["ucloud.localhost.direct"]
+                """.trimIndent()
+            )
+
+            imData.child("server.yaml").writeText(
+                //language=yaml
+                """
+                    refreshToken: ${credentials.refreshToken}
+                    envoy:
+                      executable: /usr/bin/getenvoy
+                      funceWrapper: false
+                      directory: /var/run/ucloud/envoy
+                    database:
+                      type: Embedded
+                      host: 0.0.0.0
+                      directory: /etc/ucloud/pgsql
+                      password: postgrespassword
+                """.trimIndent()
+            )
+
+            imData.child("ucloud_crt.pem").writeText(credentials.publicKey)
+
+            imData.child("products.yaml").writeText(
+                //language=yaml
+                """
+                    compute:
+                      cpu:
+                        cost:
+                          type: Resource
+                          unit: Cpu
+                        template: 
+                          cpu: [1, 2, 200]
+                          memory: 1
+                          description: An example CPU machine with 1 vCPU.
+                    storage: 
+                      storage:
+                          cost:
+                            type: Resource
+                            unit: GB
+                          storage:
+                            description: An example storage system
+                """.trimIndent()
+            )
+
+            imData.child("plugins.yaml").writeText(
+                //language=yaml
+                """
+                  connection:
+                    type: UCloud
+                    redirectTo: https://ucloud.localhost.direct
+                    insecureMessageSigningForDevelopmentPurposesOnly: true
+                    extensions:
+                      onConnectionComplete: /etc/ucloud/extensions/connection-complete
+                    
+                  jobs:
+                    default:
+                      type: Slurm
+                      matches: "*"
+                      partition: normal
+                      useFakeMemoryAllocations: true
+                      terminal:
+                        type: SSH
+                        generateSshKeys: true
+                      web:
+                        type: Simple
+                        domainPrefix: slurm-
+                        domainSuffix: .localhost.direct
+                  
+                  fileCollections:
+                    default:
+                      type: Posix
+                      matches: "*"
+                      extensions:
+                        additionalCollections: /etc/ucloud/extensions/posix-drive-locator
+                      
+                  files:
+                    default:
+                      type: Posix
+                      matches: "*"
+                  
+                  projects:
+                    type: Simple
+                    unixGroupNamespace: 42000
+                    extensions:
+                      all: /etc/ucloud/extensions/project-extension
+                      
+                """.trimIndent()
+            )
+
+            installMarker.writeText("done")
+        }
+    }
+
     object Gateway : ComposeService() {
         override fun ComposeBuilder.build() {
             val gatewayDir = environment.dataDirectory.child("gateway").also { it.mkdirs() }
@@ -1143,7 +1285,12 @@ sealed class ComposeService {
             val gatewayConfig = gatewayDir.child("Caddyfile")
             gatewayConfig.writeText(
                 """
+                    {
+                        order grpc_web before reverse_proxy
+                    }
+
                     https://ucloud.localhost.direct {
+                        grpc_web
                         reverse_proxy /api/auth-callback-csrf frontend:9000
                         reverse_proxy /api/auth-callback frontend:9000
                         reverse_proxy /api/sync-callback frontend:9000
@@ -1160,20 +1307,13 @@ sealed class ComposeService {
                         reverse_proxy /api/* backend:8080
                         reverse_proxy /auth/* backend:8080
                         reverse_proxy / frontend:9000
+                        reverse_proxy /avatar.AvatarService/* h2c://backend:11412
                     }
                     
                     https://postgres.localhost.direct {
                         reverse_proxy pgweb:8081
                     }
                    
-                    https://debugger.localhost.direct {
-                        reverse_proxy debugger-fe:3000
-                    }
-                    
-                    https://debugger-api.localhost.direct {
-                        reverse_proxy debugger-be:5511
-                    }
-                    
                     https://k8.localhost.direct {
                         reverse_proxy k8:8889
                     }
@@ -1210,10 +1350,12 @@ sealed class ComposeService {
                 "gateway",
                 "Gateway",
                 Json(
+                    // NOTE: The gateway is from this repo with no changes:
+                    // https://github.com/mholt/caddy-grpc-web
                     // language=json
                     """
                       {
-                        "image": "caddy",
+                        "image": "dreg.cloud.sdu.dk/ucloud/caddy-gateway:1",
                         "restart": "always",
                         "volumes": [
                           "${gatewayData.absolutePath}:/data",

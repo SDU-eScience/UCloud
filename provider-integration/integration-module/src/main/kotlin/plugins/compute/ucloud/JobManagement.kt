@@ -71,6 +71,7 @@ class JobManagement(
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
     val pluginConfig: ConfigSchema.Plugins.Jobs.UCloud,
+    val sensitiveProjects: Set<String>,
 ) {
     private val features = ArrayList<JobFeature>()
     val readOnlyFeatures: List<JobFeature>
