@@ -52,7 +52,7 @@ class UploadDescriptors(
         }
     }
 
-    suspend fun get(path: String, truncate: Boolean = false): UploadDescriptor {
+    suspend fun get(path: String, offset: Long? = null, truncate: Boolean = false): UploadDescriptor {
         descriptorsMutex.withLock {
             val internalTargetFile = pathConverter.ucloudToInternal(UCloudFile.create(path))
             val internalPartialFile = pathConverter.ucloudToInternal(UCloudFile.create("$path.ucloud_part"))
@@ -60,13 +60,17 @@ class UploadDescriptors(
             val found = openDescriptors.find { it.partialPath == internalPartialFile.path }
             if (found != null) {
                 found.inUse = true
+                if (offset != null) {
+                    found.handle.seek(offset)
+                }
                 return found
             }
 
             val (newName, handle) = nativeFS.openForWritingWithHandle(
                 internalPartialFile,
                 WriteConflictPolicy.REPLACE,
-                truncate = truncate
+                truncate = truncate,
+                offset = offset
             )
 
             val resolvedPartialPath = internalPartialFile.parent().path + newName
@@ -81,8 +85,6 @@ class UploadDescriptors(
     }
 
     suspend fun close(descriptor: UploadDescriptor, conflictPolicy: WriteConflictPolicy) {
-        println("closing file descriptor")
-
         if (descriptor.inUse) return
 
         val partialInternalFile = InternalFile(descriptor.partialPath)
@@ -92,7 +94,6 @@ class UploadDescriptors(
 
         descriptor.handle.close()
         openDescriptors.remove(descriptor)
-        println("closed file descriptor")
     }
 
     companion object : Loggable {

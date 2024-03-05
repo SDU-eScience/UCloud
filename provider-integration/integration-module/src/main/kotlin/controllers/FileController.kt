@@ -4,6 +4,8 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.HttpMethod
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
@@ -20,6 +22,7 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -497,8 +500,7 @@ class FileController(
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                     ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
 
-                val lastChunk = offset + sctx.ktor.call.request.receiveChannel().availableForRead >= totalSize
-
+                val lastChunk = offset + (sctx.ktor.call.request.headers[HttpHeaders.ContentLength]?.toLong() ?: 0) >= totalSize
                 with(plugin) {
                     handleUpload(
                         token,
@@ -595,7 +597,6 @@ class FileController(
                 val context = SimpleRequestContext(controllerContext.pluginContext, "")
                 val token = call.parameters["token"]
                     ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
-                println(token)
                 var fileOffset = 0L
                 var totalSize = 0L
 
@@ -611,7 +612,6 @@ class FileController(
                                 fileOffset = metadata[0].toLong()
                                 totalSize = metadata[1].toLong()
                             }
-                            println("fileOffset=$fileOffset, $totalSize=${totalSize}")
                         } else {
                             if (!frame.buffer.isDirect) {
                                 DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
