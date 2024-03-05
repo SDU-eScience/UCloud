@@ -234,38 +234,30 @@ const lightModeReplacements: Replacements = {
 };
 
 export const LogoWithText: React.FunctionComponent<{
-    groupId: number;
+    id: string | number;
     title: string;
     size: number;
     forceUnder?: boolean;
     hasText?: boolean;
-}> = ({title, groupId, size, forceUnder, hasText}) => {
+}> = ({title, id, size, forceUnder, hasText}) => {
     const isLight = useIsLightThemeStored();
     const [element, setElement] = useState<string | null>(null);
     const allReplacements = isLight ? lightModeReplacements : darkModeReplacements;
-    const groupReplacements = allReplacements[groupId] ?? {};
+    const groupReplacements = allReplacements[id] ?? {};
 
     useEffect(() => {
-        let didCancel = false;
-
-        /*
-        (async () => {
-            const image = await fetchImage(groupId)
-            const [, , logo] = generateLogoWithText(!hasText ? title : "", image, forceUnder, groupReplacements);
-            if (!didCancel) setElement(logo);
-        })();
-         */
-        setElement(AppStore.retrieveGroupLogo({
-            id: groupId,
+        const newElement = typeof id === "string" ? AppStore.retrieveAppLogo({
+            name: id,
+            darkMode: !isLight, includeText: true, placeTextUnderLogo: forceUnder === true
+        }) : AppStore.retrieveGroupLogo({
+            id: id,
             darkMode: !isLight,
             includeText: true,
             placeTextUnderLogo: forceUnder === true,
-        }));
+        });
 
-        return () => {
-            didCancel = true;
-        };
-    }, [groupId, hasText, isLight]);
+        setElement(newElement);
+    }, [id, hasText, isLight]);
 
     if (element === null) {
         return <Box height={size}/>;
