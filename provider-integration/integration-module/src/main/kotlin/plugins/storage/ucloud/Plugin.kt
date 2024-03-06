@@ -197,7 +197,7 @@ class UCloudFilePlugin : FilePlugin {
     override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
         return request.items.map {
             val ucloudFile = UCloudFile.create(it.id)
-            val descriptor = uploadDescriptors.get(ucloudFile.path, true)
+            val descriptor = uploadDescriptors.get(ucloudFile.path, truncate = true)
             limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(InternalFile(descriptor.targetPath)).drive.ucloudId.toString())
             val targetUCloudPath = pathConverter.internalToUCloud(InternalFile(descriptor.targetPath))
 
@@ -213,13 +213,13 @@ class UCloudFilePlugin : FilePlugin {
         session: String,
         pluginData: String,
         offset: Long,
-        totalSize: Long,
-        chunk: ByteReadChannel
+        chunk: ByteReadChannel,
+        lastChunk: Boolean
     ) {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
-        uploads.receiveChunk(UCloudFile.create(sessionData.target), offset, totalSize, chunk, sessionData.conflictPolicy)
+        uploads.receiveChunk(UCloudFile.create(sessionData.target), offset, chunk, sessionData.conflictPolicy, lastChunk)
 
-        if (offset + chunk.totalBytesRead >= totalSize) {
+        if (lastChunk) {
             ipcClient.sendRequest(
                 FilesUploadIpc.delete,
                 FindByStringId(session)

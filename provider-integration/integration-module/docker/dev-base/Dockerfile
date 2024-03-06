@@ -7,10 +7,9 @@ RUN export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | b
 RUN bash -c "export SDKMAN_DIR='/usr/local/sdkman' && source /usr/local/sdkman/bin/sdkman-init.sh && \
     yes | sdk i java 20.0.1-graalce && \
     yes | sdk i gradle 7.4.2"
-RUN if [ "$(uname -p)" = "arm" ]; then ARCH=arm64; else ARCH=amd64; fi \
+RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=arm64; else ARCH=amd64; fi \
     && curl https://storage.googleapis.com/kubernetes-release/release/v1.27.9/bin/linux/${ARCH}/kubectl -o /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
-RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
 RUN dnf install -y freetype fontconfig
 
 # Users
@@ -25,11 +24,9 @@ RUN echo 'Defaults runas_allow_unknown_id' >> /etc/sudoers
 # Envoy
 WORKDIR /tmp
 RUN dnf -y install xz
-RUN if [ "$(uname -p)" = "arm" ]; then ARCH=arm64; else ARCH=amd64; fi \
-    && curl -L https://archive.tetratelabs.io/envoy/download/v1.23.0/envoy-v1.23.0-linux-${ARCH}.tar.xz -o envoy.tar.xz
-RUN tar xvf /tmp/envoy.tar.xz
-RUN install /tmp/envoy-*/bin/envoy /usr/bin/envoy
-RUN rm -rf envoy*
+RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=aarch_64; else ARCH=x86_64; fi \
+    && curl -L https://github.com/envoyproxy/envoy/releases/download/v1.23.10/envoy-1.23.10-linux-${ARCH} -o /usr/bin/envoy
+RUN chmod +x /usr/bin/envoy
 
 # UCloud
 WORKDIR /usr/bin
@@ -37,10 +34,8 @@ RUN ln -s /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integra
 RUN ln -s /usr/local/sdkman/candidates/java/current/bin/java java
 COPY default_config /opt/ucloud-default-config
 RUN chmod +x /opt/ucloud-default-config/config_installer.sh
-RUN ln -s /usr/local/bin/func-e /usr/local/bin/getenvoy
 
 WORKDIR /opt/ucloud
 RUN cp /etc/passwd /etc/passwd.orig
 RUN cp /etc/group /etc/group.orig
 RUN cp /etc/shadow /etc/shadow.orig
-

@@ -548,10 +548,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("fetchFilters", () => []);
 
                 browser.on("fetchOperations", () => {
-                    function groupOperations<T, R>(ops: Operation<T, R>[]): OperationOrGroup<T, R>[] {
+                    function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
                         const uploadOp = ops.find(it => it.icon === "upload");
                         const folderOp = ops.find(it => it.icon === "uploadFolder");
-                        const result: OperationOrGroup<T, R>[] = [];
+                        const result: OperationOrGroup<UFile, R>[] = [];
                         if (uploadOp && folderOp) {
                             result.push({
                                 color: "primaryMain",
@@ -569,7 +569,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             result.push(op);
                         }
 
-                        const overflow: Operation<T, R>[] = [];
+                        const overflow: Operation<UFile, R>[] = [];
                         for (; i < ops.length; i++) {
                             overflow.push(ops[i]);
                         }
@@ -589,7 +589,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const ops = groupOperations(FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected)));
+                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    const ops = groupOperations(enabledOperations);
                     if (!opts?.isModal) ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
                     return ops;
                 });
@@ -661,7 +662,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         invokeCommand: call => callAPI(call),
                         api: FilesApi,
                         isCreating: false,
-                        onSelectRestriction: opts?.selection?.show,
+                        onSelectRestriction: opts?.selection?.show ? file => {
+                            const restriction = opts.selection!.show!(file);
+                            if (typeof restriction === "string") return false;
+                            return restriction && !file.id.endsWith(fakeFileName);
+                        } : undefined,
                         onSelect: opts?.selection?.onClick,
                     };
 

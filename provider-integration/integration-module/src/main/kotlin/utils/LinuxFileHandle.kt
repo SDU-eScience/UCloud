@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
+import libc.SEEK_SET
 import libc.clib
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -26,6 +27,10 @@ class LinuxFileHandle private constructor(private val rawFileDescriptor: Int) {
             log.warn("close was called twice on a linux file handle!")
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
+    }
+
+    fun seek(offset: Long)  {
+        clib.lseek(fd, offset, SEEK_SET)
     }
 
     override fun toString(): String = "LinuxFileHandle(fd = $rawFileDescriptor)"

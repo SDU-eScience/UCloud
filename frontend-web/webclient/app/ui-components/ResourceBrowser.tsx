@@ -2431,7 +2431,7 @@ export class ResourceBrowser<T> {
                         this.clipboard = newClipboard;
                         this.clipboardIsCut = ev.code === "KeyX";
                         if (newClipboard.length) {
-                            const key = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "Ctrl + ";
+                            const key = isLikelyMac ? "⌘" : "Ctrl + ";
                             snackbarStore.addInformation(
                                 `${newClipboard.length} copied to clipboard. Use ${key}V to insert.`,
                                 false
@@ -3869,10 +3869,14 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
     }
 }
 
+const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
+                    navigator["platform"]?.toLocaleLowerCase().includes("mac") || 
+                    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
+
 const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";
-const ALT_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌥" : "alt";
-const CTRL_KEY = navigator["userAgentData"]?.["platform"] === "macOS" ? "⌘" : "ctrl";
+const ALT_KEY = isLikelyMac ? "⌥" : "alt";
+const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
 export const ShortcutClass = injectStyle("shortcut", k => `
     ${k} {
         border-radius: 5px;

@@ -7,13 +7,15 @@ export function createLocalStorageUploadKey(path: string): string {
 }
 
 export function removeUploadFromStorage(path: string): void {
-    localStorage.removeItem(`${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`);
+    localStorage.removeItem(createLocalStorageUploadKey(path));
 }
 
 export class ChunkedFileReader {
     public offset = 0;
+    private reader: FileReader;
 
     constructor(private file: File) {
+        this.reader = new FileReader();
     }
 
     public isEof(): boolean {
@@ -26,9 +28,8 @@ export class ChunkedFileReader {
 
     public readChunk(chunkSize: number): Promise<ArrayBuffer> {
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
             const chunk = this.file.slice(this.offset, this.offset + chunkSize);
-            reader.onloadend = (ev) => {
+            this.reader.onloadend = (ev) => {
                 const target = (ev.target as FileReader);
                 if (target.error === null) {
                     const arrayBuffer = target.result as ArrayBuffer;
@@ -39,7 +40,7 @@ export class ChunkedFileReader {
                 }
             };
 
-            reader.readAsArrayBuffer(chunk);
+            this.reader.readAsArrayBuffer(chunk);
         });
     }
 }
