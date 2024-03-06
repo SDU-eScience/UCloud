@@ -655,7 +655,7 @@ function SecondarySidebar({
                         <SidebarEntry
                             key={file.path}
                             to={AppRoutes.files.path(fileTypeCache[file.path] === "DIRECTORY" ? file.path : getParentPath(file.path))}
-                            disabled={fileTypeCache[file.path] === "DELETED"} /* TODO(Jonas): Handle differently, but how? Show, but prompt for deletion on click? */
+                            disabled={fileTypeCache[file.path] === "DELETED"}
                             icon={"heroStar"}
                             text={fileName(file.path)}
                             tab={SidebarTabId.FILES}
@@ -688,7 +688,7 @@ function SecondarySidebar({
 
                     <SidebarEntry
                         to={AppRoutes.project.settings("")}
-                        text={"Settings"}
+                        text={"Project settings"}
                         icon={"heroWrenchScrewdriver"}
                         tab={SidebarTabId.WORKSPACE}
                     />
