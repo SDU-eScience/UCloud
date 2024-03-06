@@ -815,7 +815,7 @@ textarea {
  */
 
 :-moz-focusring {
-  outline: 1px dotted ButtonText;
+  outline: 1px dotted var(--button-text);
 }
 
 /* Interactive

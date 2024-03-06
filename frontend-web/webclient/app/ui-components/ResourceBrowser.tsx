@@ -634,12 +634,17 @@ export class ResourceBrowser<T> {
             if (!this.features.showStar) {
                 const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
                 star.remove();
+                this.root.style.setProperty("--favoriteWidth", "0");
+            } else {
+                this.root.style.setProperty("--favoriteWidth", "30px");
             }
             this.setColumnTitles(this.opts.columnTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             this.root.removeChild(titleRow);
         }
+
+        this.root.style.setProperty("--favoriteWidth", this.features.showStar ? "30px" : "0px");
 
         {
             // Render refresh icon
@@ -3147,25 +3152,36 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .row .title {
                 display: flex;
                 align-items: center;
-                width: 85%;
+
                 white-space: pre;
-
-
-                @container (max-width: 600px) {
-                    max-width: 45%;
-                }
-
-                @container (min-width: 600px) {
-                    width: ${ResourceBrowser.rowTitleSizePercentage}%;
-                }
+                                                                                                             /* v favoriteIcon-width */
+                width: calc(100% - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 8px);
+                                                                                            /*  ^ icon + icon margin */                    
             }
             
+            @media screen and (max-width: 860px) {
+                ${browserClass.dot} .row .title {
+                    width: calc(100% - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
+                }
+                
+                /* TODO(Jonas): Handle if Use button is present */
+            }
+            
+
+            
             ${browserClass.dot} .stat-wrapper {
-                flex-grow: 1;
-                flex-shrink: 1;
+                width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width));
                 justify-content: end;
                 display: flex;
                 gap: 8px;
+            }
+
+            @media screen and (max-width: 860px) {
+                ${browserClass.dot} .stat-wrapper {
+                    width: calc(var(--stat1Width));
+                }
+
+                /* TODO(Jonas): Handle if Use button is present */
             }
 
             ${browserClass.dot} .row .stat2,
@@ -3870,8 +3886,8 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
 }
 
 const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
-                    navigator["platform"]?.toLocaleLowerCase().includes("mac") || 
-                    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
+    navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
+    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
 const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";
