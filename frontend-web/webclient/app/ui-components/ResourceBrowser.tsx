@@ -634,9 +634,6 @@ export class ResourceBrowser<T> {
             if (!this.features.showStar) {
                 const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
                 star.remove();
-                this.root.style.setProperty("--favoriteWidth", "0");
-            } else {
-                this.root.style.setProperty("--favoriteWidth", "30px");
             }
             this.setColumnTitles(this.opts.columnTitles);
         } else {

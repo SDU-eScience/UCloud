@@ -261,7 +261,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         if (simpleView) {
-            mount?.style.setProperty("--stat1Width", "0");
+            mount?.style.setProperty("--stat1Width", "0px");
             mount?.style.setProperty("--stat3Width", "28px");
         }
     }, []);
