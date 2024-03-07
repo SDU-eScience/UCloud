@@ -167,6 +167,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, TITLE, opts).init(browserRef, features, "", browser => {
+
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
                 let shouldRemoveFakeDirectory = true;
@@ -229,9 +230,10 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (newPath !== "/") {
-                        browser.setColumnTitles([{name: "Shared with"}, {name: "Share rights", columnWidth: 50}, {name: "State", columnWidth: 50}, {name: "", columnWidth: 250}]);
+                        browser.setColumns([{name: "Shared with"}, {name: "Share rights", columnWidth: 150}, {name: "State", columnWidth: 150}, {name: "", columnWidth: 50}]);
                     } else {
-                        browser.setColumnTitles([{name: "Filename"}, {name: "", columnWidth: 250}, {name: "Permissions", columnWidth: 50}, {name: "Shared with", columnWidth: 50}])
+                        console.log("Setting columns");
+                        browser.setColumns([{name: "Filename"}, {name: "", columnWidth: 0}, {name: "Permissions", columnWidth: 150}, {name: "Shared with", columnWidth: 150}])
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
                         // navigate to share
@@ -477,6 +479,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     } else {
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
+                        stateIcon.style.marginRight = "4px";
                         row.stat2.appendChild(stateIcon);
                         const text = createHTMLElements({tagType: "div", style: {marginTop: "auto", marginBottom: "auto"}});
                         let state: ShareState;

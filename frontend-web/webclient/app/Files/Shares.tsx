@@ -369,7 +369,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setColumnTitles([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 150}, {name: "Shared by", columnWidth: 80}]);
+                browser.setColumns([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 150}, {name: "Shared by", columnWidth: 80}]);
 
                 browser.on("skipOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -461,6 +461,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
                     const isEdit = share.specification.permissions.some(it => it === "EDIT");
                     const radioTilesContainerWrapper = document.createElement("div");
+                    radioTilesContainerWrapper.style.marginRight = "8px";
                     wrapper.appendChild(radioTilesContainerWrapper);
                     if (isEdit) {
                         if (ICONS.EDIT_ICON) radioTilesContainerWrapper.append(ICONS.EDIT_ICON.clone());

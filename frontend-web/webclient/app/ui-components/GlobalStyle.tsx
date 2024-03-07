@@ -583,7 +583,6 @@ audio,
 canvas,
 iframe,
 img,
-svg,
 video {
   vertical-align: middle;
 }

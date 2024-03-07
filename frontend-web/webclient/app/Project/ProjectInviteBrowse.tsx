@@ -70,7 +70,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<ProjectInvite>(mount, "", opts).init(browserRef, features, "", browser => {
-                browser.setColumnTitles(rowTitles);
+                browser.setColumns(rowTitles);
                 let currentAvatars = new Set<string>();
                 let fetchedAvatars = new Set<string>();
 

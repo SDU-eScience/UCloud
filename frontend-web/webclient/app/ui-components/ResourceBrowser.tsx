@@ -461,9 +461,6 @@ export class ResourceBrowser<T> {
         ResourceBrowser.injectStyle();
         const browserClass = makeClassName("browser");
         this.root.classList.add(browserClass.class);
-        this.root.style.setProperty("--stat1Width", this.opts.columnTitles[1].columnWidth + "px");
-        this.root.style.setProperty("--stat2Width", this.opts.columnTitles[2].columnWidth + "px");
-        this.root.style.setProperty("--stat3Width", this.opts.columnTitles[3].columnWidth + "px");
         this.root.innerHTML = `
             <header>
                 <div class="header-first-row">
@@ -626,6 +623,8 @@ export class ResourceBrowser<T> {
             headerThing.appendChild(div);
         }
 
+
+        this.setColumns(this.opts.columnTitles);
         if (this.features.showColumnTitles) {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
@@ -635,7 +634,6 @@ export class ResourceBrowser<T> {
                 const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
                 star.remove();
             }
-            this.setColumnTitles(this.opts.columnTitles);
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             this.root.removeChild(titleRow);
@@ -994,7 +992,7 @@ export class ResourceBrowser<T> {
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
                 this.renameField.style.top = `${relativeY + ((ResourceBrowser.rowSize - 30) / 2)}px`;
-                this.renameField.style.width = approximateSizeForTitle + "px";
+                this.renameField.style.width = `calc(${row.title.getBoundingClientRect().width} - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 38px)`;
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
@@ -3574,13 +3572,19 @@ export class ResourceBrowser<T> {
         });
     }
 
-    public setColumnTitles(titles: ColumnTitleList) {
+    public setColumns(titles: ColumnTitleList) {
         this.opts.columnTitles = titles;
+        
+        this.root.style.setProperty("--stat1Width", titles[1].columnWidth + "px");
+        this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");
+        this.root.style.setProperty("--stat3Width", titles[3].columnWidth + "px");
+        
         this.renderColumnTitles();
     }
 
     public renderColumnTitles() {
         const titles = this.opts.columnTitles;
+
         for (const title of titles) {
             if (title.sortById) {
                 const value = getFilterStorageValue(this.resourceName, SORT_BY);

@@ -35,6 +35,8 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 const rowTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 150}, {name: "State", columnWidth: 75}];
+const simpleViewRowTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 150}, {name: "State", columnWidth: 28}];
+
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
@@ -68,8 +70,8 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
             new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
-
-                browser.setColumnTitles(rowTitles);
+                
+                browser.setColumns(simpleView ? simpleViewRowTitles : rowTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -260,10 +262,6 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
             }
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
-        if (simpleView) {
-            mount?.style.setProperty("--stat1Width", "0px");
-            mount?.style.setProperty("--stat3Width", "28px");
-        }
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {

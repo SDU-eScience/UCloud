@@ -57,7 +57,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumnTitles([
+                browser.setColumns([
                     {name: "IP address"},
                     {name: "", columnWidth: 0},
                     {name: "", columnWidth: 0},

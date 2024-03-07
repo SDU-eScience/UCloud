@@ -158,7 +158,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         let searching = "";
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
-                browser.setColumnTitles(rowTitles);
+                browser.setColumns(rowTitles);
 
                 // Syncthing data
                 // =========================================================================================================
@@ -765,7 +765,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     if (isReadonly(file.permissions.myself)) {
                         row.title.appendChild(div(
-                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;"> (Readonly)</div>`
+                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;"> (Read only)</div>`
                         ));
                     }
 
@@ -1371,7 +1371,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
         const b = browserRef.current;
         if (b) {
-            b.renameField.style.left = "65px";
+            b.renameField.style.left = "68px";
         }
 
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);

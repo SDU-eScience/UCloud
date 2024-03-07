@@ -58,7 +58,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<PublicLink>(mount, "Public Links", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumnTitles([
+                browser.setColumns([
                     {name: "Domain"},
                     {name: "", columnWidth: 0},
                     {name: "", columnWidth: 0},
