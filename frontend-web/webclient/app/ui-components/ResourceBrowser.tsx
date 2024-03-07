@@ -3905,6 +3905,8 @@ export const ShortcutClass = injectStyle("shortcut", k => `
         display: flex;
         align-items: center;
         justify-content: center;
+        user-select: none;
+        -webkit-user-select: none;
         padding: 0 5px;
     }
 `);
@@ -3982,6 +3984,8 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
                 </tr>
                 <Shortcut name={"Open selection"} keys={"Enter"} />
                 <Shortcut name={"Delete"} keys={"Delete"} />
+                <Shortcut name={"Select all"} ctrl keys={"A"} />
+                <Shortcut name={"Deselect all"} keys={"Esc"} />
                 {(features.supportsMove || features.supportsCopy) && <>
                     <Shortcut name={"Undo"} ctrl keys={"Z"} />
                     <Shortcut name={"Copy"} ctrl keys={"C"} />
