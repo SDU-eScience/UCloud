@@ -992,7 +992,7 @@ export class ResourceBrowser<T> {
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
                 this.renameField.style.top = `${relativeY + ((ResourceBrowser.rowSize - 30) / 2)}px`;
-                this.renameField.style.width = `calc(${row.title.getBoundingClientRect().width} - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 38px)`;
+                this.renameField.style.width = "400px"; // TODO(Jonas): Find ACTUAL width to use.
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
