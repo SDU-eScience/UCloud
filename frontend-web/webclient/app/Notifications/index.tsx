@@ -378,8 +378,16 @@ export const Notifications: React.FunctionComponent = () => {
     React.useEffect(() => {
         const evHandler = () => {setNotificationsVisible(false)};
         document.addEventListener("click", evHandler);
+
+        function closeOnEscape(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                evHandler();
+            }
+        }
+        window.addEventListener("keydown", closeOnEscape);
         return () => {
             document.removeEventListener("click", evHandler);
+            window.removeEventListener("keydown", closeOnEscape);
         };
     }, []);
 

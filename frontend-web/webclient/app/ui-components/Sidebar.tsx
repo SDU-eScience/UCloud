@@ -282,6 +282,18 @@ function UserMenu({avatar}: {
     avatar: AvatarType;
 }) {
     const close = React.useRef(() => undefined);
+    React.useEffect(() => {
+        function closeOnEscape(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                close.current();
+            }
+        }
+        window.addEventListener("keydown", closeOnEscape);
+        return () => {
+            window.removeEventListener("keydown", closeOnEscape);
+        }
+    }, [])
+
     return <ClickableDropdown
         width="230px"
         paddingControlledByContent
