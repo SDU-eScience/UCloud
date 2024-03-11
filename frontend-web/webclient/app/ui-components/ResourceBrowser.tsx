@@ -992,7 +992,6 @@ export class ResourceBrowser<T> {
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
                 this.renameField.style.top = `${relativeY + ((ResourceBrowser.rowSize - 30) / 2)}px`;
-                this.renameField.style.width = "400px"; // TODO(Jonas): Find ACTUAL width to use.
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
@@ -1013,6 +1012,7 @@ export class ResourceBrowser<T> {
                 }
             ));
         }
+        this.root.style.setProperty("--rowWidth", this.scrollingContainerWidth + "px")
         this.dispatchMessage("endRenderPage", fn => fn());
 
         if (page.length === 0) {
@@ -3149,14 +3149,14 @@ export class ResourceBrowser<T> {
                 align-items: center;
 
                 white-space: pre;
-                                                                                                             /* v favoriteIcon-width */
-                width: calc(100% - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 8px);
-                                                                                            /*  ^ icon + icon margin */                    
+                                                                                                                        /* v favoriteIcon-width */
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 8px);
+                                                                                                        /*  ^ icon + icon margin */                    
             }
             
             @media screen and (max-width: 860px) {
                 ${browserClass.dot} .row .title {
-                    width: calc(100% - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
+                    width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
                 }
                 
                 /* TODO(Jonas): Handle if Use button is present */
@@ -3314,6 +3314,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .rename-field {
                 display: none;
                 position: absolute;
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 82px);
                 background-color: var(--backgroundDefault);
                 border-radius: 5px;
                 border: 1px solid var(--borderColor);
@@ -3322,6 +3323,12 @@ export class ResourceBrowser<T> {
                 z-index: 1;
                 top: 0;
                 left: 12px;
+            }
+
+            @media screen and (max-width: 860px) {
+                ${browserClass.dot} .rename-field {
+                    width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 110px);
+                }
             }
 
             ${browserClass.dot} .page-empty {
@@ -3574,11 +3581,11 @@ export class ResourceBrowser<T> {
 
     public setColumns(titles: ColumnTitleList) {
         this.opts.columnTitles = titles;
-        
+
         this.root.style.setProperty("--stat1Width", titles[1].columnWidth + "px");
         this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");
         this.root.style.setProperty("--stat3Width", titles[3].columnWidth + "px");
-        
+
         this.renderColumnTitles();
     }
 
