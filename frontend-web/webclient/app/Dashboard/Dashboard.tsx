@@ -137,8 +137,14 @@ function Invites({projectReloadRef, inviteReloadRef}: {
     projectReloadRef: React.MutableRefObject<() => void>,
     inviteReloadRef: React.MutableRefObject<() => void>
 }): React.ReactNode {
-    const [showProjectInvites, setShowProjectInvites] = React.useState(false);
-    const [showShareInvites, setShowShareInvites] = React.useState(false);
+    const [showProjectInvites, setShowProjectInvites] = React.useState(true);
+    const [showShareInvites, setShowShareInvites] = React.useState(true);
+    
+    React.useEffect(() => {
+        // Hacky approach to ensure that --rowWidth is correctly set on initial mount.
+        setShowProjectInvites(false);
+        setShowShareInvites(false);
+    }, [])
 
     return <Flex mt="24px" style={display(showShareInvites || showProjectInvites)}>
         <DashboardCard

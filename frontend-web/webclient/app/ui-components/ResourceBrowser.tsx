@@ -411,8 +411,7 @@ export class ResourceBrowser<T> {
     private overrideDisabledKeyhandlers = false;
     private allowEventListenerAction(): boolean {
         if (this.overrideDisabledKeyhandlers) return true;
-        if (ResourceBrowser.isAnyModalOpen) return false;
-        if (this.isModal) return false;
+        if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
         if (this.opts.embedded) return false;
         return true;
     }
@@ -745,6 +744,9 @@ export class ResourceBrowser<T> {
 
             const parent = this.scrolling.parentElement!;
             const rect = parent.getBoundingClientRect();
+            
+            this.root.style.setProperty("--rowWidth", rect.width + "px");
+
             this.scrollingContainerWidth = rect.width;
             this.scrollingContainerHeight = rect.height;
             this.scrollingContainerTop = rect.top;
@@ -1012,7 +1014,6 @@ export class ResourceBrowser<T> {
                 }
             ));
         }
-        this.root.style.setProperty("--rowWidth", this.scrollingContainerWidth + "px")
         this.dispatchMessage("endRenderPage", fn => fn());
 
         if (page.length === 0) {

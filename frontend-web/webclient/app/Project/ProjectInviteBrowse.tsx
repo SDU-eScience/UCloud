@@ -69,7 +69,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<ProjectInvite>(mount, "", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<ProjectInvite>(mount, "Project invites", opts).init(browserRef, features, "", browser => {
                 browser.setColumns(rowTitles);
                 let currentAvatars = new Set<string>();
                 let fetchedAvatars = new Set<string>();
