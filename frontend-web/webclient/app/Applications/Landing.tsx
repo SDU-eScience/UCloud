@@ -2,25 +2,24 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Absolute, Box, Button, Card, Flex, Grid, Icon, Markdown, Relative} from "@/ui-components";
+import {Box, Button, Card, Flex, Grid, Icon, Markdown, Relative} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {appColor, AppLogo, AppLogoRaw, AppToolLogo, hashF, SafeLogo} from "@/Applications/AppToolLogo";
+import {appColor, AppLogo, hashF, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {CSSProperties, HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
 import {appColors, ThemeColor} from "@/ui-components/theme";
-import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
-import {ApplicationGroup, Spotlight, TopPick} from "@/Applications/AppStoreApi";
+import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoGenerator";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -34,7 +33,7 @@ const landingStyle = injectStyle("landing-page", k => `
         display: flex;
         flex-direction: column;
         gap: 24px;
-        max-width: 1100px;
+        max-width: 1200px;
         min-width: 600px;
         min-height: 100vh;
     }
