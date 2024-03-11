@@ -481,7 +481,7 @@ export class ResourceBrowser<T> {
             </header>
             
             <div class="row rows-title">
-                <div class="favorite" style="width: 20px;"></div>
+                <div class="favorite" style="width: 28px;"></div>
                 <div class="title"></div>
                 <div class="stat-wrapper">
                     <div class="stat1"></div>
