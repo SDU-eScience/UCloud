@@ -549,23 +549,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                 browser.on("fetchOperations", () => {
                     function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
-                        const uploadOp = ops.find(it => it.icon === "upload");
-                        const folderOp = ops.find(it => it.icon === "uploadFolder");
                         const result: OperationOrGroup<UFile, R>[] = [];
-                        if (uploadOp && folderOp) {
-                            result.push({
-                                color: "primaryMain",
-                                icon: "heroPlus",
-                                text: "Create...",
-                                operations: [uploadOp, folderOp],
-                                shortcut: ShortcutKey.N
-                            });
-                        }
                         let i = 0;
                         for (; i < ops.length && result.length < 4; i++) {
                             const op = ops[i];
-                            if (op === uploadOp) continue;
-                            if (op === folderOp && opts?.isModal != true && opts?.embedded != true) continue;
                             result.push(op);
                         }
 
