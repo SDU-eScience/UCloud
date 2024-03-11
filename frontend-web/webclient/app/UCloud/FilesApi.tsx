@@ -43,7 +43,7 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, makeClassName} from "@/Unstyled";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
 import {ExtensionType, extensionFromPath, extensionType, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
@@ -54,7 +54,20 @@ import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {useSelector} from "react-redux";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
-import {FilesCopyRequestItem, FilesCreateDownloadRequestItem, FilesCreateDownloadResponseItem, FilesCreateFolderRequestItem, FilesCreateUploadRequestItem, FilesEmptyTrashRequestItem, FilesMoveRequestItem, FilesTrashRequestItem, UFile, UFileIncludeFlags, UFileSpecification, UFileStatus} from "./UFile";
+import {
+    FilesCopyRequestItem,
+    FilesCreateDownloadRequestItem,
+    FilesCreateDownloadResponseItem,
+    FilesCreateFolderRequestItem,
+    FilesCreateUploadRequestItem,
+    FilesEmptyTrashRequestItem,
+    FilesMoveRequestItem,
+    FilesTrashRequestItem,
+    UFile,
+    UFileIncludeFlags,
+    UFileSpecification,
+    UFileStatus
+} from "./UFile";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
@@ -161,17 +174,15 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
     return sensitivity;
 }
 
+const classA = makeClassName("A");
+const classB = makeClassName("B");
 const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
-    ${k} {
-
-    }
-
-    ${k} > .A {
+    ${k} > ${classA.dot} {
         padding: 15px;
         width: 100%;
     }
 
-    ${k} > .B {
+    ${k} > ${classB.dot} {
         font-size: 14px;
         width: 340px;
         min-width: 240px;
