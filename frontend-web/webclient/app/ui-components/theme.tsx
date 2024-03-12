@@ -1,7 +1,7 @@
 import {isLightThemeStored, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {useEffect, useState} from "react";
 
-export const appColors = [
+export const appColors: HexColor[][] = [
     // ["#0096ff", "#043eff"], // blue
     ["#F7D06A", "#E98C33", "#C46927"], // gold
     ["#EC6F8E", "#C75480", "#AA2457"], // salmon
@@ -18,6 +18,7 @@ export const appColors = [
     // ["#C9D3DF", "#8393A7", "#53657D"], // gray colors from the theme
 ];
 
+export type HexColor = `#${string}`;
 export type ThemeColor =
     | "primaryMain"
     | "primaryLight"

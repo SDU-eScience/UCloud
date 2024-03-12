@@ -419,15 +419,13 @@ export const ProjectMembers2: React.FunctionComponent = () => {
             includeGroups: true,
         }));
 
-        fetchInvites(
-            {
-                ...Api.browseInvites({
-                    itemsPerPage: 50,
-                    filterType: "OUTGOING",
-                }),
-                projectOverride: projectId
-            }
-        );
+        fetchInvites({
+            ...Api.browseInvites({
+                itemsPerPage: 50,
+                filterType: "OUTGOING",
+            }),
+            projectOverride: projectId
+        });
     }, [projectId]);
 
     const actionCb: ActionCallbacks = useMemo(() => ({
@@ -450,7 +448,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         ADMIN: 1,
         USER: 2
     };
-    
+
     React.useEffect(() => {
         if (!Client.hasActiveProject) {
             navigate(AppRoutes.dashboard.dashboardA());

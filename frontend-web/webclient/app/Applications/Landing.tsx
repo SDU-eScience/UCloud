@@ -319,7 +319,7 @@ export const Hero: React.FunctionComponent<{
                 <div>
                     <img alt={"cover image"} src={imageLink}/>
                     <div className="indicators">
-                        <Icon color={"#d3d3d4" as ThemeColor} hoverColor={"#a6a8a9" as ThemeColor} cursor={"pointer"}
+                        <Icon color={"#d3d3d4"} hoverColor={"#a6a8a9"} cursor={"pointer"}
                               name={"heroChevronLeft"} onClick={goBack}/>
                         {slides.map((s, i) =>
                             <HeroIndicator
@@ -330,7 +330,7 @@ export const Hero: React.FunctionComponent<{
                                     autoPage.current = false;
                                 }}
                             />)}
-                        <Icon color={"#d3d3d4" as ThemeColor} hoverColor={"#a6a8a9" as ThemeColor} cursor={"pointer"}
+                        <Icon color={"#d3d3d4"} hoverColor={"#a6a8a9"} cursor={"pointer"}
                               name={"heroChevronRight"} onClick={goForwards}/>
                     </div>
                 </div>
