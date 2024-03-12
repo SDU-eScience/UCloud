@@ -31,11 +31,6 @@ export const TableClass = injectStyle("table", k => `
         border-spacing: 0;
         border: 0;
     }
-    
-    ${k} thead {
-        padding-top: 11px;
-        padding-bottom: 11px;
-    }
 `);
 
 export const Table: React.FunctionComponent<BoxProps & {

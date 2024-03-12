@@ -449,8 +449,6 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
     }
 
     ${k} thead > tr {
-        position: sticky;
-        top: 74px;
         background: var(--backgroundDefault);
     }
 
