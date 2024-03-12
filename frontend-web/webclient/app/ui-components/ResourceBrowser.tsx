@@ -744,7 +744,7 @@ export class ResourceBrowser<T> {
 
             const parent = this.scrolling.parentElement!;
             const rect = parent.getBoundingClientRect();
-            
+
             this.root.style.setProperty("--rowWidth", rect.width + "px");
 
             this.scrollingContainerWidth = rect.width;
@@ -1290,6 +1290,7 @@ export class ResourceBrowser<T> {
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("div");
                     shortcutElem.className = ShortcutClass;
+                    shortcutElem.style.marginLeft = "auto";
                     shortcutElem.append(shortcut);
                     element.append(shortcutElem);
                 }
