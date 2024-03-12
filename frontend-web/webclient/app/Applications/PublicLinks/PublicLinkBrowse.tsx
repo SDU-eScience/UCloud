@@ -48,7 +48,9 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    usePage("Public links", SidebarTabId.RESOURCES);
+    if (!opts?.embedded && !opts?.isModal) {
+        usePage("Public links", SidebarTabId.RESOURCES);
+    }
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 
