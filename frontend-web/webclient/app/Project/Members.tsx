@@ -148,6 +148,12 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
                 if (!change) continue;
                 member.role = change.role;
 
+                if (change.role === OldProjectRole.PI) {
+                    project.status.myRole = OldProjectRole.ADMIN;
+                    const me = project.status.members?.find(it => it.username === Client.username);
+                    if (me) me.role = OldProjectRole.ADMIN;
+                }
+
                 // If we are changing our own role, make sure this is reflected in the status object.
                 if (member.username === Client.username!) {
                     project.status.myRole = change.role;
