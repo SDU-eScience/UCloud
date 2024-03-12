@@ -1,4 +1,5 @@
 import * as React from "react";
+import fs from "fs";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {default as ReactModal} from "react-modal";
@@ -10,7 +11,7 @@ import {
     inSuccessRange,
     preventDefault
 } from "@/UtilityFunctions";
-import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
+import {filesFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress, useUploads} from "@/Files/Upload";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
@@ -61,7 +62,7 @@ async function processUpload(upload: Upload) {
         return;
     }
 
-    const files = await upload.row.fetcher();
+    const files = await upload.row;
     if (files.length === 0) return;
     if (files.length > 1) {
         upload.error = "Folder uploads not yet supported";
@@ -255,7 +256,7 @@ const Uploader: React.FunctionComponent = () => {
                 if (upload.state !== UploadState.PENDING) continue;
                 if (creationRequests.length + resumingUploads.length >= maxUploadsToUse) break;
 
-                const fullFilePath = upload.targetPath + "/" + upload.row.rootEntry.name;
+                const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
 
                 const item = fetchValidUploadFromLocalStorage(fullFilePath);
                 if (item !== null) {
@@ -354,7 +355,7 @@ const Uploader: React.FunctionComponent = () => {
         setPausedFilesInFolder(entries => {
             let cpy = [...entries];
             for (const upload of batch) {
-                cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.row.rootEntry.name);
+                cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.row[0].name);
             }
             return cpy;
         });
@@ -367,8 +368,11 @@ const Uploader: React.FunctionComponent = () => {
     const onSelectedFile = useCallback(async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const fileFetcher = fetcherFromDropOrSelectEvent(e);
-        const newUploads: Upload[] = fileFetcher.map(it => ({
+        const files = await filesFromDropOrSelectEvent(e);
+        console.log(files);
+
+        // TODO(Brian)
+        /*const newUploads: Upload[] = fileFetcher.map(it => ({
             row: it,
             progressInBytes: 0,
             state: UploadState.PENDING,
@@ -376,10 +380,10 @@ const Uploader: React.FunctionComponent = () => {
             targetPath: uploadPath,
             initialProgress: 0,
             uploadEvents: []
-        })).filter(it => !it.row.rootEntry.isDirectory);
+        })).filter(it => !it.row.isDirectory);*/
 
-        setUploads(uploads.concat(newUploads));
-        startUploads(newUploads);
+        //setUploads(uploads.concat(newUploads));
+        //startUploads(newUploads);
     }, [uploads]);
 
     useEffect(() => {
@@ -448,7 +452,7 @@ const Uploader: React.FunctionComponent = () => {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining, 0)}`;
     }
 
-    const uploadFilePaths = uploads.map(it => it.row.rootEntry.name);
+    const uploadFilePaths = uploads.map(it => it.row[0].name);
     const resumables = pausedFilesInFolder.filter(it => !uploadFilePaths.includes(fileName(it)));
 
     return <>
@@ -476,7 +480,7 @@ const Uploader: React.FunctionComponent = () => {
                     <div className="uploads" style={{width: "100%"}}>
                         {uploads.map((upload, idx) => (
                             <UploadRow
-                                key={`${upload.row.rootEntry.name}-${idx}`}
+                                key={`${upload.row[0].name}-${idx}`}
                                 upload={upload}
                                 callbacks={callbacks}
                             />
@@ -653,9 +657,9 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
 
     return <div className={UploaderRowClass} data-has-error={upload.error != null}>
         <div>
-            <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row.rootEntry.name)}} size="32px" /></div>
+            <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row[0].name)}} size="32px" /></div>
             <div>
-                <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.row.rootEntry.name}</Truncate>
+                <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.row[0].name}</Truncate>
                 <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
             </div>
             <div />
@@ -678,17 +682,15 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                         {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
                         <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                             callbacks.clearUploads([upload]);
-                            const fullFilePath = upload.targetPath + "/" + upload.row.rootEntry.name;
+                            const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
                             removeUploadFromStorage(fullFilePath);
                             upload.state = UploadState.DONE;
-                            upload.row.fetcher().then(files => {
-                                if (files.length === 0) return;
-                                if (files.length > 1) {
-                                    upload.error = "Folder uploads not yet supported";
-                                    upload.state = UploadState.DONE;
-                                    return;
-                                }
-                            });
+                            if (upload.row.length === 0) return;
+                            if (upload.row.length > 1) {
+                                upload.error = "Folder uploads not yet supported";
+                                upload.state = UploadState.DONE;
+                                return;
+                            }
                         }} color={stopped ? "errorMain" : "primaryMain"} />
                     </>}
             </Flex>

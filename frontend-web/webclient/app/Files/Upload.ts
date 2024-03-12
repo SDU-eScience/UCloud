@@ -1,9 +1,9 @@
-import {FileUploadEvent} from "@/Files/HTML5FileSelector";
 import * as UCloud from "@/UCloud";
 import {GetElementType, PropType, timestampUnixMs} from "@/UtilityFunctions";
 import FileApi = UCloud.file.orchestrator;
 import {useSyncExternalStore} from "react";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
+import {PackagedFile} from "./HTML5FileSelector";
 
 export type WriteConflictPolicy = NonNullable<PropType<FileApi.FilesCreateUploadRequestItem, "conflictPolicy">>;
 export type UploadProtocol = NonNullable<GetElementType<PropType<FileApi.FilesCreateUploadRequestItem, "supportedProtocols">>>;
@@ -15,7 +15,7 @@ export enum UploadState {
 }
 
 export interface Upload {
-    row: FileUploadEvent;
+    row: PackagedFile[];
     state: UploadState;
     fileSizeInBytes?: number;
     initialProgress: number;
