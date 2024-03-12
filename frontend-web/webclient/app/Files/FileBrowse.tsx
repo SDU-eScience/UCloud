@@ -732,9 +732,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 height: "12px",
                                 width: "12px",
                                 padding: "4px",
-                                borderRadius: "8px"
+                                borderRadius: "8px",
+                                cursor: "pointer"
                             }
                         });
+
+                        HTMLTooltip(iconWrapper, div("Synchronized with Syncthing"), {tooltipContentWidth: 230})
 
                         icon.append(iconWrapper);
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);

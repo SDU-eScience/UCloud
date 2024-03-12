@@ -112,7 +112,7 @@ function Dashboard(): React.JSX.Element {
 const FONT_SIZE = "16px";
 
 const GridClass = injectStyle("grid", k => `
-@media screen and (min-width: 900px) {
+@media screen and (min-width: 1260px) {
     ${k} {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -123,7 +123,7 @@ const GridClass = injectStyle("grid", k => `
         gap: 20px;
     }
 }   
-@media screen and (max-width: 900px) {
+@media screen and (max-width: 1260px) {
     ${k} > * {
         margin-bottom: 24px;
     }   
