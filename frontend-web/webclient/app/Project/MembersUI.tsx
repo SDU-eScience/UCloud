@@ -38,6 +38,7 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
         flex-direction: row;
         flex-wrap: wrap;
         width: 100%;
+        height: calc(100vh - 72px - 16px - 16px);
     }
 
     ${k} > * {
