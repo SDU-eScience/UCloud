@@ -739,6 +739,15 @@ class ProjectService(
         }
     }
 
+    suspend fun retrieveProviderProjectInternal(
+        providerId: String,
+        ctx: DBContext = db
+    ): String? {
+        return ctx.withSession { session ->
+            retrieveProviderProject(session, providerId)
+        }
+    }
+
     private suspend fun retrieveProviderProject(
         session: AsyncDBConnection,
         providerId: String

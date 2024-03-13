@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -10,11 +11,13 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.project.api.v2.FindByProjectId
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.ReadWriterMutex
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -29,6 +32,16 @@ interface IIdCardService {
     suspend fun lookupUidFromUsername(username: String): Int?
     suspend fun lookupGidFromGroupId(groupId: String): Int?
     suspend fun lookupPidFromProjectId(projectId: String): Int?
+    suspend fun retrieveProviderProjectPid(providerId: String): Int?
+    suspend fun lookupProjectInformation(pid: Int): ProjectInfo?
+
+    data class ProjectInfo(
+        val projectId: String,
+        val numericPid: Int,
+        val title: String,
+        val canConsumeResources: Boolean,
+        val parentProject: String? = null,
+    )
 
     suspend fun lookupUidFromUsernameOrFail(username: String?): Int {
         if (username == null) return 0
@@ -37,7 +50,10 @@ interface IIdCardService {
 
     suspend fun lookupPidFromProjectIdOrFail(projectId: String?): Int {
         if (projectId == null) return 0
-        return lookupPidFromProjectId(projectId) ?: throw RPCException("Unknown project: $projectId", HttpStatusCode.NotFound)
+        return lookupPidFromProjectId(projectId) ?: throw RPCException(
+            "Unknown project: $projectId",
+            HttpStatusCode.NotFound
+        )
     }
 }
 
@@ -60,17 +76,24 @@ class IdCardService(
         }
     }
 
-    private val reversePidCache = SimpleCache<Int, String>(maxAge = SimpleCache.DONT_EXPIRE) { pid ->
+    private val reversePidCache = SimpleCache<Int, IIdCardService.ProjectInfo>(maxAge = 60_000L) { pid ->
         db.withSession { session ->
             session.sendPreparedStatement(
                 { setParameter("pid", pid) },
                 """
-                    select id 
+                    select id, title, can_consume_resources, parent
                     from project.projects p
                     where
                         p.pid = :pid
                 """
-            ).rows.singleOrNull()?.getString(0)
+            ).rows.singleOrNull()?.let { row ->
+                val id = row.getString(0)!!
+                val title = row.getString(1)!!
+                val canConsumeResources = row.getBoolean(2)!!
+                val parentId = row.getString(3)
+
+                IIdCardService.ProjectInfo(id, pid, title, canConsumeResources, parentId)
+            }
         }
     }
 
@@ -194,7 +217,22 @@ class IdCardService(
         }
     }
 
+    private val providerProjectId = AsyncCache<String, String>(
+        scope,
+        timeToLiveMilliseconds = AsyncCache.DONT_EXPIRE,
+        timeoutException = {
+            throw RPCException("Failed to retrieve provider project ID: $it", HttpStatusCode.GatewayTimeout)
+        },
+        retrieve = { projectId ->
+            Projects.retrieveProviderProjectInternal
+                .call(FindByStringId(projectId), serviceClient)
+                .orThrow()
+                .id
+        }
+    )
+
     data class UsernameAndProject(val username: String, val project: String)
+
     private val projectCache = SimpleCache<UsernameAndProject, Int>(60_000L) { (username, projectId) ->
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -230,7 +268,7 @@ class IdCardService(
                 HttpStatusCode.BadGateway
             )
 
-            val projectId = reversePidCache.get(pid) ?: fail()
+            val projectId = reversePidCache.get(pid)?.projectId ?: fail()
             val groupId = Projects.retrieveAllUsersGroup.call(
                 bulkRequestOf(FindByProjectId(projectId)),
                 serviceClient
@@ -273,7 +311,7 @@ class IdCardService(
 
     override suspend fun lookupPid(pid: Int): String? {
         if (pid == 0) return null
-        return reversePidCache.get(pid)
+        return reversePidCache.get(pid)?.projectId
     }
 
     override suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup? {
@@ -295,5 +333,150 @@ class IdCardService(
 
     override suspend fun fetchAllUserGroup(pid: Int): Int {
         return allUserGroupCache.retrieve(pid)
+    }
+
+    override suspend fun retrieveProviderProjectPid(providerId: String): Int? {
+        val projectId = runCatching { providerProjectId.retrieve(providerId) }.getOrNull() ?: return null
+        return lookupPidFromProjectId(projectId)
+    }
+
+    override suspend fun lookupProjectInformation(pid: Int): IIdCardService.ProjectInfo? {
+        return reversePidCache.get(pid)
+    }
+}
+
+class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
+    private val users = ArrayList<String>().also { it.add("") }
+    private val projects = ArrayList<IIdCardService.ProjectInfo>().also { it.add(IIdCardService.ProjectInfo("", 0, "", false)) }
+    private val groups = ArrayList<Pair<Int, String>>().also { it.add(Pair(0, "")) }
+    private val groupMembers = ArrayList<ArrayList<Int>>().also { it.add(ArrayList()) }
+    private val admins = ArrayList<ArrayList<Int>>().also { it.add(ArrayList()) }
+    private val providerProjects = HashMap<String, Int>()
+    private val mutex = ReadWriterMutex()
+
+    suspend fun markProviderProject(providerId: String, providerProjectPid: Int) {
+        return mutex.withWriter {
+            providerProjects[providerId] = providerProjectPid
+        }
+    }
+
+    suspend fun createUser(username: String): Int {
+        return mutex.withWriter {
+            users.add(username)
+            users.size - 1
+        }
+    }
+
+    suspend fun createProject(id: String, canConsumeResources: Boolean = true, parent: String? = null): Int {
+        return mutex.withWriter {
+            projects.add(IIdCardService.ProjectInfo(id, projects.size, "P${projects.size}", canConsumeResources, parent))
+            admins.add(ArrayList())
+            projects.size - 1
+        }
+    }
+
+    suspend fun createGroup(project: Int, title: String): Int {
+        return mutex.withWriter {
+            groups.add(Pair(project, title))
+            groupMembers.add(ArrayList())
+            groups.size - 1
+        }
+    }
+
+    suspend fun addUserToGroup(uid: Int, gid: Int) {
+        mutex.withWriter {
+            groupMembers[gid].add(uid)
+        }
+    }
+
+    suspend fun removeUserFromGroup(uid: Int, gid: Int) {
+        mutex.withWriter {
+            groupMembers[gid].remove(uid)
+        }
+    }
+
+    suspend fun addAdminToProject(uid: Int, pid: Int) {
+        mutex.withWriter {
+            admins[pid].add(uid)
+        }
+    }
+
+    suspend fun removeAdminFromProject(uid: Int, pid: Int) {
+        mutex.withWriter {
+            admins[pid].remove(uid)
+        }
+    }
+
+    suspend fun fetchProvider(providerId: String): IdCard {
+        return fetchIdCard(
+            ActorAndProject(
+                Actor.SystemOnBehalfOfUser(AuthProviders.PROVIDER_PREFIX + providerId),
+                null
+            )
+        )
+    }
+
+    override suspend fun fetchIdCard(actorAndProject: ActorAndProject, allowCached: Boolean): IdCard {
+        val username = actorAndProject.actor.safeUsername()
+        val project = actorAndProject.project
+
+        return if (username.startsWith(AuthProviders.PROVIDER_PREFIX)) {
+            val providerId = username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+            val productIds = products.productProviderToProductIds(providerId) ?: emptyList()
+            IdCard.Provider(providerId, productIds.toIntArray())
+        } else {
+            mutex.withReader {
+                val uid = users.indexOf(username).also { require(it != -1) }
+                val adminOf = admins.indices.filter { admins[it].contains(uid) }
+                val memberOf = groupMembers.indices.filter { groupMembers[it].contains(uid) }
+                val activeProject = if (project != null) projects.indexOfFirst { it.projectId == project } else 0
+
+                IdCard.User(uid, memberOf.toIntArray(), adminOf.toIntArray(), activeProject)
+            }
+        }
+    }
+
+    override suspend fun lookupUid(uid: Int): String? {
+        return mutex.withReader { users.getOrNull(uid) }
+    }
+
+    override suspend fun lookupPid(pid: Int): String? {
+        return mutex.withReader { projects.getOrNull(pid) }?.projectId
+    }
+
+    override suspend fun lookupGid(gid: Int): AclEntity.ProjectGroup? {
+        return mutex.withReader {
+            val group = groups.getOrNull(gid)
+            if (group == null) {
+                null
+            } else {
+                AclEntity.ProjectGroup(
+                    lookupPid(group.first)!!,
+                    group.second,
+                )
+            }
+        }
+    }
+
+    override suspend fun lookupUidFromUsername(username: String): Int? {
+        return mutex.withReader { users.indexOf(username).takeIf { it != -1 } }
+    }
+
+    override suspend fun lookupGidFromGroupId(groupId: String): Int? {
+        return mutex.withReader { groups.indexOfFirst { it.second == groupId }.takeIf { it != -1 } }
+    }
+
+    override suspend fun lookupPidFromProjectId(projectId: String): Int? {
+        return mutex.withReader { projects.indexOfFirst { it.projectId == projectId }.takeIf { it != -1 } }
+    }
+
+    override suspend fun fetchAllUserGroup(pid: Int): Int = 1 // TODO(Dan): Missing realistic implementation
+
+    override suspend fun retrieveProviderProjectPid(providerId: String): Int? {
+        return mutex.withReader { providerProjects[providerId] }
+    }
+
+    override suspend fun lookupProjectInformation(pid: Int): IIdCardService.ProjectInfo? {
+        return projects.getOrNull(pid)
     }
 }

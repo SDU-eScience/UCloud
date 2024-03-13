@@ -73,7 +73,9 @@ data class ProductCategory(
     val freeToUse: Boolean = false,
     val allowSubAllocations: Boolean = true,
 ) {
-    fun isPeriodic(): Boolean = periodicalFrequencies.contains(accountingFrequency)
+    fun isNotCapacityBased(): Boolean = periodicalFrequencies.contains(accountingFrequency)
+    fun isCapacityBased() = !isNotCapacityBased()
+    fun toId(): ProductCategoryIdV2 = ProductCategoryIdV2(name, provider)
 }
 
 fun ProductCategory.toBinary(allocator: BinaryAllocator): ProductCategoryB = with(allocator) {

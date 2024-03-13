@@ -8,6 +8,8 @@ import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.accounting.services.projects.v2.*
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import io.ktor.server.request.*
 
 class ProjectsControllerV2(
@@ -138,6 +140,11 @@ class ProjectsControllerV2(
 
         implement(Projects.retrieveProviderProject) {
             ok(projects.retrieveProviderProject(actorAndProject))
+        }
+
+        implement(Projects.retrieveProviderProjectInternal) {
+            ok(FindByStringId(projects.retrieveProviderProjectInternal(request.id)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)))
         }
 
         implement(Projects.retrieveAllUsersGroup) {

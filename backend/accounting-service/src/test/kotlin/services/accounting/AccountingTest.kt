@@ -1,0 +1,216 @@
+package dk.sdu.cloud.accounting.services.accounting
+
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.util.FakeIdCardService
+import dk.sdu.cloud.accounting.util.FakeProductCache
+import dk.sdu.cloud.accounting.util.IdCard
+import dk.sdu.cloud.service.NonDistributedLockFactory
+import dk.sdu.cloud.service.StaticTimeProvider
+import dk.sdu.cloud.service.Time
+import kotlinx.coroutines.*
+import java.util.*
+import kotlin.test.*
+
+class AccountingTest {
+    private data class TestContext(
+        val products: FakeProductCache,
+        val idCards: FakeIdCardService,
+        val accounting: AccountingSystem,
+    ) {
+        lateinit var provider: ProviderInfo
+    }
+
+    private fun withTest(fn: suspend TestContext.() -> Unit) {
+        Time.provider = StaticTimeProvider
+        val products = FakeProductCache()
+        val idCards = FakeIdCardService(products)
+        val accounting = AccountingSystem(
+            products,
+            FakeAccountingPersistence,
+            idCards,
+            NonDistributedLockFactory(),
+            true
+        )
+
+        runBlocking {
+            val newScope = CoroutineScope(Dispatchers.IO + coroutineContext)
+            val ctx = TestContext(products, idCards, accounting)
+            ctx.provider = ctx.createProvider()
+
+            ctx.accounting.start(newScope)
+            ctx.fn()
+            ctx.accounting.sendRequest(AccountingRequest.StopSystem(IdCard.System))
+        }
+    }
+
+    private data class ProjectInfo(
+        val projectId: String,
+        val projectPi: String,
+        val actorAndProject: ActorAndProject,
+        val idCard: IdCard,
+    )
+
+    private suspend fun TestContext.createProject(): ProjectInfo {
+        val projectId = UUID.randomUUID().toString()
+        val project = idCards.createProject(projectId, canConsumeResources = false, parent = null)
+        val projectPiUsername = "$projectId-PI"
+        val projectPiUid = idCards.createUser(projectPiUsername)
+        idCards.addAdminToProject(projectPiUid, project)
+        val actorAndProject = ActorAndProject(Actor.SystemOnBehalfOfUser(projectPiUsername), projectId)
+        val idCard = idCards.fetchIdCard(actorAndProject)
+        return ProjectInfo(projectId, projectPiUsername, actorAndProject, idCard)
+    }
+
+    private data class ProviderInfo(
+        val projectId: String,
+        val providerId: String,
+        val projectPi: String,
+        val projectPiUid: Int,
+        val actorAndProject: ActorAndProject,
+        val idCard: IdCard,
+        val providerCard: IdCard,
+        val capacityProduct: ProductCategoryIdV2,
+        val nonCapacityProduct: ProductCategoryIdV2,
+    )
+
+    private suspend fun TestContext.createProvider(): ProviderInfo {
+        val providerId = UUID.randomUUID().toString()
+        val project = idCards.createProject(providerId, canConsumeResources = false, parent = null)
+        val projectPiUsername = "$providerId-PI"
+        val projectPiUid = idCards.createUser(projectPiUsername)
+        idCards.addAdminToProject(projectPiUid, project)
+        idCards.markProviderProject(providerId, project)
+
+        val allProducts = ArrayList<Int>()
+
+        products.insert(
+            ProductV2.Compute(
+                NON_CAPACITY_PRODUCT,
+                1L,
+                ProductCategory(
+                    NON_CAPACITY_PRODUCT,
+                    providerId,
+                    ProductType.COMPUTE,
+                    AccountingUnit("Core", "Core", floatingPoint = false, displayFrequencySuffix = true),
+                    AccountingFrequency.PERIODIC_HOUR
+                ),
+                cpu = 1,
+                gpu = 0,
+                memoryInGigs = 4,
+                description = NON_CAPACITY_PRODUCT,
+            )
+        ).also { allProducts.add(it) }
+
+        products.insert(
+            ProductV2.Storage(
+                CAPACITY_PRODUCT,
+                1L,
+                ProductCategory(
+                    CAPACITY_PRODUCT,
+                    providerId,
+                    ProductType.STORAGE,
+                    AccountingUnit("GB", "GB", floatingPoint = false, displayFrequencySuffix = false),
+                    AccountingFrequency.ONCE,
+                ),
+                description = CAPACITY_PRODUCT,
+            )
+        ).also { allProducts.add(it) }
+
+        val actorAndProject = ActorAndProject(Actor.SystemOnBehalfOfUser(projectPiUsername), providerId)
+        val idCard = idCards.fetchIdCard(actorAndProject)
+
+        return ProviderInfo(
+            providerId,
+            providerId,
+            projectPiUsername,
+            projectPiUid,
+            actorAndProject,
+            idCard,
+            IdCard.Provider(providerId, allProducts.toIntArray()),
+            ProductCategoryIdV2(CAPACITY_PRODUCT, providerId),
+            ProductCategoryIdV2(NON_CAPACITY_PRODUCT, providerId),
+        )
+    }
+
+    @Test
+    fun basicTest() = withTest {
+        val project = createProject()
+        val product = provider.nonCapacityProduct
+
+        val rootWallet = accounting.sendRequest(
+            AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 0, 1000)
+        )
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, rootWallet, project.projectId, 1000000L, 0, 10000)
+        )
+
+//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+
+        accounting.sendRequest(
+            AccountingRequest.Charge(
+                provider.providerCard,
+                project.projectId,
+                product,
+                amount = 500L,
+                isDelta = false,
+            )
+        )
+
+//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+
+        accounting.sendRequest(
+            AccountingRequest.Charge(
+                provider.providerCard,
+                project.projectId,
+                product,
+                amount = 0,
+                isDelta = false,
+            )
+        )
+
+//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+
+        StaticTimeProvider.time = 2000L
+        accounting.sendRequest(AccountingRequest.ScanRetirement(IdCard.System))
+//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+        runCatching {
+            accounting.sendRequest(
+                AccountingRequest.Charge(
+                    provider.providerCard,
+                    project.projectId,
+                    product,
+                    amount = 300,
+                    isDelta = false,
+                )
+            )
+        }
+//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+
+        accounting.sendRequest(
+            AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 2000L, 5000L),
+        )
+        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+        runCatching {
+            accounting.sendRequest(
+                AccountingRequest.Charge(
+                    provider.providerCard,
+                    project.projectId,
+                    product,
+                    amount = 0,
+                    isDelta = false,
+                )
+            )
+        }
+        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+
+        println("Goodbye")
+    }
+
+    companion object {
+        private const val CAPACITY_PRODUCT = "capacity"
+        private const val NON_CAPACITY_PRODUCT = "nonCapacity"
+    }
+}

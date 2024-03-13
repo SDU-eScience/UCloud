@@ -386,6 +386,10 @@ implement(Descriptions.call) {
     val retrieveProviderProject = call("retrieveProviderProject", Unit.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "providerProject", roles = Roles.PROVIDER)
     }
+
+    val retrieveProviderProjectInternal = call("retrieveProviderProjectInternal", FindByStringId.serializer(), FindByStringId.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "providerProjectInternal", roles = Roles.PRIVILEGED)
+    }
 }
 
 interface ProjectFlags {

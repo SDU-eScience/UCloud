@@ -2,15 +2,12 @@ package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
-import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.messages.BinaryAllocator
 import dk.sdu.cloud.messages.BinaryTypeList
-import dk.sdu.cloud.provider.api.ProviderIncludeFlags
 import dk.sdu.cloud.provider.api.translateToProductPriceUnit
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.StaticTimeProvider
@@ -811,7 +808,7 @@ class AccountingService(
                 val wallet =
                     allWallets.wallets.find { it.paysFor.name == categoryName && it.paysFor.provider == provider }
                         ?: error("no wallet in $projectId $categoryName $provider")
-                val isMonotonic = wallet.paysFor.isPeriodic()
+                val isMonotonic = wallet.paysFor.isNotCapacityBased()
 
                 if (isMonotonic) {
                     var charged = 0L

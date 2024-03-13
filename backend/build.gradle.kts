@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import kotlin.system.exitProcess
 
@@ -124,6 +125,9 @@ subprojects {
         tasks.withType<KotlinCompile>().configureEach {
             kotlinOptions.freeCompilerArgs += "-progressive"
             kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+            if (System.getenv("COROUTINE_DEBUG") != null) {
+                kotlinOptions.freeCompilerArgs += "-Xdebug"
+            }
 
             dependsOn(generateBuildConfig)
         }

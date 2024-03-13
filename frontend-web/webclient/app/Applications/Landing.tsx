@@ -2,7 +2,7 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Absolute, Box, Button, Card, Flex, Grid, Icon, Markdown, Relative} from "@/ui-components";
+import {Absolute, Box, Button, Card, Flex, Grid, Icon, Image, Markdown, Relative} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {appColor, AppLogo, AppLogoRaw, AppToolLogo, hashF, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
@@ -558,10 +558,12 @@ const CategoryCardStyle = injectStyle("category-card", k => `
     
     ${k} .logo-wrapper {
         position: absolute;
-        top: -140px;
-        left: 160px;
+        top: -64px;
+        left: 170px;
         z-index: 0;
-        transform: rotate(180deg);
+        width: 64px;
+        height: 64px;
+        opacity: 0.75;
     }
     
     ${k} span {
@@ -569,18 +571,45 @@ const CategoryCardStyle = injectStyle("category-card", k => `
     }
 `);
 
+import type3 from "@/Assets/Images/icons/type3.png";
+import engineering from "@/Assets/Images/icons/engineering.png";
+import dataAnalytics from "@/Assets/Images/icons/data-analytics.png";
+import quantumComputing from "@/Assets/Images/icons/quantum-computing.png";
+import socialScience from "@/Assets/Images/icons/social-science.png";
+import appliedScience from "@/Assets/Images/icons/applied-science.png";
+import naturalScience from "@/Assets/Images/icons/natural-science.png";
+import development from "@/Assets/Images/icons/development.png";
+import virtualMachines from "@/Assets/Images/icons/virtual-machines.png";
+import digitalHumanities from "@/Assets/Images/icons/digital-humanities.png";
+import healthScience from "@/Assets/Images/icons/health-science.png";
+import bioinformatics from "@/Assets/Images/icons/bioinformatics.png";
+const testLogos: Record<string, string> = {
+    "Type 3": type3,
+    "Engineering": engineering,
+    "Data Analytics": dataAnalytics,
+    "Quantum Computing": quantumComputing,
+    "Social Science": socialScience,
+    "Applied science": appliedScience,
+    "Natural Science": naturalScience,
+    "Development": development,
+    "Virtual Machines": virtualMachines,
+    "Digital Humanities": digitalHumanities,
+    "Health Science": healthScience,
+    "Bioinformatics": bioinformatics,
+}
+
 const CategoryCard: React.FunctionComponent<{
     id: number;
     categoryTitle: string;
 }> = props => {
     const hash = hashF(props.categoryTitle);
-    const appC = appColors[appColor(hash)][1];
-    // const gradStart = "#6DA8EE";
-    let [h, s, l] = rgbToHsl(appC)
-    s /= 1.0;
-    // h += 0.50;
-    h %= 1;
-    const baseColor = hslToRgb(h, s, l);
+    const appC = appColors[props.id % appColors.length][1];
+
+    // const appC = getCssPropertyValue("primaryLight");
+    // let [h, s, l] = rgbToHsl(appC);
+    // s *= 1.00;
+    // const baseColor = hslToRgb(h, s, l);
+    const baseColor = tint(appC, 0.0);
     const gradStart = tint(baseColor, 0.1);
     const gradEndHover = shade(gradStart, 0.2);
     const gradEnd = shade(gradStart, 0.3);
@@ -590,10 +619,14 @@ const CategoryCard: React.FunctionComponent<{
     style["--card-end"] = gradEnd;
     style["--card-end-hover"] = gradEndHover;
 
+    const logoSrc = (testLogos[props.categoryTitle] ?? type3);
+
     return <ReactRouterLink to={AppRoutes.apps.category(props.id)}>
         <div className={CategoryCardStyle} style={style}>
             <Relative>
-                <div className={"logo-wrapper"}><AppLogo size={"130px"} hash={hash}/></div>
+                <div className={"logo-wrapper"}>
+                    <Image src={logoSrc} width={64} height={64}/>
+                </div>
             </Relative>
             <span>{props.categoryTitle}</span>
         </div>

@@ -1,13 +1,14 @@
 package dk.sdu.cloud.accounting.util
 
-import dk.sdu.cloud.accounting.api.ProductReferenceV2
-import dk.sdu.cloud.accounting.api.ProductV2
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.ReadWriterMutex
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -25,6 +26,10 @@ interface IProductCache {
     suspend fun productCategoryToProductIds(category: String): List<Int>?
     suspend fun productProviderToProductIds(provider: String): List<Int>?
     suspend fun products(): List<ProductV2>
+
+    suspend fun productCategory(id: ProductCategoryIdV2): ProductCategory? {
+        return products().find { it.category.toId() == id }?.category
+    }
 }
 
 class ProductCache(private val db: DBContext) : IProductCache {
@@ -133,5 +138,110 @@ class ProductCache(private val db: DBContext) : IProductCache {
         return mutex.withReader {
             ArrayList(productInformation.values)
         }
+    }
+}
+
+
+class FakeProductCache : IProductCache {
+    fun Product.toReference(): ProductReference {
+        return ProductReference(name, category.name, category.provider)
+    }
+
+    private fun ProductV2.toReference(): ProductReferenceV2? {
+        return ProductReferenceV2(name, category.name, category.provider)
+    }
+
+
+    @Volatile
+    private var products = listOf<ProductV2>(
+        ProductV2.Compute(
+            name = "-",
+            price = 1L,
+            category = ProductCategory("-", "-", ProductType.COMPUTE, AccountingUnit("DKK", "DKK", true, false), AccountingFrequency.PERIODIC_MINUTE),
+            description = "-"
+        )
+    )
+    private val insertMutex = Mutex()
+
+    suspend fun insert(product: ProductV2): Int {
+        insertMutex.withLock {
+            val newList = products + product
+            products = newList
+            return newList.size - 1
+        }
+    }
+
+    suspend fun insert(name: String, category: String, provider: String): Int {
+        return insert(
+            ProductV2.Compute(
+                name,
+                1L,
+                ProductCategory(
+                    name,
+                    provider,
+                    ProductType.COMPUTE,
+                    AccountingUnit(
+                        name = "DKK",
+                        namePlural = "DKK",
+                        floatingPoint = true,
+                        displayFrequencySuffix = false
+                    ),
+                    AccountingFrequency.PERIODIC_MINUTE
+                ),
+                description = "Test"
+            )
+        )
+    }
+
+    override suspend fun referenceToProductId(ref: ProductReference): Int? {
+        val list = products
+        for (i in list.indices) {
+            val product = list[i]
+            if (product.name == ref.id && product.category.name == ref.category && product.category.provider == ref.provider) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    override suspend fun productIdToReference(id: Int): ProductReferenceV2? {
+        val list = products
+        if (id < 0 || id >= list.size) return null
+        return list[id].toReference()
+    }
+
+    override suspend fun productIdToProduct(id: Int): ProductV2? {
+        return products.getOrNull(id)
+    }
+
+    override suspend fun productNameToProductIds(name: String): List<Int>? {
+        val result = ArrayList<Int>()
+        val list = products
+        for (i in list.indices) {
+            if (list[i].name == name) result.add(i)
+        }
+        return result.takeIf { it.isNotEmpty() }
+    }
+
+    override suspend fun productCategoryToProductIds(category: String): List<Int>? {
+        val result = ArrayList<Int>()
+        val list = products
+        for (i in list.indices) {
+            if (list[i].category.name == category) result.add(i)
+        }
+        return result.takeIf { it.isNotEmpty() }
+    }
+
+    override suspend fun productProviderToProductIds(provider: String): List<Int>? {
+        val result = ArrayList<Int>()
+        val list = products
+        for (i in list.indices) {
+            if (list[i].category.provider == provider) result.add(i)
+        }
+        return result.takeIf { it.isNotEmpty() }
+    }
+
+    override suspend fun products(): List<ProductV2> {
+        return products
     }
 }

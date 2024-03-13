@@ -1538,7 +1538,7 @@ class AccountingProcessor(
                     (it.paysFor.provider == request.productCategory.provider &&
                             it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
-        return if (productCategory.isPeriodic()) {
+        return if (productCategory.isNotCapacityBased()) {
             applyPeriodCharge(request.usage, wallet.allocations, request.description)
         } else {
             var currentUsage = 0L
@@ -1560,7 +1560,7 @@ class AccountingProcessor(
                     (it.paysFor.provider == request.productCategory.provider &&
                             it.paysFor.name == request.productCategory.name)
         }?.toApiWallet() ?: return AccountingResponse.Charge(false)
-        return if (productCategory.isPeriodic()) {
+        return if (productCategory.isNotCapacityBased()) {
             var currentUsage = 0L
             for (allocation in wallet.allocations) {
                 currentUsage += allocation.localUsage
