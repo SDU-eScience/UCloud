@@ -1063,7 +1063,9 @@ export class ResourceBrowser<T> {
             className: TruncateClass,
             style: {
                 userSelect: "none",
-                webkitUserSelect: "none" // This is deprecated, but this is the only one accepted in Safari.
+                webkitUserSelect: "none", // This is deprecated, but this is the only one accepted in Safari.
+                marginTop: "auto",
+                marginBottom: "auto",
             },
             children: [{
                 tagType: "span",
@@ -3192,6 +3194,8 @@ export class ResourceBrowser<T> {
                 ${browserClass.dot} .row .stat2 {
                     display: flex;
                     justify-content: center;
+                    margin-top: auto;
+                    margin-bottom: auto;
                     text-align: center;
                 }
 
