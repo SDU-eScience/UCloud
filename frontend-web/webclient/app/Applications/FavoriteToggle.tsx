@@ -27,5 +27,5 @@ export const FavoriteToggle: React.FunctionComponent<{
         }
     }, [loading, favorite]);
 
-    return <Icon ml="4px" name={favorite ? "starFilled" : "starEmpty"} mb="2px" color={"primaryMain"} onClick={toggle}/>
+    return <Icon ml="4px" cursor="pointer" name={favorite ? "starFilled" : "starEmpty"} mb="2px" color={"primaryMain"} onClick={toggle}/>
 }
