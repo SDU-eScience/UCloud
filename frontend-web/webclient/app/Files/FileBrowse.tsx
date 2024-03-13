@@ -1361,6 +1361,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
         const b = browserRef.current;
         if (b) {
+            b.header.setAttribute("data-no-gap", "");
             b.renameField.style.left = "68px";
         }
 

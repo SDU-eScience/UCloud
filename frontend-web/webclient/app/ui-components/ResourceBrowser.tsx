@@ -3017,9 +3017,14 @@ export class ResourceBrowser<T> {
                 margin: 0;
                 display: flex;
                 flex-direction: row;
+                gap: 8px;
                 height: 35px;
                 white-space: pre;
                 align-items: center;
+            }
+            
+            ${browserClass.dot} header[data-no-gap] ul {
+                gap: 0;
             }
 
             ${browserClass.dot} > div {
