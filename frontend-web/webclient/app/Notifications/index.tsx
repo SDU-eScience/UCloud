@@ -22,6 +22,7 @@ import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
+import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -371,7 +372,7 @@ export const Notifications: React.FunctionComponent = () => {
     }, [globalRefresh]);
 
     const toggleNotifications = React.useCallback((ev: React.SyntheticEvent) => {
-        ev?.stopPropagation();
+        ev.stopPropagation();
         setNotificationsVisible(prev => !prev);
     }, []);
 
@@ -429,7 +430,10 @@ export const Notifications: React.FunctionComponent = () => {
 
     const divRef = React.useRef<HTMLDivElement>(null);
     const closeOnOutsideClick = React.useCallback(e => {
-        if (divRef.current && !divRef.current.contains(e.target)) {
+        if (
+            divRef.current && !divRef.current.contains(e.target) &&
+            findDomAttributeFromAncestors(e.target, "data-key") !== "notifications-icon"
+        ) {
             setNotificationsVisible(false);
         }
     }, []);
@@ -439,10 +443,9 @@ export const Notifications: React.FunctionComponent = () => {
         return () => document.removeEventListener("mousedown", closeOnOutsideClick);
     }, []);
 
-
     return <>
         <NotificationPopups />
-        <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
+        <Flex onClick={toggleNotifications} data-component="notifications" data-key="notifications-icon" cursor="pointer">
             <Relative top={0} left={0}>
                 <Flex justifyContent="center" width="48px">
                     <Icon
