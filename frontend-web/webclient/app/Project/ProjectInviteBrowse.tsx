@@ -153,12 +153,18 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                             await callAPI(api.acceptInvite(bulkRequestOf({project: invite.invitedTo})))
                             browser.refresh();
                         },
+                        show(res) {
+                            return true
+                        },
                         text: "Accept"
                     }, invite, {color: "successMain", width: "72px"})!);
                     group.appendChild(browser.defaultButtonRenderer({
                         onClick: async () => {
                             await callAPI(api.deleteInvite(bulkRequestOf({username: Client.username!, project: invite.invitedTo})))
                             browser.refresh();
+                        },
+                        show(res) {
+                            return true
                         },
                         text: "Decline"
                     }, invite, {color: "errorMain", width: "72px"})!);

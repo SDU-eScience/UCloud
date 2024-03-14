@@ -482,12 +482,18 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 await callAPI(SharesApi.approve(bulkRequestOf({id: share.id})));
                                 browser.refresh();
                             },
+                            show(res) {
+                                return true;
+                            },
                             text: "Accept"
                         }, share, {color: "successMain", width: "72px"})!);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
                                 await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
                                 browser.refresh();
+                            },
+                            show(res) {
+                                return true;
                             },
                             text: "Decline"
                         }, share, {color: "errorMain", width: "72px"})!);

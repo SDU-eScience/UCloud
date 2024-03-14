@@ -66,7 +66,7 @@ export interface ResourceBrowserOpts<T> {
     isModal?: boolean;
     selection?: {
         onClick(res: T): void;
-        show?(res: T): boolean | string;
+        show(res: T): boolean | string;
         text: string;
     }
 }
@@ -941,7 +941,6 @@ export class ResourceBrowser<T> {
         }
 
         const containerWidth = this.scrollingContainerWidth;
-        const approximateSizeForTitle = containerWidth * (ResourceBrowser.rowTitleSizePercentage / 100);
 
         // Determine the total size of the page and figure out where we are
         const totalSize = ResourceBrowser.rowSize * page.length;
@@ -993,7 +992,11 @@ export class ResourceBrowser<T> {
 
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
-                this.renameField.style.top = `${relativeY + ((ResourceBrowser.rowSize - 30) / 2)}px`;
+                // Note(Jonas): For future reference:
+                // i * ResourceBrowser = top of active row.
+                // + ResourceBrowser.rowSize / 2 = middle of active row
+                // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
+                this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
@@ -3325,20 +3328,19 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .rename-field {
                 display: none;
                 position: absolute;
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 82px);
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 92px);
                 background-color: var(--backgroundDefault);
                 border-radius: 5px;
                 border: 1px solid var(--borderColor);
                 outline: 0;
                 color: var(--textPrimary);
                 z-index: 1;
-                top: 0;
                 left: 12px;
             }
 
             @media screen and (max-width: 860px) {
                 ${browserClass.dot} .rename-field {
-                    width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 110px);
+                    width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 118px);
                 }
             }
 
@@ -3738,6 +3740,7 @@ export function resourceCreationWithProductSelector<T>(
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
     productSelector.style.position = "fixed";
+    productSelector.style.zIndex = "100"; // Note(Jonas): Otherwise it won't show in modals.
     document.body.append(productSelector);
     const Component: React.FunctionComponent = () => {
         return <ProductSelector
