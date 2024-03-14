@@ -93,12 +93,11 @@ fun checkWalletHierarchyExcessUsage(walletId: Int) {
     for (id in localWallets) {
         val w = walletsById.getValue(id)
 
-        val overAllocation = w.totalAllocated + w.totalRetiredAllocated + w.localUsage +
-                w.localOverspending - w.totalActiveQuota()
+        val overAllocation = w.totalAllocated + w.totalRetiredAllocated + w.localUsage - w.totalActiveQuota()
 
         if (overAllocation <= 0) continue
 
-        val excessUsage = w.totalUsage() - w.totalTreeUsage()
+        val excessUsage = w.excessUsage
         if (excessUsage > overAllocation) {
             error("Wrong excess usage in W$id: found $excessUsage > $overAllocation (overallocation)")
         }

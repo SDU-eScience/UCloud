@@ -312,9 +312,9 @@ class AccountingSystem(
                 childrenUsage = HashMap(),
                 localRetiredUsage = 0L,
                 childrenRetiredUsage = HashMap(),
-                localOverspending = 0L,
                 totalAllocated = 0L,
                 totalRetiredAllocated = 0L,
+                excessUsage = 0L,
             ).also {
                 wallets.add(it)
                 walletsById[id] = it
@@ -326,6 +326,7 @@ class AccountingSystem(
     }
 
     private suspend fun rootAllocate(request: AccountingRequest.RootAllocate): Response<Int> {
+        val now = Time.now()
         val idCard = request.idCard
         if (idCard !is IdCard.User) {
             return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation!")
@@ -363,10 +364,11 @@ class AccountingSystem(
             )
         }
 
-        return Response.ok(insertAllocation(wallet, parentWalletId = 0, request.amount, request.start, request.end))
+        return Response.ok(insertAllocation(now, wallet, parentWalletId = 0, request.amount, request.start, request.end))
     }
 
     private suspend fun subAllocate(request: AccountingRequest.SubAllocate): Response<Int> {
+        val now = Time.now()
         val idCard = request.idCard
         val parentOwner = lookupOwner(idCard)
             ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project")
@@ -425,11 +427,12 @@ class AccountingSystem(
         }
 
         return Response.ok(
-            insertAllocation(internalChild, internalParent.id, request.quota, request.start, request.end)
+            insertAllocation(now, internalChild, internalParent.id, request.quota, request.start, request.end)
         )
     }
 
     private suspend fun insertAllocation(
+        now: Long,
         wallet: InternalWallet,
         parentWalletId: Int,
         quota: Long,
@@ -442,8 +445,6 @@ class AccountingSystem(
         val parentWallet = walletsById[parentWalletId]
         check(parentWalletId == 0 || parentWallet != null)
 
-
-        val now = Time.now()
         val id = allocationsIdAccumulator.getAndIncrement()
         val newAllocation = InternalAllocation(
             id = id,
@@ -477,23 +478,70 @@ class AccountingSystem(
         }
 
         // Rebalance excess usage
-        val excessUsage = wallet.totalUsage() - wallet.totalTreeUsage()
-        if (excessUsage > 0) {
-            val oldLocalUsage = wallet.localUsage
-            val oldOverspending = wallet.localOverspending
-            val oldTreeUsage = wallet.totalTreeUsage() + excessUsage
-            chargeWallet(wallet, excessUsage, true)
-            val newTreeUsage = wallet.totalTreeUsage()
-            val diff = newTreeUsage - oldTreeUsage
-            wallet.localUsage = oldLocalUsage + diff
-            wallet.localOverspending = oldOverspending - diff
-            if (wallet.localUsage < 0) {
-                wallet.localOverspending += wallet.localUsage
-                wallet.localUsage = 0
-            }
+        if (wallet.excessUsage > 0) {
+            val amount = wallet.excessUsage
+            wallet.localUsage -= amount
+            internalCharge(wallet, amount, now)
+            wallet.localUsage += amount
         }
 
         return id
+    }
+
+    private data class InternalChargeResult(val chargedAmount: Long, val error: String?)
+    private fun internalCharge(wallet: InternalWallet, amount: Long, now: Long): InternalChargeResult {
+        // Plan charge
+        val (totalChargeableAmount, chargeGraph) = run {
+            val graph = buildGraph(wallet, now, true)
+            val rootIndex = graph.indexInv.getValue(0)
+            val maxUsable = if (amount < 0) {
+                graph.minCostFlow(0, rootIndex, -amount)
+            } else {
+                graph.minCostFlow(rootIndex, 0, amount)
+            }
+
+            Pair(maxUsable, graph)
+        }
+
+        val walletsUpdated = HashMap<Int, Boolean>()
+        walletsUpdated[wallet.id] = true
+
+        if (totalChargeableAmount != 0L) {
+            val gSize = chargeGraph.vertexCount / 2
+            for (senderIndex in 0 until (chargeGraph.vertexCount / 2)) {
+                val senderId = chargeGraph.index[senderIndex]
+                val senderWallet = walletsById[senderId]
+                if (senderWallet != null) {
+                    senderWallet.excessUsage = chargeGraph.adjacent[senderIndex][senderIndex+gSize]
+                    walletsUpdated[senderId] = true
+                }
+
+                for (receiverIndex in 0 until (chargeGraph.vertexCount / 2)) {
+                    val amount = chargeGraph.adjacent[senderIndex][receiverIndex]
+                    if (chargeGraph.original[receiverIndex][senderIndex]) {
+                        val receiverId = chargeGraph.index[receiverIndex]
+                        val receiverWallet = walletsById[receiverId]
+
+                        if (senderWallet != null) {
+                            val group = senderWallet.allocationsByParent.getValue(receiverId)
+                            group.treeUsage = amount
+                        }
+
+                        if (receiverWallet != null) {
+                            receiverWallet.childrenUsage[senderId] = amount
+                        }
+                    }
+                }
+            }
+        }
+        for (walletId in chargeGraph.index) {
+            if (walletsUpdated[walletId] != true) continue
+            if (walletsById.getValue(walletId).isOverspending()) {
+                return InternalChargeResult(totalChargeableAmount, "$walletId is overspending")
+            }
+        }
+
+        return InternalChargeResult(totalChargeableAmount, null)
     }
 
     private suspend fun charge(request: AccountingRequest.Charge): Response<Unit> {
@@ -513,74 +561,22 @@ class AccountingSystem(
         val delta =
             if (isDelta) amount else amount - wallet.localUsage // TODO This is probably wrong when isDelta = false
 
-        if (delta + wallet.localUsage + wallet.localOverspending < 0) {
+        if (delta + wallet.localUsage < 0) {
             return Response.error(
                 HttpStatusCode.BadRequest,
                 "Refusing to process negative charge exceeding local wallet usage"
             )
         }
 
-        val (deltaToApply, newOverspending) = balanceOverspending(delta, wallet.localOverspending)
-        wallet.localOverspending = newOverspending
-        if (deltaToApply == 0L) {
-            return Response.ok(Unit)
-        }
-
-        // Plan charge
-        val (totalChargeableAmount, chargeGraph) = run {
-            val graph = buildGraph(wallet, now, true)
-            val rootIndex = graph.indexInv.getValue(0)
-            val maxUsable = if (deltaToApply < 0) {
-                graph.minCostFlow(0, rootIndex, -deltaToApply)
-            } else {
-                graph.minCostFlow(rootIndex, 0, deltaToApply)
-            }
-
-            Pair(maxUsable, graph)
-        }
-
-        if (deltaToApply > 0) {
+        val (totalChargeableAmount, error) = internalCharge(wallet, delta, now)
+        if (delta > 0) {
             wallet.localUsage += totalChargeableAmount
-            val overExpense = deltaToApply - totalChargeableAmount
-            if (overExpense > 0) {
-                wallet.localOverspending += overExpense
-            }
+            wallet.excessUsage += delta - totalChargeableAmount
         } else {
             wallet.localUsage -= totalChargeableAmount
         }
 
-        val walletsUpdated = HashMap<Int, Boolean>()
-        walletsUpdated[wallet.id] = true
-
-        if (totalChargeableAmount != 0L) {
-            for (senderIndex in 0 until (chargeGraph.vertexCount / 2)) {
-                val senderId = chargeGraph.index[senderIndex]
-                for (receiverIndex in 0 until (chargeGraph.vertexCount / 2)) {
-                    val amount = chargeGraph.adjacent[senderIndex][receiverIndex]
-                    if (chargeGraph.original[receiverIndex][senderIndex]) {
-                        val receiverId = chargeGraph.index[receiverIndex]
-
-                        val senderWallet = walletsById.getValue(senderId)
-                        val receiverWallet = walletsById[receiverId]
-
-                        val group = senderWallet.allocationsByParent.getValue(receiverId)
-                        group.treeUsage = amount
-                        if (receiverWallet != null) {
-                            receiverWallet.childrenUsage[senderId] = amount
-                            walletsUpdated[receiverId] = true
-                        }
-                    }
-                }
-            }
-        }
-
-        for (walletId in chargeGraph.index) {
-            if (walletsUpdated[walletId] != true) continue
-            if (walletsById.getValue(walletId).isOverspending()) {
-                return Response.error(HttpStatusCode.PaymentRequired, "$walletId is overspending")
-            }
-        }
-
+        if (error != null) return Response.error(HttpStatusCode.PaymentRequired, error)
         return Response.ok(Unit)
     }
 
@@ -718,9 +714,9 @@ class AccountingSystem(
                 g.addEdgeCost(g.indexInv.getValue(parentId), graphIndex, cost)
             }
 
-            if (withOverAllocation && walletId != leaf.id) {
+            if (withOverAllocation) {
                 var overAllocation = wallet.totalAllocated + wallet.totalRetiredAllocated + wallet.localUsage +
-                        wallet.localOverspending - wallet.totalActiveQuota()
+                        - wallet.totalActiveQuota()
 
                 if (!wallet.isCapacityBased()) {
                     overAllocation -= wallet.localRetiredUsage
@@ -753,30 +749,31 @@ class AccountingSystem(
         for ((id, alloc) in allocations) {
             if (alloc.retired) continue
             if (now > alloc.start && now > alloc.end) {
-                retireWallet(id)
+                retireAllocation(id)
             }
         }
 
         return Response.ok(Unit)
     }
 
-    private suspend fun retireWallet(allocationId: Int) {
+    private suspend fun retireAllocation(allocationId: Int) {
         val alloc = allocations[allocationId] ?: return
         val wallet = walletsById.getValue(alloc.belongsTo)
         val group = wallet.allocationsByParent.getValue(alloc.parentWallet)
+
+        if (alloc.retired) return
 
         if (alloc.quota == 0L) {
             alloc.retired = true
             return
         }
 
-        if (alloc.retired) return
-
         val toRetire = min(alloc.quota, group.treeUsage)
         alloc.retiredUsage = toRetire
         alloc.retired = true
 
         wallet.localRetiredUsage += toRetire
+
         group.retiredTreeUsage += toRetire
         group.treeUsage -= toRetire
         group.allocationSet[alloc.id] = false
@@ -784,32 +781,22 @@ class AccountingSystem(
         val parentWallet = walletsById[alloc.parentWallet]
         if (parentWallet != null) {
             parentWallet.childrenUsage[wallet.id] = (parentWallet.childrenUsage[wallet.id] ?: 0L) - toRetire
-            parentWallet.childrenRetiredUsage[wallet.id] = (parentWallet.childrenRetiredUsage[wallet.id] ?: 0L) + toRetire
+            parentWallet.childrenRetiredUsage[wallet.id] =
+                (parentWallet.childrenRetiredUsage[wallet.id] ?: 0L) + toRetire
             parentWallet.totalAllocated -= alloc.quota
             parentWallet.totalRetiredAllocated += alloc.quota
+        }
 
-            if (toRetire == 0L) return
+        if (toRetire == 0L) return
 
-            if (wallet.isCapacityBased()) {
+        if (wallet.isCapacityBased()) {
+            if (parentWallet != null) {
                 parentWallet.localUsage += toRetire
                 chargeWallet(parentWallet, -toRetire, isDelta = true)
-
-                val oldLocalUsage = wallet.localUsage
-                val oldOverspending = wallet.localOverspending
-                val oldTreeUsage = wallet.totalTreeUsage() + toRetire
-
-                chargeWallet(wallet, toRetire, isDelta = true)
-
-                val newTreeUsage = wallet.totalTreeUsage()
-                val diff = newTreeUsage - oldTreeUsage
-
-                wallet.localUsage = oldLocalUsage + diff
-                wallet.localOverspending = oldOverspending - diff
-                if (wallet.localUsage < 0) {
-                    wallet.localOverspending += wallet.localUsage
-                    wallet.localUsage = 0
-                }
             }
+
+            wallet.localUsage -= toRetire
+            chargeWallet(wallet, toRetire, true)
         }
     }
 

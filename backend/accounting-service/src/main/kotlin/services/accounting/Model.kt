@@ -109,7 +109,7 @@ data class InternalWallet(
     val childrenUsage: HashMap<Int, Long>,
     var localRetiredUsage: Long,
     val childrenRetiredUsage: HashMap<Int, Long>,
-    var localOverspending: Long,
+    var excessUsage: Long,
     var totalAllocated: Long,
     var totalRetiredAllocated: Long,
 ) {
@@ -127,7 +127,7 @@ data class InternalWallet(
     }
 
     fun totalUsage(): Long {
-        var totalUsage = localUsage + localOverspending
+        var totalUsage = localUsage
         for ((_, childUse) in childrenUsage) {
             totalUsage += childUse
         }
@@ -149,7 +149,7 @@ data class InternalWallet(
     }
 
     fun isOverspending(): Boolean {
-        if (localOverspending > 0) return true
+        if (excessUsage > 0) return true
         if (totalUsage() > totalActiveQuota()) return true
         return false
     }
