@@ -95,9 +95,11 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                 <ListV2
                     page={machines.data}
                     loading={machines.loading}
-                    onLoadMore={() => refetch({...UCloud.accounting.products.browse({
-                        filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
-                    }), unauthenticated: !Client.isLoggedIn})}
+                    onLoadMore={() => refetch({
+                        ...UCloud.accounting.products.browse({
+                            filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
+                        }), unauthenticated: !Client.isLoggedIn
+                    })}
                     pageRenderer={items => (
                         <div className={MachineTypesWrapper}>
                             <Table>
@@ -118,7 +120,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                                             if (machine === null) return null;
                                         }
                                         const computeProduct = productType === "COMPUTE" ? machine as ProductV2Compute : null;
-                                        return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
+                                        return <TableRow cursor="pointer" key={machine.name} onClick={() => setActiveMachine(machine)}>
                                             <TableCell>{machine.name}</TableCell>
                                             {!computeProduct ? null :
                                                 <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
@@ -154,37 +156,37 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                     <table className={DetailedView}>
                         <tbody>
                             <TableRow>
-                                <TableHeaderCell>Name</TableHeaderCell>
+                                <TableHeaderCell width="130px" textAlign="left">Name</TableHeaderCell>
                                 <TableCell>{activeMachine.name}</TableCell>
                             </TableRow>
                             {productType !== "COMPUTE" || !("cpu" in activeMachine) ? null :
                                 <>
                                     <TableRow>
-                                        <th>vCPU</th>
+                                        <TableHeaderCell textAlign="left" width="130px">vCPU</TableHeaderCell>
                                         <TableCell>{activeMachine.cpu}</TableCell>
                                     </TableRow>
 
                                     <TableRow>
-                                        <th>RAM (GB)</th>
+                                        <TableHeaderCell textAlign="left" width="130px">RAM (GB)</TableHeaderCell>
                                         <TableCell>{activeMachine.memoryInGigs ?? "Unspecified"}</TableCell>
                                     </TableRow>
 
                                     {!activeMachine.gpu ? null :
                                         <TableRow>
-                                            <th>GPU</th>
+                                            <TableHeaderCell textAlign="left" width="130px">GPU</TableHeaderCell>
                                             <TableCell>{activeMachine.gpu}</TableCell>
                                         </TableRow>
                                     }
                                 </>
                             }
                             <TableRow>
-                                <th>Price</th>
+                                <TableHeaderCell textAlign="left" width="130px">Price</TableHeaderCell>
                                 <TableCell>
                                     {priceToString(activeMachine, 1)}
                                 </TableCell>
                             </TableRow>
                             <TableRow>
-                                <th>Description</th>
+                                <TableHeaderCell textAlign="left" width="130px">Description</TableHeaderCell>
                                 <TableCell><Text>{activeMachine.description}</Text></TableCell>
                             </TableRow>
                         </tbody>
