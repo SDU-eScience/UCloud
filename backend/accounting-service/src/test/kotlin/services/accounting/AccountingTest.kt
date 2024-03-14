@@ -10,7 +10,10 @@ import dk.sdu.cloud.service.NonDistributedLockFactory
 import dk.sdu.cloud.service.StaticTimeProvider
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.random.Random
 import kotlin.test.*
 
 class AccountingTest {
@@ -139,12 +142,12 @@ class AccountingTest {
         val project = createProject()
         val product = provider.nonCapacityProduct
 
-        val rootWallet = accounting.sendRequest(
+        accounting.sendRequest(
             AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 0, 1000)
         )
 
         accounting.sendRequest(
-            AccountingRequest.SubAllocate(provider.idCard, rootWallet, project.projectId, 1000000L, 0, 10000)
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 1000000L, 0, 10000)
         )
 
 //        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
@@ -209,8 +212,66 @@ class AccountingTest {
         println("Goodbye")
     }
 
+    private suspend fun TestContext.runSimulation(maxTimeToRun: Long, capacityBased: Boolean) {
+        val product = provider.nonCapacityProduct
+
+        accounting.sendRequest(
+            AccountingRequest.RootAllocate(
+                provider.idCard,
+                product,
+                1000L,
+                TIMESTAMP_OFFSET + 0,
+                TIMESTAMP_OFFSET + 100000
+            )
+        )
+
+        val timeSync = MutableSharedFlow<Boolean>()
+
+        coroutineScope {
+            val deadline = System.currentTimeMillis() + maxTimeToRun
+            StaticTimeProvider.time = TIMESTAMP_OFFSET
+            val actors = ArrayList<TestActor>()
+
+            repeat(Random.nextInt(50) + 10) {
+                val actor = TestActor(createProject())
+                actors.add(actor)
+                accounting.sendRequest(
+                    AccountingRequest.SubAllocate(
+                        provider.idCard,
+                        product,
+                        actor.project.projectId,
+                        Random.nextLong(1, 1000),
+                        TIMESTAMP_OFFSET,
+                        TIMESTAMP_OFFSET + Random.nextLong(10000),
+                    )
+                )
+            }
+
+            while (System.currentTimeMillis() < deadline) {
+                StaticTimeProvider.time++
+                timeSync.emit(true)
+            }
+        }
+    }
+
+    private data class TestActor(
+        val project: ProjectInfo,
+        val depth: Int = 1,
+        var hasResources: Boolean = true,
+    )
+
+    private data class ActorOutput(
+        val newActors: List<TestActor>,
+        val tasksPerformed: Int,
+    )
+
+    private suspend fun TestContext.runActor(actor: TestActor) {
+
+    }
+
     companion object {
         private const val CAPACITY_PRODUCT = "capacity"
         private const val NON_CAPACITY_PRODUCT = "nonCapacity"
+        private const val TIMESTAMP_OFFSET = 1710000000000000L
     }
 }

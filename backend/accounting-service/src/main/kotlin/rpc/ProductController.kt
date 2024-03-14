@@ -1,11 +1,9 @@
 package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.products.ProductService
-import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
@@ -15,7 +13,7 @@ import dk.sdu.cloud.service.db.async.mapItems
 
 class ProductController(
     private val products: ProductService,
-    private val accounting: AccountingService,
+    private val accounting: AccountingSystem,
     private val client: AuthenticatedClient
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
@@ -23,17 +21,18 @@ class ProductController(
         handler: suspend CallHandler<R, S, E>.() -> Unit,
     ) {
         implement(call) {
-            val activeProcessor = accounting.retrieveActiveProcessorAddress()
-            if (activeProcessor == null) {
+//            val activeProcessor = accounting.retrieveActiveProcessorAddress()
+//            if (activeProcessor == null) {
                 handler()
-            } else {
-                ok(
-                    call.call(
-                        request,
-                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
-                    ).orThrow()
-                )
-            }
+//            } else {
+//                ok(
+//                    call.call(
+//                        request,
+//                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
+//                    ).orThrow()
+//                )
+//            }
+            // TODO()
         }
     }
 

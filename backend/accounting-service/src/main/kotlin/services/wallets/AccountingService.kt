@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
@@ -886,3 +887,4 @@ class AccountingService(
         const val MAX_BUCKETS_FOR_CHART = 1000
     }
 }
+ */

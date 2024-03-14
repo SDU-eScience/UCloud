@@ -8,13 +8,15 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @UCloudApiInternal(InternalLevel.BETA)
-@UCloudApiOwnedBy(Wallets::class)
+@UCloudApiOwnedBy(AccountingV2::class)
 sealed class WalletOwner : DocVisualizable {
+    abstract fun reference(): String
     @Serializable
     @SerialName("user")
     @UCloudApiInternal(InternalLevel.BETA)
     data class User(val username: String) : WalletOwner() {
         override fun visualize(): DocVisualization = DocVisualization.Inline("$username (User)")
+        override fun reference(): String = username
     }
 
     @Serializable
@@ -22,6 +24,7 @@ sealed class WalletOwner : DocVisualizable {
     @UCloudApiInternal(InternalLevel.BETA)
     data class Project(val projectId: String) : WalletOwner() {
         override fun visualize(): DocVisualization = DocVisualization.Inline("$projectId (Project)")
+        override fun reference(): String = projectId
     }
 
     companion object {

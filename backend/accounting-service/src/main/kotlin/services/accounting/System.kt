@@ -1,9 +1,9 @@
 package dk.sdu.cloud.accounting.services.accounting
 
 import com.google.common.primitives.Longs.min
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
-import dk.sdu.cloud.accounting.util.FakeProductCache
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IIdCardService
+import dk.sdu.cloud.accounting.util.IProductCache
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -28,7 +28,7 @@ import kotlin.math.max
 import kotlin.random.Random
 
 class AccountingSystem(
-    private val productCache: FakeProductCache,
+    private val productCache: IProductCache,
     private val persistence: AccountingPersistence,
     private val idCardService: IIdCardService,
     private val distributedLocks: DistributedLockFactory,
@@ -78,6 +78,25 @@ class AccountingSystem(
 
             collector.await()
         }.unwrap()
+    }
+
+    suspend fun sendRequestNoUnwrap(request: AccountingRequest<Unit>): String? {
+        val id = requestIdGenerator.getAndIncrement()
+
+        return coroutineScope {
+            @Suppress("UNCHECKED_CAST")
+            val collector = async {
+                var result: Response<Unit>? = null
+                responses.takeWhile {
+                    if (it.id == id) result = it as Response<Unit>
+                    it.id != id
+                }.collect()
+                result ?: error("No response was ever received")
+            }
+            requests.send(Request(id, request))
+
+            collector.await()
+        }.error
     }
 
     fun start(scope: CoroutineScope): Job {
@@ -151,6 +170,7 @@ class AccountingSystem(
                                     is AccountingRequest.SubAllocate -> subAllocate(msg)
                                     is AccountingRequest.ScanRetirement -> scanRetirement(msg)
                                     is AccountingRequest.MaxUsable -> maxUsable(msg)
+                                    is AccountingRequest.BrowseWallets -> browseWallets(msg)
                                     is AccountingRequest.StopSystem -> {
                                         isActiveProcessor.set(false)
                                         Response.ok(Unit)
@@ -348,10 +368,12 @@ class AccountingSystem(
 
     private suspend fun subAllocate(request: AccountingRequest.SubAllocate): Response<Int> {
         val idCard = request.idCard
-        val internalParent = walletsById[request.parentWallet]
+        val parentOwner = lookupOwner(idCard)
+            ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project")
+        val internalParent = authorizeAndLocateWallet(idCard, parentOwner, request.category, ActionType.READ)
             ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create this sub-allocation")
 
-        toCheck.add(request.parentWallet)
+        toCheck.add(internalParent.id)
 
         val owner = ownersById.getValue(internalParent.ownedBy)
         if (!owner.isProject()) {
@@ -403,7 +425,7 @@ class AccountingSystem(
         }
 
         return Response.ok(
-            insertAllocation(internalChild, request.parentWallet, request.quota, request.start, request.end)
+            insertAllocation(internalChild, internalParent.id, request.quota, request.start, request.end)
         )
     }
 
@@ -560,6 +582,74 @@ class AccountingSystem(
         }
 
         return Response.ok(Unit)
+    }
+
+    private suspend fun browseWallets(request: AccountingRequest.BrowseWallets): Response<List<WalletV2>> {
+        val owner = lookupOwner(request.idCard)
+            ?: return Response.error(HttpStatusCode.Forbidden, "You do not have any wallets")
+        val internalOwner = ownersByReference[owner]
+            ?: return Response.ok(emptyList())
+        val allWallets = walletsByOwner[internalOwner.id] ?: emptyList()
+
+        val apiWallets = allWallets.map { wallet ->
+            WalletV2(
+                internalOwner.toWalletOwner(),
+                wallet.category,
+                wallet.allocationsByParent.map { (parentWalletId, group) ->
+                    val walletInfo = if (parentWalletId != 0) {
+                        val parentWallet = walletsById.getValue(parentWalletId)
+                        val parentOwner = ownersById.getValue(parentWallet.ownedBy)
+                        val parentIsProject = parentOwner.isProject()
+                        val parentPid =
+                            if (parentIsProject) idCardService.lookupPidFromProjectId(parentOwner.reference)
+                            else null
+                        val parentProjectInfo = parentPid?.let { idCardService.lookupProjectInformation(parentPid) }
+
+                        ParentOrChildWallet(
+                            parentOwner.reference.takeIf { parentIsProject },
+                            parentProjectInfo?.title ?: parentOwner.reference,
+                        )
+                    } else {
+                        null
+                    }
+
+                    AllocationGroupWithParent(
+                        walletInfo,
+                        group.toApi()
+                    )
+                },
+                if (request.includeChildren) {
+                    wallet.childrenUsage.keys.map { childWalletId ->
+                        val childWallet = walletsById.getValue(childWalletId)
+                        val childOwner = ownersById.getValue(childWallet.ownedBy)
+                        val childIsProject = childOwner.isProject()
+                        val childPid =
+                            if (childIsProject) idCardService.lookupPidFromProjectId(childOwner.reference)
+                            else null
+                        val childProjectInfo = childPid?.let { idCardService.lookupProjectInformation(childPid) }
+
+                        val group = childWallet.allocationsByParent.getValue(wallet.id)
+
+                        AllocationGroupWithChild(
+                            ParentOrChildWallet(
+                                childOwner.reference.takeIf { childIsProject },
+                                childProjectInfo?.title ?: childOwner.reference,
+                            ),
+                            group.toApi()
+                        )
+                    }
+                } else {
+                    null
+                },
+                wallet.totalUsage(),
+                wallet.localUsage,
+                maxUsableForWallet(wallet),
+                wallet.totalActiveQuota(),
+                wallet.totalAllocated,
+            )
+        }
+
+        return Response.ok(apiWallets)
     }
 
     private data class BalancedOverspending(val amount: Long, val overspending: Long)
@@ -736,10 +826,13 @@ class AccountingSystem(
         val owner = lookupOwner(request.idCard) ?: return Response.error(HttpStatusCode.Forbidden, "You do not have any wallets")
         val wallet = authorizeAndLocateWallet(request.idCard, owner, request.category, ActionType.READ)
             ?: return Response.error(HttpStatusCode.Forbidden, "You do not have any wallets")
+        return Response.ok(maxUsableForWallet(wallet))
+    }
 
+    private fun maxUsableForWallet(wallet: InternalWallet): Long {
         val graph = buildGraph(wallet, Time.now(), false)
-        val rootIndex = graph.indexInv[0] ?: return Response.ok(0)
-        return Response.ok(graph.maxFlow(rootIndex, 0))
+        val rootIndex = graph.indexInv[0] ?: return 0
+        return graph.maxFlow(rootIndex, 0)
     }
 
     companion object : Loggable {

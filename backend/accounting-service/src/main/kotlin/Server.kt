@@ -2,6 +2,8 @@ package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
+import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
+import dk.sdu.cloud.accounting.services.accounting.FakeAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.products.ProductService
 import dk.sdu.cloud.accounting.services.projects.FavoriteProjectService
@@ -12,8 +14,6 @@ import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.AccountingChecks
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
-import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
-import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.auth.api.authenticator
@@ -40,8 +40,8 @@ class Server(
 
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
         val providerProviders =
-            dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
-        val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
+            Providers<ProviderComms>(client) { it }
+        val providerSupport = ProviderSupport<ProviderComms, Product, ProviderSupport>(
             providerProviders, client, fetchSupport = { emptyList() })
         val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
         val providerIntegrationService = ProviderIntegrationService(
@@ -50,22 +50,18 @@ class Server(
         )
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
-        val accountingProcessor = AccountingProcessor(
-            db,
-            micro.feature(DebugSystemFeature).system,
-            simpleProviders,
+        val productCache = ProductCache(db)
+        val accountingSystem = AccountingSystem(
+            productCache,
+            FakeAccountingPersistence,
+            IdCardService(db, micro.backgroundScope, client),
             distributedLocks,
-            distributedState = DistributedStateFactory(micro),
-            addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
-            disableMasterElection = micro.commandLineArguments.contains("--single-instance")
+            micro.developmentModeEnabled,
         )
-        val accountingService = AccountingService(micro.developmentModeEnabled, db, simpleProviders,
-            accountingProcessor)
 
-        val productService = ProductService(db, accountingProcessor)
+        val productService = ProductService(db)
 
         val depositNotifications = DepositNotificationService(db)
-        accountingProcessor.start()
 
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(
             db, client, projectCache,
@@ -77,9 +73,9 @@ class Server(
         val projectGroups = ProjectGroupService(projectCache, projectsV2)
         val projectQueryService = ProjectQueryService(projectService)
         val favoriteProjects = FavoriteProjectService(projectsV2)
-        val grants = GrantsV2Service(db, idCardService, accountingService, simpleProviders, projectNotifications,
+        val grants = GrantsV2Service(db, idCardService, accountingSystem, simpleProviders, projectNotifications,
             client, config.defaultTemplate)
-        val giftService = GiftService(db, accountingService, projectService, grants)
+        val giftService = GiftService(db, accountingSystem, projectService, grants)
 
 
         val scriptManager = micro.feature(ScriptManager)
@@ -124,71 +120,22 @@ class Server(
             )
         )
 
-        /*
-        scriptManager.register(
-            Script(
-                ScriptMetadata(
-                    "center",
-                    "Deic report: Center",
-                    WhenToStart.Never
-                ),
-                script = {
-                    val postgresDataService = PostgresDataService(db)
-                    val deicReporting = DeicReporting(client, postgresDataService)
-                    deicReporting.reportCenters()
-                }
-            )
+        configureControllers(
+            AccountingController(accountingSystem, depositNotifications, idCardService),
+            ProductController(productService, accountingSystem, client),
+            FavoritesController(db, favoriteProjects),
+            GiftController(giftService),
+            GrantController(grants),
+            GroupController(db, projectGroups, projectQueryService),
+            IntegrationController(providerIntegrationService),
+            MembershipController(db, projectQueryService),
+            ProjectController(db, projectService, projectQueryService),
+            ProviderController(
+                providerService,
+                micro.developmentModeEnabled || micro.commandLineArguments.contains("--allow-provider-approval")
+            ),
+            ProjectsControllerV2(projectsV2, projectNotifications),
         )
-
-        scriptManager.register(
-            Script(
-                ScriptMetadata(
-                    "centerDaily",
-                    "Deic report: Center Daily",
-                    WhenToStart.Never
-                ),
-                script = {
-                    val postgresDataService = PostgresDataService(db)
-                    val deicReporting = DeicReporting(client, postgresDataService)
-                    deicReporting.reportCenters()
-                }
-            )
-        )
-
-        scriptManager.register(
-            Script(
-                ScriptMetadata(
-                    "Person report",
-                    "Deic report: Person",
-                    WhenToStart.Never
-                ),
-                script = {
-                    val postgresDataService = PostgresDataService(db)
-                    val deicReporting = DeicReporting(client, postgresDataService)
-                    deicReporting.reportPerson()
-                }
-            )
-        )
-         */
-
-        with(micro.server) {
-            configureControllers(
-                AccountingController(micro, accountingService, depositNotifications, client),
-                ProductController(productService, accountingService, client),
-                FavoritesController(db, favoriteProjects),
-                GiftController(giftService),
-                GrantController(grants),
-                GroupController(db, projectGroups, projectQueryService),
-                IntegrationController(providerIntegrationService),
-                MembershipController(db, projectQueryService),
-                ProjectController(db, projectService, projectQueryService),
-                ProviderController(
-                    providerService,
-                    micro.developmentModeEnabled || micro.commandLineArguments.contains("--allow-provider-approval")
-                ),
-                ProjectsControllerV2(projectsV2, projectNotifications),
-            )
-        }
 
         startServices()
     }

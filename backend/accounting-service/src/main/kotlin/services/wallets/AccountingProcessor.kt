@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.accounting.services.wallets
 
 import dk.sdu.cloud.*
@@ -2866,3 +2867,5 @@ private data class ProjectInfo(
     val title: String,
     val canConsumeResources: Boolean,
 )
+
+ */

@@ -2,9 +2,6 @@ package dk.sdu.cloud.accounting.services.products
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
-import dk.sdu.cloud.accounting.services.wallets.AccountingRequest
-import dk.sdu.cloud.accounting.services.wallets.retrieveWalletsInternal
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -20,19 +17,17 @@ import kotlinx.serialization.encodeToString
 
 class ProductService(
     private val db: DBContext,
-    private val processor: AccountingProcessor
 ) {
-
     suspend fun productV1toV2(product: Product): ProductV2 {
         val category = ProductCategory(
-                product.category.name,
-                product.category.provider,
-                product.productType,
-                basicTranslationToAccountingUnit(product.unitOfPrice, product.productType),
-                translateToAccountingFrequency(product.unitOfPrice),
-                emptyList(),
-                product.freeToUse
-            )
+            product.category.name,
+            product.category.provider,
+            product.productType,
+            basicTranslationToAccountingUnit(product.unitOfPrice, product.productType),
+            translateToAccountingFrequency(product.unitOfPrice),
+            emptyList(),
+            product.freeToUse
+        )
 
         return when (product) {
             is Product.Compute -> {
@@ -50,6 +45,7 @@ class ProductService(
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
+
             is Product.Storage -> {
                 ProductV2.Storage(
                     name = product.name,
@@ -59,6 +55,7 @@ class ProductService(
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
+
             is Product.License -> {
                 ProductV2.License(
                     name = product.name,
@@ -69,6 +66,7 @@ class ProductService(
                     tags = product.tags
                 )
             }
+
             is Product.NetworkIP -> {
                 ProductV2.NetworkIP(
                     name = product.name,
@@ -78,6 +76,7 @@ class ProductService(
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
+
             is Product.Ingress -> {
                 ProductV2.Ingress(
                     name = product.name,
@@ -87,12 +86,14 @@ class ProductService(
                     hiddenInGrantApplications = product.hiddenInGrantApplications
                 )
             }
+
             else -> {
                 throw RPCException("Unknown Product Type", HttpStatusCode.InternalServerError)
             }
         }
 
     }
+
     suspend fun createV1(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Product>
@@ -106,6 +107,7 @@ class ProductService(
             bulkRequestOf(newProducts)
         )
     }
+
     suspend fun createV2(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ProductV2>
@@ -307,7 +309,7 @@ class ProductService(
         val page = browse(actorAndProject, newRequests)
         val items = page.items.map {
             val product = it.first.toV1()
-            product.balance= it.second
+            product.balance = it.second
             product
         }
         return PageV2(page.itemsPerPage, items, page.next)
@@ -316,7 +318,7 @@ class ProductService(
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ProductsV2BrowseRequest
-    ): PageV2<Pair<ProductV2,Long?>> {
+    ): PageV2<Pair<ProductV2, Long?>> {
         return db.withSession { session ->
             val itemsPerPage = request.normalize().itemsPerPage
 
@@ -378,18 +380,11 @@ class ProductService(
                 val product = defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
                 val balance = if (request.includeBalance == true) {
                     val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
-                    val usage = processor.retrieveUsageFromProduct(owner, ProductCategoryIdV2(product.category.name, product.category.provider))
-                        ?: return@mapNotNull null
-                    val quota = processor.retrieveWalletsInternal(AccountingRequest.RetrieveWalletsInternal(Actor.System, owner))
-                        .wallets.find { wallet -> ProductCategoryIdV2(wallet.paysFor.name, wallet.paysFor.provider) == ProductCategoryIdV2(product.category.name, product.category.provider) }
-                        ?.allocations
-                        ?.filter { request.filterUsable == true && Time.now() > it.startDate && Time.now() < it.endDate }
-                        ?.ifEmpty { return@mapNotNull null }
-                        ?.sumOf { allocation -> allocation.quota }
-                        ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "missing wallet")
-                    quota - usage
-                } else {null}
-                return@mapNotNull Pair(product,balance)
+                    0L // TODO!
+                } else {
+                    null
+                }
+                return@mapNotNull Pair(product, balance)
             }
             val next = if (result.size < itemsPerPage) {
                 null

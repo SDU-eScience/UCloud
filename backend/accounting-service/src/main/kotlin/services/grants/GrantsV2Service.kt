@@ -2,15 +2,13 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
-import dk.sdu.cloud.accounting.api.SubAllocationRequestItem
 import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
-import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
-import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -40,7 +38,7 @@ import kotlin.random.Random
 class GrantsV2Service(
     private val db: DBContext,
     private val idCardService: IdCardService,
-    private val accountingService: AccountingService,
+    private val accountingService: AccountingSystem,
     private val providers: Providers<SimpleProviderCommunication>,
     private val projectNotifications: ProviderNotificationService,
     private val serviceClient: AuthenticatedClient,
@@ -527,6 +525,8 @@ class GrantsV2Service(
         }
 
         return allocators.map { alloc ->
+            TODO()
+            /*
             val wallets = accountingService.retrieveWalletsInternal(
                 ActorAndProject(Actor.System, null),
                 WalletOwner.Project(alloc.id)
@@ -538,6 +538,7 @@ class GrantsV2Service(
             }
 
             alloc.copy(categories = categories)
+             */
         }
     }
 
@@ -1065,6 +1066,8 @@ class GrantsV2Service(
                 }
 
                 is Command.Transfer -> {
+                    TODO()
+                    /*
                     requireGrantGiver(command.sourceProjectId)
                     requireOpen()
 
@@ -1090,6 +1093,7 @@ class GrantsV2Service(
                             allocationRequests = requestsWhichAreNotMoving + requestsAfterMove,
                         )
                     )
+                     */
                 }
 
                 is Command.UpdateApprovalState -> {
@@ -1169,6 +1173,8 @@ class GrantsV2Service(
         }
 
         private suspend fun verifySourceAllocationsAreValid(doc: GrantApplication.Document) {
+            TODO()
+            /*
             val requestedFrom = doc.allocationRequests.map { it.grantGiver }.toSet()
 
             for (grantGiver in requestedFrom) {
@@ -1190,6 +1196,7 @@ class GrantsV2Service(
                     if (!hasAlloc) cannotBeRequested(req.category)
                 }
             }
+             */
         }
 
         private fun GrantApplication.Recipient.reference(): String = when (this) {
@@ -1460,6 +1467,8 @@ class GrantsV2Service(
                         session.sendQuery("commit") // commit state changes immediately in case we crash
                         session.sendQuery("begin")
 
+                        TODO()
+                        /*
                         ctx.accountingService.subAllocate(
                             ActorAndProject(Actor.System, null),
                             doc.allocationRequests.map { req ->
@@ -1484,6 +1493,7 @@ class GrantsV2Service(
                                 )
                             }.let { BulkRequest(it) }
                         )
+                         */
 
                         if (doc.recipient is GrantApplication.Recipient.NewProject && walletOwner is WalletOwner.Project) {
                             ctx.projectNotifications.notifyChange(listOf(walletOwner.projectId), session)

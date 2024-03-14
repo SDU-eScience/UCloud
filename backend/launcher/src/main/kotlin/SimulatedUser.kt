@@ -232,10 +232,11 @@ class SimulatedUser(
             serviceClient
         ).orThrow().wallets.flatMap { it.allocations }
 
-        Accounting.deposit.call(
+        TODO()/*
+        AccountingV2.rootAllocate.call(
             bulkRequestOf(
                 allocations.map { alloc ->
-                    DepositToWalletRequestItem(
+                    AccountingV2.RootAllocate.RequestItem(
                         WalletOwner.Project(projectId),
                         alloc.id,
                         10_000_000_000L,
@@ -246,6 +247,7 @@ class SimulatedUser(
             ),
             serviceClient
         ).orThrow()
+        */
 
         val project = Projects.retrieve.call(
             ProjectsRetrieveRequest(projectId),

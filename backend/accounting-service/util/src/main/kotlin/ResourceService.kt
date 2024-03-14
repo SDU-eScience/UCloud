@@ -1086,24 +1086,7 @@ abstract class ResourceService<
         ctx: DBContext? = null,
     ): List<String> {
         val relevantProviders = mutableSetOf<String>()
-        Accounting.findRelevantProviders.call(
-            bulkRequestOf(
-                FindRelevantProvidersRequestItem(
-                    actorAndProject.actor.safeUsername(),
-                    actorAndProject.project,
-                    useProject,
-                    productArea,
-                )
-            ),
-            serviceClient
-        ).orThrow()
-            .responses
-            .forEach { response ->
-                response.providers.forEach { relevant ->
-                    relevantProviders.add(relevant)
-                }
-            }
-        return relevantProviders.toList()
+        TODO()
     }
 
     override suspend fun chargeCredits(

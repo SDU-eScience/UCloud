@@ -2,8 +2,6 @@ package dk.sdu.cloud.accounting.services.projects.v2
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.WalletOwner
-import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.accounting.api.WalletsInternalRetrieveRequest
 import dk.sdu.cloud.accounting.util.PartialQuery
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.auth.api.AuthProviders
@@ -41,6 +39,8 @@ class ProviderNotificationService(
         projectIds: Collection<String>,
         ctx: DBContext = db,
     ) {
+        TODO()
+        /*
         // NOTE(Dan): This function notifies relevant providers about a change in some project, which is relevant to
         // them. This function simply:
         //
@@ -88,6 +88,7 @@ class ProviderNotificationService(
             val comms = providers.prepareCommunication(providerId)
             ProjectNotificationsProvider(providerId).pullRequest.call(Unit, comms.client)
         }
+         */
     }
 
     suspend fun pullNotifications(

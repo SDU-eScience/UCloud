@@ -1,6 +1,9 @@
 package dk.sdu.cloud.accounting.services.accounting
 
+import dk.sdu.cloud.accounting.api.AllocationGroup
 import dk.sdu.cloud.accounting.api.ProductCategory
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.WalletV2
 import dk.sdu.cloud.calls.client.AtomicInteger
 
 internal val ownersByReference = HashMap<String, InternalOwner>()
@@ -16,6 +19,9 @@ internal val walletsIdAccumulator = AtomicInteger(1)
 
 data class InternalOwner(val id: Int, val reference: String) {
     fun isProject(): Boolean = reference.matches(PROJECT_REGEX)
+    fun toWalletOwner(): WalletOwner =
+        if (isProject()) WalletOwner.Project(reference)
+        else WalletOwner.User(reference)
 
     companion object {
         val PROJECT_REGEX =
@@ -74,6 +80,23 @@ data class InternalAllocationGroup(
             result += alloc.preferredBalance(now)
         }
         return result
+    }
+
+    fun toApi(): AllocationGroup {
+        return AllocationGroup(
+            allocationSet.keys.map { id ->
+                val alloc = allocations.getValue(id)
+                AllocationGroup.Alloc(
+                    id.toLong(),
+                    alloc.start,
+                    alloc.end,
+                    alloc.quota,
+                    null, // TODO()
+                    alloc.retiredUsage.takeIf { alloc.retired },
+                )
+            },
+            treeUsage,
+        )
     }
 }
 

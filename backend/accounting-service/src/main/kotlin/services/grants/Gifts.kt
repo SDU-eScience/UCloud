@@ -2,19 +2,17 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.projects.ProjectService
-import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.grant.api.*
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import org.joda.time.DateTime
 
 class GiftService(
     private val db: DBContext,
-    private val accountingService: AccountingService,
+    private val accountingService: AccountingSystem,
     private val projectService: ProjectService,
     private val grantsV2Service: GrantsV2Service
 ) {
@@ -22,6 +20,8 @@ class GiftService(
         actorAndProject: ActorAndProject,
         giftId: Long,
     ) {
+        TODO()
+        /*
         val giftIds = findAvailableGifts(actorAndProject, giftId).gifts.map { it.id }
 
         db.withSession(remapExceptions = true) { session ->
@@ -133,12 +133,15 @@ class GiftService(
                 )
             )
         }
+         */
     }
 
     suspend fun findAvailableGifts(
         actorAndProject: ActorAndProject,
         giftId: Long? = null
     ): AvailableGiftsResponse {
+        return AvailableGiftsResponse(emptyList())
+        /*
         val actor = actorAndProject.actor
         return AvailableGiftsResponse(db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
@@ -188,12 +191,15 @@ class GiftService(
                 """
             ).rows.map { FindByLongId(it.getLong(0)!!) }
         })
+         */
     }
 
     suspend fun createGift(
         actorAndProject: ActorAndProject,
         gift: GiftWithCriteria
     ): Long {
+        TODO()
+        /*
         val project = actorAndProject.project
             ?: throw RPCException("Only projects are allowed to create gifts", HttpStatusCode.BadRequest)
 
@@ -251,6 +257,7 @@ class GiftService(
             ).rows.singleOrNull()?.getLong(0)
                 ?: throw RPCException("unable to create gift", HttpStatusCode.InternalServerError)
         }
+         */
     }
 
     suspend fun deleteGift(
@@ -272,6 +279,8 @@ class GiftService(
         actorAndProject: ActorAndProject,
         pagination: NormalizedPaginationRequestV2
     ): PageV2<GiftWithCriteria> {
+        return PageV2.of(emptyList())
+        /*
         val itemsPerPage = pagination.itemsPerPage
         if (actorAndProject.project == null) return PageV2(itemsPerPage, emptyList(), null)
 
@@ -363,5 +372,6 @@ class GiftService(
         }
 
         return PageV2(itemsPerPage, items, next)
+         */
     }
 }

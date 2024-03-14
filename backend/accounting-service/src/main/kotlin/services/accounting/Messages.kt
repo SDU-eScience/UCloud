@@ -1,7 +1,8 @@
 package dk.sdu.cloud.accounting.services.accounting
 
-import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
+import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.WalletV2
 import dk.sdu.cloud.accounting.util.IdCard
 
 sealed class AccountingRequest<Resp> {
@@ -17,7 +18,7 @@ sealed class AccountingRequest<Resp> {
 
     data class SubAllocate(
         override val idCard: IdCard,
-        val parentWallet: Int,
+        val category: ProductCategoryIdV2,
         val owner: String,
         val quota: Long,
         val start: Long,
@@ -58,5 +59,22 @@ sealed class AccountingRequest<Resp> {
     data class StopSystem(
         override val idCard: IdCard
     ) : AccountingRequest<Unit>()
+
+    data class BrowseWallets(
+        override val idCard: IdCard,
+        val includeChildren: Boolean = false,
+        val childQuery: String? = null,
+        val filterProductType: ProductType? = null,
+    ) : AccountingRequest<List<WalletV2>>()
+
+    /*
+    data class UpdateAllocation(
+        override val idCard: IdCard,
+        val allocationId: Int,
+        val newQuota: Long,
+        val newStart: Long? = null,
+        val newEnd: Long? = null,
+    ) : AccountingRequest<Unit>()
+     */
 }
 

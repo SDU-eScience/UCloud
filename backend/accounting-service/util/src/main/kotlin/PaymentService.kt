@@ -34,71 +34,18 @@ class PaymentService(
     }
 
     suspend fun charge(payments: List<Payment>): List<ChargeResult> {
-        return Accounting.charge.call(
-            BulkRequest(payments.map {
-                ChargeWalletRequestItem(
-                    it.owner,
-                    it.units,
-                    it.periods,
-                    it.product,
-                    it.performedBy,
-                    it.description ?: "Payment",
-                    "${it.product.provider}-${it.chargeId}"
-                )
-            }),
-            serviceClient
-        ).orThrow().responses.map { success ->
-            if (success) ChargeResult.Charged
-            else ChargeResult.InsufficientFunds
-        }
+        TODO()
     }
 
     suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
-        return Accounting.check.call(
-            BulkRequest(payments.map {
-                ChargeWalletRequestItem(
-                    it.owner,
-                    it.units,
-                    it.periods,
-                    it.product,
-                    it.performedBy,
-                    it.description ?: "Payment",
-                    "${it.product.provider}-${it.chargeId}"
-                )
-            }),
-            serviceClient
-        ).orThrow().responses.map { success ->
-            if (success) ChargeResult.Charged
-            else ChargeResult.InsufficientFunds
-        }
+        TODO()
     }
 
     suspend fun creditCheck(
         owner: WalletOwner,
         products: List<ProductReference>
     ) {
-        val success = Accounting.check.call(
-            BulkRequest(
-                products.map { product ->
-                    ChargeWalletRequestItem(
-                        owner,
-                        1L, 1L,
-                        product,
-                        "_ucloud",
-                        "Credit check",
-                        "${product.provider}-${UUID.randomUUID()}"
-                    )
-                }
-            ),
-            serviceClient
-        ).orThrow().responses.all { it }
-
-        if (!success) {
-            throw RPCException(
-                "Insufficient funds",
-                HttpStatusCode.PaymentRequired
-            )
-        }
+        TODO()
     }
 
     companion object : Loggable {
