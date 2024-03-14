@@ -299,6 +299,8 @@ export const Hero: React.FunctionComponent<{
 
     const index = activeIndex % slides.length;
     const slide = slides[index];
+    const nextSlideIndex = (activeIndex + 1) % slides.length;
+    const nextSlide = slides[nextSlideIndex];
 
     let slideLink = slide.linkedWebPage;
     let slideLinkIsExternal = true;
@@ -312,8 +314,11 @@ export const Hero: React.FunctionComponent<{
     }
 
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
+    const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index: nextSlideIndex, slideTitle: nextSlide.title});
 
     return <Card style={{overflow: "hidden"}}>
+        {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
+        <img src={nextImageLink} style={{opacity: 1, width: 1, height: 1, position: "absolute"}} />
         <div className={HeroStyle}>
             <div className={"carousel"}>
                 <div>
