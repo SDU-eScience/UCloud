@@ -37,6 +37,7 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val idCardService = IdCardService(db, micro.backgroundScope, client)
         val distributedLocks = DistributedLockFactory(micro)
+        val distributedStateFactory = DistributedStateFactory(micro)
 
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
         val providerProviders =
@@ -57,6 +58,8 @@ class Server(
             IdCardService(db, micro.backgroundScope, client),
             distributedLocks,
             micro.developmentModeEnabled,
+            distributedStateFactory,
+            addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
         )
 
         val productService = ProductService(db)
@@ -75,7 +78,7 @@ class Server(
         val favoriteProjects = FavoriteProjectService(projectsV2)
         val grants = GrantsV2Service(db, idCardService, accountingSystem, simpleProviders, projectNotifications,
             client, config.defaultTemplate)
-        val giftService = GiftService(db, accountingSystem, projectService, grants)
+        val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
 
 
         val scriptManager = micro.feature(ScriptManager)
@@ -121,7 +124,7 @@ class Server(
         )
 
         configureControllers(
-            AccountingController(accountingSystem, depositNotifications, idCardService),
+            AccountingController(accountingSystem, depositNotifications, idCardService, client),
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),
             GiftController(giftService),

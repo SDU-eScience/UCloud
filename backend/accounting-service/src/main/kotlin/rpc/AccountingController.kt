@@ -6,9 +6,12 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
@@ -23,43 +26,43 @@ class AccountingController(
     private val accounting: AccountingSystem,
     private val notifications: DepositNotificationService,
     private val idCards: IdCardService,
+    private val client: AuthenticatedClient,
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
         call: CallDescription<R, S, E>,
         handler: suspend CallHandler<R, S, E>.() -> Unit,
     ) {
         implement(call) {
-//            val activeProcessor = accounting.retrieveActiveProcessorAddress()
-//            if (activeProcessor == null) {
-            handler()
-//            } else {
-//                ok(
-//                    call.call(
-//                        request,
-//                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
-//                    ).orThrow()
-//                )
-//            }
+            val activeProcessor = accounting.retrieveActiveProcessor()
+            if (activeProcessor == null) {
+                handler()
+            } else {
+                ok(
+                    call.call(
+                        request,
+                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
+                    ).orThrow()
+                )
+            }
         }
     }
 
     @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implementOrDispatch(AccountingV2.findRelevantProviders) {
-            TODO()
-            /*
-            val responses = request.items.map {
-                val providers = accounting.findRelevantProviders(
-                    actorAndProject,
-                    it.username,
-                    it.project,
-                    it.useProject,
-                    it.filterProductType,
-                )
-                FindRelevantProvidersResponse(providers)
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            val responses = request.items.map { req ->
+                accounting.sendRequest(
+                    AccountingRequest.FindRelevantProviders(
+                        idCard,
+                        req.username,
+                        req.project,
+                        req.useProject,
+                        req.filterProductType,
+                    )
+                ).let { AccountingV2.FindRelevantProviders.Response(it.toList()) }
             }
             ok(BulkResponse(responses))
-             */
         }
 
         implementOrDispatch(AccountingV2.reportUsage) {
@@ -85,8 +88,20 @@ class AccountingController(
         }
 
         implementOrDispatch(AccountingV2.updateAllocation) {
-//            ok(accounting.updateAllocation(actorAndProject, request))
-            TODO()
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            for (req in request.items) {
+                accounting.sendRequest(
+                    AccountingRequest.UpdateAllocation(
+                        idCard = idCard,
+                        allocationId = req.allocationId.toInt(),
+                        newQuota = req.newQuota,
+                        newStart = req.newStart,
+                        newEnd = req.newEnd,
+                    )
+                )
+            }
+
+            ok(Unit)
         }
 
         implementOrDispatch(AccountingV2.rootAllocate) {
@@ -110,23 +125,62 @@ class AccountingController(
             ok(BulkResponse(allocationIds))
         }
 
-        implement(AccountingV2.browseWallets) {
+        implementOrDispatch(AccountingV2.browseWallets) {
             val idCard = idCards.fetchIdCard(actorAndProject)
-            ok(PageV2.of(
-                accounting.sendRequest(
-                    AccountingRequest.BrowseWallets(
-                        idCard,
-                        request.includeChildren,
-                        request.childrenQuery,
-                        request.filterType,
+            ok(
+                PageV2.of(
+                    accounting.sendRequest(
+                        AccountingRequest.BrowseWallets(
+                            idCard,
+                            request.includeChildren,
+                            request.childrenQuery,
+                            request.filterType,
+                        )
                     )
                 )
-            ))
+            )
+        }
+
+        implementOrDispatch(AccountingV2.browseWalletsInternal) {
+            val idCard = when (val owner = request.owner) {
+                is WalletOwner.User -> {
+                    idCards.fetchIdCard(ActorAndProject(Actor.SystemOnBehalfOfUser(owner.username), null))
+                }
+
+                is WalletOwner.Project -> {
+                    val pid = idCards.lookupPidFromProjectId(owner.projectId)
+                        ?: throw RPCException("Unknown project: ${owner.projectId}", HttpStatusCode.NotFound)
+                    IdCard.User(0, IntArray(0), IntArray(pid), pid)
+                }
+            }
+
+            ok(
+                AccountingV2.BrowseWalletsInternal.Response(
+                    accounting.sendRequest(
+                        AccountingRequest.BrowseWallets(
+                            idCard,
+                        )
+                    )
+                )
+            )
         }
 
         implementOrDispatch(AccountingV2.browseProviderAllocations) {
-//            ok(accounting.retrieveProviderAllocations(actorAndProject, request))
-            TODO()
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            ok(
+                accounting.sendRequest(
+                    AccountingRequest.RetrieveProviderAllocations(
+                        idCard,
+                        request.itemsPerPage,
+                        request.next,
+                        request.consistency,
+                        request.itemsToSkip,
+                        request.filterCategory,
+                        request.filterOwnerIsProject,
+                        request.filterCategory,
+                    )
+                )
+            )
         }
 
         implement(DepositNotifications.retrieve) {

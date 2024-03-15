@@ -21,18 +21,17 @@ class ProductController(
         handler: suspend CallHandler<R, S, E>.() -> Unit,
     ) {
         implement(call) {
-//            val activeProcessor = accounting.retrieveActiveProcessorAddress()
-//            if (activeProcessor == null) {
+            val activeProcessor = accounting.retrieveActiveProcessor()
+            if (activeProcessor == null) {
                 handler()
-//            } else {
-//                ok(
-//                    call.call(
-//                        request,
-//                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
-//                    ).orThrow()
-//                )
-//            }
-            // TODO()
+            } else {
+                ok(
+                    call.call(
+                        request,
+                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
+                    ).orThrow()
+                )
+            }
         }
     }
 
@@ -53,7 +52,6 @@ class ProductController(
         }
 
         implementOrDispatch(ProductsV2.create) {
-
             ok(products.createV2(actorAndProject, request))
         }
 

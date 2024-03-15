@@ -25,7 +25,6 @@ class ProductService(
             product.productType,
             basicTranslationToAccountingUnit(product.unitOfPrice, product.productType),
             translateToAccountingFrequency(product.unitOfPrice),
-            emptyList(),
             product.freeToUse
         )
 

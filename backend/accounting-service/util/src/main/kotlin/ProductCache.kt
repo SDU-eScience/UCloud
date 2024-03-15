@@ -32,6 +32,10 @@ interface IProductCache {
     }
 }
 
+fun List<ProductV2>.findAllFreeProducts(): List<ProductV2> {
+    return filter { it.category.freeToUse }
+}
+
 class ProductCache(private val db: DBContext) : IProductCache {
     private val mutex = ReadWriterMutex()
     private val referenceToProductId = HashMap<ProductReferenceV2, Int>()

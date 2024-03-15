@@ -2,7 +2,9 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
+import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
 import dk.sdu.cloud.accounting.util.IdCard
@@ -524,21 +526,23 @@ class GrantsV2Service(
             }
         }
 
-        return allocators.map { alloc ->
-            TODO()
-            /*
-            val wallets = accountingService.retrieveWalletsInternal(
-                ActorAndProject(Actor.System, null),
-                WalletOwner.Project(alloc.id)
+        return allocators.map { allocator ->
+            val targetPid = idCardService.lookupPidFromProjectId(allocator.id)
+                ?: throw RPCException("Unknown target project? ${allocator.id}", HttpStatusCode.Forbidden)
+
+            val wallets = accountingService.sendRequest(
+                AccountingRequest.BrowseWallets(
+                    IdCard.User(0, IntArray(0), IntArray(0), targetPid)
+                )
             )
+
             val categories = wallets.mapNotNull { w ->
-                if (!w.allocations.any { it.isActive() }) return@mapNotNull null
+                if (w.quota == 0L) return@mapNotNull null
                 if (w.paysFor.freeToUse) return@mapNotNull null
                 w.paysFor
             }
 
-            alloc.copy(categories = categories)
-             */
+            allocator.copy(categories = categories)
         }
     }
 
@@ -980,9 +984,6 @@ class GrantsV2Service(
                         if (grantGivers.size != 1) genericForbidden()
                         val grantGiver = grantGivers.single()
                         if (!isGrantGiver(grantGiver)) genericForbidden()
-                        if (command.doc.allocationRequests.any { it.sourceAllocation == null }) {
-                            throw RPCException("Missing source allocation in request", HttpStatusCode.BadRequest)
-                        }
 
                         insertRevision(
                             command.comment,
@@ -1066,14 +1067,16 @@ class GrantsV2Service(
                 }
 
                 is Command.Transfer -> {
-                    TODO()
-                    /*
                     requireGrantGiver(command.sourceProjectId)
                     requireOpen()
 
-                    val targetWallets = ctx.accountingService.retrieveWalletsInternal(
-                        ActorAndProject(Actor.System, null),
-                        WalletOwner.Project(command.targetProjectId)
+                    val targetPid = ctx.idCardService.lookupPidFromProjectId(command.targetProjectId)
+                        ?: throw RPCException("Unknown target project? ${command.targetProjectId}", HttpStatusCode.Forbidden)
+
+                    val targetWallets = ctx.accountingService.sendRequest(
+                        AccountingRequest.BrowseWallets(
+                            IdCard.User(0, IntArray(0), IntArray(0), targetPid),
+                        )
                     )
 
                     val originalRequests = application.currentRevision.document.allocationRequests
@@ -1084,7 +1087,7 @@ class GrantsV2Service(
                             it.paysFor.provider == req.provider && it.paysFor.name == req.category
                         } ?: return@mapNotNull null
 
-                        req.copy(grantGiver = command.targetProjectId, sourceAllocation = null)
+                        req.copy(grantGiver = command.targetProjectId)
                     }
 
                     insertRevision(
@@ -1093,7 +1096,6 @@ class GrantsV2Service(
                             allocationRequests = requestsWhichAreNotMoving + requestsAfterMove,
                         )
                     )
-                     */
                 }
 
                 is Command.UpdateApprovalState -> {
@@ -1154,7 +1156,6 @@ class GrantsV2Service(
         )
 
         private suspend fun insertRevision(comment: String, newDoc: GrantApplication.Document) {
-            verifySourceAllocationsAreValid(newDoc)
             val rev = GrantApplication.Revision(
                 Time.now(),
                 actorAndProject.actor.safeUsername(),
@@ -1170,33 +1171,6 @@ class GrantsV2Service(
             )
 
             actionQueue.add(Action.NewRevision(rev))
-        }
-
-        private suspend fun verifySourceAllocationsAreValid(doc: GrantApplication.Document) {
-            TODO()
-            /*
-            val requestedFrom = doc.allocationRequests.map { it.grantGiver }.toSet()
-
-            for (grantGiver in requestedFrom) {
-                val wallets = ctx.accountingService.retrieveWalletsInternal(
-                    ActorAndProject.System,
-                    WalletOwner.Project(grantGiver)
-                )
-
-                // TODO We should probably use old values if they are not coming from a grantGiver admin,
-                //  although this is probably close enough.
-                for (req in doc.allocationRequests) {
-                    if (req.grantGiver != grantGiver) continue
-                    val sourceAlloc = req.sourceAllocation ?: continue
-                    val wallet = wallets.find {
-                        it.paysFor.name == req.category && it.paysFor.provider == req.provider
-                    } ?: cannotBeRequested(req.category)
-
-                    val hasAlloc = wallet.allocations.any { it.id.toLongOrNull() == sourceAlloc }
-                    if (!hasAlloc) cannotBeRequested(req.category)
-                }
-            }
-             */
         }
 
         private fun GrantApplication.Recipient.reference(): String = when (this) {
@@ -1295,7 +1269,6 @@ class GrantsV2Service(
                                     into("balance") { it.balanceRequested ?: 0L }
                                     into("categories") { it.category }
                                     into("providers") { it.provider }
-                                    into("source_allocations") { it.sourceAllocation }
                                     into("start_dates") { it.period.start ?: Time.now() }
                                     into("end_dates") { it.period.end ?: (Time.now() + (1000L * 60 * 60 * 24 * 365)) }
                                     setParameter("rev_id", revisionNumber)
@@ -1308,7 +1281,6 @@ class GrantsV2Service(
                                             unnest(:balance::int8[]) as balance,
                                             unnest(:categories::text[]) as category,
                                             unnest(:providers::text[]) as provider,
-                                            unnest(:source_allocations::int8[]) as source_allocation,
                                             to_timestamp(unnest(:start_dates::int8[]) / 1000) as start_date,
                                             to_timestamp(unnest(:end_dates::int8[]) / 1000) as end_date,
                                             unnest(:grant_givers::text[]) as grant_giver
@@ -1317,7 +1289,6 @@ class GrantsV2Service(
                                         select
                                             d.balance,
                                             pc.id as category,
-                                            d.source_allocation,
                                             d.start_date,
                                             d.end_date,
                                             d.grant_giver
@@ -1329,10 +1300,10 @@ class GrantsV2Service(
                                     )
                                 insert into "grant".requested_resources 
                                     (application_id, credits_requested, quota_requested_bytes, product_category, 
-                                    source_allocation, start_date, end_date, grant_giver, revision_number) 
+                                    start_date, end_date, grant_giver, revision_number) 
                                 select
-                                    :app_id, d.balance, null, d.category, d.source_allocation, d.start_date, 
-                                    d.end_date, d.grant_giver, :rev_id
+                                    :app_id, d.balance, null, d.category, d.start_date, d.end_date, d.grant_giver,
+                                    :rev_id
                                 from normalized_data d
                             """
                         )
@@ -1467,33 +1438,19 @@ class GrantsV2Service(
                         session.sendQuery("commit") // commit state changes immediately in case we crash
                         session.sendQuery("begin")
 
-                        TODO()
-                        /*
-                        ctx.accountingService.subAllocate(
-                            ActorAndProject(Actor.System, null),
-                            doc.allocationRequests.map { req ->
-                                if (req.sourceAllocation == null) {
-                                    throw RPCException("Source Allocations not chosen", HttpStatusCode.BadRequest)
-                                }
-
-                                SubAllocationRequestItem(
-                                    owner = walletOwner,
-                                    parentAllocation = req.sourceAllocation.toString(),
-                                    quota = req.balanceRequested!!,
-                                    start = req.period.start ?: Time.now(),
-                                    end = req.period.end,
-                                    grantedIn = application.id.toLong(),
-                                    // TODO(Dan): Why is this code dead?
-                                    // deicAllocationId = doc.referenceId?.takeIf {
-                                    //     it.startsWith(
-                                    //         "deic",
-                                    //         ignoreCase = true
-                                    //     )
-                                    // }
+                        // TODO GrantedIn
+                        doc.allocationRequests.forEach { req ->
+                            ctx.accountingService.sendRequest(
+                                AccountingRequest.SubAllocate(
+                                    IdCard.System,
+                                    ProductCategoryIdV2(req.category, req.provider),
+                                    req.grantGiver,
+                                    req.balanceRequested!!,
+                                    req.period.start ?: Time.now(),
+                                    req.period.end ?: Time.now(),
                                 )
-                            }.let { BulkRequest(it) }
-                        )
-                         */
+                            )
+                        }
 
                         if (doc.recipient is GrantApplication.Recipient.NewProject && walletOwner is WalletOwner.Project) {
                             ctx.projectNotifications.notifyChange(listOf(walletOwner.projectId), session)

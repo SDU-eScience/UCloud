@@ -60,8 +60,6 @@ data class ProductCategory(
     val productType: ProductType,       //e.g. STORAGE
     val accountingUnit: AccountingUnit,
     val accountingFrequency: AccountingFrequency,
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    val conversionTable: List<AccountingUnitConversion> = emptyList(),
     @UCloudApiDoc(
         """
         Indicates that a Wallet is not required to use this Product category

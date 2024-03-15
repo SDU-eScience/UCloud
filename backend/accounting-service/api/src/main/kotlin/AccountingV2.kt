@@ -149,6 +149,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     // Interaction with wallets
     // =================================================================================================================
     val browseWallets = BrowseWallets.call
+    val browseWalletsInternal = BrowseWalletsInternal.call
 
     object BrowseWallets {
         @Serializable
@@ -175,6 +176,37 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
 
                 documentation {
                     summary = "Browses the catalog of accessible Wallets"
+                }
+            }
+        )
+    }
+
+    object BrowseWalletsInternal {
+        @Serializable
+        data class Request(
+            val owner: WalletOwner
+        )
+
+        @Serializable
+        data class Response(
+            val wallets: List<WalletV2>
+        )
+
+        val call = call(
+            "browseWalletsInternal",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "browseWalletsInternal", roles = Roles.PRIVILEGED)
+
+                documentation {
+                    summary = "Retrieves a list of up-to-date wallets"
+                    description = """
+                        This endpoint will return a list of $TYPE_REF Wallet s which are related to the active 
+                        workspace. This is mainly for backend use. For frontend, use the browse call instead for a
+                        paginated response
+                    """.trimIndent()
                 }
             }
         )

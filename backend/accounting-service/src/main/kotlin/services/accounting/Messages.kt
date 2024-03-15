@@ -1,5 +1,9 @@
 package dk.sdu.cloud.accounting.services.accounting
 
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
+import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.WalletV2
@@ -67,14 +71,32 @@ sealed class AccountingRequest<Resp> {
         val filterProductType: ProductType? = null,
     ) : AccountingRequest<List<WalletV2>>()
 
-    /*
     data class UpdateAllocation(
         override val idCard: IdCard,
         val allocationId: Int,
-        val newQuota: Long,
+        val newQuota: Long? = null,
         val newStart: Long? = null,
         val newEnd: Long? = null,
     ) : AccountingRequest<Unit>()
-     */
+
+    data class RetrieveProviderAllocations(
+        override val idCard: IdCard,
+        override val itemsPerPage: Int? = null,
+        override val next: String? = null,
+        override val consistency: PaginationRequestV2Consistency? = null,
+        override val itemsToSkip: Long? = null,
+
+        val filterOwnerId: String? = null,
+        val filterOwnerIsProject: Boolean? = null,
+        val filterCategory: String? = null,
+    ) : AccountingRequest<PageV2<AccountingV2.BrowseProviderAllocations.ResponseItem>>(), WithPaginationRequestV2
+
+    data class FindRelevantProviders(
+        override val idCard: IdCard,
+        val username: String,
+        val project: String?,
+        val useProject: Boolean,
+        val filterProductType: ProductType? = null,
+    ) : AccountingRequest<Set<String>>()
 }
 

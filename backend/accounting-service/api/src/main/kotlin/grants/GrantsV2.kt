@@ -547,7 +547,6 @@ data class GrantApplication(
         val provider: String,
         val grantGiver: String,
         val balanceRequested: Long? = null,
-        val sourceAllocation: Long? = null,
         val period: Period,
     )
 

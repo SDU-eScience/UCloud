@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.util.FakeIdCardService
 import dk.sdu.cloud.accounting.util.FakeProductCache
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.service.NonDistributedLockFactory
+import dk.sdu.cloud.service.NonDistributedStateFactory
 import dk.sdu.cloud.service.StaticTimeProvider
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
@@ -34,7 +35,9 @@ class AccountingTest {
             FakeAccountingPersistence,
             idCards,
             NonDistributedLockFactory(),
-            true
+            true,
+            NonDistributedStateFactory(),
+            "127.0.0.1",
         )
 
         runBlocking {

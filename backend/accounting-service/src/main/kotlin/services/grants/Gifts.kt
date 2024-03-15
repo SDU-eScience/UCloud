@@ -2,8 +2,10 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.projects.ProjectService
+import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.*
@@ -14,14 +16,13 @@ class GiftService(
     private val db: DBContext,
     private val accountingService: AccountingSystem,
     private val projectService: ProjectService,
-    private val grantsV2Service: GrantsV2Service
+    private val grantsV2Service: GrantsV2Service,
+    private val idCards: IdCardService,
 ) {
     suspend fun claimGift(
         actorAndProject: ActorAndProject,
         giftId: Long,
     ) {
-        TODO()
-        /*
         val giftIds = findAvailableGifts(actorAndProject, giftId).gifts.map { it.id }
 
         db.withSession(remapExceptions = true) { session ->
@@ -86,37 +87,20 @@ class GiftService(
                 sourceProject = row.getString(3)!!
                 val renewalPolicy = row.getInt(4)!!
                 val start = DateTime.now().millis
-                val end = DateTime.now().plusMonths((if (renewalPolicy == 0 ) 12 else renewalPolicy)).millis
+                val end = DateTime.now().plusMonths((if (renewalPolicy == 0) 12 else renewalPolicy)).millis
 
-                val allocations = accountingService.retrieveTimeFittingAllocations(
-                    ActorAndProject(Actor.System, null),
-                    WalletOwner.Project(sourceProject),
-                    category,
-                    start,
-                    end
-                )
-
-                if (allocations.isEmpty()) throw  RPCException("Unable to grant gift", HttpStatusCode.NotFound)
-                //If multiple allocations within timeline of gift. Spread it out amongst all.
-                //TODO(HENRIK) Should rarely be more than 2 or 3 allocations. Should perhaps investigate
-                //TODO(HENRIK) alternative way of splitting requested balance (Weight by timeslot?)
-                val fraction = balance / allocations.size
-
-                allocations.forEach {
-                        resourceRequests.add(
-                            GrantApplication.AllocationRequest(
-                            category.name,
-                            category.provider,
-                            sourceProject,
-                            fraction,
-                            it.id.toLong(),
-                            GrantApplication.Period(
-                                start,
-                                end
-                            )
+                resourceRequests.add(
+                    GrantApplication.AllocationRequest(
+                        category.name,
+                        category.provider,
+                        sourceProject,
+                        balance,
+                        GrantApplication.Period(
+                            start,
+                            end
                         )
                     )
-                }
+                )
             }
             val projectPi = projectService.getPIAndAdminsOfProject(db, sourceProject).first
             grantsV2Service.submitRevision(
@@ -133,15 +117,12 @@ class GiftService(
                 )
             )
         }
-         */
     }
 
     suspend fun findAvailableGifts(
         actorAndProject: ActorAndProject,
         giftId: Long? = null
     ): AvailableGiftsResponse {
-        return AvailableGiftsResponse(emptyList())
-        /*
         val actor = actorAndProject.actor
         return AvailableGiftsResponse(db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
@@ -191,15 +172,12 @@ class GiftService(
                 """
             ).rows.map { FindByLongId(it.getLong(0)!!) }
         })
-         */
     }
 
     suspend fun createGift(
         actorAndProject: ActorAndProject,
         gift: GiftWithCriteria
     ): Long {
-        TODO()
-        /*
         val project = actorAndProject.project
             ?: throw RPCException("Only projects are allowed to create gifts", HttpStatusCode.BadRequest)
 
@@ -214,9 +192,10 @@ class GiftService(
             throw RPCException("Only admins and PIs are allowed to create gifts", HttpStatusCode.Forbidden)
         }
 
-        val providersAvailable = accountingService.retrieveWalletsInternal(
-            actorAndProject,
-            WalletOwner.Project(project)
+        val providersAvailable = accountingService.sendRequest(
+            AccountingRequest.BrowseWallets(
+                idCards.fetchIdCard(actorAndProject),
+            )
         ).map { it.paysFor.provider }.toSet()
 
         gift.resources.forEach { resource ->
@@ -257,7 +236,6 @@ class GiftService(
             ).rows.singleOrNull()?.getLong(0)
                 ?: throw RPCException("unable to create gift", HttpStatusCode.InternalServerError)
         }
-         */
     }
 
     suspend fun deleteGift(
@@ -279,8 +257,6 @@ class GiftService(
         actorAndProject: ActorAndProject,
         pagination: NormalizedPaginationRequestV2
     ): PageV2<GiftWithCriteria> {
-        return PageV2.of(emptyList())
-        /*
         val itemsPerPage = pagination.itemsPerPage
         if (actorAndProject.project == null) return PageV2(itemsPerPage, emptyList(), null)
 
@@ -372,6 +348,5 @@ class GiftService(
         }
 
         return PageV2(itemsPerPage, items, next)
-         */
     }
 }

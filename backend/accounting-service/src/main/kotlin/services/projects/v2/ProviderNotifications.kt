@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.services.projects.v2
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.util.PartialQuery
 import dk.sdu.cloud.accounting.util.Providers
@@ -25,7 +26,7 @@ class ProviderNotificationService(
     private val db: DBContext,
     private val providers: Providers<*>,
     private val backgroundScope: BackgroundScope,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
 ) {
     init {
         projectService.addUpdateHandler { projects ->
@@ -39,8 +40,6 @@ class ProviderNotificationService(
         projectIds: Collection<String>,
         ctx: DBContext = db,
     ) {
-        TODO()
-        /*
         // NOTE(Dan): This function notifies relevant providers about a change in some project, which is relevant to
         // them. This function simply:
         //
@@ -48,8 +47,8 @@ class ProviderNotificationService(
         // 2. Write an entry into the database about the notification (ignoring duplicates)
         // 3. Notify every provider that a notification is waiting for them
         val relevantWallets = projectIds.flatMap { id ->
-            Wallets.retrieveWalletsInternal.call(
-                WalletsInternalRetrieveRequest(
+            AccountingV2.browseWalletsInternal.call(
+                AccountingV2.BrowseWalletsInternal.Request(
                     WalletOwner.Project(id)
                 ),
                 serviceClient
@@ -88,7 +87,6 @@ class ProviderNotificationService(
             val comms = providers.prepareCommunication(providerId)
             ProjectNotificationsProvider(providerId).pullRequest.call(Unit, comms.client)
         }
-         */
     }
 
     suspend fun pullNotifications(
