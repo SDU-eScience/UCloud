@@ -93,7 +93,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 });
 
                 browser.on("renderRow", (app, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "fileSignatureSolid",
@@ -151,7 +151,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     const statusIconName = stateIconAndColor.icon;
                     const statusIconColor = stateIconAndColor.color;
 
-                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                     browser.icons.renderIcon({
                         name: statusIconName,
                         color: statusIconColor,

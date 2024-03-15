@@ -468,7 +468,7 @@ export class ResourceBrowser<T> {
                         <input class="location-bar">
                     </div>
                     <div style="flex-grow: 1;"></div>
-                    <input class="${InputClass} search-field" hidden>
+                    <input class="${InputClass} search-field" data-hidden>
                     <img alt="search" class="search-icon">
                     <img alt="refresh" class="refresh-icon">
                 </div>
@@ -594,8 +594,8 @@ export class ResourceBrowser<T> {
 
             searchIcon.onclick = () => {
                 if (!input) return;
-                input.toggleAttribute("hidden");
-                if (input.hasAttribute("hidden")) {
+                input.toggleAttribute("data-hidden");
+                if (input.hasAttribute("data-hidden")) {
                     this.dispatchMessage("searchHidden", fn => fn());
                 } else {
                     input.focus()
@@ -1098,7 +1098,7 @@ export class ResourceBrowser<T> {
 
     static lastClickCache: Record<string, number> = {};
 
-    static defaultIconRenderer(embedded: boolean): [HTMLDivElement, (url: string) => void] {
+    static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
         // image itself, which breaks the drag-and-drop functionality.
         const icon = createHTMLElements<HTMLDivElement>({
@@ -3011,6 +3011,7 @@ export class ResourceBrowser<T> {
             }
 
             .header-first-row .search-icon[data-shown] {
+                z-index: 1;
                 width: 24px;
                 height: 24px;
             }
@@ -3061,7 +3062,7 @@ export class ResourceBrowser<T> {
                 height: 35px;
                 font-feature-settings: unset;
             }
-            
+
             ${browserClass.dot} header[has-location-bar] .location:hover {
                 border: 1px solid var(--borderColorHover);
             }
@@ -3094,6 +3095,23 @@ export class ResourceBrowser<T> {
                 margin-left: 5px;
                 background: transparent;
                 color: var(--textPrimary);
+            }
+
+            ${browserClass.dot} header input.search-field {
+                position: relative;
+                right: -46px;
+                width: 200px;
+                height: 35px;
+                margin-left: 5px;
+                transition: transform .2s;
+            }
+
+            ${browserClass.dot} header input.search-field[data-hidden] {
+                transform: translate(calc(200px / 2), 0) scale(0, 1)
+            }
+
+            ${browserClass.dot} header input.search-field:not([data-hidden]) {
+                transform: translate(0, 0) scale(1);
             }
             
             ${browserClass.dot} header > div > div > ul {
@@ -3170,8 +3188,6 @@ export class ResourceBrowser<T> {
                 ${browserClass.dot} .row .title {
                     width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
                 }
-                
-                /* TODO(Jonas): Handle if Use button is present */
             }
             
 
@@ -3678,7 +3694,7 @@ export class ResourceBrowser<T> {
         }
         if (this.browseFilters["sortBy"] === filter) {
             wrapper.style.fontWeight = "bold";
-            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer(true);
+            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
             this.icons.renderIcon({
                 name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
                 color: "textPrimary",

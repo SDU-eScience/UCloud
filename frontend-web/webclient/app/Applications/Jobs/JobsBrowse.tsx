@@ -144,7 +144,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 }]);
 
                 browser.on("renderRow", (job, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
                     icon.style.minHeight = "20px"
                     row.title.append(icon);
@@ -184,7 +184,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             row.stat3.replaceChildren(button);
                         }
                     } else {
-                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                         const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
                         browser.icons.renderIcon({
                             name: statusIconName,

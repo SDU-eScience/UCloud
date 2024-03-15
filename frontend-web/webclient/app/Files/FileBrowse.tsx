@@ -718,7 +718,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("renderRow", (file, row, containerWidth) => {
                     row.container.setAttribute("data-file", file.id);
 
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
@@ -740,7 +740,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         HTMLTooltip(iconWrapper, div("Synchronized with Syncthing"), {tooltipContentWidth: 230})
 
                         icon.append(iconWrapper);
-                        const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
                         syncThingIcon.style.height = "8px";
                         syncThingIcon.style.width = "8px";
                         syncThingIcon.style.marginLeft = "-2px";
@@ -946,7 +946,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             })).then(res => res.items)
                         ).then(doNothing);
                         if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
-                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
                             driveIcon.className = "drive-icon-dropdown";
                             driveIcon.style.cursor = "pointer";
                             const url = browser.header.querySelector("div.header-first-row");

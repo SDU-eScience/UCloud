@@ -73,9 +73,7 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
 `);
 
 export function ContextSwitcher({managed}: {
-    managed?: {
-        setLocalProject: (project?: string) => void;
-    }
+    managed?: {setLocalProject: (project?: string) => void}
 }): JSX.Element {
     const refresh = useRefresh();
 
@@ -137,7 +135,7 @@ export function ContextSwitcher({managed}: {
     const filteredProjects: Project[] = React.useMemo(() => {
         if (filter === "") return projectList.items;
 
-        const searchResults = fuzzySearch(projectList.items.map(it => it.specification), ["title"], filter, { sort: true });
+        const searchResults = fuzzySearch(projectList.items.map(it => it.specification), ["title"], filter, {sort: true});
         return searchResults
             .map(it => projectList.items.find(p => it.title === p.specification.title))
             .filter(it => it !== undefined) as Project[];
@@ -222,7 +220,7 @@ export function ContextSwitcher({managed}: {
                             className={filterInputClass}
                             placeholder="Search for a workspace..."
                             defaultValue={filter}
-                                onKeyDown={e => {
+                            onKeyDown={e => {
                                 if (["Escape"].includes(e.key) && e.target["value"]) {
                                     setTitleFilter("");
                                     e.target["value"] = "";
@@ -270,7 +268,7 @@ export function ContextSwitcher({managed}: {
                             </div>
                         )}
 
-                        {filteredProjects.length !== 0 || showMyWorkspace|| error ? null : (
+                        {filteredProjects.length !== 0 || showMyWorkspace || error ? null : (
                             <Box my="32px" textAlign="center">No workspaces found</Box>
                         )}
                     </div>
