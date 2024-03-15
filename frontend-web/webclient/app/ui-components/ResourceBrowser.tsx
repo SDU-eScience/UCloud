@@ -3085,6 +3085,7 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 cursor: text;
                 height: 35px;
+                transition: margin-right 0.2s;
             }
             
             ${browserClass.dot} header[has-location-bar] .location input {
@@ -3110,6 +3111,14 @@ export class ResourceBrowser<T> {
                 transform: translate(calc(200px / 2), 0) scale(0, 1)
             }
 
+            ${browserClass.dot}:has(header input.search-field[data-hidden]) .header-first-row .location {
+                margin-right: -212px;
+            }
+
+            ${browserClass.dot}:has(header input.search-field:not([data-hidden])) .header-first-row .location {
+                margin-right: -42px;
+            }
+            
             ${browserClass.dot} header input.search-field:not([data-hidden]) {
                 transform: translate(0, 0) scale(1);
             }
