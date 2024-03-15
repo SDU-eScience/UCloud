@@ -45,7 +45,7 @@ The design and UCloud, throughout all of its components, follow these principles
 ## Methodology
 
 > [!NOTE]
-> TODO This section hasn't been updated for roughly a year. We may need to adjust this further before it is suitable.
+> TODO We may need to adjust this further before it is suitable.
 
 UCloud uses an _agile methodology_ for development and deployment, which will also be used for this project. The method
 is commonly used for complex projects like this one, and it emphasizes collaboration, flexibility, continuous
@@ -143,7 +143,7 @@ physical locations. However, providers does not have any knowledge of each other
 # File transfer between providers
 
 > [!NOTE]
-> Copy & pasted from previous document
+> Update this section
 
 This causes a problem if an end-user want to transfer data from one provider to another. Not only does the providers not
 have any knowledge of the other provider, but the physical distance between providers may also cause such a transfer of
