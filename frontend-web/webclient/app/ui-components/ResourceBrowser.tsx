@@ -1652,6 +1652,11 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
+            
+            if (op.text === "" && op.icon === "keyboardSolid") { // Note(Jonas): Edge case: Keyboard shortcuts button. 
+                element.style.width = "35px";
+            }
+
             const isConfirmButton = isOperation(op) && op.confirm;
             if (!isConfirmButton) {
                 element.classList.add(ButtonClass);
@@ -3111,6 +3116,7 @@ export class ResourceBrowser<T> {
                 transform: translate(calc(200px / 2), 0) scale(0, 1)
             }
 
+            /* Note(Jonas): If showing search-field, resize navbar */
             ${browserClass.dot}:has(header input.search-field[data-hidden]) .header-first-row .location {
                 margin-right: -212px;
             }
@@ -4056,7 +4062,7 @@ export function controlsOperation(features: ResourceBrowseFeatures, custom?: Con
         text: "",
         icon: "keyboardSolid",
         onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, () => {}),
-        enabled: () => true,
+        enabled: (selected, cb) => !cb.isModal,
         shortcut: ShortcutKey.Z,
         hackNotInTheContextMenu: true
     };
