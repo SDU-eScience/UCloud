@@ -24,13 +24,13 @@ import {ShortcutKey} from "@/ui-components/Operation";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
 
-export const ImportParameters: React.FunctionComponent<{
+export function ImportParameters({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
     application: Application;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
-}> = ({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}) => {
+}>): React.JSX.Element {
     const didLoadParameters = React.useRef(false);
 
     const jobId = getQueryParam(location.search, "import");

@@ -21,11 +21,11 @@ const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
 const reservationReplicas = "reservation-replicas";
 
-export const ReservationParameter: React.FunctionComponent<{
+export function ReservationParameter({application, errors, onEstimatedCostChange}: React.PropsWithChildren<{
     application: Application;
     errors: ReservationErrors;
     onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, walletMaxUsable: number, product: ProductV2 | null) => void;
-}> = ({application, errors, onEstimatedCostChange}) => {
+}>): React.JSX.Element {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
     const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
@@ -39,7 +39,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const maxUsable = allocations
         .filter(it => Accounting.allocationIsValidNow(it))
-        .reduce((sum, alloc) => sum + alloc.maxUsable, 0 );
+        .reduce((sum, alloc) => sum + alloc.maxUsable, 0);
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
@@ -48,7 +48,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallets(Accounting.browseWalletsV2({ itemsPerPage: 250 }));
+        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
         fetchProducts(UCloud.accounting.products.browse({
             filterUsable: true,
             filterProductType: "COMPUTE",
@@ -102,12 +102,30 @@ export const ReservationParameter: React.FunctionComponent<{
         if (isNaN(amount)) return;
         const hours = document.querySelector<HTMLInputElement>(`#${reservationHours}`);
         if (!hours) return;
-        let existing = parseInt(hours.value);
+        let existing = hours.valueAsNumber;
         if (isNaN(existing)) existing = 0;
         if (existing < amount && amount !== 1) existing = 0;
-        hours.value = (existing + amount).toString();
+        const hourAmount = existing + amount;
+        hours.value = hourAmount.toString();
+        setCurrentHours(hourAmount);
         recalculateCost();
     }, [recalculateCost]);
+    
+    const [currentHours, setCurrentHours] = useState(application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1)
+
+    React.useLayoutEffect(() => {
+        const el = document.getElementById(reservationHours);
+        if (!el) return () => void 0;
+        const onChange = function (e: Event) {
+            if (e.target == null || !("valueAsNumber" in e.target)) return;
+            setCurrentHours(e.target.valueAsNumber as number);
+        }
+
+        el.addEventListener("change", onChange);
+        return () => {
+            el.removeEventListener("change", onChange);
+        }
+    }, []);
 
     useEffect(() => {
         // Chrome (and others?) have this annoying feature that if you scroll on an input field you scroll both the page
@@ -151,9 +169,9 @@ export const ReservationParameter: React.FunctionComponent<{
                             style={{minWidth: "100px"}}
                         />
                     </Label>
-                    <Button data-amount={1} onClick={adjustHours}>+1</Button>
-                    <Button data-amount={8} onClick={adjustHours}>+8</Button>
-                    <Button data-amount={24} onClick={adjustHours}>+24</Button>
+                    <Button width="40px" data-amount={1} onClick={adjustHours}>+1</Button>
+                    <Button width="40px" data-amount={8} onClick={adjustHours}>{currentHours >= 8 ? "+" : null}8</Button>
+                    <Button width="40px" data-amount={24} onClick={adjustHours}>{currentHours >= 24 ? "+" : null}24</Button>
                 </Flex>
                 : null}
         </Flex>
@@ -258,6 +276,8 @@ export function setReservation(values: Partial<ReservationValues>): void {
 
     name.value = values.name ?? "";
     hours.value = values.timeAllocation?.hours?.toString(10) ?? "";
+    hours.dispatchEvent(new Event("change"));
+
     if (replicas != null && values.replicas !== undefined) replicas.value = values.replicas.toString(10)
 
     if (values.product !== undefined) setMachineReservationFromRef(values.product);
