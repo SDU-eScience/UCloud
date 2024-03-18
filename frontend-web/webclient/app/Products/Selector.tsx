@@ -272,7 +272,7 @@ export const ProductSelector: React.FunctionComponent<{
                                 </>}
 
                                 <Link to={grantsLink(Client)}>
-                                    <Button fullWidth mb={"4px"}>Apply for resources</Button>
+                                    <Button fullWidth mt="20px" mb={"4px"}>Apply for resources</Button>
                                 </Link>
                             </NoResultsCardBody>
                         </> :
