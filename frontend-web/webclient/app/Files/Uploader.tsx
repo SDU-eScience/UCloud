@@ -1,5 +1,4 @@
 import * as React from "react";
-import fs from "fs";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {default as ReactModal} from "react-modal";
@@ -11,17 +10,17 @@ import {
     inSuccessRange,
     preventDefault
 } from "@/UtilityFunctions";
-import {filesFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
+import {PackagedFile, filesFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress, useUploads} from "@/Files/Upload";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
-import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {ChunkedFileReader, createLocalStorageFolderUploadKey, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
@@ -44,11 +43,26 @@ interface LocalStorageFileUploadInfo {
     expiration: number;
 }
 
+interface LocalStorageFolderUploadInfo {
+    strategy: FilesCreateUploadResponseItem;
+    expiration: number;
+}
+
 function fetchValidUploadFromLocalStorage(path: string): LocalStorageFileUploadInfo | null {
     const item = localStorage.getItem(createLocalStorageUploadKey(path));
     if (item === null) return null;
 
     const parsed = JSON.parse(item) as LocalStorageFileUploadInfo;
+    if (parsed.expiration < new Date().getTime()) return null;
+
+    return parsed;
+}
+
+function fetchValidFolderUploadFromLocalStorage(path: string): LocalStorageFolderUploadInfo | null {
+    const item = localStorage.getItem(createLocalStorageFolderUploadKey(path));
+    if (item === null) return null;
+
+    const parsed = JSON.parse(item) as LocalStorageFolderUploadInfo;
     if (parsed.expiration < new Date().getTime()) return null;
 
     return parsed;
@@ -64,11 +78,6 @@ async function processUpload(upload: Upload) {
 
     const files = await upload.row;
     if (files.length === 0) return;
-    if (files.length > 1) {
-        upload.error = "Folder uploads not yet supported";
-        upload.state = UploadState.DONE;
-        return;
-    }
 
     if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET") {
         upload.error = "Upload not supported for this provider";
@@ -76,19 +85,166 @@ async function processUpload(upload: Upload) {
         return;
     }
 
-    const theFile = files[0];
-    const fullFilePath = (upload.targetPath + "/" + theFile.fullPath);
 
-    const reader = new ChunkedFileReader(theFile.fileObject);
+    if (upload.folderName) {
+        const theFiles = files;
 
-    const uploadInfo = fetchValidUploadFromLocalStorage(fullFilePath);
-    if (uploadInfo !== null) reader.offset = uploadInfo.offset;
+        const uploadInfo = fetchValidFolderUploadFromLocalStorage(upload.folderName);
 
-    upload.initialProgress = reader.offset;
-    upload.fileSizeInBytes = reader.fileSize();
+        upload.resume = createResumeableFolder(upload, strategy, upload.folderName);
+        await upload.resume();
+    } else {
+        const theFile = files[0];
+        const fullFilePath = (upload.targetPath + "/" + theFile.fullPath);
 
-    upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
-    await upload.resume();
+        const reader = new ChunkedFileReader(theFile.fileObject);
+
+        const uploadInfo = fetchValidUploadFromLocalStorage(fullFilePath);
+        if (uploadInfo !== null) reader.offset = uploadInfo.offset;
+
+        upload.initialProgress = reader.offset;
+        upload.fileSizeInBytes = reader.fileSize();
+
+        upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+        await upload.resume();
+    }
+}
+
+enum FolderUploadMessageType {
+    OK,
+    CHECKSUM,
+    CHUNK,
+    SKIP,
+    DONE
+}
+
+
+
+function createResumeableFolder(
+    upload: Upload,
+    strategy: FilesCreateUploadResponseItem,
+    folderPath: string
+) {
+    const files: Map<number, PackagedFile> = new Map();
+
+    let fileId = 0;
+    for (const f of upload.row) {
+        files.set(fileId, f);
+        fileId++;
+    }
+        
+    return async () => {
+        const uploadSocket = new WebSocket(
+            strategy!.endpoint.replace("integration-module:8889", "localhost:9000")
+                .replace("http://", "ws://").replace("https://", "wss://")
+        );
+
+        const progressStart = upload.progressInBytes;
+        
+        await new Promise((resolve, reject) => {
+            uploadSocket.addEventListener("message", async (message) => {
+                upload.progressInBytes = parseInt(message.data);
+                uploadTrackProgress(upload);
+
+                const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                localStorage.setItem(
+                    createLocalStorageFolderUploadKey(folderPath),
+                    JSON.stringify({
+                        strategy: strategy!,
+                        expiration
+                    } as LocalStorageFolderUploadInfo)
+                );
+
+                if (parseInt(message.data) === upload.fileSizeInBytes) {
+                    localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath));
+                    upload.state = UploadState.DONE;
+                    uploadSocket.close()
+                    resolve(true);
+                }
+
+                if (upload.terminationRequested) {
+                    if (!upload.paused) {
+                        localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath));
+                    }
+                    uploadSocket.close();
+                    resolve(true);
+                }
+            });
+
+            uploadSocket.addEventListener("open", async (event) => {
+                // Generate and send file listing
+                const listing: string[] = [];
+                
+                for (const [id, f] of files) {
+                    const path = f.fullPath.split("/").slice(2).join("/");
+                    listing.push(`${id} ${path} ${f.size} ${f.lastModified}`);
+                }
+
+                uploadSocket.send(listing.join("\n"));
+
+
+                // Start sending the files
+                let fileId = 0;
+                files.forEach(async (theFile, key) => {
+                    const reader = new ChunkedFileReader(theFile.fileObject);
+
+                    while (!reader.isEof() && !upload.terminationRequested) {
+                        const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, key);
+                        await sendWsChunk(uploadSocket, message);
+                    }
+                    fileId++;
+                });
+            });
+        });
+    }
+
+    function encodeType(type: FolderUploadMessageType) {
+        const arr = new Uint8Array(1);
+        arr.set([type], 0);
+        return arr.buffer;
+    }
+
+    function encodeFileId(id: number): ArrayBuffer {
+        const arr = new Uint32Array(1);
+        arr.set([id], 0);
+        return arr.buffer;
+    }
+
+    async function constructUploadChunk(reader: ChunkedFileReader, type: FolderUploadMessageType, fileId: number): Promise<ArrayBuffer> {
+        const messageType = encodeType(FolderUploadMessageType.CHUNK);
+        const file = encodeFileId(fileId);
+        const chunk = await reader.readChunk(maxChunkSize);
+        const meta = concatArrayBuffers(messageType, file);
+        return concatArrayBuffers(meta, chunk);
+    }
+}
+
+function concatArrayBuffers(a: ArrayBuffer, b: ArrayBuffer): ArrayBuffer {
+    const a1 = new Uint8Array(a);
+    const b1 = new Uint8Array(b);
+    const c = new Uint8Array(a1.byteLength + b1.byteLength);
+    
+    c.set(a1, 0);
+    c.set(b1, a1.length);
+
+    return c.buffer
+}
+
+function sendWsChunk(connection: WebSocket, chunk: ArrayBuffer): Promise<void> {
+    return new Promise((resolve) => {
+        _sendWsChunk(connection, chunk, resolve);
+    });
+}
+
+function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () => void) {
+    if (connection.bufferedAmount + chunk.byteLength < MAX_WS_BUFFER) {
+        connection.send(chunk);
+        onComplete();
+    } else {
+        window.setTimeout(() => {
+            _sendWsChunk(connection, chunk, onComplete)
+        }, 50);
+    }
 }
 
 function createResumeable(
@@ -122,7 +278,7 @@ function createResumeable(
         } else {
             const uploadSocket = new WebSocket(
                 strategy!.endpoint.replace("integration-module:8889", "localhost:9000")
-                    .replace("http://", "ws://").replace("https://", "wss://") + "/" + strategy.token
+                    .replace("http://", "ws://").replace("https://", "wss://")
             );
             const progressStart = upload.progressInBytes;
             reader.offset = progressStart;
@@ -171,23 +327,6 @@ function createResumeable(
             });
         }
     };
-
-    function sendWsChunk(connection: WebSocket, chunk: ArrayBuffer): Promise<void> {
-        return new Promise((resolve) => {
-            _sendWsChunk(connection, chunk, resolve);
-        });
-    }
-
-    function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () => void) {
-        if (connection.bufferedAmount + chunk.byteLength < MAX_WS_BUFFER) {
-            connection.send(chunk);
-            onComplete();
-        } else {
-            window.setTimeout(() => {
-                _sendWsChunk(connection, chunk, onComplete)
-            }, 50);
-        }
-    }
 
     function sendChunk(chunk: ArrayBuffer): Promise<void> {
         return new Promise(((resolve, reject) => {
@@ -256,7 +395,10 @@ const Uploader: React.FunctionComponent = () => {
                 if (upload.state !== UploadState.PENDING) continue;
                 if (creationRequests.length + resumingUploads.length >= maxUploadsToUse) break;
 
-                const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
+                const uploadType = upload.row.length > 1 ? "FOLDER" : "FILE";
+                const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
+                    upload.targetPath + "/" + upload.folderName
+                    : upload.targetPath + "/" + upload.row[0].name;
 
                 const item = fetchValidUploadFromLocalStorage(fullFilePath);
                 if (item !== null) {
@@ -269,6 +411,7 @@ const Uploader: React.FunctionComponent = () => {
                 upload.state = UploadState.UPLOADING;
                 creationRequests.push({
                     supportedProtocols,
+                    type: uploadType,
                     conflictPolicy: upload.conflictPolicy,
                     id: fullFilePath,
                 });
@@ -369,21 +512,40 @@ const Uploader: React.FunctionComponent = () => {
         e.preventDefault();
         e.stopPropagation();
         const files = await filesFromDropOrSelectEvent(e);
-        console.log(files);
 
-        // TODO(Brian)
-        /*const newUploads: Upload[] = fileFetcher.map(it => ({
-            row: it,
-            progressInBytes: 0,
-            state: UploadState.PENDING,
-            conflictPolicy: "RENAME" as const,
-            targetPath: uploadPath,
-            initialProgress: 0,
-            uploadEvents: []
-        })).filter(it => !it.row.isDirectory);*/
+        // Collect 
+        const singleFileUploads: Upload[] = files.filter(f => f.fullPath.split("/").length === 2)
+            .map(f => ({
+                row: [f],
+                progressInBytes: 0,
+                state: UploadState.PENDING,
+                conflictPolicy: "RENAME" as const,
+                targetPath: uploadPath,
+                initialProgress: 0,
+                uploadEvents: []
+            }));
 
-        //setUploads(uploads.concat(newUploads));
-        //startUploads(newUploads);
+        const folderUploadFiles = files.filter(f => f.fullPath.split("/").length > 2);
+        const folderUploads: Upload[] = [];
+        const topLevelFolders = folderUploadFiles.map(it => it.fullPath.split("/")[1]).filter((val, index, arr) => arr.indexOf(val) === index)
+
+        for (const topLevelFolder of topLevelFolders) {
+            const folderFiles = folderUploadFiles.filter(it => it.fullPath.startsWith(`/${topLevelFolder}/`));
+
+            folderUploads.push({
+                folderName: topLevelFolder,
+                row: folderFiles,
+                progressInBytes: 0,
+                state: UploadState.PENDING,
+                conflictPolicy: "RENAME" as const,
+                targetPath: uploadPath,
+                initialProgress: 0,
+                uploadEvents: []
+            });
+        }
+
+        setUploads(uploads.concat(singleFileUploads, folderUploads));
+        startUploads(singleFileUploads.concat(folderUploads));
     }, [uploads]);
 
     useEffect(() => {
@@ -655,50 +817,92 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
     const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || upload.error;
 
-    return <div className={UploaderRowClass} data-has-error={upload.error != null}>
-        <div>
-            <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row[0].name)}} size="32px" /></div>
+    return upload.folderName ? (
+        <div className={UploaderRowClass} data-has-error={upload.error != null}>
             <div>
-                <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.row[0].name}</Truncate>
-                <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
-            </div>
-            <div />
-            <Flex mr="16px">
-                <Text style={{fontSize: "var(--secondaryText)"}}>
-                    {sizeToString(upload.progressInBytes + upload.initialProgress)}
-                    {" / "}
-                    {sizeToString(upload.fileSizeInBytes ?? 0)}
-                    {" "}
-                    ({sizeToString(uploadCalculateSpeed(upload))}/s)
-                </Text>
-                <Box mr="8px" />
-                {inProgress ? <>
-                    {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
-                    {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
-                    <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
-                </>
-                    :
-                    <>
-                        {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
-                        <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-                            callbacks.clearUploads([upload]);
-                            const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
-                            removeUploadFromStorage(fullFilePath);
-                            upload.state = UploadState.DONE;
-                            if (upload.row.length === 0) return;
-                            if (upload.row.length > 1) {
-                                upload.error = "Folder uploads not yet supported";
+                <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px" /></div>
+                <div>
+                    <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName}</Truncate>
+                    <Text fontSize="12px">{upload.row.length} {upload.row.length > 1 ? "files" : "file"}</Text>
+                </div>
+                <div />
+                <Flex mr="16px">
+                    <Text style={{fontSize: "var(--secondaryText)"}}>
+                        {sizeToString(upload.progressInBytes + upload.initialProgress)}
+                        {" / "}
+                        {sizeToString(upload.fileSizeInBytes ?? 0)}
+                        {" "}
+                        ({sizeToString(uploadCalculateSpeed(upload))}/s)
+                    </Text>
+                    <Box mr="8px" />
+                    {inProgress ? <>
+                        {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
+                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
+                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
+                    </>
+                        :
+                        <>
+                            {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
+                            <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+                                callbacks.clearUploads([upload]);
+                                const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
+                                removeUploadFromStorage(fullFilePath);
                                 upload.state = UploadState.DONE;
-                                return;
-                            }
-                        }} color={stopped ? "errorMain" : "primaryMain"} />
-                    </>}
-            </Flex>
+                                if (upload.row.length === 0) return;
+                            }} color={stopped ? "errorMain" : "primaryMain"} />
+                        </>}
+                </Flex>
+            </div>
+            <div className="error-box">
+                {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
+            </div>
         </div>
-        <div className="error-box">
-            {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
+    ) : (
+        <div className={UploaderRowClass} data-has-error={upload.error != null}>
+            <div>
+                <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row[0].name)}} size="32px" /></div>
+                <div>
+                    <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.row[0].name}</Truncate>
+                    <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
+                </div>
+                <div />
+                <Flex mr="16px">
+                    <Text style={{fontSize: "var(--secondaryText)"}}>
+                        {sizeToString(upload.progressInBytes + upload.initialProgress)}
+                        {" / "}
+                        {sizeToString(upload.fileSizeInBytes ?? 0)}
+                        {" "}
+                        ({sizeToString(uploadCalculateSpeed(upload))}/s)
+                    </Text>
+                    <Box mr="8px" />
+                    {inProgress ? <>
+                        {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
+                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
+                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
+                    </>
+                        :
+                        <>
+                            {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
+                            <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+                                callbacks.clearUploads([upload]);
+                                const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
+                                removeUploadFromStorage(fullFilePath);
+                                upload.state = UploadState.DONE;
+                                if (upload.row.length === 0) return;
+                                if (upload.row.length > 1) {
+                                    upload.error = "Missing folder name";
+                                    upload.state = UploadState.DONE;
+                                    return;
+                                }
+                            }} color={stopped ? "errorMain" : "primaryMain"} />
+                        </>}
+                </Flex>
+            </div>
+            <div className="error-box">
+                {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
+            </div>
         </div>
-    </div>
+    );
 }
 
 const ErrorSpan = injectStyleSimple("error-span", `

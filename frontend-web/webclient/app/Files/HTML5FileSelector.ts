@@ -165,17 +165,6 @@ export async function filesFromDropOrSelectEvent(event): Promise<PackagedFile[]>
 
     return await (async () => {
         let result: PackagedFile[] = [];
-        /*result.push({
-            name: entries[0].name,
-            fullPath: entries[0].fullPath,
-            size: 0,
-            fileObject: (await getFile(entries[0])).fileObject,
-            lastModifiedDate: undefined,
-            webkitRelativePath: undefined,
-            lastModified: 0,
-            type: "",
-            isDirectory: true 
-        });*/
         for (const entry of entries) {
             const traverser = new FileTraverser(entry);
             while (true) {

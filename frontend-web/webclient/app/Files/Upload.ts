@@ -16,6 +16,7 @@ export enum UploadState {
 
 export interface Upload {
     row: PackagedFile[];
+    folderName?: string;
     state: UploadState;
     fileSizeInBytes?: number;
     initialProgress: number;
