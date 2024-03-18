@@ -1037,16 +1037,14 @@ const AddDeviceWizard: React.FunctionComponent<{
     }
 
     return <Flex flexDirection="column" height="100%">
-        <Box flexGrow={1}>{tutorialContent}</Box>
-        <Flex mt={30}>
-            <Box marginLeft={"auto"}>
-                {tutorialStep < 1 ? null : (
-                    <Button onClick={tutorialPrevious}>Previous step</Button>
-                )}
-                <Button marginLeft={10} onClick={tutorialNext}>
-                    {tutorialStep === 2 ? "Done" : "Next step"}
-                </Button>
-            </Box>
+        <Box flexGrow={1} overflowY="scroll">{tutorialContent}</Box>
+        <Flex ml="auto" mt={30}>
+            {tutorialStep < 1 ? null : (
+                <Button onClick={tutorialPrevious}>Previous step</Button>
+            )}
+            <Button marginLeft={10} onClick={tutorialNext}>
+                {tutorialStep === 2 ? "Done" : "Next step"}
+            </Button>
         </Flex>
     </Flex>;
 };
