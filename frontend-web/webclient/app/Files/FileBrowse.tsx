@@ -576,9 +576,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    const enabledOperations = [
+                        controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]),
+                        ...FilesApi.retrieveOperations()
+                    ].filter(op => op.enabled(selected, callbacks, selected));
                     const ops = groupOperations(enabledOperations);
-                    if (!opts?.isModal) ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
                     return ops;
                 });
 
@@ -921,10 +923,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
+                            style: {cursor: "pointer"}
                         });
+                        providerIconWrapper.title = "Go to drives";
                         providerIconWrapper.style.marginRight = "6px";
-                        const url = browser.header.querySelector("div.header-first-row");
-                        if (url) url.prepend(providerIconWrapper);
+                        const navbar = browser.header.querySelector("div.header-first-row");
+                        if (navbar) navbar.prepend(providerIconWrapper);
+                        providerIconWrapper.onclick = () => {
+                            navigate(AppRoutes.files.drives());
+                        }
                         pIcon = providerIconWrapper;
                     }
 
@@ -932,7 +939,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     if (pIcon) {
                         const icon = providerIcon(collection?.specification.product.provider ?? "", {
-                            fontSize: "22px", width: "30px", height: "30px"
+                            fontSize: "22px", width: "35px", height: "35px"
                         });
                         icon.style.marginRight = "8px";
                         pIcon.replaceChildren(icon);
