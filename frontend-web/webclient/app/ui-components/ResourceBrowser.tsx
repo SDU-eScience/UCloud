@@ -3149,6 +3149,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header div ul li {
                 list-style: none;
                 margin: 0;
+                margin-bottom: 1px;
                 padding: 0;
                 cursor: pointer;
                 font-size: 120%;
