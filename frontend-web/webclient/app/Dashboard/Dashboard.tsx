@@ -55,10 +55,10 @@ function Dashboard(): React.JSX.Element {
     usePage("Dashboard", SidebarTabId.NONE);
 
     const dispatch = useDispatch();
-    const invitesReload = React.useRef<() => void>(initialCall); // Oui
-    const projectInvitesReload = React.useRef<() => void>(initialCall); // Oui
-    const runsReload = React.useRef<() => void>(initialCall); // Oui
-    const grantsReload = React.useRef<() => void>(initialCall); // TODO
+    const invitesReload = React.useRef<() => void>(initialCall);
+    const projectInvitesReload = React.useRef<() => void>(initialCall);
+    const runsReload = React.useRef<() => void>(initialCall);
+    const grantsReload = React.useRef<() => void>(initialCall);
 
     const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
@@ -141,7 +141,7 @@ function Invites({projectReloadRef, inviteReloadRef}: {
     const [showShareInvites, setShowShareInvites] = React.useState(true);
     
     React.useEffect(() => {
-        // Hacky approach to ensure that --rowWidth is correctly set on initial mount.
+        // HACK(Jonas): Hacky approach to ensure that --rowWidth is correctly set on initial mount.
         setShowProjectInvites(false);
         setShowShareInvites(false);
     }, [])
