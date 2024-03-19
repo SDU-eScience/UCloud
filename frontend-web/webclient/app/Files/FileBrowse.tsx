@@ -47,7 +47,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -757,7 +757,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     if (isReadonly(file.permissions.myself)) {
                         row.title.appendChild(div(
-                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;"> (Read only)</div>`
+                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;margin-right: 12px;"> (Read-only)</div>`
                         ));
                     }
 
