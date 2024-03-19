@@ -51,6 +51,12 @@ sealed class AccountingRequest<Resp> {
         val scopeExplanation: String? = null,
     ) : AccountingRequest<Unit>()
 
+    data class SystemCharge(
+        override val idCard: IdCard = IdCard.System,
+        val amount: Long,
+        val walletId: Long
+    ) : AccountingRequest<Unit>()
+
     data class ScanRetirement(
         override val idCard: IdCard
     ) : AccountingRequest<Unit>()

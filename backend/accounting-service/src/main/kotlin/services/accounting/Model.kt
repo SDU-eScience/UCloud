@@ -17,7 +17,10 @@ internal val walletsById = HashMap<Int, InternalWallet>()
 internal val walletsByOwner = HashMap<Int, ArrayList<InternalWallet>>()
 internal val walletsIdAccumulator = AtomicInteger(1)
 
-data class InternalOwner(val id: Int, val reference: String) {
+internal val allocationGroups = HashMap<Int, InternalAllocationGroup>()
+internal val allocationGroupIdAccumulator = AtomicInteger(1)
+
+data class InternalOwner(val id: Int, val reference: String, var dirty: Boolean) {
     fun isProject(): Boolean = reference.matches(PROJECT_REGEX)
     fun toWalletOwner(): WalletOwner =
         if (isProject()) WalletOwner.Project(reference)
@@ -38,6 +41,8 @@ data class InternalAllocation(
     var end: Long,
     var retired: Boolean,
     var retiredUsage: Long = 0L,
+    val grantedIn: Long?,
+    var isDirty: Boolean
 ) {
     fun isActive(now: Long): Boolean {
         return !retired && now >= start
@@ -54,10 +59,17 @@ data class InternalAllocation(
 }
 
 data class InternalAllocationGroup(
+    //Group ID
+    val id: Int,
+    //In which wallet does this group belong to
+    val associatedWallet: Int,
+    //Which wallet has created the allocations in this group
+    val parentWallet: Int,
     var treeUsage: Long,
     var retiredTreeUsage: Long,
     var earliestExpiration: Long,
     var allocationSet: HashMap<Int, Boolean>,
+    var isDirty: Boolean
 ) {
     fun isActive(): Boolean {
         return allocationSet.any { it.value }
@@ -105,13 +117,17 @@ data class InternalWallet(
     val ownedBy: Int,
     val category: ProductCategory,
     var localUsage: Long,
+    //Mapping between parent wallet ID and the allocations given
     val allocationsByParent: HashMap<Int, InternalAllocationGroup>,
+    //Mapping between child wallet ID and the tree usage of the allocation group given by this wallet
     val childrenUsage: HashMap<Int, Long>,
     var localRetiredUsage: Long,
+    //Mapping between chile wallet ID and the retired tree usage of the allocation group given by this wallet
     val childrenRetiredUsage: HashMap<Int, Long>,
     var excessUsage: Long,
     var totalAllocated: Long,
     var totalRetiredAllocated: Long,
+    var isDirty: Boolean
 ) {
     fun parentEdgeCost(parentId: Int, now: Long): Long {
         val group = allocationsByParent.getValue(parentId)

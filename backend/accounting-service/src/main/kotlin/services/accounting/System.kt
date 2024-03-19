@@ -193,6 +193,7 @@ class AccountingSystem(
                                     is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
                                     is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(msg)
                                     is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
+                                    is AccountingRequest.SystemCharge -> systemCharge(msg)
                                     is AccountingRequest.StopSystem -> {
                                         isActiveProcessor.set(false)
                                         Response.ok(Unit)
@@ -250,7 +251,7 @@ class AccountingSystem(
         if (!isValid) return null
 
         val newId = ownersIdAccumulator.getAndIncrement()
-        val newOwner = InternalOwner(newId, owner)
+        val newOwner = InternalOwner(newId, owner, true)
         ownersByReference[owner] = newOwner
         ownersById[newId] = newOwner
         return newOwner
@@ -340,6 +341,7 @@ class AccountingSystem(
                 totalAllocated = 0L,
                 totalRetiredAllocated = 0L,
                 excessUsage = 0L,
+                isDirty = true
             ).also {
                 wallets.add(it)
                 walletsById[id] = it
@@ -396,7 +398,8 @@ class AccountingSystem(
                 parentWalletId = 0,
                 request.amount,
                 request.start,
-                request.end
+                request.end,
+                grantedIn = null
             )
         )
     }
@@ -465,7 +468,7 @@ class AccountingSystem(
         }
 
         return Response.ok(
-            insertAllocation(now, internalChild, internalParent.id, request.quota, request.start, request.end)
+            insertAllocation(now, internalChild, internalParent.id, request.quota, request.start, request.end, null)
         )
     }
 
@@ -476,6 +479,7 @@ class AccountingSystem(
         quota: Long,
         start: Long,
         end: Long,
+        grantedIn: Long?
     ): Int {
         check(start <= end)
         check(parentWalletId >= 0)
@@ -492,16 +496,23 @@ class AccountingSystem(
             start = start,
             end = end,
             retired = false,
+            grantedIn = grantedIn,
+            isDirty = true
         )
 
         allocations[id] = newAllocation
 
         val allocationGroup = wallet.allocationsByParent.getOrPut(parentWalletId) {
+            val id = allocationGroupIdAccumulator.getAndIncrement()
             InternalAllocationGroup(
+                id = id,
+                associatedWallet = wallet.id,
+                parentWallet = parentWalletId,
                 treeUsage = 0L,
                 retiredTreeUsage = 0L,
                 earliestExpiration = Long.MAX_VALUE,
-                allocationSet = HashMap()
+                allocationSet = HashMap(),
+                isDirty = true
             )
         }
 
@@ -587,6 +598,14 @@ class AccountingSystem(
         val wallet = authorizeAndLocateWallet(request.idCard, request.owner, request.category, ActionType.CHARGE)
             ?: return Response.error(HttpStatusCode.Forbidden, "Not allowed to perform this charge")
         return chargeWallet(wallet, request.amount, request.isDelta, request.scope, request.scope)
+    }
+
+    private suspend fun systemCharge(request: AccountingRequest.SystemCharge): Response<Unit> {
+        return chargeWallet(
+            wallet = walletsById[request.walletId.toInt()]!!,
+            amount = request.amount,
+            isDelta = true,
+        )
     }
 
     private suspend fun chargeWallet(
