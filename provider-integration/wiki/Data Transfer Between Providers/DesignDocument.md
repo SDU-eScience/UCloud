@@ -109,7 +109,7 @@ The UCloud platform is made of several different components. In generalized term
   allow access to compute, storage, or other kinds of resources. Communication with UCloud/Core usually happens
   through a small, flexible module called the *Integration Module*.
  
-![](./Pictures/global-arch.png)
+<img alt="" align="center" src="./Pictures/global-arch.png">
 
 An end-user will interact with the UCloud/Frontend which communicates with the UCloud/Core which communicates with the
 providers, thereby granting users access to resources at the providers in one interface.
@@ -133,7 +133,7 @@ At a technical level, when a user has authenticated an access-token, in the form
 
 The access-token is short-lived and are used to authenticate all calls to UCloud/Core. Clients (i.e.) end-users can renew their access tokens using the long-living refresh-token.
 
-![](./Pictures/core-idp.png)
+<img alt="" align="center" src="./Pictures/core-idp.png">
 
 UCloud/Core produces a detailed audit trail. This trail contains information about user sessions, request and (select) request parameters, response codes, response times etc. The individual components of UCloud/Core sends this to a data store based on the Redis database management software.
 
@@ -146,7 +146,7 @@ Both ElasticSearch and Prometheus is connected to Grafana, an open source platfo
 
 
 
-![](./Pictures/core-monitoring.png)
+<img alt="" align="center" src="./Pictures/core-monitoring.png">
 
 ### Accounting and Project Management (APM)
 
@@ -154,14 +154,14 @@ UCloud has flexible built-in support for project management. A project consist o
 
 Members can be further organized into groups, each with permissions to resources that can be configured by the PI or admins.
 
-![](./Pictures/core-project.png)
+<img alt="" align="center" src="./Pictures/core-project.png">
 
 All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The project hierarchy plays a significant role in accounting.
 
 End-users can create a project through the grant application feature. Permissions and memberships of projects are not hierarchical. This means that a user must be explicitly added to every project they need permissions in. 
 
 
-![](./Pictures/subprojects.png)
+<img alt="" align="center" src="./Pictures/subprojects.png">
 
 Product catalogue:
 
@@ -193,7 +193,7 @@ services projects can be awarded resource grants.
 
 ---
 
-![](./Pictures/core-products.png)
+<img alt="" align="center" src="./Pictures/core-products.png">
 
 Resource grants:
 - UCloud/Core uses resource grants to determine which service providers a given user can access
@@ -202,7 +202,7 @@ Resource grants:
 - Usage numbers are reported back to both grant givers, service providers and researchers
 - UCloud/Core comes with a built-in system for managing the resource grant process
 
-![](./Pictures/core-resource-grants.png)
+<img alt="" align="center" src="./Pictures/core-resource-grants.png">
 
 Orchestration:
 
@@ -226,7 +226,7 @@ End-users interact with all resources through a standardized API. The API provid
 permission related operations. Concrete resources further extend this API with resource specific tasks. For example,
 virtual machines expose an operation to shut down the machine.
 
-![](./Pictures/core-orchestration.png)
+<img alt="" align="center" src="./Pictures/core-orchestration.png">
 
 ## UCloud/IM architecture
 
@@ -247,7 +247,7 @@ This is, for example, used to communicate how a job changes over time or to push
 The figure below highlights the high-level architecture of the integration module in the context of multi-user systems.
 Along with how it speaks to the outside world.
 
-![](./Pictures/im-arch.png)
+<img alt="" align="center" src="./Pictures/im-arch.png">
 
 From this diagram, we can see that UCloud/IM consists of four different components:
 
@@ -275,7 +275,7 @@ needs to tackle. UCloud/IM needs this in order to launch the correct instances o
 starts once a user has been granted a resource allocation and the user wishes to establish a 'connection' to the
 provider. The figure below illustrates the flow.
 
-![](./Pictures/im-mapping.png)
+<img align="center" src="./Pictures/im-mapping.png" alt="Image">
 
 The flow is as follows:
 
@@ -306,7 +306,7 @@ The user can consume the services of the provider as soon as this connection has
 describe how the communication flows when the user wants to submit a compute job. In this case the service provider is
 using Slurm as its computational backend.
 
-![](./Pictures/im-slurm.png)
+<img alt="" align="center" src="./Pictures/im-slurm.png">
 
 The flow starts with the user submitting a job from the UCloud/Frontend:
 
@@ -352,7 +352,7 @@ To initiate the transfer, the researcher opens UCLoud and locates the file they 
 click the file and select "Transfer to...". This opens up a system dialog, similar to the one displayed when the user
 wants to move a file internally at a provider.
 
-![](./Pictures/FileTable2.png)
+<img alt="" align="center" src="./Pictures/FileTable2.png">
 
 __Figure:__ System dialog shown when a researcher selects "Transfer to..." on a file or folder.
 
@@ -361,7 +361,7 @@ drive located at "Provider B". Inside of this drive, they find their desired des
 "Transfer to". At this point, a message will appear explaining that a transfer between two separate service providers
 will take place.
 
-![](./Pictures/FileTable3.png)
+<img alt="" align="center" src="./Pictures/FileTable3.png">
 
 __Figure:__ System dialog notifying the researcher that a transfer between two service providers is about to take place.
 
@@ -370,7 +370,7 @@ redirected to a page which displays status updates from all their active backgro
 This can include details such as overall progress through the transfer, a description of the current state. But it will
 also allow the user to perform actions such as pausing and cancelling a transfer.
 
-![](./Pictures/TaskPage2ed.png)
+<img alt="" align="center" src="./Pictures/TaskPage2ed.png">
 
 __Figure:__ Dedicated page for background tasks. This will allow the researcher to follow the status of ongoing and
 previously completed file transfers.
@@ -382,7 +382,7 @@ the existing infrastructure and solutions. This means that the feature must be a
 different protocols. The figure below demonstrates the flow required for a researcher to initiate a file transfer
 between "Provider A" and "Provider B". Note that it reuses the assumptions from the story in the previous section.
 
-![](./Pictures/im-transfer.png)
+<img alt="" align="center" src="./Pictures/im-transfer.png">
 
 __Figure:__ A diagram showing the steps involved in initiating a data transfer between "Provider A" (source provider)
 and "Provider B" (destination provider).
