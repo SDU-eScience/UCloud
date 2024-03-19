@@ -159,7 +159,8 @@ Auditing and monitoring
   - user session
   - the request and select request parameters
   - response codes and response times
-- This is sent into an ElasticSearch database
+- The individual components of UCloud/Core send this to a Redis event stream
+- The event stream is captured by the foundation component, where it is analyzed and stored in ElasticSearch
   - Purpose of this is persistent storage which allows us to query the structured data
   - ElasticSearch is commonly used for storage of structured logs, such as this
   - Automatically deleted after our retention period (defined elsewhere)
@@ -248,7 +249,7 @@ User perspective:
 
 - This creates a transfer job. The progress can be followed on a dedicated page.
 
-![](./Pictures/TaskPage.png)
+![](./Pictures/TaskPage2ed.png)
 
 
 ![](./Pictures/im-transfer.png)
