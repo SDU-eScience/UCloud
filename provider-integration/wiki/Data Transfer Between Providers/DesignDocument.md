@@ -124,70 +124,47 @@ physical locations. However, providers does not have any knowledge of each other
 
 ### Foundation
 
-The foundation of UCloud/Core is responsible for delivering the core services required by UCloud. This includes
-features such as:
+The foundation of UCloud/Core is responsible for delivering the core services required by UCloud. This includes features such as authentication and user management, auditing, monitoring and alerting.
 
-- Authentication and user management
-- Auditing
-- Monitoring and alerting
+Researchers and students can get easy access to UCloud by using their own institutions credentials. This is possible since UCloud supports authentication through a wide range of identity providers. Most notably authentication is supported through WAYF (Where Are you From), which is a Danish identity federation for research and education in Denmark and the North Atlantic. WAYF provides authentication via the local organization (e.g. SDU), but also connects to a larger international federation of identity providers called eduGAIN.
 
+Authentication through other identity providers can be configured. UCloud currently supports authentication through SAML and OpenID Connect, which are both open, industry standard authentication protocols. This means that it is possible to configure a large range of identity providers into UCloud, as long as they support either SAML (such as WAYF) or OpenID Connect protocols.
 
-Authentication:
-- Researchers and students can log into UCloud by using their own institutions credentials
-- This is made possible by supporting a wide range of different identity providers
-  - UCloud supports (configurable) SAML2 IdPs, notably WAYF.
-  - WAYF (Where Are You From) is a danish identity federation for research and infrastructure. WAYF provides authentication via the local organization (e.g. SDU). At a technical level this is implemented with SAML.
-  - WAYF connects to a larger internation federation of IdPs called eduGAIN.
-  - UCloud also supports (configurable) OpenID Connect IdPs
-  - This means that it is possible to configure a large range of IdPs into UCloud as long as they support the OIDC protocol
-  - OIDC is a protocol which...
-- The first time a user logs into UCloud a user is created
-- The identities of multiple IdPs can be mapped into a single UCloud user
-- Once authenticated, only the UCloud identity will be used
-- Once authenticated, a JWT and refresh-token is created
-  - JWTs are an open, industry standard method for representing (auth) claims between two parties
-  - The tokens are digitally signed by UCloud/Core and contain information about the UCloud user
-  - The tokens are short-lived and are used to authenticate all calls to UCloud/Core
-  - Clients (i.e. end-users) can renew their access tokens using a long-lived refresh-token
-  - The refresh-token itself is an opaque token created by UCloud/Core
+The first time a researcher or student logs into UCloud, a UCloud user is created. The identities of multiple identity providers can be mapped into a single UCloud user. Once authenticated, only the UCloud identity will be used.
+
+At a technical level, when a user has authenticated an access-token, in the form of a JSON Web Token (JWT), and a refresh-token are created. JWTs are an open, industry standard method for representing authentication claims between two parties. These tokens are digitally signed by UCloud/Core and contain information about the UCloud user.
+
+The access-token is short-lived and are used to authenticate all calls to UCloud/Core. Clients (i.e.) end-users can renew their access tokens using the long-living refresh-token.
 
 ![](./Pictures/core-idp.png)
 
-Auditing and monitoring
-- UCloud/Core produces a detailed audit trail
-  - The audit trail contains information about:
-  - user session
-  - the request and select request parameters
-  - response codes and response times
-- The individual components of UCloud/Core send this to a Redis event stream
-- The event stream is captured by the foundation component, where it is analyzed and stored in ElasticSearch
-  - Purpose of this is persistent storage which allows us to query the structured data
-  - ElasticSearch is commonly used for storage of structured logs, such as this
-  - Automatically deleted after our retention period (defined elsewhere)
-- Connected to Grafana and its alertmanager
-  - Grafana is...
-  - Gives us visualization of the cluster health
-- UCloud/Core and UCloud/IM produces prometheus metrics which are periodically scraped
-  (optional for service providers)
-  - Promthetus is...
-- The prometheus metrics give us real-time insights into the health of our services and can help troubleshoot
-  issues
+UCloud/Core produces a detailed audit trail. This trail contains information about user sessions, request and (select) request parameters, response codes, response times etc. The individual components of UCloud/Core sends this to a data store based on the Redis database management software.
+
+The event stream from Redis is captured by the foundation component where it is analyzed and stored in ElasticSearch, which is a platform commonly used for storage of structured logs, such as this. This allow us to query the structured data. The data is automatically deleted after our retention period.
+
+UCloud/Core and UCloud/IM produces metrics which are periodically scraped (optional for service providers). These metrics are passed to Prometheus, an open source systems monitoring and alerting toolkit.
+
+Both ElasticSearch and Prometheus is connected to Grafana, an open source platform for data analytics and monitoring, and its alert manager. This allows us access to visualization of the cluster health, as well as real-time insights of the heath of our services and help for troubleshooting any issues that might arise.
+
+
+
 
 ![](./Pictures/core-monitoring.png)
 
 ### Accounting and Project Management (APM)
 
-Project management
-- UCloud has built-in support for project management
-- Projects consist of one or more members
-- Each member has a role (PI, admin or user)
-- Each project has exactly one PI
-- Members are organized into groups
-- Copy & paste stuff from the existing documentation
+UCloud has flexible built-in support for project management. A project consist of one or more members, each with a role (PI, admin or user), where exactly one member is PI (Project Investigator). The PI is responsible for managing the project, including adding and removing users.
+
+Members can be further organized into groups, each with permissions to resources that can be configured by the PI or admins.
 
 ![](./Pictures/core-project.png)
 
-![](./Pictures/core-project-hierarchy.png)
+All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The project hierarchy plays a significant role in accounting.
+
+End-users can create a project through the grant application feature. Permissions and memberships of projects are not hierarchical. This means that a user must be explicitly added to every project they need permissions in. 
+
+
+![](./Pictures/subprojects.png)
 
 Product catalogue:
 - Service providers describe their "service catalog" through products
