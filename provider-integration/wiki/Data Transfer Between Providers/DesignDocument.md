@@ -166,14 +166,13 @@ End-users can create a project through the grant application feature. Permission
 
 ![](./Pictures/subprojects.png)
 
-Product catalogue:
-- Service providers describe their "service catalog" through products
-- This describes the hardware and the services they provide. For example, this will include hardware 
- specification and any potential service constraints.
-- Can be bundled into a category of similar products. This allows for slicing of a single compute machine.
-- Describes the payment model of a product.
-- Multiple product types for different services: compute, storage, license, IP addresses, public links 
-  (L7 ingress)
+Service providers expose their services to UCloud through *products*. The services will be stored by UCloud/Core as products with exact hardware specification and any potential service constraints, and presented to the end-user in a user-friendly way. Users and projects will be able to apply for access to the products through UCloud/Core.
+
+Different kinds of product types for different services are supported, such as compute, storage, software licenses, IP addresses and public links.
+
+Products can also be bundled into into categories of similar products. This allows for flexibility when service providers define their products and pricing model, and also allow more advanced products to be defined, such as slicing of single compute machines.
+
+UCloud uses a flexible payment model where each provider can use the model which is familiar to them.... TODO 
 
 ![](./Pictures/core-products.png)
 
