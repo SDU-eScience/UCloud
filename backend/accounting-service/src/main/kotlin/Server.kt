@@ -13,12 +13,10 @@ import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.AccountingChecks
-import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.grant.rpc.GiftController
 import dk.sdu.cloud.grant.rpc.GrantController
 import dk.sdu.cloud.micro.*
@@ -82,20 +80,6 @@ class Server(
 
 
         val scriptManager = micro.feature(ScriptManager)
-        scriptManager.register(
-            Script(
-                ScriptMetadata(
-                    "accounting-low-funds",
-                    "Accounting: Low Funds",
-                    WhenToStart.Daily(0, 0)
-                ),
-                script = {
-                    val jobs = LowFundsJob(db, client, config)
-                    jobs.checkWallets()
-                }
-            )
-        )
-
         scriptManager.register(
             Script(
                 ScriptMetadata(
