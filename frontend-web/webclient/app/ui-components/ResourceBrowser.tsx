@@ -3196,8 +3196,7 @@ export class ResourceBrowser<T> {
 
                 white-space: pre;
                                                                                                                         /* v favoriteIcon-width */
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 8px);
-                                                                                                        /*  ^ icon + icon margin */                    
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 8px);
             }
             
             @media screen and (max-width: 860px) {

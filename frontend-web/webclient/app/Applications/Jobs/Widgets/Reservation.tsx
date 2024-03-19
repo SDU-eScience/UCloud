@@ -104,29 +104,11 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
         if (!hours) return;
         let existing = hours.valueAsNumber;
         if (isNaN(existing)) existing = 0;
-        if (existing < amount && amount !== 1) existing = 0;
         const hourAmount = existing + amount;
         hours.value = hourAmount.toString();
-        setCurrentHours(hourAmount);
         recalculateCost();
     }, [recalculateCost]);
     
-    const [currentHours, setCurrentHours] = useState(application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1)
-
-    React.useLayoutEffect(() => {
-        const el = document.getElementById(reservationHours);
-        if (!el) return () => void 0;
-        const onChange = function (e: Event) {
-            if (e.target == null || !("valueAsNumber" in e.target)) return;
-            setCurrentHours(e.target.valueAsNumber as number);
-        }
-
-        el.addEventListener("change", onChange);
-        return () => {
-            el.removeEventListener("change", onChange);
-        }
-    }, []);
-
     useEffect(() => {
         // Chrome (and others?) have this annoying feature that if you scroll on an input field you scroll both the page
         // and the value. This has lead to a lot of people accidentally changing the resources requested. We now
@@ -170,8 +152,8 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
                         />
                     </Label>
                     <Button width="40px" data-amount={1} onClick={adjustHours}>+1</Button>
-                    <Button width="40px" data-amount={8} onClick={adjustHours}>{currentHours >= 8 ? "+" : null}8</Button>
-                    <Button width="40px" data-amount={24} onClick={adjustHours}>{currentHours >= 24 ? "+" : null}24</Button>
+                    <Button width="40px" data-amount={8} onClick={adjustHours}>+8</Button>
+                    <Button width="40px" data-amount={24} onClick={adjustHours}>+24</Button>
                 </Flex>
                 : null}
         </Flex>
@@ -276,7 +258,6 @@ export function setReservation(values: Partial<ReservationValues>): void {
 
     name.value = values.name ?? "";
     hours.value = values.timeAllocation?.hours?.toString(10) ?? "";
-    hours.dispatchEvent(new Event("change"));
 
     if (replicas != null && values.replicas !== undefined) replicas.value = values.replicas.toString(10)
 
