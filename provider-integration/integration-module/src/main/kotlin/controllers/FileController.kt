@@ -50,9 +50,26 @@ data class FileSessionWithPlugin(
     val pluginData: String,
 )
 
+fun ByteArray.getUInt32() =
+    ((this[3].toUInt() and 0xFFu) shl 24) or
+        ((this[2].toUInt() and 0xFFu) shl 16) or
+        ((this[1].toUInt() and 0xFFu) shl 8) or
+        (this[0].toUInt() and 0xFFu)
+
+fun ByteArray.getUInt8() = (this[0].toUInt() and 0xFFu)
+
+enum class FolderUploadMessageType {
+    OK,
+    CHECKSUM,
+    CHUNK,
+    SKIP,
+    DONE
+}
+
 object FilesDownloadIpc : IpcContainer("files.download") {
     val register = updateHandler("register", FileSessionWithPlugin.serializer(), Unit.serializer())
     val retrieve = retrieveHandler(FindByStringId.serializer(), FileSessionWithPlugin.serializer())
+    val hello = FolderUploadMessageType.CHUNK.ordinal
 }
 
 object FilesUploadIpc : IpcContainer("files.upload") {
@@ -60,6 +77,12 @@ object FilesUploadIpc : IpcContainer("files.upload") {
     val retrieve = retrieveHandler(FindByStringId.serializer(), FileSessionWithPlugin.serializer())
     val delete = deleteHandler(FindByStringId.serializer(), Unit.serializer())
 }
+
+data class FileListingEntry(
+    val path: String,
+    val size: Long,
+    val modifiedAt: Long
+)
 
 @Serializable
 data class TaskSpecification(val title: String)
@@ -463,10 +486,35 @@ class FileController(
                             UploadProtocol.CHUNKED
                         }
 
+                        val isFolder = uploadRequest.type == UploadType.FOLDER
+
+                        if (protocol != UploadProtocol.WEBSOCKET && isFolder) {
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
+
+                        if (isFolder) {
+                            createFolder(
+                                bulkRequestOf(
+                                    FilesProviderCreateFolderRequestItem(
+                                        uploadRequest.resolvedCollection,
+                                        uploadRequest.id,
+                                        uploadRequest.conflictPolicy
+                                    )
+                                )
+                            )
+                        }
+
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
                             sessions.add(
                                 FilesCreateUploadResponseItem(
-                                    uploadPath(config, providerId, protocol),
+                                    uploadPath(
+                                        config,
+                                        providerId,
+                                        protocol,
+                                        it.session,
+                                        false,
+                                        isFolder
+                                    ),
                                     protocol,
                                     it.session
                                 )
@@ -593,7 +641,9 @@ class FileController(
 
     override fun onServerReady(rpcServer: RpcServer) {
         ktor.routing {
-            webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, withToken = true)) {
+
+            // Single-file upload over WebSockets
+            webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, tokenPlaceholder = true)) {
                 val context = SimpleRequestContext(controllerContext.pluginContext, "")
                 val token = call.parameters["token"]
                     ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
@@ -661,6 +711,94 @@ class FileController(
                 }
                 this.close()
             }
+
+            // Folder upload over WebSockets
+            webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, tokenPlaceholder = true, isFolder = true)) {
+                val context = SimpleRequestContext(controllerContext.pluginContext, "")
+                val token = call.parameters["token"]
+                    ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
+                var fileOffset = 0L
+                var totalSize = 0L
+
+                var listing: Map<UInt, FileListingEntry> = emptyMap()
+
+                with(context) {
+                    val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
+                    val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
+                        ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
+
+                    for (frame in incoming) {
+                        if (frame.frameType == FrameType.TEXT) {
+                            val listingFrame = (frame as? Frame.Text)?.readText()
+                            println("Received:")
+                            println(listingFrame)
+                            listing = listingFrame?.split("\n")?.associate { line ->
+                                val elements = line.split(" ")
+                                elements[0].toUInt() to FileListingEntry(elements[1], elements[2].toLong(), elements[3].toLong())
+                            } ?: emptyMap()
+                            println(listing)
+                        } else {
+                            if (!frame.buffer.isDirect) {
+                                DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
+
+                                    val frameType = byteArrayOf(frame.data[0]).getUInt8()
+                                    println("type is ${frameType}")
+
+                                    val fileId = frame.data.slice(1..4).toByteArray().getUInt32()
+                                    println("fileId is $fileId")
+
+                                    val fileEntry: FileListingEntry = listing[fileId] ?:
+                                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                                    try {
+                                        var offset = 0
+                                        while (offset < frame.data.size) {
+                                            if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
+                                            val count = min(frame.data.size - offset, nativeBuffer.remaining())
+                                            nativeBuffer.put(frame.data, offset, count)
+                                            nativeBuffer.flip()
+                                            offset += count
+                                            val channel = ByteReadChannel(nativeBuffer)
+                                            with(plugin) {
+                                                handleFolderUpload(
+                                                    token,
+                                                    handler.pluginData,
+                                                    collectionCache,
+                                                    fileEntry,
+                                                    fileOffset,
+                                                    channel,
+                                                    fileOffset + count >= totalSize
+                                                )
+                                            }
+
+                                            fileOffset += count
+                                        }
+                                    } catch (ex: Throwable) {
+                                        ex.printStackTrace()
+                                        throw ex
+                                    }
+                                }
+                            } else {
+                                with(plugin) {
+                                    handleUpload(
+                                        token,
+                                        handler.pluginData,
+                                        fileOffset,
+                                        ByteReadChannel(frame.data),
+                                        fileOffset + frame.data.size >= totalSize
+                                    )
+                                }
+
+                                fileOffset += frame.data.size
+                            }
+                            println("Received something else: ${frame.data.size}")
+
+                            //send("$fileOffset")
+                        }
+                    }
+                }
+                this.close()
+            }
         }
     }
 
@@ -685,15 +823,24 @@ class FileController(
             config: VerifiedConfig?,
             providerId: String,
             protocol: UploadProtocol,
-            withToken: Boolean = false
+            withToken: String? = null,
+            tokenPlaceholder: Boolean = false,
+            isFolder: Boolean = false
         ): String = buildString {
             if (config != null) append(config.core.hosts.self?.toStringOmitDefaultPort() ?: "")
-            val token = if (withToken) {
+            val token = if (tokenPlaceholder) {
                 "/{token}"
             } else {
-                ""
+                if (withToken != null) {
+                   "/${withToken}"
+                } else {
+                    ""
+                }
             }
-            append("/ucloud/${providerId}/${protocol.name.lowercase(Locale.getDefault())}/upload${token}")
+
+            val folder = if (isFolder) { "/folder" } else { "" }
+
+            append("/ucloud/${providerId}/${protocol.name.lowercase(Locale.getDefault())}/upload${folder}${token}")
         }
     }
 }

@@ -16,6 +16,7 @@ import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.config.removeProvider
+import dk.sdu.cloud.controllers.FileListingEntry
 import dk.sdu.cloud.controllers.FilesUploadIpc
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
@@ -46,6 +47,7 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
@@ -202,7 +204,7 @@ class UCloudFilePlugin : FilePlugin {
             val targetUCloudPath = pathConverter.internalToUCloud(InternalFile(descriptor.targetPath))
 
             val pluginData = defaultMapper.encodeToJsonElement(
-                FileUploadSessionPluginData(targetUCloudPath.path, it.conflictPolicy)
+                FileUploadSessionPluginData(targetUCloudPath.path, it.type, it.conflictPolicy)
             ).toString()
 
             FileUploadSession(secureToken(32), pluginData)
@@ -225,6 +227,48 @@ class UCloudFilePlugin : FilePlugin {
                 FindByStringId(session)
             )
         }
+    }
+
+    override suspend fun RequestContext.handleFolderUpload(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        fileEntry: FileListingEntry,
+        offset: Long,
+        chunk: ByteReadChannel,
+        lastChunk: Boolean
+    ) {
+        val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
+
+        val collection = fileCollections.get(sessionData.target.split("/")[1])
+
+        // Create folders
+        val folders = fileEntry.path.split("/").dropLast(1)
+        val allFolders = mutableListOf<String>()
+
+        var i = 0
+        while (i < folders.size) {
+            allFolders.add(folders.subList(0, i).joinToString("/"))
+            i++
+        }
+
+        println("allFolders: $allFolders")
+        /*forEach { folder ->
+            createFolder(bulkRequestOf(
+                FilesProviderCreateFolderRequestItem(collection, , WriteConflictPolicy.REJECT)
+            ))
+        }*/
+
+        val targetPath = sessionData.target + "/" + fileEntry.path
+
+        //uploads.receiveChunk(UCloudFile.create(targetPath), offset, chunk, sessionData.conflictPolicy, lastChunk)
+
+        /*if (lastChunk) {
+            ipcClient.sendRequest(
+                FilesUploadIpc.delete,
+                FindByStringId(session)
+            )
+        }*/
     }
 
     override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> {
@@ -680,6 +724,7 @@ class UCloudFilePlugin : FilePlugin {
     @Serializable
     private data class FileUploadSessionPluginData(
         val target: String,
+        val type: UploadType,
         val conflictPolicy: WriteConflictPolicy
     )
 

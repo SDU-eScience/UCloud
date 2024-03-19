@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.controllers.FileListingEntry
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
@@ -565,6 +566,18 @@ class PosixFilesPlugin : FilePlugin {
                 }
             }
         }
+    }
+
+    override suspend fun RequestContext.handleFolderUpload(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        file: FileListingEntry,
+        offset: Long,
+        chunk: ByteReadChannel,
+        lastChunk: Boolean
+    ) {
+        throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
     override suspend fun RequestContext.createDownload(
