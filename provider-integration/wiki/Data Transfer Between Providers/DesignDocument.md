@@ -117,9 +117,6 @@ providers, thereby granting users access to resources at the providers in one in
 Each provider may have different resources, and use different software internally, and may even be located at completely
 physical locations. However, providers does not have any knowledge of each other nor communication between them.
 
-
-## UCloud/Frontend architecture
-
 ## UCloud/Core architecture
 
 ### Foundation
@@ -167,6 +164,25 @@ End-users can create a project through the grant application feature. Permission
 ![](./Pictures/subprojects.png)
 
 Product catalogue:
+
+Providers expose services into UCloud. But, different providers expose different services. UCloud uses products to
+define the services of a Provider. As an example, a Provider might have the following services:
+
+- **Storage:** Two tiers of storage. Fast storage, for short-lived data. Slower storage, for long-term data storage.
+
+- **Compute:** Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications.
+  GPU powered nodes for artificial intelligence.
+
+For many providers, the story doesn’t stop here. You can often allocate your jobs on a machine “slice”. This can
+increase overall utilization, as users aren’t forced to request full nodes.
+
+The figure below shows an example of how a provider catalog might look. Here the provider catalog contain three
+different categories of products, namely `u1-storage`, `u1-standard` and `u1-gpu`. The provider advertises this product
+catalog to UCloud/Core, which gives the core knowledge about which services the provider has to offer. From these
+services projects can be awarded resource grants.
+
+---
+
 - Service providers describe their "service catalog" through products
 - This describes the hardware and the services they provide. For example, this will include hardware 
  specification and any potential service constraints.
@@ -174,6 +190,8 @@ Product catalogue:
 - Describes the payment model of a product.
 - Multiple product types for different services: compute, storage, license, IP addresses, public links 
   (L7 ingress)
+
+---
 
 ![](./Pictures/core-products.png)
 
@@ -187,60 +205,225 @@ Resource grants:
 ![](./Pictures/core-resource-grants.png)
 
 Orchestration:
-- Resource catalogue (copy & paste from existing docs)
-- Orchestration API
+
+UCloud uses the resource abstraction to synchronize tasks between UCloud/Core and providers. As a result, resources are
+often used to describe work for the provider. For example, a computational Job is one type of resource used in UCloud.
+
+To understand how resources work, we will first examine what all resources have in common:
+
+- __A unique identifier:__ Users and services can reference resources by using a unique ID.
+- __Product reference:__ Resources describe a work of a provider
+- __A specification:__ Describes the resource. For example, this could be the parameters of a computational Job
+- __Ownership and permissions:__ All resources have exactly one workspace owner.
+- __Updates and status:__ Providers can send regular updates about a resource. These update describe changes in the system. These changes in turn affect the current status.
+
+
+UCloud, in almost all cases, store a record of all resources in use. We refer to this datastore as the catalog of
+UCloud. As a result, UCloud/Core can fulfil some operations without involving the provider. In particular, UCloud/Core
+performs many read operations without the provider’s involvement.
+
+End-users interact with all resources through a standardized API. The API provides common CRUD operations along with
+permission related operations. Concrete resources further extend this API with resource specific tasks. For example,
+virtual machines expose an operation to shut down the machine.
 
 ![](./Pictures/core-orchestration.png)
 
 ## UCloud/IM architecture
 
-Overall architecture
-- Server modes
-- Plugins and extension-points
+The UCloud Integration Module (UCloud/IM) is a plugin-based software which implements UCloud's provider API. It is
+designed to be deployed at a service provider to expose the services of the already existing infrastructure. This means
+that in most cases communication occurs directly between UCloud/Core and UCloud/IM. Except for the rare cases where
+direct communication between an end-user (e.g. a researcher) and service provider is needed.
+
+The purpose of UCloud's provider API is to expose services of different kinds. Recall that providers expose to
+UCloud/Core their service catalog through products. These products can describe different hardware + software
+combinations that are available. For example, a provider can advertise a specific node type which has the ability to
+run container-based workloads. Thus, UCloud/IM must find a way to translate these commands from UCloud/Core into real
+work on the infrastructure. This will require speaking to the infrastructure whatever it may be. The communication 
+between UCloud/IM and UCloud/Core is mostly initiated by UCloud/Core, often as a result of user-action. However, in some
+cases the communication is initiated by UCloud/IM. This is done mostly to push updates from the provider to the core.
+This is, for example, used to communicate how a job changes over time or to push usage information into UCloud.
+
+The figure below highlights the high-level architecture of the integration module in the context of multi-user systems.
+Along with how it speaks to the outside world.
 
 ![](./Pictures/im-arch.png)
 
-User mapping (and a small focus on verification)
+From this diagram, we can see that UCloud/IM consists of four different components:
+
+1. __IM Gateway:__ The gateway is responsible for accepting all incoming traffic. Its role is to route the traffic to
+the appropriate sub-components. 
+
+2. __IM Server:__ The role of the server component is to handle all meta-traffic coming from UCloud/Core. In other
+words, it must handle all commands that are not the direct result of a user-action.  The server component is also the
+only component capable of persisting data and speaking to UCloud/Core. The server component will occasionally speak to
+the existing infrastructure to query the state of certain components. For example, it may probe a compute system to
+determine usage from various projects.
+
+3. __IM User:__ The user component handles all user-specific traffic. That is, any traffic which comes from an end-user.
+A user instance exists for every (active) user on the service provider. Each instance runs in the context of the real
+user on the system. In more technical terms, the IM user process runs with a UID corresponding to that of the real user.
+This is a security measure which ensures that the user cannot perform any action they otherwise wouldn't be able to
+perform. Each user instance is launched, on demand, by the server module. Information about the user instances, and the
+UCloud identities they belong to, are stored in the gateway. This information is written to the gateway by the server.
+
+4. __Embedded database:__ The embedded database is used to persist data required for operations. This includes storing
+mapping between UCloud users and their corresponding UID on the system.
+
+User mapping, between a UCloud user to the corresponding user at the service provider, is a core issue that UCloud/IM
+needs to tackle. UCloud/IM needs this in order to launch the correct instances of IM User. The user mapping process
+starts once a user has been granted a resource allocation and the user wishes to establish a 'connection' to the
+provider. The figure below illustrates the flow.
 
 ![](./Pictures/im-mapping.png)
 
-Example of two common setups showing all the steps for accessing a file
+The flow is as follows:
 
-![](./Pictures/im-posix.png)
+1. __The user initiates a connection attempt.__ This action is triggered by the end-user clicking a "connect with"
+  button in the frontend. Once the user has performed the connection, this button will be grayed out.
+2. __UCloud/Core forwards the request.__ The Core performs several checks, including checking that the user has an
+  active resource grant at the specific provider. Once the authorization checks are complete, the request is forwarded
+  to the provider. The request forwarded to the provider includes the UCloud identity of the user.
+3. __IM Gateway receives the request.__ All traffic at the provider is routes through the gateway. In this case, the 
+   incoming request is a meta-request, since it should not execute in a specific user-context. Namely, because we are
+   lacking the information to create the user-context. Since it is a meta-request, it must be forwarded to the server
+   module.
+4. __IM Server selects the appropriate plugin for connections.__ The server module can be configured to use a selection
+  of different connection mechanisms. This includes supporting multiple types of identity providers such as OIDC or
+  Keycloak.
+5. __The user is redirected to the IdP and they authenticated with their existing credentials.__ Information about the
+  selected connection mechanism is forwarded back to the end-user. This will typically cause a redirect to the 
+  login-portal of the chosen IdP. Here the user authenticates with the IdP successfully and the response is sent back
+  to the server module.
+6. __The mapping is saved in the database.__ From the successful authentication with the IdP, the server determines what
+  the corresponding UID of the user is on the system. This gives the server module a concrete mapping between a UCloud
+  identity and the SP identity. This mapping is saved in the database for future use.
+7. __UCloud/Core is notified about the connection.__ Finally, UCloud/Core is told that the connection attempt was
+   successful. This allows the Core to gray out the "connect with" button. UCloud/Core is never told what the mapping
+   is, it is only told that the connection has occurred successfully.
+
+The user can consume the services of the provider as soon as this connection has been completed. In the figure below, we
+describe how the communication flows when the user wants to submit a compute job. In this case the service provider is
+using Slurm as its computational backend.
 
 ![](./Pictures/im-slurm.png)
 
-## File transfer between service providers
+The flow starts with the user submitting a job from the UCloud/Frontend:
 
-User perspective:
+1. __User submits a job, the request is sent to UCloud/Core.__ At this point, UCloud/Core performs validation of the
+request. Including making sure that all parameters make sense for the application requested. In addition, the Core
+performs authorization of all resources being used in the request. This includes making sure that the end-user has an
+active resource grant at the provider for the requested machine type.
 
-- Researcher has already been granted resources at Provider A and Provider B
-- Researcher has already connected to both providers and have files at both providers
-- Researcher selects a file from Provider A and selects "Transfer file"
+2. __The request is forwarded to the gateway.__ As with all other traffic provider traffic, it is always received by
+the gateway.
+
+3. __The gateway routes the traffic to the appropriate IM User instance.__ The gateway selects the user instance based
+on routing information co-located with the request from UCloud/Core. 
+
+4. __The command is executed on the Slurm system.__ The user instance uses a plugin to translate the command from UCloud
+into a concrete command against the existing infrastructure, in this case Slurm. Keep in mind, that this command is
+executed in the context of the real user on the system. As a result, the command will only succeed if the user has the
+appropriate permissions on the system.
+
+5. __Job state and queue information is queried by the server module.__ The server module will periodically track the
+status of jobs in Slurm. This is done to notify UCloud/Core about any changes to the jobs. This way, the end-user can
+keep track of their jobs simply by browsing the UCloud/Frontend.
+
+6. __Updates about job state is pushed to UCloud/Core.__ The state updates are pushed into the resource catalog,
+making the changes visible in the frontend.
+
+# File transfer between service providers
+
+A key feature required for the HALRIC project is the ability to transfer files between different service providers.
+This is feature not currently implemented by UCloud. In this section we will cover the desired functionality and deliver
+technical designs for how to implement this feature.
+
+## User perspective
+
+We start with an informal description of the feature from the perspective of a researcher. We assume that the researcher
+has two active resource grants, one at "Provider A" and one at "Provider B". The researcher has already gone through
+the connection process and has thus already established a mapping between their UCloud identity and an identity at
+"Provider A" and another at "Provider B". We also assume that "Provider A" and "Provider B" already have a legal
+framework in place which allows for this transfer to take place. Later in the story, we will highlight what happens if
+no such framework is in place.
+
+To initiate the transfer, the researcher opens UCLoud and locates the file they wish to transfer. From here, they right
+click the file and select "Transfer to...". This opens up a system dialog, similar to the one displayed when the user
+wants to move a file internally at a provider.
 
 ![](./Pictures/FileTable2.png)
 
-- Researcher then selects a destination folder at Provider B
+__Figure:__ System dialog shown when a researcher selects "Transfer to..." on a file or folder.
+
+In this system dialog, the researcher can browse all the files they have access to. In this case, they navigate to a
+drive located at "Provider B". Inside of this drive, they find their desired destination folder and select
+"Transfer to". At this point, a message will appear explaining that a transfer between two separate service providers
+will take place.
 
 ![](./Pictures/FileTable3.png)
 
-- This creates a transfer job. The progress can be followed on a dedicated page.
+__Figure:__ System dialog notifying the researcher that a transfer between two service providers is about to take place.
+
+Once confirmed, the transfer will start with no further action required from the researcher. The researcher will be
+redirected to a page which displays status updates from all their active background tasks, including file transfers.
+This can include details such as overall progress through the transfer, a description of the current state. But it will
+also allow the user to perform actions such as pausing and cancelling a transfer.
 
 ![](./Pictures/TaskPage2ed.png)
 
+__Figure:__ Dedicated page for background tasks. This will allow the researcher to follow the status of ongoing and
+previously completed file transfers.
+
+## Architecture
+
+The architecture of the file transfer feature follows the general philosophy of UCloud/IM: to be flexible and support
+the existing infrastructure and solutions. This means that the feature must be able to support a wide variety of
+different protocols. The figure below demonstrates the flow required for a researcher to initiate a file transfer
+between "Provider A" and "Provider B". Note that it reuses the assumptions from the story in the previous section.
 
 ![](./Pictures/im-transfer.png)
 
-- Explain the need for file transfer between service providers
-- Overall architecture
-  - Diagram showing how UCloud/Core is only an orchestrating part of data transfer
-  - Show that the researcher is the initiating party
-  - Show that data transfer (ideally) occurs directly between service providers, 
-    potentially with a protocol specific intermediate
-- An end-users perspective to file transfer
-  - Use the current UI mockups to explain the story of a file transfer
-  - This more or less simply repeats what the overall architecture diagram is trying to show. The provider's are 
-    in the control together with the end-user.
+__Figure:__ A diagram showing the steps involved in initiating a data transfer between "Provider A" (source provider)
+and "Provider B" (destination provider).
+
+The process is initiated by the user, and is as follows:
+
+1. __The researcher initiates the transfer.__ The researcher will include information about the files they wish to
+transfer by including the full path to both source and destination folder.
+
+2. __UCloud/Core contacts the source provider.__ The Core starts out by authorizing the request. Making sure that the
+researcher has the appropriate permissions (according to UCloud's permission model) before proceeding. Assuming the
+authorization step succeeds, the source provider is contacted about the transfer.
+
+3. __"Provider A" determines if and how the transfer will take place.__ Based on the provider's configuration, a
+determination is made to ensure that the proper legal frameworks are in place and to determine which underlying transfer
+mechanism to use. If there is no proper framework for completing the transfer, then the request will be rejected and
+no data transfer will take place. If there is a proper framework, then a suitable technology for the transfer is chosen
+and the provider will reply with any relevant parameters for the transfer. This will also include a flag which tells
+UCloud/Core if it needs to consult the destination provider about the transfer.
+
+4. __(Optional) "Provider B" is consulted about the transfer.__ If the source provider indicated so, then UCloud/Core
+will consult the destination provider about the transfer. This message will include information from the researcher and
+the source provider.
+
+5. __(Optional) "Provider B" responds.__ Similar to how the source provider replied with parameters, so will the
+destination provider.
+
+6. __Parameters for the transfer is sent to the researcher.__ All the results are combined into a single reply and is
+sent to the researcher. The message will include all relevant parameters, including which mechanism is to be used for
+the transfer.
+
+7. __The researcher triggers the transfer based on the parameters by sending a message to "Provider A".__ The exact
+message sent to the source provider will depend on the transfer mechanism. In some rare cases, the user might need to
+provide input for this step. 
+
+8. __(Optional) If needed, the researcher sends a trigger message to "Provider B".__
+
+9. __The providers exchange data in a protocol specific way.__
+
+## Exploring mechanisms for file transfers
+
 - Introduction to protocols
   - Maybe something about how we came up with the protocols we will be discussing
   - Talk about how these protocols are used normally
@@ -265,15 +448,3 @@ User perspective:
     - It supports a variety of data connectors and several protocols for data access
     - 
 - Example?
-
-
-Frame 13:
-
-1. User requests a transfer of files from provider A to provider B
-2. UCloud/Core verifies the request and forwards the request to the initiating provider
-3. Provider A determines the suitable protocol for the transfer and responds with a session in which 
-   the transfer will take place.
-4. Response from provider A is forwarded to the researcher
-5. User initiates the transfer directly with provider A
-6. Data transfer takes place in a transfer method specific way. Both the source and destination may 
-   be pushing and pulling data as needed.
