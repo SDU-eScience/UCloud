@@ -422,13 +422,50 @@ provide input for this step.
 
 ## Exploring mechanisms for file transfers
 
+Based on the needs of the current partners in the HALRIC project, we have come up with a list of potential technologies 
+to support for transferring files. The majority of the mechanisms discussed here are all widely available and are often
+already present in many HPC systems.
+
+### SFTP
+
+SFTP, also known as the SSH File Transfer Protocol, is a network protocol for remote file access and mangement. As the
+name implies, the protocol is co-developed as part of the SSH protocol. SFTP provides operations for common file
+operations such as:
+
+- Listing files
+- Retrieving detailed file information, including access lists
+- Read and write files
+- Delete files
+
+The protocol is typically deployed as part of an SSH server deployment. As a result, it depends on the authentication
+mechanisms already provided by the SSH server. SFTP is very commonly enabled on SSH servers and is, by default, enabled
+in [OpenSSH servers](https://github.com/openssh/openssh-portable/blob/86bdd3853f4d32c85e295e6216a2fe0953ad93f0/sshd_config#L109).
+
+The most common way to use the SFTP protocol is using command-line utilities such as `scp`. For example, one can
+initiate a transfer of a single file with the following command:
+
+```bash
+scp /path/to/local/file user@remote-server.example.com:/path/to/remote/file
+```
+
+SFTP allows for compression of payloads, which can minimize the amount of data sent. This is, for example, enabled via
+the `-C` flag. Apart from compression, SFTP provides no extra smart features for transferring large amounts of data
+efficiently.
+
+In order to transfer files with SFTP, one must be able to connect with and authenticate against the remote SSH server.
+As a result, for the end-user to initiate a file transfer the following technical conditions must be met:
+
+- TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+
+### RSync
+
 - Introduction to protocols
   - Maybe something about how we came up with the protocols we will be discussing
   - Talk about how these protocols are used normally
   - SFTP
     - Very common among already deployed HPC centers [citation needed]
     - Provides common file access operations and is often included and enabled in most SSH server deployments. For 
-      example, the default OpenSSH server has SFTP enabled. (https://github.com/openssh/openssh-portable/blob/86bdd3853f4d32c85e295e6216a2fe0953ad93f0/sshd_config#L109)
+      example, the default OpenSSH server has SFTP enabled. ()
     - Typically used via the `scp` command.
     - Uses authentication and authorization from the pre-existing SSH server
     - Single-threaded
