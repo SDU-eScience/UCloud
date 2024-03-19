@@ -38,7 +38,7 @@ export const SidebarEntry: React.FunctionComponent<LinkInfo> = (info) => {
     return <Link key={info.text} to={info.to} data-tab={info.tab}>
         <Flex flexDirection={"row"} gap={"4px"}>
             {icon}
-            <Truncate fontSize="14px" title={info.text} maxWidth={"150px"} color="var(--fixedWhite)">
+            <Truncate style={{display: "flex", alignItems: "center"}} fontSize="14px" title={info.text} maxWidth={"150px"} color="var(--fixedWhite)">
                 {info.text}
             </Truncate>
         </Flex>
