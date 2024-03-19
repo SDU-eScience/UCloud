@@ -124,21 +124,51 @@ physical locations. However, providers does not have any knowledge of each other
 
 ### Foundation
 
-Authentication:
-- Multiple IdPs
-- (Basic user roles)
-- All maps into a single UCloud user
-- Multiple IdP identities can map to a single UCloud user
+The foundation of UCloud/Core is responsible for delivering the core services required by UCloud. This includes
+features such as:
 
+- Authentication and user management
+- Auditing
+- Monitoring and alerting
+
+
+Authentication:
+- Researchers and students can log into UCloud by using their own institutions credentials
+- This is made possible by supporting a wide range of different identity providers
+  - UCloud supports (configurable) SAML2 IdPs, notably WAYF.
+  - WAYF (Where Are You From) is a danish identity federation for research and infrastructure. WAYF provides authentication via the local organization (e.g. SDU). At a technical level this is implemented with SAML.
+  - WAYF connects to a larger internation federation of IdPs called eduGAIN.
+  - UCloud also supports (configurable) OpenID Connect IdPs
+  - This means that it is possible to configure a large range of IdPs into UCloud as long as they support the OIDC protocol
+  - OIDC is a protocol which...
+- The first time a user logs into UCloud a user is created
+- The identities of multiple IdPs can be mapped into a single UCloud user
+- Once authenticated, only the UCloud identity will be used
+- Once authenticated, a JWT and refresh-token is created
+  - JWTs are an open, industry standard method for representing (auth) claims between two parties
+  - The tokens are digitally signed by UCloud/Core and contain information about the UCloud user
+  - The tokens are short-lived and are used to authenticate all calls to UCloud/Core
+  - Clients (i.e. end-users) can renew their access tokens using a long-lived refresh-token
+  - The refresh-token itself is an opaque token created by UCloud/Core
 
 ![](./Pictures/core-idp.png)
 
 Auditing and monitoring
 - UCloud/Core produces a detailed audit trail
+  - The audit trail contains information about:
+  - user session
+  - the request and select request parameters
+  - response codes and response times
 - This is sent into an ElasticSearch database
+  - Purpose of this is persistent storage which allows us to query the structured data
+  - ElasticSearch is commonly used for storage of structured logs, such as this
+  - Automatically deleted after our retention period (defined elsewhere)
 - Connected to Grafana and its alertmanager
+  - Grafana is...
+  - Gives us visualization of the cluster health
 - UCloud/Core and UCloud/IM produces prometheus metrics which are periodically scraped
   (optional for service providers)
+  - Promthetus is...
 - The prometheus metrics give us real-time insights into the health of our services and can help troubleshoot
   issues
 
