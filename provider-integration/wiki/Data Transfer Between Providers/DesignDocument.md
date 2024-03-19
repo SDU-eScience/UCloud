@@ -42,9 +42,6 @@ The design and UCloud, throughout all of its components, follow these principles
 
 # Methodology
 
-> [!NOTE]
-> TODO We may need to adjust this further before it is suitable.
-
 UCloud uses an _agile methodology_ for development and deployment, which will also be used for this project. The method
 is commonly used for complex projects like this one, and it emphasizes collaboration, flexibility, continuous
 improvement, and high-quality results.
@@ -121,51 +118,77 @@ physical locations. However, providers does not have any knowledge of each other
 
 ### Foundation
 
-The foundation of UCloud/Core is responsible for delivering the core services required by UCloud. This includes features such as authentication and user management, auditing, monitoring and alerting.
+The foundation of UCloud/Core is responsible for delivering the core services required by UCloud. This includes features
+such as authentication and user management, auditing, monitoring and alerting.
 
-Researchers and students can get easy access to UCloud by using their own institutions credentials. This is possible since UCloud supports authentication through a wide range of identity providers. Most notably authentication is supported through WAYF (Where Are you From), which is a Danish identity federation for research and education in Denmark and the North Atlantic. WAYF provides authentication via the local organization (e.g. SDU), but also connects to a larger international federation of identity providers called eduGAIN.
+Researchers and students can get easy access to UCloud by using their own institutions credentials. This is possible
+since UCloud supports authentication through a wide range of identity providers. Most notably authentication is
+supported through WAYF (Where Are you From), which is a Danish identity federation for research and education in Denmark
+and the North Atlantic. WAYF provides authentication via the local organization (e.g. SDU), but also connects to a
+larger international federation of identity providers called eduGAIN.
 
-Authentication through other identity providers can be configured. UCloud currently supports authentication through SAML and OpenID Connect, which are both open, industry standard authentication protocols. This means that it is possible to configure a large range of identity providers into UCloud, as long as they support either SAML (such as WAYF) or OpenID Connect protocols.
+Authentication through other identity providers can be configured. UCloud currently supports authentication through SAML
+and OpenID Connect, which are both open, industry standard authentication protocols. This means that it is possible to
+configure a large range of identity providers into UCloud, as long as they support either SAML (such as WAYF) or OpenID
+Connect protocols.
 
-The first time a researcher or student logs into UCloud, a UCloud user is created. The identities of multiple identity providers can be mapped into a single UCloud user. Once authenticated, only the UCloud identity will be used.
+The first time a researcher or student logs into UCloud, a UCloud user is created. The identities of multiple identity
+providers can be mapped into a single UCloud user. Once authenticated, only the UCloud identity will be used.
 
-At a technical level, when a user has authenticated an access-token, in the form of a JSON Web Token (JWT), and a refresh-token are created. JWTs are an open, industry standard method for representing authentication claims between two parties. These tokens are digitally signed by UCloud/Core and contain information about the UCloud user.
+At a technical level, when a user has authenticated an access-token, in the form of a JSON Web Token (JWT), and a
+refresh-token are created. JWTs are an open, industry standard method for representing authentication claims between two
+parties. These tokens are digitally signed by UCloud/Core and contain information about the UCloud user.
 
-The access-token is short-lived and are used to authenticate all calls to UCloud/Core. Clients (i.e.) end-users can renew their access tokens using the long-living refresh-token.
+The access-token is short-lived and are used to authenticate all calls to UCloud/Core. Clients (i.e.) end-users can
+renew their access tokens using the long-living refresh-token.
 
 <p align="center"><img src="./Pictures/core-idp.png"></p>
 
-UCloud/Core produces a detailed audit trail. This trail contains information about user sessions, request and (select) request parameters, response codes, response times etc. The individual components of UCloud/Core sends this to a data store based on the Redis database management software.
+UCloud/Core produces a detailed audit trail. This trail contains information about user sessions, request and (select)
+request parameters, response codes, response times etc. The individual components of UCloud/Core sends this to a data
+store based on the Redis database management software.
 
-The event stream from Redis is captured by the foundation component where it is analyzed and stored in ElasticSearch, which is a platform commonly used for storage of structured logs, such as this. This allow us to query the structured data. The data is automatically deleted after our retention period.
+The event stream from Redis is captured by the foundation component where it is analyzed and stored in ElasticSearch,
+which is a platform commonly used for storage of structured logs, such as this. This allow us to query the structured
+data. The data is automatically deleted after our retention period.
 
-UCloud/Core and UCloud/IM produces metrics which are periodically scraped (optional for service providers). These metrics are passed to Prometheus, an open source systems monitoring and alerting toolkit.
+UCloud/Core and UCloud/IM produces metrics which are periodically scraped (optional for service providers). These
+metrics are passed to Prometheus, an open source systems monitoring and alerting toolkit.
 
-Both ElasticSearch and Prometheus is connected to Grafana, an open source platform for data analytics and monitoring, and its alert manager. This allows us access to visualization of the cluster health, as well as real-time insights of the heath of our services and help for troubleshooting any issues that might arise.
-
-
+Both ElasticSearch and Prometheus is connected to Grafana, an open source platform for data analytics and monitoring,
+and its alert manager. This allows us access to visualization of the cluster health, as well as real-time insights of
+the heath of our services and help for troubleshooting any issues that might arise.
 
 
 <p align="center"><img src="./Pictures/core-monitoring.png"></p>
 
 ### Accounting and Project Management (APM)
 
-UCloud has flexible built-in support for project management. A project consist of one or more members, each with a role (PI, admin or user), where exactly one member is PI (Project Investigator). The PI is responsible for managing the project, including adding and removing users.
+UCloud has flexible built-in support for project management. A project consist of one or more members, each with a role
+(PI, admin or user), where exactly one member is PI (Project Investigator). The PI is responsible for managing the
+project, including adding and removing users.
 
-Members can be further organized into groups, each with permissions to resources that can be configured by the PI or admins.
+Members can be further organized into groups, each with permissions to resources that can be configured by the PI or
+admins.
 
 <p align="center"><img src="./Pictures/core-project.png"></p>
 
-All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The project hierarchy plays a significant role in accounting.
+All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level
+projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The project
+hierarchy plays a significant role in accounting.
 
-End-users can create a project through the grant application feature. Permissions and memberships of projects are not hierarchical. This means that a user must be explicitly added to every project they need permissions in. 
+End-users can create a project through the grant application feature. Permissions and memberships of projects are not
+hierarchical. This means that a user must be explicitly added to every project they need permissions in. 
 
 
 <p align="center"><img src="./Pictures/subprojects.png"></p>
 
-Service providers expose their services to UCloud through *products*. The services will be stored by UCloud/Core as products with exact hardware specification and any potential service constraints, and presented to the end-user in a user-friendly way. Users and projects will be able to apply for access to the products through UCloud/Core.
+Service providers expose their services to UCloud through *products*. The services will be stored by UCloud/Core as
+products with exact hardware specification and any potential service constraints, and presented to the end-user in a
+user-friendly way. Users and projects will be able to apply for access to the products through UCloud/Core.
 
-Different kinds of product types for different services are supported, such as compute, storage, software licenses, IP addresses and public links.
+Different kinds of product types for different services are supported, such as compute, storage, software licenses, IP
+addresses and public links.
 
 As an example, a Provider might have the following services:
 
@@ -175,9 +198,14 @@ As an example, a Provider might have the following services:
   GPU powered nodes for artificial intelligence.
   
 
-Products can also be bundled into into categories of similar products. This allows for flexibility when service providers define their products and pricing model, and also allow more advanced products to be defined, such as slicing of single compute machines.
+Products can also be bundled into into categories of similar products. This allows for flexibility when service
+providers define their products and pricing model, and also allow more advanced products to be defined, such as slicing
+of single compute machines.
 
-The figure below shows an example of how a provider catalog might look. Here the provider catalog contain three different categories of products, namely `u1-storage`, `u1-standard` and `u1-gpu`. The provider advertises this product catalog to UCloud/Core, which gives the core knowledge about which services the provider has to offer. From these services projects can be awarded resource grants.
+The figure below shows an example of how a provider catalog might look. Here the provider catalog contain three
+different categories of products, namely `u1-storage`, `u1-standard` and `u1-gpu`. The provider advertises this product
+catalog to UCloud/Core, which gives the core knowledge about which services the provider has to offer. From these
+services projects can be awarded resource grants.
 
 ---
 
@@ -420,6 +448,17 @@ provide input for this step.
 
 9. __The providers exchange data in a protocol specific way.__
 
+## Security considerations
+
+- Talk about sensitivity of parameters
+- Talk about how UCloud/Core should not know all of the parameters
+- A potential solution to this would be to use asymmetric encryption
+  - The client can submit the public key
+  - The provider(s) can encrypt sensitive information with the public key
+  - UCloud/Core will not be able to use the sensitive data
+  - The client will be able to use the sensitive data
+- This can be used for transferring one-time use keys (or similar) which might be useful for transfers in many protocols
+
 ## Exploring mechanisms for file transfers
 
 Based on the needs of the current partners in the HALRIC project, we have come up with a list of potential technologies 
@@ -428,7 +467,7 @@ already present in many HPC systems.
 
 ### SFTP
 
-SFTP, also known as the SSH File Transfer Protocol, is a network protocol for remote file access and mangement. As the
+SFTP, also known as the SSH File Transfer Protocol, is a network protocol for remote file access and management. As the
 name implies, the protocol is co-developed as part of the SSH protocol. SFTP provides operations for common file
 operations such as:
 
@@ -455,31 +494,31 @@ efficiently.
 In order to transfer files with SFTP, one must be able to connect with and authenticate against the remote SSH server.
 As a result, for the end-user to initiate a file transfer the following technical conditions must be met:
 
-- TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+- The destination provider must allow the ingoing SSH connection from the source provider
+- The source provider must allow the outgoing SSH connection to the destination provider
+- The user at the source provider must be able to connect to the destination provider as their corresponding user
 
-### RSync
+### rsync
 
-- Introduction to protocols
-  - Maybe something about how we came up with the protocols we will be discussing
-  - Talk about how these protocols are used normally
-  - SFTP
-    - Very common among already deployed HPC centers [citation needed]
-    - Provides common file access operations and is often included and enabled in most SSH server deployments. For 
-      example, the default OpenSSH server has SFTP enabled. ()
-    - Typically used via the `scp` command.
-    - Uses authentication and authorization from the pre-existing SSH server
-    - Single-threaded
-    - Has no built-in smart mechanism for determining which files are already present on the server.
-    - Compression available
-  - RSync
-    - Commonly uses authentication and authorization from the pre-existing SSH server 
-    - Single-threaded
-    - Smart mechanism for determining differential transfers
-    - Requires an rsync executable at the remote side
-    - Compression available
-  - Globus Connect
-    - Globus connect server delivers file transfer and sharing capabilities between service providers
-    - It requires an installation of the Globus Connect Server already present at the HPC provider
-    - It supports a variety of data connectors and several protocols for data access
-    - 
-- Example?
+rsync is a utility made specifically for transferring and synchronizing files between systems. rsync is only capable of
+performing synchronization of files. Unlike SFTP, it performs checks to minimize the amount of data transferred. This
+includes checking if a file is already present by looking at basic attributes such as file size, modification
+timestamps and checksums. 
+
+Similar to SFTP, it commonly uses SSH as the underlying transport protocol. As a result, it also inherits the security
+model of SSH.
+
+To use rsync between two providers, the following conditions must be met:
+
+- The destination provider must allow the ingoing SSH connection from the source provider
+  - Alternatively the native rsync protocol may be used
+- The source provider must allow the outgoing SSH connection to the destination provider
+  - Alternatively the native rsync protocol may be used
+- The user at the source provider must be able to connect to the destination provider as their corresponding user
+- rsync must be present at both the source and destination provider
+
+### Globus Connect
+
+- Globus connect server delivers file transfer and sharing capabilities between service providers
+- It requires an installation of the Globus Connect Server already present at the HPC provider
+- It supports a variety of data connectors and several protocols for data access
