@@ -17,9 +17,7 @@ providers have full control over their data and system. UCloud is designed to fi
 dictate how a system should work. It helps service providers with user and project management, as well as enforcing
 quotas and tracking usage. This includes showing detailed statistics of usage.
 
-# Software development 
-
-## Approach and principles 
+# Approach and principles 
 
 The design and UCloud, throughout all of its components, follow these principles:
 
@@ -42,7 +40,7 @@ The design and UCloud, throughout all of its components, follow these principles
   for researchers. UCloud deploys several metrics to track performance and scalability issues over time. These metrics
   guide the roadmap for new development.
 
-## Methodology
+# Methodology
 
 > [!NOTE]
 > TODO We may need to adjust this further before it is suitable.
@@ -101,8 +99,6 @@ Most issues go through a fixed set of stages:
 
 # Software architecture
 
-## Overview
-
 The UCloud platform is made of several different components. In generalized terms, UCloud can be split into:
 
 - __UCloud/Frontend.__ The default web user interface for UCloud.
@@ -113,67 +109,119 @@ The UCloud platform is made of several different components. In generalized term
   allow access to compute, storage, or other kinds of resources. Communication with UCloud/Core usually happens
   through a small, flexible module called the *Integration Module*.
  
+![](./Pictures/global-arch.png)
+
 An end-user will interact with the UCloud/Frontend which communicates with the UCloud/Core which communicates with the
 providers, thereby granting users access to resources at the providers in one interface.
 
 Each provider may have different resources, and use different software internally, and may even be located at completely
 physical locations. However, providers does not have any knowledge of each other nor communication between them.
 
+
 ## UCloud/Frontend architecture
 
 ## UCloud/Core architecture
 
-- Foundation
-  - Authentication
-    - Multiple IdPs
-    - (Basic user roles)
-    - All maps into a single UCloud user
-    - Multiple IdP identities can map to a single UCloud user
-  - Auditing and monitoring
-    - UCloud/Core produces a detailed audit trail
-    - This is sent into an ElasticSearch database
-    - Connected to Grafana and its alertmanager
-    - UCloud/Core and UCloud/IM produces prometheus metrics which are periodically scraped
-      (optional for service providers)
-    - The prometheus metrics give us real-time insights into the health of our services and can help troubleshoot
-      issues
-- Accounting and project management
-  - Project management
-    - UCloud has built-in support for project management
-    - Projects consist of one or more members
-    - Each member has a role (PI, admin or user)
-    - Each project has exactly one PI
-    - Members are organized into groups
-    - Copy & paste stuff from the existing documentation
-  - Product catalogue
-    - Service providers describe their "service catalog" through products
-    - This describes the hardware and the services they provide. For example, this will include hardware 
-      specification and any potential service constraints.
-    - Can be bundled into a category of similar products. This allows for slicing of a single compute machine.
-    - Describes the payment model of a product.
-    - Multiple product types for different services: compute, storage, license, IP addresses, public links 
-      (L7 ingress)
-  - Resource grants
-    - UCloud/Core uses resource grants to determine which service providers a given user can access
-    - A resource grant comes in the form of "project X has been granted Y credits to use product Z in a period P"
-    - UCloud/Core collects usage information from the provider
-    - Usage numbers are reported back to both grant givers, service providers and researchers
-    - UCloud/Core comes with a built-in system for managing the resource grant process
-- Orchestration
-  - Resource catalogue (copy & paste from existing docs)
-  - Orchestration API
+### Foundation
+
+Authentication:
+- Multiple IdPs
+- (Basic user roles)
+- All maps into a single UCloud user
+- Multiple IdP identities can map to a single UCloud user
+
+
+![](./Pictures/core-idp.png)
+
+Auditing and monitoring
+- UCloud/Core produces a detailed audit trail
+- This is sent into an ElasticSearch database
+- Connected to Grafana and its alertmanager
+- UCloud/Core and UCloud/IM produces prometheus metrics which are periodically scraped
+  (optional for service providers)
+- The prometheus metrics give us real-time insights into the health of our services and can help troubleshoot
+  issues
+
+![](./Pictures/core-monitoring.png)
+
+### Accounting and Project Management (APM)
+
+Project management
+- UCloud has built-in support for project management
+- Projects consist of one or more members
+- Each member has a role (PI, admin or user)
+- Each project has exactly one PI
+- Members are organized into groups
+- Copy & paste stuff from the existing documentation
+
+![](./Pictures/core-project.png)
+
+![](./Pictures/core-project-hierarchy.png)
+
+Product catalogue:
+- Service providers describe their "service catalog" through products
+- This describes the hardware and the services they provide. For example, this will include hardware 
+ specification and any potential service constraints.
+- Can be bundled into a category of similar products. This allows for slicing of a single compute machine.
+- Describes the payment model of a product.
+- Multiple product types for different services: compute, storage, license, IP addresses, public links 
+  (L7 ingress)
+
+![](./Pictures/core-products.png)
+
+Resource grants:
+- UCloud/Core uses resource grants to determine which service providers a given user can access
+- A resource grant comes in the form of "project X has been granted Y credits to use product Z in a period P"
+- UCloud/Core collects usage information from the provider
+- Usage numbers are reported back to both grant givers, service providers and researchers
+- UCloud/Core comes with a built-in system for managing the resource grant process
+
+![](./Pictures/core-resource-grants.png)
+
+Orchestration:
+- Resource catalogue (copy & paste from existing docs)
+- Orchestration API
+
+![](./Pictures/core-orchestration.png)
 
 ## UCloud/IM architecture
 
-- Overall architecture
-  - Server modes
-  - Plugins and extension-points
-- User mapping (and a small focus on verification)
-- Example of two common setups showing all the steps for accessing a file
-  1. Traditional HPC
-  2. Kubernetes
+Overall architecture
+- Server modes
+- Plugins and extension-points
+
+![](./Pictures/im-arch.png)
+
+User mapping (and a small focus on verification)
+
+![](./Pictures/im-mapping.png)
+
+Example of two common setups showing all the steps for accessing a file
+
+![](./Pictures/im-posix.png)
+
+![](./Pictures/im-slurm.png)
 
 ## File transfer between service providers
+
+User perspective:
+
+- Researcher has already been granted resources at Provider A and Provider B
+- Researcher has already connected to both providers and have files at both providers
+- Researcher selects a file from Provider A and selects "Transfer file"
+
+![](./Pictures/FileTable2.png)
+
+- Researcher then selects a destination folder at Provider B
+
+![](./Pictures/FileTable3.png)
+
+- This creates a transfer job. The progress can be followed on a dedicated page.
+
+![](./Pictures/TaskPage.png)
+
+
+![](./Pictures/im-transfer.png)
 
 - Explain the need for file transfer between service providers
 - Overall architecture
