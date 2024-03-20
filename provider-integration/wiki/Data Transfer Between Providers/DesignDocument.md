@@ -251,17 +251,21 @@ also at a larger level, such as at a grant giver or even a service provider.
 
 ### Orchestration
 
-UCloud uses the resource abstraction to synchronize tasks between UCloud/Core and providers. As a result, resources are
-often used to describe work for the provider. For example, a computational Job is one type of resource used in UCloud.
+UCloud uses a *resource* abstraction to synchronize tasks between UCloud/Core and providers. As a result, resources are
+often used to describe work for the provider. For example, a computational job is one type of resource used in UCloud.
 
 To understand how resources work, we will first examine what all resources have in common:
 
 - __A unique identifier:__ Users and services can reference resources by using a unique ID.
-- __Product reference:__ Resources describe a work of a provider
-- __A specification:__ Describes the resource. For example, this could be the parameters of a computational Job
-- __Ownership and permissions:__ All resources have exactly one workspace owner.
-- __Updates and status:__ Providers can send regular updates about a resource. These update describe changes in the system. These changes in turn affect the current status.
 
+- __Product reference:__ Resources describe a work of a provider.
+
+- __A specification:__ Describes the resource. For example, this could be the parameters of a computational job.
+
+- __Ownership and permissions:__ All resources have exactly one workspace owner.
+
+- __Updates and status:__ Providers can send regular updates about a resource. These update describe changes in the
+system. These changes in turn affect the current status.
 
 UCloud, in almost all cases, store a record of all resources in use. We refer to this datastore as the catalog of
 UCloud. As a result, UCloud/Core can fulfil some operations without involving the provider. In particular, UCloud/Core
@@ -271,7 +275,38 @@ End-users interact with all resources through a standardized API. The API provid
 permission related operations. Concrete resources further extend this API with resource specific tasks. For example,
 virtual machines expose an operation to shut down the machine.
 
+In the following sections, we will discuss how providers work in UCloud. To start with, we want to provide an example
+of how a resource, more specifically a job, is managed by UCloud/Core. This is shown in the figure below.
+
 <p align="center"><img src="./Pictures/core-orchestration.png"></p>
+
+__Figure:__ A diagram showing what happens when a researcher wants to start a job.
+
+The diagram shows a single researcher who wants to start a job. This researcher belongs to a project which has already
+been awarded with a resource grant at a specific provider. The flow starts when the user submits a job:
+
+1. __The user submits a job.__ The request will contain a specification for the job. Inside of this specification the
+user will write information about the requested product (i.e. machine type). It will also contain information about the
+application to run and any input parameters it might need. The user is authenticated via the access token discussed in
+the "Foundation" section.
+
+2. __UCloud/Core looks up the user and authorizes their request.__ UCloud/Core performs authentication, authorization
+and validation of the received request. This process includes a wide variety of checks, one of which is to ensure that
+the user as an appropriate resource grant at the provider. UCloud/Core knows which provider to forward the request to
+based on the requested product (stored in the request).
+
+3. __The request is forwarded to the appropriate provider.__ The job of the provider is now to turn the request from the
+end-user into an appropriate command at the service provider. For example, if the provider is running a Slurm system,
+then the provider must submit the job to the queue. Once the job has been created on the computational backend, an
+OK response is forwarded back to the researcher. This causes UCloud/Core to write down that the job resource was
+successfully created. At this point, it will become part of the jobs the researcher can see when they browse their
+resource catalog.
+
+4. __As the job runs, the provider will periodically push updates about the job to UCloud/Core.__ Throughout a job's
+lifetime the provider will send periodic updates. These updates can include information about the job's life-cycle.
+For example, the provider will send an update once the job transitions from the queue to a running state. It will send
+another update when the job terminates. These updates are received by UCloud/Core and the resource catalog is updated
+accordingly. The changes are visible to the researcher when they browse their resource catalog.
 
 ## UCloud/IM architecture
 
