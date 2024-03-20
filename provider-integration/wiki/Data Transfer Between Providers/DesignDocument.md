@@ -329,6 +329,9 @@ Along with how it speaks to the outside world.
 
 <p align="center"><img src="./Pictures/im-arch.png"></p>
 
+__Figure:__ The overall architecture of UCloud/IM and how it integrates with the outside world, including UCloud/Core
+and the existing infrastructure.
+
 From this diagram, we can see that UCloud/IM consists of four different components:
 
 1. __IM Gateway:__ The gateway is responsible for accepting all incoming traffic. Its role is to route the traffic to
@@ -356,6 +359,9 @@ starts once a user has been granted a resource allocation and the user wishes to
 provider. The figure below illustrates the flow.
 
 <p align="center"><img src="./Pictures/im-mapping.png"></p>
+
+__Figure:__ Diagram showing the flow required for establishing a user-mapping between a UCloud identity and a local
+service provider identity.
 
 The flow is as follows:
 
@@ -387,6 +393,8 @@ describe how the communication flows when the user wants to submit a compute job
 using Slurm as its computational backend.
 
 <p align="center"><img src="./Pictures/im-slurm.png"></p>
+
+__Figure:__ A diagram showing the steps required for a job to be submitted at a Slurm cluster initiated from UCloud.
 
 The flow starts with the user submitting a job from the UCloud/Frontend:
 
