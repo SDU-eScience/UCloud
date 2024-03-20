@@ -1,6 +1,14 @@
 # Introduction
 
-UCloud is a digital research environment that helps you connect to different compute and storage providers. It makes
+One key piece that so far has been missing to leverage the full innovation potential of the ÖKS-Hamburg area, is the access to a coherent and easy-to- use analysis resource with secure access to software tools and to the datasets collected at infrastructures in the area. This would be made possible by creating the Hanseatic Science Cloud (HSC). 
+
+Traditionally, datasets are analysed either at the compute resources co- located with the infrastructure or provided at the home institution of the respective user. We argue that the pace of innovation can be increased significantly by making compute resources and acquired datasets available regardless of their locations. Ease of use is particularly important as this will allow users to focus on the subject at hand rather than on the tool itself, thereby improving the speed of innovation. 
+
+The ambition of the HSC is to be the enabling factor that provides users from the Life Sciences, healthcare, and the tech-sector with a uniform entry point for easy and secure cross- border access to tools for the analysis of, access to, and collaboration on data. HSC as envisioned would give easy access to for example: AI paradigms such as machine learning and deep learning, traditional data analysis, and can facilitate digitalization in healthcare, Life Science and the tech-sector in general. 
+
+The design of the HSC is based on pre-existing open source solutions, in particular a software platform called UCloud, which provides middleware software to enable a full federation of services across geographically distributed services for compute and storage. 
+
+UCloud provides the users with digital research environment available at different compute and storage providers. It makes
 it easy to find services, apply for resources, and manage projects. UCloud aims to connect end-users with heterogeneous
 service providers across many different countries.
 
