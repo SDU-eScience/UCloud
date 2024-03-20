@@ -329,6 +329,9 @@ Along with how it speaks to the outside world.
 
 <p align="center"><img src="./Pictures/im-arch.png"></p>
 
+__Figure:__ The overall architecture of UCloud/IM and how it integrates with the outside world, including UCloud/Core
+and the existing infrastructure.
+
 From this diagram, we can see that UCloud/IM consists of four different components:
 
 1. __IM Gateway:__ The gateway is responsible for accepting all incoming traffic. Its role is to route the traffic to
@@ -356,6 +359,9 @@ starts once a user has been granted a resource allocation and the user wishes to
 provider. The figure below illustrates the flow.
 
 <p align="center"><img src="./Pictures/im-mapping.png"></p>
+
+__Figure:__ Diagram showing the flow required for establishing a user-mapping between a UCloud identity and a local
+service provider identity.
 
 The flow is as follows:
 
@@ -387,6 +393,8 @@ describe how the communication flows when the user wants to submit a compute job
 using Slurm as its computational backend.
 
 <p align="center"><img src="./Pictures/im-slurm.png"></p>
+
+__Figure:__ A diagram showing the steps required for a job to be submitted at a Slurm cluster initiated from UCloud.
 
 The flow starts with the user submitting a job from the UCloud/Frontend:
 
@@ -504,17 +512,20 @@ provide input for this step.
 
 ## Security considerations
 
-- Talk about sensitivity of parameters
-- Talk about how UCloud/Core should not know all of the parameters
-- A potential solution to this would be to use asymmetric encryption
-  - The client can submit the public key
-  - The provider(s) can encrypt sensitive information with the public key
-  - UCloud/Core will not be able to use the sensitive data
-  - The client will be able to use the sensitive data
-- This can be used for transferring one-time use keys (or similar) which might be useful for transfers in many protocols
-- Note that this approach can still be man-in-the-middled by UCloud/Core to maliciously redirect the client somewhere
-  evil. This mechanism assumes that the trigger message itself is not sensitive. This should not be a problem with our
-  intended messages given that it will likely only contain a public key (or similar) needed for the transfer.
+The providers involved in the transfer have an oppertunity to send parameters required for the transfer. In some cases,
+this information can potentially be sensitive (directly or indirectly) and UCloud/Core should not know this information.
+Given that UCloud/Core is required for the orchestration of the transfer, and thus, data must flow through it, we
+propose a solution utilizing asymmetric cryptography to hide the information from UCloud/Core while still allowing
+transit of information through it.
+
+This works by having the client, controlled by the researcher, generate a public-private key-pair. When the researcher
+initiates the transfer, in step 1, they will include a copy of their public-key. This key will allow the providers to
+encrypt the sensitive parameters in such a way that only the researcher can use the information.
+
+We recognize that this solution does not prevent a compromised version of UCloud/Core from sending its own 'evil'
+parameters encrypted with the researchers public key. But as we will later show, the trigger messages sent based on the
+sensitive parameters will not themselves contain sensitive data. As a result, a compromised version of UCloud/Core has
+little to gain from doing so.
 
 ## Exploring mechanisms for file transfers
 
