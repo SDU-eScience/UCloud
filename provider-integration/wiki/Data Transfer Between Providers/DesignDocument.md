@@ -1,21 +1,23 @@
 # Introduction
 
-UCloud is a digital research environment that helps you connect to different compute and storage providers. It makes
-it easy to find services, apply for resources, and manage projects. UCloud aims to connect end-users with heterogeneous
-service providers across many different countries.
+One key piece that so far has been missing to leverage the full innovation potential of the ÖKS-Hamburg area, is the access to a coherent and easy-to- use analysis resource with secure access to software tools and to the datasets collected at infrastructures in the area. This would be made possible by creating the Hanseatic Science Cloud (HSC). 
 
-With UCloud, you can use your organization’s credentials to log in, apply for access to a super-computer, invite
-collaborators, upload your dataset, and start your data analysis. Its application catalog is large and varied and
-contains applications of many different types. For example, you can run interactive applications such as JupyterLab,
-RStudio and Visual Studio Code. You can create a temporary remote desktop session and run applications such as MATLAB.
-Alternatively, you can even create long running virtual machines running the operating system of your choice. Large
-multi-node batch jobs can even be submitted to an existing Slurm cluster. You may even create your own private
-ephemeral Slurm cluster.
+Traditionally, datasets are analysed either at the compute resources co- located with the infrastructure or provided at the home institution of the respective user. We argue that the pace of innovation can be increased significantly by making compute resources and acquired datasets available regardless of their locations. Ease of use is particularly important as this will allow users to focus on the subject at hand rather than on the tool itself, thereby improving the speed of innovation. 
 
-UCloud is a secure cloud computing platform that comes with built-in monitoring and auditing features. Service
-providers have full control over their data and system. UCloud is designed to fit over an existing system and does not
-dictate how a system should work. It helps service providers with user and project management, as well as enforcing
-quotas and tracking usage. This includes showing detailed statistics of usage.
+The ambition of the HSC is to be the enabling factor that provides users from the Life Sciences, healthcare, and the tech-sector with a uniform entry point for easy and secure cross- border access to tools for the analysis of, access to, and collaboration on data. HSC as envisioned would give easy access to for example: AI paradigms such as machine learning and deep learning, traditional data analysis, and can facilitate digitalization in healthcare, Life Science and the tech-sector in general. 
+
+The design of the HSC is based on pre-existing open source solutions, in particular a software platform called UCloud, which provides middleware software to enable a full federation of services across geographically distributed services for compute and storage. 
+
+UCloud provides the users digital research environment tailored to the unique needs of research institutions. It serves as a pivotal bridge, effortlessly connecting users with diverse compute and storage providers worldwide. Designed to streamline the research process, UCloud simplifies resource discovery, application, and project management.
+
+Key Features:
+* __Unified Access__: Utilize organization credentials to access a plethora of services, from supercomputers to storage solutions, all within a unified platform.
+* __Versatile Application Catalog__: Explore a rich assortment of applications ranging from interactive environments like JupyterLab, RStudio, and Visual Studio Code to heavyweight tools like MATLAB, supported through temporary remote desktop sessions or long-running virtual machines.
+* __Flexible Job Submission__: Seamlessly submit large-scale batch jobs to existing Slurm clusters or create personalized ephemeral Slurm clusters to meet specific computational requirements.
+* __Security and Compliance__: Built-in monitoring and auditing functionalities ensure robust security measures, while granting service providers full control over their data and systems.
+* __User and Project Management__: Streamline administrative tasks with comprehensive user and project management features, including quota enforcement and usage tracking, along with detailed usage statistics.
+
+UCloud serves as a secure and adaptable cloud computing platform, empowering research institutions to focus on groundbreaking discoveries without being bogged down by administrative complexities. With its intuitive interface and powerful capabilities, UCloud redefines the landscape of research computing, fostering collaboration and innovation on a global scale.
 
 # Approach and principles 
 

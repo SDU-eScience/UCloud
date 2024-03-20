@@ -22,7 +22,7 @@
         "@reduxjs/toolkit": "2.2.1",
         "@rjsf/core": "4.2.3",
         "@svgr/cli": "8.1.0",
-        "apexcharts": "3.47.0",
+        "apexcharts": "3.48.0",
         "assert": "2.1.0",
         "date-fns": "3.6.0",
         "deepcopy": "2.1.0",
