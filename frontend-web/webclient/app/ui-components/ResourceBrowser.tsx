@@ -441,6 +441,15 @@ export class ResourceBrowser<T> {
         }
     };
 
+    private clearSelected() {
+        const selected = this.isSelected;
+        for (let i = 0; i < selected.length; i++) {
+            selected[i] = 0;
+        }
+        this.renderRows();
+        this.renderOperations();
+    }
+
     public init(
         ref: React.MutableRefObject<ResourceBrowser<T> | null>,
         features: ResourceBrowseFeatures,
@@ -1652,7 +1661,7 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
-            
+
             if (op.text === "" && op.icon === "keyboardSolid") { // Note(Jonas): Edge case: Keyboard shortcuts button. 
                 element.style.width = "35px";
             }
@@ -2021,17 +2030,17 @@ export class ResourceBrowser<T> {
             entryIdx = idxString ? parseInt(idxString) : NaN;
             if (isNaN(entryIdx)) return;
 
-            const range = document.createRange();
-            if (row.title.lastChild) range.selectNode(row.title.lastChild);
-            const textRect = range.getBoundingClientRect();
-            rowRect = row.container.getBoundingClientRect();
-            range.detach();
+            let textElement = row.title;
+            while (textElement.hasChildNodes()) {
+                const child = textElement.children.item(textElement.children.length - 1) as HTMLElement;
+                if (child) textElement = child;
+                else break;
+            }
+            rowRect = textElement.getBoundingClientRect();
 
             // NOTE(Dan): We are purposefully only checking if x <= end of text.
-            // NOTE(Dan): We are adding 30px to increase the hit-box slightly
-            shouldDragAndDrop = event.clientX <= textRect.x + textRect.width + 30;
-            // NOTE(Jonas): This is the case that ensure that the user drags the text and not the rest of the truncate-tag.
-            shouldDragAndDrop = (event.target as HTMLElement).children.length === 0;
+            // NOTE(Dan): We are adding 20px to increase the hit-box slightly
+            shouldDragAndDrop = startX <= (rowRect.x + rowRect.width + 20);
         }
 
         if (shouldDragAndDrop) {
@@ -2221,6 +2230,8 @@ export class ResourceBrowser<T> {
                 );
                 const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-idx")!);
 
+                const oldSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0);
+
                 for (let i = 0; i < this.rows.length; i++) {
                     if (i >= lowerOffset && i <= upperOffset) {
                         this.isSelected[i + baseFileIdx] = 1;
@@ -2230,8 +2241,12 @@ export class ResourceBrowser<T> {
                         if (initialScrollTop === scrollStart) this.isSelected[i + baseFileIdx] = 0;
                     }
                 }
-                this.renderRows();
-                this.renderOperations();
+
+                const newSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0)
+                if (oldSelectedCount !== newSelectedCount) {
+                    this.renderRows();
+                    this.renderOperations();
+                }
             };
 
             const dragReleaseHandler = ev => {
@@ -2522,12 +2537,7 @@ export class ResourceBrowser<T> {
                     if (this.contextMenuHandlers.length) {
                         this.closeContextMenu();
                     } else {
-                        const selected = this.isSelected;
-                        for (let i = 0; i < selected.length; i++) {
-                            selected[i] = 0;
-                        }
-                        this.renderRows();
-                        this.renderOperations();
+                        this.clearSelected();
                         this.searchQuery = "";
                     }
                     break;
@@ -4057,7 +4067,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
-export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, unknown> & any {
+export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, {isModal?: boolean}> & {hackNotInTheContextMenu: true} {
     return {
         text: "",
         icon: "keyboardSolid",
