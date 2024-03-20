@@ -108,6 +108,9 @@ The UCloud platform is made of several different components. In generalized term
 
 <p align="center"><img src="./Pictures/global-arch.png"></p>
 
+__Figure:__  Diagram showing the overall architecture of UCloud. The architecture shows how UCloud/Core connects to
+multiple different providers. Potentially exposing all of their services to the researcher on the left.
+
 An end-user will interact with the UCloud/Frontend which communicates with the UCloud/Core which communicates with the
 providers, thereby granting users access to resources at the providers in one interface.
 
@@ -144,6 +147,10 @@ renew their access tokens using the long-living refresh-token.
 
 <p align="center"><img src="./Pictures/core-idp.png"></p>
 
+__Figure:__ Diagram showing the authentication flow in UCloud. All UCloud users authenticate using their existing
+credentials from the organization. This identity is then mapped into a single UCloud identity, which is used throughout
+UCloud.
+
 UCloud/Core produces a detailed audit trail. This trail contains information about user sessions, request and (select)
 request parameters, response codes, response times etc. The individual components of UCloud/Core sends this to a data
 store based on the Redis database management software.
@@ -162,29 +169,46 @@ the heath of our services and help for troubleshooting any issues that might ari
 
 <p align="center"><img src="./Pictures/core-monitoring.png"></p>
 
+__Figure:__ A diagram showing how auditing data and metrics are collected and monitored in UCloud.
+
 ### Accounting and Project Management (APM)
 
-UCloud has flexible built-in support for project management. A project consist of one or more members, each with a role
-(PI, admin or user), where exactly one member is PI (Project Investigator). The PI is responsible for managing the
-project, including adding and removing users.
+UCloud has flexible built-in support for project management. Projects in UCloud play an important role, as they are the
+core abstraction used for collaborations. Later in this section, we will also see how projects are used for permission
+management and resource grant management.
+
+A project consist of one or more members, each with a role (PI, admin or user), where exactly one member is PI
+(Principal Investigator). The PI is responsible for managing the project, including adding and removing users.
 
 Members can be further organized into groups, each with permissions to resources that can be configured by the PI or
 admins.
 
 <p align="center"><img src="./Pictures/core-project.png"></p>
 
-All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level
-projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The project
-hierarchy plays a significant role in accounting.
+__Figure:__ Structure of a project. In this case the project has four members who are placed in three different groups.
+Note that any user can be a member of more than one group.
 
-End-users can create a project through the grant application feature. Permissions and memberships of projects are not
+End-users can create a project through the grant application feature. These projects can in turn create sub-projects.
+The sub-projects can receive parts of the grants owned by the parent. Permissions and memberships of projects are not
 hierarchical. This means that a user must be explicitly added to every project they need permissions in. 
-
 
 <p align="center"><img src="./Pictures/subprojects.png"></p>
 
-Service providers expose their services to UCloud through *products*. The services will be stored by UCloud/Core as
-products with exact hardware specification and any potential service constraints, and presented to the end-user in a
+__Figure:__ A digram showing a project hierarchy. Note that being a member of a project high up in the hierarchy does
+not imply that you have any permissions in the projects further down in the hierarchy.  
+
+In order for a project to consume resources from a project, they must first receive a grant. The figure below
+illustrates the overall structure for grant allocations in UCloud. In this diagram, we can see that providers own a
+_product catalog_ which defines their services. From this catalog, the provider can delegate the responssibility of
+awarding grants to a _grant giver_. The _grant givers_ can in turn award grants to projects after a successful
+application from a researcher.
+
+<p align="center"><img src="./Pictures/core-resource-grants.png"></p>
+
+__Figure:__ A diagram showing the overall structure for grant allocations in UCloud.
+
+Service providers expose their services to UCloud through a product catalog. The services will be stored by UCloud/Core
+as products with exact hardware specification and any potential service constraints, and presented to the end-user in a
 user-friendly way. Users and projects will be able to apply for access to the products through UCloud/Core.
 
 Different kinds of product types for different services are supported, such as compute, storage, software licenses, IP
@@ -197,7 +221,6 @@ As an example, a Provider might have the following services:
 - **Compute:** Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications.
   GPU powered nodes for artificial intelligence.
   
-
 Products can also be bundled into into categories of similar products. This allows for flexibility when service
 providers define their products and pricing model, and also allow more advanced products to be defined, such as slicing
 of single compute machines.
@@ -207,22 +230,22 @@ different categories of products, namely `u1-storage`, `u1-standard` and `u1-gpu
 catalog to UCloud/Core, which gives the core knowledge about which services the provider has to offer. From these
 services projects can be awarded resource grants.
 
----
-
-- Service providers describe their "service catalog" through products
-- This describes the hardware and the services they provide. For example, this will include hardware 
- specification and any potential service constraints.
-- Can be bundled into a category of similar products. This allows for slicing of a single compute machine.
-- Describes the payment model of a product.
-- Multiple product types for different services: compute, storage, license, IP addresses, public links 
-  (L7 ingress)
-
----
-
 <p align="center"><img src="./Pictures/core-products.png"></p>
 
+__Figure:__ A product catalog owned by a provider. The figure illustrates how the catalog is advertised to UCloud/Core.
+It also shows that grants are awarded to projects which allow them to use products from the catalog.
+
+UCloud/Core uses resource grants to determine which service providers a given user can access. UCloud/Core ships with a
+complete system for managing grant applications. Once an application is approved, a project is awarded with a resource
+grant, the figure below illustrates the internals of a single grant.
+
+
+<p align="center"><img src="./Pictures/core-single-grant.png"></p>
+
+__Figure:__ Resource grants are awarded to projects by a grant giver. They give time-limited access to a specific
+category of products. This product category is part of a larger product catalog owned by a specific service provider.
+
 Resource grants:
-- UCloud/Core uses resource grants to determine which service providers a given user can access
 - A resource grant comes in the form of "project X has been granted Y credits to use product Z in a period P"
 - UCloud/Core collects usage information from the provider
 - Usage numbers are reported back to both grant givers, service providers and researchers
@@ -458,6 +481,9 @@ provide input for this step.
   - UCloud/Core will not be able to use the sensitive data
   - The client will be able to use the sensitive data
 - This can be used for transferring one-time use keys (or similar) which might be useful for transfers in many protocols
+- Note that this approach can still be man-in-the-middled by UCloud/Core to maliciously redirect the client somewhere
+  evil. This mechanism assumes that the trigger message itself is not sensitive. This should not be a problem with our
+  intended messages given that it will likely only contain a public key (or similar) needed for the transfer.
 
 ## Exploring mechanisms for file transfers
 
@@ -505,6 +531,15 @@ performing synchronization of files. Unlike SFTP, it performs checks to minimize
 includes checking if a file is already present by looking at basic attributes such as file size, modification
 timestamps and checksums. 
 
+The `rsync` command can be used in the following way:
+
+```bash
+rsync -azP /path/to/local/file user@remote-server.example.com:/path/to/remote/file 
+```
+
+__Snippet:__ A snippet showing how to invoke `rsync`. It has the "archive" flag (`-a`) which perserves certain file
+attributes. Compression is turned on with the `-z` flag. Progress wil be shown to the end-user due to the `-P` flag.
+
 Similar to SFTP, it commonly uses SSH as the underlying transport protocol. As a result, it also inherits the security
 model of SSH.
 
@@ -517,8 +552,79 @@ To use rsync between two providers, the following conditions must be met:
 - The user at the source provider must be able to connect to the destination provider as their corresponding user
 - rsync must be present at both the source and destination provider
 
-### Globus Connect
+### SFTP/rsync implementation
 
-- Globus connect server delivers file transfer and sharing capabilities between service providers
-- It requires an installation of the Globus Connect Server already present at the HPC provider
-- It supports a variety of data connectors and several protocols for data access
+<p align="center"><img src="./Pictures/im-ssh.png"></p>
+
+__Figure:__ Example showing how a file transfer mechanism based on SSH could work.
+
+1. __The researcher initiates the transfer.__ For this transfer mechanism, it is very important to remember that the
+researcher includes a public-key used for asymmetric encryption of secrets.
+
+2. __UCloud/Core contacts the source provider.__ 
+
+3. __"Provider A" determines if and how the transfer will take place.__ In this case, the provider determines that the
+transfer is possible and should use an SSH based transfer mechanism (SFTP or rsync). The provider creates an endpoint
+which allows for the insertion of a temporary key. This endpoint is encrypted using the public-key of the researcher.
+This means that UCloud/Core will not be able to read the secret endpoint, only the researcher will be able to read it.
+
+4. __"Provider B" is consulted about the transfer.__ 
+
+5. __"Provider B" responds.__ Provider B also creates a secret endpoint and encrypts it using the public-key
+of the researcher.
+
+6. __Parameters for the transfer is sent to the researcher.__ The frontend will as a response to this message determine
+that it needs to create a temporary key-pair used for the SSH transfer. In the following trigger messages the researcher
+will forward the public part of this key-pair. This key-pair is different from the one used to facilitate the transfer.
+
+7. __The researcher triggers the transfer based on the parameters by sending a message to "Provider A".__ This message
+will contain the public part of the key-pair previously generated.
+
+8. __The researcher sends a trigger message to "Provider B".__ This message will contain the public part of the key-pair
+previously generated.
+
+9. __The providers exchange data in a protocol specific way.__ Data transfer begins immediately once both providers have
+a key. Due to the way SSH based transfers work, it is initiated and managed by the source side. The key used for the
+transfer is automatically deleted once the transfer is complete (or a timeout is reached).
+
+### Globus
+
+Globus is a service which delivers file management feature amongst many service providers. It requires an
+existing installation, and often, a premium subscription, already present at the service provider. Once a service
+provider is connected, then end-users can access data from any of the service providers they already know and perform
+file management as needed, including transferring the files between individual services. The service supports many
+different "connectors" which allow it to access data using different underlying mechanisms.
+
+Integrating into Globus is made possible using their REST-style [API](https://docs.globus.org/api/transfer/).  One way
+of integrating Globus into UCloud is by creating a provider. End-users can then connect to Globus using their
+institutional credentials, the same they would use for Globus. Once connected, the provider will be able to expose the
+data to the end-user in a similar way as it is exposed in Globus. In such a scenario, the UCloud provider would act as
+both the source and destination provider of a transfer. Also note that the service providers actually containing the
+data would not need to be directly connected to UCloud/Core. 
+
+<p align="center"><img src="./Pictures/im-globus.png"></p>
+
+__Figure:__ Example of how a Globus integration could work.
+
+The figure above illustrates how an integration with Globus could work:
+
+1. __The researcher initiates the transfer.__  This will contain information about the absolute paths to both files.
+Encoded in these would be information about the SPs connected to Globus.
+
+2. __UCloud/Core contacts the Globus provider.__ As in the normal flow, the source provider is contacted.
+
+3. __The Globus provider determines if and how the transfer will take place.__ In this case it will tell us that the
+Globus transfer will be used. A trigger endpoint is forwarded to the researcher. The trigger endpoint will need no
+special parameters.
+
+4. __Parameters for the transfer is sent to the researcher.__
+
+5. __The researcher triggers the transfer.__ In this case, the trigger message will likely be empty, since no special
+instructions are required for this transfer mechanism.
+
+6. __The Globus provider will use the Globus API to initiate the transfer.__ This will trigger an actual transfer of
+files. From this point forwarded, the task is essentially complete for the integration module. The integration module
+will periodically track the progress of the transfer and send updates back to UCloud/Core.
+
+7. __Globus will orchestrate the transfer between the two service providers.__ The exact mechanism of how the transfer
+will take place depends on Globus. It is considered a black box from the point-of-view of the integration module.
