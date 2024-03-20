@@ -239,21 +239,17 @@ UCloud/Core uses resource grants to determine which service providers a given us
 complete system for managing grant applications. Once an application is approved, a project is awarded with a resource
 grant, the figure below illustrates the internals of a single grant.
 
-
 <p align="center"><img src="./Pictures/core-single-grant.png"></p>
 
 __Figure:__ Resource grants are awarded to projects by a grant giver. They give time-limited access to a specific
 category of products. This product category is part of a larger product catalog owned by a specific service provider.
 
-Resource grants:
-- A resource grant comes in the form of "project X has been granted Y credits to use product Z in a period P"
-- UCloud/Core collects usage information from the provider
-- Usage numbers are reported back to both grant givers, service providers and researchers
-- UCloud/Core comes with a built-in system for managing the resource grant process
+Resource grants are time-limited and belong to a single project. During the period in which it is active, service
+providers will report usage numbers back to UCloud. This allows both UCloud/Core and the end-user to track their usage
+over time. This can be used for generating detailed reports over usage, both at the level of individual projects both
+also at a larger level, such as at a grant giver or even a service provider.
 
-<p align="center"><img src="./Pictures/core-resource-grants.png"></p>
-
-Orchestration:
+### Orchestration
 
 UCloud uses the resource abstraction to synchronize tasks between UCloud/Core and providers. As a result, resources are
 often used to describe work for the provider. For example, a computational Job is one type of resource used in UCloud.
