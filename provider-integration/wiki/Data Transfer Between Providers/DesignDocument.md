@@ -8,22 +8,16 @@ The ambition of the HSC is to be the enabling factor that provides users from th
 
 The design of the HSC is based on pre-existing open source solutions, in particular a software platform called UCloud, which provides middleware software to enable a full federation of services across geographically distributed services for compute and storage. 
 
-UCloud provides the users with digital research environment available at different compute and storage providers. It makes
-it easy to find services, apply for resources, and manage projects. UCloud aims to connect end-users with heterogeneous
-service providers across many different countries.
+UCloud provides the users digital research environment tailored to the unique needs of research institutions. It serves as a pivotal bridge, effortlessly connecting users with diverse compute and storage providers worldwide. Designed to streamline the research process, UCloud simplifies resource discovery, application, and project management.
 
-With UCloud, you can use your organization’s credentials to log in, apply for access to a super-computer, invite
-collaborators, upload your dataset, and start your data analysis. Its application catalog is large and varied and
-contains applications of many different types. For example, you can run interactive applications such as JupyterLab,
-RStudio and Visual Studio Code. You can create a temporary remote desktop session and run applications such as MATLAB.
-Alternatively, you can even create long running virtual machines running the operating system of your choice. Large
-multi-node batch jobs can even be submitted to an existing Slurm cluster. You may even create your own private
-ephemeral Slurm cluster.
+Key Features:
+* Unified Access: Utilize organization credentials to access a plethora of services, from supercomputers to storage solutions, all within a unified platform.
+* Versatile Application Catalog: Explore a rich assortment of applications ranging from interactive environments like JupyterLab, RStudio, and Visual Studio Code to heavyweight tools like MATLAB, supported through temporary remote desktop sessions or long-running virtual machines.
+* Flexible Job Submission: Seamlessly submit large-scale batch jobs to existing Slurm clusters or create personalized ephemeral Slurm clusters to meet specific computational requirements.
+* Security and Compliance: Built-in monitoring and auditing functionalities ensure robust security measures, while granting service providers full control over their data and systems.
+* User and Project Management: Streamline administrative tasks with comprehensive user and project management features, including quota enforcement and usage tracking, along with detailed usage statistics.
 
-UCloud is a secure cloud computing platform that comes with built-in monitoring and auditing features. Service
-providers have full control over their data and system. UCloud is designed to fit over an existing system and does not
-dictate how a system should work. It helps service providers with user and project management, as well as enforcing
-quotas and tracking usage. This includes showing detailed statistics of usage.
+UCloud serves as a secure and adaptable cloud computing platform, empowering research institutions to focus on groundbreaking discoveries without being bogged down by administrative complexities. With its intuitive interface and powerful capabilities, UCloud redefines the landscape of research computing, fostering collaboration and innovation on a global scale.
 
 # Approach and principles 
 
