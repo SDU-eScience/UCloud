@@ -81,22 +81,22 @@ const LandingPage: React.FunctionComponent = () => {
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
                 <article className={landingStyle}>
-                    <Flex alignItems={"center"}><Box ml="auto"/><UtilityBar onSearch={appSearch}/></Flex>
-                    <Hero slides={landingPage.carrousel}/>
-                    {starred.data.items.length > 0 &&
-                        <StarredApplications2 apps={starred.data.items}/>
-                    }
+                    <Flex alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
+                    <Hero slides={landingPage.carrousel} />
+                    {starred.data.items.length > 0 ?
+                        <StarredApplications2 apps={starred.data.items} /> : null}
 
-                    <TopPicksCard2 topPicks={landingPage.topPicks}/>
 
-                    {landingPage.spotlight && <SpotlightCard2 spotlight={landingPage.spotlight}/>}
+                    <TopPicksCard2 topPicks={landingPage.topPicks} />
+
+                    {landingPage.spotlight && <SpotlightCard2 spotlight={landingPage.spotlight} />}
 
                     <div>
                         <h3>Browse by category</h3>
                         <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
                             {landingPage.categories.map(c =>
                                 <CategoryCard key={c.metadata.id} id={c.metadata.id}
-                                              categoryTitle={c.specification.title}/>
+                                    categoryTitle={c.specification.title} />
                             )}
                         </Grid>
                     </div>
@@ -108,9 +108,9 @@ const LandingPage: React.FunctionComponent = () => {
                                 <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
                                     {landingPage.newApplications.map(app => (
                                         <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                                  description={app.metadata.description} fullWidth
-                                                  key={app.metadata.name}
-                                                  isApplication/>
+                                            description={app.metadata.description} fullWidth
+                                            key={app.metadata.name}
+                                            isApplication />
                                     ))}
                                 </Flex>
                             </TabbedCardTab>
@@ -119,9 +119,9 @@ const LandingPage: React.FunctionComponent = () => {
                                 <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
                                     {landingPage.recentlyUpdated.map(app => (
                                         <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                                  description={app.metadata.description} fullWidth
-                                                  key={app.metadata.name}
-                                                  isApplication/>
+                                            description={app.metadata.description} fullWidth
+                                            key={app.metadata.name}
+                                            isApplication />
                                     ))}
                                 </Flex>
                             </TabbedCardTab>
@@ -143,9 +143,9 @@ export const SpotlightCard: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard1 key={idx} name={pick.groupId.toString()}
-                                         title={pick.title} description={pick.description}
-                                         applicationName={pick.defaultApplicationToRun}
-                                         fullWidth target={target}/>;
+                            title={pick.title} description={pick.description}
+                            applicationName={pick.defaultApplicationToRun}
+                            fullWidth target={target} />;
                     } else {
                         return null;
                     }
@@ -173,9 +173,9 @@ export const SpotlightCard2: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard2 key={idx} name={pick.groupId.toString()}
-                                         title={pick.title} description={pick.description}
-                                         applicationName={pick.defaultApplicationToRun}
-                                         fullWidth target={target}/>;
+                            title={pick.title} description={pick.description}
+                            applicationName={pick.defaultApplicationToRun}
+                            fullWidth target={target} />;
                     } else {
                         return null;
                     }
@@ -267,7 +267,7 @@ const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
     onClick: () => void;
 }> = (props) => {
-    return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick}/>;
+    return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick} />;
 };
 export const Hero: React.FunctionComponent<{
     slides: AppStore.CarrouselItem[];
@@ -322,10 +322,10 @@ export const Hero: React.FunctionComponent<{
         <div className={HeroStyle}>
             <div className={"carousel"}>
                 <div>
-                    <img alt={"cover image"} src={imageLink}/>
+                    <img alt={"cover image"} src={imageLink} />
                     <div className="indicators">
                         <Icon color={"#d3d3d4"} hoverColor={"#a6a8a9"} cursor={"pointer"}
-                              name={"heroChevronLeft"} onClick={goBack}/>
+                            name={"heroChevronLeft"} onClick={goBack} />
                         {slides.map((s, i) =>
                             <HeroIndicator
                                 key={i}
@@ -336,7 +336,7 @@ export const Hero: React.FunctionComponent<{
                                 }}
                             />)}
                         <Icon color={"#d3d3d4"} hoverColor={"#a6a8a9"} cursor={"pointer"}
-                              name={"heroChevronRight"} onClick={goForwards}/>
+                            name={"heroChevronRight"} onClick={goForwards} />
                     </div>
                 </div>
                 <div>
@@ -346,7 +346,7 @@ export const Hero: React.FunctionComponent<{
                             {slide.body}
                         </Markdown>
                     </div>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>
                     <ReactRouterLink
                         to={slideLink}
@@ -355,7 +355,7 @@ export const Hero: React.FunctionComponent<{
                         rel="noopener"
                     >
                         <Button fullWidth>
-                            <Icon name={"heroPlay"}/>
+                            <Icon name={"heroPlay"} />
                             <div>
                                 {slide.linkedWebPage ? "Open web-page" : "Open application"}
                             </div>
@@ -431,7 +431,7 @@ const AppCard1: React.FunctionComponent<{
         target={props.target}
         className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}
     >
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"} />
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -512,8 +512,8 @@ export const AppCard2: React.FunctionComponent<{
     }
 
     return <ReactRouterLink to={link} target={props.target}
-                            className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"}/>
+        className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"} />
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -538,7 +538,7 @@ const AppCardGridStyle = injectStyle("app-card-grid", k => `
     }
 `);
 
-const AppCardGrid: React.FunctionComponent<{ children: React.ReactNode }> = ({children}) => {
+const AppCardGrid: React.FunctionComponent<{children: React.ReactNode}> = ({children}) => {
     return <div className={AppCardGridStyle}>{children}</div>;
 }
 
@@ -597,7 +597,7 @@ const CategoryCard: React.FunctionComponent<{
     return <ReactRouterLink to={AppRoutes.apps.category(props.id)}>
         <div className={CategoryCardStyle} style={style}>
             <Relative>
-                <div className={"logo-wrapper"}><AppLogo size={"130px"} hash={hash}/></div>
+                <div className={"logo-wrapper"}><AppLogo size={"130px"} hash={hash} /></div>
             </Relative>
             <span>{props.categoryTitle}</span>
         </div>
@@ -620,14 +620,14 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     }
 `)
 
-export const TopPicksCard: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
+export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
     return <TitledCard title={"Top picks"} icon={"heroChartBar"}>
         <AppCardGrid>
             {topPicks.map(pick => {
                 if (pick.groupId) {
                     return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                                     title={pick.title} description={pick.description}
-                                     applicationName={pick.defaultApplicationToRun}/>;
+                        title={pick.title} description={pick.description}
+                        applicationName={pick.defaultApplicationToRun} />;
                 } else {
                     return null;
                 }
@@ -691,12 +691,12 @@ const LogoCard: React.FunctionComponent<{
 }> = ({id, link, title, large}) => {
     return <ReactRouterLink to={link}>
         <div className={TopPickCardStyle}>
-            <LogoWithText id={id} title={title} size={60} forceUnder={large}/>
+            <LogoWithText id={id} title={title} size={60} forceUnder={large} />
         </div>
     </ReactRouterLink>;
 }
 
-export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
+export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
     return <div>
         <h3>Top picks</h3>
         <div className={TopPickCardGridStyle}>
@@ -707,8 +707,8 @@ export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = (
                         link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
                     }
 
-                    return <LogoCard large={idx === 0 && topPicks.length > 4} id={pick.groupId}
-                                     title={pick.title} link={link}/>;
+                    return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 4} id={pick.groupId}
+                        title={pick.title} link={link} />;
                 } else {
                     return null;
                 }
@@ -728,6 +728,7 @@ export const StarredApplications2: React.FunctionComponent<{
                 const groupId = app.metadata.group?.metadata?.id ?? 0;
 
                 return <LogoCard
+                    key={app.metadata.name}
                     large={idx === 0 && apps.length > 4}
                     title={app.metadata.title}
                     id={app.metadata.name}
