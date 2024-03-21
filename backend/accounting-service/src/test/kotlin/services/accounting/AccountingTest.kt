@@ -272,6 +272,98 @@ class AccountingTest {
 
     }
 
+    @Test
+    fun scopeTest() = withTest {
+        val project = createProject()
+        val product = provider.nonCapacityProduct
+        val jobA = "jobA"
+        val jobB = "jobB"
+
+        accounting.sendRequest(
+            AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 0, 1000)
+        )
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 1000000L, 0, 10000)
+        )
+
+        suspend fun checkUsage(expected: Long) {
+            val wallet = accounting.sendRequest(AccountingRequest.BrowseWallets(project.idCard)).single()
+            assertEquals(expected, wallet.localUsage)
+        }
+
+        suspend fun chargeJob(jobId: String, priorUsage: Long) {
+            repeat(5) { count ->
+                accounting.sendRequest(
+                    AccountingRequest.Charge(
+                        provider.providerCard,
+                        project.projectId,
+                        product,
+                        amount = 100L,
+                        isDelta = true,
+                        scope = jobId
+                    )
+                )
+                checkUsage((count + 1) * 100L + priorUsage)
+            }
+        }
+
+        chargeJob(jobA, 0L)
+        chargeJob(jobB, 500L)
+
+        accounting.sendRequest(
+            AccountingRequest.Charge(
+                provider.providerCard,
+                project.projectId,
+                product,
+                amount = 300L,
+                isDelta = false,
+                scope = jobB
+            )
+        )
+
+        checkUsage(800)
+
+        accounting.sendRequest(
+            AccountingRequest.Charge(
+                provider.providerCard,
+                project.projectId,
+                product,
+                amount = 50L,
+                isDelta = false,
+                scope = jobB
+            )
+        )
+
+        checkUsage(550)
+
+        accounting.sendRequest(
+            AccountingRequest.Charge(
+                provider.providerCard,
+                project.projectId,
+                product,
+                amount = 100L,
+                isDelta = true,
+                scope = null
+            )
+        )
+
+        checkUsage(650)
+
+        accounting.sendRequest(
+            AccountingRequest.Charge(
+                provider.providerCard,
+                project.projectId,
+                product,
+                amount = 900L,
+                isDelta = false,
+                scope = null
+            )
+        )
+
+        checkUsage(900)
+    }
+
     companion object {
         private const val CAPACITY_PRODUCT = "capacity"
         private const val NON_CAPACITY_PRODUCT = "nonCapacity"

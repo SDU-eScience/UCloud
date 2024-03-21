@@ -227,27 +227,29 @@ class SimulatedUser(
             serviceClient.withProject(projectId)
         )
 
-        val allocations = Wallets.retrieveWalletsInternal.call(
-            WalletsInternalRetrieveRequest(WalletOwner.Project(parent.id)),
-            serviceClient
-        ).orThrow().wallets.flatMap { it.allocations }
 
-        TODO()/*
-        AccountingV2.rootAllocate.call(
-            bulkRequestOf(
-                allocations.map { alloc ->
-                    AccountingV2.RootAllocate.RequestItem(
-                        WalletOwner.Project(projectId),
-                        alloc.id,
-                        10_000_000_000L,
-                        "wallet init",
-                        grantedIn = null
-                    )
-                }
-            ),
-            serviceClient
-        ).orThrow()
-        */
+        TODO()
+
+        /*
+                val allocations = Wallets.retrieveWalletsInternal.call(
+                    WalletsInternalRetrieveRequest(WalletOwner.Project(parent.id)),
+                    serviceClient
+                ).orThrow().wallets.flatMap { it.allocations }
+                AccountingV2.rootAllocate.call(
+                    bulkRequestOf(
+                        allocations.map { alloc ->
+                            AccountingV2.RootAllocate.RequestItem(
+                                WalletOwner.Project(projectId),
+                                alloc.id,
+                                10_000_000_000L,
+                                "wallet init",
+                                grantedIn = null
+                            )
+                        }
+                    ),
+                    serviceClient
+                ).orThrow()
+                */
 
         val project = Projects.retrieve.call(
             ProjectsRetrieveRequest(projectId),

@@ -611,8 +611,11 @@ class AccountingSystem(
     }
 
     private suspend fun systemCharge(request: AccountingRequest.SystemCharge): Response<Unit> {
+        val wallet = walletsById[request.walletId.toInt()]
+            ?: return Response.error(HttpStatusCode.NotFound, "Unknown wallet: ${request.walletId}")
+
         return chargeWallet(
-            wallet = walletsById[request.walletId.toInt()]!!,
+            wallet = wallet,
             amount = request.amount,
             isDelta = true,
         )
@@ -626,14 +629,27 @@ class AccountingSystem(
         scopeExplanation: String? = null,
     ): Response<Unit> {
         val now = Time.now()
-        val delta =
-            if (isDelta) amount else amount - wallet.localUsage // TODO This is probably wrong when isDelta = false
+
+        val currentUsage = if (scope == null) {
+            // TODO This is probably wrong when isDelta = false
+            wallet.localUsage + wallet.excessUsage
+        } else {
+            scopedUsage[scopeKey(wallet, scope)] ?: 0L
+        }
+
+        val delta = if (isDelta) amount else amount - currentUsage
 
         if (delta + wallet.localUsage < 0) {
             return Response.error(
                 HttpStatusCode.BadRequest,
                 "Refusing to process negative charge exceeding local wallet usage"
             )
+        }
+
+        if (scope != null) {
+            val scopeKey = scopeKey(wallet, scope)
+            scopedUsage[scopeKey] = currentUsage + delta
+            scopedDirty[scopeKey] = true
         }
 
         val (totalChargeableAmount, error) = internalCharge(wallet, delta, now)
@@ -1060,6 +1076,10 @@ class AccountingSystem(
             .toSet()
 
         return Response.ok(providers + freeProviders)
+    }
+
+    private fun scopeKey(wallet: InternalWallet, scope: String): String {
+        return wallet.ownedBy.toString() + "\n" + scope
     }
 
     companion object : Loggable {

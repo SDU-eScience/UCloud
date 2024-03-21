@@ -191,12 +191,6 @@ class JobMonitoringService {
         }
     }
 
-    private suspend fun allocationIsActive(walletAllocation: WalletAllocation): Boolean {
-        val now = System.currentTimeMillis()
-        return (walletAllocation.startDate <= now && (walletAllocation.endDate ?: Long.MAX_VALUE) >= now)
-    }
-
-
     data class HasResource(val availability: Boolean, val resourceToMessage: List<String>?)
 
     private suspend fun hasResources(
