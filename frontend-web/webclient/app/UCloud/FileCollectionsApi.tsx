@@ -6,7 +6,7 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate 
+    ResourceUpdate
 } from "./ResourceApi";
 import {Box, Button, Divider, Icon, Input} from "@/ui-components";
 import * as React from "react";
@@ -173,7 +173,6 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 if (selected.find(it => it.specification.product.id === "share")) return false;
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
-                if (selected.length > 1) return false;
                 const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;
                 if (!support) return false;
                 if (support.collection.usersCanDelete !== true) {
@@ -183,27 +182,42 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
             };
             const defaultOnClick = deleteOperation.onClick;
             deleteOperation.onClick = (selected, cb, all) => {
+                const singleDrive = selected.length === 1;
+                const requiredText = singleDrive ? selected[0].specification.title : `I know what I'm doing. Delete the ${selected.length} drives`;
+                const plural = singleDrive ? "" : "s";
                 dialogStore.addDialog((
-                    <div>
+                    <div onKeyDown={e => e.stopPropagation()}>
                         <div>
                             <Heading.h3>Are you absolutely sure?</Heading.h3>
                             <Divider />
                             <Warning>This is a dangerous operation, please read this!</Warning>
                             <Box mb={"8px"} mt={"16px"}>
                                 This will <i>PERMANENTLY</i> delete your data in the{" "}
-                                <b>{selected[0].specification.title}</b> drive! This action <i>CANNOT BE UNDONE</i>.
-                                We cannot recover your data if you delete your drive.
+                                <b>{singleDrive ? selected[0].specification.title : selected.length}</b> drive{plural}! This action <i>CANNOT BE UNDONE</i>.
+                                We cannot recover your data if you delete your drive{plural}.
+                            </Box>
+                            {singleDrive ? null : <Box mb="12px">
+                                <h3>The following drives will be deleted:</h3>
+                                <Box mx="16px" maxHeight="116px" overflowY={"scroll"}>
+                                    {selected.map(it => <div>{it.specification.title}</div>)}
+                                </Box>
+                            </Box>}
+                            <Box mb={"16px"}>
+                                Please type '<b>{requiredText}</b>' to confirm.
                             </Box>
                             <Box mb={"16px"}>
-                                Please type <b>{selected[0].specification.title}</b> to confirm.
-                            </Box>
-                            <Box mb={"16px"}>
-                                <form onSubmit={(ev) => {
+                                <form onSubmit={ev => {
                                     ev.preventDefault();
-                                    const writtenName = (document.querySelector("#collectionName") as HTMLInputElement).value;
-                                    if (writtenName !== selected[0].specification.title) {
-                                        snackbarStore.addFailure(`Please type '${selected[0].specification.title}' to confirm.`, false);
+                                    ev.stopPropagation();
+                                    const written = (document.querySelector("#collectionName") as HTMLInputElement).value;
+                                    if (written !== requiredText) {
+                                        snackbarStore.addFailure(`Please type '${requiredText}' to confirm.`, false);
                                     } else {
+                                        if (singleDrive && selected.length !== 1) {
+                                            console.log("Something went wrong. Cancelling deletion to ensure correctness.")
+                                            dialogStore.failure();
+                                            return;
+                                        }
                                         defaultOnClick(selected, cb, all);
                                         dialogStore.success();
                                     }
