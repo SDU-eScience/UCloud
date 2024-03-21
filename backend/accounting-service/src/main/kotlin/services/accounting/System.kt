@@ -519,6 +519,8 @@ class AccountingSystem(
             )
         }
 
+        allocationGroups[allocationGroup.id] = allocationGroup
+
         val isActiveNow = now >= start
         allocationGroup.allocationSet[allocationId] = isActiveNow
 
