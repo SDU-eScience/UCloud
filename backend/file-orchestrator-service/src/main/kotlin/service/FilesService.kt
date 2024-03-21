@@ -618,24 +618,19 @@ class FilesService(
     }
 
     private suspend fun retrieveRelevantProviders(actorAndProject: ActorAndProject): List<String> {
-        val walletOwner = if (actorAndProject.project != null ) {
-            WalletOwner.Project(actorAndProject.project!!)
-        } else {
-            WalletOwner.User(actorAndProject.actor.safeUsername())
-        }
-        return Wallets.retrieveWalletsInternal.call(
-            WalletsInternalRetrieveRequest(
-                walletOwner
+        return AccountingV2.findRelevantProviders.call(
+            bulkRequestOf(
+                AccountingV2.FindRelevantProviders.RequestItem(
+                    actorAndProject.actor.safeUsername(),
+                    actorAndProject.project,
+                    true,
+                    ProductType.STORAGE
+                )
             ),
             serviceClient
         ).orThrow()
-            .wallets
-            .filter {
-                it.productType?.name == "STORAGE"
-            }
-            .map {
-                it.paysFor.provider
-            }
+            .responses
+            .flatMap { it.providers }
             .toSet()
             .toList()
     }

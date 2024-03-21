@@ -180,14 +180,18 @@ class ProviderCommunications(
         timeToLiveMilliseconds = 1000L * 60 * 30,
         timeoutException = { throw RPCException("Failed to fetch information about allocations", HttpStatusCode.BadGateway) },
         retrieve = { (owner, category) ->
-            Wallets.retrieveAllocationsInternal
+            val usableQuota = AccountingV2.browseWalletsInternal
                 .call(
-                    WalletAllocationsInternalRetrieveRequest(owner, ProductCategoryId(category.name, category.provider)),
-                    serviceClient
+                    AccountingV2.BrowseWalletsInternal.Request(owner),
+                    serviceClient,
                 )
                 .orThrow()
-                .allocations
-                .any { Time.now() in (it.startDate..(it.endDate ?: Long.MAX_VALUE)) }
+                .wallets
+                .singleOrNull { it.paysFor.name == category.name && it.paysFor.provider == category.provider }
+                ?.quota
+                ?: 0L
+
+            usableQuota > 0
         }
     )
 
@@ -254,23 +258,23 @@ class ProviderCommunications(
 
     suspend fun findRelevantProviders(
         actorAndProject: ActorAndProject,
-        filterProductType: ProductType? = null,
+        filterProductType: ProductType? = null
     ): List<String> {
-        return Accounting.findRelevantProviders.call(
+        return AccountingV2.findRelevantProviders.call(
             bulkRequestOf(
-                FindRelevantProvidersRequestItem(
+                AccountingV2.FindRelevantProviders.RequestItem(
                     actorAndProject.actor.safeUsername(),
-                    useProject = false,
-                    filterProductType = filterProductType,
+                    actorAndProject.project,
+                    true,
+                    filterProductType,
                 )
             ),
             serviceClient
-        ).orRethrowAs {
-            throw RPCException(
-                "Could not find relevant providers (${it.statusCode} ${it.error?.why ?: ""})",
-                HttpStatusCode.BadGateway
-            )
-        }.responses.single().providers
+        ).orThrow()
+            .responses
+            .flatMap { it.providers }
+            .toSet()
+            .toList()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

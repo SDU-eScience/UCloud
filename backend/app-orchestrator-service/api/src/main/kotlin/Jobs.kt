@@ -1309,28 +1309,42 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 val start = 1633329776235L
                 comment("When the user creates the Job, they have enough credits")
                 success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
+                    AccountingV2.browseWallets,
+                    AccountingV2.BrowseWallets.Request(),
                     PageV2(50, listOf(
-                        Wallet(
+                        WalletV2(
                             WalletOwner.User("user"),
-                            ProductCategoryId("example-compute", "example"),
+                            ProductCategory(
+                                "example-compute",
+                                "example",
+                                ProductType.COMPUTE,
+                                AccountingUnit("DKK", "DKK", true, false),
+                                AccountingFrequency.PERIODIC_MINUTE,
+                            ),
                             listOf(
-                                WalletAllocation(
-                                    "1254151",
-                                    listOf("1254151"),
-                                    500,
-                                    1_000_000 * 500L,
-                                    500,
-                                    start,
-                                    null,
-                                    2
+                                AllocationGroupWithParent(
+                                    ParentOrChildWallet(null, "Root"),
+                                    AllocationGroup(
+                                        listOf(
+                                            AllocationGroup.Alloc(
+                                                12541154,
+                                                start,
+                                                start + (1000L*60*60*24*365),
+                                                1_000_000 * 500,
+                                                null,
+                                                null,
+                                            )
+                                        ),
+                                        1_000_000 * 499L,
+                                    ),
                                 )
                             ),
-                            AllocationSelectorPolicy.EXPIRE_FIRST,
-                            ProductType.COMPUTE,
-                            ChargeType.ABSOLUTE,
-                            ProductPriceUnit.CREDITS_PER_MINUTE
+                            null,
+                            1_000_000 * 499L,
+                            1_000_000 * 499L,
+                            1_000_00L * 1,
+                            1_000_000 * 500,
+                            0L,
                         )
                     ), null),
                     user

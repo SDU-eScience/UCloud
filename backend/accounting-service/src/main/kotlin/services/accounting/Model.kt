@@ -20,6 +20,9 @@ internal val walletsIdAccumulator = AtomicInteger(1)
 internal val allocationGroups = HashMap<Int, InternalAllocationGroup>()
 internal val allocationGroupIdAccumulator = AtomicInteger(1)
 
+internal val scopedUsage = HashMap<String, Long>()
+internal val scopedDirty = HashMap<String, Boolean>()
+
 data class InternalOwner(val id: Int, val reference: String, var dirty: Boolean) {
     fun isProject(): Boolean = reference.matches(PROJECT_REGEX)
     fun toWalletOwner(): WalletOwner =
