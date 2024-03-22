@@ -142,7 +142,8 @@ sealed class ComposeService {
                         "hostname": "backend",
                         "ports": [
                           "${portAllocator.allocate(8080)}:8080",
-                          "${portAllocator.allocate(11412)}:11412"
+                          "${portAllocator.allocate(11412)}:11412",
+                          "${portAllocator.allocate(51231)}:51231"
                         ],
                         "volumes": [
                           "${environment.repoRoot}/backend:/opt/ucloud",

@@ -27,6 +27,7 @@ sealed class AccountingRequest<Resp> {
         val quota: Long,
         val start: Long,
         val end: Long,
+        val ownerOverride: String? = null,
     ) : AccountingRequest<Int>()
 
     data class Charge(

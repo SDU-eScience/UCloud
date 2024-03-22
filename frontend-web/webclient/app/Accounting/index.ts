@@ -507,71 +507,56 @@ export function balanceToStringFromUnit(
 export interface WalletV2 {
     owner: WalletOwner;
     paysFor: ProductCategoryV2;
-    allocations: WalletAllocationV2[];
+    allocationGroups: AllocationGroupWithParent[];
+    children?: AllocationGroupWithChild[] | null;
+
+    totalUsage: number;
+    localUsage: number;
+    maxUsable: number;
+    quota: number;
+    totalAllocated: number;
 }
 
-export interface WalletAllocationV2 {
-    id: string;
-    allocationPath: string[];
+export interface AllocationGroupWithParent {
+    parent?: ParentOrChildWallet | null;
+    group: AllocationGroup;
+}
 
-    localUsage: number;
-    quota: number;
-    treeUsage?: number | null;
+export interface AllocationGroupWithChild {
+    child: ParentOrChildWallet;
+    group: AllocationGroup;
+}
 
+export interface ParentOrChildWallet {
+    projectId?: string;
+    projectTitle: string;
+}
+
+export interface AllocationGroup {
+    usage: number;
+    allocations: Allocation[];
+}
+
+export interface Allocation {
+    id: number;
     startDate: number;
     endDate: number;
-
-    grantedIn?: number | null;
-    deicAllocationId?: string | null;
-
-    canAllocate: boolean;
-    allowSubAllocationsToAllocate: boolean;
-
-    maxUsable: number;
-
-}
-
-export interface SubAllocationV2 {
-    id: string;
-    path: string;
-
-    startDate: number;
-    endDate?: number;
-
-    productCategory: ProductCategoryV2;
-
-    workspaceId: string;
-    workspaceTitle: string;
-    workspaceIsProject: boolean;
-    projectPI?: string | null;
-
-    usage: number;
     quota: number;
-
-    grantedIn?: number | null;
+    granted?: number | null;
+    retiredUsage?: number | null;
 }
 
 export function browseWalletsV2(
-    request: PaginationRequestV2 & { filterType?: ProductType }
+    request: PaginationRequestV2 & {
+        filterType?: ProductType;
+        includeChildren?: boolean;
+    }
 ): APICallParameters<unknown, PageV2<WalletV2>> {
     return apiBrowse(request, baseContextV2, "wallets");
 }
 
-export function browseSubAllocations(
-    request: PaginationRequestV2 & { filterType?: ProductType }
-): APICallParameters<unknown, PageV2<SubAllocationV2>> {
-    return apiBrowse(request, baseContextV2, "subAllocations");
-}
-
-export function searchSubAllocations(
-    request: PaginationRequestV2 & { query: string, filterType?: ProductType }
-): APICallParameters<unknown, PageV2<SubAllocationV2>> {
-    return apiSearch(request, baseContextV2, "subAllocations");
-}
-
 export interface RootAllocateRequestItem {
-    owner: WalletOwner;
-    productCategory: ProductCategoryId;
+    category: ProductCategoryId;
     quota: number;
     start: number;
     end: number;
@@ -581,7 +566,7 @@ export function rootAllocate(request: BulkRequest<RootAllocateRequestItem>): API
 }
 
 export function updateAllocationV2(request: BulkRequest<{
-    allocationId: string,
+    allocationId: number,
     newQuota?: number | null,
     newStart?: number | null,
     newEnd?: number | null,
@@ -661,16 +646,7 @@ export function translateBinaryProductCategory(pc: AccountingB.ProductCategoryB)
         freeToUse: false
     };
 }
-
-export function subAllocationOwner(alloc: SubAllocationV2): WalletOwner {
-    if (alloc.workspaceIsProject) {
-        return { type: "project", projectId: alloc.workspaceId };
-    } else {
-        return { type: "user", username: alloc.workspaceId };
-    }
-}
-
-export function allocationIsValidNow(allocation: WalletAllocationV2) {
+export function allocationIsValidNow(allocation: Allocation) {
     const now = timestampUnixMs();
     return now >= allocation.startDate && now <= allocation.endDate;
 }

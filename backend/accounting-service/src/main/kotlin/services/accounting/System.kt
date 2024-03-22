@@ -134,7 +134,7 @@ class AccountingSystem(
                                 return@runBlocking
                             }
 
-//                            attemptSynchronize(true)
+                            persistence.flushChanges()
                             lock.release()
                         }
                     }
@@ -146,7 +146,7 @@ class AccountingSystem(
                 try {
                     processMessages(lock)
                 } catch (ex: Throwable) {
-                    log.info("Error happened when attempting to lock service: $ex")
+                    log.info("Error happened when attempting to process messages service: ${ex.toReadableStacktrace()}")
                 }
 
                 if (isActiveProcessor.get()) {
@@ -169,8 +169,10 @@ class AccountingSystem(
         activeProcessor.set(ActiveProcessor(addressToSelf))
 
         persistence.initialize()
-
-        var nextSynchronization = Time.now() + 0
+        GlobalScope.launch {
+            delay(1000)
+            persistence.loadOldData(this@AccountingSystem)
+        }
 
         while (currentCoroutineContext().isActive && isActiveProcessor.get()) {
             try {
@@ -179,7 +181,7 @@ class AccountingSystem(
                         requests.onReceive { request ->
                             // NOTE(Dan): We attempt a synchronization here in case we receive so many requests that the
                             // timeout is never triggered.
-                            // attemptSynchronize()
+                            persistence.flushChanges()
 
                             toCheck.clear()
                             var response = try {
@@ -217,20 +219,29 @@ class AccountingSystem(
                         }
 
                         onTimeout(500) {
-                            // attemptSynchronize()
+                            persistence.flushChanges()
                         }
                     }
-                    /*
                     if (!renewLock(lock)) {
-                        isAlive = false
-                        isActiveProcessor = false
+                        isActiveProcessor.set(false)
                     }
-                     */
                 }
             } catch (ex: Throwable) {
                 log.info(ex.toReadableStacktrace().toString())
             }
         }
+    }
+
+    private suspend fun renewLock(lock: DistributedLock): Boolean {
+        if (!disableMasterElection) {
+            if (!lock.renew(90_000)) {
+                log.warn("Lock was lost")
+                isActiveProcessor.set(false)
+                return false
+            }
+            activeProcessor.set(ActiveProcessor(addressToSelf))
+        }
+        return true
     }
 
     private enum class ActionType {
@@ -407,10 +418,14 @@ class AccountingSystem(
     private suspend fun subAllocate(request: AccountingRequest.SubAllocate): Response<Int> {
         val now = Time.now()
         val idCard = request.idCard
-        val parentOwner = lookupOwner(idCard)
-            ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project")
+        val parentOwner = request.ownerOverride ?: lookupOwner(idCard)
+            ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
         val internalParent = authorizeAndLocateWallet(idCard, parentOwner, request.category, ActionType.READ)
             ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create this sub-allocation")
+
+        if (request.ownerOverride != null && idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "You are not allowed to bypass ownership check!")
+        }
 
         toCheck.add(internalParent.id)
 
@@ -513,8 +528,9 @@ class AccountingSystem(
                 earliestExpiration = Long.MAX_VALUE,
                 allocationSet = HashMap(),
                 isDirty = true
-            )
+            ).also { allocationGroups[id] = it }
         }
+        allocationGroup.isDirty = true
 
         val isActiveNow = now >= start
         allocationGroup.allocationSet[id] = isActiveNow
@@ -522,11 +538,16 @@ class AccountingSystem(
             allocationGroup.earliestExpiration = end
         }
 
-        if (parentWallet != null && isActiveNow) {
-            parentWallet.totalAllocated += quota
+        if (parentWallet != null) {
+            parentWallet.isDirty = true
+            if (isActiveNow) parentWallet.totalAllocated += quota
+
+            // NOTE(Dan): Insert a childrenUsage entry if we don't already have one. This is required to make
+            // childrenUsage a valid tool for looking up children in the parent wallet.
+            parentWallet.childrenUsage[wallet.id] = parentWallet.childrenUsage[wallet.id] ?: 0L
         }
 
-        // Rebalance excess usage
+        // Re-balance excess usage
         if (wallet.excessUsage > 0) {
             val amount = wallet.excessUsage
             wallet.localUsage -= amount
@@ -784,9 +805,21 @@ class AccountingSystem(
             }
         }
 
+        internalAllocation.isDirty = true
+
         internalAllocation.start = proposeNewStart
         internalAllocation.end = proposedNewEnd
+        val oldQuota = internalAllocation.quota
         internalAllocation.quota = msg.newQuota ?: internalAllocation.quota
+        val quotaDiff = internalAllocation.quota - oldQuota
+        if (quotaDiff != 0L) {
+            val parent = internalAllocation.parentWallet
+            if (parent != 0) {
+                val parentWallet = walletsById.getValue(parent)
+                parentWallet.totalAllocated += quotaDiff
+                parentWallet.isDirty = true
+            }
+        }
 
         return Response.ok(Unit)
     }
@@ -885,6 +918,10 @@ class AccountingSystem(
 
         if (alloc.retired) return
 
+        alloc.isDirty = true
+        wallet.isDirty = true
+        group.isDirty = true
+
         if (alloc.quota == 0L) {
             alloc.retired = true
             return
@@ -902,6 +939,8 @@ class AccountingSystem(
 
         val parentWallet = walletsById[alloc.parentWallet]
         if (parentWallet != null) {
+            parentWallet.isDirty = true
+
             parentWallet.childrenUsage[wallet.id] = (parentWallet.childrenUsage[wallet.id] ?: 0L) - toRetire
             parentWallet.childrenRetiredUsage[wallet.id] =
                 (parentWallet.childrenRetiredUsage[wallet.id] ?: 0L) + toRetire

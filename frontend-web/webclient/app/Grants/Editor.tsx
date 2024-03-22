@@ -106,18 +106,11 @@ interface SimpleRevision {
 interface ResourceCategory {
     category: Accounting.ProductCategoryV2;
     allocators: Set<string>;
-    resourceSplits: Record<string, ResourceSplit[]>;
     totalBalanceRequested: Record<string, number>;
     error?: {
         allocator: string;
         message: string;
     };
-}
-
-interface ResourceSplit {
-    balanceRequested?: number; // value stored in the input field (not yet multiplied by anything)
-    sourceAllocation?: string;
-    originalRequest?: Grants.AllocationRequest;
 }
 
 const defaultState: EditorState = {
@@ -161,21 +154,12 @@ type EditorAction =
         category: string,
         allocator: string,
         balance: number | null,
-        splitIndex?: number
     }
     | {type: "SetIsCreating"}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
     | {type: "ApplicationUpdated", section: string, contents: string}
     | {type: "LoadingStateChange", isLoading: boolean}
-    | {
-        type: "SourceAllocationUpdated",
-        provider: string,
-        category: string,
-        allocator: string,
-        allocationId?: string,
-        splitIndex: number
-    }
     | {type: "ReferenceIdUpdated", newReferenceId: string, idx: number}
     | {type: "CleanupReferenceIds"}
     | {type: "CommentPosted", comment: string, grantId: string}
@@ -186,9 +170,7 @@ type EditorAction =
     | {type: "GrantGiverStateChange", grantGiver: string, approved: boolean, grantId: string}
     | {type: "UpdateFullScreenLoading", isLoading: boolean}
     | {type: "UpdateFullScreenError", error: string}
-    | {type: "CleanupSplits"}
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
-    | {type: "AutoAssignAllocations"}
     ;
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -286,7 +268,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     } else {
                         const allocators = new Set<string>();
                         allocators.add(allocator.id);
-                        sectionForProvider.push({category, allocators, resourceSplits: {}, totalBalanceRequested: {}});
+                        sectionForProvider.push({category, allocators, totalBalanceRequested: {}});
                     }
                 }
                 i++;
@@ -489,44 +471,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             newResources[action.provider] = newSection;
             const category = newSection[categoryIdx];
 
-            if (action.splitIndex !== undefined) {
-                const splits = category.resourceSplits[action.allocator] ?? [];
-                category.resourceSplits[action.allocator] = splits;
-                if (splits.length <= action.splitIndex) {
-                    const missing = (action.splitIndex + 1) - splits.length;
-                    for (let i = 0; i < missing; i++) splits.push({});
-                }
-
-                splits[action.splitIndex].balanceRequested = action.balance ?? undefined;
+            if (action.balance === null) {
+                delete category.totalBalanceRequested[action.allocator];
             } else {
-                if (action.balance === null) {
-                    delete category.totalBalanceRequested[action.allocator];
-                } else {
-                    category.totalBalanceRequested[action.allocator] = action.balance;
-                }
+                category.totalBalanceRequested[action.allocator] = action.balance;
             }
-
-            return {
-                ...state,
-                resources: newResources
-            };
-        }
-
-        case "SourceAllocationUpdated": {
-            const categoryIdx = state.resources[action.provider]?.findIndex(it => it.category.name === action.category);
-            if (categoryIdx === -1) return state;
-
-            const newResources = {...state.resources};
-            const newSection = [...newResources[action.provider]];
-            newResources[action.provider] = newSection;
-
-            const splits = newSection[categoryIdx].resourceSplits[action.allocator] ?? [];
-            newSection[categoryIdx].resourceSplits[action.allocator] = splits;
-            if (splits.length <= action.splitIndex) {
-                const missing = (action.splitIndex + 1) - splits.length;
-                for (let i = 0; i < missing; i++) splits.push({});
-            }
-            splits[action.splitIndex].sourceAllocation = action.allocationId ?? undefined;
 
             return {
                 ...state,
@@ -563,35 +512,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             };
         }
 
-        case "CleanupSplits": {
-            if (!state.stateDuringEdit === undefined) return state;
-
-            const resources = deepCopy(state.resources);
-            for (const categories of Object.values(resources)) {
-                for (const category of categories) {
-                    for (const [allocator, splits] of Object.entries(category.resourceSplits)) {
-                        const totalRequested = category.totalBalanceRequested[allocator] ?? 0;
-                        if (totalRequested === 0) {
-                            category.resourceSplits[allocator] = [];
-                        } else {
-                            if (category.category.accountingFrequency === "ONCE") {
-                                category.resourceSplits[allocator] = splits.filter(split => split.sourceAllocation);
-                            } else {
-                                category.resourceSplits[allocator] = splits.filter(split =>
-                                    split.balanceRequested || split.sourceAllocation
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-
-            return {
-                ...state,
-                resources,
-            };
-        }
-
         case "SetResourceError": {
             const resources = deepCopy(state.resources);
             for (const categories of Object.values(resources)) {
@@ -603,85 +523,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         };
                     } else {
                         category.error = undefined;
-                    }
-                }
-            }
-
-            return {
-                ...state,
-                resources
-            };
-        }
-
-        case "AutoAssignAllocations": {
-            if (!state.stateDuringEdit) return state;
-            const wallets = state.stateDuringEdit.wallets;
-            if (wallets.length === 0) return state;
-
-            const [startTs, endTs] = stateToAllocationPeriod(state);
-            const duration = endTs - startTs;
-            if (duration === 0) return state;
-
-            const resources = deepCopy(state.resources);
-            for (const categories of Object.values(resources)) {
-                for (const category of categories) {
-                    for (const allocatorObject of state.allocators) {
-                        if (!allocatorObject.checked) continue;
-                        const allocator = allocatorObject.id;
-                        const splits = category.resourceSplits[allocator] ?? [];
-
-                        const balanceRequested = category.totalBalanceRequested[allocator] ?? 0;
-                        if (balanceRequested <= 0) continue;
-
-                        const hasAnyAllocationSet = splits.some(it => it.sourceAllocation);
-                        if (hasAnyAllocationSet) continue;
-                        if (splits.length > 1) continue;
-
-                        const wallet = wallets.find(it =>
-                            it.owner["projectId"] === allocator &&
-                            it.paysFor.name === category.category.name &&
-                            it.paysFor.provider === category.category.provider
-                        );
-                        if (!wallet) continue;
-
-                        const proposedSplit: ResourceSplit[] = [];
-                        const timeTracker = new TimeTracker();
-
-                        let sum = 0;
-
-                        for (const alloc of wallet.allocations) {
-                            const allocStart = alloc.startDate;
-                            const allocEnd = alloc.endDate ?? Number.MAX_SAFE_INTEGER;
-
-                            const allocationOverlaps =
-                                (allocStart >= startTs && allocStart <= endTs) ||
-                                (allocEnd >= startTs && allocEnd <= endTs);
-                            if (!allocationOverlaps) continue;
-
-                            const proposedStart = Math.max(startTs, allocStart);
-                            const proposedEnd = Math.min(endTs, allocEnd);
-                            const proposedDuration = proposedEnd - proposedStart;
-                            const proposedPercentage = proposedDuration / duration;
-
-                            if (timeTracker.hasOverlap(proposedStart, proposedEnd)) continue;
-                            timeTracker.add(proposedStart, proposedEnd);
-
-                            proposedSplit.push({
-                                sourceAllocation: alloc.id,
-                                balanceRequested: category.category.accountingFrequency === "ONCE" ?
-                                    balanceRequested :
-                                    Math.floor(balanceRequested * proposedPercentage),
-                            });
-
-                            sum += Math.floor(balanceRequested * proposedPercentage);
-                        }
-
-                        if (category.category.accountingFrequency !== "ONCE" && proposedSplit && proposedSplit.length > 0) {
-                            proposedSplit[0].balanceRequested =
-                                (proposedSplit[0].balanceRequested ?? 0) + balanceRequested - sum;
-                        }
-
-                        category.resourceSplits[allocator] = proposedSplit;
                     }
                 }
             }
@@ -830,10 +671,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             if (relevantCategories.length <= 0) continue;
 
-            for (const category of categories) {
-                category.resourceSplits = {};
-            }
-
             newResources[provider] = categories;
         }
 
@@ -845,40 +682,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {priceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                const arr = category.resourceSplits[request.grantGiver] ?? [];
-                category.resourceSplits[request.grantGiver] = arr;
-                arr.push({
-                    balanceRequested: request.balanceRequested * priceFactor,
-                    sourceAllocation: request.sourceAllocation?.toString() ?? undefined,
-                    originalRequest: request,
-                });
-            }
-        }
-
-        for (const section of Object.values(newResources)) {
-            for (const category of section) {
-                for (const [allocatorId, splits] of Object.entries(category.resourceSplits)) {
-                    category.error = undefined;
-
-                    if (category.category.accountingFrequency === "ONCE") {
-                        category.totalBalanceRequested[allocatorId] = splits[0].balanceRequested ?? 0;
-                    } else {
-                        category.totalBalanceRequested[allocatorId] =
-                            splits.reduce((sum, split) => sum + (split.balanceRequested ?? 0), 0);
-                    }
-
-                    splits.sort((a, b) => {
-                        const aEnd = a.originalRequest?.period.end;
-                        const bEnd = b.originalRequest?.period.end;
-
-                        if (aEnd === bEnd) return 0;
-                        if (aEnd === undefined) return 1;
-                        if (bEnd === undefined) return -1;
-
-                        if (aEnd > bEnd) return 1;
-                        return -1;
-                    })
-                }
+                category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * priceFactor;
             }
         }
 
@@ -1521,30 +1325,13 @@ export function Editor(): React.JSX.Element {
 
     const onResourceInput = useCallback<React.FormEventHandler>(ev => {
         const inputElem = ev.target as HTMLInputElement;
-        const [provider, category, allocator, idxText] = inputElem.id.split("/");
+        const [provider, category, allocator] = inputElem.id.split("/");
         let balance: number | null = parseInt(inputElem.value);
         if (isNaN(balance)) balance = null;
-        const idx = parseInt(idxText);
 
         dispatchEvent({
             type: "BalanceUpdated",
             provider, allocator, category, balance,
-            splitIndex: idxText === undefined ? undefined : idx,
-        });
-    }, [dispatchEvent]);
-
-    const onSourceAllocationUpdated = useCallback<React.FormEventHandler>(ev => {
-        const selectElem = ev.target as HTMLSelectElement;
-        const [_, provider, category, allocator, idxText] = selectElem.id.split("/");
-        const idx = parseInt(idxText);
-
-        dispatchEvent({
-            type: "SourceAllocationUpdated",
-            provider,
-            category,
-            allocator,
-            allocationId: selectElem.value === "null" ? undefined : selectElem.value,
-            splitIndex: idx
         });
     }, [dispatchEvent]);
 
@@ -1594,7 +1381,6 @@ export function Editor(): React.JSX.Element {
 
     const onUnlock = useCallback(() => {
         dispatchEvent({type: "Unlock"});
-        dispatchEvent({type: "AutoAssignAllocations"});
     }, [dispatchEvent]);
 
     const onWithdraw = useCallback(() => {
@@ -1606,18 +1392,6 @@ export function Editor(): React.JSX.Element {
     const triggerFormSubmit = useCallback(() => {
         formRef.current?.requestSubmit();
     }, []);
-
-    const cleanupSplits = useCallback(() => {
-        // NOTE(Dan): We need to delay this until the end of the event loop(? I forget what it is called). If we do not,
-        // then the active element will likely be the body.
-
-        window.setTimeout(() => {
-            const activeNodeType = document.activeElement?.nodeName ?? "BODY";
-            if (activeNodeType !== "SELECT" && activeNodeType !== "INPUT") {
-                dispatchEvent({type: "CleanupSplits"});
-            }
-        }, 0);
-    }, [dispatchEvent]);
 
     const onSubmit = useCallback<React.FormEventHandler>(async ev => {
         ev.preventDefault();
@@ -1698,118 +1472,6 @@ export function Editor(): React.JSX.Element {
         if (isGrantGiverInitiated) {
             doc.form.type = "grant_giver_initiated";
             doc.form["subAllocator"] = isForSubAllocator
-        }
-
-        let error: {
-            message: string;
-            provider: string;
-            category: string;
-            allocator: string;
-        } | null = null;
-
-        const resources = state.resources;
-        const [startTs, endTs] = stateToAllocationPeriod(state);
-        for (const [provider, categories] of Object.entries(resources)) {
-            for (const category of categories) {
-                const unit = Accounting.explainUnit(category.category);
-                const splitEntries = Object.entries(category.resourceSplits);
-                if (isGrantGiverInitiated && splitEntries.length === 0) {
-                    const balances = Object.entries(category.totalBalanceRequested);
-                    if (balances.length > 0) {
-                        const [allocator, balance] = balances[0];
-                        if (balance > 0) {
-                            error = {
-                                message: "No allocation selected",
-                                provider,
-                                category: category.category.name,
-                                allocator,
-                            };
-                        }
-                    }
-                }
-
-                for (const [allocator, splitsRaw] of splitEntries) {
-                    const requestedBalance = category.totalBalanceRequested[allocator] ?? 0;
-                    if (requestedBalance === 0) continue;
-                    const splits = splitsRaw.filter(it =>
-                        // We must have an allocation if the requested balance is inferred
-                        (category.category.accountingFrequency !== "ONCE" || it.sourceAllocation) &&
-                        (it.balanceRequested || requestedBalance));
-                    let mustAllocateForEntirePeriod = splits.some(it => it.sourceAllocation) || isGrantGiverInitiated;
-                    const isGrantGiver = state.stateDuringEdit.wallets.some(it =>
-                        it.paysFor.name === category.category.name && it.paysFor.provider === provider &&
-                        it.owner["projectId"] === allocator
-                    );
-
-                    const frequency = category.category.accountingFrequency;
-
-                    if ((isGrantGiver && splits.length > 1 && frequency !== "ONCE")) {
-                        // Check that splits match the total requested amount
-                        const actualRequested = splits.reduce((sum, split) => sum + (split.balanceRequested ?? 0), 0);
-                        if (requestedBalance !== actualRequested) {
-                            let message = "Wrong amount assigned: ";
-                            message += Accounting.balanceToString(category.category, actualRequested * unit.invPriceFactor);
-                            message += " out of "
-                            message += Accounting.balanceToString(category.category, requestedBalance * unit.invPriceFactor);
-                            message += " has been assigned!";
-
-                            error = {
-                                message,
-                                provider, category: category.category.name, allocator,
-                            };
-                        }
-                    }
-
-                    // Check that the entire period is covered and adjust the requests to fit into the period
-                    if (!error && mustAllocateForEntirePeriod && isGrantGiver) {
-                        const timeTracker = new TimeTracker();
-
-                        const relevantAllocations = state.stateDuringEdit.wallets
-                            .filter(it => it.paysFor.name === category.category.name && it.paysFor.provider === provider)
-                            .flatMap(it => it.allocations);
-
-                        for (const request of doc.allocationRequests) {
-                            if (!(request.category === category.category.name && request.provider === provider)) continue;
-
-                            const allocId = request.sourceAllocation?.toString();
-                            if (!allocId) {
-                                error = {
-                                    message: "All resource splits must have an allocation assigned to them",
-                                    provider, category: category.category.name, allocator,
-                                };
-                                break;
-                            }
-
-                            const allocation = relevantAllocations.find(it => it.id === allocId)!;
-
-                            request.period = {
-                                start: Math.max(startTs, allocation.startDate),
-                                end: Math.min(endTs, allocation.endDate)
-                            };
-
-                            timeTracker.add(request.period.start ?? 0, request.period.end ?? 0);
-                        }
-
-                        if (!error && !timeTracker.contains(startTs, endTs)) {
-                            error = {
-                                message: timeTracker.explainMismatch(startTs, endTs),
-                                provider, category: category.category.name, allocator,
-                            };
-                        }
-                    }
-                }
-            }
-        }
-
-        if (error) {
-            dispatchEvent({
-                type: "SetResourceError",
-                provider: error.provider,
-                category: error.category,
-                allocator: error.allocator,
-                message: error.message
-            });
-            return false;
         }
 
         if (isGrantGiverInitiated && Object.values(state.applicationDocument).length === 0) {
@@ -1983,22 +1645,7 @@ export function Editor(): React.JSX.Element {
     const isViewingHistoricEntry = newestRevision !== activeRevision;
     const historicEntry = activeRevision == null ? null :
         state.stateDuringEdit!.revisions.find(it => it.revisionNumber === activeRevision);
-    const isReadyToApprove: boolean = !state.stateDuringEdit ? false : (() => {
-        for (const [, categories] of Object.entries(state.resources)) {
-            const categoriesAreFilled = categories.every(cat => {
-                for (const split of Object.values(cat.resourceSplits)) {
-                    // Note(Jonas): `it.sourceAllocation` is a number. The 0th sourceAllocation will evaluate to false, even though it's valid
-                    if (!split.every(it => !it.balanceRequested || it.sourceAllocation != null)) {
-                        return false;
-                    }
-                }
-                return true;
-            });
-
-            if (!categoriesAreFilled) return false
-        }
-        return true;
-    })();
+    const isReadyToApprove: boolean = !!state.stateDuringEdit;
 
     const overallState = state.stateDuringEdit?.overallState;
     const isClosed =
@@ -2087,7 +1734,7 @@ export function Editor(): React.JSX.Element {
                         }
                     </header>
 
-                    <form onSubmit={onSubmit} onBlur={cleanupSplits} ref={formRef}>
+                    <form onSubmit={onSubmit} ref={formRef}>
                         <h3>Information about your project</h3>
                         <div className={"project-info"}>
                             <FormField
@@ -2304,45 +1951,12 @@ export function Editor(): React.JSX.Element {
                                             >
                                                 {checkedAllocators.map(allocatorId => {
                                                     const allocatorName = state.allocators.find(all => all.id === allocatorId)!.title;
-                                                    const allocationsToSelectFrom = state.stateDuringEdit?.wallets
-                                                        ?.find(it =>
-                                                            it.paysFor.name === category.category.name &&
-                                                            it.paysFor.provider === category.category.provider &&
-                                                            it.owner["projectId"] === allocatorId
-                                                        )
-                                                        ?.allocations
-                                                        ?.filter(it => it.canAllocate);
-
                                                     const unit = Accounting.explainUnit(category.category);
-
-                                                    const splits = category.resourceSplits[allocatorId] ?? [];
-                                                    const shouldShowSplitSelector =
-                                                        state.stateDuringEdit &&
-                                                        ((category.totalBalanceRequested[allocatorId] ?? 0) > 0) &&
-                                                        (
-                                                            allocationsToSelectFrom ||
-                                                            splits.some(it => it.balanceRequested || it.sourceAllocation) ||
-                                                            (!state.locked && allocationsToSelectFrom)
-                                                        ) &&
-                                                        !(
-                                                            // Don't show the period selector for splits which will
-                                                            // contain the same value when you are not a grant giver
-                                                            allocationsToSelectFrom === undefined &&
-                                                            category.category.accountingFrequency === "ONCE"
-                                                        )
-                                                        ;
 
                                                     const freq = category.category.accountingFrequency;
 
                                                     const errorMessage = category.error?.allocator === allocatorId ?
                                                         category.error?.message : undefined;
-
-                                                    if (allocationsToSelectFrom && !state.locked) {
-                                                        const lastSplit = splits.length === 0 ? undefined : splits[splits.length - 1];
-                                                        if (lastSplit === undefined || lastSplit.sourceAllocation || lastSplit.balanceRequested) {
-                                                            splits.push({});
-                                                        }
-                                                    }
 
                                                     return <React.Fragment key={allocatorId}>
                                                         <div className={"allocation-row"}>
@@ -2359,83 +1973,7 @@ export function Editor(): React.JSX.Element {
                                                                     disabled={state.locked || isClosed} />
                                                             </label>
 
-                                                            {errorMessage &&
-                                                                <div style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
-
-                                                            {shouldShowSplitSelector && <table>
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th />
-                                                                        <th>{unit.name}</th>
-                                                                        <th>{allocationsToSelectFrom === undefined ? "Period" : "Allocation"}</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {splits.map((split, idx) => (<React.Fragment key={idx}>
-                                                                        <tr>
-                                                                            <td><Icon name={"heroArrowRight"} size={24} />
-                                                                            </td>
-
-                                                                            <td>
-                                                                                <Input
-                                                                                    id={`${providerId}/${category.category.name}/${allocatorId}/${idx}`}
-                                                                                    type={"number"} placeholder={"0"}
-                                                                                    onInput={onResourceInput}
-                                                                                    min={0}
-                                                                                    value={freq === "ONCE" ? (category.totalBalanceRequested[allocatorId] ?? "") : (split.balanceRequested ?? "")}
-                                                                                    disabled={state.locked || isClosed || allocationsToSelectFrom === undefined || freq === "ONCE"} />
-                                                                            </td>
-
-                                                                            <td>
-                                                                                {allocationsToSelectFrom !== undefined &&
-                                                                                    <Select
-                                                                                        id={`alloc/${providerId}/${category.category.name}/${allocatorId}/${idx}`}
-                                                                                        onChange={onSourceAllocationUpdated}
-                                                                                        value={split.sourceAllocation ?? "null"}
-                                                                                        disabled={state.locked || isClosed}
-                                                                                    >
-                                                                                        {!allocationsToSelectFrom &&
-                                                                                            <option disabled>No suitable
-                                                                                                allocations found</option>}
-
-                                                                                        {allocationsToSelectFrom &&
-                                                                                            <option value={"null"}>No
-                                                                                                allocation
-                                                                                                selected</option>}
-
-                                                                                        {allocationsToSelectFrom.map(it =>
-                                                                                            <option
-                                                                                                key={it.id}
-                                                                                                value={it.id}
-                                                                                                disabled={!allocOverlapsWithPeriod(it, state)}
-                                                                                            >
-                                                                                                {Accounting.utcDate(it.startDate)}
-                                                                                                {" - "}
-                                                                                                {it.endDate == null ? "never" : Accounting.utcDate(it.endDate)}
-
-                                                                                                {" | "}{Accounting.balanceToString(category.category, it.quota)}
-                                                                                                {" | "}{Math.floor(((it.treeUsage ?? it.localUsage) / it.quota) * 100)}%
-                                                                                                used
-                                                                                                {" | "}ID {it.id}
-                                                                                            </option>
-                                                                                        )}
-                                                                                    </Select>}
-
-                                                                                {allocationsToSelectFrom === undefined &&
-                                                                                    <Input
-                                                                                        disabled
-                                                                                        value={
-                                                                                            split.sourceAllocation && split.originalRequest?.period?.end ?
-                                                                                                `${Accounting.utcDate(split.originalRequest.period.start ?? 0)} - ${Accounting.utcDate(split.originalRequest.period.end)}` :
-                                                                                                "No period assigned"
-                                                                                        }
-                                                                                    />
-                                                                                }
-                                                                            </td>
-                                                                        </tr>
-                                                                    </React.Fragment>))}
-                                                                </tbody>
-                                                            </table>}
+                                                            {errorMessage && <div style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
                                                         </div>
                                                     </React.Fragment>;
                                                 })}
@@ -2968,78 +2506,19 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
             const pc = category.category;
             const explanation = Accounting.explainUnit(pc);
 
-            if (state.stateDuringEdit) {
-                for (const allocatorObject of state.allocators) {
-                    if (!allocatorObject.checked) continue;
-                    const allocator = allocatorObject.id;
-                    const splits = category.resourceSplits[allocator] ?? [];
+            for (const [allocator, amount] of Object.entries(category.totalBalanceRequested)) {
+                if (!checkedAllocators.has(allocator)) continue;
 
-                    const isGrantGiver = state.stateDuringEdit.wallets.some(it =>
-                        it.paysFor.name === category.category.name && it.paysFor.provider === category.category.provider &&
-                        it.owner["projectId"] === allocator
-                    );
-
-                    const totalBalanceRequested = category.totalBalanceRequested[allocator] ?? 0;
-                    const frequency = category.category.accountingFrequency;
-                    if (
-                        frequency === "ONCE" &&
-                        splits.filter(it => it.sourceAllocation || it.balanceRequested).length === 0 &&
-                        totalBalanceRequested
-                    ) {
-                        splits.splice(0);
-                        splits.push({balanceRequested: totalBalanceRequested});
-                    }
-
-                    if (!isGrantGiver) {
-                        // Here we must check if we have to discard all the current splits in favor of a single
-                        // spanning the entire period. This needs to happen if the applicant changes the numbers. We
-                        // detect this by determining if the splits match the totalBalanceRequested.
-
-                        const balanceMismatch = frequency === "ONCE" ?
-                            splits.length === 0 || splits.some(it => it.balanceRequested !== totalBalanceRequested) :
-                            splits.reduce((sum, it) => sum + (it.balanceRequested ?? 0), 0) !== totalBalanceRequested;
-
-                        if (balanceMismatch) {
-                            splits.splice(0);
-                            splits.push({balanceRequested: totalBalanceRequested});
-                        }
-                    }
-
-                    const hasAnySourceAllocation = splits.some(it => it.sourceAllocation);
-                    for (const split of splits) {
-                        if (frequency === "ONCE" && hasAnySourceAllocation && !split.sourceAllocation) continue;
-
-                        let amount = split.balanceRequested ?? 0;
-                        if (frequency === "ONCE") amount = totalBalanceRequested;
-                        if (amount <= 0) continue;
-
-                        result.push({
-                            category: pc.name,
-                            provider: pc.provider,
-                            balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
-                            grantGiver: allocator,
-                            period,
-                            sourceAllocation: split.sourceAllocation != null ? parseInt(split.sourceAllocation, 10) : null,
-                        });
-                    }
-                }
-            } else {
-                for (const [allocator, amount] of Object.entries(category.totalBalanceRequested)) {
-                    if (!checkedAllocators.has(allocator)) continue;
-
-                    result.push({
-                        category: pc.name,
-                        provider: pc.provider,
-                        balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
-                        grantGiver: allocator,
-                        period,
-                        sourceAllocation: null,
-                    });
-                }
+                result.push({
+                    category: pc.name,
+                    provider: pc.provider,
+                    balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
+                    grantGiver: allocator,
+                    period,
+                });
             }
         }
     }
-
 
     return result;
 }
@@ -3128,118 +2607,6 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
     });
 
     return result;
-}
-
-function allocOverlapsWithPeriod(alloc: Accounting.WalletAllocationV2, state: EditorState) {
-    const [start, end] = stateToAllocationPeriod(state);
-    return Accounting.periodsOverlap({start, end}, {start: alloc.startDate, end: alloc.endDate});
-}
-
-type PeriodEntry = {start: number, end: number};
-
-class TimeTracker {
-    private periods: PeriodEntry[] = [];
-
-    add(start: number, end: number) {
-        if (end < start) throw "Invalid use (end < start)";
-
-        const entry: PeriodEntry = {start: Math.floor(start / 1000), end: Math.floor(end / 1000)};
-
-        const overlappingEntry = this.periods.find(it => TimeTracker.overlaps(it, entry));
-        if (overlappingEntry) {
-            TimeTracker.expand(overlappingEntry, entry);
-        } else {
-            this.periods.push(entry);
-        }
-
-        this.collapseAdjacentPeriods();
-    }
-
-    hasOverlap(start: number, end: number): boolean {
-        if (end < start) throw "Invalid use (end < start)";
-        const entry: PeriodEntry = {start: Math.floor(start / 1000), end: Math.floor(end / 1000)};
-        return this.periods.some(it => TimeTracker.overlaps(it, entry));
-    }
-
-    isContiguous(): boolean {
-        return this.periods.length === 1;
-    }
-
-    contains(start: number, end: number): boolean {
-        const s = Math.floor(start / 1000);
-        const e = Math.floor(end / 1000);
-        return this.periods.some(it => TimeTracker.periodContains(it, s) && TimeTracker.periodContains(it, e));
-    }
-
-    explainMismatch(start: number, end: number): string {
-        if (this.contains(start, end)) return "No mismatch";
-        if (this.periods.length === 0) return "The allocation period is empty";
-
-        const s = Math.floor(start / 1000);
-        const e = Math.floor(end / 1000);
-
-        if (!this.isContiguous()) {
-            return this.explainMissingAlloc(
-                this.periods[0].end * 1000,
-                this.periods[1].start * 1000,
-            );
-        } else {
-            if (s < this.periods[0].start) {
-                return this.explainMissingAlloc(
-                    this.periods[0].start * 1000,
-                    start,
-                );
-            } else {
-                return this.explainMissingAlloc(
-                    this.periods[0].end * 1000,
-                    end,
-                );
-            }
-        }
-    }
-
-    private explainMissingAlloc(ts1: number, ts2: number) {
-        const start = Math.min(ts1, ts2);
-        const end = Math.max(ts1, ts2);
-
-        let reason = "Missing allocation between "
-        reason += Accounting.utcDateAndTime(start);
-        reason += " and ";
-        reason += Accounting.utcDateAndTime(end);
-        reason += "!";
-        return reason;
-    }
-
-    private collapseAdjacentPeriods() {
-        outer: while (true) {
-            for (let i = 0; i < this.periods.length; i++) {
-                const aEntry = this.periods[i];
-                for (let j = i + 1; j < this.periods.length; j++) {
-                    const bEntry = this.periods[j];
-                    if (aEntry.end === bEntry.start - 1 || bEntry.end === aEntry.start - 1) {
-                        TimeTracker.expand(aEntry, bEntry);
-                        this.periods.splice(j, 1);
-                        continue outer;
-                    }
-                }
-            }
-
-            break;
-        }
-    }
-
-    private static overlaps(a: PeriodEntry, b: PeriodEntry): boolean {
-        return TimeTracker.periodContains(b, a.start) || TimeTracker.periodContains(b, a.end);
-    }
-
-    private static periodContains(period: PeriodEntry, time: number): boolean {
-        return time >= period.start && time <= period.end;
-    }
-
-    private static expand(existing: PeriodEntry, newPeriod: PeriodEntry) {
-        existing.start = Math.min(existing.start, newPeriod.start);
-        existing.end = Math.max(existing.end, newPeriod.end);
-    }
 }
 
 const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";

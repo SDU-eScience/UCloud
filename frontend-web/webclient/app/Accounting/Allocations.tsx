@@ -13,8 +13,8 @@ import {
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import {periodsOverlap, ProductType} from "@/Accounting";
-import {fuzzySearch, groupBy} from "@/Utilities/CollectionUtilities";
+import {periodsOverlap, ProductType, WalletOwner} from "@/Accounting";
+import {deepCopy, fuzzyMatch, groupBy} from "@/Utilities/CollectionUtilities";
 import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -24,7 +24,7 @@ import AppRoutes from "@/Routes";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
-import {doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {chunkedString, doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -43,9 +43,9 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import {checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 import Avatar from "@/AvataaarLib/avatar";
-import {heroExclamationTriangle} from "@/ui-components/icons";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
+import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -54,7 +54,6 @@ const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 interface State {
     remoteData: {
         wallets: Accounting.WalletV2[];
-        subAllocations: Accounting.SubAllocationV2[];
         managedProviders: string[];
         managedProducts: Record<string, Accounting.ProductCategoryV2[]>;
         gifts: Gifts.GiftWithCriteria[];
@@ -68,9 +67,9 @@ interface State {
                 usageAndQuota: UsageAndQuota;
 
                 allocations: {
-                    id: string;
+                    id: number;
                     grantedIn?: string;
-                    usageAndQuota: UsageAndQuota;
+                    quota: number;
                     note?: AllocationNote;
 
                     start: number;
@@ -93,15 +92,19 @@ interface State {
 
             usageAndQuota: (UsageAndQuota & { type: Accounting.ProductType })[];
 
-            allocations: {
-                allocationId: string;
-                usageAndQuota: UsageAndQuota;
+            groups: {
                 category: Accounting.ProductCategoryV2;
-                note?: AllocationNote;
-                isEditing: boolean;
+                usageAndQuota: UsageAndQuota;
 
-                start: number;
-                end: number;
+                allocations: {
+                    allocationId: number;
+                    quota: number;
+                    note?: AllocationNote;
+                    isEditing: boolean;
+
+                    start: number;
+                    end: number;
+                }[];
             }[];
         }[];
     };
@@ -142,14 +145,12 @@ interface UsageAndQuota {
 // =====================================================================================================================
 type UIAction =
     { type: "WalletsLoaded", wallets: Accounting.WalletV2[]; }
-    | { type: "SubAllocationsLoaded", subAllocations: Accounting.SubAllocationV2[] }
     | { type: "ManagedProvidersLoaded", providerIds: string[] }
     | { type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]> }
     | { type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[] }
     | { type: "UpdateSearchQuery", newQuery: string }
-    | { type: "SetEditing", recipientIdx: number, allocationIdx: number, isEditing: boolean }
-    | { type: "UpdateAllocation", allocationIdx: number, recipientIdx: number, newQuota: number }
-    | { type: "MergeSearchResults", subAllocations: Accounting.SubAllocationV2[] }
+    | { type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean }
+    | { type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number }
     | { type: "UpdateSearchInflight", delta: number }
     | { type: "UpdateGift", data: Partial<State["gifts"]> }
     | { type: "GiftCreated", gift: Gifts.GiftWithCriteria }
@@ -166,18 +167,6 @@ function stateReducer(state: State, action: UIAction): State {
                 remoteData: {
                     ...state.remoteData,
                     wallets: action.wallets,
-                }
-            };
-
-            return rebuildTree(newState);
-        }
-
-        case "SubAllocationsLoaded": {
-            const newState = {
-                ...state,
-                remoteData: {
-                    ...state.remoteData,
-                    subAllocations: action.subAllocations,
                 }
             };
 
@@ -317,6 +306,7 @@ function stateReducer(state: State, action: UIAction): State {
             return rebuildTree(newState);
         }
 
+        /*
         case "MergeSearchResults": {
             const newState: State = {
                 ...state,
@@ -334,6 +324,7 @@ function stateReducer(state: State, action: UIAction): State {
 
             return rebuildTree(newState);
         }
+         */
 
         case "UpdateSearchInflight": {
             return {
@@ -348,7 +339,9 @@ function stateReducer(state: State, action: UIAction): State {
         case "SetEditing": {
             const recipient = getOrNull(state.subAllocations.recipients, action.recipientIdx);
             if (!recipient) return state;
-            const allocation = getOrNull(recipient.allocations, action.allocationIdx);
+            const group = getOrNull(recipient.groups, action.groupIdx);
+            if (!group) return state;
+            const allocation = getOrNull(group.allocations, action.allocationIdx);
             if (!allocation) return state;
 
             const newState: State = {
@@ -360,8 +353,9 @@ function stateReducer(state: State, action: UIAction): State {
             };
 
             const newRecipient = newState.subAllocations.recipients[action.recipientIdx];
-            newRecipient.allocations = [...newRecipient.allocations];
-            newRecipient.allocations[action.allocationIdx] = {
+            newRecipient.groups = [...newRecipient.groups];
+            newRecipient.groups[action.groupIdx].allocations = [...newRecipient.groups[action.groupIdx].allocations];
+            newRecipient.groups[action.groupIdx].allocations[action.allocationIdx] = {
                 ...allocation,
                 isEditing: action.isEditing
             };
@@ -374,24 +368,32 @@ function stateReducer(state: State, action: UIAction): State {
         case "UpdateAllocation": {
             const recipient = getOrNull(state.subAllocations.recipients, action.recipientIdx);
             if (!recipient) return state;
-            const allocation = getOrNull(recipient.allocations, action.allocationIdx);
+            const group = getOrNull(recipient.groups, action.groupIdx);
+            if (!group) return state;
+            const allocation = getOrNull(group.allocations, action.allocationIdx);
             if (!allocation) return state;
 
             const allocationId = allocation.allocationId;
+            const newWallets = deepCopy(state.remoteData.wallets);
             const newState: State = {
                 ...state,
                 remoteData: {
                     ...state.remoteData,
-                    subAllocations: [...state.remoteData.subAllocations]
-                }
+                    wallets: newWallets,
+                },
             };
-            const idx = newState.remoteData.subAllocations.findIndex(it => it.id === allocationId);
-            if (idx === -1) return state;
 
-            newState.remoteData.subAllocations[idx] = {
-                ...newState.remoteData.subAllocations[idx],
-                quota: action.newQuota
-            };
+            outer: for (const wallet of newState.remoteData.wallets) {
+                const allChildren = wallet.children ?? [];
+                for (const childGroup of allChildren) {
+                    for (const alloc of childGroup.group.allocations) {
+                        if (alloc.id === allocationId) {
+                            alloc.quota = action.newQuota;
+                            break outer;
+                        }
+                    }
+                }
+            }
 
             return rebuildTree(newState);
         }
@@ -408,7 +410,7 @@ function stateReducer(state: State, action: UIAction): State {
         const now = timestampUnixMs();
 
         function allocationNote(
-            alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2
+            alloc: Accounting.Allocation
         ): AllocationNote | undefined {
             // NOTE(Dan): We color code and potentially grey out rows when the end-user should be aware of something
             // on the allocation.
@@ -444,32 +446,38 @@ function stateReducer(state: State, action: UIAction): State {
             return undefined;
         }
 
-        const walletsInPeriod = state.remoteData.wallets.map(wallet => {
-            const newAllocations = wallet.allocations.filter(alloc =>
-                !wallet.paysFor.freeToUse
-            );
+        const walletsInPeriod = state.remoteData.wallets.filter(wallet => {
+            return !wallet.paysFor.freeToUse
+        });
 
-            return {...wallet, allocations: newAllocations};
-        }).filter(it => it.allocations.length > 0);
+        const filteredSubAllocations: {
+            wallet: Accounting.WalletV2,
+            childGroup: Accounting.AllocationGroupWithChild
+        }[] = [];
+        for (const wallet of state.remoteData.wallets) {
+            if (wallet.paysFor.freeToUse) continue;
 
-        let filteredSubAllocations: Accounting.SubAllocationV2[];
-        if (state.subAllocations.searchQuery === "") {
-            filteredSubAllocations = state.remoteData.subAllocations;
-        } else {
-            const query = state.subAllocations.searchQuery.toLowerCase();
-            filteredSubAllocations = fuzzySearch(
-                state.remoteData.subAllocations,
-                ["id", "workspaceTitle", "workspaceId", "grantedIn"],
-                query
-            );
+            const children = wallet.children ?? [];
+            for (const childGroup of children) {
+                const query = state.subAllocations.searchQuery;
+                let matches = query === "";
+
+                if (!matches) {
+                    matches = fuzzyMatch(
+                        childGroup.child,
+                        ["projectId", "projectTitle"],
+                        query,
+                    );
+                }
+
+                // TODO more checks?
+                if (matches) {
+                    filteredSubAllocations.push({wallet, childGroup});
+                }
+            }
         }
 
-        const subAllocationsInPeriod = filteredSubAllocations.filter(alloc =>
-            !alloc.productCategory.freeToUse &&
-            periodsOverlap({start: now, end: now}, allocationToPeriod(alloc))
-        );
-
-        // Build the "your allocations" tree
+        // Build the "Your allocations" tree
         const yourAllocations: State["yourAllocations"] = {};
         {
             const walletsByType = groupBy(walletsInPeriod, it => it.paysFor.productType);
@@ -481,31 +489,19 @@ function stateReducer(state: State, action: UIAction): State {
                 const entry = yourAllocations[type as ProductType]!;
 
                 const quotaBalances = wallets.flatMap(wallet =>
-                    wallet.allocations
-                        .filter(alloc => allocationIsActive(alloc, now))
-                        .map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
+                    ({balance: wallet.quota, category: wallet.paysFor})
                 );
                 const usageBalances = wallets.flatMap(wallet =>
-                    wallet.allocations
-                        .filter(alloc => allocationIsActive(alloc, now))
-                        .map(alloc => ({
-                            balance: alloc.treeUsage ?? 0,
-                            category: wallet.paysFor
-                        }))
+                    ({balance: wallet.totalUsage, category: wallet.paysFor})
                 );
 
-                const maxUsables = wallets.flatMap( wallet =>
-                    wallet.allocations
-                        .filter( alloc => allocationIsActive(alloc, now))
-                        .map(alloc => ({
-                            balance: alloc.maxUsable,
-                            category: wallet.paysFor
-                        }))
+                const maxUsableBalances = wallets.map(wallet =>
+                    ({balance: wallet.maxUsable, category: wallet.paysFor})
                 );
 
                 const combinedQuotas = Accounting.combineBalances(quotaBalances);
                 const combinedUsage = Accounting.combineBalances(usageBalances);
-                const combineMaxUsable = Accounting.combineBalances(maxUsables);
+                const combineMaxUsable = Accounting.combineBalances(maxUsableBalances);
 
                 for (let i = 0; i < combinedQuotas.length; i++) {
                     const usage = combinedUsage[i];
@@ -521,31 +517,12 @@ function stateReducer(state: State, action: UIAction): State {
                 }
 
                 for (const wallet of wallets) {
-                    const usage = Accounting.combineBalances(
-                        wallet.allocations
-                            .filter(alloc => allocationIsActive(alloc, now))
-                            .map(alloc => ({
-                                balance: alloc.treeUsage ?? 0,
-                                category: wallet.paysFor
-                            }))
-                    )
-                    const quota = Accounting.combineBalances(
-                        wallet.allocations
-                            .filter(alloc => allocationIsActive(alloc, now))
-                            .map(alloc => ({balance: alloc.quota, category: wallet.paysFor}))
-                    );
-
-                    const maxUsable = Accounting.combineBalances(
-                        wallet.allocations
-                            .filter( alloc => allocationIsActive(alloc, now))
-                            .map(alloc => ({
-                                balance: alloc.maxUsable,
-                                category: wallet.paysFor
-                            }))
-                    );
-
-
-                    const unit = Accounting.explainUnit(wallet.paysFor);
+                    const usage = Accounting.combineBalances([{balance: wallet.totalUsage, category: wallet.paysFor}]);
+                    const quota = Accounting.combineBalances([{balance: wallet.quota, category: wallet.paysFor}]);
+                    const maxUsable = Accounting.combineBalances([{
+                        balance: wallet.maxUsable,
+                        category: wallet.paysFor
+                    }]);
 
                     entry.wallets.push({
                         category: wallet.paysFor,
@@ -557,19 +534,16 @@ function stateReducer(state: State, action: UIAction): State {
                             maxUsable: maxUsable?.[0]?.normalizedBalance ?? 0
                         },
 
-                        allocations: wallet.allocations.map(alloc => ({
-                            id: alloc.id,
-                            grantedIn: alloc.grantedIn?.toString() ?? undefined,
-                            note: allocationNote(alloc),
-                            usageAndQuota: {
-                                usage: (alloc.treeUsage ?? 0) * unit.priceFactor,
-                                quota: alloc.quota * unit.priceFactor,
-                                unit: usage?.[0]?.unit ?? unit.name,
-                                maxUsable: alloc.maxUsable * unit.priceFactor ?? 0
-                            },
-                            start: alloc.startDate,
-                            end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
-                        })),
+                        allocations: wallet.allocationGroups.flatMap(({group}) =>
+                            group.allocations.map(alloc => ({
+                                id: alloc.id,
+                                grantedIn: alloc.granted?.toString() ?? undefined,
+                                note: allocationNote(alloc),
+                                quota: alloc.quota,
+                                start: alloc.startDate,
+                                end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
+                            }))
+                        ),
                     });
                 }
             }
@@ -582,18 +556,24 @@ function stateReducer(state: State, action: UIAction): State {
         };
 
         {
-            for (const alloc of filteredSubAllocations) {
-                const allocOwner = Accounting.subAllocationOwner(alloc);
+            for (const {childGroup} of filteredSubAllocations) {
+                let allocOwner: WalletOwner;
+                if (childGroup.child.projectId) {
+                    allocOwner = {type: "project", projectId: childGroup.child.projectId};
+                } else {
+                    allocOwner = {type: "user", username: childGroup.child.projectTitle};
+                }
+
                 let recipient = subAllocations.recipients
                     .find(it => Accounting.walletOwnerEquals(it.owner.reference, allocOwner));
                 if (!recipient) {
                     recipient = {
                         owner: {
                             reference: allocOwner,
-                            primaryUsername: alloc.projectPI!,
-                            title: alloc.workspaceTitle,
+                            primaryUsername: childGroup.child.projectTitle, // TODO!
+                            title: childGroup.child.projectTitle,
                         },
-                        allocations: [],
+                        groups: [],
                         usageAndQuota: []
                     };
 
@@ -601,61 +581,83 @@ function stateReducer(state: State, action: UIAction): State {
                 }
             }
 
-            for (const alloc of subAllocationsInPeriod) {
-                const allocOwner = Accounting.subAllocationOwner(alloc);
-                const productUnit = Accounting.explainUnit(alloc.productCategory);
+            for (const {childGroup, wallet} of filteredSubAllocations) {
+                let allocOwner: WalletOwner;
+                if (childGroup.child.projectId) {
+                    allocOwner = {type: "project", projectId: childGroup.child.projectId};
+                } else {
+                    allocOwner = {type: "user", username: childGroup.child.projectTitle};
+                }
 
                 const recipient = subAllocations.recipients
                     .find(it => Accounting.walletOwnerEquals(it.owner.reference, allocOwner))!;
 
-                recipient.allocations.push({
-                    allocationId: alloc.id,
-                    category: alloc.productCategory,
+                const combinedUsage = childGroup.group.usage;
+                const combinedQuota = childGroup.group.allocations.reduce((acc, val) => acc + val.quota, 0);
+
+                const usage = Accounting.combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
+                const quota = Accounting.combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
+
+                const newGroup: State["subAllocations"]["recipients"][0]["groups"][0] = {
+                    category: wallet.paysFor,
                     usageAndQuota: {
-                        usage: alloc.usage * productUnit.priceFactor,
-                        quota: alloc.quota * productUnit.priceFactor,
-                        unit: productUnit.name,
-                        //TODO(HENRIK) Should it just show quota or should it be changed to actually show maxUsable to
-                        //TODO(HENRIK) help project admins to better administrate their suballocs
-                        maxUsable: alloc.quota
+                        usage: usage?.[0]?.normalizedBalance ?? 0,
+                        quota: quota?.[0]?.normalizedBalance ?? 0,
+                        maxUsable: usage?.[0]?.normalizedBalance ?? 0,
+                        unit: usage?.[0]?.unit ?? ""
                     },
-                    note: allocationNote(alloc),
-                    isEditing: false,
-                    start: alloc.startDate,
-                    end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
-                });
+                    allocations: [],
+                };
+
+                for (const alloc of childGroup.group.allocations) {
+                    newGroup.allocations.push({
+                        allocationId: alloc.id,
+                        quota: alloc.quota,
+                        note: allocationNote(alloc),
+                        isEditing: false,
+                        start: alloc.startDate,
+                        end: alloc.endDate
+                    });
+                }
+
+                recipient.groups.push(newGroup);
             }
 
             for (const recipient of subAllocations.recipients) {
-                const uqBuilder: { type: Accounting.ProductType, unit: string, usage: number, quota: number, maxUsable: number }[] = [];
-                for (const alloc of recipient.allocations) {
-                    if (alloc.note && alloc.note.rowShouldBeGreyedOut) continue;
+                const uqBuilder: {
+                    type: Accounting.ProductType,
+                    unit: string,
+                    usage: number,
+                    quota: number,
+                    maxUsable: number
+                }[] = [];
+                for (const group of recipient.groups) {
+                    for (const alloc of group.allocations) {
+                        if (alloc.note && alloc.note.rowShouldBeGreyedOut) continue;
 
-                    const existing = uqBuilder.find(it =>
-                        it.type === alloc.category.productType && it.unit === alloc.usageAndQuota.unit);
+                        const existing = uqBuilder.find(it =>
+                            it.type === group.category.productType && it.unit === group.usageAndQuota.unit);
 
-                    if (existing) {
-                        existing.usage += alloc.usageAndQuota.usage;
-                        existing.quota += alloc.usageAndQuota.quota;
-                    } else {
-                        uqBuilder.push({
-                            type: alloc.category.productType,
-                            usage: alloc.usageAndQuota.usage,
-                            quota: alloc.usageAndQuota.quota,
-                            unit: alloc.usageAndQuota.unit,
-                            maxUsable: alloc.usageAndQuota.maxUsable
-                        });
+                        if (existing) {
+                            existing.usage += group.usageAndQuota.usage;
+                            existing.quota += group.usageAndQuota.quota;
+                        } else {
+                            uqBuilder.push({
+                                type: group.category.productType,
+                                usage: group.usageAndQuota.usage,
+                                quota: group.usageAndQuota.quota,
+                                unit: group.usageAndQuota.unit,
+                                maxUsable: group.usageAndQuota.maxUsable
+                            });
+                        }
                     }
                 }
 
-                const defaultAllocId = "ZZZZZZZZ";
-                recipient.allocations.sort((a, b) => {
+                recipient.groups.sort((a, b) => {
                     const providerCmp = a.category.provider.localeCompare(b.category.provider);
                     if (providerCmp !== 0) return providerCmp;
                     const categoryCmp = a.category.name.localeCompare(b.category.name);
                     if (categoryCmp !== 0) return categoryCmp;
-                    const allocCmp = (a.allocationId ?? defaultAllocId).localeCompare(b.allocationId ?? defaultAllocId);
-                    if (allocCmp !== 0) return allocCmp;
                     return 0;
                 });
 
@@ -691,16 +693,11 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
                 fetchAll(next =>
                     callAPI(Accounting.browseWalletsV2({
                         itemsPerPage: 250,
-                        next
+                        next,
+                        includeChildren: true,
                     }))
                 ).then(wallets => {
                     dispatch({type: "WalletsLoaded", wallets});
-                });
-
-                fetchAll(next =>
-                    callAPI(Accounting.browseSubAllocations({itemsPerPage: 250, next}))
-                ).then(subAllocations => {
-                    dispatch({type: "SubAllocationsLoaded", subAllocations});
                 });
 
                 fetchManagedProviders().then(providers => {
@@ -813,7 +810,7 @@ const Allocations: React.FunctionComponent = () => {
     const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
-    
+
     usePage("Allocations", SidebarTabId.WORKSPACE);
 
     useEffect(() => {
@@ -931,22 +928,25 @@ const Allocations: React.FunctionComponent = () => {
 
     const onEdit = useCallback((elem: HTMLElement) => {
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
+        const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");
         const ridx = parseInt(elem.getAttribute("data-ridx") ?? "");
-        if (isNaN(idx) || isNaN(ridx)) return;
+        if (isNaN(idx) || isNaN(ridx) || isNaN(gidx)) return;
 
-        dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: true});
+        dispatchEvent({type: "SetEditing", allocationIdx: idx, groupIdx: gidx, recipientIdx: ridx, isEditing: true});
     }, []);
 
     const onEditKey = useCallback(async (ev: React.KeyboardEvent) => {
         const elem = ev.target as HTMLInputElement;
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
+        const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");
         const ridx = parseInt(elem.getAttribute("data-ridx") ?? "");
         switch (ev.code) {
             case "Enter": {
                 const value = parseInt(elem.value);
                 if (!isNaN(value)) {
-                    const alloc = state.subAllocations.recipients[ridx].allocations[idx]!;
-                    const unit = Accounting.explainUnit(alloc.category);
+                    const group = state.subAllocations.recipients[ridx].groups[gidx];
+                    const alloc = group.allocations[idx]!;
+                    const unit = Accounting.explainUnit(group.category);
                     const success = (await callAPIWithErrorHandler(
                         Accounting.updateAllocationV2(bulkRequestOf({
                             allocationId: alloc.allocationId,
@@ -960,17 +960,24 @@ const Allocations: React.FunctionComponent = () => {
                             type: "UpdateAllocation",
                             allocationIdx: idx,
                             recipientIdx: ridx,
+                            groupIdx: gidx,
                             newQuota: value * unit.invPriceFactor,
                         });
                     }
 
-                    dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false});
+                    dispatchEvent({
+                        type: "SetEditing", allocationIdx: idx, groupIdx: gidx, recipientIdx: ridx,
+                        isEditing: false
+                    });
                 }
                 break;
             }
 
             case "Escape": {
-                dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false});
+                dispatchEvent({
+                    type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, groupIdx: gidx,
+                    isEditing: false
+                });
                 break;
             }
         }
@@ -980,7 +987,11 @@ const Allocations: React.FunctionComponent = () => {
         const elem = ev.target as HTMLInputElement;
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
         const ridx = parseInt(elem.getAttribute("data-ridx") ?? "");
-        dispatchEvent({type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, isEditing: false});
+        const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");
+        dispatchEvent({
+            type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, groupIdx: gidx,
+            isEditing: false
+        });
     }, [dispatchEvent]);
 
     const onSearchInput = useCallback((ev: React.SyntheticEvent) => {
@@ -988,6 +999,8 @@ const Allocations: React.FunctionComponent = () => {
         const newQuery = input.value;
         dispatchEvent({type: "UpdateSearchQuery", newQuery});
 
+        // TODO!
+        /*
         window.clearTimeout(searchTimeout.current);
         searchTimeout.current = window.setTimeout(async () => {
             if (input.disabled) return;
@@ -1003,6 +1016,7 @@ const Allocations: React.FunctionComponent = () => {
                 dispatchEvent({type: "UpdateSearchInflight", delta: -1});
             }
         }, 200);
+         */
     }, [dispatchEvent]);
 
     const onSearchKey = useCallback<React.KeyboardEventHandler>(ev => {
@@ -1083,11 +1097,7 @@ const Allocations: React.FunctionComponent = () => {
                 const unit = Accounting.explainUnit(resolvedCategory);
 
                 requests.push({
-                    owner: {
-                        type: "project",
-                        projectId: Client.projectId ?? ""
-                    },
-                    productCategory: {
+                    category: {
                         name: category,
                         provider,
                     },
@@ -1219,7 +1229,6 @@ const Allocations: React.FunctionComponent = () => {
                 provider: provider,
                 grantGiver: "",
                 period: {start: 0, end: 0},
-                sourceAllocation: null,
             });
         }
 
@@ -1397,10 +1406,10 @@ const Allocations: React.FunctionComponent = () => {
                                             <th>Resources</th>
                                             <td>
                                                 <ul>
-                                                    {g.resources.map(r => {
+                                                    {g.resources.map((r, idx) => {
                                                         const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
                                                         if (!pc) return null;
-                                                        return <li>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
+                                                        return <li key={idx}>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
                                                     })}
                                                 </ul>
                                             </td>
@@ -1540,18 +1549,17 @@ const Allocations: React.FunctionComponent = () => {
                             {Accounting.productAreaTitle(type)}
                         </Flex>}
                         right={<Flex flexDirection={"row"} gap={"8px"}>
-                            {tree.usageAndQuota.map((uq, idx) => <React.Fragment>
-                                {(uq.quota - uq.usage) == uq.maxUsable ? null :  <TooltipV2
-                                    tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
-                                >
-                                    <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
-                                </TooltipV2>}
-                                <ProgressBarWithLabel
-                                    key={idx}
-                                    value={(uq.usage / uq.quota) * 100}
-                                    text={progressText(type, uq)}
-                                    width={`${baseProgress}px`}
-                                />
+                            {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
+                                    {(uq.quota - uq.usage) == uq.maxUsable ? null : <TooltipV2
+                                        tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
+                                    >
+                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                    </TooltipV2>}
+                                    <ProgressBarWithLabel
+                                        value={(uq.usage / uq.quota) * 100}
+                                        text={progressText(type, uq)}
+                                        width={`${baseProgress}px`}
+                                    />
                                 </React.Fragment>
                             )}
                         </Flex>}
@@ -1565,11 +1573,12 @@ const Allocations: React.FunctionComponent = () => {
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {wallet.usageAndQuota.maxUsable == (wallet.usageAndQuota.quota - wallet.usageAndQuota.usage) ? null :  <TooltipV2
-                                        tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
-                                    >
-                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
-                                    </TooltipV2> }
+                                    {wallet.usageAndQuota.maxUsable == (wallet.usageAndQuota.quota - wallet.usageAndQuota.usage) ? null :
+                                        <TooltipV2
+                                            tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
+                                        >
+                                            <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                        </TooltipV2>}
                                     <ProgressBarWithLabel
                                         value={(wallet.usageAndQuota.usage / wallet.usageAndQuota.quota) * 100}
                                         text={progressText(type, wallet.usageAndQuota)}
@@ -1579,41 +1588,43 @@ const Allocations: React.FunctionComponent = () => {
                                 indent={indent * 2}
                             >
                                 {wallet.allocations
-                                    .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage || alloc.usageAndQuota.usage > 0)
+                                    .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage)
                                     .map(alloc =>
                                         <TreeNode
                                             key={alloc.id}
                                             className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                            left={<>
-                                                <Icon name={"heroBanknotes"} mr={4}/>
-                                                <b>Allocation ID:</b> {alloc.id}
+                                            left={<Flex gap={"32px"}>
+                                                <Flex width={"200px"}>
+                                                    <Icon name={"heroBanknotes"} mr={4}/>
+                                                    <div>
+                                                        <b>Allocation ID:</b>
+                                                        {" "}
+                                                        <code>{chunkedString(alloc.id.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                                    </div>
+                                                </Flex>
                                                 {alloc.grantedIn && <>
-                                                    {" "}
-                                                    (
                                                     <Link target={"_blank"}
                                                           to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                         View grant application{" "}
                                                         <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
                                                     </Link>
-                                                    )
                                                 </>}
-                                            </>}
+
+                                                <Flex width={"250px"}>
+                                                    Period:
+                                                    {" "}
+                                                    {dateToStringNoTime(alloc.start)}
+                                                    {" "}&mdash;{" "}
+                                                    {dateToStringNoTime(alloc.end)}
+                                                </Flex>
+                                            </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                {alloc.note && <>
+                                            {alloc.note && <>
                                                     <TooltipV2 tooltip={alloc.note.text}>
                                                         <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
                                                     </TooltipV2>
                                                 </>}
-                                                {alloc.usageAndQuota.maxUsable == (alloc.usageAndQuota.quota - alloc.usageAndQuota.usage) ? null : <TooltipV2
-                                                    tooltip={"Allocation limitation. Contact your grant giver."}
-                                                >
-                                                    <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
-                                                </TooltipV2>}
-                                                <ProgressBarWithLabel
-                                                    value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
-                                                    text={progressText(type, alloc.usageAndQuota)}
-                                                    width={`${baseProgress}px`}
-                                                />
+                                                {Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})}
                                             </Flex>}
                                         />
                                     )
@@ -1679,7 +1690,7 @@ const Allocations: React.FunctionComponent = () => {
                                             piUsernameHint: recipient.owner.primaryUsername,
                                             projectId: recipient.owner.reference.projectId,
                                             start: timestampUnixMs(),
-                                            end: recipient.allocations.reduce((prev, it) => Math.min(prev, it.end), NO_EXPIRATION_FALLBACK),
+                                            end: timestampUnixMs() + (1000 * 60 * 60 * 24 * 365),
                                             subAllocator: false,
                                         })}
                                     >
@@ -1698,62 +1709,88 @@ const Allocations: React.FunctionComponent = () => {
                                 )}
                             </div>}
                         >
-                            {recipient.allocations
-                                .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage || alloc.usageAndQuota.usage > 0)
-                                .map((alloc, idx) =>
-                                    <TreeNode
-                                        key={idx}
-                                        className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                        data-ridx={recipientIdx} data-idx={idx}
-                                        left={<Flex gap={"4px"}>
-                                            <Flex gap={"4px"} width={"200px"}>
-                                                <ProviderLogo providerId={alloc.category.provider} size={20}/>
-                                                <Icon name={Accounting.productTypeToIcon(alloc.category.productType)}
-                                                      size={20}/>
-                                                <code>{alloc.category.name}</code>
-                                            </Flex>
+                            {recipient.groups.map((g, gidx) => <React.Fragment key={gidx}>
+                                <TreeNode
+                                    left={<Flex gap={"4px"}>
+                                        <Flex gap={"4px"} width={"200px"}>
+                                            <ProviderLogo providerId={g.category.provider} size={20}/>
+                                            <Icon name={Accounting.productTypeToIcon(g.category.productType)}
+                                                  size={20}/>
+                                            <code>{g.category.name}</code>
+                                        </Flex>
+                                    </Flex>}
+                                    right={
+                                        <ProgressBarWithLabel
+                                            value={(g.usageAndQuota.usage / g.usageAndQuota.quota) * 100}
+                                            text={progressText(g.category.productType, g.usageAndQuota)}
+                                            width={`${baseProgress}px`}
+                                        />
+                                    }
+                                >
+                                    {g.allocations
+                                        .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage)
+                                        .map((alloc, idx) =>
+                                            <TreeNode
+                                                key={idx}
+                                                className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                                data-ridx={recipientIdx} data-idx={idx}
+                                                left={<Flex>
+                                                    <Flex width={"200px"}>
+                                                        <Icon name={"heroBanknotes"} mr={4}/>
+                                                        <div>
+                                                            <b>Allocation ID:</b>
+                                                            {" "}
+                                                            <code>{chunkedString(alloc.allocationId.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                                        </div>
+                                                    </Flex>
 
-                                            {alloc.allocationId && <span> <b>Allocation ID:</b> {alloc.allocationId}</span>}
-                                        </Flex>}
-                                        right={<Flex flexDirection={"row"} gap={"8px"}>
-                                            {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
-                                                <SmallIconButton
-                                                    icon={"heroPencil"} onClick={onEdit}
-                                                    disabled={state.editControlsDisabled}
-                                                    data-ridx={recipientIdx} data-idx={idx}/>
-                                            }
-                                            {alloc.note && <>
-                                                <TooltipV2 tooltip={alloc.note.text}>
-                                                    <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
-                                                </TooltipV2>
-                                            </>}
+                                                    <Flex width={"250px"}>
+                                                        Period:
+                                                        {" "}
+                                                        {dateToStringNoTime(alloc.start)}
+                                                        {" "}&mdash;{" "}
+                                                        {dateToStringNoTime(alloc.end)}
+                                                    </Flex>
+                                                </Flex>}
+                                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                    {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
+                                                        <SmallIconButton
+                                                            icon={"heroPencil"} onClick={onEdit}
+                                                            disabled={state.editControlsDisabled}
+                                                            data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}/>
+                                                    }
+                                                    {alloc.note && <>
+                                                        <TooltipV2 tooltip={alloc.note.text}>
+                                                            <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
+                                                        </TooltipV2>
+                                                    </>}
 
-                                            {alloc.isEditing ?
-                                                <Flex gap={"4px"} width={"250px"}>
-                                                    <Input
-                                                        height={"24px"}
-                                                        defaultValue={alloc.usageAndQuota.quota}
-                                                        autoFocus
-                                                        onKeyDown={onEditKey}
-                                                        onBlur={onEditBlur}
-                                                        data-ridx={recipientIdx} data-idx={idx}
-                                                    />
-                                                    {alloc.usageAndQuota.unit}
-                                                </Flex>
-                                                : <ProgressBarWithLabel
-                                                    value={(alloc.usageAndQuota.usage / alloc.usageAndQuota.quota) * 100}
-                                                    text={progressText(alloc.category.productType, alloc.usageAndQuota)}
-                                                    width={`${baseProgress}px`}
-                                                />
-                                            }
-                                        </Flex>}
-                                    />
-                                )
-                            }
+                                                    {alloc.isEditing ?
+                                                        <Flex gap={"4px"} width={"250px"}>
+                                                            <Input
+                                                                height={"24px"}
+                                                                defaultValue={alloc.quota}
+                                                                autoFocus
+                                                                onKeyDown={onEditKey}
+                                                                onBlur={onEditBlur}
+                                                                data-ridx={recipientIdx} data-idx={idx}
+                                                                data-gidx={gidx}
+                                                            />
+                                                        </Flex>
+                                                        : <>
+                                                            {Accounting.balanceToString(g.category, alloc.quota)}
+                                                        </>
+                                                    }
+                                                </Flex>}
+                                            />
+                                        )
+                                    }
+                                </TreeNode>
+                            </React.Fragment>)}
                         </TreeNode>
                     )}
                 </Tree>
-        </>}
+            </>}
         </div>}
     />;
 };
@@ -1785,7 +1822,7 @@ function progressText(type: ProductType, uq: UsageAndQuota): string {
 }
 
 function allocationIsActive(
-    alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2,
+    alloc: Accounting.Allocation,
     now: number,
 ): boolean {
     return periodsOverlap(allocationToPeriod(alloc), {start: now, end: now});
@@ -1796,7 +1833,7 @@ interface Period {
     end: number;
 }
 
-function allocationToPeriod(alloc: Accounting.WalletAllocationV2 | Accounting.SubAllocationV2): Period {
+function allocationToPeriod(alloc: Accounting.Allocation): Period {
     return {start: alloc.startDate, end: alloc.endDate ?? NO_EXPIRATION_FALLBACK};
 }
 
@@ -1882,7 +1919,7 @@ async function fetchManagedProviders(): Promise<string[]> {
 // Initial state
 // =====================================================================================================================
 const initialState: State = {
-    remoteData: {subAllocations: [], wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
+    remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
     subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
     yourAllocations: {},
     editControlsDisabled: false,

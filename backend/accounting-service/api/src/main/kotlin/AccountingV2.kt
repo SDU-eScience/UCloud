@@ -126,7 +126,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         @Serializable
         @UCloudApiInternal(InternalLevel.BETA)
         data class RequestItem(
-            val allocationId: String,
+            val allocationId: Long,
 
             val newQuota: Long? = null,
             var newStart: Long? = null,

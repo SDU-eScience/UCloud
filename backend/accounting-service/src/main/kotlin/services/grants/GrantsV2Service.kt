@@ -1444,10 +1444,11 @@ class GrantsV2Service(
                                 AccountingRequest.SubAllocate(
                                     IdCard.System,
                                     ProductCategoryIdV2(req.category, req.provider),
-                                    req.grantGiver,
+                                    walletOwner.reference(),
                                     req.balanceRequested!!,
                                     req.period.start ?: Time.now(),
                                     req.period.end ?: Time.now(),
+                                    ownerOverride = req.grantGiver,
                                 )
                             )
                         }

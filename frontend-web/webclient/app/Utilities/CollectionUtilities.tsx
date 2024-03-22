@@ -53,3 +53,19 @@ export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: 
 
     return fuse.search(query).map(it => it.item);
 }
+
+export function fuzzyMatch<T, K extends keyof T>(item: T, keys: K[], query: string): boolean {
+    const fuse = new Fuse(
+        [item],
+        {
+            threshold: 0.6,
+            location: 0,
+            distance: 100,
+            minMatchCharLength: 1,
+            shouldSort: false,
+            keys: keys as string[]
+        }
+    );
+
+    return fuse.search(query).length > 0;
+}

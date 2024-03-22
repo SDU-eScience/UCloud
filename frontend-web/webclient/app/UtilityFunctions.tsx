@@ -626,3 +626,48 @@ export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
 export function pageV2Of<T>(...items: T[]): PageV2<T> {
     return {items, itemsPerPage: items.length, next: undefined};
 }
+
+export function stringReverse(text: string): string {
+    let builder = "";
+    const textLength = text.length;
+    let i = textLength - 1;
+    while (i >= 0) {
+        builder += text[i];
+        i--;
+    }
+    return builder;
+}
+
+export function chunkedString(text: string, chunkSize: number, leftToRight: boolean): string[] {
+    const result: string[] = [];
+    if (leftToRight) {
+        let cur = "";
+        let i = 0;
+        let textLength = text.length;
+        while (i < textLength) {
+            cur += text[i];
+            i++;
+            if (i % chunkSize === 0) {
+                result.push(cur);
+                cur = "";
+            }
+        }
+        if (cur != "") result.push(cur);
+        return result;
+    } else {
+        let cur = "";
+        let textLength = text.length;
+        let i = textLength - 1;
+        while (i >= 0) {
+            cur += text[i];
+            i--;
+            if (((textLength - 1) - i) % chunkSize === 0) {
+                result.push(stringReverse(cur));
+                cur = "";
+            }
+        }
+        if (cur != "") result.push(stringReverse(cur));
+        result.reverse();
+        return result;
+    }
+}

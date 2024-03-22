@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.FakeAccountingPersistence
+import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.products.ProductService
 import dk.sdu.cloud.accounting.services.projects.FavoriteProjectService
@@ -52,7 +53,7 @@ class Server(
         val productCache = ProductCache(db)
         val accountingSystem = AccountingSystem(
             productCache,
-            FakeAccountingPersistence,
+            RealAccountingPersistence(db),
             IdCardService(db, micro.backgroundScope, client),
             distributedLocks,
             micro.developmentModeEnabled,
@@ -78,6 +79,7 @@ class Server(
             client, config.defaultTemplate)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
 
+        accountingSystem.start(micro.backgroundScope)
 
         val scriptManager = micro.feature(ScriptManager)
         scriptManager.register(

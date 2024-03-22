@@ -13,6 +13,8 @@ startsvc() {
     if ! isrunning; then
         gradle wrapper
         ./gradlew :launcher:installDist --console=plain
+	JAVA_OPTS='-Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=*:51231,suspend=n'
+	export JAVA_OPTS
         nohup /opt/ucloud/launcher/build/install/launcher/bin/launcher --dev --config-dir /etc/ucloud &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
