@@ -35,7 +35,6 @@ import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import Relative from "./Relative";
-import Absolute from "./Absolute";
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import {setAppFavorites} from "@/Applications/Redux/Actions";
 import {checkCanConsumeResources} from "./ResourceBrowser";
@@ -99,7 +98,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     } 
 
     ${k} header {
-        display: flex;
         align-items: center;
     }
     
@@ -282,6 +280,18 @@ function UserMenu({avatar}: {
     avatar: AvatarType;
 }) {
     const close = React.useRef(() => undefined);
+    React.useEffect(() => {
+        function closeOnEscape(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                close.current();
+            }
+        }
+        window.addEventListener("keydown", closeOnEscape);
+        return () => {
+            window.removeEventListener("keydown", closeOnEscape);
+        }
+    }, [])
+
     return <ClickableDropdown
         width="230px"
         paddingControlledByContent
@@ -619,14 +629,12 @@ function SecondarySidebar({
         <header>
             <h1>{active}</h1>
 
-            <Relative top="-19px" right="14px" height={0} width={0}>
-                <Absolute>
-                    <Flex alignItems="center" backgroundColor="white" height="38px" width={"30px"}
-                        justifyContent={"center"} borderRadius="12px 0 0 12px"
-                        onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
-                        <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
-                    </Flex>
-                </Absolute>
+            <Relative left="calc(var(--secondarySidebarWidth) - 47px">
+                <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white" height="38px" width={"30px"}
+                    justifyContent={"center"} borderRadius="12px 0 0 12px"
+                    onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
+                    <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
+                </Flex>
             </Relative>
         </header>
 

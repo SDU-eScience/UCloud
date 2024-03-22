@@ -48,7 +48,9 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    usePage("Public links", SidebarTabId.RESOURCES);
+    if (!opts?.embedded && !opts?.isModal) {
+        usePage("Public links", SidebarTabId.RESOURCES);
+    }
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 
@@ -66,8 +68,8 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                 ]);
 
                 let startCreation: () => void = doNothing;
-                const ingressBeingCreated = "collectionBeingCreated$$___$$";
-                const isCreatingPrefix = "creating-";
+                const ingressBeingCreated = "$$collectionBeingCreated$$___$$";
+                const isCreatingPrefix = "$$creating-";
                 const dummyEntry = {
                     createdAt: timestampUnixMs(),
                     status: {createdAt: 0, boundTo: [], state: "PREPARING"},
@@ -153,6 +155,13 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
+                        if (opts?.selection) {
+                            if (opts.selection.show(resource) === true) {
+                                opts.selection.onClick(resource);
+                            }
+                            return;
+                        }
+
                         navigate(AppRoutes.resource.properties("public-links", resource.id));
                         return;
                     }
@@ -228,38 +237,33 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     const inputField = browser.renameField;
                     const parent = inputField?.parentElement;
                     if (!parent || parent.hidden) return;
-                    const prefix = browser.root.querySelector(".PREFIX");
-                    const postfix = browser.root.querySelector(".POSTFIX");
                     {
                         if (inputField?.style.display !== "none") {
-                            if (!prefix) {
-                                const newPrefix = createHTMLElements({
-                                    tagType: "span",
-                                    className: "PREFIX",
-                                    innerText: browser.renamePrefix,
-                                    style: {
-                                        position: "absolute",
-                                        top: inputField.style.top,
-                                        left: 10 + "px"
-                                    }
-                                });
-                                parent.prepend(newPrefix);
-                                const prefixRect = newPrefix.getBoundingClientRect();
-                                inputField.style.left = (prefixRect.right - 80) + "px";
-                            }
-                            if (!postfix) {
-                                const newPostfix = createHTMLElements({
-                                    tagType: "span",
-                                    className: "POSTFIX",
-                                    style: {
-                                        position: "absolute",
-                                        top: inputField.style.top,
-                                        left: inputField.getBoundingClientRect().right - 80 + "px"
-                                    }
-                                })
-                                newPostfix.innerText = browser.renameSuffix;
-                                parent.prepend(newPostfix);
-                            }
+                            const newPrefix = createHTMLElements({
+                                tagType: "span",
+                                className: "PREFIX",
+                                innerText: browser.renamePrefix,
+                                style: {
+                                    position: "absolute",
+                                    top: inputField.style.top,
+                                    left: "10px"
+                                }
+                            });
+                            parent.prepend(newPrefix);
+
+                            const prefixRect = newPrefix.getBoundingClientRect();
+                            inputField.style.left = prefixRect.width + 10 + "px";
+                            const newPostfix = createHTMLElements({
+                                tagType: "span",
+                                className: "POSTFIX",
+                                style: {
+                                    position: "absolute",
+                                    top: inputField.style.top,
+                                    left: prefixRect.width + inputField.getBoundingClientRect().width + 10 + "px"
+                                }
+                            })
+                            newPostfix.innerText = browser.renameSuffix;
+                            parent.prepend(newPostfix);
                         }
                     }
                 });
@@ -279,7 +283,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                         row.stat3.innerText = boundTo;
                     }
 
-                    if (opts?.selection) {
+                    if (opts?.selection && link.id !== ingressBeingCreated) {
                         const button = browser.defaultButtonRenderer(opts.selection, link);
                         if (button) {
                             row.stat3.replaceChildren(button);

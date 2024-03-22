@@ -92,7 +92,7 @@ function Scripts(): React.ReactNode {
                 browser.on("unhandledShortcut", listener => void 0);
 
                 browser.on("renderRow", (script, row, dim) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(false);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "play",

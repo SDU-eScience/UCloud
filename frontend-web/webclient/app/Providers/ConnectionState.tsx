@@ -48,7 +48,7 @@ class ConnectionState extends UState<ConnectionState> {
                             isPinned: true,
                             uniqueId: `${p.providerTitle}-${this.lastConnectionAt.retrieve() ?? 0}`,
                             onAction: () => {
-                                document.location.href = "/app/providers/connect"; // TODO
+                                document.location.href = "/app/providers/connect"; // TODO(???)
                             }
                         });
                     }

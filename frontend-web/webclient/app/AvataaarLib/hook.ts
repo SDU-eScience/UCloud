@@ -42,7 +42,7 @@ class AvatarState extends UState<AvatarState> {
     }
 }
 
-export const avatarState = new AvatarState();
+export const avatarState = new AvatarState(2); // Two, otherwise we can't fetch by invites and projectmembers in the Members.tsx file. Maybe higher needed at some point?
 
 export function useAvatars(): AvatarState {
     return useUState(avatarState);

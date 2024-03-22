@@ -305,7 +305,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browser.on("renderRow", (drive, row, dims) => {
                     if (drive.specification.product.provider) {
                         if (isShare(drive)) {
-                            const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                            const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                             row.title.append(icon);
                             browser.icons.renderIcon({
                                 name: "ftSharesFolder",

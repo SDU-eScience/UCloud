@@ -66,7 +66,7 @@ export interface ResourceBrowserOpts<T> {
     isModal?: boolean;
     selection?: {
         onClick(res: T): void;
-        show?(res: T): boolean | string;
+        show(res: T): boolean | string;
         text: string;
     }
 }
@@ -411,8 +411,7 @@ export class ResourceBrowser<T> {
     private overrideDisabledKeyhandlers = false;
     private allowEventListenerAction(): boolean {
         if (this.overrideDisabledKeyhandlers) return true;
-        if (ResourceBrowser.isAnyModalOpen) return false;
-        if (this.isModal) return false;
+        if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
         if (this.opts.embedded) return false;
         return true;
     }
@@ -442,6 +441,15 @@ export class ResourceBrowser<T> {
         }
     };
 
+    private clearSelected() {
+        const selected = this.isSelected;
+        for (let i = 0; i < selected.length; i++) {
+            selected[i] = 0;
+        }
+        this.renderRows();
+        this.renderOperations();
+    }
+
     public init(
         ref: React.MutableRefObject<ResourceBrowser<T> | null>,
         features: ResourceBrowseFeatures,
@@ -469,7 +477,7 @@ export class ResourceBrowser<T> {
                         <input class="location-bar">
                     </div>
                     <div style="flex-grow: 1;"></div>
-                    <input class="${InputClass} search-field" hidden>
+                    <input class="${InputClass} search-field" data-hidden>
                     <img alt="search" class="search-icon">
                     <img alt="refresh" class="refresh-icon">
                 </div>
@@ -482,7 +490,7 @@ export class ResourceBrowser<T> {
             </header>
             
             <div class="row rows-title">
-                <div class="favorite" style="width: 20px;"></div>
+                <div class="favorite" style="width: 28px;"></div>
                 <div class="title"></div>
                 <div class="stat-wrapper">
                     <div class="stat1"></div>
@@ -595,8 +603,8 @@ export class ResourceBrowser<T> {
 
             searchIcon.onclick = () => {
                 if (!input) return;
-                input.toggleAttribute("hidden");
-                if (input.hasAttribute("hidden")) {
+                input.toggleAttribute("data-hidden");
+                if (input.hasAttribute("data-hidden")) {
                     this.dispatchMessage("searchHidden", fn => fn());
                 } else {
                     input.focus()
@@ -745,6 +753,9 @@ export class ResourceBrowser<T> {
 
             const parent = this.scrolling.parentElement!;
             const rect = parent.getBoundingClientRect();
+
+            this.root.style.setProperty("--rowWidth", rect.width + "px");
+
             this.scrollingContainerWidth = rect.width;
             this.scrollingContainerHeight = rect.height;
             this.scrollingContainerTop = rect.top;
@@ -939,7 +950,6 @@ export class ResourceBrowser<T> {
         }
 
         const containerWidth = this.scrollingContainerWidth;
-        const approximateSizeForTitle = containerWidth * (ResourceBrowser.rowTitleSizePercentage / 100);
 
         // Determine the total size of the page and figure out where we are
         const totalSize = ResourceBrowser.rowSize * page.length;
@@ -991,8 +1001,11 @@ export class ResourceBrowser<T> {
 
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
-                this.renameField.style.top = `${relativeY + ((ResourceBrowser.rowSize - 30) / 2)}px`;
-                this.renameField.style.width = "400px"; // TODO(Jonas): Find ACTUAL width to use.
+                // Note(Jonas): For future reference:
+                // i * ResourceBrowser = top of active row.
+                // + ResourceBrowser.rowSize / 2 = middle of active row
+                // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
+                this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
@@ -1062,7 +1075,9 @@ export class ResourceBrowser<T> {
             className: TruncateClass,
             style: {
                 userSelect: "none",
-                webkitUserSelect: "none" // This is deprecated, but this is the only one accepted in Safari.
+                webkitUserSelect: "none", // This is deprecated, but this is the only one accepted in Safari.
+                marginTop: "auto",
+                marginBottom: "auto",
             },
             children: [{
                 tagType: "span",
@@ -1092,7 +1107,7 @@ export class ResourceBrowser<T> {
 
     static lastClickCache: Record<string, number> = {};
 
-    static defaultIconRenderer(embedded: boolean): [HTMLDivElement, (url: string) => void] {
+    static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
         // image itself, which breaks the drag-and-drop functionality.
         const icon = createHTMLElements<HTMLDivElement>({
@@ -1289,6 +1304,7 @@ export class ResourceBrowser<T> {
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("div");
                     shortcutElem.className = ShortcutClass;
+                    shortcutElem.style.marginLeft = "auto";
                     shortcutElem.append(shortcut);
                     element.append(shortcutElem);
                 }
@@ -1645,6 +1661,11 @@ export class ResourceBrowser<T> {
             const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
+
+            if (op.text === "" && op.icon === "keyboardSolid") { // Note(Jonas): Edge case: Keyboard shortcuts button. 
+                element.style.width = "35px";
+            }
+
             const isConfirmButton = isOperation(op) && op.confirm;
             if (!isConfirmButton) {
                 element.classList.add(ButtonClass);
@@ -2009,17 +2030,17 @@ export class ResourceBrowser<T> {
             entryIdx = idxString ? parseInt(idxString) : NaN;
             if (isNaN(entryIdx)) return;
 
-            const range = document.createRange();
-            if (row.title.lastChild) range.selectNode(row.title.lastChild);
-            const textRect = range.getBoundingClientRect();
-            rowRect = row.container.getBoundingClientRect();
-            range.detach();
+            let textElement = row.title;
+            while (textElement.hasChildNodes()) {
+                const child = textElement.children.item(textElement.children.length - 1) as HTMLElement;
+                if (child) textElement = child;
+                else break;
+            }
+            rowRect = textElement.getBoundingClientRect();
 
             // NOTE(Dan): We are purposefully only checking if x <= end of text.
-            // NOTE(Dan): We are adding 30px to increase the hit-box slightly
-            shouldDragAndDrop = event.clientX <= textRect.x + textRect.width + 30;
-            // NOTE(Jonas): This is the case that ensure that the user drags the text and not the rest of the truncate-tag.
-            shouldDragAndDrop = (event.target as HTMLElement).children.length === 0;
+            // NOTE(Dan): We are adding 20px to increase the hit-box slightly
+            shouldDragAndDrop = startX <= (rowRect.x + rowRect.width + 20);
         }
 
         if (shouldDragAndDrop) {
@@ -2209,6 +2230,8 @@ export class ResourceBrowser<T> {
                 );
                 const baseFileIdx = parseInt(this.rows[0].container.getAttribute("data-idx")!);
 
+                const oldSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0);
+
                 for (let i = 0; i < this.rows.length; i++) {
                     if (i >= lowerOffset && i <= upperOffset) {
                         this.isSelected[i + baseFileIdx] = 1;
@@ -2218,8 +2241,12 @@ export class ResourceBrowser<T> {
                         if (initialScrollTop === scrollStart) this.isSelected[i + baseFileIdx] = 0;
                     }
                 }
-                this.renderRows();
-                this.renderOperations();
+
+                const newSelectedCount = this.isSelected.reduce((acc, entry) => acc + entry, 0)
+                if (oldSelectedCount !== newSelectedCount) {
+                    this.renderRows();
+                    this.renderOperations();
+                }
             };
 
             const dragReleaseHandler = ev => {
@@ -2510,12 +2537,7 @@ export class ResourceBrowser<T> {
                     if (this.contextMenuHandlers.length) {
                         this.closeContextMenu();
                     } else {
-                        const selected = this.isSelected;
-                        for (let i = 0; i < selected.length; i++) {
-                            selected[i] = 0;
-                        }
-                        this.renderRows();
-                        this.renderOperations();
+                        this.clearSelected();
                         this.searchQuery = "";
                     }
                     break;
@@ -3004,6 +3026,7 @@ export class ResourceBrowser<T> {
             }
 
             .header-first-row .search-icon[data-shown] {
+                z-index: 1;
                 width: 24px;
                 height: 24px;
             }
@@ -3013,9 +3036,14 @@ export class ResourceBrowser<T> {
                 margin: 0;
                 display: flex;
                 flex-direction: row;
+                gap: 8px;
                 height: 35px;
                 white-space: pre;
                 align-items: center;
+            }
+            
+            ${browserClass.dot} header[data-no-gap] ul {
+                gap: 0;
             }
 
             ${browserClass.dot} > div {
@@ -3049,7 +3077,7 @@ export class ResourceBrowser<T> {
                 height: 35px;
                 font-feature-settings: unset;
             }
-            
+
             ${browserClass.dot} header[has-location-bar] .location:hover {
                 border: 1px solid var(--borderColorHover);
             }
@@ -3072,6 +3100,7 @@ export class ResourceBrowser<T> {
                 width: 100%;
                 cursor: text;
                 height: 35px;
+                transition: margin-right 0.2s;
             }
             
             ${browserClass.dot} header[has-location-bar] .location input {
@@ -3082,6 +3111,32 @@ export class ResourceBrowser<T> {
                 margin-left: 5px;
                 background: transparent;
                 color: var(--textPrimary);
+            }
+
+            ${browserClass.dot} header input.search-field {
+                position: relative;
+                right: -46px;
+                width: 200px;
+                height: 35px;
+                margin-left: 5px;
+                transition: transform .2s;
+            }
+
+            ${browserClass.dot} header input.search-field[data-hidden] {
+                transform: translate(calc(200px / 2), 0) scale(0, 1)
+            }
+
+            /* Note(Jonas): If showing search-field, resize navbar */
+            ${browserClass.dot}:has(header input.search-field[data-hidden]) .header-first-row .location {
+                margin-right: -212px;
+            }
+
+            ${browserClass.dot}:has(header input.search-field:not([data-hidden])) .header-first-row .location {
+                margin-right: -42px;
+            }
+            
+            ${browserClass.dot} header input.search-field:not([data-hidden]) {
+                transform: translate(0, 0) scale(1);
             }
             
             ${browserClass.dot} header > div > div > ul {
@@ -3104,6 +3159,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header div ul li {
                 list-style: none;
                 margin: 0;
+                margin-bottom: 1px;
                 padding: 0;
                 cursor: pointer;
                 font-size: 120%;
@@ -3149,17 +3205,14 @@ export class ResourceBrowser<T> {
                 align-items: center;
 
                 white-space: pre;
-                                                                                                             /* v favoriteIcon-width */
-                width: calc(100% - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 8px);
-                                                                                            /*  ^ icon + icon margin */                    
+                                                                                                                        /* v favoriteIcon-width */
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 8px);
             }
             
             @media screen and (max-width: 860px) {
                 ${browserClass.dot} .row .title {
-                    width: calc(100% - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
+                    width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
                 }
-                
-                /* TODO(Jonas): Handle if Use button is present */
             }
             
 
@@ -3190,6 +3243,8 @@ export class ResourceBrowser<T> {
                 ${browserClass.dot} .row .stat2 {
                     display: flex;
                     justify-content: center;
+                    margin-top: auto;
+                    margin-bottom: auto;
                     text-align: center;
                 }
 
@@ -3314,14 +3369,20 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .rename-field {
                 display: none;
                 position: absolute;
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 92px);
                 background-color: var(--backgroundDefault);
                 border-radius: 5px;
                 border: 1px solid var(--borderColor);
                 outline: 0;
                 color: var(--textPrimary);
                 z-index: 1;
-                top: 0;
                 left: 12px;
+            }
+
+            @media screen and (max-width: 860px) {
+                ${browserClass.dot} .rename-field {
+                    width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 118px);
+                }
             }
 
             ${browserClass.dot} .page-empty {
@@ -3574,11 +3635,11 @@ export class ResourceBrowser<T> {
 
     public setColumns(titles: ColumnTitleList) {
         this.opts.columnTitles = titles;
-        
+
         this.root.style.setProperty("--stat1Width", titles[1].columnWidth + "px");
         this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");
         this.root.style.setProperty("--stat3Width", titles[3].columnWidth + "px");
-        
+
         this.renderColumnTitles();
     }
 
@@ -3658,7 +3719,7 @@ export class ResourceBrowser<T> {
         }
         if (this.browseFilters["sortBy"] === filter) {
             wrapper.style.fontWeight = "bold";
-            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer(true);
+            const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
             this.icons.renderIcon({
                 name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
                 color: "textPrimary",
@@ -3720,6 +3781,7 @@ export function resourceCreationWithProductSelector<T>(
     const productSelector = document.createElement("div");
     productSelector.style.display = "none";
     productSelector.style.position = "fixed";
+    productSelector.style.zIndex = "100"; // Note(Jonas): Otherwise it won't show in modals.
     document.body.append(productSelector);
     const Component: React.FunctionComponent = () => {
         return <ProductSelector
@@ -4005,12 +4067,12 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
-export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, unknown> & any {
+export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, {isModal?: boolean}> & {hackNotInTheContextMenu: true} {
     return {
         text: "",
         icon: "keyboardSolid",
         onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, () => {}),
-        enabled: () => true,
+        enabled: (selected, cb) => !cb.isModal,
         shortcut: ShortcutKey.Z,
         hackNotInTheContextMenu: true
     };

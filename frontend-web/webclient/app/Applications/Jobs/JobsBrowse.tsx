@@ -34,8 +34,8 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const rowTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 150}, {name: "State", columnWidth: 75}];
-const simpleViewRowTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 150}, {name: "State", columnWidth: 28}];
+const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 150}, {name: "State", columnWidth: 75}];
+const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "State", columnWidth: 28}];
 
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
@@ -70,8 +70,14 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
             new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
-                
-                browser.setColumns(simpleView ? simpleViewRowTitles : rowTitles);
+
+                if (opts?.selection) {
+                    const withUseRowTitles: ColumnTitleList = JSON.parse(JSON.stringify(simpleViewColumnTitles));
+                    withUseRowTitles[3].columnWidth = 100;
+                    browser.setColumns(withUseRowTitles)
+                } else {
+                    browser.setColumns(simpleView ? simpleViewColumnTitles : columnTitles);
+                }
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -138,7 +144,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 }]);
 
                 browser.on("renderRow", (job, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
                     icon.style.minHeight = "20px"
                     row.title.append(icon);
@@ -178,7 +184,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             row.stat3.replaceChildren(button);
                         }
                     } else {
-                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                         const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
                         browser.icons.renderIcon({
                             name: statusIconName,

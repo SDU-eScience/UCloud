@@ -68,7 +68,7 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
     </>;
 };
 
-export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}) {
+export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}): HTMLElement {
     const portal = getPortal();
 
     const width = opts?.tooltipContentWidth ?? 200;
@@ -99,6 +99,8 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
 
     trigger.onmouseover = onHover;
     trigger.onmouseleave = tooltip.onmouseleave = onLeave;
+
+    return trigger;
 }
 
 export function TooltipV2(props: {

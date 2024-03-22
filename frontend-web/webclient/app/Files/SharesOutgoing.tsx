@@ -379,7 +379,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             });
                         }
                     } else {
-                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
 
                         row.title.append(icon);
                         // TODO(Jonas): For some reason, the arrow is not rendered.
@@ -477,7 +477,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         }
                         row.stat2.replaceChildren(button);
                     } else {
-                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         stateIcon.style.marginRight = "4px";
                         row.stat2.appendChild(stateIcon);

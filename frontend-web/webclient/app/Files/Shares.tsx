@@ -430,7 +430,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "ftSharesFolder",
@@ -482,6 +482,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 await callAPI(SharesApi.approve(bulkRequestOf({id: share.id})));
                                 browser.refresh();
                             },
+                            show(res) {
+                                return true;
+                            },
                             text: "Accept"
                         }, share, {color: "successMain", width: "72px"})!);
                         group.appendChild(browser.defaultButtonRenderer({
@@ -489,11 +492,14 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
                                 browser.refresh();
                             },
+                            show(res) {
+                                return true;
+                            },
                             text: "Decline"
                         }, share, {color: "errorMain", width: "72px"})!);
                     } else {
                         const {state} = share.status;
-                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         wrapper.appendChild(stateIcon);
                         browser.icons.renderIcon({

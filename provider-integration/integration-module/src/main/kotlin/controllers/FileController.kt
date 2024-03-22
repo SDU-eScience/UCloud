@@ -480,11 +480,8 @@ class FileController(
 
                 with(requestContext(controllerContext)) {
                     with(plugin) {
-                        val protocol = if (uploadRequest.supportedProtocols.contains(UploadProtocol.WEBSOCKET)) {
-                            UploadProtocol.WEBSOCKET
-                        } else {
-                            UploadProtocol.CHUNKED
-                        }
+                        val protocol = supportedUploadProtocols.find { uploadRequest.supportedProtocols.contains(it) }
+                            ?: throw RPCException("Upload protocol not supported", HttpStatusCode.BadRequest)
 
                         val isFolder = uploadRequest.type == UploadType.FOLDER
 

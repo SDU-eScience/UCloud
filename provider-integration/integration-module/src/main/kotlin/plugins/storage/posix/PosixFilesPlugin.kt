@@ -60,6 +60,7 @@ class PosixFilesPlugin : FilePlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<ProductV2> = emptyList()
+    override var supportedUploadProtocols = listOf(UploadProtocol.CHUNKED)
     private lateinit var pathConverter: PathConverter
     private lateinit var taskSystem: PosixTaskSystem
 

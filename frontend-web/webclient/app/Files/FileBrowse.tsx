@@ -47,7 +47,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -549,23 +549,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                 browser.on("fetchOperations", () => {
                     function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
-                        const uploadOp = ops.find(it => it.icon === "upload");
-                        const folderOp = ops.find(it => it.icon === "uploadFolder");
                         const result: OperationOrGroup<UFile, R>[] = [];
-                        if (uploadOp && folderOp) {
-                            result.push({
-                                color: "primaryMain",
-                                icon: "heroPlus",
-                                text: "Create...",
-                                operations: [uploadOp, folderOp],
-                                shortcut: ShortcutKey.N
-                            });
-                        }
                         let i = 0;
                         for (; i < ops.length && result.length < 4; i++) {
                             const op = ops[i];
-                            if (op === uploadOp) continue;
-                            if (op === folderOp && opts?.isModal != true && opts?.embedded != true) continue;
                             result.push(op);
                         }
 
@@ -589,9 +576,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    const enabledOperations = [
+                        controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]),
+                        ...FilesApi.retrieveOperations()
+                    ].filter(op => op.enabled(selected, callbacks, selected));
                     const ops = groupOperations(enabledOperations);
-                    if (!opts?.isModal) ops.unshift(controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]));
                     return ops;
                 });
 
@@ -731,7 +720,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("renderRow", (file, row, containerWidth) => {
                     row.container.setAttribute("data-file", file.id);
 
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
@@ -745,12 +734,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                                 height: "12px",
                                 width: "12px",
                                 padding: "4px",
-                                borderRadius: "8px"
+                                borderRadius: "8px",
+                                cursor: "pointer"
                             }
                         });
 
+                        HTMLTooltip(iconWrapper, div("Synchronized with Syncthing"), {tooltipContentWidth: 230})
+
                         icon.append(iconWrapper);
-                        const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
                         syncThingIcon.style.height = "8px";
                         syncThingIcon.style.width = "8px";
                         syncThingIcon.style.marginLeft = "-2px";
@@ -765,7 +757,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     if (isReadonly(file.permissions.myself)) {
                         row.title.appendChild(div(
-                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;"> (Read only)</div>`
+                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;margin-right: 12px;"> (Read-only)</div>`
                         ));
                     }
 
@@ -931,10 +923,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
+                            style: {cursor: "pointer"}
                         });
+                        providerIconWrapper.title = "Go to drives";
                         providerIconWrapper.style.marginRight = "6px";
-                        const url = browser.header.querySelector("div.header-first-row");
-                        if (url) url.prepend(providerIconWrapper);
+                        const navbar = browser.header.querySelector("div.header-first-row");
+                        if (navbar) navbar.prepend(providerIconWrapper);
+                        providerIconWrapper.onclick = () => {
+                            navigate(AppRoutes.files.drives());
+                        }
                         pIcon = providerIconWrapper;
                     }
 
@@ -942,7 +939,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                     if (pIcon) {
                         const icon = providerIcon(collection?.specification.product.provider ?? "", {
-                            fontSize: "22px", width: "30px", height: "30px"
+                            fontSize: "22px", width: "35px", height: "35px"
                         });
                         icon.style.marginRight = "8px";
                         pIcon.replaceChildren(icon);
@@ -956,7 +953,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             })).then(res => res.items)
                         ).then(doNothing);
                         if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
-                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
                             driveIcon.className = "drive-icon-dropdown";
                             driveIcon.style.cursor = "pointer";
                             const url = browser.header.querySelector("div.header-first-row");
@@ -1371,7 +1368,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
         const b = browserRef.current;
         if (b) {
-            b.renameField.style.left = "68px";
+            b.header.setAttribute("data-no-gap", "");
+            b.renameField.style.left = "74px";
         }
 
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
