@@ -56,7 +56,7 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
     suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession>
     suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel, lastChunk: Boolean)
-    suspend fun RequestContext.handleFolderUpload(session: String, pluginData: String, collection: SimpleCache<String, FileCollection>, file: FileListingEntry, offset: Long, chunk: ByteReadChannel, lastChunk: Boolean)
+    suspend fun RequestContext.handleFolderUpload(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, fileEntry: FileListingEntry, offset: Long, chunk: ByteReadChannel, lastChunk: Boolean)
     suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?>

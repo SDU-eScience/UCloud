@@ -76,9 +76,7 @@ class UploadDescriptors(
             val resolvedPartialPath = internalPartialFile.parent().path + newName
 
             val newDescriptor = UploadDescriptor(resolvedPartialPath, internalTargetFile.path, handle, Time.now(), true)
-            openDescriptors.add(
-                newDescriptor
-            )
+            openDescriptors.add(newDescriptor)
 
             return newDescriptor
         }

@@ -199,12 +199,16 @@ class UCloudFilePlugin : FilePlugin {
     override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
         return request.items.map {
             val ucloudFile = UCloudFile.create(it.id)
-            val descriptor = uploadDescriptors.get(ucloudFile.path, truncate = true)
-            limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(InternalFile(descriptor.targetPath)).drive.ucloudId.toString())
-            val targetUCloudPath = pathConverter.internalToUCloud(InternalFile(descriptor.targetPath))
+            val targetPath = if (it.type == UploadType.FILE) {
+                val descriptor = uploadDescriptors.get(ucloudFile.path, truncate = true)
+                limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(InternalFile(descriptor.targetPath)).drive.ucloudId.toString())
+                pathConverter.internalToUCloud(InternalFile(descriptor.targetPath)).path
+            } else {
+                it.id
+            }
 
             val pluginData = defaultMapper.encodeToJsonElement(
-                FileUploadSessionPluginData(targetUCloudPath.path, it.type, it.conflictPolicy)
+                FileUploadSessionPluginData(targetPath, it.type, it.conflictPolicy)
             ).toString()
 
             FileUploadSession(secureToken(32), pluginData)
@@ -240,7 +244,8 @@ class UCloudFilePlugin : FilePlugin {
     ) {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
 
-        val collection = fileCollections.get(sessionData.target.split("/")[1])
+        val collection = fileCollections.get(sessionData.target.split("/")[1]) ?:
+            throw RPCException("Unable to resolve file collection", HttpStatusCode.BadRequest)
 
         // Create folders
         val folders = fileEntry.path.split("/").dropLast(1)
@@ -248,27 +253,37 @@ class UCloudFilePlugin : FilePlugin {
 
         var i = 0
         while (i < folders.size) {
-            allFolders.add(folders.subList(0, i).joinToString("/"))
+            allFolders.add(folders.subList(0, i+1).joinToString("/"))
             i++
         }
 
-        println("allFolders: $allFolders")
-        /*forEach { folder ->
-            createFolder(bulkRequestOf(
-                FilesProviderCreateFolderRequestItem(collection, , WriteConflictPolicy.REJECT)
-            ))
-        }*/
+
+        allFolders.forEach { folder ->
+            try {
+                createFolder(
+                    bulkRequestOf(
+                        FilesProviderCreateFolderRequestItem(
+                            collection,
+                            sessionData.target + "/" + folder,
+                            WriteConflictPolicy.REJECT
+                        )
+                    )
+                )
+            } catch (e: RPCException) {
+                // Ignore: Folder already exists
+            }
+        }
 
         val targetPath = sessionData.target + "/" + fileEntry.path
 
-        //uploads.receiveChunk(UCloudFile.create(targetPath), offset, chunk, sessionData.conflictPolicy, lastChunk)
+        uploads.receiveChunk(UCloudFile.create(targetPath), offset, chunk, WriteConflictPolicy.REPLACE, lastChunk)
 
-        /*if (lastChunk) {
+        if (lastChunk) {
             ipcClient.sendRequest(
                 FilesUploadIpc.delete,
                 FindByStringId(session)
             )
-        }*/
+        }
     }
 
     override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> {

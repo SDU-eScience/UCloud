@@ -498,7 +498,7 @@ class FileController(
                                     FilesProviderCreateFolderRequestItem(
                                         uploadRequest.resolvedCollection,
                                         uploadRequest.id,
-                                        uploadRequest.conflictPolicy
+                                        WriteConflictPolicy.REPLACE
                                     )
                                 )
                             )
@@ -738,24 +738,22 @@ class FileController(
                             } ?: emptyMap()
                             println(listing)
                         } else {
+                            println(frame.data.size)
+                            val frameType = byteArrayOf(frame.data[0]).getUInt8()
+                            val fileId = frame.data.slice(1..4).toByteArray().getUInt32()
+                            val data = frame.data.slice(5..<frame.data.size).toByteArray()
+
                             if (!frame.buffer.isDirect) {
                                 DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
-
-                                    val frameType = byteArrayOf(frame.data[0]).getUInt8()
-                                    println("type is ${frameType}")
-
-                                    val fileId = frame.data.slice(1..4).toByteArray().getUInt32()
-                                    println("fileId is $fileId")
-
                                     val fileEntry: FileListingEntry = listing[fileId] ?:
                                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
                                     try {
                                         var offset = 0
-                                        while (offset < frame.data.size) {
+                                        while (offset < data.size) {
                                             if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
-                                            val count = min(frame.data.size - offset, nativeBuffer.remaining())
-                                            nativeBuffer.put(frame.data, offset, count)
+                                            val count = min(data.size - offset, nativeBuffer.remaining())
+                                            nativeBuffer.put(data, offset, count)
                                             nativeBuffer.flip()
                                             offset += count
                                             val channel = ByteReadChannel(nativeBuffer)
@@ -784,14 +782,14 @@ class FileController(
                                         token,
                                         handler.pluginData,
                                         fileOffset,
-                                        ByteReadChannel(frame.data),
-                                        fileOffset + frame.data.size >= totalSize
+                                        ByteReadChannel(data),
+                                        fileOffset + data.size >= totalSize
                                     )
                                 }
 
-                                fileOffset += frame.data.size
+                                fileOffset += data.size
                             }
-                            println("Received something else: ${frame.data.size}")
+                            println("Received something else: ${data.size}")
 
                             //send("$fileOffset")
                         }
