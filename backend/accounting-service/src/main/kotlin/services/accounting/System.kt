@@ -531,7 +531,7 @@ class AccountingSystem(
                 earliestExpiration = Long.MAX_VALUE,
                 allocationSet = HashMap(),
                 isDirty = true
-            ).also { allocationGroups[id] = it }
+            ).also { allocationGroups[groupId] = it }
         }
         allocationGroup.isDirty = true
 
