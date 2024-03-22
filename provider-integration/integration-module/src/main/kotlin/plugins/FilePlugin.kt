@@ -49,6 +49,8 @@ data class FileDownloadSession(val session: String, val pluginData: String)
 data class FileUploadSession(val session: String, val pluginData: String)
 
 interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigSchema.Plugins.Files> {
+    var supportedUploadProtocols: List<UploadProtocol>
+
     suspend fun RequestContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile>
     suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile
     suspend fun RequestContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession>
@@ -75,6 +77,7 @@ abstract class EmptyFilePlugin : FilePlugin {
     override var pluginName = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<ProductV2> = emptyList()
+    override var supportedUploadProtocols: List<UploadProtocol> = emptyList()
 
     override suspend fun RequestContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile = throw RPCException("Not supported", HttpStatusCode.BadRequest)
