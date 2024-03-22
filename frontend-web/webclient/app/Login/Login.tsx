@@ -448,6 +448,10 @@ const LoginInputClass = injectStyle("login-input", k => `
         background-color: white;
         color: black;
     }
+    
+    ${k}::placeholder {
+        color: gray;
+    }
 
     ${k}:focus {
         background-color: white;
