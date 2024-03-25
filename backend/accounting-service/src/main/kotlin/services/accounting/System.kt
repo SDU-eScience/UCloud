@@ -498,7 +498,8 @@ class AccountingSystem(
         }
 
         return Response.ok(
-            insertAllocation(now, internalChild, internalParentWallet.id, request.quota, request.start, request.end, null)
+            insertAllocation(now, internalChild, internalParentWallet.id, request.quota, request.start, request.end,
+                request.grantedIn)
         )
     }
 

@@ -89,7 +89,7 @@ const resource = {
 }
 
 const grants = {
-    editor: (id?: string) => buildQueryString("/grants", {id}),
+    editor: (id?: string | number) => buildQueryString("/grants", {id}),
     ingoing: () => "/grants/ingoing",
     outgoing: () => "/grants/outgoing",
     grantGiverInitiatedEditor: (opts: {

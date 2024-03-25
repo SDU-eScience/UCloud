@@ -1496,6 +1496,7 @@ class GrantsV2Service(
                                     req.period.start ?: Time.now(),
                                     req.period.end ?: Time.now(),
                                     ownerOverride = req.grantGiver,
+                                    grantedIn = application.id.toLongOrNull(),
                                 )
                             )
                         }

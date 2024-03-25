@@ -243,6 +243,20 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     walletsByOwner[owner] = walletArrayList
                 }
 
+            val scopedUsageRows = session.sendPreparedStatement(
+                {},
+                """
+                    select key, usage
+                    from accounting.scoped_usage
+                """
+            ).rows.associate { row ->
+                val key = row.getString(0)!!
+                val usage = row.getLong(1)!!
+
+                key to usage
+            }
+            scopedUsage.putAll(scopedUsageRows)
+
             // Handle IDs so ID counter is ready to new inserts
             val idRow = session.sendPreparedStatement(
                 {},
@@ -536,6 +550,33 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 allocations[allocId]!!.isDirty = false
             }
 
+            val scopedKeys = ArrayList<String>()
+            val scopedValues = ArrayList<Long>()
+            for (key in scopedDirty.keys) {
+                val usage = scopedUsage[key] ?: continue
+                scopedKeys.add(key)
+                scopedValues.add(usage)
+            }
+
+            if (scopedKeys.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("keys", scopedKeys)
+                        setParameter("values", scopedValues)
+                    },
+                    """
+                        with data as (
+                            select
+                                unnest(:keys::text[]) as key,
+                                unnest(:values::int8[]) as value
+                        )
+                        insert into accounting.scoped_usage(key, usage)
+                        select key, value
+                        from data
+                        on conflict (key) do update set usage = excluded.usage
+                    """
+                )
+            }
 
             if (didLoadUnsynchronizedGrants.get()) {
                 session.sendPreparedStatement(

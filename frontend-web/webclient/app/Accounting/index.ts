@@ -542,7 +542,7 @@ export interface Allocation {
     startDate: number;
     endDate: number;
     quota: number;
-    granted?: number | null;
+    grantedIn?: number | null;
     retiredUsage?: number | null;
 }
 

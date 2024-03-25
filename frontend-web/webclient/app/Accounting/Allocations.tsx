@@ -68,7 +68,7 @@ interface State {
 
                 allocations: {
                     id: number;
-                    grantedIn?: string;
+                    grantedIn?: number;
                     quota: number;
                     note?: AllocationNote;
 
@@ -101,6 +101,7 @@ interface State {
                     quota: number;
                     note?: AllocationNote;
                     isEditing: boolean;
+                    grantedIn?: number;
 
                     start: number;
                     end: number;
@@ -535,7 +536,7 @@ function stateReducer(state: State, action: UIAction): State {
                         allocations: wallet.allocationGroups.flatMap(({group}) =>
                             group.allocations.map(alloc => ({
                                 id: alloc.id,
-                                grantedIn: alloc.granted?.toString() ?? undefined,
+                                grantedIn: alloc.grantedIn ?? undefined,
                                 note: allocationNote(alloc),
                                 quota: alloc.quota,
                                 start: alloc.startDate,
@@ -614,7 +615,8 @@ function stateReducer(state: State, action: UIAction): State {
                         note: allocationNote(alloc),
                         isEditing: false,
                         start: alloc.startDate,
-                        end: alloc.endDate
+                        end: alloc.endDate,
+                        grantedIn: alloc.grantedIn ?? undefined,
                     });
                 }
 
@@ -1599,13 +1601,6 @@ const Allocations: React.FunctionComponent = () => {
                                                         <code>{chunkedString(alloc.id.toString().padStart(6, "0"), 3, false).join(" ")}</code>
                                                     </div>
                                                 </Flex>
-                                                {alloc.grantedIn && <>
-                                                    <Link target={"_blank"}
-                                                          to={AppRoutes.grants.editor(alloc.grantedIn)}>
-                                                        View grant application{" "}
-                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                                    </Link>
-                                                </>}
 
                                                 <Flex width={"250px"}>
                                                     Period:
@@ -1614,6 +1609,14 @@ const Allocations: React.FunctionComponent = () => {
                                                     {" "}&mdash;{" "}
                                                     {dateToStringNoTime(alloc.end)}
                                                 </Flex>
+
+                                                {alloc.grantedIn && <>
+                                                    <Link target={"_blank"}
+                                                          to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                        View grant application{" "}
+                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                    </Link>
+                                                </>}
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
                                             {alloc.note && <>
@@ -1747,6 +1750,14 @@ const Allocations: React.FunctionComponent = () => {
                                                         {" "}&mdash;{" "}
                                                         {dateToStringNoTime(alloc.end)}
                                                     </Flex>
+
+                                                    {alloc.grantedIn && <>
+                                                        <Link target={"_blank"}
+                                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                            View grant application{" "}
+                                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                        </Link>
+                                                    </>}
                                                 </Flex>}
                                                 right={<Flex flexDirection={"row"} gap={"8px"}>
                                                     {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
