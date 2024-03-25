@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
+import dk.sdu.cloud.accounting.services.accounting.didLoadUnsynchronizedGrants
 import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
@@ -72,6 +73,7 @@ class GrantsV2Service(
         data object Withdraw : Command()
         data class PostComment(val comment: String) : Command()
         data class DeleteComment(val commentId: String) : Command()
+        data object Synchronize : Command()
     }
 
     // On the other hand, an `Action` describes a side effect. Side effects are created as a result of a `Command`. Each
@@ -87,6 +89,47 @@ class GrantsV2Service(
         data class UpdateOverallState(val overallState: GrantApplication.State) : Action()
         data object GrantResources : Action()
     }
+
+    // Initialization
+    // =================================================================================================================
+    // Initialization is triggered by the server component once the AccountingSystem is operational. This code will
+    // ensure that any grants which were not successfully synchronized are synchronized now.
+    suspend fun init() {
+        val notYetSynchronized = db.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    select id, pm.username, pm.project_id
+                    from
+                        "grant".applications
+                        join "grant".grant_giver_approvals gga on applications.id = gga.application_id
+                        join project.project_members pm on
+                            gga.project_id = pm.project_id
+                            and pm.role = 'PI'
+                    where
+                        synchronized = false
+                        and overall_state = 'APPROVED'
+                """
+            ).rows.associate {
+                // NOTE(Dan): This will implicitly keep a single PI of a grant giver. This is only needed to find
+                // any actor which will pass the permission check for the retrieve call.
+
+                val id = it.getLong(0)!!
+                val username = it.getString(1)!!
+                val projectId = it.getString(2)!!
+                id to ActorAndProject(Actor.SystemOnBehalfOfUser(username), projectId)
+            }
+        }
+
+        for ((id, actorAndProject) in notYetSynchronized) {
+            modify(actorAndProject, id.toString()) {
+                runCommand(Command.Synchronize)
+            }
+        }
+
+        didLoadUnsynchronizedGrants.set(true)
+    }
+
 
     // Modification API
     // =================================================================================================================
@@ -941,6 +984,10 @@ class GrantsV2Service(
         // When new functionality is required, then you should add it to the big when statement in this function.
         suspend fun runCommand(command: Command) {
             when (command) {
+                Command.Synchronize -> {
+                    actionQueue.add(Action.GrantResources)
+                }
+
                 is Command.PostComment -> {
                     val newComment = GrantApplication.Comment(
                         "unknown",

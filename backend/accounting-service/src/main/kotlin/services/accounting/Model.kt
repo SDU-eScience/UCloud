@@ -5,6 +5,9 @@ import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.WalletV2
 import dk.sdu.cloud.calls.client.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
+
+internal val didLoadUnsynchronizedGrants = AtomicBoolean(false)
 
 internal val ownersByReference = HashMap<String, InternalOwner>()
 internal val ownersById = HashMap<Int, InternalOwner>()

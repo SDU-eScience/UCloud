@@ -26,7 +26,6 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
     override suspend fun initialize() {
         val now = Time.now()
-        if (now < nextSynchronization) return
         db.withSession { session ->
             // Create walletOwners
             session.sendPreparedStatement(
@@ -103,7 +102,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
                 val group = allocationGroups[groupId]
                 if (group != null) {
-                    allocationGroups[groupId]!!.allocationSet[allocation.id] = !allocation.retired
+                    allocationGroups[groupId]!!.allocationSet[allocation.id] =
+                        allocation.isActive(now)
                 } else {
                     val newGroup = InternalAllocationGroup(
                         id = groupId,
@@ -115,7 +115,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         allocationSet = HashMap(),
                         isDirty = false
                     )
-                    newGroup.allocationSet[allocation.id] = !allocation.retired
+                    newGroup.allocationSet[allocation.id] = allocation.isActive(now)
                     allocationGroups[groupId] = newGroup
                 }
             }
@@ -278,9 +278,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     """
                 )
             }
-        }
 
-        nextSynchronization = now + 30_000
+        }
     }
 
     override suspend fun loadOldData(system: AccountingSystem) {
@@ -294,9 +293,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             //Charge Intermediate table
             val charges = session.sendPreparedStatement(
                 """
-                        select id, wallet_id, usage
-                        from accounting.intermediate_usage
-                    """
+                    select id, wallet_id, usage
+                    from accounting.intermediate_usage
+                """
             ).rows.map {
                 Charge(
                     id = it.getLong(0)!!,
@@ -319,6 +318,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
     }
 
     override suspend fun flushChanges() {
+        val now = Time.now()
+        if (now < nextSynchronization) return
+
         val providerToIdMap = HashMap<Pair<String, String>, Long>()
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -533,6 +535,20 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             dirtyAllocations.forEach { (allocId, _) ->
                 allocations[allocId]!!.isDirty = false
             }
+
+
+            if (didLoadUnsynchronizedGrants.get()) {
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        update "grant".applications
+                        set synchronized = true
+                        where overall_state = 'APPROVED'
+                    """
+                )
+            }
         }
+
+        nextSynchronization = now + 30_000
     }
 }
