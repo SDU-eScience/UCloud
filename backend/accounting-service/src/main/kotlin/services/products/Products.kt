@@ -2,6 +2,9 @@ package dk.sdu.cloud.accounting.services.products
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
+import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
+import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -11,12 +14,13 @@ import dk.sdu.cloud.provider.api.basicTranslationToAccountingUnit
 import dk.sdu.cloud.provider.api.translateToAccountingFrequency
 import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.encodeToString
 
 class ProductService(
     private val db: DBContext,
+    private val accountingSystem: AccountingSystem,
+    private val idCards: IdCardService,
 ) {
     suspend fun productV1toV2(product: Product): ProductV2 {
         val category = ProductCategory(
@@ -375,16 +379,26 @@ class ProductService(
                     limit $itemsPerPage;
                 """
             ).rows
+
+            val wallets = accountingSystem.sendRequest(
+                AccountingRequest.BrowseWallets(
+                    idCards.fetchIdCard(actorAndProject),
+                )
+            )
+
             val result = rows.mapNotNull {
                 val product = defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
                 val balance = if (request.includeBalance == true) {
-                    val owner = actorAndProject.project ?: actorAndProject.actor.safeUsername()
-                    0L // TODO!
+                    val wallet = wallets.find { it.paysFor.toId() == product.category.toId() }
+                    if (wallet == null) return@mapNotNull null
+
+                    wallet.maxUsable
                 } else {
                     null
                 }
                 return@mapNotNull Pair(product, balance)
             }
+
             val next = if (result.size < itemsPerPage) {
                 null
             } else buildString {

@@ -30,16 +30,12 @@ export const ReservationParameter: React.FunctionComponent<{
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
     const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
     const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
-    const allocations = !selectedMachine ?
-        [] :
-        wallets.data.items.find(it => productCategoryEquals(it.paysFor, selectedMachine.category))?.allocations ?? [];
-    const balance = allocations
-        .filter(it => Accounting.allocationIsValidNow(it))
-        .reduce((sum, alloc) => sum + (alloc.quota - (alloc.treeUsage ?? 0)), 0);
+    const wallet = selectedMachine ?
+        wallets.data.items.find(it => productCategoryEquals(it.paysFor, selectedMachine.category)) :
+        undefined;
 
-    const maxUsable = allocations
-        .filter(it => Accounting.allocationIsValidNow(it))
-        .reduce((sum, alloc) => sum + alloc.maxUsable, 0 );
+    const balance = wallet ? wallet.quota - wallet.totalUsage : 0;
+    const maxUsable = wallet ? wallet.maxUsable : 0;
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
@@ -48,7 +44,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallets(Accounting.browseWalletsV2({ itemsPerPage: 250 }));
+        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
         fetchProducts(UCloud.accounting.products.browse({
             filterUsable: true,
             filterProductType: "COMPUTE",
@@ -139,7 +135,7 @@ export const ReservationParameter: React.FunctionComponent<{
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
                 <Flex gap={"8px"} alignItems={"end"}>
                     <Label>
-                        Hours<MandatoryField />
+                        Hours<MandatoryField/>
                         <Input
                             id={reservationHours}
                             className={classConcat(JobCreateInput, "hours-kind")}
@@ -158,7 +154,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 : null}
         </Flex>
         {toolBackend === "VIRTUAL_MACHINE" ?
-            <input type={"hidden"} id={reservationHours} value={"1"} />
+            <input type={"hidden"} id={reservationHours} value={"1"}/>
             : null}
         {errors["timeAllocation"] ? <TextP color={"errorMain"}>{errors["timeAllocation"]}</TextP> : null}
 
@@ -167,7 +163,8 @@ export const ReservationParameter: React.FunctionComponent<{
                 <Flex pt={"20px"}>
                     <Label>
                         Number of nodes
-                        <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost} defaultValue={"1"} />
+                        <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost}
+                               defaultValue={"1"}/>
                     </Label>
                 </Flex>
                 {errors["replicas"] ? <TextP color={"errorMain"}>{errors["replicas"]}</TextP> : null}
@@ -175,8 +172,9 @@ export const ReservationParameter: React.FunctionComponent<{
         )}
 
         <div style={{paddingTop: "20px"}}>
-            <Label>Machine type <MandatoryField /></Label>
-            <Machines machines={allMachines} loading={machineSupport.loading} support={support} onMachineChange={setSelectedMachine} />
+            <Label>Machine type <MandatoryField/></Label>
+            <Machines machines={allMachines} loading={machineSupport.loading} support={support}
+                      onMachineChange={setSelectedMachine}/>
             {errors["product"] ? <TextP color={"errorMain"}>{errors["product"]}</TextP> : null}
         </div>
     </div>

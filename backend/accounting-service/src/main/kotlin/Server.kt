@@ -59,7 +59,7 @@ class Server(
             addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
         )
 
-        val productService = ProductService(db)
+        val productService = ProductService(db, accountingSystem, idCardService)
 
         val depositNotifications = DepositNotificationService(db)
 

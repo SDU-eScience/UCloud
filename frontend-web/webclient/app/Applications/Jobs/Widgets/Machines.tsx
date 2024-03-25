@@ -45,9 +45,9 @@ export function findRelevantMachinesForApplication(
         })
     );
 
-    var result: ProductV2Compute[] = [];
+    const result: ProductV2Compute[] = [];
 
-    for (var oldProduct of supportedProducts) {
+    for (const oldProduct of supportedProducts) {
         if (!oldProduct) continue;
         const newProduct = wallets.items.find(it =>
             `${it.category.provider}-${it.category.name}-${it.name}` === `${oldProduct.category.provider}-${oldProduct.category.name}-${oldProduct.name}`

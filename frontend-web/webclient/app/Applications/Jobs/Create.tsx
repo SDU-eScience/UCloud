@@ -40,7 +40,7 @@ import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/R
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
-import {accounting, BulkResponse, FindByStringId} from "@/UCloud";
+import {BulkResponse, FindByStringId} from "@/UCloud";
 import {ProductV2, balanceToString, priceToString} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
@@ -55,11 +55,10 @@ import {Resource} from "@/UCloud/ResourceApi";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {
-    ApplicationGroup, ApplicationParameter,
+    ApplicationParameter,
     ApplicationSummaryWithFavorite,
     ApplicationWithFavoriteAndTags
 } from "@/Applications/AppStoreApi";
-import wallets = accounting.wallets;
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
