@@ -128,7 +128,6 @@ interface State {
 
 interface AllocationNote {
     rowShouldBeGreyedOut: boolean;
-    hideIfZeroUsage?: boolean;
     icon: IconName;
     iconColor: ThemeColor;
     text: string;
@@ -430,7 +429,6 @@ function stateReducer(state: State, action: UIAction): State {
                     icon,
                     iconColor: colorInThePast,
                     text: `Already expired (${Accounting.utcDate(allocPeriod.end)})`,
-                    hideIfZeroUsage: true,
                 };
             }
 
@@ -1588,7 +1586,6 @@ const Allocations: React.FunctionComponent = () => {
                                 indent={indent * 2}
                             >
                                 {wallet.allocations
-                                    .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage)
                                     .map(alloc =>
                                         <TreeNode
                                             key={alloc.id}
@@ -1728,7 +1725,6 @@ const Allocations: React.FunctionComponent = () => {
                                     }
                                 >
                                     {g.allocations
-                                        .filter(alloc => !alloc.note || !alloc.note.hideIfZeroUsage)
                                         .map((alloc, idx) =>
                                             <TreeNode
                                                 key={idx}
