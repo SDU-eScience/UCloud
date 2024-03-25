@@ -805,7 +805,7 @@ class AccountingSystem(
         }
 
         if (request.newQuota != null) {
-            val delta = internalAllocation.quota - request.newQuota
+            val delta = request.newQuota - internalAllocation.quota
 
             val activeQuota = allocationGroup.totalActiveQuota()
             val activeUsage = allocationGroup.treeUsage

@@ -204,24 +204,19 @@ function DashboardResources({wallets}: {
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     const now = timestampUnixMs();
-    const mapped = wallets.data.items.map(w => {
-        const filtered = w.allocations.filter(a => now >= a.startDate && now <= a.endDate);
-        const quota = filtered.reduce((a, b) => a + b.quota, 0);
-        const used = filtered.reduce((a, b) => a + (b.treeUsage ?? b.localUsage), 0);
-        const maxUsable = filtered.reduce((a, b) => a + (b.maxUsable), 0);
-        return {used, quota, category: w.paysFor, maxUsable};
-    }).filter(it => !it.category.freeToUse && it.quota > 0);
+
+    const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
 
     mapped.sort((a, b) => {
         let compare: number = 0;
 
-        compare = a.category.provider.localeCompare(b.category.provider);
+        compare = a.paysFor.provider.localeCompare(b.paysFor.provider);
         if (compare !== 0) return compare;
 
-        compare = a.category.productType.localeCompare(b.category.productType);
+        compare = a.paysFor.productType.localeCompare(b.paysFor.productType);
         if (compare !== 0) return compare;
 
-        compare = a.category.name.localeCompare(b.category.name);
+        compare = a.paysFor.name.localeCompare(b.paysFor.name);
         if (compare !== 0) return compare;
 
         return (a.quota < b.quota) ? 1 : -1;
@@ -248,20 +243,20 @@ function DashboardResources({wallets}: {
                                 <TableRow key={i}>
                                     <TableCell fontSize={FONT_SIZE}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                            <ProviderLogo providerId={n.category.provider} size={20} />
-                                            <code>{n.category.name}</code>
+                                            <ProviderLogo providerId={n.paysFor.provider} size={20} />
+                                            <code>{n.paysFor.name}</code>
                                         </Flex>
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                         <Flex justifyContent="end">
-                                            {n.maxUsable == (n.quota - n.used) ? null :
+                                            {n.maxUsable == (n.quota - n.totalUsage) ? null :
                                                 <TooltipV2 tooltip={"Allocation limitation reached. Contact your grant giver."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2>}
-                                            {Accounting.balanceToString(n.category, n.used, {
+                                            {Accounting.balanceToString(n.paysFor, n.totalUsage, {
                                                 precision: 0,
                                                 removeUnitIfPossible: true
                                             })}
                                             {" "}/{" "}
-                                            {Accounting.balanceToString(n.category, n.quota, {
+                                            {Accounting.balanceToString(n.paysFor, n.quota, {
                                                 precision: 0,
                                                 removeUnitIfPossible: false
                                             })}
