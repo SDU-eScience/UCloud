@@ -24,7 +24,6 @@ class ConnectionState extends UState<ConnectionState> {
             const now = timestampUnixMs();
             if (now - this.lastFetch < maxAgeMs) return;
 
-
             try {
                 this.lastFetch = timestampUnixMs() - maxAgeMs + 500; 
 

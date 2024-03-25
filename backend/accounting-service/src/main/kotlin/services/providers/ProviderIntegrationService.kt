@@ -129,15 +129,15 @@ class ProviderIntegrationService(
                                 accounting.wallet_owner wo on
                                     pm.project_id = wo.project_id and
                                     pm.username = :username join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.product_categories pc on w.category = pc.id join
+                                accounting.wallets_v2 w on w.wallet_owner = wo.id join
+                                accounting.product_categories pc on w.product_category = pc.id join
                                 provider.providers p on pc.provider = p.unique_name
                             union
                             select p.resource, p.unique_name
                             from
                                 accounting.wallet_owner wo join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.product_categories pc on w.category = pc.id join
+                                accounting.wallets_v2 w on w.wallet_owner = wo.id join
+                                accounting.product_categories pc on w.product_category = pc.id join
                                 provider.providers p on pc.provider = p.unique_name
                             where
                                 wo.username = :username
@@ -160,7 +160,7 @@ class ProviderIntegrationService(
             ).rows
 
             val items = rows.mapNotNull { row ->
-                //TODO(HENRIK )Try catch might only be temp solution to help on dev
+                // TODO(HENRIK): Try catch might only be temp solution to help on dev
                 try {
                     val providerTitle = row.getString(2)!!
                     val manifest = communicationCache.get(row.getLong(0)!!.toString())

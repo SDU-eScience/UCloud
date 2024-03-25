@@ -235,8 +235,8 @@ class ProjectService(
                             from
                                 accounting.wallet_owner wo join
                                 the_project p on wo.project_id = (p.project).id join
-                                accounting.wallets w on wo.id = w.owned_by join
-                                accounting.product_categories pc on w.category = pc.id join
+                                accounting.wallets_v2 w on wo.id = w.wallet_owner join
+                                accounting.product_categories pc on w.product_category = pc.id join
                                 accounting.wallet_allocations wa on w.id = wa.associated_wallet
                             where
                                 pc.provider = :provider_id and

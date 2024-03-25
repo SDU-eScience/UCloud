@@ -3,7 +3,6 @@ package dk.sdu.cloud.accounting
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
-import dk.sdu.cloud.accounting.services.accounting.FakeAccountingPersistence
 import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.products.ProductService
@@ -13,7 +12,6 @@ import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
 import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
-import dk.sdu.cloud.accounting.services.serviceJobs.AccountingChecks
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.auth.api.authenticator
@@ -91,20 +89,6 @@ class Server(
                 ),
                 script = {
                     projectsV2.cleanUpInviteLinks()
-                }
-            )
-        )
-
-        scriptManager.register(
-            Script(
-                ScriptMetadata(
-                    "jobs-vs-transactions-check",
-                    "Accounting: Is charges sane",
-                    WhenToStart.Daily(0, 0)
-                ),
-                script = {
-                    val accountingChecks = AccountingChecks(db, client)
-                    accountingChecks.checkJobsVsTransactions()
                 }
             )
         )
