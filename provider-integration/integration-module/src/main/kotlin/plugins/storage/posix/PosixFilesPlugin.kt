@@ -574,7 +574,6 @@ class PosixFilesPlugin : FilePlugin {
         pluginData: String,
         fileCollections: SimpleCache<String, FileCollection>,
         file: FileListingEntry,
-        offset: Long,
         chunk: ByteReadChannel,
         lastChunk: Boolean
     ) {

@@ -44,6 +44,7 @@ interface LocalStorageFileUploadInfo {
 }
 
 interface LocalStorageFolderUploadInfo {
+    size: number;
     strategy: FilesCreateUploadResponseItem;
     expiration: number;
 }
@@ -90,6 +91,9 @@ async function processUpload(upload: Upload) {
         const theFiles = files;
 
         const uploadInfo = fetchValidFolderUploadFromLocalStorage(upload.folderName);
+
+        upload.initialProgress = 0;
+        upload.fileSizeInBytes = upload.row.reduce((sum, current) => sum + current.size, 0);
 
         upload.resume = createResumeableFolder(upload, strategy, upload.folderName);
         await upload.resume();
@@ -171,28 +175,71 @@ function createResumeableFolder(
                 }
             });
 
+            uploadSocket.addEventListener("close", async (event) => {
+                while (true) {
+                    if (uploadSocket.bufferedAmount <= 0) {
+                        console.log("breaking");
+                        break;
+                    } else {
+                        window.setTimeout(() => {}, 50);
+                    }
+                }
+                console.log("resolving");
+                resolve(true);
+            });
+
             uploadSocket.addEventListener("open", async (event) => {
                 // Generate and send file listing
                 const listing: string[] = [];
+                let totalSize = 0;
+                let totalOffset = 0;
+                let previousBufferedAmount = uploadSocket.bufferedAmount;
                 
                 for (const [id, f] of files) {
                     const path = f.fullPath.split("/").slice(2).join("/");
                     listing.push(`${id} ${path} ${f.size} ${f.lastModified}`);
+                    totalSize += f.size;
                 }
 
                 uploadSocket.send(listing.join("\n"));
 
-
                 // Start sending the files
-                let fileId = 0;
                 files.forEach(async (theFile, key) => {
                     const reader = new ChunkedFileReader(theFile.fileObject);
 
                     while (!reader.isEof() && !upload.terminationRequested) {
                         const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, key);
                         await sendWsChunk(uploadSocket, message);
+                        console.log(`message: ${message.byteLength} current: ${uploadSocket.bufferedAmount} previous: ${previousBufferedAmount}`) 
+                        console.log(`sent since last: ${(previousBufferedAmount - uploadSocket.bufferedAmount + message.byteLength)}`);
+                        totalOffset += previousBufferedAmount - uploadSocket.bufferedAmount + message.byteLength;
+                        previousBufferedAmount = uploadSocket.bufferedAmount;
+                        
+                        console.log(totalOffset);
+
+                        upload.progressInBytes = totalOffset;
+                        upload.currentFileId = key;
+                        uploadTrackProgress(upload);
+
+                        const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                        localStorage.setItem(
+                            createLocalStorageFolderUploadKey(folderPath),
+                            JSON.stringify({
+                                size: totalSize,
+                                strategy: strategy!,
+                                expiration
+                            } as LocalStorageFolderUploadInfo)
+                        );
                     }
-                    fileId++;
+
+                    /*while (uploadSocket.bufferedAmount > 0) {
+                        window.setTimeout(() => {
+                            totalOffset += previousBufferedAmount - uploadSocket.bufferedAmount;
+                            previousBufferedAmount = uploadSocket.bufferedAmount;
+                            upload.progressInBytes = totalOffset;
+                            uploadTrackProgress(upload);
+                        }, 50);
+                    }*/
                 });
             });
         });
@@ -518,6 +565,7 @@ const Uploader: React.FunctionComponent = () => {
             .map(f => ({
                 row: [f],
                 progressInBytes: 0,
+                currentFileId: 0,
                 state: UploadState.PENDING,
                 conflictPolicy: "RENAME" as const,
                 targetPath: uploadPath,
@@ -536,6 +584,7 @@ const Uploader: React.FunctionComponent = () => {
                 folderName: topLevelFolder,
                 row: folderFiles,
                 progressInBytes: 0,
+                currentFileId: 0,
                 state: UploadState.PENDING,
                 conflictPolicy: "RENAME" as const,
                 targetPath: uploadPath,
@@ -823,7 +872,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                 <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px" /></div>
                 <div>
                     <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName}</Truncate>
-                    <Text fontSize="12px">{upload.row.length} {upload.row.length > 1 ? "files" : "file"}</Text>
+                    <Text fontSize="12px">Uploading {upload.currentFileId + 1} of {upload.row.length} {upload.row.length > 1 ? "files" : "file"}</Text>
                 </div>
                 <div />
                 <Flex mr="16px">

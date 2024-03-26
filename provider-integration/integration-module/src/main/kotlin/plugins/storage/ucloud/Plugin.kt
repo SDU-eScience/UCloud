@@ -239,7 +239,6 @@ class UCloudFilePlugin : FilePlugin {
         pluginData: String,
         fileCollections: SimpleCache<String, FileCollection>,
         fileEntry: FileListingEntry,
-        offset: Long,
         chunk: ByteReadChannel,
         lastChunk: Boolean
     ) {
@@ -257,7 +256,6 @@ class UCloudFilePlugin : FilePlugin {
             allFolders.add(folders.subList(0, i+1).joinToString("/"))
             i++
         }
-
 
         allFolders.forEach { folder ->
             try {
@@ -277,7 +275,7 @@ class UCloudFilePlugin : FilePlugin {
 
         val targetPath = sessionData.target + "/" + fileEntry.path
 
-        uploads.receiveChunk(UCloudFile.create(targetPath), offset, chunk, WriteConflictPolicy.REPLACE, lastChunk)
+        uploads.receiveChunk(UCloudFile.create(targetPath), fileEntry.offset, chunk, WriteConflictPolicy.REPLACE, lastChunk)
 
         if (lastChunk) {
             ipcClient.sendRequest(

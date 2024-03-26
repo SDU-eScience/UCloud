@@ -1411,9 +1411,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         });
     }
 
+    // TODO(Brian): Drag'n'drop
     return <MainContainer
         main={<>
-            <div ref={mountRef} />
+            <div onDragEnter={() => console.log("foo")} ref={mountRef} />
             {switcher}
         </>}
     />;

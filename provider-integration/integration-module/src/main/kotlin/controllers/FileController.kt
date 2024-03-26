@@ -81,7 +81,8 @@ object FilesUploadIpc : IpcContainer("files.upload") {
 data class FileListingEntry(
     val path: String,
     val size: Long,
-    val modifiedAt: Long
+    val modifiedAt: Long,
+    var offset: Long
 )
 
 @Serializable
@@ -508,7 +509,7 @@ class FileController(
                                         config,
                                         providerId,
                                         protocol,
-                                        it.session,
+                                        if (protocol == UploadProtocol.WEBSOCKET) { it.session } else { null },
                                         false,
                                         isFolder
                                     ),
@@ -714,7 +715,6 @@ class FileController(
                 val context = SimpleRequestContext(controllerContext.pluginContext, "")
                 val token = call.parameters["token"]
                     ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
-                var fileOffset = 0L
                 var totalSize = 0L
 
                 var listing: Map<UInt, FileListingEntry> = emptyMap()
@@ -731,11 +731,10 @@ class FileController(
                             println(listingFrame)
                             listing = listingFrame?.split("\n")?.associate { line ->
                                 val elements = line.split(" ")
-                                elements[0].toUInt() to FileListingEntry(elements[1], elements[2].toLong(), elements[3].toLong())
+                                elements[0].toUInt() to FileListingEntry(elements[1], elements[2].toLong(), elements[3].toLong(), 0)
                             } ?: emptyMap()
                             println(listing)
                         } else {
-                            println(frame.data.size)
                             val frameType = byteArrayOf(frame.data[0]).getUInt8()
                             val fileId = frame.data.slice(1..4).toByteArray().getUInt32()
                             val data = frame.data.slice(5..<frame.data.size).toByteArray()
@@ -760,13 +759,12 @@ class FileController(
                                                     handler.pluginData,
                                                     collectionCache,
                                                     fileEntry,
-                                                    fileOffset,
                                                     channel,
-                                                    fileOffset + count >= totalSize
+                                                    fileEntry.offset + count >= fileEntry.size
                                                 )
                                             }
 
-                                            fileOffset += count
+                                            fileEntry.offset += count
                                         }
                                     } catch (ex: Throwable) {
                                         ex.printStackTrace()
@@ -774,24 +772,32 @@ class FileController(
                                     }
                                 }
                             } else {
+                                val fileEntry: FileListingEntry = listing[fileId] ?:
+                                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
                                 with(plugin) {
-                                    handleUpload(
+                                    handleFolderUpload(
                                         token,
                                         handler.pluginData,
-                                        fileOffset,
+                                        collectionCache,
+                                        fileEntry,
                                         ByteReadChannel(data),
-                                        fileOffset + data.size >= totalSize
+                                        fileEntry.offset + data.size >= fileEntry.size
                                     )
                                 }
 
-                                fileOffset += data.size
+                                fileEntry.offset += data.size
                             }
                             println("Received something else: ${data.size}")
 
-                            //send("$fileOffset")
+                            if (listing.entries.sumOf { it.value.offset } >= listing.entries.sumOf { it.value.size }) {
+                                println("BREAKING")
+                                break
+                            }
                         }
                     }
                 }
+                println("CLOSING")
                 this.close()
             }
         }
