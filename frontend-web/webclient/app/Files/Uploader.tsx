@@ -32,6 +32,7 @@ import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
 
 const MAX_CONCURRENT_UPLOADS = 5;
+const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 5;
 const maxChunkSize = 16 * 1000 * 1000;
 const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
 const MAX_WS_BUFFER = 1024 * 1024 * 16 * 4
@@ -176,15 +177,7 @@ function createResumeableFolder(
             });
 
             uploadSocket.addEventListener("close", async (event) => {
-                while (true) {
-                    if (uploadSocket.bufferedAmount <= 0) {
-                        console.log("breaking");
-                        break;
-                    } else {
-                        window.setTimeout(() => {}, 50);
-                    }
-                }
-                console.log("resolving");
+                upload.filesCompleted = upload.row.length; 
                 resolve(true);
             });
 
@@ -192,8 +185,6 @@ function createResumeableFolder(
                 // Generate and send file listing
                 const listing: string[] = [];
                 let totalSize = 0;
-                let totalOffset = 0;
-                let previousBufferedAmount = uploadSocket.bufferedAmount;
                 
                 for (const [id, f] of files) {
                     const path = f.fullPath.split("/").slice(2).join("/");
@@ -203,22 +194,20 @@ function createResumeableFolder(
 
                 uploadSocket.send(listing.join("\n"));
 
+                
+
                 // Start sending the files
-                files.forEach(async (theFile, key) => {
+                Promise.all(Array(...files).map(async (pair) => {
+                    const key = pair[0];
+                    const theFile = pair[1];
+
                     const reader = new ChunkedFileReader(theFile.fileObject);
 
                     while (!reader.isEof() && !upload.terminationRequested) {
                         const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, key);
                         await sendWsChunk(uploadSocket, message);
-                        console.log(`message: ${message.byteLength} current: ${uploadSocket.bufferedAmount} previous: ${previousBufferedAmount}`) 
-                        console.log(`sent since last: ${(previousBufferedAmount - uploadSocket.bufferedAmount + message.byteLength)}`);
-                        totalOffset += previousBufferedAmount - uploadSocket.bufferedAmount + message.byteLength;
-                        previousBufferedAmount = uploadSocket.bufferedAmount;
-                        
-                        console.log(totalOffset);
 
-                        upload.progressInBytes = totalOffset;
-                        upload.currentFileId = key;
+                        upload.progressInBytes += message.byteLength;
                         uploadTrackProgress(upload);
 
                         const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
@@ -231,16 +220,10 @@ function createResumeableFolder(
                             } as LocalStorageFolderUploadInfo)
                         );
                     }
-
-                    /*while (uploadSocket.bufferedAmount > 0) {
-                        window.setTimeout(() => {
-                            totalOffset += previousBufferedAmount - uploadSocket.bufferedAmount;
-                            previousBufferedAmount = uploadSocket.bufferedAmount;
-                            upload.progressInBytes = totalOffset;
-                            uploadTrackProgress(upload);
-                        }, 50);
-                    }*/
-                });
+                    upload.filesCompleted++;
+                    uploadTrackProgress(upload);
+                    console.log(`files ${filesCompleted} completed`);
+                }));
             });
         });
     }
@@ -565,7 +548,7 @@ const Uploader: React.FunctionComponent = () => {
             .map(f => ({
                 row: [f],
                 progressInBytes: 0,
-                currentFileId: 0,
+                filesCompleted: 0,
                 state: UploadState.PENDING,
                 conflictPolicy: "RENAME" as const,
                 targetPath: uploadPath,
@@ -584,7 +567,7 @@ const Uploader: React.FunctionComponent = () => {
                 folderName: topLevelFolder,
                 row: folderFiles,
                 progressInBytes: 0,
-                currentFileId: 0,
+                filesCompleted: 0,
                 state: UploadState.PENDING,
                 conflictPolicy: "RENAME" as const,
                 targetPath: uploadPath,
@@ -872,7 +855,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                 <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px" /></div>
                 <div>
                     <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName}</Truncate>
-                    <Text fontSize="12px">Uploading {upload.currentFileId + 1} of {upload.row.length} {upload.row.length > 1 ? "files" : "file"}</Text>
+                    <Text fontSize="12px">Uploaded {upload.filesCompleted} of {upload.row.length} {upload.row.length > 1 ? "files" : "file"}</Text>
                 </div>
                 <div />
                 <Flex mr="16px">

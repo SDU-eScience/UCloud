@@ -19,7 +19,7 @@ export interface Upload {
     folderName?: string;
     state: UploadState;
     fileSizeInBytes?: number;
-    currentFileId: number;
+    filesCompleted: number;
     initialProgress: number;
     progressInBytes: number;
     error?: string;
@@ -29,13 +29,13 @@ export interface Upload {
     terminationRequested?: true;
     paused?: true;
     resume?: () => Promise<void>;
-    uploadEvents: {timestamp: number, currentFileId: number, progressInBytes: number}[];
+    uploadEvents: {timestamp: number, filesCompleted: number, progressInBytes: number}[];
 }
 
 export function uploadTrackProgress(upload: Upload): void {
     const now = timestampUnixMs();
     upload.uploadEvents = upload.uploadEvents.filter(evt => now - evt.timestamp < 10_000);
-    upload.uploadEvents.push({timestamp: now, currentFileId: upload.currentFileId, progressInBytes: upload.progressInBytes});
+    upload.uploadEvents.push({timestamp: now, filesCompleted: upload.filesCompleted, progressInBytes: upload.progressInBytes});
 }
 
 export function uploadCalculateSpeed(upload: Upload): number {
