@@ -67,6 +67,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
         <Input
             id={widgetId(props.parameter)}
             error={error}
+            placeholder="Select license server..."
             cursor="pointer"
             onClick={doOpen}
         />
